@@ -38,7 +38,6 @@
 ''' This module contains the DataNode abstract node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols.datatypes import ScalarType, UnresolvedType
 
 
 class DataNode(Node):
@@ -55,6 +54,8 @@ class DataNode(Node):
             better then it must override this method.
         :rtype: :py:class:`psyclone.psyir.symbols.UnresolvedType`
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import UnresolvedType
         return UnresolvedType()
 
     def is_character(self, unknown_as=None):
@@ -70,6 +71,8 @@ class DataNode(Node):
         :raises ValueError: if the intrinsic type cannot be determined.
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import ScalarType
         if not hasattr(self.datatype, "intrinsic"):
             if unknown_as is None:
                 raise ValueError(

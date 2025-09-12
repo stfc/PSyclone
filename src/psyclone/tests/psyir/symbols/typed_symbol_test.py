@@ -77,7 +77,7 @@ def test_typed_symbol_initialisation():
     assert isinstance(TSymbol('a', REAL_DOUBLE_TYPE), TypedSymbol)
     assert isinstance(TSymbol('a', REAL4_TYPE), TypedSymbol)
     kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
-    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, kind)
+    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind))
     assert isinstance(TSymbol('a', real_kind_type), TypedSymbol)
     assert isinstance(TSymbol('a', INTEGER_SINGLE_TYPE), TypedSymbol)
     assert isinstance(TSymbol('a', INTEGER_DOUBLE_TYPE), TypedSymbol)
@@ -259,7 +259,7 @@ def test_typed_symbol_replace_symbols_using(table):
 
     '''
     kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
-    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, kind)
+    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind))
     sym = TSymbol("a", real_kind_type)
     new_kind = kind.copy()
     if table is not None:
@@ -267,7 +267,7 @@ def test_typed_symbol_replace_symbols_using(table):
         sym.replace_symbols_using(table)
     else:
         sym.replace_symbols_using(new_kind)
-    assert sym.datatype.precision is new_kind
+    assert sym.datatype.precision.symbol is new_kind
     tsym = DataTypeSymbol("a_type", UnresolvedType())
     sym2 = TSymbol("b", tsym)
     if table is not None:
@@ -288,7 +288,7 @@ def test_typed_symbol_reference_accesses():
     '''
     # When the type has a custom precision.
     kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
-    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, kind)
+    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind))
     sym = TSymbol("a", real_kind_type)
     vam = sym.reference_accesses()
     assert vam.all_signatures == [Signature("r_def")]

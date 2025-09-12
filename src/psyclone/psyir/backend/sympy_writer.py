@@ -46,6 +46,7 @@ from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.core import (Signature, AccessSequence,
                            VariablesAccessMap)
+from psyclone.core.access_type import AccessType
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
@@ -420,7 +421,8 @@ class SymPyWriter(FortranWriter):
                 # have a scope, hence the try...except.
                 orig_sym = sva[0].node.scope.symbol_table.lookup(sig.var_name)
             except SymbolError:
-                if isinstance(sva[0].node, Reference):
+                if (isinstance(sva[0].node, Reference) and
+                        sva[0].access_type != AccessType.TYPE_INFO):
                     orig_sym = sva[0].node.symbol
                 else:
                     orig_sym = None

@@ -660,6 +660,7 @@ def test_apply_with_hoist_with_dependent_symbols(fortran_reader,
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
     code = fortran_writer(psyir)
+    print(code)
     assert ("! PSyclone warning: 'a' cannot be hoisted to the global scope "
             "as 'wp' is not guaranteed to be a global symbol" in code)
     assert "real(kind=wp), dimension(10) :: a" in code

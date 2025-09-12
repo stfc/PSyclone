@@ -133,6 +133,7 @@ def test_accparalleltrans_validate(fortran_reader):
         integer, dimension(10, 10) :: A
         integer :: i
         integer :: j
+        character :: command
         do i = 1, 10
             do j = 1, 10
                 A(i, j) = myfunc(3)
@@ -145,7 +146,7 @@ def test_accparalleltrans_validate(fortran_reader):
         end do
         do i = 1, 10
             do j = 1, 10
-                A(i,j) = GET_COMMAND(2)
+                A(i,j) = GET_COMMAND(command)
             end do
         end do
     end subroutine

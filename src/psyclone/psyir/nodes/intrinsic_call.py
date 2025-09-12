@@ -34,26 +34,46 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the IntrinsicCall node implementation.'''
+"""This module contains the IntrinsicCall node implementation."""
 
 from collections import namedtuple
 from collections.abc import Iterable
 from enum import Enum
+from typing import Callable
 
 from psyclone.core import AccessType, VariablesAccessMap
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import IntrinsicSymbol
+from psyclone.psyir.symbols.datatypes import (
+    CHARACTER_TYPE,
+    BOOLEAN_TYPE,
+    INTEGER_TYPE,
+    REAL_DOUBLE_TYPE,
+    REAL8_TYPE,
+    REAL_TYPE,
+    DataType,
+    ArrayType,
+    ScalarType,
+    UnresolvedType,
+    NoType,
+)
+from psyclone.psyir.symbols.datasymbol import DataSymbol
 
 # pylint: disable=too-many-branches
 
 # Named tuple for describing the attributes of each intrinsic
 IAttr = namedtuple(
-    'IAttr', 'name is_pure is_elemental is_inquiry required_args optional_args'
+    "IAttr",
+    "name is_pure is_elemental is_inquiry required_args optional_args"
+    " return_type reference_accesses",
 )
 # Alternatively we could use an Enum to decrive the intrinsic types
 # IntrinsicType = Enum('IntrinsicType',
@@ -64,11 +84,659 @@ IAttr = namedtuple(
 # Named tuple for describing the properties of the required arguments to
 # a particular intrinsic. If there's no limit on the number of arguments
 # then `max_count` will be None.
-ArgDesc = namedtuple('ArgDesc', 'min_count max_count types')
+ArgDesc = namedtuple("ArgDesc", "min_count max_count types")
+
+
+def _add_read_argument(argument: DataNode, var_acc_map: VariablesAccessMap):
+    """Adds a read access for argument into var_acc_map
+
+    :param argument: The argument to add a read access for.
+    :param var_acc_map: The VariablesAccessMap to add the access into.
+    """
+    # Find all the reference children of the argument (e.g. we could
+    # have a binary operation argument with multiple, or a Literal
+    # with none.
+    for ref in argument.walk(Reference):
+        sig, all_indices = ref.get_signature_and_indices()
+        var_acc_map.add_access(sig, AccessType.READ, ref, all_indices)
+
+
+def _add_write_argument(argument: Reference, var_acc_map: VariablesAccessMap):
+    """Adds a write access for argument into var_acc_map
+
+    :param argument: The argument to add a write access for.
+    :param var_acc_map: The VariablesAccessMap to add the access into.
+    """
+    sig, all_indices = argument.get_signature_and_indices()
+    # For Array accesses, these have reads to their indices
+    for indices in all_indices:
+        for index in indices:
+            var_acc_map.update(index.reference_accesses())
+    var_acc_map.add_access(sig, AccessType.WRITE, argument, all_indices)
+
+
+def _add_readwrite_argument(
+    argument: Reference, var_acc_map: VariablesAccessMap
+):
+    """Adds a readwrite access for argument into var_acc_map
+
+    :param argument: The argument to add a readwrite access for.
+    :param var_acc_map: The VariablesAccessMap to add the access into.
+    """
+    sig, all_indices = argument.get_signature_and_indices()
+    # For Array accesses, these have reads to their indices
+    for indices in all_indices:
+        for index in indices:
+            var_acc_map.update(index.reference_accesses())
+    var_acc_map.add_access(sig, AccessType.READWRITE, argument, all_indices)
+
+
+def _add_typeinfo_argument(
+    argument: DataNode, var_acc_map: VariablesAccessMap
+):
+    """Adds a type_info access for argument into var_acc_map
+
+    :param argument: The argument to add a type_info access for.
+    :param var_acc_map: The VariablesAccessMap to add the access into.
+    """
+    # We can get literal as typeinfo expressions, so we skip them.
+    if not isinstance(argument, Reference):
+        return
+    sig, _ = argument.get_signature_and_indices()
+    var_acc_map.add_access(sig, AccessType.TYPE_INFO, argument)
+
+
+def _add_inquiry_argument(argument: DataNode, var_acc_map: VariablesAccessMap):
+    """Adds an inquiry access for argument into var_acc_map
+
+    :param argument: The argument to add a inquiry access for.
+    :param var_acc_map: The VariablesAccessMap to add the access into.
+    """
+    if not isinstance(argument, Reference):
+        return
+    sig, all_indices = argument.get_signature_and_indices()
+    # For Array accesses, these have reads to their indices
+    for indices in all_indices:
+        for index in indices:
+            var_acc_map.update(index.reference_accesses())
+    var_acc_map.add_access(sig, AccessType.INQUIRY, argument)
+
+
+def _compute_reference_accesses(
+    node,
+    read_indices: list[int] = None,
+    write_indices: list[int] = None,
+    readwrite_indices: list[int] = None,
+    type_info_indices: list[int] = None,
+    inquiry_indices: list[int] = None,
+    read_named_args: list[str] = None,
+    write_named_args: list[str] = None,
+    readwrite_named_args: list[str] = None,
+    type_info_named_args: list[str] = None,
+    inquiry_named_args: list[str] = None,
+) -> VariablesAccessMap:
+    """General helper function for creating the reference_accesses for a
+    general IntrinsicCall.
+    This function only uses indices for non-named arguments, e.g. if
+    [0] is passed in as an index, but the argument at position 0 has a name
+    the function will skip it and will assume that the relevant _named_args
+    contains the name.
+
+    :param node: the IntrinsicCall whose reference_accesses to compute.
+    :type node:  :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+    :param read_indices: the argument indices of each read access.
+    :param write_indices: the argument indices of each write access.
+    :param type_info_indices: the argument indices of each typeinfo access.
+    :param inquiry_indices: the argument indices of each inquiry access.
+    :param read_named_args: a list of named arguments that are read accesses.
+    :param write_named_args: a list of named arguments that are write
+        accesses.
+    :param type_info_named_args: a list of named arguments that are typeinfo
+        accesses.
+    :param inquiry_named_args: a list of named arguments that are inquiry
+        accesses.
+
+    :returns: the reference accesses of node.
+    """
+    reference_accesses = VariablesAccessMap()
+    # For indices, we only apply them if there is no argument name, othrwise
+    # it should be handled by the argument names.
+    if read_indices:
+        for ind in read_indices:
+            if ind < len(node.arguments) and node.argument_names[ind] is None:
+                arg = node.arguments[ind]
+                _add_read_argument(arg, reference_accesses)
+    if write_indices:
+        for ind in write_indices:
+            if ind < len(node.arguments) and node.argument_names[ind] is None:
+                arg = node.arguments[ind]
+                _add_write_argument(arg, reference_accesses)
+    if readwrite_indices:
+        for ind in readwrite_indices:
+            if ind < len(node.arguments) and node.argument_names[ind] is None:
+                arg = node.arguments[ind]
+                _add_readwrite_argument(arg, reference_accesses)
+    if type_info_indices:
+        for ind in type_info_indices:
+            if ind < len(node.arguments) and node.argument_names[ind] is None:
+                arg = node.arguments[ind]
+                _add_typeinfo_argument(arg, reference_accesses)
+    if inquiry_indices:
+        for ind in inquiry_indices:
+            if ind < len(node.arguments) and node.argument_names[ind] is None:
+                arg = node.arguments[ind]
+                _add_inquiry_argument(arg, reference_accesses)
+    # For each named argument provided, we check if they are defined
+    # for the given intrinsicCall as they are optional.
+    if read_named_args:
+        for name in read_named_args:
+            if name not in node.argument_names:
+                continue
+            arg = node.arguments[node.argument_names.index(name)]
+            _add_read_argument(arg, reference_accesses)
+    if write_named_args:
+        for name in write_named_args:
+            if name not in node.argument_names:
+                continue
+            arg = node.arguments[node.argument_names.index(name)]
+            _add_write_argument(arg, reference_accesses)
+    if type_info_named_args:
+        for name in type_info_named_args:
+            if name not in node.argument_names:
+                continue
+            arg = node.arguments[node.argument_names.index(name)]
+            _add_typeinfo_argument(arg, reference_accesses)
+    if inquiry_named_args:
+        for name in inquiry_named_args:
+            if name not in node.argument_names:
+                continue
+            arg = node.arguments[node.argument_names.index(name)]
+            _add_inquiry_argument(arg, reference_accesses)
+    if readwrite_named_args:
+        for name in readwrite_named_args:
+            if name not in node.argument_names:
+                continue
+            arg = node.arguments[node.argument_names.index(name)]
+            _add_readwrite_argument(arg, reference_accesses)
+
+    return reference_accesses
+
+
+def _convert_argument_to_type_info(
+    argument: DataNode, access_info: VariablesAccessMap
+) -> None:
+    """Helper function for the common case where an argument needs to have
+    a TYPE_INFO access map in access_info instead of a read access.
+
+    :param argument: The argument whose access needs changing.
+    :param access_info: The access map containing the access.
+    """
+    # If the argument isn't a Reference then we don't do anything.
+    if isinstance(argument, Reference):
+        sig, _ = argument.get_signature_and_indices()
+        var_info = access_info[sig]
+        try:
+            var_info.change_read_to_type_info()
+        except InternalError:
+            # The argument here is also used in some other way
+            # so we do nothing as the other usage has precedence.
+            pass
+
+
+def _reference_accesses_all_reads_with_optional_kind(
+    node,
+) -> VariablesAccessMap:
+    """Helper function for the common IntrinsicCall case where all
+    arguments are read only, with the exception of an optional kind named
+    argument which is instead TYPE_INFO.
+
+    :param node: The IntrinsicCall whose reference_accesses to compute.
+    :type node:  :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the reference accesses of node.
+    """
+    kind_index = (
+        node.argument_names.index("kind")
+        if "kind" in node.argument_names
+        else None
+    )
+    reference_accesses = VariablesAccessMap()
+    for i, arg in enumerate(node.arguments):
+        accesses = arg.reference_accesses()
+        if kind_index == i:
+            if isinstance(arg, Reference):
+                _convert_argument_to_type_info(arg, accesses)
+        reference_accesses.update(accesses)
+
+    return reference_accesses
+
+
+def _get_first_argument_type(node) -> DataType:
+    """Helper function for the common IntrinsicCall case where
+    the return type matches exactly the datatype of the first argument.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the datatype of the first argument of the IntrinsicCall.
+    """
+    return node.arguments[0].datatype
+
+
+def _get_first_argument_type_with_optional_kind(node) -> DataType:
+    """Helper function for the common IntrinsicCall case where the
+    return type is the Intrinsic of the first argument, with an optional
+    kind parameter which may override the precision.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the datatype of the first argument of the IntrinsicCall.
+    """
+    if "kind" not in node.argument_names:
+        return node.arguments[0].datatype
+    else:
+        kind = node.arguments[node.argument_names.index("kind")]
+        return_type = node.arguments[0].datatype.copy()
+        return_type._precision = kind
+        return return_type
+
+
+def _get_first_argument_intrinsic_with_optional_kind_and_dim(node) -> DataType:
+    """Helper function for IntrinsicCalls like MAXLOC where they have optional
+    Kind and Dim options but the intrinsic is that of the first argument.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    if "kind" in node.argument_names:
+        dtype = ScalarType(
+            node.arguments[0].datatype.datatype.intrinsic,
+            node.arguments[node.argument_names.index("kind")],
+        )
+    else:
+        # PSyclone has the UNDEFINED Precision as the default kind for all
+        # supported inbuilt datatypes.
+        dtype = ScalarType(
+            node.arguments[0].datatype.intrinsic,
+            ScalarType.Precision.UNDEFINED,
+        )
+    if "dim" not in node.argument_names:
+        return ArrayType(
+            dtype,
+            [
+                ArrayType.ArrayBounds(
+                    Literal("1", INTEGER_TYPE),
+                    Literal(
+                        str(len(node.arguments[0].datatype.shape)),
+                        INTEGER_TYPE,
+                    ),
+                )
+            ],
+        )
+    # Always have dim from here.
+    # If array has rank 1, the result is scalar.
+    arg = node.arguments[0]
+    shape = arg.datatype.shape
+    if len(shape) == 1:
+        return dtype
+    # For now we don't attempt to work out the shape.
+    new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
+    return ArrayType(dtype, new_shape)
+
+
+def _get_first_argument_specified_kind_with_optional_dim(
+    node, intrinsic: ScalarType.Intrinsic = ScalarType.Intrinsic.BOOLEAN
+) -> DataType:
+    """Helper function for the common IntrinsicCall case where the
+    return type is a Scalar with the kind of the first argument,
+    unless an option dim parameter is given in which case an array with
+    rank is given instead.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+    :param intrinsic: The type of the intrinsic of the resulting datatype.
+                      Default is ScalarType.Intrinsic.BOOLEAN
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    dtype = ScalarType(intrinsic, node.arguments[0].datatype.precision)
+    if "dim" not in node.argument_names:
+        return dtype
+    else:
+        # If dim is given then this should return an array, but we
+        # don't necessarily know the dimensions of the resulting array
+        # at compile time. It will have one fewer dimension than the
+        # input.
+        arg = node.arguments[0]
+        shape = arg.datatype.shape
+        if len(shape) == 1:
+            return dtype
+        # For now we don't attempt to work out the shape.
+        new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
+        return ArrayType(dtype, new_shape)
+
+
+def _get_integer_with_optional_kind(node) -> DataType:
+    """Helper function for the common case where the return type is a
+    Scalar integer with an optional kind argument.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    return (
+        ScalarType(
+            ScalarType.Intrinsic.INTEGER,
+            node.arguments[node.argument_names.index("kind")],
+        )
+        if "kind" in node.argument_names
+        else INTEGER_TYPE
+    )
+
+
+def _get_integer_of_kind_with_optional_dim(node) -> DataType:
+    """Helper function for a type of Integer with optional dim and
+    kind options.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    dtype = ScalarType(
+        ScalarType.Intrinsic.INTEGER,
+        (
+            ScalarType.Precision.UNDEFINED
+            if "kind" not in node.argument_names
+            else node.arguments[node.argument_names.index("kind")]
+        ),
+    )
+    if "dim" not in node.argument_names:
+        return dtype
+    else:
+        # If dim is given then this should return an array, but we
+        # don't necessarily know the dimensions of the resulting array
+        # at compile time. It will have one fewer dimension than the
+        # input.
+        arg = node.arguments[0]
+        shape = arg.datatype.shape
+        if len(shape) == 1:
+            return dtype
+        else:
+            # For now we don't attempt to work out the shape.
+            new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
+            return ArrayType(dtype, new_shape)
+
+
+def _get_real_with_argone_kind(node) -> DataType:
+    """Helper function for the common IntrinsicCall case where the
+    return type is a Scalar REAL with the kind of the first argument.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    return ScalarType(
+        ScalarType.Intrinsic.REAL, node.arguments[0].datatype.precision
+    )
+
+
+def _get_real_with_x_kind(node) -> DataType:
+    """Helper function for the BESSEL_.N cases, where the return type is
+    a Scalar REAL with the kind of the X argument (the final argument).
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    return ScalarType(
+        ScalarType.Intrinsic.REAL, node.arguments[-1].datatype.precision
+    )
+
+
+def _findloc_return_type(node) -> DataType:
+    """Helper function for the FINDLOC case.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    if "kind" in node.argument_names:
+        dtype = ScalarType(
+            node.arguments[0].intrinsic,
+            node.arguments[node.argument_names.index("kind")],
+        )
+    else:
+        dtype = node.arguments[0].datatype.copy()
+    if "dim" in node.argument_names:
+        if len(node.arguments[0].datatype.shape) == 1:
+            return dtype
+        else:
+            # We can't get the sizes correct since we don't know
+            # dim, so use deferred.
+            return ArrayType(
+                dtype,
+                [ArrayType.Extent.DEFERRED]
+                * (len(node.arguments[0].datatype.shape) - 1),
+            )
+    else:
+        return ArrayType(
+            dtype,
+            [
+                ArrayType.ArrayBounds(
+                    Literal("1", INTEGER_TYPE),
+                    Literal(
+                        str(len(node.arguments[0].datatype.shape)),
+                        INTEGER_TYPE,
+                    ),
+                )
+            ],
+        )
+
+
+def _int_return_type(node) -> DataType:
+    """Helper function for the INT case.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    if "kind" in node.argument_names:
+        dtype = ScalarType(
+            ScalarType.Intrinsic.INTEGER,
+            node.arguments[node.argument_names.index("kind")],
+        )
+    else:
+        dtype = INTEGER_TYPE
+
+    if isinstance(node.arguments[0].datatype, ArrayType):
+        return ArrayType(
+            dtype,
+            [
+                (
+                    index.copy()
+                    if not isinstance(index, ArrayType.ArrayBounds)
+                    else ArrayType.ArrayBounds(index.lower, index.upper)
+                )
+                for index in node.arguments[0].datatype.shape
+            ],
+        )
+    else:
+        return dtype
+
+
+def _iparity_return_type(node) -> DataType:
+    """Helper function for the IPARITY case.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    dtype = ScalarType(
+        node.arguments[0].datatype.intrinsic,
+        node.arguments[0].datatype.precision,
+    )
+    if len(node.arguments) == 1 or (
+        len(node.arguments) == 2 and "mask" in node.argument_names
+    ):
+        return dtype
+    # We have a dimension specified. We don't know the resultant shape
+    # in any detail as its dependent on the value of dim
+    return ArrayType(
+        dtype,
+        [ArrayType.Extent.DEFERRED]
+        * (len(node.arguments[0].datatype.shape) - 1),
+    )
+
+
+def _get_bound_function_return_type(node) -> DataType:
+    """Helper function for the return types of functions like LBOUND and
+    LCOBOUND etc.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    if "kind" in node.argument_names:
+        dtype = ScalarType(
+            ScalarType.Intrinsic.INTEGER,
+            node.arguments[node.argument_names.index("kind")],
+        )
+    else:
+        dtype = INTEGER_TYPE
+    if "dim" in node.argument_names:
+        return dtype
+    return ArrayType(
+        dtype,
+        [
+            ArrayType.ArrayBounds(
+                Literal("1", INTEGER_TYPE),
+                Literal(
+                    str(len(node.arguments[0].datatype.shape)), INTEGER_TYPE
+                ),
+            )
+        ],
+    )
+
+
+def _matmul_return_type(node) -> DataType:
+    """Helper function for the return type of MATMUL.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    argtype1 = node.arguments[0].datatype
+    argtype2 = node.arguments[1].datatype
+    shape1 = argtype1.shape
+    shape2 = argtype2.shape
+    stype1 = ScalarType(argtype1.intrinsic, argtype1.precision)
+    stype2 = ScalarType(argtype2.intrinsic, argtype2.precision)
+    # Create a temporary BinaryOperation to use get_result_scalar_type
+    arg1 = Reference(DataSymbol("a", stype1))
+    arg2 = Reference(DataSymbol("b", stype2))
+    binop = BinaryOperation.create(BinaryOperation.Operator.MUL, arg1, arg2)
+    # TODO - make this a public method?
+    stype = binop._get_result_scalar_type([stype1, stype2])
+    #  a11 a12 x b1 = a11*b1 + a12*b2
+    #  a21 a22   b2   a21*b1 + a22*b2
+    #  a31 a32        a31*b1 + a32*b2
+    #  3 x 2 * 2 x 1 = 3 x 1
+    #  rank 2  rank 1  rank 1
+    if len(shape1) == 1:
+        extent = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.SIZE,
+            [node.arguments[1].copy(), ("dim", Literal("1", INTEGER_TYPE))],
+        )
+        shape = [extent]
+    elif len(shape2) == 1:
+        extent = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.SIZE,
+            [node.arguments[0].copy(), ("dim", Literal("1", INTEGER_TYPE))],
+        )
+        shape = [extent]
+    else:
+        # matrix-matrix. Result is size(arg0, 1) x size(arg1, 2)
+        extent1 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.SIZE,
+            [node.arguments[0].copy(), ("dim", Literal("1", INTEGER_TYPE))],
+        )
+        extent2 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.SIZE,
+            [node.arguments[1].copy(), ("dim", Literal("2", INTEGER_TYPE))],
+        )
+        shape = [extent1, extent2]
+    return ArrayType(stype, shape)
+
+
+def _maxval_return_type(node) -> DataType:
+    """Helper function for the MAXVAL (and similar) intrinsic return
+    types.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    dtype = ScalarType(
+        node.arguments[0].datatype.intrinsic,
+        node.arguments[0].datatype.precision,
+    )
+    if (
+        "dim" not in node.argument_names
+        or len(node.arguments[0].datatype.shape) == 1
+    ):
+        return dtype
+    # We have a dimension specified. We don't know the resultant shape
+    # in any detail as its dependent on the value of dim
+    return ArrayType(
+        dtype,
+        [ArrayType.Extent.DEFERRED]
+        * (len(node.arguments[0].datatype.shape) - 1),
+    )
+
+
+def _reduce_return_type(node) -> DataType:
+    """Helper function for the REDUCE intrinsic return type.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    # Check if we have dim
+    have_dim = len(node.arguments) > 2 and node.argument_names[2] is None
+    dtype = ScalarType(
+        node.arguments[0].datatype.intrinsic,
+        node.arguments[0].datatype.precision,
+    )
+    if not have_dim:
+        return dtype
+    if len(node.arguments[0].datatype.shape) == 1:
+        return dtype
+    else:
+        # We can't get the sizes correct since we don't know
+        # dim, so use deferred.
+        return ArrayType(
+            dtype,
+            [ArrayType.Extent.DEFERRED]
+            * (len(node.arguments[0].datatype.shape) - 1),
+        )
 
 
 class IntrinsicCall(Call):
-    ''' Node representing a call to an intrinsic routine (function or
+    """Node representing a call to an intrinsic routine (function or
     subroutine). This can be found as a standalone statement
     or an expression.
 
@@ -79,7 +747,8 @@ class IntrinsicCall(Call):
 
     :raises TypeError: if the 'intrinsic' argument is not an Intrinsic type.
 
-    '''
+    """
+
     # Textual description of the node.
     _children_valid_format = "[DataNode]*"
     _text_name = "IntrinsicCall"
@@ -90,655 +759,3085 @@ class IntrinsicCall(Call):
     _symbol_type = IntrinsicSymbol
 
     class Intrinsic(IAttr, Enum):
-        ''' Enum of all intrinsics with their attributes as values using the
+        """Enum of all intrinsics with their attributes as values using the
         IAttr namedtuple format:
 
             NAME = IAttr(name, is_pure, is_elemental, is_inquiry,
-                         required_args, optional_args)
+                         required_args, optional_args, return_type,
+                         reference_accesses)
 
         Note that name is duplicated inside IAttr because each item in the
         Enum must have a different value, and without the name that would
         not be guaranteed.
 
-        '''
+        """
+
         # Fortran special-case statements (technically not Fortran intrinsics
         # but in PSyIR they are represented as Intrinsics)
+        # TODO 3060 reference_accesses
         ALLOCATE = IAttr(
-            'ALLOCATE', False, False, False,
-            ArgDesc(1, None, Reference),
-            {"mold": Reference, "source": Reference, "stat": Reference,
-             "errmsg": Reference})
+            name="ALLOCATE",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, None, Reference),
+            optional_args={
+                "mold": Reference,
+                "source": Reference,
+                "stat": Reference,
+                "errmsg": Reference,
+            },
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    # All the arguments before a keyword
+                    # argument are write indices.
+                    write_indices=list(
+                        range(
+                            len(node.arguments)
+                            - node.argument_names[::-1].index(None)
+                        )
+                    ),
+                    read_named_args=["mold", "source"],
+                    write_named_args=["stat", "errmsg"],
+                )
+            ),
+        )
         DEALLOCATE = IAttr(
-            'DEALLOCATE', False, False, False,
-            ArgDesc(1, None, Reference), {"stat": Reference})
+            name="DEALLOCATE",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, None, Reference),
+            optional_args={"stat": Reference},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    # All the arguments before a keyword
+                    # argument are write indices.
+                    write_indices=list(
+                        range(
+                            len(node.arguments)
+                            - node.argument_names[::-1].index(None)
+                        )
+                    ),
+                    write_named_args=["stat"],
+                )
+            ),
+        )
         NULLIFY = IAttr(
-            'NULLIFY', False, False, False,
-            ArgDesc(1, None, Reference), {})
+            name="NULLIFY",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, None, Reference),
+            optional_args={},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    write_indices=list(range(len(node.arguments))),
+                )
+            ),
+        )
 
         # Fortran Intrinsics (from Fortran 2018 standard table 16.1)
         ABS = IAttr(
-            'ABS', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="ABS",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            # TODO 1590 Complex conversion unsupported.
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ACHAR = IAttr(
-            'ACHAR', True, True, False,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            name="ACHAR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"kind": DataNode},
+            return_type=CHARACTER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ACOS = IAttr(
-            'ACOS', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="ACOS",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ACOSH = IAttr(
-            'ACOSH', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="ACOSH",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ADJUSTL = IAttr(
-            'ADJUSTL', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="ADJUSTL",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            # TODO 2612 This may be more complex if we support character len
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ADJUSTR = IAttr(
-            'ADJUSTR', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="ADJUSTR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            # TODO 2612 This may be more complex if we support character len
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         AIMAG = IAttr(
-            'AIMAG', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="AIMAG",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            # TODO #1590 Complex numbers' precision unsupported.
+            return_type=lambda node: UnresolvedType(),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         AINT = IAttr(
-            'AINT', True, True, False,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            name="AINT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"kind": DataNode},
+            return_type=lambda node: (
+                ScalarType(
+                    ScalarType.Intrinsic.REAL,
+                    (
+                        node.arguments[node.argument_names.index("kind")]
+                        if "kind" in node.argument_names
+                        else node.arguments[0].datatype.precision
+                    ),
+                )
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ALL = IAttr(
-            'ALL', True, False, False,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode})  # ?
+            name="ALL",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"dim": DataNode},
+            return_type=_get_first_argument_specified_kind_with_optional_dim,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ALLOCATED = IAttr(
-            'ALLOCATED', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            name="ALLOCATED",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                )
+            ),
+        )
         ANINT = IAttr(
-            'ANINT', True, True, False,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            name="ANINT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"kind": DataNode},
+            return_type=lambda node: (
+                ScalarType(
+                    ScalarType.Intrinsic.REAL,
+                    (
+                        node.arguments[node.argument_names.index("kind")]
+                        if "kind" not in node.argument_names
+                        else node.arguments[0].datatype.precision
+                    ),
+                )
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ANY = IAttr(
-            'ANY', True, False, False,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode})  # ?
+            name="ANY",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"dim": DataNode},
+            return_type=_get_first_argument_specified_kind_with_optional_dim,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ASIN = IAttr(
-            'ASIN', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="ASIN",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ASINH = IAttr(
-            'ASINH', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="ASINH",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ASSOCIATED = IAttr(
-            'ASSOCIATED', False, False, True,
-            ArgDesc(1, 1, DataNode), {"target": DataNode})
+            name="ASSOCIATED",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"target": DataNode},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=(list(range(len(node.arguments)))),
+                    inquiry_named_args=["pointer", "target"],
+                )
+            ),
+        )
         ATAN = IAttr(
-            'ATAN', True, True, False,
-            ArgDesc(1, 2, DataNode), {})
+            name="ATAN",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 2, DataNode),
+            optional_args={},
+            # N. B. If this has 2 arguments then the return value
+            # is the of the second argument, however the standard defines
+            # the type and kind type of both arguments must be the same.
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ATAN2 = IAttr(
-            'ATAN2', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="ATAN2",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ATANH = IAttr(
-            'ATANH', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="ATANH",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ATOMIC_ADD = IAttr(
-            'ATOMIC_ADD', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            name="ATOMIC_ADD",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"stat": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
+                    write_named_args=["stat"],
+                )
+            ),
+        )
         ATOMIC_AND = IAttr(
-            'ATOMIC_AND', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            name="ATOMIC_AND",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"stat": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
+                    write_named_args=["stat"],
+                )
+            ),
+        )
         ATOMIC_CAS = IAttr(
-            'ATOMIC_CAS', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            name="ATOMIC_CAS",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(4, 4, DataNode),
+            optional_args={"stat": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    readwrite_indices=[0],
+                    read_indices=[2, 3],
+                    write_indices=[1],
+                    readwrite_named_args=["atom"],
+                    write_named_args=["old", "stat"],
+                    read_named_args=["new", "compare"],
+                )
+            ),
+        )
         ATOMIC_DEFINE = IAttr(
-            'ATOMIC_DEFINE', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            name="ATOMIC_DEFINE",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"stat": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
+                    write_named_args=["stat"],
+                )
+            ),
+        )
         ATOMIC_FETCH_ADD = IAttr(
-            'ATOMIC_FETCH_ADD', True, True, False,
-            ArgDesc(3, 3, DataNode), {"stat": DataNode})
+            name="ATOMIC_FETCH_ADD",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(3, 3, DataNode),
+            optional_args={"stat": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    read_indices=[1],
+                    readwrite_indices=[0],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
+                    write_named_args=["old", "stat"],
+                )
+            ),
+        )
         ATOMIC_FETCH_AND = IAttr(
-            'ATOMIC_FETCH_AND', True, True, False,
-            ArgDesc(3, 3, DataNode), {"stat": DataNode})
+            name="ATOMIC_FETCH_AND",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(3, 3, DataNode),
+            optional_args={"stat": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    read_indices=[1],
+                    readwrite_indices=[0],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
+                    write_named_args=["old", "stat"],
+                )
+            ),
+        )
         ATOMIC_FETCH_OR = IAttr(
-            'ATOMIC_FETCH_OR', True, True, False,
-            ArgDesc(3, 3, DataNode), {"stat": DataNode})
+            name="ATOMIC_FETCH_OR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(3, 3, DataNode),
+            optional_args={"stat": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    read_indices=[1],
+                    readwrite_indices=[0],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
+                    write_named_args=["old", "stat"],
+                )
+            ),
+        )
         ATOMIC_FETCH_XOR = IAttr(
-            'ATOMIC_FETCH_XOR', True, True, False,
-            ArgDesc(3, 3, DataNode), {"stat": DataNode})
+            name="ATOMIC_FETCH_XOR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(3, 3, DataNode),
+            optional_args={"stat": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    read_indices=[1],
+                    readwrite_indices=[0],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
+                    write_named_args=["old", "stat"],
+                )
+            ),
+        )
         ATOMIC_OR = IAttr(
-            'ATOMIC_OR', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            name="ATOMIC_OR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"stat": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
+                    write_named_args=["stat"],
+                )
+            ),
+        )
         ATOMIC_REF = IAttr(
-            'ATOMIC_REF', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            name="ATOMIC_REF",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"stat": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    read_indices=[1],
+                    write_indices=[0, 2],
+                    write_named_args=["value", "stat"],
+                    read_named_args=["atom"],
+                )
+            ),
+        )
         ATOMIC_XOR = IAttr(
-            'ATOMIC_XOR', True, True, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            name="ATOMIC_XOR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"stat": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2],
+                    readwrite_named_args=["atom"],
+                    read_named_args=["value"],
+                    write_named_args=["stat"],
+                )
+            ),
+        )
         BESSEL_J0 = IAttr(
-            'BESSEL_J0', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="BESSEL_J0",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_real_with_argone_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         BESSEL_J1 = IAttr(
-            'BESSEL_J1', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="BESSEL_J1",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_real_with_argone_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         BESSEL_JN = IAttr(
-            'BESSEL_JN', True, None, False,
-            ArgDesc(2, 3, DataNode), {})
+            name="BESSEL_JN",
+            is_pure=True,
+            is_elemental=None,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 3, DataNode),
+            optional_args={},
+            return_type=_get_real_with_x_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         BESSEL_Y0 = IAttr(
-            'BESSEL_Y0', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="BESSEL_Y0",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_real_with_argone_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         BESSEL_Y1 = IAttr(
-            'BESSEL_Y1', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="BESSEL_Y1",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_real_with_argone_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         BESSEL_YN = IAttr(
-            'BESSEL_YN', True, None, False,
-            ArgDesc(2, 3, DataNode), {})
+            name="BESSEL_YN",
+            is_pure=True,
+            is_elemental=None,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 3, DataNode),
+            optional_args={},
+            return_type=_get_real_with_x_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         BGE = IAttr(
-            'BGE', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="BGE",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         BGT = IAttr(
-            'BGT', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="BGT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         BIT_SIZE = IAttr(
-            'BIT_SIZE', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            name="BIT_SIZE",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["i"],
+                )
+            ),
+        )
         BLE = IAttr(
-            'BLE', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="BLE",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         BLT = IAttr(
-            'BLT', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="BLT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         BTEST = IAttr(
-            'BTEST', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="BTEST",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         CEILING = IAttr(
-            'CEILING', True, True, False,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            name="CEILING",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"kind": DataNode},
+            return_type=_get_integer_with_optional_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         CHAR = IAttr(
-            'CHAR', True, True, False,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            name="CHAR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"kind": DataNode},
+            return_type=CHARACTER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         CMPLX = IAttr(
-            'CMPLX', True, True, False,
-            ArgDesc(1, 1, DataNode), {"Y": DataNode, "kind": DataNode})
+            name="CMPLX",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"Y": DataNode, "kind": DataNode},
+            # TODO #1590 Complex numbers unsupported.
+            return_type=lambda node: UnresolvedType(),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         CO_BROADCAST = IAttr(
-            'CO_BROADCAST', True, False, False,
-            ArgDesc(1, 2, DataNode), {"stat": DataNode, "errmsg": DataNode})
+            name="CO_BROADCAST",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"stat": DataNode, "errmsg": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    read_indices=[1],
+                    readwrite_indices=[0],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["a"],
+                    read_named_args=["source_image"],
+                    write_named_args=["stat", "errmsg"],
+                )
+            ),
+        )
         CO_MAX = IAttr(
-            'CO_MAX', True, False, False,
-            ArgDesc(1, 1, DataNode),
-            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
+            name="CO_MAX",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={
+                "result_image": DataNode,
+                "stat": DataNode,
+                "errmsg": DataNode,
+            },
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["a"],
+                    read_named_args=["result_image"],
+                    write_named_args=["stat", "errmsg"],
+                )
+            ),
+        )
         CO_MIN = IAttr(
-            'CO_MIN', True, False, False,
-            ArgDesc(1, 1, DataNode),
-            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
+            name="CO_MIN",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={
+                "result_image": DataNode,
+                "stat": DataNode,
+                "errmsg": DataNode,
+            },
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["a"],
+                    read_named_args=["result_image"],
+                    write_named_args=["stat", "errmsg"],
+                )
+            ),
+        )
         CO_REDUCE = IAttr(
-            'CO_REDUCE', True, False, False,
-            ArgDesc(1, 2, DataNode),
-            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
+            name="CO_REDUCE",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 2, DataNode),
+            optional_args={
+                "result_image": DataNode,
+                "stat": DataNode,
+                "errmsg": DataNode,
+            },
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    readwrite_indices=[0],
+                    inquiry_indices=[1],
+                    read_indices=[2],
+                    write_indices=[3, 4],
+                    readwrite_named_args=["a"],
+                    read_named_args=["result_image"],
+                    write_named_args=["stat", "errmsg"],
+                    inquiry_args=["operation"],
+                )
+            ),
+        )
         CO_SUM = IAttr(
-            'CO_SUM', True, False, False,
-            ArgDesc(1, 1, DataNode),
-            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
+            name="CO_SUM",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={
+                "result_image": DataNode,
+                "stat": DataNode,
+                "errmsg": DataNode,
+            },
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    readwrite_indices=[0],
+                    read_indices=[1],
+                    write_indices=[2, 3],
+                    readwrite_named_args=["a"],
+                    read_named_args=["result_image"],
+                    write_named_args=["stat", "errmsg"],
+                )
+            ),
+        )
         COMMAND_ARGUMENT_COUNT = IAttr(
-            'COMMAND_ARGUMENT_COUNT', True, False, False,
-            ArgDesc(0, 0, None), {})
+            name="COMMAND_ARGUMENT_COUNT",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(0, 0, None),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=lambda node: VariablesAccessMap(),
+        )
         CONJG = IAttr(
-            'CONJG', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="CONJG",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            # TODO #1590 Complex numbers unsupported.
+            return_type=lambda node: UnresolvedType(),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         COS = IAttr(
-            'COS', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="COS",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         COSH = IAttr(
-            'COSH', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="COSH",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         COSHAPE = IAttr(
-            'COSHAPE', True, False, True,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            name="COSHAPE",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"kind": DataNode},
+            # FIXME Return type
+            return_type=lambda node: ArrayType(
+                ScalarType(
+                    ScalarType.Intrinsic.INTEGER,
+                    (
+                        node.arguments[0].datatype.precision
+                        if "kind" not in node.argument_names
+                        else node.arguments[node.argument_names.index("kind")]
+                    ),
+                ),
+                [
+                    (
+                        index.copy()
+                        if not isinstance(index, ArrayType.ArrayBounds)
+                        else ArrayType.ArrayBounds(index.lower, index.upper)
+                    )
+                    for index in node.arguments[0].datatype.shape
+                ],
+            ),
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    type_info_indices=[1],
+                    inquiry_named_arguments=["coarray"],
+                    type_info_named_arguments=["kind"],
+                )
+            ),
+        )
         COUNT = IAttr(
-            'COUNT', True, False, False,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode})
+            name="COUNT",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"dim": DataNode, "kind": DataNode},
+            return_type=_get_integer_of_kind_with_optional_dim,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         CPU_TIME = IAttr(
-            'CPU_TIME', False, False, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="CPU_TIME",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    write_indices=[0],
+                    write_named_arguments=["time"],
+                )
+            ),
+        )
         CSHIFT = IAttr(
-            'CSHIFT', True, False, False,
-            ArgDesc(2, 2, DataNode), {"dim": DataNode})
+            name="CSHIFT",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"dim": DataNode},
+            return_type=_get_first_argument_type,  # FIXME Wait on Sergi reply
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         DATE_AND_TIME = IAttr(
-            'DATE_AND_TIME', False, False, False,
-            ArgDesc(0, 0, DataNode),
-            {"date": DataNode, "time": DataNode,
-             "zone": DataNode, "values": DataNode})
+            name="DATE_AND_TIME",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(0, 0, DataNode),
+            optional_args={
+                "date": DataNode,
+                "time": DataNode,
+                "zone": DataNode,
+                "values": DataNode,
+            },
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    write_indices=[0, 1, 2, 3],
+                    write_named_args=["date", "time", "zone", "values"],
+                )
+            ),
+        )
         DBLE = IAttr(
-            'DBLE', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="DBLE",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=REAL_DOUBLE_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         DIGITS = IAttr(
-            'DIGITS', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            name="DIGITS",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["x"],
+                )
+            ),
+        )
         DIM = IAttr(
-            'DIM', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="DIM",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         DOT_PRODUCT = IAttr(
-            'DOT_PRODUCT', True, False, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="DOT_PRODUCT",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=lambda node: ScalarType(
+                node.arguments[0].datatype.intrinsic,
+                node.arguments[0].datatype.precision,
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         DPROD = IAttr(
-            'DPROD', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="DPROD",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=REAL8_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         DSHIFTL = IAttr(
-            'DSHIFTL', True, True, False,
-            ArgDesc(3, 3, DataNode), {})
+            name="DSHIFTL",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(3, 3, DataNode),
+            optional_args={},
+            return_type=lambda node: (
+                node.arguments[0].datatype.copy()
+                if not isinstance(node.arguments[0], Literal)
+                else node.arguments[1].datatype.copy()
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         DSHIFTR = IAttr(
-            'DSHIFTR', True, True, False,
-            ArgDesc(3, 3, DataNode), {})
+            name="DSHIFTR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(3, 3, DataNode),
+            optional_args={},
+            return_type=lambda node: (
+                node.arguments[0].datatype.copy()
+                if not isinstance(node.arguments[0], Literal)
+                else node.arguments[1].datatype.copy()
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         EOSHIFT = IAttr(
-            'EOSHIFT', True, False, False,
-            ArgDesc(2, 2, DataNode), {"boundary": DataNode, "dim": DataNode})
+            name="EOSHIFT",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"boundary": DataNode, "dim": DataNode},
+            return_type=_get_first_argument_type,
+            # FIXME Wait for Sergi reply.
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         EPSILON = IAttr(
-            'EPSILON', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            name="EPSILON",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["x"],
+                )
+            ),
+        )
         ERF = IAttr(
-            'ERF', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="ERF",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_real_with_argone_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ERFC = IAttr(
-            'ERFC', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="ERFC",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_real_with_argone_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ERFC_SCALED = IAttr(
-            'ERFC_SCALED', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="ERFC_SCALED",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_real_with_argone_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         EVENT_QUERY = IAttr(
-            'EVENT_QUERY', False, False, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+            name="EVENT_QUERY",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"stat": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    read_indices=[0],
+                    write_indices=[1, 2],
+                    read_named_args=["event"],
+                    write_named_args=["count", "stat"],
+                )
+            ),
+        )
         EXECUTE_COMMAND_LINE = IAttr(
-            'EXECUTE_COMMAND_LINE', False, False, False,
-            ArgDesc(2, 2, DataNode),
-            {"wait": DataNode, "exitstat": DataNode,
-             "cmdstat": DataNode, "cmdmsg": DataNode})
+            name="EXECUTE_COMMAND_LINE",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={
+                "wait": DataNode,
+                "exitstat": DataNode,
+                "cmdstat": DataNode,
+                "cmdmsg": DataNode,
+            },
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    read_indices=[0, 1],
+                    write_indices=[2, 3, 4],
+                    read_named_args=["command", "wait"],
+                    write_named_args=["exitstat", "cmdstat", "cmdmsg"],
+                )
+            ),
+        )
         EXP = IAttr(
-            'EXP', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="EXP",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         EXPONENT = IAttr(
-            'EXPONENT', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="EXPONENT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         EXTENDS_TYPE_OF = IAttr(
-            'EXTENDS_TYPE_OF', True, False, True,
-            ArgDesc(2, 2, DataNode), {})
+            name="EXTENDS_TYPE_OF",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0, 1],
+                    inquiry_named_args=["a", "mold"],
+                )
+            ),
+        )
         FAILED_IMAGES = IAttr(
-            'FAILED_IMAGES', False, False, False,
-            ArgDesc(0, 0, DataNode), {"team": DataNode, "kind": DataNode})
+            name="FAILED_IMAGES",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(0, 0, DataNode),
+            optional_args={"team": DataNode, "kind": DataNode},
+            return_type=lambda node: ArrayType(
+                ScalarType(
+                    ScalarType.Intrinsic.INTEGER,
+                    (
+                        node.arguments[node.argument_names.index("kind")]
+                        if "kind" in node.argument_names
+                        else ScalarType.Precision.UNDEFINED
+                    ),
+                ),
+                [ArrayType.Extent.DEFERRED],
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         FINDLOC = IAttr(
-            'FINDLOC', True, False, False,
-            ArgDesc(2, 3, DataNode),
-            {"mask": DataNode, "kind": DataNode, "back": DataNode})
+            name="FINDLOC",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 3, DataNode),
+            optional_args={
+                "mask": DataNode,
+                "kind": DataNode,
+                "back": DataNode,
+            },
+            return_type=_findloc_return_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         FLOAT = IAttr(
-            'FLOAT', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="FLOAT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=REAL_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         FLOOR = IAttr(
-            'FLOOR', True, True, False,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            name="FLOOR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"kind": DataNode},
+            return_type=_get_integer_with_optional_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         FRACTION = IAttr(
-            'FRACTION', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="FRACTION",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         GAMMA = IAttr(
-            'GAMMA', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="GAMMA",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         GET_COMMAND = IAttr(
-            'GET_COMMAND', False, False, False,
-            ArgDesc(0, 0, DataNode),
-            {"command": DataNode, "length": DataNode,
-             "status": DataNode, "errmsg": DataNode})
+            name="GET_COMMAND",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(0, 0, DataNode),
+            optional_args={
+                "command": DataNode,
+                "length": DataNode,
+                "status": DataNode,
+                "errmsg": DataNode,
+            },
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    write_indices=[0, 1, 2],
+                    readwrite_indices=[3],
+                    write_named_args=["command", "length", "status"],
+                    readwrite_named_args=["errmsg"],
+                )
+            ),
+        )
         GET_COMMAND_ARGUMENT = IAttr(
-            'GET_COMMAND_ARGUMENT', False, False, False,
-            ArgDesc(1, 1, DataNode),
-            {"value": DataNode, "length": DataNode,
-             "status": DataNode, "errmsg": DataNode})
+            name="GET_COMMAND_ARGUMENT",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={
+                "value": DataNode,
+                "length": DataNode,
+                "status": DataNode,
+                "errmsg": DataNode,
+            },
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    read_indices=[0],
+                    write_indices=[1, 2, 3],
+                    readwrite_indices=[4],
+                    read_named_args=["number"],
+                    write_named_args=["value", "length", "status"],
+                    readwrite_named_args=["errmsg"],
+                )
+            ),
+        )
         GET_ENVIRONMENT_VARIABLE = IAttr(
-            'GET_ENVIRONMENT_VARIABLE', False, False, False,
-            ArgDesc(1, 1, DataNode),
-            {"value": DataNode, "length": DataNode, "status": DataNode,
-             "trim_name": DataNode, "errmsg": DataNode})
+            name="GET_ENVIRONMENT_VARIABLE",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={
+                "value": DataNode,
+                "length": DataNode,
+                "status": DataNode,
+                "trim_name": DataNode,
+                "errmsg": DataNode,
+            },
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    read_indices=[0, 4],
+                    write_indices=[1, 2, 3],
+                    readwrite_indices=[5],
+                    read_named_args=["name", "trim_name"],
+                    write_named_args=["value", "length", "status"],
+                    readwrite_named_args=["errmsg"],
+                )
+            ),
+        )
         GET_TEAM = IAttr(
-            'GET_TEAM', True, False, False,
-            ArgDesc(0, 0, DataNode), {"level": DataNode})
+            name="GET_TEAM",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(0, 0, DataNode),
+            optional_args={"level": DataNode},
+            # Unsupported return type (TEAM_TYPE from ISO_FORTRAN_ENV).
+            return_type=lambda node: UnresolvedType(),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         HUGE = IAttr(
-            'HUGE', True, False, True,
-            ArgDesc(1, 1, (Reference, Literal)), {})
+            name="HUGE",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, (Reference, Literal)),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         HYPOT = IAttr(
-            'HYPOT', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            name="HYPOT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, (DataNode)),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IACHAR = IAttr(
-            'IACHAR', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+            name="IACHAR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={"kind": DataNode},
+            return_type=_get_integer_with_optional_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IALL = IAttr(
-            'IALL', True, False, False,
-            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode})
+            name="IALL",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            # FIXME Note to reviewer I think this should be
+            # required_args=ArgDesc(1, 2, (DataNode)),
+            # optional_args={"mask": DataNode}
+            # See https://gcc.gnu.org/onlinedocs/gfortran/IALL.html
+            # If this changes and "dim" is no longer a named argument, the
+            # return type function will not be correct.
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={"dim": DataNode, "mask": DataNode},
+            # There is no kind, but this call will work.
+            return_type=_get_integer_of_kind_with_optional_dim,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IAND = IAttr(
-            'IAND', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            name="IAND",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, (DataNode)),
+            optional_args={},
+            return_type=lambda node: (
+                node.arguments[0].datatype.copy()
+                if not isinstance(node.arguments[0], Literal)
+                else node.arguments[1].datatype.copy()
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IANY = IAttr(
-            'IANY', True, False, False,
-            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode})
+            name="IANY",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            # FIXME Note to reviewer I think this should be
+            # required_args=ArgDesc(1, 2, (DataNode)),
+            # optional_args={"mask": DataNode}
+            # See https://gcc.gnu.org/onlinedocs/gfortran/IANY.html
+            # If this changes and "dim" is no longer a named argument, the
+            # return type function will not be correct.
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={"dim": DataNode, "mask": DataNode},
+            # There is no kind, but this call will work.
+            return_type=_get_integer_of_kind_with_optional_dim,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IBCLR = IAttr(
-            'IBCLR', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            name="IBCLR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, (DataNode)),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IBITS = IAttr(
-            'IBITS', True, True, False,
-            ArgDesc(3, 3, (DataNode)), {})
+            name="IBITS",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(3, 3, (DataNode)),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IBSET = IAttr(
-            'IBSET', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            name="IBSET",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, (DataNode)),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         ICHAR = IAttr(
-            'ICHAR', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+            name="ICHAR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={"kind": DataNode},
+            return_type=_get_integer_with_optional_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IEOR = IAttr(
-            'IEOR', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            name="IEOR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, (DataNode)),
+            optional_args={},
+            return_type=lambda node: (
+                node.arguments[0].datatype.copy()
+                if not isinstance(node.arguments[0], Literal)
+                else node.arguments[1].datatype.copy()
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IMAGE_INDEX = IAttr(
-            'IMAGE_INDEX', True, False, True,
-            ArgDesc(2, 3, (DataNode)), {})
+            name="IMAGE_INDEX",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(2, 3, (DataNode)),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IMAGE_STATUS = IAttr(
-            'IMAGE_STATUS', True, False, False,
-            ArgDesc(1, 1, (DataNode)), {"team": DataNode})
+            name="IMAGE_STATUS",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={"team": DataNode},
+            return_type=INTEGER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         INDEX = IAttr(
-            'INDEX', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {"back": DataNode, "kind": DataNode})
+            name="INDEX",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, (DataNode)),
+            optional_args={"back": DataNode, "kind": DataNode},
+            return_type=_get_integer_with_optional_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         INT = IAttr(
-            'INT', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+            name="INT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={"kind": DataNode},
+            return_type=_int_return_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IOR = IAttr(
-            'IOR', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            name="IOR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, (DataNode)),
+            optional_args={},
+            return_type=lambda node: ScalarType(
+                ScalarType.Intrinsic.INTEGER,
+                (
+                    node.arguments[0].datatype.precision
+                    if not isinstance(node.arguments[0], Literal)
+                    else node.arguments[1].datatype.precision
+                ),
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IPARITY = IAttr(
-            'IPARITY', True, False, False,
-            ArgDesc(1, 2, (DataNode)), {"mask": DataNode})
-        ISHFT = IAttr(
-            'ISHFT', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
-        ISHFTC = IAttr(
-            'ISHFTC', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {"size": DataNode})
+            name="IPARITY",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 2, (DataNode)),
+            optional_args={"mask": DataNode},
+            return_type=_iparity_return_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IS_CONTIGUOUS = IAttr(
-            'IS_CONTIGUOUS', True, False, True,
-            ArgDesc(1, 1, (DataNode)), {})
+            name="IS_CONTIGUOUS",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["array"],
+                )
+            ),
+        )
         IS_IOSTAT_END = IAttr(
-            'IS_IOSTAT_END', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {})
+            name="IS_IOSTAT_END",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         IS_IOSTAT_EOR = IAttr(
-            'IS_IOSTAT_EOR', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {})
+            name="IS_IOSTAT_EOR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
+        ISHFT = IAttr(
+            name="ISHFT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, (DataNode)),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
+        ISHFTC = IAttr(
+            name="ISHFTC",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, (DataNode)),
+            optional_args={"size": DataNode},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         KIND = IAttr(
-            'KIND', True, False, True,
-            ArgDesc(1, 1, (DataNode)), {})
+            name="KIND",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["x"],
+                )
+            ),
+        )
         LBOUND = IAttr(
-            'LBOUND', True, False, True,
-            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode})
+            name="LBOUND",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={"dim": DataNode, "kind": DataNode},
+            return_type=_get_bound_function_return_type,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    read_indices=[1],
+                    type_info_indices=[2],
+                    inquiry_named_args=["array"],
+                    read_named_args=["dim"],
+                    type_info_named_args=["kind"],
+                )
+            ),
+        )
         LCOBOUND = IAttr(
-            'LCOBOUND', True, False, True,
-            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode})
+            name="LCOBOUND",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={"dim": DataNode, "kind": DataNode},
+            return_type=_get_bound_function_return_type,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    read_indices=[1],
+                    type_info_indices=[2],
+                    inquiry_named_args=["coarray"],
+                    read_named_args=["dim"],
+                    type_info_named_args=["kind"],
+                )
+            ),
+        )
         LEADZ = IAttr(
-            'LEADZ', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {})
+            name="LEADZ",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         LEN = IAttr(
-            'LEN', True, False, True,
-            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+            name="LEN",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={"kind": DataNode},
+            return_type=_get_integer_with_optional_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         LEN_TRIM = IAttr(
-            'LEN_TRIM', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+            name="LEN_TRIM",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={"kind": DataNode},
+            return_type=_get_integer_with_optional_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         LGE = IAttr(
-            'LGE', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            name="LGE",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, (DataNode)),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         LGT = IAttr(
-            'LGT', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            name="LGT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, (DataNode)),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         LLE = IAttr(
-            'LLE', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            name="LLE",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, (DataNode)),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         LLT = IAttr(
-            'LLT', True, True, False,
-            ArgDesc(2, 2, (DataNode)), {})
+            name="LLT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, (DataNode)),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         LOG = IAttr(
-            'LOG', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {})
+            name="LOG",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         LOG_GAMMA = IAttr(
-            'LOG_GAMMA', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {})
+            name="LOG_GAMMA",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         LOG10 = IAttr(
-            'LOG10', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {})
+            name="LOG10",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         LOGICAL = IAttr(
-            'LOGICAL', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+            name="LOGICAL",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={"kind": DataNode},
+            return_type=_get_first_argument_type_with_optional_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MASKL = IAttr(
-            'MASKL', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+            name="MASKL",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={"kind": DataNode},
+            return_type=_get_integer_with_optional_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MASKR = IAttr(
-            'MASKR', True, True, False,
-            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+            name="MASKR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, (DataNode)),
+            optional_args={"kind": DataNode},
+            return_type=_get_integer_with_optional_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MATMUL = IAttr(
-            'MATMUL', True, False, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="MATMUL",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=_matmul_return_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MAX = IAttr(
-            'MAX', True, True, False,
-            ArgDesc(2, None, DataNode), {})
+            name="MAX",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, None, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MAXEXPONENT = IAttr(
-            'MAXEXPONENT', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            name="MAXEXPONENT",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["x"],
+                )
+            ),
+        )
         MAXLOC = IAttr(
-            'MAXLOC', True, False, False,
-            ArgDesc(1, 2, DataNode),
-            {"dim": DataNode, "mask": DataNode, "kind": DataNode,
-             "back": DataNode})
+            name="MAXLOC",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 2, DataNode),
+            optional_args={
+                "dim": DataNode,
+                "mask": DataNode,
+                "kind": DataNode,
+                "back": DataNode,
+            },
+            return_type=(
+                _get_first_argument_intrinsic_with_optional_kind_and_dim
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MAXVAL = IAttr(
-            'MAXVAL', True, False, False,
-            ArgDesc(1, 1, DataNode),
-            {"dim": DataNode, "mask": DataNode})
+            name="MAXVAL",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"dim": DataNode, "mask": DataNode},
+            return_type=_maxval_return_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MERGE = IAttr(
-            'MERGE', True, True, False,
-            ArgDesc(3, 3, DataNode), {})
+            name="MERGE",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(3, 3, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MERGE_BITS = IAttr(
-            'MERGE_BITS', True, True, False,
-            ArgDesc(3, 3, DataNode), {})
+            name="MERGE_BITS",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(3, 3, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MIN = IAttr(
-            'MIN', True, True, False,
-            ArgDesc(2, None, DataNode), {})
+            name="MIN",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, None, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MINEXPONENT = IAttr(
-            'MINEXPONENT', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            name="MINEXPONENT",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["x"],
+                )
+            ),
+        )
         MINLOC = IAttr(
-            'MINLOC', True, False, False,
-            ArgDesc(1, 2, DataNode),
-            {"dim": DataNode, "mask": DataNode, "kind": DataNode,
-             "back": DataNode})
+            name="MINLOC",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 2, DataNode),
+            optional_args={
+                "dim": DataNode,
+                "mask": DataNode,
+                "kind": DataNode,
+                "back": DataNode,
+            },
+            return_type=(
+                _get_first_argument_intrinsic_with_optional_kind_and_dim
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MINVAL = IAttr(
-            'MINVAL', True, False, False,
-            ArgDesc(1, 1, DataNode),
-            {"dim": DataNode, "mask": DataNode})
+            name="MINVAL",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"dim": DataNode, "mask": DataNode},
+            return_type=_maxval_return_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MOD = IAttr(
-            'MOD', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="MOD",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MODULO = IAttr(
-            'MODULO', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="MODULO",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         MOVE_ALLOC = IAttr(
-            'MOVE_ALLOC', False, False, False,
-            ArgDesc(2, 2, DataNode), {"stat": DataNode, "errmsg": DataNode})
+            name="MOVE_ALLOC",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"stat": DataNode, "errmsg": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    readwrite_indices=[0, 3],
+                    write_indices=[1, 2],
+                    write_named_args=["to", "stat"],
+                    readwrite_named_args=["from", "errmsg"],
+                )
+            ),
+        )
         MVBITS = IAttr(
-            'MVBITS', True, True, False,
-            ArgDesc(5, 5, DataNode), {})
+            name="MVBITS",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(5, 5, DataNode),
+            optional_args={},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    read_indices=[0, 1, 2, 4],
+                    write_indices=[3],
+                    read_named_args=["from", "frompos", "len", "topos"],
+                    write_named_args=["to"],
+                )
+            ),
+        )
         NEAREST = IAttr(
-            'NEAREST', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="NEAREST",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         NEW_LINE = IAttr(
-            'NEW_LINE', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="NEW_LINE",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=CHARACTER_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["c"],
+                )
+            ),
+        )
         NINT = IAttr(
-            'NINT', True, True, False,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            name="NINT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"kind": DataNode},
+            return_type=INTEGER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         NORM2 = IAttr(
-            'NORM2', True, False, False,
-            ArgDesc(1, 2, DataNode), {})
+            name="NORM2",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 2, DataNode),
+            optional_args={},
+            # No kind on NORM2 but this function works for return type.
+            # FIXME Check this is correct.
+            return_type=(
+                _get_first_argument_intrinsic_with_optional_kind_and_dim
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         NOT = IAttr(
-            'NOT', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="NOT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=lambda node: ScalarType(
+                ScalarType.Intrinsic.INTEGER,
+                node.arguments[0].datatype.precision,
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         NULL = IAttr(
-            'NULL', True, False, False,
-            ArgDesc(0, 0, DataNode), {"mold": DataNode})
+            name="NULL",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(0, 0, DataNode),
+            optional_args={"mold": DataNode},
+            # Returns a dissociated pointed - not supported.
+            return_type=lambda node: UnresolvedType(),
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    type_info_indices=[0],
+                    type_info_named_args=["mold"],
+                )
+            ),
+        )
         NUM_IMAGES = IAttr(
-            'NUM_IMAGES', True, False, False,
-            ArgDesc(0, 1, DataNode), {})
+            name="NUM_IMAGES",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(0, 1, DataNode),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         OUT_OF_RANGE = IAttr(
-            'OUT_OF_RANGE', True, True, False,
-            ArgDesc(2, 2, DataNode), {"round": DataNode})
+            name="OUT_OF_RANGE",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"round": DataNode},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    read_indices=[0, 2],
+                    type_info_indices=[1],
+                    read_named_args=["x", "round"],
+                    type_info_named_args=["mold"],
+                )
+            ),
+        )
         PACK = IAttr(
-            'PACK', True, False, False,
-            ArgDesc(2, 2, DataNode), {"vector": DataNode})
+            name="PACK",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"vector": DataNode},
+            return_type=lambda node: ArrayType(
+                ScalarType(
+                    node.arguments[0].datatype.intrinsic,
+                    node.arguments[0].datatype.precision,
+                ),
+                [ArrayType.Extent.DEFERRED],
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         PARITY = IAttr(
-            'PARITY', True, False, False,
-            ArgDesc(1, 2, DataNode), {})
+            name="PARITY",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"dim": DataNode},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         POPCNT = IAttr(
-            'POPCNT', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="POPCNT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         POPPAR = IAttr(
-            'POPPAR', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="POPPAR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         PRECISION = IAttr(
-            'PRECISION', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            name="PRECISION",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["x"],
+                )
+            ),
+        )
         PRESENT = IAttr(
-            'PRESENT', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            name="PRESENT",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["a"],
+                )
+            ),
+        )
         PRODUCT = IAttr(
-            'PRODUCT', True, False, False,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "mask": DataNode})
+            name="PRODUCT",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"dim": DataNode, "mask": DataNode},
+            return_type=lambda node: (
+                _get_first_argument_specified_kind_with_optional_dim(
+                    node, node.arguments[0].datatype.intrinsic
+                )
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         RADIX = IAttr(
-            'RADIX', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            name="RADIX",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["x"],
+                )
+            ),
+        )
         RANDOM_INIT = IAttr(
-            'RANDOM_INIT', False, False, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="RANDOM_INIT",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=None,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         RANDOM_NUMBER = IAttr(
-            'RANDOM_NUMBER', False, False, False,
-            ArgDesc(1, 1, Reference), {})
+            name="RANDOM_NUMBER",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, Reference),
+            optional_args={},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    write_indices=[0],
+                    write_named_args=["harvest"],
+                )
+            ),
+        )
         RANDOM_SEED = IAttr(
-            'RANDOM_SEED', False, False, False,
-            ArgDesc(0, 0, Reference),
-            {"size": DataNode, "put": DataNode, "Get": DataNode})
+            name="RANDOM_SEED",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(0, 0, Reference),
+            optional_args={"size": DataNode, "put": DataNode, "get": DataNode},
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    write_indices=[0, 2],
+                    read_indices=[1],
+                    read_named_args=["put"],
+                    write_named_args=["size", "get"],
+                )
+            ),
+        )
         RANGE = IAttr(
-            'RANGE', True, False, True,
-            ArgDesc(1, 1, Reference), {})
+            name="RANGE",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, Reference),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["x"],
+                )
+            ),
+        )
         RANK = IAttr(
-            'RANK', True, False, True,
-            ArgDesc(1, 1, Reference), {})
+            name="RANK",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, Reference),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["a"],
+                )
+            ),
+        )
         REAL = IAttr(
-            'REAL', True, True, False,
-            ArgDesc(1, 1, Reference), {"kind": DataNode})
+            name="REAL",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, Reference),
+            optional_args={"kind": DataNode},
+            return_type=lambda node: (
+                ScalarType(
+                    ScalarType.Intrinsic.REAL,
+                    (
+                        node.arguments[node.argument_names.index("kind")]
+                        if "kind" in node.argument_names
+                        else node.arguments[0].datatype.precision
+                    ),
+                )
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         REDUCE = IAttr(
-            'REDUCE', True, False, False,
-            ArgDesc(2, 3, Reference),
-            {"mask": DataNode, "identity": DataNode, "ordered": DataNode})
+            name="REDUCE",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 3, DataNode),
+            optional_args={
+                "mask": DataNode,
+                "identity": DataNode,
+                "ordered": DataNode,
+            },
+            return_type=_reduce_return_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         REPEAT = IAttr(
-            'REPEAT', True, False, False,
-            ArgDesc(2, 2, Reference), {})
+            name="REPEAT",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, Reference),
+            optional_args={},
+            return_type=CHARACTER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         RESHAPE = IAttr(
-            'RESHAPE', True, False, False,
-            ArgDesc(2, 2, Reference), {"pad": DataNode, "order": DataNode})
+            name="RESHAPE",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, Reference),
+            optional_args={"pad": DataNode, "order": DataNode},
+            # I went with unresolved for now as the result depends on
+            # argument 2 (even the dimensionality).
+            return_type=lambda node: UnresolvedType(),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         RRSPACING = IAttr(
-            'RRSPACING', True, True, False,
-            ArgDesc(1, 1, Reference), {})
+            name="RRSPACING",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, Reference),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SAME_TYPE_AS = IAttr(
-            'SAME_TYPE_AS', True, False, True,
-            ArgDesc(2, 2, Reference), {})
+            name="SAME_TYPE_AS",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(2, 2, Reference),
+            optional_args={},
+            return_type=BOOLEAN_TYPE,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0, 1],
+                    inquiry_named_args=["a", "b"],
+                )
+            ),
+        )
         SCALE = IAttr(
-            'SCALE', True, True, False,
-            ArgDesc(2, 2, Reference), {})
+            name="SCALE",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, Reference),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SCAN = IAttr(
-            'SCAN', True, True, False,
-            ArgDesc(2, 2, Reference), {"back": DataNode, "kind": DataNode})
+            name="SCAN",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, Reference),
+            optional_args={"back": DataNode, "kind": DataNode},
+            return_type=_get_integer_with_optional_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SELECTED_CHAR_KIND = IAttr(
-            'SELECTED_CHAR_KIND', True, False, False,
-            ArgDesc(1, 1, Reference), {})
+            name="SELECTED_CHAR_KIND",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SELECTED_INT_KIND = IAttr(
-            'SELECTED_INT_KIND', True, False, False,
-            ArgDesc(1, 1, Reference), {})
+            name="SELECTED_INT_KIND",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SELECTED_REAL_KIND = IAttr(
-            'SELECTED_REAL_KIND', True, False, False,
-            ArgDesc(0, 0, Reference),
-            {"P": DataNode, "R": DataNode, "radix": DataNode})
+            name="SELECTED_REAL_KIND",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(0, 0, Reference),
+            optional_args={"P": DataNode, "R": DataNode, "radix": DataNode},
+            return_type=INTEGER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SET_EXPONENT = IAttr(
-            'SET_EXPONENT', True, True, False,
-            ArgDesc(2, 2, Reference), {})
+            name="SET_EXPONENT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, Reference),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SHAPE = IAttr(
-            'SHAPE', True, False, True,
-            ArgDesc(1, 1, Reference), {"kind": DataNode})
+            name="SHAPE",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, Reference),
+            optional_args={"kind": DataNode},
+            return_type=lambda node: (
+                ArrayType(
+                    ScalarType(
+                        ScalarType.Intrinsic.INTEGER,
+                        (
+                            ScalarType.Precision.UNDEFINED
+                            if "kind" not in node.argument_names
+                            else node.arguments[
+                                node.argument_names.index("kind")
+                            ]
+                        ),
+                    ),
+                    [
+                        ArrayType.ArrayBounds(
+                            Literal("1", INTEGER_TYPE),
+                            Literal(
+                                str(len(node.arguments[0].datatype.shape)),
+                                INTEGER_TYPE,
+                            ),
+                        )
+                    ],
+                )
+            ),
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    type_info_indices=[1],
+                    inquiry_named_args=["source"],
+                    type_info_named_args=["kind"],
+                )
+            ),
+        )
         SHIFTA = IAttr(
-            'SHIFTA', True, True, False,
-            ArgDesc(2, 2, Reference), {})
+            name="SHIFTA",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, Reference),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SHIFTL = IAttr(
-            'SHIFTL', True, True, False,
-            ArgDesc(2, 2, Reference), {})
+            name="SHIFTL",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, Reference),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SHIFTR = IAttr(
-            'SHIFTR', True, True, False,
-            ArgDesc(2, 2, Reference), {})
+            name="SHIFTR",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, Reference),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SIGN = IAttr(
-            'SIGN', True, True, False,
-            ArgDesc(2, 2, DataNode), {})
+            name="SIGN",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SIN = IAttr(
-            'SIN', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="SIN",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SINH = IAttr(
-            'SINH', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="SINH",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SIZE = IAttr(
-            'SIZE', True, False, True,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode})
+            name="SIZE",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"dim": DataNode, "kind": DataNode},
+            return_type=_get_integer_with_optional_kind,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    read_indices=[1],
+                    type_info_indices=[2],
+                    inquiry_named_args=["array"],
+                    read_named_args=["dim"],
+                    type_info_named_args=["kind"],
+                )
+            ),
+        )
         SPACING = IAttr(
-            'SPACING', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="SPACING",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["x"],
+                )
+            ),
+        )
         SPREAD = IAttr(
-            'SPREAD', True, False, False,
-            ArgDesc(3, 3, DataNode), {})
+            name="SPREAD",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(3, 3, DataNode),
+            optional_args={},
+            return_type=lambda node: ArrayType(
+                ScalarType(
+                    node.arguments[0].datatype.intrinsic,
+                    node.arguments[0].datatype.precision,
+                ),
+                (
+                    [ArrayType.Extent.DEFERRED]
+                    * (len(node.arguments[0].datatype.shape) + 1)
+                    if isinstance(node.arguments[0].datatype, ArrayType)
+                    else [ArrayType.Extent.DEFERRED]
+                ),
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SQRT = IAttr(
-            'SQRT', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="SQRT",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            # FIXME For reviewer - I put unresolved type because it can return
+            # COMPLEX depending on input.
+            return_type=lambda node: UnresolvedType(),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         STOPPED_IMAGES = IAttr(
-            'STOPPED_IMAGES', False, False, False,
-            ArgDesc(0, 0, DataNode), {"team": DataNode, "kind": DataNode})
+            name="STOPPED_IMAGES",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(0, 0, DataNode),
+            optional_args={"team": DataNode, "kind": DataNode},
+            return_type=lambda node: ArrayType(
+                _get_integer_with_optional_kind(node),
+                [ArrayType.Extent.DEFERRED],
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         STORAGE_SIZE = IAttr(
-            'STORAGE_SIZE', True, False, True,
-            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+            name="STORAGE_SIZE",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"kind": DataNode},
+            return_type=_get_integer_with_optional_kind,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    type_info_indices=[1],
+                    inquiry_named_args=["a"],
+                    type_info_named_args=["kind"],
+                )
+            ),
+        )
         SUM = IAttr(
-            'SUM', True, False, False,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "mask": DataNode})
+            name="SUM",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            # FIXME Think this is wrong again - 2nd argument can be non-named
+            # dim not named? Is my understanding.
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"dim": DataNode, "mask": DataNode},
+            return_type=lambda node: (
+                _get_first_argument_specified_kind_with_optional_dim(
+                    node, node.arguments[0].datatype.intrinsic
+                )
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         SYSTEM_CLOCK = IAttr(
-            'SYSTEM_CLOCK', False, False, False,
-            ArgDesc(0, 0, DataNode),
-            {"count": DataNode, "count_rate": DataNode, "count_max": DataNode})
+            name="SYSTEM_CLOCK",
+            is_pure=False,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(0, 0, DataNode),
+            optional_args={
+                "count": DataNode,
+                "count_rate": DataNode,
+                "count_max": DataNode,
+            },
+            return_type=None,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    write_indices=[0, 1, 2],
+                    write_named_args=[
+                        "count",
+                        "count_rate",
+                        "count_max",
+                    ],
+                )
+            ),
+        )
         TAN = IAttr(
-            'TAN', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="TAN",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         TANH = IAttr(
-            'TANH', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="TANH",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
+        # FIXME I'm not sure this exists?
         TEAM_IMAGE = IAttr(
-            'TEAM_IMAGE', True, False, False,
-            ArgDesc(0, 0, DataNode), {"team": DataNode})
+            name="TEAM_IMAGE",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(0, 0, DataNode),
+            optional_args={"team": DataNode},
+            return_type=None,
+            reference_accesses=None,
+        )
         THIS_IMAGE = IAttr(
-            'THIS_IMAGE', True, False, False,
-            ArgDesc(0, 0, DataNode),
-            {"coarray": DataNode, "team": DataNode, "dim": DataNode})
+            name="THIS_IMAGE",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            # FIXME Again not sure this is correct. Have used unresolved
+            # type for the return value - can improve it if wanted.
+            required_args=ArgDesc(0, 0, DataNode),
+            optional_args={
+                "coarray": DataNode,
+                "team": DataNode,
+                "dim": DataNode,
+            },
+            return_type=lambda node: UnresolvedType(),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         TINY = IAttr(
-            'TINY', True, False, True,
-            ArgDesc(1, 1, (Reference, Literal)), {})
+            name="TINY",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, (Reference, Literal)),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    inquiry_named_args=["x"],
+                )
+            ),
+        )
         TRAILZ = IAttr(
-            'TRAILZ', True, True, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="TRAILZ",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=INTEGER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         TRANSFER = IAttr(
-            'TRANSFER', True, False, False,
-            ArgDesc(2, 2, DataNode), {"size": DataNode})
+            name="TRANSFER",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"size": DataNode},
+            return_type=lambda node: (
+                node.arguments[1].datatype
+                if (
+                    "size" not in node.argument_names
+                    and not isinstance(node.arguments[1].datatype, ArrayType)
+                )
+                else ArrayType(
+                    ScalarType(
+                        node.arguments[1].datatype.intrinsic,
+                        node.arguments[1].datatype.precision,
+                    ),
+                    [ArrayType.Extent.DEFERRED],
+                )
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         TRANSPOSE = IAttr(
-            'TRANSPOSE', True, False, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="TRANSPOSE",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=lambda node: ArrayType(
+                ScalarType(
+                    node.arguments[0].datatype.intrinsic,
+                    node.arguments[0].datatype.precision,
+                ),
+                [
+                    node.arguments[0].datatype.shape[1],
+                    node.arguments[0].datatype.shape[0],
+                ],
+            ),
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         TRIM = IAttr(
-            'TRIM', True, False, False,
-            ArgDesc(1, 1, DataNode), {})
+            name="TRIM",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={},
+            return_type=CHARACTER_TYPE,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         UBOUND = IAttr(
-            'UBOUND', True, False, True,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode})
+            name="UBOUND",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"dim": DataNode, "kind": DataNode},
+            return_type=_get_bound_function_return_type,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    read_indices=[1],
+                    type_info_indices=[2],
+                    inquiry_named_args=["array"],
+                    read_named_args=["dim"],
+                    type_info_named_args=["kind"],
+                )
+            ),
+        )
         UCOBOUND = IAttr(
-            'UCOBOUND', True, False, True,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode})
+            name="UCOBOUND",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=True,
+            required_args=ArgDesc(1, 1, DataNode),
+            optional_args={"dim": DataNode, "kind": DataNode},
+            return_type=_get_bound_function_return_type,
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                    inquiry_indices=[0],
+                    read_indices=[1],
+                    type_info_indices=[2],
+                    inquiry_named_args=["array"],
+                    read_named_args=["dim"],
+                    type_info_named_args=["kind"],
+                )
+            ),
+        )
         UNPACK = IAttr(
-            'UNPACK', True, False, False,
-            ArgDesc(3, 3, DataNode), {})
+            name="UNPACK",
+            is_pure=True,
+            is_elemental=False,
+            is_inquiry=False,
+            required_args=ArgDesc(3, 3, DataNode),
+            optional_args={},
+            return_type=_get_first_argument_type,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
         VERIFY = IAttr(
-            'VERIFY', True, True, False,
-            ArgDesc(2, 2, DataNode), {"back": DataNode, "kind": DataNode})
+            name="VERIFY",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            required_args=ArgDesc(2, 2, DataNode),
+            optional_args={"back": DataNode, "kind": DataNode},
+            return_type=_get_integer_with_optional_kind,
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
+        )
 
         def __hash__(self):
             return hash(self.name)
@@ -748,30 +3847,55 @@ class IntrinsicCall(Call):
             raise TypeError(
                 f"IntrinsicCall 'intrinsic' argument should be an "
                 f"instance of IntrinsicCall.Intrinsic, but found "
-                f"'{type(intrinsic).__name__}'.")
+                f"'{type(intrinsic).__name__}'."
+            )
 
         # A Call expects a Reference to a Symbol, so give it a Reference
         # to an Intrinsicsymbol of the given intrinsic.
         super().__init__(**kwargs)
-        self.addchild(Reference(IntrinsicSymbol(
-            intrinsic.name,
-            intrinsic,
-            is_elemental=intrinsic.is_elemental,
-            is_pure=intrinsic.is_pure
-        )))
+        self.addchild(
+            Reference(
+                IntrinsicSymbol(
+                    intrinsic.name,
+                    intrinsic,
+                    is_elemental=intrinsic.is_elemental,
+                    is_pure=intrinsic.is_pure,
+                )
+            )
+        )
 
     @property
     def intrinsic(self):
-        ''' Return the type of intrinsic.
+        """Return the type of intrinsic.
 
         :returns: enumerated type capturing the type of intrinsic.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`
 
-        '''
+        """
         return self.routine.symbol.intrinsic
 
+    @property
+    def datatype(self) -> DataType:
+        """Return the datatype of this IntrinsicCall.
+
+        :returns: The datatype corresponding to this IntrinsicCall.
+        """
+        # If the return type is None then return NoType
+        if not self.intrinsic.return_type:
+            return NoType()
+        if isinstance(self.intrinsic.return_type, Callable):
+            try:
+                return self.intrinsic.return_type(self)
+            except Exception:
+                # If we don't know what a type is correctly then many
+                # of the computed types will fail, so we should give
+                # an UnresolvedType in those cases.
+                return UnresolvedType()
+        else:
+            return self.intrinsic.return_type
+
     def is_available_on_device(self, device_string: str = "") -> bool:
-        '''
+        """
         :param device_string: optional string to identify the offloading
             device (or its compiler-platform family).
         :returns: whether this intrinsic is available on an accelerated device.
@@ -779,7 +3903,7 @@ class IntrinsicCall(Call):
         :raises ValueError: if the provided 'device_string' is not one of the
             supported values.
 
-        '''
+        """
         # Reduction operations that have more than a single argument sometimes
         # fail, so we avoid putting them on the accelerator device
         if self.intrinsic in REDUCTION_INTRINSICS:
@@ -795,11 +3919,12 @@ class IntrinsicCall(Call):
 
         raise ValueError(
             f"Unsupported device_string value '{device_string}', the supported"
-            " values are '' (default), 'nvfortran-all', 'nvfortran-uniform'")
+            " values are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
+        )
 
     @classmethod
     def create(cls, intrinsic, arguments=()):
-        '''Create an instance of this class given the type of intrinsic and a
+        """Create an instance of this class given the type of intrinsic and a
         list of nodes (or name-and-node tuples) for its arguments. Any
         named arguments *must* come after any required arguments.
 
@@ -820,13 +3945,13 @@ class IntrinsicCall(Call):
         :raises ValueError: if the number of supplied arguments is not valid
             for the specified intrinsic.
 
-        '''
+        """
         call = IntrinsicCall(intrinsic)
-
         if not isinstance(arguments, Iterable):
             raise TypeError(
                 f"IntrinsicCall.create() 'arguments' argument should be an "
-                f"Iterable but found '{type(arguments).__name__}'")
+                f"Iterable but found '{type(arguments).__name__}'"
+            )
 
         # Validate the supplied arguments.
         last_named_arg = None
@@ -837,7 +3962,8 @@ class IntrinsicCall(Call):
                     raise TypeError(
                         f"Optional arguments to an IntrinsicCall must be "
                         f"specified by a (str, Reference) tuple but got "
-                        f"a {type(arg[0]).__name__} instead of a str.")
+                        f"a {type(arg[0]).__name__} instead of a str."
+                    )
                 name = arg[0].lower()
                 last_named_arg = name
                 # TODO #2302: For now we disable the positional arguments
@@ -859,7 +3985,8 @@ class IntrinsicCall(Call):
                             f"The optional argument '{name}' to intrinsic "
                             f"'{intrinsic.name}' must be of type "
                             f"'{intrinsic.optional_args[name].__name__}' but "
-                            f"got '{type(arg[1]).__name__}'")
+                            f"got '{type(arg[1]).__name__}'"
+                        )
                 else:
                     # If it not in the optional_args list it must be positional
                     pos_arg_count += 1
@@ -867,23 +3994,30 @@ class IntrinsicCall(Call):
                 if last_named_arg:
                     raise ValueError(
                         f"Found a positional argument *after* a named "
-                        f"argument ('{last_named_arg}'). This is invalid.'")
+                        f"argument ('{last_named_arg}'). This is invalid.'"
+                    )
                 if not isinstance(arg, intrinsic.required_args.types):
                     raise TypeError(
                         f"The '{intrinsic.name}' intrinsic requires that "
                         f"positional arguments be of type "
                         f"'{intrinsic.required_args.types}' "
-                        f"but got a '{type(arg).__name__}'")
+                        f"but got a '{type(arg).__name__}'"
+                    )
                 pos_arg_count += 1
 
-        if ((intrinsic.required_args.max_count is not None and
-             pos_arg_count > intrinsic.required_args.max_count)
-                or pos_arg_count < intrinsic.required_args.min_count):
+        if (
+            intrinsic.required_args.max_count is not None
+            and pos_arg_count > intrinsic.required_args.max_count
+        ) or pos_arg_count < intrinsic.required_args.min_count:
             msg = f"The '{intrinsic.name}' intrinsic requires "
-            if (intrinsic.required_args.max_count is not None and
-                    intrinsic.required_args.max_count > 0):
-                msg += (f"between {intrinsic.required_args.min_count} and "
-                        f"{intrinsic.required_args.max_count} ")
+            if (
+                intrinsic.required_args.max_count is not None
+                and intrinsic.required_args.max_count > 0
+            ):
+                msg += (
+                    f"between {intrinsic.required_args.min_count} and "
+                    f"{intrinsic.required_args.max_count} "
+                )
             else:
                 msg += f"at least {intrinsic.required_args.min_count} "
             msg += f"arguments but got {len(arguments)}."
@@ -899,88 +4033,91 @@ class IntrinsicCall(Call):
         return call
 
     def reference_accesses(self) -> VariablesAccessMap:
-        '''
+        """
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
             structure acccessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
-        '''
-        var_accesses = VariablesAccessMap()
-        if self.intrinsic.is_inquiry and isinstance(self.arguments[0],
-                                                    Reference):
-            # If this is an inquiry access (which doesn't actually access the
-            # value) then make sure we use the correct access type for the
-            # inquired variable, which is always the first argument.
-            sig, indices = self.arguments[0].get_signature_and_indices()
-            var_accesses.add_access(sig, AccessType.INQUIRY, self.arguments[0])
-            for idx_list in indices:
-                for idx in idx_list:
-                    var_accesses.update(idx.reference_accesses())
-        elif self.arguments:
-            var_accesses.update(self.arguments[0].reference_accesses())
-
-        for child in self.arguments[1:]:
-            var_accesses.update(child.reference_accesses())
-        return var_accesses
+        """
+        return self.intrinsic.reference_accesses(self)
 
     # TODO #2102: Maybe the three properties below can be removed if intrinsic
     # is a symbol, as they would act as the super() implementation.
     @property
     def is_elemental(self):
-        '''
+        """
         :returns: whether the routine being called is elemental (provided with
             an input array it will apply the operation individually to each of
             the array elements and return an array with the results). If this
             information is not known then it returns None.
         :rtype: NoneType | bool
-        '''
+        """
         return self.intrinsic.is_elemental
 
     @property
     def is_pure(self):
-        '''
+        """
         :returns: whether the routine being called is pure (guaranteed to
             return the same result when provided with the same argument
             values).  If this information is not known then it returns None.
         :rtype: NoneType | bool
-        '''
+        """
         return self.intrinsic.is_pure
 
     @property
     def is_inquiry(self):
-        '''
+        """
         :returns: whether the routine being called is a query function (i.e.
             returns information about its argument rather than accessing any
             data referenced by the argument). If this information is not known
             then it returns None.
         :rtype: NoneType | bool
-        '''
+        """
         return self.intrinsic.is_inquiry
 
 
 # Intrinsics available on nvidia gpus with uniform (CPU and GPU) results when
 # compiled with the nvfortran "-gpu=uniform_math" flag
 NVFORTRAN_UNIFORM = (
-    IntrinsicCall.Intrinsic.ABS,  IntrinsicCall.Intrinsic.ACOS,
-    IntrinsicCall.Intrinsic.AINT, IntrinsicCall.Intrinsic.ANINT,
-    IntrinsicCall.Intrinsic.ASIN, IntrinsicCall.Intrinsic.ATAN,
-    IntrinsicCall.Intrinsic.ATAN2, IntrinsicCall.Intrinsic.COS,
-    IntrinsicCall.Intrinsic.COSH, IntrinsicCall.Intrinsic.DBLE,
-    IntrinsicCall.Intrinsic.DPROD, IntrinsicCall.Intrinsic.EXP,
-    IntrinsicCall.Intrinsic.IAND, IntrinsicCall.Intrinsic.IEOR,
-    IntrinsicCall.Intrinsic.INT, IntrinsicCall.Intrinsic.IOR,
-    IntrinsicCall.Intrinsic.LOG, IntrinsicCall.Intrinsic.NOT,
-    IntrinsicCall.Intrinsic.MAX, IntrinsicCall.Intrinsic.MIN,
-    IntrinsicCall.Intrinsic.MOD, IntrinsicCall.Intrinsic.NINT,
-    IntrinsicCall.Intrinsic.SIGN, IntrinsicCall.Intrinsic.SIN,
-    IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
-    IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH,
-    IntrinsicCall.Intrinsic.UBOUND, IntrinsicCall.Intrinsic.MERGE,
-    IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
-    IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
-    IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.MINVAL,
-    IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE
+    IntrinsicCall.Intrinsic.ABS,
+    IntrinsicCall.Intrinsic.ACOS,
+    IntrinsicCall.Intrinsic.AINT,
+    IntrinsicCall.Intrinsic.ANINT,
+    IntrinsicCall.Intrinsic.ASIN,
+    IntrinsicCall.Intrinsic.ATAN,
+    IntrinsicCall.Intrinsic.ATAN2,
+    IntrinsicCall.Intrinsic.COS,
+    IntrinsicCall.Intrinsic.COSH,
+    IntrinsicCall.Intrinsic.DBLE,
+    IntrinsicCall.Intrinsic.DPROD,
+    IntrinsicCall.Intrinsic.EXP,
+    IntrinsicCall.Intrinsic.IAND,
+    IntrinsicCall.Intrinsic.IEOR,
+    IntrinsicCall.Intrinsic.INT,
+    IntrinsicCall.Intrinsic.IOR,
+    IntrinsicCall.Intrinsic.LOG,
+    IntrinsicCall.Intrinsic.NOT,
+    IntrinsicCall.Intrinsic.MAX,
+    IntrinsicCall.Intrinsic.MIN,
+    IntrinsicCall.Intrinsic.MOD,
+    IntrinsicCall.Intrinsic.NINT,
+    IntrinsicCall.Intrinsic.SIGN,
+    IntrinsicCall.Intrinsic.SIN,
+    IntrinsicCall.Intrinsic.SINH,
+    IntrinsicCall.Intrinsic.SQRT,
+    IntrinsicCall.Intrinsic.TAN,
+    IntrinsicCall.Intrinsic.TANH,
+    IntrinsicCall.Intrinsic.UBOUND,
+    IntrinsicCall.Intrinsic.MERGE,
+    IntrinsicCall.Intrinsic.PRODUCT,
+    IntrinsicCall.Intrinsic.SIZE,
+    IntrinsicCall.Intrinsic.SUM,
+    IntrinsicCall.Intrinsic.LBOUND,
+    IntrinsicCall.Intrinsic.MAXVAL,
+    IntrinsicCall.Intrinsic.MINVAL,
+    IntrinsicCall.Intrinsic.TINY,
+    IntrinsicCall.Intrinsic.HUGE,
 )
 # MATMUL can fail at link time depending on the precision of
 # its arguments.
@@ -988,7 +4125,9 @@ NVFORTRAN_UNIFORM = (
 
 # All nvfortran intrinsics available on GPUs
 NVFORTRAN_ALL = NVFORTRAN_UNIFORM + (
-    IntrinsicCall.Intrinsic.LOG10, IntrinsicCall.Intrinsic.REAL)
+    IntrinsicCall.Intrinsic.LOG10,
+    IntrinsicCall.Intrinsic.REAL,
+)
 
 # For now the default intrinsics availabe on GPU are the same as nvfortran-all
 DEFAULT_DEVICE_INTRINISCS = NVFORTRAN_ALL
@@ -997,5 +4136,7 @@ DEFAULT_DEVICE_INTRINISCS = NVFORTRAN_ALL
 # type of a PSyIR expression.
 # Intrinsics that perform a reduction on an array.
 REDUCTION_INTRINSICS = [
-    IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.MINVAL,
-    IntrinsicCall.Intrinsic.MAXVAL]
+    IntrinsicCall.Intrinsic.SUM,
+    IntrinsicCall.Intrinsic.MINVAL,
+    IntrinsicCall.Intrinsic.MAXVAL,
+]
