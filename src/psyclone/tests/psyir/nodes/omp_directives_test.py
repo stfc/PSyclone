@@ -4955,7 +4955,7 @@ def test_nested_reductions(fortran_reader, fortran_writer):
     assert "collapse(2)" in output
 
 
-def test_non_reduction(fortran_reader, fortran_writer):
+def test_non_reduction1(fortran_reader, fortran_writer):
     ''' Test that a loop that looks like it contains a reduction (but
     doesn't), is not parallelised.
     '''
@@ -4971,6 +4971,48 @@ def test_non_reduction(fortran_reader, fortran_writer):
                     count = count + 1
                 end if
                 arr2(i) = count
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    assert ("Variable 'count' is read first, which indicates a reduction"
+            in str(err.value))
+
+
+def test_non_reduction2(fortran_reader, fortran_writer):
+    ''' Test that x = x + x does not lead to a reduction clause.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sub(arr) result (count)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: count = 1
+
+            do i = 1, size(arr)
+                count = count + count
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    assert ("Variable 'count' is read first, which indicates a reduction"
+            in str(err.value))
+
+
+def test_non_reduction3(fortran_reader, fortran_writer):
+    ''' Test that x = x / 2 does not lead to a reduction clause.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sub(arr) result (count)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: count = 1
+
+            do i = 1, size(arr)
+                count = count / 2
             end do
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")

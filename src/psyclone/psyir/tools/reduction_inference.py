@@ -177,7 +177,7 @@ class ReductionInferenceTool():
                                 return op
                 return None
 
-    def attempt_reduction(self, node: Node, sig: Signature,
+    def attempt_reduction(self, sig: Signature,
                           access_info: AccessInfo) -> \
             Tuple[Union[BinaryOperation.Operator,
                         IntrinsicCall.Intrinsic],
@@ -187,7 +187,6 @@ class ReductionInferenceTool():
         can be handled using a reduction clause and, if so, return that
         clause. Otherwise, return None.
 
-        :param node: the node to be parallelised.
         :param sig: the variable being considered as a reduction variable.
         :param access_info: the access info for that variable.
         :returns: the operator/reference pair that can be used for the

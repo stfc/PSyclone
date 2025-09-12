@@ -292,8 +292,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     if (len(message.var_infos) == 1):
                         (sig, access_info) = message.var_infos[0]
                         red_tool = ReductionInferenceTool(reduction_ops)
-                        clause = red_tool.attempt_reduction(
-                                     node, sig, access_info)
+                        clause = red_tool.attempt_reduction(sig, access_info)
                         if clause:
                             self.inferred_reduction_clauses.append(clause)
                             continue
