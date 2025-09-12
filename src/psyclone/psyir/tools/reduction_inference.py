@@ -120,10 +120,10 @@ class ReductionInferenceTool():
         '''
         if isinstance(node, Reference):
             if self._match_sig(node, sig):
-                # We have found a write access to the candidate reduction
-                # variable. Now check that the parent of this write access
-                # is an assignment.
-                if isinstance(node.parent, Assignment):
+                # We have an access to the candidate reduction variable.
+                # Now check that this access is the LHS of an Assignment.
+                if (isinstance(node.parent, Assignment) and
+                        node.parent.lhs is node):
                     # Check that the RHS of the assignment has a reduction
                     # operator at its root.
                     op = self._get_reduction_operator(node.parent.rhs)
@@ -163,9 +163,9 @@ class ReductionInferenceTool():
         '''
         if isinstance(node, Reference):
             if self._match_sig(node, sig):
-                # We have found a read access to the candidate reduction
-                # variable. Now check that the parent of this read access
-                # is an application of a reduction operator.
+                # We have an access to the candidate reduction variable.
+                # Now check that the parent of this access is an application
+                # of a reduction operator.
                 op = self._get_reduction_operator(node.parent)
                 if op:
                     # Also check that the parent of the reduction operator
