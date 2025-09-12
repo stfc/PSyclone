@@ -88,6 +88,18 @@ def test_messages():
     dep_tools._clear_messages()
     assert dep_tools.get_all_messages() == []
 
+    with pytest.raises(InternalError) as err:
+        dep_tools._add_message("var-info-test1", DTCode.WARN_SCALAR_REDUCTION,
+                               ["a"], [])
+    assert ("The var_names and var_infos arguments to _add_message "
+            "must have the same length") in str(err.value)
+
+    with pytest.raises(TypeError) as err:
+        dep_tools._add_message("var-info-test2", DTCode.WARN_SCALAR_REDUCTION,
+                               ["a"], [False])
+    assert ("The var_infos argument to _add_message must "
+            "be a list of Signature/AccessSequence pairs") in str(err.value)
+
 
 # -----------------------------------------------------------------------------
 def test_dep_tool_constructor_errors():
