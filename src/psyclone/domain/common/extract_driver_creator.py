@@ -40,17 +40,12 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 from psyclone.domain.common import BaseDriverCreator
-from psyclone.psyir.nodes import FileContainer, Node, Routine
-from psyclone.psyir.symbols import (DataSymbol,
-                                    INTEGER_TYPE,
-                                    REAL8_TYPE, ScalarType)
-from psyclone.psyir.tools import ReadWriteInfo
-
-# TODO 1382: once we support LFRic, make this into a proper base class
-# and put the domain-specific implementations into the domain/* directories.
+from psyclone.psyir.nodes import Node
+from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE, REAL8_TYPE,
+                                    ScalarType, SymbolTable)
 
 
 class ExtractDriverCreator(BaseDriverCreator):
@@ -75,70 +70,17 @@ class ExtractDriverCreator(BaseDriverCreator):
                                "real": real_type}
 
     # -------------------------------------------------------------------------
-    def create(self,
-               nodes: List[Node],
-               read_write_info: ReadWriteInfo,
-               prefix: str,
-               postfix: str,
-               region_name: Tuple[str, str]) -> FileContainer:
-        # pylint: disable=too-many-arguments
-        '''This function uses the PSyIR to create a stand-alone driver
-        that reads in a previously created file with kernel input and
-        output information, and calls the kernels specified in the 'nodes'
-        PSyIR tree with the parameters from the file. It returns the
-        file container which contains the driver.
+    def cleanup_psyir(self, extract_region: Node) -> None:
+        pass
 
-        :param nodes: a list of nodes.
-        :param read_write_info: information about all input and output
-            parameters.
-        :param prefix: the prefix to use for each PSyData symbol,
-            e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param postfix: a postfix that is appended to an output variable
-            to create the corresponding variable that stores the output
-            value from the kernel data file. The caller must guarantee that
-            no name clashes are created when adding the postfix to a variable
-            and that the postfix is consistent between extract code and
-            driver code (see 'ExtractTrans.determine_postfix()').
-        :param region_name: an optional name to
-            use for this PSyData area, provided as a 2-tuple containing a
-            location name followed by a local name. The pair of strings
-            should uniquely identify a region.
-
-        :returns: the program PSyIR for a stand-alone driver.
-
-        '''
-        # pylint: disable=too-many-locals
-
-        file_container, psy_data = self.create_driver_template(region_name,
-                                                               prefix)
-
-        program = file_container.walk(Routine)[0]
-        og_symtab = nodes[0].ancestor(Routine).symbol_table
-
-        output_symbols = self._create_read_in_code(program, psy_data,
-                                                   og_symtab,
-                                                   read_write_info, postfix)
-
-        # Copy the nodes that are part of the extraction
-        extract_region = nodes[0].copy()
-        program.children.extend(extract_region.pop_all_children())
-
-        # Find all imported modules and add them to the symbol table
-        self.import_modules(program)
-
-        self.replace_precisions(program)
-
-        self.add_result_tests(program, output_symbols)
-
-        return file_container
-
-    def replace_precisions(self, program: Routine):
+    # -------------------------------------------------------------------------
+    def handle_precision_symbols(self, symbol_table: SymbolTable) -> None:
         ''' Replaces the precisions with the values given in the _default_types
         in order to avoid imported precision symbols.
 
         :param program: the PSyIR Routine in which to replace the symbols.
         '''
-        for symbol in program.symbol_table.symbols:
+        for symbol in symbol_table.symbols:
             if isinstance(symbol, DataSymbol):
                 dt = symbol.datatype
                 if isinstance(dt, ScalarType):

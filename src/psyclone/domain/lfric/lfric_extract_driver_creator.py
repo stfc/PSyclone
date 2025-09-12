@@ -41,22 +41,16 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
-# TODO #1382: refactoring common functionality between the various driver
-# creation implementation should make this file much smaller.
-# pylint: disable=too-many-lines
-
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 from psyclone.configuration import Config
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.nodes import (Call, FileContainer, Node,
-                                  Routine, StructureReference)
+from psyclone.psyir.nodes import (Call, Node,
+                                  StructureReference)
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol,
                                     ImportInterface, INTEGER_TYPE,
-                                    UnsupportedFortranType)
-from psyclone.psyir.tools import ReadWriteInfo
+                                    SymbolTable,)
 
 
 class LFRicExtractDriverCreator(BaseDriverCreator):
@@ -169,8 +163,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                  "r_tran_field_type"]
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def _add_precision_symbols(symbol_table):
+    def handle_precision_symbols(self, symbol_table: SymbolTable) -> None:
         '''This function adds an import of the various precision
         symbols used by LFRic from the constants_mod module.
 
@@ -199,52 +192,21 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                     interface=ImportInterface(constant_mod))
 
     # -------------------------------------------------------------------------
-    def create(self,
-               nodes: List[Node],
-               read_write_info: ReadWriteInfo,
-               prefix: str,
-               postfix: str,
-               region_name: Tuple[str, str]) -> FileContainer:
-        # pylint: disable=too-many-arguments
-        '''This function uses the PSyIR to create a stand-alone driver
-        that reads in a previously created file with kernel input and
-        output information, and calls the kernels specified in the 'nodes'
-        PSyIR tree with the parameters from the file. The `nodes` are
-        consecutive nodes from the PSyIR tree.
-        It returns the file container which contains the driver.
+    def cleanup_psyir(self,
+                      extract_region: Node) -> None:
+        """This method is called to allow the driver creation go remove
+        unnecessary code (like MPI related calls), and potentially raise
+        an exception if other unsupported features are detected. The
+        PSyIR will be modified in place.
 
-        :param nodes: a list of nodes.
-        :param read_write_info: information about all input and output
-            parameters.
-        :param prefix: the prefix to use for each PSyData symbol,
-            e.g. 'extract' as prefix will create symbols ``extract_psydata``.
-        :param postfix: a postfix that is appended to an output variable
-            to create the corresponding variable that stores the output
-            value from the kernel data file. The caller must guarantee that
-            no name clashes are created when adding the postfix to a variable
-            and that the postfix is consistent between extract code and
-            driver code (see 'ExtractTrans.determine_postfix()').
-        :param region_name: an optional name to
-            use for this PSyData area, provided as a 2-tuple containing a
-            location name followed by a local name. The pair of strings
-            should uniquely identify a region.
+        :raises ValueError: if structure references are found, which are
+            not yet supported.
+        """
 
-        :returns: the program PSyIR for a stand-alone driver.
-
-        '''
-        # pylint: disable=too-many-locals
-
-        file_container, psy_data = self.create_driver_template(region_name,
-                                                               prefix)
-        program = file_container.walk(Routine)[0]
-        program_symbol_table = program.symbol_table
-        original_symbol_table = nodes[0].ancestor(InvokeSchedule).symbol_table
-
-        extract_region = nodes[0].copy()
         # StructureReference must have been flattened before creating the
         # driver, or are method calls. In both cases they are not allowed.
+        dm_methods = ("set_dirty", "set_clean")
         for sref in extract_region.walk(StructureReference):
-            dm_methods = ("set_dirty", "set_clean")
             if (isinstance(sref.parent, Call) and
                     sref.member.name in dm_methods):
                 # Some methods regarding distributed-memory can be deleted as
@@ -254,27 +216,3 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 raise ValueError(f"The provided PSyIR should not have "
                                  f"StructureReferences, but found: "
                                  f"{sref.debug_string()}")
-
-        output_symbols = self._create_read_in_code(program, psy_data,
-                                                   original_symbol_table,
-                                                   read_write_info, postfix)
-
-        # Copy the nodes that are part of the extraction
-        program.children.extend(extract_region.pop_all_children())
-
-        # Find all imported modules and add them to the symbol table
-        self.import_modules(program)
-        self._add_precision_symbols(program.scope.symbol_table)
-
-        BaseDriverCreator.add_result_tests(program, output_symbols)
-
-        # Replace pointers with allocatables
-        for symbol in program_symbol_table.datasymbols:
-            if isinstance(symbol.datatype, UnsupportedFortranType):
-                symbol.datatype = symbol.datatype.copy()
-                newt = symbol.datatype._declaration
-                newt = newt.replace('pointer', 'allocatable')
-                newt = newt.replace('=> null()', '')
-                symbol.datatype._declaration = newt
-
-        return file_container

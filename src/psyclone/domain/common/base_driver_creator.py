@@ -349,13 +349,82 @@ class BaseDriverCreator:
 
     # -------------------------------------------------------------------------
     @abstractmethod
+    def cleanup_psyir(self, extract_region: Node) -> None:
+        pass
+
+    # -------------------------------------------------------------------------
+    @abstractmethod
+    def handle_precision_symbols(self, symbol_table: SymbolTable) -> None:
+        pass
+
+    # -------------------------------------------------------------------------
     def create(self,
                nodes: List[Node],
                read_write_info: ReadWriteInfo,
                prefix: str,
                postfix: str,
                region_name: Tuple[str, str]) -> FileContainer:
-        pass
+        # pylint: disable=too-many-arguments
+        '''This function uses the PSyIR to create a stand-alone driver
+        that reads in a previously created file with kernel input and
+        output information, and calls the kernels specified in the 'nodes'
+        PSyIR tree with the parameters from the file. The `nodes` are
+        consecutive nodes from the PSyIR tree.
+        It returns the file container which contains the driver.
+
+        :param nodes: a list of nodes.
+        :param read_write_info: information about all input and output
+            parameters.
+        :param prefix: the prefix to use for each PSyData symbol,
+            e.g. 'extract' as prefix will create symbols ``extract_psydata``.
+        :param postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
+            driver code (see 'ExtractTrans.determine_postfix()').
+        :param region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
+            should uniquely identify a region.
+
+        :returns: the program PSyIR for a stand-alone driver.
+
+        '''
+        # pylint: disable=too-many-locals
+
+        file_container, psy_data = self.create_driver_template(region_name,
+                                                               prefix)
+        program = file_container.walk(Routine)[0]
+        original_symbol_table = nodes[0].ancestor(Routine).symbol_table
+
+        # Copy the nodes that are part of the extraction
+        extract_region = nodes[0].copy()
+        self.cleanup_psyir(extract_region)
+        output_symbols = self._create_read_in_code(program, psy_data,
+                                                   original_symbol_table,
+                                                   read_write_info, postfix)
+
+        # Copy the nodes that are part of the extraction
+        program.children.extend(extract_region.pop_all_children())
+
+        # Find all imported modules and add them to the symbol table
+        self.import_modules(program)
+        self.handle_precision_symbols(program.scope.symbol_table)
+
+        BaseDriverCreator.add_result_tests(program, output_symbols)
+
+        # Replace pointers with allocatables
+        program_symbol_table = program.symbol_table
+        for symbol in program_symbol_table.datasymbols:
+            if isinstance(symbol.datatype, UnsupportedFortranType):
+                symbol.datatype = symbol.datatype.copy()
+                newt = symbol.datatype.declaration
+                newt = newt.replace('pointer', 'allocatable')
+                newt = newt.replace('=> null()', '')
+                symbol.datatype._declaration = newt
+
+        return file_container
 
     # -------------------------------------------------------------------------
     def _add_command_line_handler(self, program, psy_data_var, module_name,
