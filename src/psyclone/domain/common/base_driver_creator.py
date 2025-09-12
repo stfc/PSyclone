@@ -63,7 +63,7 @@ class BaseDriverCreator:
     '''
 
     # -------------------------------------------------------------------------
-    def __init__(self, region_name: Optional[tuple[str, str]]):
+    def __init__(self, region_name: Optional[tuple[str, str]] = None):
         self._region_name = region_name
 
     # -------------------------------------------------------------------------

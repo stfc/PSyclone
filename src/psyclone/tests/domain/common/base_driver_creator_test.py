@@ -40,8 +40,12 @@
 import pytest
 
 from psyclone.domain.common import BaseDriverCreator
-from psyclone.psyir.nodes import Literal, Routine
+from psyclone.domain.lfric.transformations import LFRicExtractTrans
+from psyclone.psyir.nodes import (Assignment, Literal, Routine,
+                                  StructureReference)
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, RoutineSymbol
+from psyclone.tests.utilities import get_invoke
 
 
 def test_basic_driver_add_call(fortran_writer):
@@ -56,8 +60,8 @@ def test_basic_driver_add_call(fortran_writer):
             "'Symbol', not a 'RoutineSymbol'" in str(err.value))
 
     # Clean up previous invalid test symbol
-    del program.symbol_table._symbols['test']
-    del program.symbol_table._tags['test']
+    del program.symbol_table.symbols_dict['test']
+    del program.symbol_table.tags_dict['test']
 
     BaseDriverCreator.add_call(program, "my_sub", [])
     BaseDriverCreator.add_call(program, "my_sub_2",
@@ -84,3 +88,31 @@ def test_lfric_driver_add_result_tests(fortran_writer):
   call compare('a1', a1, a1_orig)
   call compare_summary()"""
     assert expected in out
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
+def test_base_driver_structure_accesses():
+    '''This test creates a structure access in an LFRic example.
+    The base class driver creator should flag this:
+    '''
+
+    psy, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", "lfric",
+                             dist_mem=True, idx=0)
+    extract = LFRicExtractTrans()
+
+    kern_call = invoke.schedule.children[-1]
+    extract.apply(kern_call,
+                  options={"create_driver": True,
+                           "region_name": ("field", "test")})
+
+    # If there is a method call other than the ones from the DM infrastructure
+    # it will fail
+    base_symbol = invoke.schedule.symbol_table.lookup('x_ptr_vector')
+    kern_call.parent.addchild(
+        Assignment.create(
+            StructureReference.create(base_symbol, ["method"]),
+            StructureReference.create(base_symbol, ["method"])))
+    with pytest.raises(VisitorError) as err:
+        _ = psy.gen
+    assert ("The provided PSyIR should not have StructureReferences, "
+            "but found: x_ptr_vector%method" in str(err.value))
