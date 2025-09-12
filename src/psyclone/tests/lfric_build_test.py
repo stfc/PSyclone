@@ -68,7 +68,6 @@ def test_lf_build_get_infrastructure_flags(monkeypatch, tmpdir):
     monkeypatch.setattr(Compile, "TEST_COMPILE", False)
     builder = LFRicBuild(tmpdir)
     flags = builder.get_infrastructure_flags()
-    print("XX1", flags)
     dir_list = []
     for idx, flag in enumerate(flags):
         if idx % 2 == 0:
@@ -76,10 +75,15 @@ def test_lf_build_get_infrastructure_flags(monkeypatch, tmpdir):
         else:
             # Just keep a list of the base directories
             dir_list.append(os.path.split(flag)[1])
-    print("XX2", dir_list)
     assert 'configuration' in dir_list
     assert 'function_space' in dir_list
     assert 'field' in dir_list
+    # In the past there was a bug where the root directory of
+    # PSyclone was used to find the infrastructure directories. To
+    # detect this, check that there are no unexpected directory names
+    # in there:
+    assert '.git' not in dir_list
+    assert '__pycache__' not in dir_list
 
 
 @pytest.mark.usefixtures("enable_compilation")

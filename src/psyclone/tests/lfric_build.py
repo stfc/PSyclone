@@ -93,7 +93,7 @@ class LFRicBuild(Compile):
 
         '''
         all_flags = []
-        for root, dirs, _ in os.walk(LFRicBuild._compilation_path):
+        for root, dirs, _ in os.walk(self._infrastructure_path):
             for curr_dir in dirs:
                 all_flags.extend(["-I", str(os.path.join(root, curr_dir))])
 
