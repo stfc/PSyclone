@@ -40,7 +40,7 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
-from typing import Optional, Tuple
+from typing import Optional
 
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE, REAL8_TYPE,
@@ -61,7 +61,7 @@ class ExtractDriverCreator(BaseDriverCreator):
     '''
     def __init__(self, integer_type: ScalarType = INTEGER_TYPE,
                  real_type: ScalarType = REAL8_TYPE,
-                 region_name: Optional[Tuple[str, str]] = None) -> None:
+                 region_name: Optional[tuple[str, str]] = None) -> None:
         super().__init__(region_name)
         # Set the integer and real types to use.
         # For convenience, also add the names used in the gocean config file:

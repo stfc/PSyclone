@@ -39,7 +39,7 @@ implementations.
 '''
 
 from abc import abstractmethod
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Optional
 
 from psyclone.line_length import FortLineLength
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -63,12 +63,12 @@ class BaseDriverCreator:
     '''
 
     # -------------------------------------------------------------------------
-    def __init__(self, region_name: Optional[Tuple[str, str]]):
+    def __init__(self, region_name: Optional[tuple[str, str]]):
         self._region_name = region_name
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def add_call(program: Routine, name: str, args: List[Node]):
+    def add_call(program: Routine, name: str, args: list[Node]):
         '''This function creates a call to the subroutine of the given name,
         providing the arguments. The call will be added to the program and
         the corresponding RoutineSymbol to its symbol table (if not already
@@ -122,7 +122,7 @@ class BaseDriverCreator:
     # -------------------------------------------------------------------------
     @staticmethod
     def add_result_tests(program: Routine,
-                         output_symbols: List[Tuple[Symbol, Symbol]]):
+                         output_symbols: list[tuple[Symbol, Symbol]]):
         '''Adds tests to check that all output variables have the expected
         value.
 
@@ -162,7 +162,7 @@ class BaseDriverCreator:
         read_var: str,
         postfix: str,
         module_name: Optional[str] = None
-    ) -> Tuple[Symbol, Symbol]:
+    ) -> tuple[Symbol, Symbol]:
         '''
         This function creates all code required for an output variable:
         1. It declares (and initialises if necessary) the post variable
@@ -224,7 +224,7 @@ class BaseDriverCreator:
     def _create_read_in_code(
             self, program: Routine, psy_data: DataSymbol,
             original_symtab: SymbolTable, read_write_info: ReadWriteInfo,
-            postfix: str) -> List[Tuple[Symbol, Symbol]]:
+            postfix: str) -> list[tuple[Symbol, Symbol]]:
         '''This function creates the code that reads in the data file
         produced during extraction. For each:
 
@@ -467,7 +467,7 @@ class BaseDriverCreator:
     # -------------------------------------------------------------------------
     @staticmethod
     def collect_all_required_modules(
-            file_container: FileContainer) -> Dict[str, Set[str]]:
+            file_container: FileContainer) -> dict[str, set[str]]:
         '''Collects recursively all modules used in the file container.
         It returns a dictionary, with the keys being all the (directly or
         indirectly) used modules.
@@ -479,7 +479,7 @@ class BaseDriverCreator:
             as value a set of all modules required by the key module.
 
         '''
-        all_mods: Set[str] = set()
+        all_mods: set[str] = set()
         for container in file_container.children:
             sym_tab = container.symbol_table
             # Add all imported modules (i.e. all container symbols)
@@ -492,11 +492,11 @@ class BaseDriverCreator:
 
     # -------------------------------------------------------------------------
     def create(self,
-               nodes: List[Node],
+               nodes: list[Node],
                read_write_info: ReadWriteInfo,
                prefix: str,
                postfix: str,
-               region_name: Tuple[str, str]) -> FileContainer:
+               region_name: tuple[str, str]) -> FileContainer:
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
@@ -587,11 +587,11 @@ class BaseDriverCreator:
 
     # -------------------------------------------------------------------------
     def get_driver_as_string(self,
-                             nodes: List[Node],
+                             nodes: list[Node],
                              read_write_info: ReadWriteInfo,
                              prefix: str,
                              postfix: str,
-                             region_name: Tuple[str, str],
+                             region_name: tuple[str, str],
                              writer: LanguageWriter = FortranWriter()) -> str:
         # pylint: disable=too-many-arguments, too-many-locals
         '''This function uses the `create()` function to get the PSyIR of a
@@ -652,11 +652,11 @@ class BaseDriverCreator:
 
     # -------------------------------------------------------------------------
     def write_driver(self,
-                     nodes: List[Node],
+                     nodes: list[Node],
                      read_write_info: ReadWriteInfo,
                      prefix: str,
                      postfix: str,
-                     region_name: Tuple[str, str],
+                     region_name: tuple[str, str],
                      writer: LanguageWriter = FortranWriter()) -> None:
         # pylint: disable=too-many-arguments
         '''This function uses the `get_driver_as_string()` function to get a

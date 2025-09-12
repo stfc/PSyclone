@@ -41,7 +41,7 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
-from typing import Optional, Tuple
+from typing import Optional
 
 from psyclone.configuration import Config
 from psyclone.domain.common import BaseDriverCreator
@@ -152,7 +152,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
     :param region_name: the suggested region_name.
     '''
-    def __init__(self, region_name: Optional[Tuple[str, str]] = None):
+    def __init__(self, region_name: Optional[tuple[str, str]] = None):
         super().__init__(region_name)
         # TODO #2069: check if this list can be taken from LFRicConstants
         # TODO #2018: once r_field is defined in the LFRic infrastructure,
