@@ -270,11 +270,12 @@ class OMPParallelLoopTrans(OMPLoopTrans):
             and validation.
         :type options: Optional[Dict[str, Any]]
         '''
-        if options:
-            if options.get("enable_reductions", False):
-                options["reduction_ops"] = list(MAP_REDUCTION_OP_TO_OMP.keys())
+        local_options = options.copy() if options is not None else None
+        if options and options.get("enable_reductions", False):
+            local_options["reduction_ops"] = \
+                list(MAP_REDUCTION_OP_TO_OMP.keys())
 
-        self.validate(node, options=options)
+        self.validate(node, options=local_options)
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location

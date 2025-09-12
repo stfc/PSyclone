@@ -5063,9 +5063,6 @@ def test_reduction_struct_member(fortran_reader, fortran_writer):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    # omplooptrans.apply(loop, enable_reductions=True)
-    # output = fortran_writer(psyir)
-    # assert "reduction(+: struct%acc)" in output
     with pytest.raises(TransformationError) as err:
         omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'struct%acc' is read first, which indicates a reduction"

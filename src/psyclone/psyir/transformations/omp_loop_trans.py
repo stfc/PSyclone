@@ -348,6 +348,7 @@ class OMPLoopTrans(ParallelLoopTrans):
             red_ops = []
 
         # TODO 2668 - options dict is deprecated.
+        local_options = options.copy() if options is not None else None
         if not options:
             if reprod is None:
                 reprod = Config.get().reproducible_reductions
@@ -362,14 +363,14 @@ class OMPLoopTrans(ParallelLoopTrans):
             self._reprod = options.get("reprod",
                                        Config.get().reproducible_reductions)
             if options.get("enable_reductions", False):
-                options["reduction_ops"] = list(
+                local_options["reduction_ops"] = list(
                     MAP_REDUCTION_OP_TO_OMP.keys())
             else:
-                options["reduction_ops"] = []
+                local_options["reduction_ops"] = []
 
         parent = node.parent
         position = node.position
-        super().apply(node, options, reduction_ops=red_ops, **kwargs)
+        super().apply(node, local_options, reduction_ops=red_ops, **kwargs)
 
         # Add reduction clauses to the newly introduced directive
         directive = parent.children[position]
