@@ -40,7 +40,7 @@ import os
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.parse import FileInfo, ModuleInfo, ModuleManager
+from psyclone.parse import ModuleInfo, ModuleManager
 from psyclone.tests.utilities import get_infrastructure_path
 
 
@@ -378,6 +378,7 @@ def test_mod_manager_add_ignore_files(version: str) -> None:
     mod_man.add_ignore_file(ignored_file)
     mod_info = mod_man.get_module_info("parallel_utils_mod")
     assert expected_module in mod_info.filename
+
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
