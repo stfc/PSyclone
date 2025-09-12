@@ -1,3 +1,6 @@
+   87) PR #3127 for #3126. Disable python module index in latex version
+   of docs.
+
    86) PR #3129 for #2709. Ensures that the 'disable backends check'
    configuration option is passed to the FortranWriter.
 
