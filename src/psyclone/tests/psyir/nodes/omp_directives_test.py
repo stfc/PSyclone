@@ -5035,6 +5035,7 @@ def test_non_reduction3(fortran_reader, fortran_writer):
     assert ("Variable 'count' is read first, which indicates a reduction"
             in str(err.value))
 
+
 def test_attempt_reduction_no_accesses(fortran_reader, fortran_writer):
     ''' Test attempt_reduction fails when given empty access info.
     '''
@@ -5042,7 +5043,8 @@ def test_attempt_reduction_no_accesses(fortran_reader, fortran_writer):
     empty_access_sequence = AccessSequence(sig)
     red_infer_tool = ReductionInferenceTool([])
     clause = red_infer_tool.attempt_reduction(sig, empty_access_sequence)
-    assert(clause is None)
+    assert clause is None
+
 
 @pytest.mark.parametrize("d", ["teamsdistributeparalleldo", "teamsloop"])
 def test_reduction_teams(d, fortran_reader, fortran_writer):
@@ -5060,7 +5062,7 @@ def test_reduction_teams(d, fortran_reader, fortran_writer):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive=d)
     loop = psyir.walk(Loop)[0]
-    omplooptrans.apply(loop, enable_reductions=True)
+    omplooptrans.apply(loop, options={"enable_reductions": True})
     output = fortran_writer(psyir)
     assert "reduction(+: acc)" in output
 
