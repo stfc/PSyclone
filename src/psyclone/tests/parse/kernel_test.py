@@ -197,7 +197,7 @@ def test_getkernelfilepath_nodir_supplied():
 
 def test_getkernelfilepath_nomatch():
     '''Test that the expected exception is raised if the kernel file is
-    not found in the supplied directory (or its descendents).
+    not found in the supplied directory (or its descendants).
 
     '''
     kern_module_name = "testkern_mod"
@@ -270,7 +270,7 @@ def test_getkernelast_nodir():
 
 def test_getkernelast_nomatch():
     '''Test that the expected exception is raised if the kernel file is
-    not found in the supplied directory (or its descendents).
+    not found in the supplied directory (or its descendants).
 
     '''
     kern_module_name = "testkern_mod"

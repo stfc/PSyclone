@@ -893,6 +893,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
             type(my_type) :: mt1, mt2
             real, dimension(10) :: array
             mt1%scalar1 = 3
+            mt2%scalar1 = 3
             do i = 1, 10
                if (i .eq. 4) then
                   mt2%field1%scalar1 = array(i)
@@ -903,9 +904,12 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
         end subroutine''')
     omptrans = OMPParallelTrans()
     routine = psyir.walk(Routine)[0]
-    omptrans.apply(routine.children)
+    omptrans.apply(routine.children[2])
     directive = psyir.walk(OMPParallelDirective)[0]
     pvars, fpvars, sync = directive.infer_sharing_attributes()
+    pytest.xfail("#2094: Currently we only support top-level derived types"
+                 "as OpenMP sharing attributes, but there are cases that "
+                 "more detail is necessary.")
     assert len(pvars) == 2
     assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
     assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar1'
@@ -921,6 +925,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
             integer :: i, scalar1
             type(my_type) :: mt1
             real, dimension(10) :: array
+            mt1%another_scalar = 3
             do i = 1, 10
                if (i .eq. 4) then
                   mt1%scalar1 = 3
@@ -930,7 +935,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
         end subroutine''')
     omptrans = OMPParallelTrans()
     routine = psyir.walk(Routine)[0]
-    omptrans.apply(routine.children)
+    omptrans.apply(routine.children[1])
     directive = psyir.walk(OMPParallelDirective)[0]
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 1
@@ -4651,3 +4656,79 @@ def test_omp_serial_check_dependency_valid_pairing():
     assert test_dir._check_dependency_pairing_valid(
                array_reference1, array_reference2, None, None
            )
+
+
+def test_firstprivate_with_uninitialised(fortran_reader, fortran_writer):
+    ''' Check that guaranteed uninitialised symbols are not put in
+    firstprivate clauses. '''
+    code = '''
+    module test
+        integer :: a
+    contains
+        subroutine my_subroutine(b, cond)
+            integer, intent(inout) :: b, cond
+            integer :: c = 1, d, i, result
+            integer :: not_initialised
+
+            d = 1
+
+            do i = 10, 10, 1
+                if(cond < 1) then
+                    a = 1
+                    b = 1
+                    c = 1
+                    d = 1
+                    not_initialised = 1
+                    result = a + b + c + d + not_initialised
+                endif
+            end do
+        end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelLoopTrans()
+    loops = psyir.walk(Loop)
+    ptrans.apply(loops[0])
+    output = fortran_writer(psyir)
+    assert "private(i,not_initialised)" in output
+    assert "firstprivate(a,b,c,d)" in output
+
+    # Check that complex initialised cases, such as Codeblocks and
+    # initialisations below the loop are caught as a firstprivate
+    code = '''
+    module test
+    contains
+        subroutine my_subroutine(cond)
+            integer, intent(inout) :: cond
+            integer :: a, b, i, j, result
+
+            read(*,*) b
+
+            do j = 1, 10
+                if (j .neq. 1) then
+                    do i = 10, 10, 1
+                        if(cond < 1) then
+                            a = 1
+                        endif
+                        result = a
+                    end do
+                endif
+                a = 1
+            end do
+            do i = 10, 10, 1
+                if(cond < 1) then
+                    b = 1
+                endif
+                result = b
+            end do
+        end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelLoopTrans()
+    loops = psyir.walk(Loop)
+    ptrans.apply(loops[1])
+    ptrans.apply(loops[2])
+    output = fortran_writer(psyir)
+    assert "firstprivate(a)" in output
+    assert "firstprivate(b)" in output

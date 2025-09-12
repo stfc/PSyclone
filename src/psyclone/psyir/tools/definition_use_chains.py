@@ -58,6 +58,7 @@ from psyclone.psyir.nodes import (
     Schedule,
     Statement,
     WhileLoop,
+    PSyDataNode,
 )
 
 
@@ -184,8 +185,8 @@ class DefinitionUseChain:
         # In PSyclone, possible control flow nodes are IfBlock, Loop
         # and WhileLoop, along with RegionDirectives.
         for node in self._scope:
-            c_f_nodes = node.walk((IfBlock, Loop, WhileLoop, RegionDirective))
-            if len(c_f_nodes) > 0:
+            if node.has_descendant(
+                    (IfBlock, Loop, WhileLoop, RegionDirective)):
                 return False
         return True
 
@@ -680,6 +681,14 @@ class DefinitionUseChain:
                 # This assumes that data in clauses is inquiry for now.
                 control_flow_nodes.append(None)
                 basic_blocks.append([node.dir_body])
+            elif isinstance(node, PSyDataNode):
+                # Add any current block to the list of blocks.
+                if len(current_block) > 0:
+                    basic_blocks.append(current_block)
+                    control_flow_nodes.append(None)
+                    current_block = []
+                control_flow_nodes.append(None)
+                basic_blocks.append([node.psy_data_body])
             else:
                 # This is a basic node, add it to the current block
                 current_block.append(node)
@@ -858,7 +867,7 @@ class DefinitionUseChain:
         Backward accesses are all of the prior References or Calls that read
         or write to the symbol of the reference up to the point that a
         write to the symbol is guaranteed to occur.
-        PSyclone assumes all control flow may not be taken, so writes
+        DUC assumes that any control flow might not be taken, so writes
         that occur inside control flow do not end the backward access
         chain.
 
