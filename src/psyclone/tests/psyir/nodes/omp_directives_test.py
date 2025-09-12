@@ -49,6 +49,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
 from psyclone import psyGen
+from psyclone.core import (AccessSequence, Signature)
 from psyclone.psyir.nodes import (
     OMPDoDirective, OMPParallelDirective, BinaryOperation, Call,
     ArrayReference, OMPTaskDirective, DynamicOMPTaskDirective,
@@ -73,6 +74,7 @@ from psyclone.transformations import (
     LFRicOMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPLoopTrans, TransformationError)
+from psyclone.psyir.tools.reduction_inference import ReductionInferenceTool
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")
@@ -4749,6 +4751,17 @@ def test_reduction_clause_eq(fortran_reader, fortran_writer):
     assert do_directive1 != do_directive2
 
 
+def test_add_reduction_clause_validation(fortran_reader, fortran_writer):
+    ''' Check that add_reduction_clause() with a non reduction clause
+        argument raises an error.
+    '''
+    do_directive = OMPDoDirective()
+    with pytest.raises(GenerationError) as err:
+        do_directive.add_reduction_clause(OMPScheduleClause())
+    assert ("Item 'OMPScheduleClause' can't be child 1 of 'OMPDoDirective'"
+            in str(err.value))
+
+
 @pytest.mark.parametrize("op", ["*", "-", "*"])
 def test_reduction_arith_ops(op, fortran_reader, fortran_writer):
     ''' Test that reduction loops involing arithmetic reduction operators are
@@ -5022,6 +5035,14 @@ def test_non_reduction3(fortran_reader, fortran_writer):
     assert ("Variable 'count' is read first, which indicates a reduction"
             in str(err.value))
 
+def test_attempt_reduction_no_accesses(fortran_reader, fortran_writer):
+    ''' Test attempt_reduction fails when given empty access info.
+    '''
+    sig = Signature("foo")
+    empty_access_sequence = AccessSequence(sig)
+    red_infer_tool = ReductionInferenceTool([])
+    clause = red_infer_tool.attempt_reduction(sig, empty_access_sequence)
+    assert(clause is None)
 
 @pytest.mark.parametrize("d", ["teamsdistributeparalleldo", "teamsloop"])
 def test_reduction_teams(d, fortran_reader, fortran_writer):
