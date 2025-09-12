@@ -38,7 +38,7 @@
 !! \detail This kernel has all type of variable accesses:
 !! input, input+output, output
 
-module kernel_driver
+module kernel_driver_test_mod
   use argument_mod
   use field_mod
   use grid_mod
@@ -85,4 +85,4 @@ contains
 
   end subroutine compute_kernel_code
 
-end module kernel_driver
+end module kernel_driver_test_mod
