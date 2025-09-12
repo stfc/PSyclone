@@ -124,12 +124,12 @@ jobs:
       if: ${{ !(matrix.python-version == '3.9') }}
       run: |
         locale
-        pytest -n auto --cov=psyclone --cov-report=xml src/psyclone/tests
+        pytest -s -n auto --cov=psyclone --cov-report=xml src/psyclone/tests
     - name: Test with pytest and C Locale
       if: ${{ matrix.python-version == '3.9' }}
       run: |
         locale
-        pytest -n auto --cov=psyclone --cov-report=xml src/psyclone/tests
+        pytest -s -n auto --cov=psyclone --cov-report=xml src/psyclone/tests
       env:
         LC_ALL: C
         LANG: C
