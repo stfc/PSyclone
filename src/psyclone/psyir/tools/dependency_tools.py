@@ -44,7 +44,8 @@ from enum import IntEnum
 import sympy
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType, Signature, SymbolicMaths, AccessInfo
+from psyclone.core import (AccessType, Signature, SymbolicMaths,
+                           AccessInfo, AccessSequence)
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -90,11 +91,11 @@ class Message:
     :param int code: error or warning code.
     :param var_names: list of variable names (defaults to []).
     :type var_names: List[str]
-    :param var_infos: list of Signature/AccessInfo pairs (defaults to None).
-       If not None, each list element contains the info pair for
+    :param var_infos: list of Signature/AccessSequence pairs (defaults
+       to None). If not None, each list element contains the info pair for
        corresponding variable in the var_names list.
     :type var_infos: List[Tuple[:py:class:`psyclone.core.Signature`,
-                                :py:class:`psyclone.core.AccessInfo]]
+                                :py:class:`psyclone.core.AccessSequence`]]
 
     '''
     def __init__(self, message, code, var_names=None, var_infos=None):
@@ -137,11 +138,11 @@ class Message:
     # ------------------------------------------------------------------------
     @property
     def var_infos(self):
-        ''':returns: the Signature/AccessInfo pair for each variable to which
-        the message applies, or None if this information does not exist.
+        ''':returns: the Signature/AccessSequence pair for each variable to
+        which the message applies, or None if this information does not exist.
 
         :rtype: List[Tuple[:py:class:`psyclone.core.Signature`,
-                           :py:class:`psyclone.core.AccessInfo`]]
+                           :py:class:`psyclone.core.AccessSequence`]]
 
         '''
         return self._var_infos
@@ -197,11 +198,11 @@ class DependencyTools():
         :param int code: error or warning code.
         :param var_names: list of variable names (defaults to []).
         :type var_names: List[str]
-        :param var_infos: list of Signature/AccessInfo pairs (defaults to
+        :param var_infos: list of Signature/AccessSequence pairs (defaults to
            None). If not None, each list element contains the info pair for
            corresponding variable in the var_names list.
         :type var_infos: List[Tuple[:py:class:`psyclone.core.Signature`,
-                                    :py:class:`psyclone.core.AccessInfo`]]
+                                    :py:class:`psyclone.core.AccessSequence`]]
 
         '''
         if DTCode.INFO_MIN <= code <= DTCode.INFO_MAX:
@@ -213,11 +214,19 @@ class DependencyTools():
         else:
             raise InternalError(f"Unknown message code {code}.")
 
-        if var_names is not None and var_infos is not None:
-            if len(var_names) != len(var_infos):
+        if var_infos is not None:
+            if var_names is None or len(var_names) != len(var_infos):
                 raise InternalError("The var_names and var_infos arguments "
                                     "to _add_message must have the same "
                                     "length")
+            for info in var_infos:
+                if not (isinstance(info, tuple) and
+                        len(info) == 2 and
+                        isinstance(info[0], Signature) and
+                        isinstance(info[1], AccessSequence)):
+                    raise TypeError(
+                              "The var_infos argument to _add_message must "
+                              "be a list of Signature/AccessSequence pairs")
 
         self._messages.append(Message(f"{message_type}: {message}", code,
                                       var_names, var_infos))

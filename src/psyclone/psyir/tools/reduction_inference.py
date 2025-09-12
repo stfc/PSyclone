@@ -39,7 +39,7 @@
 
 from typing import Union, List, Tuple
 
-from psyclone.core import (AccessInfo, Signature)
+from psyclone.core import (AccessSequence, Signature)
 from psyclone.psyir.nodes import (
         Node, Reference, BinaryOperation, IntrinsicCall, Assignment
 )
@@ -178,17 +178,17 @@ class ReductionInferenceTool():
                 return None
 
     def attempt_reduction(self, sig: Signature,
-                          access_info: AccessInfo) -> \
+                          access_seq: AccessSequence) -> \
             Tuple[Union[BinaryOperation.Operator,
                         IntrinsicCall.Intrinsic],
                   Reference]:
         '''
-        Determine if the variable with the given Signature and AccessInfo
+        Determine if the variable with the given Signature and AccessSequence
         can be handled using a reduction clause and, if so, return that
         clause. Otherwise, return None.
 
         :param sig: the variable being considered as a reduction variable.
-        :param access_info: the access info for that variable.
+        :param access_seq: the access sequence for that variable.
         :returns: the operator/reference pair that can be used for the
            reduction if reduction is possible, or None otherwise.
         '''
@@ -200,7 +200,7 @@ class ReductionInferenceTool():
         # Return early if we ever encounter a use of the variable which is
         # not in the form of a reduction.
         ops = []
-        for access in access_info.all_read_accesses:
+        for access in access_seq.all_read_accesses:
             op = self._get_read_reduction(access.node, sig)
             if op is None:
                 return None
@@ -208,7 +208,7 @@ class ReductionInferenceTool():
             ref = access.node
         # If we reach here, then all read accesses are in the form of
         # a reduction. Now check write accesses.
-        for access in access_info.all_write_accesses:
+        for access in access_seq.all_write_accesses:
             op = self._get_write_reduction(access.node, sig)
             if op is None:
                 return None
