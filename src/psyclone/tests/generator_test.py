@@ -44,11 +44,12 @@ the generator.py file. This includes the generate and the main
 functions.
 '''
 
+import logging
 import os
+from pathlib import Path
 import re
 import shutil
 import stat
-import logging
 from sys import modules
 
 import pytest
@@ -71,7 +72,7 @@ from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.version import __VERSION__
-
+from psyclone.tests.utilities import get_base_path
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
@@ -178,7 +179,7 @@ this is invalid python
         _, _ = generate(
             os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
             api="lfric", script_name=error_syntax)
-    assert ("invalid syntax (test_script.py, line 2)" in str(err.value))
+    assert "invalid syntax (test_script.py, line 2)" in str(err.value)
 
     error_import = script_factory("""
 import non_existent
@@ -840,8 +841,7 @@ def test_main_api(capsys, caplog):
                 caplog.record_tuples[0][2])
 
 
-def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory,
-                                           monkeypatch):
+def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory):
     ''' Test the keep comments and keep directives arguments to main. '''
     filename = str(tmpdir_factory.mktemp('psyclone_test').join("test.f90"))
     code = """subroutine a()
@@ -928,7 +928,7 @@ def test_keep_comments_lfric(capsys, monkeypatch):
     assert "!$omp barrier" in output
 
 
-def test_keep_comments_gocean(capsys, monkeypatch):
+def test_keep_comments_gocean(capsys):
     '''Test that the GOcean API correctly keeps comments and directives
     when applied the appropriate arguments.'''
     filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
@@ -1161,6 +1161,40 @@ def trans(psyir):
     assert "module newname\n" in new_code
 
 
+@pytest.mark.parametrize("validate", [True, False])
+def test_code_transformation_backend_validation(validate: bool,
+                                                monkeypatch) -> None:
+    '''
+    Test that the backend validation flag is passed to
+    the Fortran writer when using generic code transformations.
+    '''
+
+    # Create a dummy Fortran writer, which we use to check
+    # the values passed in
+    def dummy_fortran_writer(check_global_constraints: bool,
+                             disable_copy: bool):
+        # pylint: disable=unused-argument
+        """A dummy function used to test that the FortranWriter
+        gets the backend-validation flag as intended.
+        """
+        assert check_global_constraints is validate
+        # The writer must returns some string
+        return lambda x: "some-string-doesn't-matter"
+
+    monkeypatch.setattr(generator, "FortranWriter", dummy_fortran_writer)
+
+    # The input file doesn't really matter, so just use a
+    # kernel file from gocean:
+    input_file = Path(get_base_path("gocean")) / "test27_loop_swap.f90"
+
+    if validate:
+        option = "enable-validation"
+    else:
+        option = "disable-validation"
+    main([str(input_file), "--backend", option])
+    # The actual assert is in the dummy_fortran_writer function above
+
+
 def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
     '''
     Test the error handling in the code_transformation_mode() method when
@@ -1178,7 +1212,7 @@ def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
     with caplog.at_level(logging.ERROR):
         with pytest.raises(SystemExit):
             code_transformation_mode(inputfile, None, None, False, False)
-        out, err = capsys.readouterr()
+        _, err = capsys.readouterr()
         assert "Failed to create PSyIR from file '" in err
         assert "Is the input valid Fortran" in caplog.text
 
@@ -1496,7 +1530,7 @@ def test_invalid_kern_naming():
     assert "but got 'not-a-scheme'" in str(err.value)
 
 
-def test_enable_cache_flag(capsys, tmpdir, monkeypatch):
+def test_enable_cache_flag(tmpdir, monkeypatch):
     ''' Check that if the --enable-cache flag is provided, resolve imports will
     create .psycache files for each imported module.
 
