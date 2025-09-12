@@ -1051,6 +1051,15 @@ def test_omp_parallel_validate_child():
     assert OMPParallelDirective._validate_child(6, "test") is False
 
 
+def test_omp_do_validate_child():
+    ''' Test the validate_child method of OMPDoDirective'''
+    assert OMPDoDirective._validate_child(-1, None) is False
+    assert OMPDoDirective._validate_child(0, Schedule()) is True
+    rc = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    rc.addchild(Reference(Symbol("acc")))
+    assert OMPDoDirective._validate_child(1, rc) is True
+
+
 def test_omp_forward_dependence():
     '''Test that the forward_dependence method works for Directives,
     returning the closest dependent Node after the current Node in the
@@ -5037,7 +5046,7 @@ def test_non_reduction3(fortran_reader, fortran_writer):
 
 
 def test_attempt_reduction_no_accesses(fortran_reader, fortran_writer):
-    ''' Test attempt_reduction fails when given empty access info.
+    ''' Test that attempt_reduction() fails when given empty access info.
     '''
     sig = Signature("foo")
     empty_access_sequence = AccessSequence(sig)
