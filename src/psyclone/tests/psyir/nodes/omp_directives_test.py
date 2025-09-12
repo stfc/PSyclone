@@ -1060,6 +1060,15 @@ def test_omp_do_validate_child():
     assert OMPDoDirective._validate_child(1, rc) is True
 
 
+def test_omp_loop_validate_child():
+    ''' Test the validate_child method of OMPLoopDirective'''
+    assert OMPLoopDirective._validate_child(-1, None) is False
+    assert OMPLoopDirective._validate_child(0, Schedule()) is True
+    rc = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    rc.addchild(Reference(Symbol("acc")))
+    assert OMPLoopDirective._validate_child(1, rc) is True
+
+
 def test_omp_forward_dependence():
     '''Test that the forward_dependence method works for Directives,
     returning the closest dependent Node after the current Node in the
