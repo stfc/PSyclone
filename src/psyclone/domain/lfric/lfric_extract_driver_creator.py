@@ -46,11 +46,10 @@ from typing import Optional, Tuple
 from psyclone.configuration import Config
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.psyir.nodes import (Call, Node,
-                                  StructureReference)
+from psyclone.psyir.nodes import Call, Node, StructureReference
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol,
                                     ImportInterface, INTEGER_TYPE,
-                                    SymbolTable,)
+                                    SymbolTable)
 
 
 class LFRicExtractDriverCreator(BaseDriverCreator):
@@ -194,17 +193,21 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
     # -------------------------------------------------------------------------
     def cleanup_psyir(self,
                       extract_region: Node) -> None:
-        """This method is called to allow the driver creation go remove
-        unnecessary code (like MPI related calls), and potentially raise
-        an exception if other unsupported features are detected. The
-        PSyIR will be modified in place.
+        """This implementation removes MPI related calls in LFRic (`set_dirty`
+        and `set_clean`. Note that any LFRic-specific StructureReferences
+        should have been replaced as part of the lowering process.
 
-        :raises ValueError: if structure references are found, which are
-            not yet supported.
+        :param extract_region: the node with the extracted region.
+
+        :raises ValueError: if structure references are found (raised in the
+            base class)
         """
 
-        # StructureReference must have been flattened before creating the
-        # driver, or are method calls. In both cases they are not allowed.
+        # This will flag any StructureReference outside of method calls.
+        super().cleanup_psyir(extract_region)
+
+        # Here check for LFRic-specific set_dirty/set_clean calls, which
+        # can just be removed:
         dm_methods = ("set_dirty", "set_clean")
         for sref in extract_region.walk(StructureReference):
             if (isinstance(sref.parent, Call) and

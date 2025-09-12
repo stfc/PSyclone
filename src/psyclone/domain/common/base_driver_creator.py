@@ -47,7 +47,8 @@ from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.parse import ModuleManager
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Call, FileContainer, Literal, Reference, ExtractNode, Routine, Node)
+    Call, ExtractNode, FileContainer, Literal, Node, Reference, Routine,
+    StructureReference)
 from psyclone.psyir.symbols import (
     CHARACTER_TYPE, ContainerSymbol, DataTypeSymbol, ImportInterface,
     INTEGER_TYPE, NoType, RoutineSymbol, DataSymbol, UnsupportedFortranType,
@@ -348,83 +349,37 @@ class BaseDriverCreator:
             symtab.add(new_routine_sym)
 
     # -------------------------------------------------------------------------
-    @abstractmethod
     def cleanup_psyir(self, extract_region: Node) -> None:
-        pass
+        """This method is called to verify that no unsupported language
+        features are used. The base implementation checks for
+        StructureReferences (except for ones used in a call, which some
+        DLSs use, e.g. set_dirty in LFRic)
+
+        :param extract_region: the node with the extracted region.
+
+        :raises ValueError: if a StructureReference outside of a call
+            is found.
+        """
+        for sref in extract_region.walk(StructureReference):
+            # DSLs use StructureReferences in calls (e.g in LFRic
+            # set_dirty etc), which should be accepted.
+            # So only flag StructureReferences that are not part of
+            # a call.
+            if not isinstance(sref.parent, Call):
+                raise ValueError(f"The provided PSyIR should not have "
+                                 f"StructureReferences, but found: "
+                                 f"{sref.debug_string()}")
 
     # -------------------------------------------------------------------------
     @abstractmethod
     def handle_precision_symbols(self, symbol_table: SymbolTable) -> None:
-        pass
+        """This method is called to allow DSL-specific changes of type
+        information. E.g. it might replace DSL-specific integer types
+        with generic declarations, or add additional import statements
+        to make the required types available.
 
-    # -------------------------------------------------------------------------
-    def create(self,
-               nodes: List[Node],
-               read_write_info: ReadWriteInfo,
-               prefix: str,
-               postfix: str,
-               region_name: Tuple[str, str]) -> FileContainer:
-        # pylint: disable=too-many-arguments
-        '''This function uses the PSyIR to create a stand-alone driver
-        that reads in a previously created file with kernel input and
-        output information, and calls the kernels specified in the 'nodes'
-        PSyIR tree with the parameters from the file. The `nodes` are
-        consecutive nodes from the PSyIR tree.
-        It returns the file container which contains the driver.
-
-        :param nodes: a list of nodes.
-        :param read_write_info: information about all input and output
-            parameters.
-        :param prefix: the prefix to use for each PSyData symbol,
-            e.g. 'extract' as prefix will create symbols ``extract_psydata``.
-        :param postfix: a postfix that is appended to an output variable
-            to create the corresponding variable that stores the output
-            value from the kernel data file. The caller must guarantee that
-            no name clashes are created when adding the postfix to a variable
-            and that the postfix is consistent between extract code and
-            driver code (see 'ExtractTrans.determine_postfix()').
-        :param region_name: an optional name to
-            use for this PSyData area, provided as a 2-tuple containing a
-            location name followed by a local name. The pair of strings
-            should uniquely identify a region.
-
-        :returns: the program PSyIR for a stand-alone driver.
-
-        '''
-        # pylint: disable=too-many-locals
-
-        file_container, psy_data = self.create_driver_template(region_name,
-                                                               prefix)
-        program = file_container.walk(Routine)[0]
-        original_symbol_table = nodes[0].ancestor(Routine).symbol_table
-
-        # Copy the nodes that are part of the extraction
-        extract_region = nodes[0].copy()
-        self.cleanup_psyir(extract_region)
-        output_symbols = self._create_read_in_code(program, psy_data,
-                                                   original_symbol_table,
-                                                   read_write_info, postfix)
-
-        # Copy the nodes that are part of the extraction
-        program.children.extend(extract_region.pop_all_children())
-
-        # Find all imported modules and add them to the symbol table
-        self.import_modules(program)
-        self.handle_precision_symbols(program.scope.symbol_table)
-
-        BaseDriverCreator.add_result_tests(program, output_symbols)
-
-        # Replace pointers with allocatables
-        program_symbol_table = program.symbol_table
-        for symbol in program_symbol_table.datasymbols:
-            if isinstance(symbol.datatype, UnsupportedFortranType):
-                symbol.datatype = symbol.datatype.copy()
-                newt = symbol.datatype.declaration
-                newt = newt.replace('pointer', 'allocatable')
-                newt = newt.replace('=> null()', '')
-                symbol.datatype._declaration = newt
-
-        return file_container
+        :param symbol_table: the SymbolTable of the driver.
+        """
 
     # -------------------------------------------------------------------------
     def _add_command_line_handler(self, program, psy_data_var, module_name,
@@ -510,10 +465,67 @@ class BaseDriverCreator:
         program.children.insert(1, filename_test)
 
     # -------------------------------------------------------------------------
-    def create_driver_template(self,
-                               region_name: Tuple[str, str],
-                               prefix: str
-                               ) -> Tuple[FileContainer, DataSymbol]:
+    @staticmethod
+    def collect_all_required_modules(
+            file_container: FileContainer) -> Dict[str, Set[str]]:
+        '''Collects recursively all modules used in the file container.
+        It returns a dictionary, with the keys being all the (directly or
+        indirectly) used modules.
+
+        :param file_container: the FileContainer for which to collect all
+            used modules.
+
+        :returns: a dictionary, with the required module names as key, and
+            as value a set of all modules required by the key module.
+
+        '''
+        all_mods: Set[str] = set()
+        for container in file_container.children:
+            sym_tab = container.symbol_table
+            # Add all imported modules (i.e. all container symbols)
+            all_mods.update(symbol.name for symbol in sym_tab.symbols
+                            if isinstance(symbol, ContainerSymbol))
+
+        mod_manager = ModuleManager.get()
+        return mod_manager.get_all_dependencies_recursively(
+            list(all_mods))
+
+    # -------------------------------------------------------------------------
+    def create(self,
+               nodes: List[Node],
+               read_write_info: ReadWriteInfo,
+               prefix: str,
+               postfix: str,
+               region_name: Tuple[str, str]) -> FileContainer:
+        # pylint: disable=too-many-arguments
+        '''This function uses the PSyIR to create a stand-alone driver
+        that reads in a previously created file with kernel input and
+        output information, and calls the kernels specified in the 'nodes'
+        PSyIR tree with the parameters from the file. The `nodes` are
+        consecutive nodes from the PSyIR tree.
+        It returns the file container which contains the driver.
+
+        :param nodes: a list of nodes.
+        :param read_write_info: information about all input and output
+            parameters.
+        :param prefix: the prefix to use for each PSyData symbol,
+            e.g. 'extract' as prefix will create symbols ``extract_psydata``.
+        :param postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
+            driver code (see 'ExtractTrans.determine_postfix()').
+        :param region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
+            should uniquely identify a region.
+
+        :returns: the program PSyIR for a stand-alone driver.
+
+        '''
+        # pylint: disable=too-many-locals
+
         module_name, local_name = region_name
         unit_name = self._make_valid_unit_name(f"{module_name}_{local_name}")
 
@@ -541,33 +553,37 @@ class BaseDriverCreator:
         # Add cmd line hander, read in, and result comparison for the code
         self._add_command_line_handler(program, psy_data, region_name[0],
                                        region_name[1])
-        return file_container, psy_data
 
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def collect_all_required_modules(
-            file_container: FileContainer) -> Dict[str, Set[str]]:
-        '''Collects recursively all modules used in the file container.
-        It returns a dictionary, with the keys being all the (directly or
-        indirectly) used modules.
+        program = file_container.walk(Routine)[0]
+        original_symbol_table = nodes[0].ancestor(Routine).symbol_table
 
-        :param file_container: the FileContainer for which to collect all
-            used modules.
+        # Copy the nodes that are part of the extraction
+        extract_region = nodes[0].copy()
+        self.cleanup_psyir(extract_region)
+        output_symbols = self._create_read_in_code(program, psy_data,
+                                                   original_symbol_table,
+                                                   read_write_info, postfix)
 
-        :returns: a dictionary, with the required module names as key, and
-            as value a set of all modules required by the key module.
+        # Copy the nodes that are part of the extraction
+        program.children.extend(extract_region.pop_all_children())
 
-        '''
-        all_mods: Set[str] = set()
-        for container in file_container.children:
-            sym_tab = container.symbol_table
-            # Add all imported modules (i.e. all container symbols)
-            all_mods.update(symbol.name for symbol in sym_tab.symbols
-                            if isinstance(symbol, ContainerSymbol))
+        # Find all imported modules and add them to the symbol table
+        self.import_modules(program)
+        self.handle_precision_symbols(program.scope.symbol_table)
 
-        mod_manager = ModuleManager.get()
-        return mod_manager.get_all_dependencies_recursively(
-            list(all_mods))
+        BaseDriverCreator.add_result_tests(program, output_symbols)
+
+        # Replace pointers with allocatables
+        program_symbol_table = program.symbol_table
+        for symbol in program_symbol_table.datasymbols:
+            if isinstance(symbol.datatype, UnsupportedFortranType):
+                symbol.datatype = symbol.datatype.copy()
+                newt = symbol.datatype.declaration
+                newt = newt.replace('pointer', 'allocatable')
+                newt = newt.replace('=> null()', '')
+                symbol.datatype._declaration = newt
+
+        return file_container
 
     # -------------------------------------------------------------------------
     def get_driver_as_string(self,

@@ -43,7 +43,6 @@ the output data contained in the input file.
 from typing import Optional, Tuple
 
 from psyclone.domain.common import BaseDriverCreator
-from psyclone.psyir.nodes import Node
 from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE, REAL8_TYPE,
                                     ScalarType, SymbolTable)
 
@@ -68,10 +67,6 @@ class ExtractDriverCreator(BaseDriverCreator):
         # For convenience, also add the names used in the gocean config file:
         self._default_types = {"integer": integer_type,
                                "real": real_type}
-
-    # -------------------------------------------------------------------------
-    def cleanup_psyir(self, extract_region: Node) -> None:
-        pass
 
     # -------------------------------------------------------------------------
     def handle_precision_symbols(self, symbol_table: SymbolTable) -> None:
