@@ -292,7 +292,10 @@ class Reference(DataNode):
 
         # Check if this instance is in the provided scope
         if not self.is_descendant_of(scope):
-            # If the 'value' is rewritten, it does not escape the scope
+            # If following the recursive calls through next_accesses()
+            # it reaches a point outside the scope, return True (
+            # it has escaped the scope), unless this is a write-only
+            # access (the symbol is reassigned to a new value)
             if self.is_write and not self.is_read:
                 return False
             return True

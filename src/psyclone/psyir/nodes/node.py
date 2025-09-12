@@ -1136,17 +1136,20 @@ class Node():
             local_list += child.walk(my_type, stop_type, depth=depth)
         return local_list
 
-    def has_decendant(self, descendant_type: Union[type, tuple[type]]) -> bool:
+    def has_descendant(
+            self, descendant_type: Union[type, tuple[type]]
+    ) -> bool:
         '''
         :param descendant_type: type(s) to look for.
 
-        :returns: whether any of the node descendants is of the given type(s).
+        :returns: whether the node or any of its descendants is of the
+            given type(s).
 
         '''
         if isinstance(self, descendant_type):
             return True
         for child in self._children:
-            if child.has_decendant(descendant_type):
+            if child.has_descendant(descendant_type):
                 return True
         return False
 
