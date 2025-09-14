@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import (Assignment, Literal, Routine,
                                   StructureReference)
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, RoutineSymbol
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import Compile, get_invoke
 
 
 def test_basic_driver_add_call(fortran_writer):
@@ -88,6 +88,122 @@ def test_lfric_driver_add_result_tests(fortran_writer):
   call compare('a1', a1, a1_orig)
   call compare_summary()"""
     assert expected in out
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
+def test_lfric_driver_simple_test():
+    '''Test the full pipeline: Add kernel extraction to a kernel and
+    request driver creation. Read in the written driver, and make sure
+    any variable that is provided in the kernel call is also read
+    in the driver. '''
+
+    psy, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90",
+                             "lfric", dist_mem=False, idx=0)
+
+    extract = LFRicExtractTrans()
+
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("field", "test")})
+    _ = psy.gen
+
+    filename = "driver-field-test.F90"
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    for line in [
+        "if (ALLOCATED(psydata_filename)) then",
+        "call extract_psy_data%OpenReadFileName(psydata_filename)",
+        "else",
+        "call extract_psy_data%OpenReadModuleRegion('field', 'test')",
+        "end if",
+        "call extract_psy_data%ReadVariable('a', a)",
+        "call extract_psy_data%ReadVariable('m1_data', m1_data)",
+        "call extract_psy_data%ReadVariable('m2_data', m2_data)",
+        "call extract_psy_data%ReadVariable('map_w1', map_w1)",
+        "call extract_psy_data%ReadVariable('map_w2', map_w2)",
+        "call extract_psy_data%ReadVariable('map_w3', map_w3)",
+        "call extract_psy_data%ReadVariable('ndf_w1', ndf_w1)",
+        "call extract_psy_data%ReadVariable('ndf_w2', ndf_w2)",
+        "call extract_psy_data%ReadVariable('ndf_w3', ndf_w3)",
+        "call extract_psy_data%ReadVariable('nlayers_x_ptr_vector', "
+        "nlayers_x_ptr_vector)",
+        "call extract_psy_data%ReadVariable('"
+        "self_vec_type_vector_data', self_vec_type_vector_data)",
+        "call extract_psy_data%ReadVariable('undf_w1', undf_w1)",
+        "call extract_psy_data%ReadVariable('undf_w2', undf_w2)",
+        "call extract_psy_data%ReadVariable('undf_w3', undf_w3)",
+        "call extract_psy_data%ReadVariable('x_ptr_vector_data', "
+        "x_ptr_vector_data)",
+        "call extract_psy_data%ReadVariable('cell_post', cell_post)"
+    ]:
+        assert line.lower() in driver.lower(), line
+
+    # A read-write/inc variable should not be allocated (since it will
+    # be allocated as part of reading in its value):
+    assert "ALLOCATE(x_ptr_vector," not in driver
+
+    # Check that all module dependencies have been inlined:
+    for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
+                "argument_mod", "log_mod", "fs_continuity_mod",
+                "testkern_mod"]:
+        assert f"module {mod}" in driver
+        assert f"end module {mod}" in driver
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-field-test.F90")
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
+def test_lfric_driver_external_symbols():
+    '''Test the handling of symbols imported from other modules, or calls to
+    external functions that use module variables.
+
+    '''
+    psy, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                             "symbols.f90", "lfric", dist_mem=False, idx=0)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("import", "test")})
+    code = psy.gen
+    assert ('CALL extract_psy_data % PreDeclareVariable("'
+            'module_var_a_post@module_with_var_mod", module_var_a)' in code)
+    assert ('CALL extract_psy_data % ProvideVariable("'
+            'module_var_a_post@module_with_var_mod", module_var_a)' in code)
+
+    # Check that const-size arrays are exported:
+    expected = [
+      'use module_with_var_mod, only : const_size_array',
+      'CALL extract_psy_data % PreDeclareVariable("const_size_array@'
+      'module_with_var_mod", const_size_array)',
+      'CALL extract_psy_data % PreDeclareVariable("const_size_array_post@'
+      'module_with_var_mod", const_size_array)',
+      'CALL extract_psy_data % ProvideVariable("const_size_array@'
+      'module_with_var_mod", const_size_array)',
+      'CALL extract_psy_data % ProvideVariable("const_size_array_post@'
+      'module_with_var_mod", const_size_array)']
+    for line in expected:
+        assert line in code, line
+
+    filename = "driver-import-test.F90"
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    assert ("call extract_psy_data%ReadVariable('module_var_a_post@"
+            "module_with_var_mod', module_var_a_post)" in driver)
+    assert ("call compare('module_var_a', module_var_a, module_var_a_post)"
+            in driver)
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-import-test.F90")
 
 
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
