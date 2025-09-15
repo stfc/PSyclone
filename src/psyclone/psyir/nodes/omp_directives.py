@@ -2336,7 +2336,7 @@ class OMPAtomicDirective(OMPRegionDirective):
     :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
     :param directive_type: the directive type of the atomic operation.
     :type directive_type: :py:class:`psyclone.psyir.nodes.OMPAtomicDirective.\
-                          AtomicDirectiveType
+                          AtomicDirectiveType`
     '''
     class AtomicDirectiveType(Enum):
         '''
