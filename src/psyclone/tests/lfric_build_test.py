@@ -36,6 +36,7 @@
 ''' This module contains tests for the lfric_build.py file. '''
 
 import os
+from pathlib import Path
 import subprocess
 
 import pytest
@@ -60,7 +61,7 @@ def protect_infrastructure_path_fixture(monkeypatch):
     monkeypatch.setattr(LFRicBuild, "_compilation_path", "/no/path")
 
 
-def test_lf_build_get_infrastructure_flags(tmpdir):
+def test_lf_build_get_infrastructure_flags(tmpdir: Path) -> None:
     '''
     Test the get_infrastructure_flags method. The build object will either
     use the compiled path of the infrastructure if compilation is enabled,
@@ -93,7 +94,7 @@ def test_lf_build_get_infrastructure_flags(tmpdir):
 
 
 @pytest.mark.usefixtures("enable_compilation")
-def test_lfric_build_compiler_flags(tmpdir, monkeypatch):
+def test_lfric_build_compiler_flags(tmpdir: Path, monkeypatch) -> None:
     '''
     Check that the compiler settings supplied to pytest are passed through
     when building the (stub) LFRic infrastructure.
@@ -119,7 +120,7 @@ def test_lfric_build_compiler_flags(tmpdir, monkeypatch):
 
 
 @pytest.mark.usefixtures("enable_compilation")
-def test_lfric_build_infrastructure(tmpdir, monkeypatch):
+def test_lfric_build_infrastructure(tmpdir: Path, monkeypatch) -> None:
     '''
     Test the _build_infrastructure method when compilation appears to proceed
     (i.e. the Popen.subprocess() command completes without raising an

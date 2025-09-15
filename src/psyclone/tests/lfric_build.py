@@ -42,7 +42,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-
+from typing import Optional, Union
 
 from psyclone.tests.utilities import (change_dir, CompileError, Compile,
                                       get_base_path, get_infrastructure_path)
@@ -72,7 +72,10 @@ class LFRicBuild(Compile):
     # allows testing to modify this to trigger exceptions.
     _make_command = "make"
 
-    def __init__(self, tmpdir):
+    # The path to the infrastructure source files.
+    _infrastructure_path: Path
+
+    def __init__(self, tmpdir: Optional[Union[str, Path]]) -> None:
         super().__init__(tmpdir)
 
         self.base_path = get_base_path("lfric")
@@ -83,34 +86,35 @@ class LFRicBuild(Compile):
         if not LFRicBuild._infrastructure_built:
             self._build_infrastructure()
 
-    def get_infrastructure_flags(self):
+    def get_infrastructure_flags(self) -> list[str]:
         '''Returns the required flag to use the infrastructure wrapper
         files for LFRic. Each parameter must be a separate entry
         in the list, e.g.: ["-I", "/some/path"] and not ["-I /some/path"].
 
         :returns: the required compiler flags.
-        :rtype: List[str]
 
         '''
         if Compile.TEST_COMPILE:
             # If we are compiling, point to the compilation path, which
             # contain the compiled mod files.
-            root = LFRicBuild._compilation_path
+            include_root = LFRicBuild._compilation_path
         else:
             # If we are not compiling, point to the external infrastructure
             # directory, which allows tests (that uses the flags) to pass
             # even when compilation is disabled (and it will pick up if
             # the infrastructure should change as well).
-            root = self._infrastructure_path
+            include_root = self._infrastructure_path
         all_flags = []
-        for root, dirs, _ in os.walk(root):
+        for root, dirs, _ in os.walk(include_root):
             for curr_dir in dirs:
                 all_flags.extend(["-I", str(os.path.join(root, curr_dir))])
         return all_flags
 
-    def _build_infrastructure(self):
+    def _build_infrastructure(self) -> None:
         '''Compiles the LFRic wrapper infrastructure files so that
         compilation tests can be done.
+
+        :raises CompileError: if a compilation error happened.
         '''
         if not Compile.TEST_COMPILE:
             return

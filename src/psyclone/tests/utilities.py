@@ -43,7 +43,7 @@ from pathlib import Path
 from pprint import pprint
 import subprocess
 import sys
-from typing import Tuple
+from typing import Optional, Tuple, Union
 
 import pytest
 
@@ -197,9 +197,9 @@ class Compile():
         Compile.F90 = config.getoption("--f90")
         Compile.F90FLAGS = config.getoption("--f90flags")
 
-    def __init__(self, tmpdir=None):
+    def __init__(self, tmpdir: Optional[Union[str, Path]] = None) -> None:
         if tmpdir:
-            self._tmpdir = tmpdir
+            self._tmpdir = str(tmpdir)
         else:
             self._tmpdir = os.getcwd()
         # Take the compiler and compile flags from the static variables.
@@ -207,10 +207,10 @@ class Compile():
         # which is used in some of the compilation tests.
         self._f90 = Compile.F90
         self._f90flags = Compile.F90FLAGS
-        self._base_path = None
+        self._base_path: str = ""
 
     @property
-    def base_path(self):
+    def base_path(self) -> str:
         '''Returns the directory of all Fortran test files for the API,
         i.e. <PSYCLONEHOME>/src/psyclone/tests/test_files/<API>.
         Needs to be set by each API-specific compile class.
@@ -222,7 +222,7 @@ class Compile():
         return self._base_path
 
     @base_path.setter
-    def base_path(self, base_path):
+    def base_path(self, base_path: str) -> None:
         '''Sets the base path of all test files for the API., i.e.
         <PSYCLONEHOME>/src/psyclone/tests/test_files/<API>. Needs to be called
         by each API-specific compile class.
@@ -231,7 +231,7 @@ class Compile():
         '''
         self._base_path = base_path
 
-    def get_infrastructure_flags(self):
+    def get_infrastructure_flags(self) -> list[str]:
         '''Returns a list with the required flags to use the required
         infrastructure library. This is typically ["-I", some_path] so that
         the module files of the infrastructure can be found.
@@ -243,7 +243,7 @@ class Compile():
         return []
 
     @staticmethod
-    def skip_if_compilation_disabled():
+    def skip_if_compilation_disabled() -> None:
         '''This function is used in all tests that should only run
         if compilation is enabled. It calls pytest.skip if compilation
         is not enabled.'''
@@ -251,7 +251,7 @@ class Compile():
             pytest.skip("Need --compile option to run")
 
     @staticmethod
-    def skip_if_opencl_compilation_disabled():
+    def skip_if_opencl_compilation_disabled() -> None:
         '''This function is used in all tests that should only run
         if opencl compilation is enabled. It calls pytest.skip if
         opencl compilation is not enabled.'''
@@ -260,18 +260,17 @@ class Compile():
             pytest.skip("Need --compileopencl option to run")
 
     @staticmethod
-    def find_fortran_file(search_paths, root_name):
+    def find_fortran_file(search_paths: list[str],
+                          root_name: str) -> str:
         '''Returns the full path to a Fortran source file. Searches for
         files with suffixes defined in FORTRAN_SUFFIXES.
 
         :param search_paths: List of locations to search for Fortran file.
-        :type search_paths: List[str]
-        :param str root_name: Base name of the Fortran file to look \
+        :param root_name: Base name of the Fortran file to look \
             for. If it ends with a recognised Fortran suffix then this \
             is stripped before performing the search.
 
         :return: Full path to a Fortran source file.
-        :rtype: str
 
         :raises IOError: Raises IOError if no matching file is found.
 
@@ -290,14 +289,14 @@ class Compile():
         raise IOError(f"Cannot find a Fortran file '{base_name}' with "
                       f"suffix in {FORTRAN_SUFFIXES}")
 
-    def compile_file(self, filename, link=False):
+    def compile_file(self, filename: str, link: bool = False) -> None:
         ''' Compiles the specified Fortran file into an object file (in
         the current working directory). The compiler to be used (default
         'gfortran') and compiler flags (default none) can be specified on
         the command line using --f90 and --f90flags.
 
-        :param str filename: Full path to the Fortran file to compile.
-        :param bool link: If true will also try to link the file.
+        :param filename: Full path to the Fortran file to compile.
+        :param link: If true will also try to link the file.
             Used in testing.
 
         :raises CompileError: if the compilation fails.
@@ -339,7 +338,9 @@ class Compile():
             print(output.decode("utf-8"), file=sys.stderr)
             raise CompileError(output)
 
-    def _code_compiles(self, psy_ast, dependencies=None):
+    def _code_compiles(self,
+                       psy_ast: PSy,
+                       dependencies: Optional[list[str]] = None) -> bool:
         '''
         Use the given PSy class to generate the necessary PSyKAl components
         to compile the psy-layer. Returns True for success, False otherwise.
@@ -353,10 +354,8 @@ class Compile():
             more of the kernels/PSy-layer depend (and that are not part of
             e.g. the GOcean or LFRic infrastructure).  These dependencies will
             be built in the order they occur in this list.
-        :type dependencies: List[str]
 
         :return: True if generated code compiles, False otherwise.
-        :rtype: bool
 
         '''
         # pylint: disable=too-many-branches
@@ -445,23 +444,22 @@ class Compile():
 
         return success
 
-    def code_compiles(self, psy_ast, dependencies=None):
+    def code_compiles(self,
+                      psy_ast: PSy,
+                      dependencies: Optional[list[str]] = None) -> bool:
         '''Attempts to build the Fortran code supplied as a PSy object.
         Returns True for success, False otherwise.
         If compilation is not enabled returns true. Uses _code_compiles
         for the actual compilation.
 
         :param psy_ast: The generated PSy layer.
-        :type psy_ast: :py:class:`psyclone.psyGen.PSy`
         :param dependencies: optional module- or file-names on which \
                     one or more of the kernels/PSy-layer depend (and \
                     that are not part of e.g. the GOcean or LFRic \
                     infrastructure).  These dependencies will be built \
                     in the order they occur in this list.
-        :type dependencies: List[str]
 
         :return: True if generated code compiles, False otherwise
-        :rtype: bool
 
         '''
         if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
@@ -470,17 +468,16 @@ class Compile():
 
         return self._code_compiles(psy_ast, dependencies)
 
-    def string_compiles(self, code):
+    def string_compiles(self, code: str) -> bool:
         '''
         Attempts to build the Fortran code supplied as a string.
         Returns True for success, False otherwise.
         If no Fortran compiler is available or compilation testing is not
         enabled then it returns True. All files produced are deleted.
 
-        :param str code: The code to compile. Must have no external
+        :param code: The code to compile. Must have no external
                dependencies.
         :return: True if generated code compiles, False otherwise
-        :rtype: bool
 
         '''
         if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
@@ -558,8 +555,11 @@ def get_infrastructure_path(api: str) -> str:
 
 
 # =============================================================================
-def get_invoke(algfile: str, api: str, idx: int = None, name: str = None,
-               dist_mem: bool = None) -> Tuple[PSy, Invoke]:
+def get_invoke(algfile: str,
+               api: str,
+               idx: Optional[int] = None,
+               name: Optional[str] = None,
+               dist_mem: Optional[bool] = None) -> Tuple[PSy, Invoke]:
     '''
     Utility method to get the idx'th or named invoke from the algorithm
     in the specified file.
