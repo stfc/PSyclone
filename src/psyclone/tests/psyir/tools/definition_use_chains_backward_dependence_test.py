@@ -47,6 +47,7 @@ from psyclone.psyir.nodes import (
     WhileLoop,
 )
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
+from psyclone.psyir.transformations import ProfileTrans
 
 
 def test_definition_use_chain_compute_backward_uses(fortran_reader):
@@ -226,6 +227,41 @@ def test_definition_use_chain_find_backward_accesses_ifelse_example(
     assert len(reaches) == 2
     assert reaches[0] is not a_3
     assert reaches[1] is not a_3
+
+
+def test_definition_use_chain_find_backward_accesses_psy_data_node_example(
+    fortran_reader,
+):
+    """Functionality test for the find_backward_accesses routine. This
+    tests the behaviour is as expected when the analysed code is inside
+    a PSyDataNode (e.g. a ProfileNode), which is that it has to ignore
+    this ancestor enclosing node."""
+
+    # Just repeat the previous test but adding a ProfileNode on top
+    code = """
+    subroutine x()
+    integer :: a, b, c, d, e, f
+    a = 1
+    b = a + c
+    if ( d > e) then
+        a = 3
+    else
+        a = 4
+    end if
+    b = a + d
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    p_trans = ProfileTrans()
+    # Skipping the first assignment is needed to improve the test coverage
+    # because it needs to deal with the current_block
+    p_trans.apply(routine[1:])
+    # Start the chain from b = A + d.
+    chains = DefinitionUseChain(routine.walk(Assignment)[4].rhs.children[0])
+    reaches = chains.find_backward_accesses()
+    # Inside the ProfileRegion the DUC has to work as before, the 'a' has
+    # 4 backwards accesses as shown in the previous test.
+    assert len(reaches) == 4
 
 
 def test_definition_use_chain_find_backward_accesses_loop_example(

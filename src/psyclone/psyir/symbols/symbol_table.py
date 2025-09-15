@@ -1911,7 +1911,7 @@ class SymbolTable():
                 symbol_target=symbol_target)
 
             for isym in imported_symbols:
-                # Determine if there is an Unresolved Symbol in a descendent
+                # Determine if there is an Unresolved Symbol in a descendant
                 # symbol table that matches the name of the symbol we are
                 # importing. If there is no intervening wildcard import then
                 # we must have now resolved that symbol so move it to this
