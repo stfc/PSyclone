@@ -2847,6 +2847,8 @@ class Fparser2Reader():
         # The input from fparser2 is ['(', kind, ')']
         kind_items = kind_selector.items[1]
         fake_routine = Routine(RoutineSymbol("dummy"))
+        # Create a dummy assignment "a = " to place the kind statement on
+        # the rhs of.
         dummy_assignment = Assignment()
         fake_routine.addchild(dummy_assignment)
         dummy_assignment.addchild(Reference(Symbol("a")))

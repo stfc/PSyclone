@@ -295,7 +295,6 @@ class UnsupportedFortranType(UnsupportedType):
         '''
         new = copy.copy(self)
         if self._partial_datatype:
-            print(type(self._partial_datatype.copy()))
             new._partial_datatype = self._partial_datatype.copy()
         return new
 
@@ -515,7 +514,6 @@ class ScalarType(DataType):
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.datanode import DataNode
-        # Only the 'precision' of a ScalarType can refer to a Symbol.
         if isinstance(self.precision, DataNode):
             self._precision.replace_symbols_using(table_or_symbol)
 
@@ -1058,7 +1056,7 @@ class ArrayType(DataType):
         from psyclone.psyir.nodes.datanode import DataNode
         # TODO #1857: we will probably remove '_precision' and have
         # 'intrinsic' be 'datatype'.
-        if self._precision and isinstance(self._precision, DataNode):
+        if isinstance(self._precision, DataNode):
             self._precision.replace_symbols_using(table_or_symbol)
         if self._intrinsic and isinstance(self._intrinsic, Symbol):
             if isinstance(table_or_symbol, Symbol):
