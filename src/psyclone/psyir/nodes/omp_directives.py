@@ -2399,6 +2399,8 @@ class OMPAtomicDirective(OMPRegionDirective):
         :rtype: bool
 
         '''
+        # TODO #2398 If the statement is true can we return the
+        # correct AtomicDirectiveType?
         if not isinstance(stmt, Assignment):
             return False
 
