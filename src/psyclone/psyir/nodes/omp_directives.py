@@ -48,6 +48,8 @@ import itertools
 import sympy
 import logging
 
+from enum import Enum
+
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import (GenerationError,
@@ -2324,14 +2326,57 @@ class OMPAtomicDirective(OMPRegionDirective):
     Note that the standard supports blocks with 2 assignments but this is
     currently unsupported in the PSyIR.
 
+    :param ast: the entry in the fparser2 parse tree representing the code
+                contained within this directive or None.
+    :type ast: Optional[:py:class:`fparser.two.Fortran2003.Base`]
+    :param children: the nodes that will be children of this
+                     Directive node or None.
+    :type children: Optional[List[:py:class:`psyclone.psyir.nodes.Node`]]
+    :param parent: PSyIR node that is the parent of this Directive or None.
+    :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+    :param directive_type: the directive type of the atomic operation.
+    :type directive_type: :py:class:`psyclone.psyir.nodes.OMPAtomicDirective.\
+                          AtomicDirectiveType
     '''
+    class AtomicDirectiveType(Enum):
+        '''
+        Enumeration of the available atomic operation types supported by
+        OpenMP.
+        '''
+        UPDATE = 1
+        READ = 2
+        WRITE = 3
+        CAPTURE = 4
+
+    def __init__(self, ast=None, children=None, parent=None,
+                 directive_type=None):
+        # The default atomic directive in OpenMP is UPDATE
+        if not directive_type:
+            directive_type = OMPAtomicDirective.AtomicDirectiveType.UPDATE
+        if not isinstance(directive_type,
+                          OMPAtomicDirective.AtomicDirectiveType):
+            raise GenerationError(
+                f"OMPAtomicDirective expects an AtomicDirectiveType as the "
+                f"directive_type but found {directive_type}."
+            )
+        super().__init__(ast, children, parent)
+        # TODO #2398 - We can probably work out a directive_type for
+        # a lot of single statement OMPAtomicDirectives.
+        self._directive_type = directive_type
+
     def begin_string(self):
         '''
         :returns: the opening string statement of this directive.
         :rtype: str
 
         '''
-        return "omp atomic"
+        directive_type_to_str = {
+            OMPAtomicDirective.AtomicDirectiveType.UPDATE: "update",
+            OMPAtomicDirective.AtomicDirectiveType.READ: "read",
+            OMPAtomicDirective.AtomicDirectiveType.WRITE: "write",
+            OMPAtomicDirective.AtomicDirectiveType.CAPTURE: "capture",
+        }
+        return f"omp atomic {directive_type_to_str[self._directive_type]}"
 
     def end_string(self):
         '''

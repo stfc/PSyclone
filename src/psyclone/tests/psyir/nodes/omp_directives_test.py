@@ -1690,11 +1690,35 @@ def test_omp_atomics_validate_global_constraints(fortran_reader, monkeypatch):
             "statement, but found: " in str(err.value))
 
 
+def test_omp_atomic_init_failure():
+    ''' Test the OMPAtomicDirective init routine fails when provided an
+    invalid directive_type.'''
+    with pytest.raises(GenerationError) as excinfo:
+        _ = OMPAtomicDirective(directive_type=1)
+
+    assert ("OMPAtomicDirective expects an AtomicDirectiveType as the "
+            "directive_type but found 1." in str(excinfo.value))
+
+
 def test_omp_atomics_strings():
     ''' Test the OMPAtomicDirective begin and end strings '''
     atomic = OMPAtomicDirective()
-    assert atomic.begin_string() == "omp atomic"
+    assert atomic.begin_string() == "omp atomic update"
     assert atomic.end_string() == "omp end atomic"
+
+    atomic_read = OMPAtomicDirective(
+            directive_type=OMPAtomicDirective.AtomicDirectiveType.READ
+    )
+    assert atomic_read.begin_string() == "omp atomic read"
+
+    atomic_write = OMPAtomicDirective(
+            directive_type=OMPAtomicDirective.AtomicDirectiveType.WRITE
+    )
+    assert atomic_write.begin_string() == "omp atomic write"
+    atomic_capture = OMPAtomicDirective(
+            directive_type=OMPAtomicDirective.AtomicDirectiveType.CAPTURE
+    )
+    assert atomic_capture.begin_string() == "omp atomic capture"
 
 
 def test_omp_simd_strings():
