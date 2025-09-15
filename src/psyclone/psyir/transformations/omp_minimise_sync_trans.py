@@ -351,7 +351,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
                                 (Loop, WhileLoop), shared_with=next_depend
                         )
                         if (loop_ancestor and
-                                not barrier.is_descendent_of(loop_ancestor)):
+                                not barrier.is_descendant_of(loop_ancestor)):
                             continue
 
                     # The barrier appears between the node and its dependency.
@@ -362,25 +362,25 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
                         # Check if there's an elseblock, and if the barrier
                         # is inside the else body if so.
                         if (barrier_ancestor_if.else_body and
-                                barrier.is_descendent_of(
+                                barrier.is_descendant_of(
                                     barrier_ancestor_if.else_body)):
                             # Check that either the dependency or the directive
                             # are in the same else body
-                            if (not (directive.is_descendent_of(
+                            if (not (directive.is_descendant_of(
                                         barrier_ancestor_if.else_body) or
-                                     next_depend.is_descendent_of(
+                                     next_depend.is_descendant_of(
                                          barrier_ancestor_if.else_body)
                                      )):
                                 # Neither are in the same else block so exit
                                 # early
                                 break
-                        elif (barrier.is_descendent_of(
+                        elif (barrier.is_descendant_of(
                                 barrier_ancestor_if.if_body)):
                             # Check that either the dependency or the directive
                             # are in the same else body
-                            if (not (directive.is_descendent_of(
+                            if (not (directive.is_descendant_of(
                                         barrier_ancestor_if.if_body) or
-                                     next_depend.is_descendent_of(
+                                     next_depend.is_descendant_of(
                                          barrier_ancestor_if.if_body)
                                      )):
                                 # Neither are in the same else block so exit
