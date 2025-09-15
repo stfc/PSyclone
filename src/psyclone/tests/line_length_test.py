@@ -464,7 +464,7 @@ def test_long_line_continuator():
 def test_long_line_big_indentation(fortran_reader, fortran_writer, tmpdir):
     '''
     '''
-    repetitions = 80
+    repetitions = 200
     code = '''
     subroutine test_subroutine(a)
         !use other, only: my_sub
@@ -475,24 +475,11 @@ def test_long_line_big_indentation(fortran_reader, fortran_writer, tmpdir):
     for i in range(repetitions):
         code += f'''
         CASE ({i})
-            write(*,*) {i} !call my_sub()
+            write(*,*) "A really long piece of text that takes this line over the maximum line-length for a Fortran code, even in free-format: ", {i} !call my_sub()
         '''
     code += '''
         END SELECT
     end subroutine'''
-
-#    code = '''\
-#    program test
-#      implicit none
-#      use some_mod
-#      select case(var)\n'''
-#    for idx in range(40):
-#      code += (f"      case (val{idx})\n"
-#               f"        write(*,*) val{idx}\n")
-#    code += '''\
-#      end select
-#    end program test'''
-    #print(code)
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
     print(output)
