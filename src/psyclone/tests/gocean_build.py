@@ -41,7 +41,8 @@ import os
 import subprocess
 import sys
 
-from psyclone.tests.utilities import change_dir, Compile, CompileError
+from psyclone.tests.utilities import (change_dir, Compile, CompileError,
+                                      get_base_path)
 
 
 class GOceanBuild(Compile):
@@ -70,9 +71,7 @@ class GOceanBuild(Compile):
     def __init__(self, tmpdir=None):
         super().__init__(tmpdir)
 
-        base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "gocean1p0")
-        self.base_path = base_path
+        self.base_path = get_base_path("gocean")
 
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.

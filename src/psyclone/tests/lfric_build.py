@@ -45,7 +45,7 @@ import sys
 
 
 from psyclone.tests.utilities import (change_dir, CompileError, Compile,
-                                      get_infrastructure_path)
+                                      get_base_path, get_infrastructure_path)
 
 
 class LFRicBuild(Compile):
@@ -75,9 +75,9 @@ class LFRicBuild(Compile):
     def __init__(self, tmpdir):
         super().__init__(tmpdir)
 
-        base_path = Path(__file__).parent / "test_files" / "lfric"
-        self.base_path = str(base_path)
-        self._infrastructure_path = Path(get_infrastructure_path("lfric"))
+        self.base_path = get_base_path("lfric")
+        LFRicBuild._infrastructure_path = \
+            Path(get_infrastructure_path("lfric"))
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.
         if not LFRicBuild._infrastructure_built:
@@ -92,11 +92,20 @@ class LFRicBuild(Compile):
         :rtype: List[str]
 
         '''
+        if Compile.TEST_COMPILE:
+            # If we are compiling, point to the compilation path, which
+            # contain the compiled mod files.
+            root = LFRicBuild._compilation_path
+        else:
+            # If we are not compiling, point to the external infrastructure
+            # directory, which allows tests (that uses the flags) to pass
+            # even when compilation is disabled (and it will pick up if
+            # the infrastructure should change as well).
+            root = self._infrastructure_path
         all_flags = []
-        for root, dirs, _ in os.walk(self._infrastructure_path):
+        for root, dirs, _ in os.walk(root):
             for curr_dir in dirs:
                 all_flags.extend(["-I", str(os.path.join(root, curr_dir))])
-
         return all_flags
 
     def _build_infrastructure(self):
@@ -110,6 +119,7 @@ class LFRicBuild(Compile):
             # Store the temporary path so that the compiled infrastructure
             # files can be used by all test compilations later.
             LFRicBuild._compilation_path = self._tmpdir
+
             makefile = self._infrastructure_path.parent / "Makefile"
             arg_list = [LFRicBuild._make_command, f"F90={self._f90}",
                         f"F90FLAGS={self._f90flags}",

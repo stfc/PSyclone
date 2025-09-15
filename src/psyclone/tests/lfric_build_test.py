@@ -37,6 +37,7 @@
 
 import os
 import subprocess
+
 import pytest
 
 from psyclone.tests.lfric_build import LFRicBuild
@@ -59,13 +60,14 @@ def protect_infrastructure_path_fixture(monkeypatch):
     monkeypatch.setattr(LFRicBuild, "_compilation_path", "/no/path")
 
 
-def test_lf_build_get_infrastructure_flags(monkeypatch, tmpdir):
+def test_lf_build_get_infrastructure_flags(tmpdir):
     '''
-    Test the get_infrastructure_flags method.
+    Test the get_infrastructure_flags method. The build object will either
+    use the compiled path of the infrastructure if compilation is enabled,
+    or otherwise the directory .../external/lfric_infrastructure/src. Since
+    the include paths is done relative, this should give the same results.
 
     '''
-    # Pretend that compilation testing is disabled.
-    monkeypatch.setattr(Compile, "TEST_COMPILE", False)
     builder = LFRicBuild(tmpdir)
     flags = builder.get_infrastructure_flags()
     dir_list = []
@@ -78,12 +80,16 @@ def test_lf_build_get_infrastructure_flags(monkeypatch, tmpdir):
     assert 'configuration' in dir_list
     assert 'function_space' in dir_list
     assert 'field' in dir_list
+
     # In the past there was a bug where the root directory of
     # PSyclone was used to find the infrastructure directories. To
-    # detect this, check that there are no unexpected directory names
+    # detect this, check for some unexpected directory names
     # in there:
     assert '.git' not in dir_list
     assert '__pycache__' not in dir_list
+    # One additional test to make sure we are not at the wrong location.
+    # ATM, the infrastructure has 16 directories
+    assert len(dir_list) > 10 and len(dir_list) < 50
 
 
 @pytest.mark.usefixtures("enable_compilation")
