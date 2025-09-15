@@ -391,10 +391,9 @@ class InlineTrans(Transformation):
 
                 present_arg: Reference = intrinsic_call.arguments[0]
                 present_arg_name = present_arg.name.lower()
-
-                assert present_arg_name in optional_sym_present_dict
-
-                if optional_sym_present_dict[present_arg_name]:
+                is_present = optional_sym_present_dict.get(present_arg_name,
+                                                           None)
+                if is_present:
                     # The argument is present.
                     intrinsic_call.replace_with(Literal("true", BOOLEAN_TYPE))
                 else:
@@ -1022,8 +1021,8 @@ class InlineTrans(Transformation):
                 TransformationError,
             ) as err:
                 raise TransformationError(
-                    f"Cannot inline routine '{name}' because its source"
-                    f" cannot be found:\n{str(err)}"
+                    f"Cannot inline routine '{name}' because the target of the"
+                    f" call cannot be found:\n{str(err)}"
                 ) from err
 
         else:

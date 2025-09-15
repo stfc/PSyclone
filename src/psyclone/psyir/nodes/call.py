@@ -40,7 +40,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap
@@ -53,6 +53,8 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
     DataSymbol,
+    DataType,
+    DataTypeSymbol,
     DefaultModuleInterface,
     GenericInterfaceSymbol,
     RoutineSymbol,
@@ -639,7 +641,7 @@ class Call(Statement, DataNode):
                 self,
                 call_arg: DataNode,
                 routine_arg: DataSymbol
-            ):
+            ) -> None:
         """Checks whether the supplied call and routine arguments are
         compatible. This also supports 'optional' arguments by using
         partial types.
@@ -651,30 +653,63 @@ class Call(Statement, DataNode):
             do not match.
 
         """
-        if isinstance(call_arg.datatype, ArrayType) and isinstance(
-                routine_arg.datatype, ArrayType):
+        def type_symbols_match(type1: Union[DataTypeSymbol, DataType],
+                               type2: Union[DataTypeSymbol, DataType]) -> bool:
+            '''
+            :returns: True if the two types correspond to DataTypeSymbols with
+                      the same name (case insensitive), False otherwise.
+            '''
+            return (isinstance(type1, DataTypeSymbol) and
+                    isinstance(type2, DataTypeSymbol) and
+                    (type1.name.lower() == type2.name.lower()))
+
+        actual_type = call_arg.datatype
+        dummy_type = routine_arg.datatype
+        if isinstance(actual_type, ArrayType) and isinstance(dummy_type,
+                                                             ArrayType):
+            # Arguments must have the same shape.
+            if len(actual_type.shape) != len(dummy_type.shape):
+                call_arg_str = call_arg.debug_string().strip()
+                routine_arg_str = routine_arg.name
+                raise CallMatchingArgumentsNotFound(
+                    f"Rank mismatch of call argument '{call_arg_str}' "
+                    f"(rank {len(actual_type.shape)}) and routine argument "
+                    f"'{routine_arg_str}' (rank {len(dummy_type.shape)})")
+            # Arguments must have the same intrinsic type.
+            if actual_type.intrinsic != dummy_type.intrinsic:
+                if type_symbols_match(actual_type.intrinsic,
+                                      dummy_type.intrinsic):
+                    return
+                call_arg_str = call_arg.debug_string().strip()
+                routine_arg_str = routine_arg.name
+                raise CallMatchingArgumentsNotFound(
+                    f"Array argument type mismatch of call argument "
+                    f"'{call_arg_str}' ({actual_type.intrinsic}) and routine "
+                    f"argument '{routine_arg_str}' ({dummy_type.intrinsic})")
             return
 
-        if isinstance(routine_arg.datatype, UnsupportedFortranType):
+        if isinstance(dummy_type, UnsupportedFortranType):
             # This could be an 'optional' argument. If so, it will have at
             # least a partial datatype which we can check.
-            if call_arg.datatype != routine_arg.datatype.partial_datatype:
+            if actual_type != dummy_type.partial_datatype:
                 call_arg_str = call_arg.debug_string().strip()
                 routine_arg_str = routine_arg.name
                 raise CallMatchingArgumentsNotFound(
                     f"Argument partial type mismatch of call argument "
-                    f"'{call_arg_str}' ({call_arg.datatype}) and routine "
+                    f"'{call_arg_str}' ({actual_type}) and routine "
                     f"argument '{routine_arg_str}' ("
-                    f"{routine_arg.datatype.partial_datatype})"
+                    f"{dummy_type.partial_datatype})"
                 )
         else:
-            if call_arg.datatype != routine_arg.datatype:
+            if actual_type != dummy_type:
+                if type_symbols_match(actual_type, dummy_type):
+                    return
                 call_arg_str = call_arg.debug_string().strip()
                 routine_arg_str = routine_arg.name
                 raise CallMatchingArgumentsNotFound(
                     f"Argument type mismatch of call argument '{call_arg_str}'"
-                    f" ({call_arg.datatype}) and routine argument "
-                    f"'{routine_arg_str}' ({routine_arg.datatype})"
+                    f" ({actual_type}) and routine argument "
+                    f"'{routine_arg_str}' ({dummy_type})"
                 )
 
     def get_argument_map(self, routine: Routine) -> List[int]:
@@ -766,13 +801,11 @@ class Call(Statement, DataNode):
             # TODO #759: Optional keyword is not yet supported in psyir.
             # Hence, we use a simple string match.
             if ", OPTIONAL" not in str(routine_arg.datatype):
-                routine_arg_name = routine_arg.name.replace("\n", "")
-                routine_name = routine.name.replace("\n", "")
                 call_name = self.debug_string().replace("\n", "")
                 raise CallMatchingArgumentsNotFound(
-                    f"Argument '{routine_arg_name}' in subroutine"
-                    f" '{routine_name}' does not match any in the call"
-                    f" '{call_name}' and is not OPTIONAL."
+                    f"Argument '{routine_arg.name}' in subroutine "
+                    f"'{routine.name}' does not match any in the call "
+                    f"'{call_name}' and is not OPTIONAL."
                 )
 
         return ret_arg_idx_list
@@ -784,6 +817,12 @@ class Call(Statement, DataNode):
         '''
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.
+
+        .. warning::
+            If `use_first_callee_and_no_arg_check is set to True, the very
+            first implementation of a Routine with a matching name will be
+            returned. In this case, the arguments of the Call and the Routine
+            might not match.
 
         :param use_first_callee_and_no_arg_check: whether or not (the default)
             to just find the first potential callee without checking its

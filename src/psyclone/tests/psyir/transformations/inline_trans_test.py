@@ -979,9 +979,11 @@ def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
                 psyir.walk(Call)[0],
                 options={"check_matching_arguments": False},
             )
-        assert ("Routine 'sub' cannot be inlined because the type of the "
-                "actual argument 'micah%grids(:)' corresponding to an array "
-                "formal argument ('x') is unknown." in str(err.value))
+        assert ("Cannot inline routine 'sub' because the target of the "
+                "call cannot be found:" in str(err.value))
+        assert ("Array argument type mismatch of call argument "
+                "'micah%grids(:)' (UnresolvedType) and routine argument 'x' "
+                "(big_type: DataTypeSymbol)" in str(err.value))
     else:
         inline_trans.apply(psyir.walk(Call)[0])
         output = fortran_writer(psyir)
@@ -1707,8 +1709,8 @@ def test_validate_calls_find_routine(fortran_reader):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert (
-        "Cannot inline routine 'sub' because its source cannot be found:"
-        in str(err.value)
+        "Cannot inline routine 'sub' because the target of the call cannot be "
+        "found:" in str(err.value)
     )
     assert (
         "Failed to find the source code of the unresolved routine 'sub'."
@@ -1749,7 +1751,7 @@ def test_validate_fail_to_get_psyir_due_to_wildcard(fortran_reader,
         intrans.validate(call)
 
     assert (
-        "Cannot inline routine 'my_sub' because its source cannot"
+        "Cannot inline routine 'my_sub' because the target of the call cannot"
         " be found:" in str(err.value)
     )
     assert (
@@ -2254,9 +2256,10 @@ def test_validate_array_reshape(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("Cannot inline routine 's' because it reshapes an argument: actual"
-            " argument 'a(:,:)' has rank 2 but the corresponding formal "
-            "argument, 'x', has rank 1" in str(err.value))
+    assert ("Cannot inline routine 's' because the target of the call cannot "
+            "be found:" in str(err.value))
+    assert ("Rank mismatch of call argument 'a(:,:)' (rank 2) and routine "
+            "argument 'x' (rank 1)" in str(err.value))
 
 
 def test_validate_array_arg_expression(fortran_reader):

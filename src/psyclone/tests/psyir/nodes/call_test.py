@@ -46,8 +46,9 @@ from psyclone.psyir.nodes import (
     Node, Reference, Routine, Schedule, CallMatchingArgumentsNotFound)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
-    ArrayType, INTEGER_TYPE, ContainerSymbol, DataSymbol, NoType,
-    RoutineSymbol, REAL_TYPE, SymbolError, UnresolvedInterface)
+    ArrayType, INTEGER_TYPE, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    NoType, RoutineSymbol, REAL_TYPE, SymbolError, UnresolvedInterface,
+    UnresolvedType)
 
 
 class SpecialCall(Call):
@@ -1832,12 +1833,16 @@ def test_check_argument_type_matches(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source('''\
     module my_mod
+    use some_mod, only: array_arg, dtype_arg, dtype_array_arg, my_type
     contains
     subroutine amazing()
       real :: var
       real, dimension(20) :: var2
+      type(my_type), dimension(5) :: athing
       call astounding(var)
       call array_arg(var2)
+      call dtype_arg(athing(1))
+      call dtype_array_arg(athing)
     end subroutine amazing
     subroutine astounding(dummy1)
       real :: dummy1
@@ -1858,13 +1863,71 @@ def test_check_argument_type_matches(fortran_reader):
     call2._check_argument_type_matches(
         call2.arguments[0],
         DataSymbol("dummy1", ArrayType(REAL_TYPE, shape=[10])))
+    # Array of wrong rank.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call2._check_argument_type_matches(
+            call2.arguments[0],
+            DataSymbol("dummy1", ArrayType(REAL_TYPE, shape=[10, 10])))
+    assert ("Rank mismatch of call argument 'var2' (rank 1) and routine "
+            "argument 'dummy1' (rank 2)" in str(err.value))
+    # Array of wrong intrinsic type.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call2._check_argument_type_matches(
+            call2.arguments[0],
+            DataSymbol("dummy1", ArrayType(INTEGER_TYPE, shape=[10])))
+    assert ("Array argument type mismatch of call argument 'var2' "
+            "(Intrinsic.REAL) and routine argument 'dummy1' "
+            "(Intrinsic.INTEGER)" in str(err.value))
     # Scalar instead of array.
     with pytest.raises(CallMatchingArgumentsNotFound) as err:
         call2._check_argument_type_matches(call2.arguments[0],
                                            DataSymbol("dummy1", REAL_TYPE))
     assert "Argument type mismatch of call argument 'var2'" in str(err.value)
-    # Array of wrong rank.
+    # Derived type.
+    call3 = calls[2]
+    # A type symbol of the same name (case insensitive) is assumed to match.
+    call3._check_argument_type_matches(
+        call3.arguments[0],
+        DataSymbol("dummy1", DataTypeSymbol("MY_type", UnresolvedType())))
+    # An intrinsic scalar should not match with it.
     with pytest.raises(CallMatchingArgumentsNotFound) as err:
-        call2._check_argument_type_matches(call2.arguments[0],
-                                           DataSymbol("dummy1", REAL_TYPE))
-    assert "Argument type mismatch of call argument 'var2'" in str(err.value)
+        call3._check_argument_type_matches(
+            call3.arguments[0], DataSymbol("dummy1", REAL_TYPE))
+    assert ("Argument type mismatch of call argument 'athing(1)' (my_type: "
+            "DataTypeSymbol) and routine argument 'dummy1' (Scalar<REAL"
+            in str(err.value))
+    # Array of derived type.
+    call4 = calls[3]
+    # Doesn't match with single object of derived type.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call4._check_argument_type_matches(
+            call4.arguments[0],
+            DataSymbol("dummy1", DataTypeSymbol("MY_type", UnresolvedType())))
+    assert ("Argument type mismatch of call argument 'athing' (Array<my_type: "
+            "DataTypeSymbol, shape=[5]>) and routine argument 'dummy1' "
+            "(MY_type: DataTypeSymbol)" in str(err.value))
+    # Doesn't match with array of derived type with wrong rank.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call4._check_argument_type_matches(
+            call4.arguments[0],
+            DataSymbol("dummy1",
+                       ArrayType(DataTypeSymbol("MY_type", UnresolvedType()),
+                                 shape=[3, 4])))
+    assert ("Rank mismatch of call argument 'athing' (rank 1) and routine "
+            "argument 'dummy1' (rank 2)" in str(err.value))
+    # Doesn't match with array of a different derived type.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call4._check_argument_type_matches(
+            call4.arguments[0],
+            DataSymbol("dummy1",
+                       ArrayType(DataTypeSymbol("wrongun", UnresolvedType()),
+                                 shape=[6])))
+    assert ("Array argument type mismatch of call argument 'athing' (my_type: "
+            "DataTypeSymbol) and routine argument 'dummy1' "
+            "(wrongun: DataTypeSymbol)" in str(err.value))
+    # Rank-1 array matches.
+    call4._check_argument_type_matches(
+            call4.arguments[0],
+            DataSymbol("dummy1",
+                       ArrayType(DataTypeSymbol("MY_type", UnresolvedType()),
+                                 shape=[5])))
