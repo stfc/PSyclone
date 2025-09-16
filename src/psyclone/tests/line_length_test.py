@@ -463,41 +463,6 @@ def test_long_line_continuator():
     _ = fll.process(input_string)
 
 
-def test_long_line_big_indentation(fortran_reader, fortran_writer, tmpdir):
-    '''
-    '''
-    repetitions = 100
-    code = '''
-    subroutine test_subroutine(a, b)
-        integer, intent(in) :: b
-        integer, dimension(:), intent(out) :: a
-        integer :: i
-
-        SELECT CASE(b)
-    '''
-    for i in range(repetitions):
-        code += f'''
-        CASE ({i})
-            do i = 1, 10
-              a(i) = i
-            end do
-        '''
-    code += '''
-        END SELECT
-    end subroutine'''
-    omp_trans = OMPParallelLoopTrans()
-    psyir = fortran_reader.psyir_from_source(code)
-    for loop in psyir.walk(Loop):
-        omp_trans.apply(loop)
-    output = fortran_writer(psyir)
-    print(output)
-    line_length = FortLineLength()
-    out = line_length.process(output)
-    print(out)
-    assert 0
-    assert Compile(tmpdir).string_compiles(out)
-
-
 @pytest.mark.parametrize("line,max_index,key_list,index", [
     ("allocate(x, y, z)", 17, [",", ")"], 14),
     ("allocate(x, y, z)", 17, ["y,", ")"], 14),

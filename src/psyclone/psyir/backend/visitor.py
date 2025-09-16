@@ -107,10 +107,6 @@ class PSyIRVisitor():
 
         if indent_string is None:
             indent_string = self._DEFAULT_INDENT
-        # If all indentation has been switched off then that takes priority.
-        config = Config.get()
-        if config.backend_indentation_disabled:
-            indent_string = ""
 
         if not isinstance(skip_nodes, bool):
             raise TypeError(

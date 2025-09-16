@@ -38,9 +38,11 @@
 '''Performs pytest tests on the psyclone.psyir.backend.visitor module'''
 
 import pytest
+
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import Node, Reference, ArrayReference, Return, \
-    Statement, Schedule, Container, Routine
+from psyclone.psyir.nodes import (
+    ArrayReference, Container, Node, Reference, Return, Routine,
+    Schedule, Statement)
 from psyclone.psyir.symbols import DataSymbol, ArrayType, REAL_TYPE
 from psyclone.errors import GenerationError
 

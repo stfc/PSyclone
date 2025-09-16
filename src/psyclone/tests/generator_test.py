@@ -51,7 +51,7 @@ import re
 import shutil
 import stat
 from sys import modules
-
+from typing import Optional
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -990,8 +990,8 @@ def test_main_directory_arg(capsys):
           "-d", NEMO_BASE_PATH])
 
 
-def test_main_disable_backend_validation_arg(capsys):
-    '''Test the --backend option in main().'''
+def test_main_backend_arg(capsys):
+    '''Test the --backend optiond in main().'''
     filename = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
     with pytest.raises(SystemExit):
         main([filename, "-api", "lfric", "--backend", "invalid"])
@@ -1004,11 +1004,17 @@ def test_main_disable_backend_validation_arg(capsys):
     assert Config.get().backend_checks_enabled is True
     main([filename, "-api", "lfric", "--backend", "disable-validation"])
     assert Config.get().backend_checks_enabled is False
+    assert Config.get().backend_indentation_disabled is False
     Config._instance = None
-    main([filename, "-api", "lfric", "--backend", "enable-validation"])
+    main([filename, "-api", "lfric", "--backend", "enable-validation",
+          "--backend", "disable-indentation"])
     assert Config.get().backend_checks_enabled is True
+    assert Config.get().backend_indentation_disabled is True
     Config._instance = None
 
+
+def test_main_disable_backend_indentation_arg(capsys):
+    '''Test the --backend disable'''
 
 def test_main_expected_fatal_error(capsys):
     '''Tests that we get the expected output and the code exits with an
@@ -1172,7 +1178,8 @@ def test_code_transformation_backend_validation(validate: bool,
     # Create a dummy Fortran writer, which we use to check
     # the values passed in
     def dummy_fortran_writer(check_global_constraints: bool,
-                             disable_copy: bool):
+                             disable_copy: bool,
+                             indent_string: Optional[str] = None):
         # pylint: disable=unused-argument
         """A dummy function used to test that the FortranWriter
         gets the backend-validation flag as intended.
