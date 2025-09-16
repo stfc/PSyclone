@@ -48,10 +48,12 @@ from typing import Optional, Tuple, Union
 import pytest
 
 from fparser import api as fpapi
+from fparser.one.block_statements import BeginSource
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleInfo, FileInfo, ModuleManager
 from psyclone.parse.algorithm import parse
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyGen import Invoke, PSyFactory, PSy
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import ScopingNode
@@ -600,16 +602,15 @@ def get_invoke(algfile: str,
 
 
 # =============================================================================
-def get_ast(api, filename):
+def get_ast(api: str, filename: str) -> BeginSource:
     '''Returns the fparser1 parse tree for a filename that is stored in the
     test files for the specified API.
 
-    :param str api: the API to use, which determines the directory \
+    :param api: the API to use, which determines the directory \
         where files are stored.
-    :param str filename: the file name to parse.
+    :param filename: the file name to parse.
 
     :returns: the parse tree for the specified Fortran source file.
-    :rtype: :py:class:`fparser.api.BeginSource`
 
     '''
     Config.get().api = api
@@ -619,7 +620,7 @@ def get_ast(api, filename):
 
 
 # =============================================================================
-def check_links(parent, children):
+def check_links(parent: Node, children: list[Node]) -> None:
     '''Utilitiy routine to check that the parent node has children as its
     children in the order specified and that the children have parent
     as their parent. Also check that the parent does not have any
