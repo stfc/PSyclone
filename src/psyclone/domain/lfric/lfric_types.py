@@ -44,7 +44,7 @@ from dataclasses import dataclass
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Literal
+from psyclone.psyir.nodes import Literal, Reference
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     ImportInterface, INTEGER_TYPE, ScalarType)
 
@@ -223,6 +223,8 @@ class LFRicTypes:
         def __my_generic_scalar_type_init__(self, precision=None):
             if not precision:
                 precision = self.default_precision
+            if isinstance(precision, DataSymbol):
+                precision = Reference(precision)
             ScalarType.__init__(self, self.intrinsic, precision)
 
         # ---------------------------------------------------------------------

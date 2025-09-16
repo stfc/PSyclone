@@ -105,7 +105,7 @@ def test_gen_param_decls_kind_dep(fortran_writer):
                           initial_value=Literal("4", INTEGER_TYPE))
     wp_sym = DataSymbol("wp", INTEGER_TYPE, is_constant=True,
                         initial_value=Reference(rdef_sym))
-    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, wp_sym)
+    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(wp_sym))
     var_sym = DataSymbol("var", rdef_type, is_constant=True,
                          initial_value=Literal("1.0", rdef_type))
     var2_sym = DataSymbol("var2", REAL_TYPE, is_constant=True,
