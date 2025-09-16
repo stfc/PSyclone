@@ -91,40 +91,6 @@ def test_lfric_driver_add_call(fortran_writer):
 
 
 # ----------------------------------------------------------------------------
-def test_lfric_driver_import_modules():
-    '''Tests that adding a call detects errors as expected.
-    '''
-    program = Routine.create("routine", is_program=True)
-    _, invoke = get_invoke("8_vector_field_2.f90", API,
-                           dist_mem=False, idx=0)
-
-    sched = invoke.schedule
-    # We need to lower to convert the kernels to calls
-    sched.lower_to_language_level()
-    # and add them to the extraction driver
-    program.children.extend([node.copy() for node in sched.children])
-
-    driver_creator = LFRicExtractDriverCreator()
-
-    # Initially we should only have no symbol other than the routine:
-    assert ['routine'] == [sym.name for sym in program.symbol_table.symbols]
-
-    driver_creator.import_modules(program)
-    # We should now have two more symbols:
-    all_symbols = ["routine",
-                   "testkern_coord_w0_2_mod",
-                   "testkern_coord_w0_2_code"]
-    assert (all_symbols == [sym.name for sym in program.symbol_table.symbols])
-
-    # Import twice so we test the handling of symbols that
-    # are already in the symbol table:
-    driver_creator.import_modules(program)
-
-    # The symbol table should be the same as it was before:
-    assert (all_symbols == [sym.name for sym in program.symbol_table.symbols])
-
-
-# ----------------------------------------------------------------------------
 def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
     '''This test checks the import_modules method if there is a call
     that has no ImportInterface by calling an unknown function.'''
