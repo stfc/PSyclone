@@ -44,7 +44,6 @@ back ends.
 import inspect
 from typing import Optional
 
-from psyclone.configuration import Config
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import Node, Schedule, Container
 from psyclone.psyir.commentable_mixin import CommentableMixin

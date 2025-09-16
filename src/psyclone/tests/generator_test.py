@@ -991,7 +991,7 @@ def test_main_directory_arg(capsys):
 
 
 def test_main_backend_arg(capsys):
-    '''Test the --backend optiond in main().'''
+    '''Test the --backend options in main().'''
     filename = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
     with pytest.raises(SystemExit):
         main([filename, "-api", "lfric", "--backend", "invalid"])
@@ -1008,13 +1008,13 @@ def test_main_backend_arg(capsys):
     Config._instance = None
     main([filename, "-api", "lfric", "--backend", "enable-validation",
           "--backend", "disable-indentation"])
+    _, output = capsys.readouterr()
+    print(output)
+    assert 0
     assert Config.get().backend_checks_enabled is True
     assert Config.get().backend_indentation_disabled is True
     Config._instance = None
 
-
-def test_main_disable_backend_indentation_arg(capsys):
-    '''Test the --backend disable'''
 
 def test_main_expected_fatal_error(capsys):
     '''Tests that we get the expected output and the code exits with an

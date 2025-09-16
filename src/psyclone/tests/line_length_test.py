@@ -43,9 +43,6 @@ import pytest
 from psyclone.line_length import FortLineLength, find_break_point
 from psyclone.generator import generate
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Loop
-from psyclone.transformations import OMPParallelLoopTrans
-from psyclone.tests.utilities import Compile
 
 # functions
 
