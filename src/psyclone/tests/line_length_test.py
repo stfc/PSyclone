@@ -43,6 +43,8 @@ import pytest
 from psyclone.line_length import FortLineLength, find_break_point
 from psyclone.generator import generate
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Loop
+from psyclone.transformations import OMPParallelLoopTrans
 from psyclone.tests.utilities import Compile
 
 # functions
@@ -464,28 +466,35 @@ def test_long_line_continuator():
 def test_long_line_big_indentation(fortran_reader, fortran_writer, tmpdir):
     '''
     '''
-    repetitions = 200
+    repetitions = 100
     code = '''
-    subroutine test_subroutine(a)
-        !use other, only: my_sub
-        integer, intent(in) :: a
+    subroutine test_subroutine(a, b)
+        integer, intent(in) :: b
+        integer, dimension(:), intent(out) :: a
+        integer :: i
 
-        SELECT CASE(a)
+        SELECT CASE(b)
     '''
     for i in range(repetitions):
         code += f'''
         CASE ({i})
-            write(*,*) "A really long piece of text that takes this line over the maximum line-length for a Fortran code, even in free-format: ", {i} !call my_sub()
+            do i = 1, 10
+              a(i) = i
+            end do
         '''
     code += '''
         END SELECT
     end subroutine'''
+    omp_trans = OMPParallelLoopTrans()
     psyir = fortran_reader.psyir_from_source(code)
+    for loop in psyir.walk(Loop):
+        omp_trans.apply(loop)
     output = fortran_writer(psyir)
     print(output)
     line_length = FortLineLength()
     out = line_length.process(output)
     print(out)
+    assert 0
     assert Compile(tmpdir).string_compiles(out)
 
 
