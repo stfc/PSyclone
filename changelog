@@ -1,3 +1,9 @@
+   88) PR #3094 for #2851 and #3082. Improves the DA so that PSyclone
+   does not generate unnecessary firstprivate clauses on parallel regions.   
+
+   87) PR #3127 for #3126. Disable python module index in latex version
+   of docs.
+
    86) PR #3129 for #2709. Ensures that the 'disable backends check'
    configuration option is passed to the FortranWriter.
 
