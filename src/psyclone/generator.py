@@ -480,11 +480,13 @@ def main(arguments):
         '-p', '--profile', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="add profiling hooks for 'kernels', 'invokes' or 'routines'")
     parser.add_argument(
-        '--backend', dest='backend',
-        choices=['enable-validation', 'disable-validation'],
+        '--backend', dest='backend', action="append",
+        choices=['enable-validation', 'disable-validation',
+                 'disable-indentation'],
         help=("options to control the PSyIR backend used for code generation. "
               "Use 'disable-validation' to disable the validation checks that "
-              "are performed by default."))
+              "are performed by default. Use 'disable-indentation' to turn off"
+              " all indentation in the generated code."))
 
     # Code-transformation mode flags
     parser.add_argument('-o', metavar='OUTPUT_FILE',
@@ -599,8 +601,12 @@ def main(arguments):
     if args.backend:
         # A command-line flag overrides the setting in the Config file (if
         # any).
-        Config.get().backend_checks_enabled = (
-            str(args.backend) == "enable-validation")
+        if "enable-validation" in args.backend:
+            Config.get().backend_checks_enabled = True
+        if "disable-validation" in args.backend:
+            Config.get().backend_checks_enabled = False
+        if "disable-indentation" in args.backend:
+            Config.get().backend_indentation_disabled = True
 
     # The Configuration manager checks that the supplied path(s) is/are
     # valid so protect with a try
