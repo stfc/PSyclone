@@ -3137,7 +3137,6 @@ class LFRicIntToRealXKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         # proxy0%data(df) = REAL(proxy1%data, kind=r_<prec>)
         lhs = arg_refs[0]
-        #r_precision = arg_refs[0].datatype.precision.symbol
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,
             [arg_refs[1], ("kind", arg_refs[0].datatype.precision.copy())])

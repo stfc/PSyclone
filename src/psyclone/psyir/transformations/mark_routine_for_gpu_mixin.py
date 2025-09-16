@@ -25,7 +25,6 @@
 #          J. Dendy, Met Office
 
 
-from psyclone.core.access_type import AccessType
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import (Call, CodeBlock, Routine,
                                   IntrinsicCall)
