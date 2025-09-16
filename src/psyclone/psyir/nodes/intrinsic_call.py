@@ -97,7 +97,8 @@ class IntrinsicCall(Call):
         IAttr namedtuple format:
 
             NAME = IAttr(name, is_pure, is_elemental, is_inquiry,
-                         required_args, optional_args)
+                         required_args, optional_args, return_type,
+                         reference_accesses)
 
         Note that name is duplicated inside IAttr because each item in the
         Enum must have a different value, and without the name that would
