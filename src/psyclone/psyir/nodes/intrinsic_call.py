@@ -151,7 +151,6 @@ class IntrinsicCall(Call):
             is_inquiry=False,
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
-            # TODO 1590 Complex conversion unsupported.
             return_type=None,
             reference_accesses=None,
         )
@@ -192,7 +191,6 @@ class IntrinsicCall(Call):
             is_inquiry=False,
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
-            # TODO 2612 This may be more complex if we support character len
             return_type=None,
             reference_accesses=None,
         )
@@ -203,7 +201,6 @@ class IntrinsicCall(Call):
             is_inquiry=False,
             required_args=ArgDesc(1, 1, DataNode),
             optional_args={},
-            # TODO 2612 This may be more complex if we support character len
             return_type=None,
             reference_accesses=None,
         )
