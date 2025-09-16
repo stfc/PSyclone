@@ -104,7 +104,7 @@ def test_compiler_works(monkeypatch):
     example.'''
 
     _compile = Compile("/some-random-dir")
-    assert _compile.base_path is None
+    assert _compile.base_path == ""
     assert _compile._tmpdir == "/some-random-dir"
     _compile.base_path = "/tmp"
     assert _compile.base_path == "/tmp"
