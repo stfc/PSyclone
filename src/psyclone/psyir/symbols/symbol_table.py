@@ -1554,8 +1554,7 @@ class SymbolTable():
             # UnresolvedType)
             if (hasattr(sym.datatype, "precision") and
                     isinstance(sym.datatype.precision, DataNode)):
-                refs = sym.datatype.precision.walk(Reference)
-                for ref in refs:
+                for ref in sym.datatype.precision.walk(Reference):
                     precision_symbols.add(ref.symbol)
         return list(precision_symbols)
 

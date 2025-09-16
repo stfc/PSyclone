@@ -333,9 +333,13 @@ class FortranWriter(LanguageWriter):
             # machine specific or is specified via the compiler. Fortran
             # only distinguishes relative precision for single and double
             # precision reals.
-            if fortrantype.lower() == "real" and \
-               precision == ScalarType.Precision.DOUBLE:
-                return "double precision"
+            if precision == ScalarType.Precision.DOUBLE:
+                if fortrantype.lower() == "real":
+                    return "double precision"
+                raise VisitorError(
+                    f"ScalarType.Precision,DOUBLE is not supported for "
+                    f"datatypes other than floating point numbers in "
+                    f"Fortran, found {fortrantype}")
             return fortrantype
 
         if isinstance(precision, DataNode):
@@ -883,8 +887,7 @@ class FortranWriter(LanguageWriter):
             # define precision so check for those here.
             for lit in symbol.initial_value.walk(Literal):
                 if isinstance(lit.datatype.precision, DataNode):
-                    refs = lit.datatype.precision.walk(Reference)
-                    for ref in refs:
+                    for ref in lit.datatype.precision.walk(Reference):
                         read_write_info.add_read(
                             Signature(ref.symbol.name))
             # If the precision of the Symbol being declared is itself defined

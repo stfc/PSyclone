@@ -122,7 +122,6 @@ def test_generic_scalars(type_name, symbol_name, intrinsic,
     assert lfric_datatype.intrinsic == intrinsic
     assert lfric_datatype.precision == precision
     # precision can be set explicitly
-    print(data_type)
     lfric_datatype = data_type(precision=4)
     assert lfric_datatype.precision == 4
     # symbol

@@ -357,9 +357,8 @@ then
             # Precision could include multiple symbols - handle in the same
             # way as for DataSymbol but check all of them.
             if isinstance(sym.datatype.precision, DataNode):
-                refs = sym.datatype.precision.walk(Reference)
                 failed = False
-                for ref in refs:
+                for ref in sym.datatype.precision.walk(Reference):
                     if isinstance(ref.symbol, DataSymbol):
                         if ref.symbol.name in node.symbol_table:
                             sym.append_preceding_comment(

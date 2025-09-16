@@ -2795,7 +2795,7 @@ class Fparser2Reader():
 
         :returns: the precision associated with the type specification.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
-            :py:class:`psyclone.psyir.symbols.DataSymbol` or int or NoneType
+            :py:class:`psyclone.psyir.nodes.DataNode` or int or NoneType
 
         :raises NotImplementedError: if a KIND intrinsic is found with an \
             argument other than a real or integer literal.
@@ -2832,8 +2832,7 @@ class Fparser2Reader():
             # arguments to KIND
             if isinstance(kind_arg, (Fortran2003.Int_Literal_Constant,
                                      Fortran2003.Real_Literal_Constant)):
-                precision = get_literal_precision(kind_arg, psyir_parent)
-                return precision
+                return get_literal_precision(kind_arg, psyir_parent)
 
             raise NotImplementedError(
                 f"Only real and integer literals are supported as arguments "

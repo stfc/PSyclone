@@ -102,7 +102,6 @@ def test_process_declarations_kind_new_param():
     processor.process_declarations(fake_parent, [fp2spec[0]], [])
     sym = fake_parent.symbol_table.lookup("var3")
     assert isinstance(sym, DataSymbol)
-    print(sym.datatype)
     assert isinstance(sym.datatype, UnsupportedFortranType)
 
 
@@ -133,8 +132,8 @@ def test_process_declarations_kind_use():
                                           "real(kind=r_def) :: var2")
     var2_var = fake_parent.symbol_table.lookup("var2")
     assert isinstance(var2_var.datatype.precision, Reference)
-    assert (Reference(fake_parent.symbol_table.lookup("r_def")) ==
-            var2_var.datatype.precision)
+    assert (fake_parent.symbol_table.lookup("r_def") is
+            var2_var.datatype.precision.symbol)
 
     # If we change the symbol_table default visibility, this is respected
     # by new kind symbols
@@ -213,8 +212,10 @@ def test_process_declarations_kind_literals(vartype, kind, precision):
     fake_parent, _ = process_declarations(f"{vartype}(kind=KIND({kind})) :: "
                                           f"var")
     if not precision:
-        assert (fake_parent.symbol_table.lookup("var").datatype.precision ==
-                Reference(fake_parent.symbol_table.lookup("t_def")))
+        assert (
+            fake_parent.symbol_table.lookup("var").datatype.precision.symbol
+            is fake_parent.symbol_table.lookup("t_def")
+        )
     else:
         assert (fake_parent.symbol_table.lookup("var").datatype.precision ==
                 precision)

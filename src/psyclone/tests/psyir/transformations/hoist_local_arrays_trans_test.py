@@ -648,7 +648,7 @@ def test_apply_with_hoist_with_dependent_symbols(fortran_reader,
         "subroutine test\n"
         "  use other_mod2\n"
         "  integer :: i\n"
-        "  real(kind=wp) :: a(10)\n"
+        "  real(kind=1*wp) :: a(10)\n"
         "  type(my_type) :: b(N)\n"
         "  do i=1,10\n"
         "    a(i) = 1.0\n"
@@ -660,10 +660,9 @@ def test_apply_with_hoist_with_dependent_symbols(fortran_reader,
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
     code = fortran_writer(psyir)
-    print(code)
     assert ("! PSyclone warning: 'a' cannot be hoisted to the global scope "
             "as 'wp' is not guaranteed to be a global symbol" in code)
-    assert "real(kind=wp), dimension(10) :: a" in code
+    assert "real(kind=1 * wp), dimension(10) :: a" in code
     assert ("! PSyclone warning: 'b' cannot be hoisted to the global scope"
             " as 'my_type' is not guaranteed to be a global symbol" in code)
     assert "type(my_type), dimension(N) :: b" in code

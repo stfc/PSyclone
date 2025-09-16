@@ -454,6 +454,7 @@ class SymPyWriter(FortranWriter):
                     self._specialise_array_symbol(orig_sym, sva)
             else:
                 # A scalar access.
+                print(unique_sym.name)
                 if sig.is_structure:
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
                         sig.to_language(), **assumptions)

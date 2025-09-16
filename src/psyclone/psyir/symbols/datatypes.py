@@ -402,6 +402,13 @@ class ScalarType(DataType):
         DOUBLE = 2
         UNDEFINED = 3
 
+        def copy(self):
+            '''
+            :returns: a copy of self.
+            :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`
+            '''
+            return copy.copy(self)
+
     #: Mapping from PSyIR scalar data types to intrinsic Python types
     #: ignoring precision.
     TYPE_MAP_TO_PYTHON = {
@@ -440,6 +447,9 @@ class ScalarType(DataType):
                     f"DataSymbol must be of either 'unresolved' or "
                     f"scalar, integer type but got: ScalarType with "
                     f"datatype {dtype}")
+        # TODO #3135 If the precision is an int, then we would like to make
+        # a Literal containing it instead, however this is not currently
+        # possible due to circular imports.
         self._precision = precision
 
     @property
@@ -551,11 +561,12 @@ class ScalarType(DataType):
         :returns: a copy of self.
         :rtype: :py:class:`psyclone.psyir.symbols.DatatTypes.ScalarType`
         '''
-        from psyclone.psyir.nodes.datanode import DataNode
-        # If the precision is a DataNode then we need to create a copy.
-        if isinstance(self.precision, DataNode):
+        # TODO #3135 After the precision is always either a Precision or
+        # a DataNode this hasattr check can be removed.
+        if hasattr(self.precision, "copy"):
             return ScalarType(self.intrinsic, self.precision.copy())
-        return ScalarType(self.intrinsic, self.precision)
+        else:
+            return ScalarType(self.intrinsic, self.precision)
 
 
 class ArrayType(DataType):
