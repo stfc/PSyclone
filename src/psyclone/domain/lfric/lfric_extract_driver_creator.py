@@ -168,7 +168,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         :param symbol_table: the symbol table to which the precision symbols
             must be added.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
         const = LFRicConstants()
