@@ -74,6 +74,7 @@ VALID_PSY_DATA_PREFIXES = profile, extract
 OCL_DEVICES_PER_NODE = 1
 IGNORE_MODULES = netcdf, mpi
 BACKEND_CHECKS_ENABLED = false
+BACKEND_INDENTATION_DISABLED = false
 FORTRAN_STANDARD = f2003
 [lfric]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
@@ -393,31 +394,37 @@ def test_not_int(int_entry, tmpdir):
             in str(err.value))
 
 
-def test_backend_checks_from_file(tmpdir):
+@pytest.mark.parametrize("check_txt", ["BACKEND_CHECKS_ENABLED",
+                                       "BACKEND_INDENTATION_DISABLED"])
+def test_backend_checks_from_file(tmpdir, check_txt):
     '''
-    Check that the value for BACKEND_CHECKS_ENABLED is correctly read from
-    the config. file and defaults to True.
+    Check that the value for BACKEND_{CHECKS_ENABLED,INDENTATION_DISABLED} is
+    correctly read from the config. file and defaults to True/False.
 
     '''
     config_file = tmpdir.join("config")
     cfg = get_config(config_file, _CONFIG_CONTENT)
     assert cfg.backend_checks_enabled is False
-    content = re.sub(r"^BACKEND_CHECKS_ENABLED = false$",
-                     "BACKEND_CHECKS_ENABLED = true",
+    assert cfg.backend_indentation_disabled is False
+    content = re.sub(rf"^{check_txt} = false$",
+                     f"{check_txt} = true",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     config_file2 = tmpdir.join("config2")
     cfg2 = get_config(config_file2, content)
-    assert cfg2.backend_checks_enabled is True
+    if "ENABLED" in check_txt:
+        assert cfg2.backend_checks_enabled is True
+    else:
+        assert cfg2.backend_indentation_disabled is True
     # Remove it from the config file.
-    content = re.sub(r"^BACKEND_CHECKS_ENABLED = false$",
+    content = re.sub(rf"^{check_txt} = false$",
                      "",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     config_file3 = tmpdir.join("config3")
     cfg3 = get_config(config_file3, content)
-    # Defaults to True if not specified in the file.
-    assert cfg3.backend_checks_enabled is True
+    # Defaults to True/False if not specified in the file.
+    assert cfg3.backend_checks_enabled == ("ENABLED" in check_txt)
 
 
 def test_broken_fmt(tmpdir):

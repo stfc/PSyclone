@@ -348,6 +348,18 @@ class Config:
                     f"Error while parsing BACKEND_CHECKS_ENABLED: {err}",
                     config=self) from err
 
+        # Whether all indentation should be removed from the output of PSyIR
+        # backends.
+        if 'BACKEND_INDENTATION_DISABLED' in self._config['DEFAULT']:
+            try:
+                self._backend_indentation_disabled = (
+                    self._config['DEFAULT'].getboolean(
+                        'BACKEND_INDENTATION_DISABLED'))
+            except ValueError as err:
+                raise ConfigurationError(
+                    f"Error while parsing BACKEND_INDENTATION_DISABLED: {err}",
+                    config=self) from err
+
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specific Config objects.
         self._api_conf = {}
@@ -579,17 +591,26 @@ class Config:
         self._backend_checks_enabled = value
 
     @property
-    def backend_indentation_disabled(self):
+    def backend_indentation_disabled(self) -> bool:
         '''
+        :returns: whether or not all indentation is disabled in the PSyIR
+                  backend.
         '''
         return self._backend_indentation_disabled
 
     @backend_indentation_disabled.setter
-    def backend_indentation_disabled(self, value):
+    def backend_indentation_disabled(self, value: bool):
         '''
+        Setter for whether or not all indentation is to be disabled in the
+        PSyIR backend.
+
+        :raises TypeError: if the supplied value is not a boolean.
+
         '''
         if not isinstance(value, bool):
-            raise TypeError()
+            raise TypeError(
+                f"Config.backend_indentation_disabled must be a boolean but "
+                f"got '{type(value).__name__}'")
         self._backend_indentation_disabled = value
 
     @property
