@@ -125,7 +125,8 @@ def clear_config_instance():
                         "REPRODUCIBLE_REDUCTIONS",
                         "COMPUTE_ANNEXED_DOFS",
                         "RUN_TIME_CHECKS",
-                        "BACKEND_CHECKS_ENABLED"])
+                        "BACKEND_CHECKS_ENABLED",
+                        "BACKEND_INDENTATION_DISABLED"])
 def bool_entry_fixture(request):
     '''
     Parameterised fixture that will cause a test that has it as an
@@ -551,6 +552,19 @@ def test_enable_backend_checks_setter_getter():
             str(err.value))
     config.backend_checks_enabled = True
     assert config.backend_checks_enabled is True
+
+
+def test_disable_backend_indentation_setter_getter():
+    '''
+    Test the setter/getter for the backend_indentation_disabled property.
+    '''
+    config = Config()
+    with pytest.raises(TypeError) as err:
+        config.backend_indentation_disabled = "hllo"
+    assert ("backend_indentation_disabled must be a boolean but got 'str'" in
+            str(err.value))
+    config.backend_indentation_disabled = True
+    assert config.backend_indentation_disabled is True
 
 
 def test_kernel_naming_setter():
