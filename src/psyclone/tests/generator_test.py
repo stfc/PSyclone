@@ -1006,11 +1006,12 @@ def test_main_backend_arg(capsys):
     assert Config.get().backend_checks_enabled is False
     assert Config.get().backend_indentation_disabled is False
     Config._instance = None
-    main([filename, "-api", "lfric", "--backend", "enable-validation",
+    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    main([filename, "--backend", "enable-validation",
           "--backend", "disable-indentation"])
-    _, output = capsys.readouterr()
-    print(output)
-    assert 0
+    output, _ = capsys.readouterr()
+    # None of the three DO loops should be indented.
+    assert len(re.findall(r"^do j", output, re.MULTILINE)) == 3
     assert Config.get().backend_checks_enabled is True
     assert Config.get().backend_indentation_disabled is True
     Config._instance = None
