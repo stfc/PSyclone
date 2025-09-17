@@ -303,7 +303,7 @@ class ScalarisationTrans(LoopTrans):
         for next_access in next_accesses:
             # next_accesses looks backwards to the start of the loop,
             # but we don't care about those accesses here.
-            if next_access.is_descendent_of(loop):
+            if next_access.is_descendant_of(loop):
                 continue
 
             # If we have a next_access outside of the loop and have a complex

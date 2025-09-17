@@ -104,6 +104,11 @@ LOG_LEVELS = {"OFF": sys.maxsize,
               logging.getLevelName(logging.ERROR): logging.ERROR,
               logging.getLevelName(logging.CRITICAL): logging.CRITICAL}
 
+# Default file extensions as defined by gfortran.
+FREE_FORM = (".f90", ".f95", ".f03", ".f08", ".F90", ".F95", ".F03", ".F08",
+             ".x90")
+FIXED_FORM = (".f", ".for", ".fpp", ".ftn", ".F", ".FOR", ".FPP", ".FTN")
+
 
 def load_script(
         script_name: str, function_name: str = "trans",
@@ -544,9 +549,9 @@ def main(arguments):
     )
 
     parser.add_argument(
-        "--free-form", default=True, type=bool,
+        "--free-form", default=argparse.SUPPRESS, type=bool,
         help="defines whether the original code is free form Fortran "
-             "(defaults to True)."
+             "(defaults to looking at the input file extension)."
     )
 
     args = parser.parse_args(arguments)
@@ -629,6 +634,22 @@ def main(arguments):
                        "PSyclone enabled keep_comments.")
         args.keep_comments = True
 
+    # If free_form is set in the arguments then it overrides default
+    # behaviour.
+    if "free_form" in args:
+        free_form = args.free_form
+    else:
+        fname = args.filename
+        if fname.endswith(FIXED_FORM):
+            free_form = False
+        else:
+            free_form = True
+            if not fname.endswith(FREE_FORM):
+                logger.info(
+                    "Filename doesn't end with a known file extension. "
+                    "Assuming free form."
+                )
+
     if not args.psykal_dsl:
         code_transformation_mode(input_file=args.filename,
                                  recipe_file=args.script,
@@ -636,7 +657,7 @@ def main(arguments):
                                  keep_comments=args.keep_comments,
                                  keep_directives=args.keep_directives,
                                  line_length=args.limit,
-                                 free_form=args.free_form)
+                                 free_form=free_form)
     else:
         # PSyKAl-DSL mode
 
@@ -666,7 +687,7 @@ def main(arguments):
                                 kern_naming=args.kernel_renaming,
                                 keep_comments=args.keep_comments,
                                 keep_directives=args.keep_directives,
-                                free_form=args.free_form)
+                                free_form=free_form)
         except NoInvokesError:
             _, exc_value, _ = sys.exc_info()
             print(f"Warning: {exc_value}")
@@ -846,7 +867,10 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         # Generate Fortran (We can disable the backend copy because at this
         # point we also drop the PSyIR and we don't need to guarantee that
         # is left unmodified)
-        output = FortranWriter(disable_copy=True)(psyir)
+        writer = FortranWriter(
+            check_global_constraints=Config.get().backend_checks_enabled,
+            disable_copy=True)
+        output = writer(psyir)
         # Fix line_length if requested
         if line_length in ("output", "all"):
             output = fll.process(output)
