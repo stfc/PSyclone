@@ -94,8 +94,7 @@ class PSyIRVisitor():
     _DISABLE_LOWERING = False
 
     # The default string with which to indent nested code. Can be overridden
-    # in the constructor. All use of indentation can be disabled by setting
-    # backend_disable_indentation in the Configuration object.
+    # in the constructor.
     _DEFAULT_INDENT = "  "
 
     def __init__(self, skip_nodes: bool = False,
