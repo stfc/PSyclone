@@ -236,7 +236,7 @@ line-length limiter will simply remove all indentation on any such lines.
 
 Finally, if all else fails, the code-generation part of PSyclone (the
 "backend") can be instructed not to use any indentation at all. See the
-:ref:`<backend-options>` section.
+:ref:`backend-options` section.
 
 .. _backend-options:
 
