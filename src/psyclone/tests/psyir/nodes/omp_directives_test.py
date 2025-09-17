@@ -1698,7 +1698,7 @@ def test_omp_atomics_validate_global_constraints(fortran_reader, monkeypatch):
 def test_omp_atomic_init_failure():
     ''' Test the OMPAtomicDirective init routine fails when provided an
     invalid directive_type.'''
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(TypeError) as excinfo:
         _ = OMPAtomicDirective(directive_type=1)
 
     assert ("OMPAtomicDirective expects an AtomicDirectiveType as the "

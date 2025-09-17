@@ -49,6 +49,7 @@ import sympy
 import logging
 
 from enum import Enum
+from typing import List
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
@@ -66,6 +67,7 @@ from psyclone.psyir.nodes.directive import StandaloneDirective, \
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause, \
@@ -2331,9 +2333,7 @@ class OMPAtomicDirective(OMPRegionDirective):
     :type ast: Optional[:py:class:`fparser.two.Fortran2003.Base`]
     :param children: the nodes that will be children of this
                      Directive node or None.
-    :type children: Optional[List[:py:class:`psyclone.psyir.nodes.Node`]]
     :param parent: PSyIR node that is the parent of this Directive or None.
-    :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
     :param directive_type: the directive type of the atomic operation.
     :type directive_type: :py:class:`psyclone.psyir.nodes.OMPAtomicDirective.\
                           AtomicDirectiveType`
@@ -2348,14 +2348,14 @@ class OMPAtomicDirective(OMPRegionDirective):
         WRITE = 3
         CAPTURE = 4
 
-    def __init__(self, ast=None, children=None, parent=None,
-                 directive_type=None):
+    def __init__(self, ast=None, children: List[Node] = None,
+                 parent: Node = None, directive_type=None):
         # The default atomic directive in OpenMP is UPDATE
         if not directive_type:
             directive_type = OMPAtomicDirective.AtomicDirectiveType.UPDATE
         if not isinstance(directive_type,
                           OMPAtomicDirective.AtomicDirectiveType):
-            raise GenerationError(
+            raise TypeError(
                 f"OMPAtomicDirective expects an AtomicDirectiveType as the "
                 f"directive_type but found {directive_type}."
             )
