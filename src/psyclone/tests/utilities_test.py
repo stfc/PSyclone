@@ -452,6 +452,11 @@ def test_make_external_module(monkeypatch, fortran_reader):
     code = """subroutine sub()
     end subroutine sub
     """
+    # Trying to avoid a file not found error, likely caused by temporary
+    # created files that make it into the module manager. Making sure
+    # we get a clean copy here:
+    ModuleManager._instance = None
+
     mod_man = ModuleManager.get()
 
     # Make sure that the module is initially missing.
