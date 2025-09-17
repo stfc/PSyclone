@@ -52,9 +52,9 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, BinaryOperation, Call, Container,
-    IntrinsicCall, Literal, Range, Reference, Routine)
+    DataNode, IntrinsicCall, Literal, Range, Reference, Routine)
 from psyclone.psyir.symbols import (
-    SymbolTable, ImportInterface, Symbol,
+    SymbolTable, ImportInterface,
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol,
     INTEGER_TYPE, UnresolvedType, UnsupportedType)
 from psyclone.psyir.transformations import TransformationError
@@ -408,8 +408,9 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
 
     # If the precision of the active variables is specified by another symbol
     # then we must ensure that it is declared in the harness too.
-    if isinstance(datatype.precision, Symbol):
-        _add_precision_symbol(datatype.precision, symbol_table)
+    if isinstance(datatype.precision, DataNode):
+        for ref in datatype.precision.walk(Reference):
+            _add_precision_symbol(ref.symbol, symbol_table)
 
     # Create a symbol to hold the extent of any test arrays. This is done here
     # to avoid any clashes with any of the container and kernel names.
@@ -453,10 +454,11 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     # kernel arguments to the new symbols in the test harness.
     new_dim_args_map = {}
     for arg in dimensioning_args:
-        if isinstance(arg.datatype.precision, DataSymbol):
-            # The precision of this symbol is defined by another symbol so
-            # we must ensure that the latter is also in the symbol table.
-            _add_precision_symbol(arg.datatype.precision, symbol_table)
+        if isinstance(arg.datatype.precision, DataNode):
+            for ref in arg.datatype.precision.walk(Reference):
+                # The precision of this symbol is defined by another symbol so
+                # we must ensure that the latter is also in the symbol table.
+                _add_precision_symbol(ref.symbol, symbol_table)
         new_dim_args_map[arg] = symbol_table.new_symbol(
             arg.name, symbol_type=DataSymbol,
             datatype=arg.datatype,
@@ -522,10 +524,12 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
             new_sym = symbol_table.new_symbol(arg.name, symbol_type=DataSymbol,
                                               datatype=ArrayType(arg.datatype,
                                                                  new_shape))
-        if isinstance(arg.datatype.precision, DataSymbol):
-            # The precision of this symbol is defined by another symbol so
-            # we must ensure that the latter is also in the symbol table.
-            _add_precision_symbol(arg.datatype.precision, symbol_table)
+
+        if isinstance(arg.datatype.precision, DataNode):
+            for ref in arg.datatype.precision.walk(Reference):
+                # The precision of this symbol is defined by another symbol so
+                # we must ensure that the latter is also in the symbol table.
+                _add_precision_symbol(ref.symbol, symbol_table)
         new_arg_list.append(new_sym)
         # Create variables to hold a copy of the inputs
         input_sym = symbol_table.new_symbol(new_sym.name+"_input",
