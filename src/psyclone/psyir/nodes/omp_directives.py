@@ -48,7 +48,6 @@ import itertools
 import sympy
 import logging
 
-from enum import Enum
 from typing import List
 
 from psyclone.configuration import Config
@@ -58,6 +57,10 @@ from psyclone.errors import (GenerationError,
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.atomic_mixin import (
+        AtomicDirectiveMixin,
+        AtomicDirectiveType,
+)
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
         DataSharingAttributeMixin,
@@ -79,7 +82,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, ScalarType, DataSymbol, ImportInterface, ContainerSymbol,
+    INTEGER_TYPE, DataSymbol, ImportInterface, ContainerSymbol,
     RoutineSymbol)
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
@@ -2321,7 +2324,7 @@ class OMPLoopDirective(OMPRegionDirective):
         super().validate_global_constraints()
 
 
-class OMPAtomicDirective(OMPRegionDirective):
+class OMPAtomicDirective(OMPRegionDirective, AtomicDirectiveMixin):
     '''
     OpenMP directive to represent that the memory accesses in the associated
     assignment must be performed atomically.
@@ -2338,23 +2341,14 @@ class OMPAtomicDirective(OMPRegionDirective):
     :type directive_type: :py:class:`psyclone.psyir.nodes.OMPAtomicDirective.\
                           AtomicDirectiveType`
     '''
-    class AtomicDirectiveType(Enum):
-        '''
-        Enumeration of the available atomic operation types supported by
-        OpenMP.
-        '''
-        UPDATE = 1
-        READ = 2
-        WRITE = 3
-        CAPTURE = 4
-
     def __init__(self, ast=None, children: List[Node] = None,
-                 parent: Node = None, directive_type=None):
+                 parent: Node = None,
+                 directive_type: AtomicDirectiveType = None):
         # The default atomic directive in OpenMP is UPDATE
         if not directive_type:
-            directive_type = OMPAtomicDirective.AtomicDirectiveType.UPDATE
+            directive_type = AtomicDirectiveType.UPDATE
         if not isinstance(directive_type,
-                          OMPAtomicDirective.AtomicDirectiveType):
+                          AtomicDirectiveType):
             raise TypeError(
                 f"OMPAtomicDirective expects an AtomicDirectiveType as the "
                 f"directive_type but found {directive_type}."
@@ -2371,10 +2365,10 @@ class OMPAtomicDirective(OMPRegionDirective):
 
         '''
         directive_type_to_str = {
-            OMPAtomicDirective.AtomicDirectiveType.UPDATE: "update",
-            OMPAtomicDirective.AtomicDirectiveType.READ: "read",
-            OMPAtomicDirective.AtomicDirectiveType.WRITE: "write",
-            OMPAtomicDirective.AtomicDirectiveType.CAPTURE: "capture",
+            AtomicDirectiveType.UPDATE: "update",
+            AtomicDirectiveType.READ: "read",
+            AtomicDirectiveType.WRITE: "write",
+            AtomicDirectiveType.CAPTURE: "capture",
         }
         return f"omp atomic {directive_type_to_str[self._directive_type]}"
 
@@ -2385,55 +2379,6 @@ class OMPAtomicDirective(OMPRegionDirective):
 
         '''
         return "omp end atomic"
-
-    @staticmethod
-    def is_valid_atomic_statement(stmt):
-        ''' Check if a given statement is a valid OpenMP atomic expression. See
-            https://www.openmp.org/spec-html/5.0/openmpsu95.html
-
-        :param stmt: a node to be validated.
-        :type stmt: :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: whether a given statement is compliant with the OpenMP
-            atomic expression.
-        :rtype: bool
-
-        '''
-        # TODO #2398 If the statement is true can we return the
-        # correct AtomicDirectiveType?
-        if not isinstance(stmt, Assignment):
-            return False
-
-        # Not all rules are checked, just that:
-        # - operands are of a scalar intrinsic type
-        if not isinstance(stmt.lhs.datatype, ScalarType):
-            return False
-
-        # - the top-level operator is one of: +, *, -, /, AND, OR, EQV, NEQV
-        if isinstance(stmt.rhs, BinaryOperation):
-            if stmt.rhs.operator not in (BinaryOperation.Operator.ADD,
-                                         BinaryOperation.Operator.SUB,
-                                         BinaryOperation.Operator.MUL,
-                                         BinaryOperation.Operator.DIV,
-                                         BinaryOperation.Operator.AND,
-                                         BinaryOperation.Operator.OR,
-                                         BinaryOperation.Operator.EQV,
-                                         BinaryOperation.Operator.NEQV):
-                return False
-        # - or intrinsics: MAX, MIN, IAND, IOR, or IEOR
-        if isinstance(stmt.rhs, IntrinsicCall):
-            if stmt.rhs.intrinsic not in (IntrinsicCall.Intrinsic.MAX,
-                                          IntrinsicCall.Intrinsic.MIN,
-                                          IntrinsicCall.Intrinsic.IAND,
-                                          IntrinsicCall.Intrinsic.IOR,
-                                          IntrinsicCall.Intrinsic.IEOR):
-                return False
-
-        # - one of the operands should be the same as the lhs
-        if stmt.lhs not in stmt.rhs.children:
-            return False
-
-        return True
 
     def validate_global_constraints(self):
         ''' Perform validation of those global constraints that can only be

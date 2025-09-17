@@ -59,7 +59,8 @@ from psyclone.psyir.nodes import (
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
     OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective,
-    StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective)
+    StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective,
+    AtomicDirectiveType)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
@@ -1712,16 +1713,16 @@ def test_omp_atomics_strings():
     assert atomic.end_string() == "omp end atomic"
 
     atomic_read = OMPAtomicDirective(
-            directive_type=OMPAtomicDirective.AtomicDirectiveType.READ
+            directive_type=AtomicDirectiveType.READ
     )
     assert atomic_read.begin_string() == "omp atomic read"
 
     atomic_write = OMPAtomicDirective(
-            directive_type=OMPAtomicDirective.AtomicDirectiveType.WRITE
+            directive_type=AtomicDirectiveType.WRITE
     )
     assert atomic_write.begin_string() == "omp atomic write"
     atomic_capture = OMPAtomicDirective(
-            directive_type=OMPAtomicDirective.AtomicDirectiveType.CAPTURE
+            directive_type=AtomicDirectiveType.CAPTURE
     )
     assert atomic_capture.begin_string() == "omp atomic capture"
 
