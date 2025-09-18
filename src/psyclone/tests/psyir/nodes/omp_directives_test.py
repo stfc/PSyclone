@@ -4756,10 +4756,11 @@ def test_add_reduction_clause_loop(fortran_reader, fortran_writer):
 
 
 def test_reduction_clause_eq(fortran_reader, fortran_writer):
-    ''' Check that OMPDoDirective equality implies reduction-clause equality
+    ''' Test OMPParallelDoDirective equality with reduction clauses
     '''
     do_directive1 = OMPParallelDoDirective()
     do_directive2 = OMPParallelDoDirective()
+    do_directive3 = OMPParallelDoDirective()
 
     clause1 = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
     clause1.addchild(Reference(Symbol("foo")))
@@ -4770,6 +4771,12 @@ def test_reduction_clause_eq(fortran_reader, fortran_writer):
     do_directive2.addchild(clause2)
 
     assert do_directive1 != do_directive2
+
+    clause3 = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause3.addchild(Reference(Symbol("foo")))
+    do_directive3.addchild(clause3)
+
+    assert do_directive1 == do_directive3
 
 
 def test_add_reduction_clause_validation(fortran_reader, fortran_writer):
