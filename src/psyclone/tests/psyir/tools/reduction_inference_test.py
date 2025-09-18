@@ -35,19 +35,10 @@
 
 ''' Module containing tests for the reduction inference tool.'''
 
-import pytest
-
-from psyclone.configuration import Config
 from psyclone.core import Signature, AccessSequence
 from psyclone.psyir.nodes import (
     Loop, BinaryOperation, IntrinsicCall)
 from psyclone.psyir.tools import ReductionInferenceTool
-
-
-@pytest.fixture(scope="function", autouse=True)
-def clear_config_instance():
-    '''The tests in this file all assume that no DSL API is used.'''
-    Config.get().api = ""
 
 
 # -----------------------------------------------------------------------------
