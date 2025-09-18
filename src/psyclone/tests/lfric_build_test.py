@@ -36,11 +36,14 @@
 ''' This module contains tests for the lfric_build.py file. '''
 
 import os
+from pathlib import Path
 import subprocess
+
 import pytest
 
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import Compile, CompileError
+from psyclone.tests.utilities import (Compile, CompileError,
+                                      get_infrastructure_path)
 
 
 @pytest.fixture(name="enable_compilation")
@@ -59,13 +62,22 @@ def protect_infrastructure_path_fixture(monkeypatch):
     monkeypatch.setattr(LFRicBuild, "_compilation_path", "/no/path")
 
 
-def test_lf_build_get_infrastructure_flags(monkeypatch, tmpdir):
+def test_lf_build_get_flags_with_compile(
+        tmpdir: Path,
+        monkeypatch: pytest.MonkeyPatch) -> None:
     '''
-    Test the get_infrastructure_flags method.
+    Test the get_infrastructure_flags method when compilation is enabled.
+    If this test is run without compilation, monkey-patch LFRicBuild to
+    cover the right paths.
 
     '''
-    # Pretend that compilation testing is disabled.
-    monkeypatch.setattr(Compile, "TEST_COMPILE", False)
+    if not Compile.TEST_COMPILE:
+        monkeypatch.setattr(LFRicBuild, "_infrastructure_built", True)
+        inf_path = Path(get_infrastructure_path("lfric"))
+        monkeypatch.setattr(LFRicBuild, "_compilation_path", inf_path)
+        monkeypatch.setattr(LFRicBuild, "_infrastructure_path", inf_path)
+        monkeypatch.setattr(Compile, "TEST_COMPILE", True)
+
     builder = LFRicBuild(tmpdir)
     flags = builder.get_infrastructure_flags()
     dir_list = []
@@ -79,9 +91,59 @@ def test_lf_build_get_infrastructure_flags(monkeypatch, tmpdir):
     assert 'function_space' in dir_list
     assert 'field' in dir_list
 
+    # In the past there was a bug where the root directory of
+    # PSyclone was used to find the infrastructure directories. To
+    # detect this, check for some unexpected directory names
+    # in there:
+    assert '.git' not in dir_list
+    assert '__pycache__' not in dir_list
+    # One additional test to make sure we are not at the wrong location.
+    # ATM, the infrastructure has 16 directories
+    assert len(dir_list) > 10 and len(dir_list) < 50
+
+
+def test_lf_build_get_flags_without_compile(
+        tmpdir: Path,
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    '''
+    Test the get_infrastructure_flags method. The build object will either
+    use the compiled path of the infrastructure if compilation is enabled,
+    or otherwise the directory .../external/lfric_infrastructure/src. Since
+    the include paths is done relative, this should give the same results.
+
+    '''
+    if Compile.TEST_COMPILE:
+        # This test should test setup without compilation, but compilation
+        # is enabled. Monkey-patch a setup that pretends that compilation
+        # is disabled, so we can test the appropriate paths:
+        monkeypatch.setattr(Compile, "TEST_COMPILE", False)
+
+    builder = LFRicBuild(tmpdir)
+    flags = builder.get_infrastructure_flags()
+    dir_list = []
+    for idx, flag in enumerate(flags):
+        if idx % 2 == 0:
+            assert flag == '-I'
+        else:
+            # Just keep a list of the base directories
+            dir_list.append(os.path.split(flag)[1])
+    assert 'configuration' in dir_list
+    assert 'function_space' in dir_list
+    assert 'field' in dir_list
+
+    # In the past there was a bug where the root directory of
+    # PSyclone was used to find the infrastructure directories. To
+    # detect this, check for some unexpected directory names
+    # in there:
+    assert '.git' not in dir_list
+    assert '__pycache__' not in dir_list
+    # One additional test to make sure we are not at the wrong location.
+    # ATM, the infrastructure has 16 directories
+    assert len(dir_list) > 10 and len(dir_list) < 50
+
 
 @pytest.mark.usefixtures("enable_compilation")
-def test_lfric_build_compiler_flags(tmpdir, monkeypatch):
+def test_lfric_build_compiler_flags(tmpdir: Path, monkeypatch) -> None:
     '''
     Check that the compiler settings supplied to pytest are passed through
     when building the (stub) LFRic infrastructure.
@@ -107,7 +169,7 @@ def test_lfric_build_compiler_flags(tmpdir, monkeypatch):
 
 
 @pytest.mark.usefixtures("enable_compilation")
-def test_lfric_build_infrastructure(tmpdir, monkeypatch):
+def test_lfric_build_infrastructure(tmpdir: Path, monkeypatch) -> None:
     '''
     Test the _build_infrastructure method when compilation appears to proceed
     (i.e. the Popen.subprocess() command completes without raising an
@@ -154,3 +216,25 @@ def test_lfric_build_infrastructure(tmpdir, monkeypatch):
     # Check that the '_infrastructure_built' flag is set after a successful
     # build.
     assert LFRicBuild._infrastructure_built is True
+
+
+def test_lfric_build_infrastructure_disabled(
+        tmpdir: Path,
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests that the infrastructure is indeed not compiled when compilation
+    is disabled.
+    """
+    monkeypatch.setattr(Compile, "TEST_COMPILE", False)
+
+    builder = LFRicBuild(tmpdir)
+    monkeypatch.setattr(builder, "_tmpdir", "/does/not/exist")
+    # The build_infrastructure will change into the temporary
+    # directory when doing a build. If the build would be
+    # triggered (in spite of setting TEST_COMPILE to False),
+    # it would trigger a FileNotFoundError, since the _tmpdir
+    # directory does not exist.
+    try:
+        builder._build_infrastructure()
+    except FileNotFoundError:
+        pytest.fail("LFRicBuild tried to change directory, which should "
+                    "not be done if compilation is disabled")
