@@ -40,8 +40,8 @@ from psyclone.psyir.nodes import AtomicDirectiveMixin
 
 
 def test_is_valid_atomic_statement(fortran_reader):
-    '''Test the is_valid_atomic_statement functionality of the AtomicDirectiveMixin
-    class.'''
+    '''Test the is_valid_atomic_statement functionality of the
+    AtomicDirectiveMixin class.'''
 
     code = """subroutine x(a, b)
     use some_mod
