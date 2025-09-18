@@ -104,10 +104,6 @@ class AtomicDirectiveMixin(metaclass=ABCMeta):
             if stmt.rhs.intrinsic not in cls._VALID_INTRINSICS:
                 return False
 
-        # - one of the operands should be the same as the lhs
-        if stmt.lhs not in stmt.rhs.children:
-            return False
-
         return True
 
 
