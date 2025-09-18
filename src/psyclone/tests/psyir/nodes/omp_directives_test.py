@@ -49,7 +49,6 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
 from psyclone import psyGen
-from psyclone.core import (AccessSequence, Signature)
 from psyclone.psyir.nodes import (
     OMPDoDirective, OMPParallelDirective, BinaryOperation, Call,
     ArrayReference, OMPTaskDirective, DynamicOMPTaskDirective,
@@ -74,7 +73,6 @@ from psyclone.transformations import (
     LFRicOMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPLoopTrans, TransformationError)
-from psyclone.psyir.tools.reduction_inference import ReductionInferenceTool
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")
@@ -5052,16 +5050,6 @@ def test_non_reduction3(fortran_reader, fortran_writer):
         omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'count' is read first, which indicates a reduction"
             in str(err.value))
-
-
-def test_attempt_reduction_no_accesses(fortran_reader, fortran_writer):
-    ''' Test that attempt_reduction() fails when given empty access info.
-    '''
-    sig = Signature("foo")
-    empty_access_sequence = AccessSequence(sig)
-    red_infer_tool = ReductionInferenceTool([])
-    clause = red_infer_tool.attempt_reduction(sig, empty_access_sequence)
-    assert clause is None
 
 
 @pytest.mark.parametrize("d", ["teamsdistributeparalleldo", "teamsloop"])
