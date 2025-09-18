@@ -72,7 +72,7 @@ def init_module_manager():
     # to read extracted data from a file) relative to the infrastructure path:
     psyclone_root = infrastructure_path.parents[3]
     read_mod_path = (psyclone_root / "lib" / "extract" /
-                     "binary" / "dl_esm_inf")
+                     "binary")
     # Enforce loading of the default ModuleManager
     ModuleManager._instance = None
 
