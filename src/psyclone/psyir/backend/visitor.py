@@ -42,6 +42,7 @@ back ends.
 '''
 
 import inspect
+from typing import Optional
 
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import Node, Schedule, Container
@@ -92,9 +93,18 @@ class PSyIRVisitor():
     # is set to True as the modifications will persist after the Writer!
     _DISABLE_LOWERING = False
 
-    def __init__(self, skip_nodes=False, indent_string="  ",
-                 initial_indent_depth=0, check_global_constraints=True,
-                 disable_copy=False):
+    # The default string with which to indent nested code. Can be overridden
+    # in the constructor.
+    _DEFAULT_INDENT = "  "
+
+    def __init__(self, skip_nodes: bool = False,
+                 indent_string: Optional[str] = None,
+                 initial_indent_depth: int = 0,
+                 check_global_constraints: bool = True,
+                 disable_copy: bool = False):
+
+        if indent_string is None:
+            indent_string = self._DEFAULT_INDENT
 
         if not isinstance(skip_nodes, bool):
             raise TypeError(
