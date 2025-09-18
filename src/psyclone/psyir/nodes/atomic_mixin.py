@@ -87,6 +87,11 @@ class AtomicDirectiveMixin(metaclass=ABCMeta):
         '''
         # TODO #2398 If the statement is true can we return the
         # correct AtomicDirectiveType?
+        # TODO #2398 If we don't want to return the correct
+        # AtomicDirectiveType (i.e. to use this for validation only) then
+        # we should check the statement is valid given the provided (optional)
+        # AtomicDirectiveType.
+
         if not isinstance(stmt, Assignment):
             return False
 
