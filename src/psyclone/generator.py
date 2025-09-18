@@ -832,8 +832,6 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         # Generate Fortran (We can disable the backend copy because at this
         # point we also drop the PSyIR and we don't need to guarantee that
         # is left unmodified)
-        # TODO 2709: we need to add tests that check_global_constraints
-        # works as expected
         writer = FortranWriter(
             check_global_constraints=Config.get().backend_checks_enabled,
             disable_copy=True)

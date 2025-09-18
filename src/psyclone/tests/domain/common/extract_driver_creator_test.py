@@ -39,8 +39,6 @@
 previously dumped kernel input- and output-data.
 '''
 
-# TODO #706: Add compilation support
-
 from pathlib import Path
 
 import pytest
@@ -48,39 +46,41 @@ import pytest
 from psyclone.domain.common import ExtractDriverCreator
 from psyclone.domain.gocean.transformations import (GOceanExtractTrans,
                                                     GOConstLoopBoundsTrans)
+from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
 from psyclone.psyir.transformations import PSyDataTrans
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import (
+    Compile, get_base_path, get_infrastructure_path, get_invoke)
 
 # API names
 GOCEAN_API = "gocean"
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='function', autouse=True)
 def init_module_manager():
     ''' The tests in this module all assume that there is no pre-existing
     ModuleManager object, so this fixture ensures that the module manager
     instance is deleted before and after each test function. The latter
     makes sure that any other test executed next will automatically reload
     the default ModuleManager file.
-
     '''
-    test_files_path = Path(get_base_path(GOCEAN_API))
+
+    test_files_dir = get_base_path(GOCEAN_API)
+    infrastructure_path = Path(get_infrastructure_path(GOCEAN_API))
     # Define the path to the ReadKernelData module (which contains functions
-    # to read extracted data from a file) relative to the test_files path:
-    psyclone_root = test_files_path.parents[4]
-    read_mod_path = psyclone_root / "lib" / "extract" / "standalone"
-    infrastructure_path = (psyclone_root / "external" / "dl_esm_inf" /
-                           "finite_difference" / "src")
+    # to read extracted data from a file) relative to the infrastructure path:
+    psyclone_root = infrastructure_path.parents[3]
+    read_mod_path = (psyclone_root / "lib" / "extract" /
+                     "binary")
     # Enforce loading of the default ModuleManager
     ModuleManager._instance = None
 
     module_manager = ModuleManager.get()
-    # For compilation, we need the module manager to find the kernel files
-    # from the test directories, the infrastructure files, and the read
-    # kernel library
-    module_manager.add_search_path(str(test_files_path))
+    # Ignore the MPI implementation of parallel utils_mod,
+    # which means the parallel_utils_stub_mod will be found and used
+    module_manager.add_ignore_file("parallel_utils_mod")
+    module_manager.add_search_path(test_files_dir)
     module_manager.add_search_path(str(infrastructure_path))
     module_manager.add_search_path(str(read_mod_path))
 
@@ -104,8 +104,8 @@ def clear_region_name_cache():
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
-def test_driver_creation1():
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_driver_creation1() -> None:
     '''Test that driver is created correctly for all variable access
     modes (input, input-output, output). Do not specify a region name,
     so test that the driver (including its filename) use the proper
@@ -138,7 +138,7 @@ def test_driver_creation1():
     # property dx. The grid property will be renamed to 'dx_1':
     expected = '''
   use read_kernel_data_mod, only : ReadKernelDataType
-  use kernel_driver_test, only : compute_kernel_code
+  use kernel_driver_test_mod, only : compute_kernel_code
   use compare_variables_mod, only : compare, compare_init, compare_summary
   integer :: out_fld_internal_ystart
   integer :: out_fld_internal_ystop
@@ -163,8 +163,8 @@ def test_driver_creation1():
   real*8, allocatable, dimension(:,:) :: out_fld_data_post
 
   call extract_psy_data%OpenReadModuleRegion('psy_extract_example_with_\
-various_variable_access_patterns', 'invoke_0_compute_kernel-compute_\
-kernel_code-r0')
+various_variable_access_patterns', &
+&'invoke_0_compute_kernel-compute_kernel_code-r0')
   call extract_psy_data%ReadVariable('dx_data', dx_data)
   call extract_psy_data%ReadVariable('in_fld_data', in_fld_data)
   call extract_psy_data%ReadVariable('in_fld_grid_dx', in_fld_grid_dx)
@@ -224,8 +224,6 @@ in_fld_grid_gphiu_post)
     for line in expected_lines:
         assert line in driver_code, line + "\n -- not in --\n" + driver_code
 
-    # TODO: This requires mpi atm, since the inlines infrastructure file
-    # parallel_utils_mod is used (and not parallel_utils_stub_mod)
     build = Compile(".")
     build.compile_file("driver-psy_extract_example_with_various_"
                        "variable_access_patterns-invoke_0_compute_"
@@ -252,7 +250,7 @@ def test_driver_creation2():
                               ("module_name", "local_name")})
 
     _ = psy.gen
-    driver = Path("driver-module_name-local_name.f90")
+    driver = Path("driver-module_name-local_name.F90")
     assert driver.is_file()
 
     with driver.open("r", encoding="utf-8") as driver_file:
@@ -317,6 +315,9 @@ in_fld_grid_gphiu_post)
     for line in expected_lines:
         assert line in driver_code, line + "\n -- not in --\n" + driver_code
 
+    build = Compile(".")
+    build.compile_file(str(driver))
+
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
@@ -375,6 +376,9 @@ out_fld_data_1_post)"""
 
     for line in expected.split("\n"):
         assert line in driver_code, line + "\n -- not in --\n" + driver_code
+
+    build = Compile(".")
+    build.compile_file(str(driver))
 
 
 # -----------------------------------------------------------------------------
@@ -447,7 +451,7 @@ def test_driver_creation_same_symbol():
     out_fld%internal%xstart = out_fld_internal_xstart
     out_fld%internal%ystop = out_fld_internal_ystop
     out_fld%internal%ystart = out_fld_internal_ystart""" in code
-    driver = Path("driver-module_name-local_name.f90")
+    driver = Path("driver-module_name-local_name.F90")
     assert driver.is_file()
 
     with driver.open("r", encoding="utf-8") as driver_file:
@@ -474,6 +478,9 @@ in_fld_data, dx_data, in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
   enddo"""
     assert correct in driver_code
+
+    build = Compile(".")
+    build.compile_file(str(driver))
 
 
 # -----------------------------------------------------------------------------

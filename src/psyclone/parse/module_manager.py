@@ -39,7 +39,7 @@ which module is contained in which file (including full location). '''
 
 import copy
 from difflib import SequenceMatcher
-from typing import Dict, Iterable, List, Set, Union, OrderedDict
+from typing import cast, Iterable, Optional, OrderedDict, Union
 import os
 import re
 
@@ -70,7 +70,8 @@ class ModuleManager:
     _threshold_similarity = 0.7
 
     @staticmethod
-    def get(cache_active: bool = None, cache_path: str = None):
+    def get(cache_active: Optional[bool] = None,
+            cache_path: Optional[str] = None):
         '''Static function that if necessary creates and returns the singleton
         ModuleManager instance.
 
@@ -96,8 +97,8 @@ class ModuleManager:
     # ------------------------------------------------------------------------
     def __init__(
             self,
-            cache_active: bool = None,
-            cache_path: str = None
+            cache_active: Optional[bool] = None,
+            cache_path: Optional[str] = None
     ):
         """
         Set up the module manager. Module manager is actually a singleton
@@ -120,34 +121,41 @@ class ModuleManager:
             cache_active if cache_active is not None else False)
 
         # Path to cache
-        self._cache_path: str = cache_path
+        self._cache_path: Optional[str] = cache_path
 
-        self._visited_files = {}
+        self._visited_files: dict[str, FileInfo] = {}
 
         # The list of all search paths which have not yet all their files
         # checked. It is stored as an ordered dict to make it easier to avoid
-        # duplicating entries.
-        self._remaining_search_paths = OrderedDict()
-        self._original_search_paths = []
+        # duplicating entries, but it only stores a 1 as 'value'.
+        self._remaining_search_paths: OrderedDict[str, int] = OrderedDict()
+        self._original_search_paths: list[str] = []
 
         # Ordered dictionary to lookup file info from file path
         self._filepath_to_file_info: OrderedDict[str, FileInfo] = OrderedDict()
 
         # Ordered dictionary to lookup ModuleInfo from a file path
         # Note that there can be multiple modules per file
-        self._filepath_to_module_info: OrderedDict[str, List[ModuleInfo]] = \
+        self._filepath_to_module_info: OrderedDict[str, list[ModuleInfo]] = \
             OrderedDict()
 
         # Dictionary of ModuleInfo objects, indexed by module name
         self._modules: OrderedDict[str, ModuleInfo] = \
             OrderedDict()
 
-        self._ignore_modules = set()
+        # Modules to be ignored (i.e. no warning will be printed if they are
+        # not found)
+        self._ignore_modules: set[str] = set()
+
+        # A list of files that will not be read. This can be used if there
+        # are several implementations of one module (e.g. a MPI and a non-MPI
+        # version) to pick the right one.
+        self._ignore_files: set[str] = set()
 
         # Setup the regex used to find Fortran modules. Have to be careful not
         # to match e.g. "module procedure :: some_sub".
         self._module_pattern = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
-                                          flags=(re.IGNORECASE | re.MULTILINE))
+                                          flags=re.IGNORECASE | re.MULTILINE)
 
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
@@ -180,17 +188,16 @@ class ModuleManager:
                         self._original_search_paths.append(new_dir)
 
     # ------------------------------------------------------------------------
-    def _add_all_files_from_dir(self, directory):
+    def _add_all_files_from_dir(self, directory: str) -> list[FileInfo]:
         '''This function creates (and caches) FileInfo objects for all files
         with an extension of (F/f/X/x)90 in the given directory that have
         not previously been visited. The new FileInfo objects are returned.
 
-        :param str directory: the directory containing Fortran files
+        :param directory: the directory containing Fortran files
             to analyse.
 
         :returns: the FileInfo objects for any files that we have not
                   previously visited.
-        :rtype: list[:py:class:`psyclone.parse.FileInfo` | None]
 
         '''
         new_files = []
@@ -203,6 +210,9 @@ class ModuleManager:
                 full_path = os.path.join(directory, entry.name)
                 if full_path in self._visited_files:
                     continue
+                # Check if the full path matches an ignore pattern:
+                if any(i in full_path for i in self._ignore_files):
+                    continue
                 self._visited_files[full_path] = \
                     FileInfo(
                             full_path,
@@ -213,23 +223,24 @@ class ModuleManager:
         return new_files
 
     # ------------------------------------------------------------------------
-    def _find_module_in_files(self, name, file_list):
+    def _find_module_in_files(
+            self,
+            name: str,
+            file_list: Iterable[FileInfo]) -> Union[None, ModuleInfo]:
         '''
         Searches the files represented by the supplied list of FileInfo objects
         to find the one defining the named Fortran module.
 
-        :param str name: the name of the module to locate.
+        :param name: the name of the module to locate.
         :param file_list: the files to search.
-        :type file_list: list[:py:class:`psyclone.parse.FileInfo`]
 
         :returns: information on the file that contains the module or None if
                   it wasn't found.
-        :rtype: :py:class:`psyclone.parse.FileInfo` | None
 
         '''
         mod_info = None
+        finfo: FileInfo
         for finfo in file_list:
-            finfo: FileInfo
             # We remove .psycloned extensions, as we consider them identical
             # to the original file when searching for modules
             filename = finfo.basename.replace('.psycloned', '')
@@ -250,13 +261,21 @@ class ModuleManager:
         return mod_info
 
     # ------------------------------------------------------------------------
-    def add_ignore_module(self, module_name):
+    def add_ignore_module(self, module_name: str) -> None:
         '''Adds the specified module name to the modules to be ignored.
 
         :param str module_name: name of the module to ignore.
 
         '''
         self._ignore_modules.add(module_name.lower())
+
+    # ------------------------------------------------------------------------
+    def add_ignore_file(self, substring: str) -> None:
+        '''
+        Adds a substring to the list of files to ignore. Any file that includes
+        one of these strings in its full path will not be parsed or added.
+        '''
+        self._ignore_files.add(substring)
 
     # ------------------------------------------------------------------------
     def ignores(self):
@@ -294,8 +313,8 @@ class ModuleManager:
         :param verbose: If `True`, print verbose information
         """
 
+        fileinfo: FileInfo
         for fileinfo in self._filepath_to_file_info.values():
-            fileinfo: FileInfo
             fileinfo.get_source_code(verbose=verbose)
 
     def create_all_fparser_trees(self, verbose: bool = False) -> None:
@@ -306,8 +325,8 @@ class ModuleManager:
         :param verbose: If `True`, print verbose information
         """
 
+        fileinfo: FileInfo
         for fileinfo in self._filepath_to_file_info.values():
-            fileinfo: FileInfo
             fileinfo.get_fparser_tree(verbose=verbose)
 
     def create_all_psyir_nodes(self, verbose: bool = False) -> None:
@@ -318,8 +337,8 @@ class ModuleManager:
         :param verbose: If `True`, print verbose information
         """
 
+        fileinfo: FileInfo
         for fileinfo in self._filepath_to_file_info.values():
-            fileinfo: FileInfo
             fileinfo.get_psyir(verbose=verbose)
 
     def load_all_module_infos(
@@ -345,13 +364,13 @@ class ModuleManager:
         """
 
         # iterate over all file infos and load psyir
+        file_info: FileInfo
         for file_info in self._filepath_to_file_info.values():
-            file_info: FileInfo
 
             if verbose:
                 print(
                     f"{indent}- Loading module information for "
-                    f"file '{file_info._filename}"
+                    f"file '{file_info.filename}"
                 )
 
             psyir_node: Node = file_info.get_psyir(
@@ -359,18 +378,18 @@ class ModuleManager:
             )
 
             # Collect all module infos in this list
-            module_info_in_file: List[ModuleInfo] = []
+            module_info_in_file: list[ModuleInfo] = []
 
             # Walk over containers and add respective module information
+            container_node: Container
             for container_node in psyir_node.walk(
                 Container, stop_type=Routine
             ):
+                # pylint: disable=unidiomatic-typecheck
                 if type(container_node) is not Container:
                     # Sort out types which are not exactly of
                     # type 'Container', e.g., 'FileContainer'
                     continue
-
-                container_node: Container
 
                 container_name: str = container_node.name.lower()
 
@@ -379,12 +398,11 @@ class ModuleManager:
                         raise KeyError(
                             f"Module '{container_name}' already processed"
                         )
-                    else:
-                        print(
-                            indent+f"Module '{container_name}' already"
-                            " processed"
-                        )
-                        continue
+                    print(
+                        indent+f"Module '{container_name}' already"
+                        " processed"
+                    )
+                    continue
 
                 module_info = ModuleInfo(
                     container_name, file_info, container_node
@@ -398,28 +416,27 @@ class ModuleManager:
             if filepath in self._filepath_to_module_info.keys():
                 if error_if_file_already_processed:
                     raise KeyError(f"File '{filepath}' already processed")
-                else:
-                    print(indent+f"File '{filepath}' already processed")
+                print(indent+f"File '{filepath}' already processed")
 
                 continue
 
             self._filepath_to_module_info[filepath] = module_info_in_file
 
     @property
-    def all_module_infos(self) -> List[ModuleInfo]:
+    def all_module_infos(self) -> list[ModuleInfo]:
         """
         :returns: list of all module infos.
         """
         return list(self._modules.values())
 
     @property
-    def all_file_infos(self) -> List[FileInfo]:
+    def all_file_infos(self) -> list[FileInfo]:
         """
         :returns: List of all FileInfo objects.
         """
         return list(self._filepath_to_file_info.values())
 
-    def get_module_info(self, module_name: str) -> ModuleInfo:
+    def get_module_info(self, module_name: str) -> Optional[ModuleInfo]:
         """This function returns the ModuleInfo for the specified
         module.
 
@@ -440,7 +457,7 @@ class ModuleManager:
         # First check if we have already seen this module. We only end the
         # search early if the file we've found does not require pre-processing
         # (i.e. has a .f90 suffix).
-        mod_info: ModuleInfo = self._modules.get(mod_lower, None)
+        mod_info = self._modules.get(mod_lower, None)
         if mod_info and mod_info.filename.endswith(".f90"):
             return mod_info
         old_mod_info = mod_info
@@ -473,7 +490,7 @@ class ModuleManager:
                                 f"command line option.")
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file(self, finfo: FileInfo) -> List[str]:
+    def get_modules_in_file(self, finfo: FileInfo) -> list[str]:
         '''
         Uses a regex search to find all modules defined in the file with the
         supplied name.
@@ -495,8 +512,8 @@ class ModuleManager:
 
     def get_all_dependencies_recursively(
             self,
-            all_mod_names: List[str],
-    ) -> OrderedDict[str, List[str]]:
+            all_mod_names: list[str],
+    ) -> OrderedDict[str, list[str]]:
         '''This function collects recursively all module dependencies
         for any of the modules in the ``all_mod_names`` set. I.e. it will
         add all modules used by any module listed in ``all_mod_names``,
@@ -522,7 +539,7 @@ class ModuleManager:
 
         # This contains the mapping from each module name to the
         # list of the dependencies and is returned as result:
-        module_dependencies = OrderedDict()
+        module_dependencies: OrderedDict[str, list[str]] = OrderedDict()
 
         # Work on a copy to avoid modifying the caller's set:
         todo = all_mod_names.copy()
@@ -540,8 +557,11 @@ class ModuleManager:
             if module in self.ignores():
                 continue
             try:
-                mod_deps = self.get_module_info(module).get_used_module_names()
-                mod_deps = list(mod_deps)
+                mod_info = self.get_module_info(module)
+                # mod_info is only None if it is ignored, which is already
+                # tested 3 lines above. So make mypy happy:
+                mod_info = cast(ModuleInfo, mod_info)
+                mod_deps = mod_info.get_used_module_names()
             except (FileNotFoundError, ModuleInfoError):
                 if module not in not_found:
                     # We don't have any information about this module,
@@ -552,9 +572,9 @@ class ModuleManager:
                     # Remove this module as dependencies from any other
                     # module in our todo list, so the final result will
                     # only contain known modules
-                    for dep in module_dependencies.values():
-                        if module in dep:
-                            dep.remove(module)
+                    for list_dep in module_dependencies.values():
+                        if module in list_dep:
+                            list_dep.remove(module)
                 continue
 
             # Remove all dependencies which we don't know anything about:
@@ -566,6 +586,7 @@ class ModuleManager:
             # Remove all dependencies from the list of new dependencies
             # of `module` that have already been handled:
             module_dependencies_keys = module_dependencies.keys()
+            new_deps: list[str]
             new_deps = [x for x in mod_deps
                         if x not in module_dependencies_keys]
 
@@ -579,8 +600,8 @@ class ModuleManager:
 
     # -------------------------------------------------------------------------
     def sort_modules(
-        self, module_dependencies: Dict[str, Set[str]]
-    ) -> List[str]:
+        self, module_dependencies: dict[str, set[str]]
+    ) -> list[str]:
         '''This function sorts the given dependencies so that all
         dependencies of a module are before any module that
         needs it. Input is a dictionary that contains all modules to
@@ -603,6 +624,8 @@ class ModuleManager:
         # breaks sorting. If an unknown dependency is detected, print
         # a warning, and remove it (otherwise no sort order could be
         # determined).
+        dep: str
+        dependencies: set[str]
         for module, dependencies in todo.items():
             # Take a copy so we can modify the original set of dependencies:
             dependencies_copy = dependencies.copy()
@@ -619,8 +642,8 @@ class ModuleManager:
         while todo:
             # Find one module that has no dependencies, which is the
             # next module to be added to the results.
-            for mod, dep in todo.items():
-                if not dep:
+            for mod, set_dep in todo.items():
+                if not set_dep:
                     break
             else:
                 # If there is no module without a dependency, there
@@ -643,8 +666,8 @@ class ModuleManager:
 
             # Then remove this module from the dependencies of all other
             # modules:
-            for dep in todo.values():
-                if mod in dep:
-                    dep.remove(mod)
+            for set_dep in todo.values():
+                if mod in set_dep:
+                    set_dep.remove(mod)
 
         return result
