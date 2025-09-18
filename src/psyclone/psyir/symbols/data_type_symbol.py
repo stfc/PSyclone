@@ -37,6 +37,8 @@
 
 ''' This module contains the DataTypeSymbol. '''
 
+from __future__ import annotations
+
 from psyclone.psyir.symbols.symbol import Symbol
 
 
@@ -110,12 +112,16 @@ class DataTypeSymbol(Symbol):
                 f"DataType but got: '{type(value).__name__}'")
         self._datatype = value
 
-    def copy_properties(self, symbol_in):
+    def copy_properties(self,
+                        symbol_in: DataTypeSymbol,
+                        exclude_interface: bool = False):
         '''Replace all properties in this object with the properties from
-        symbol_in, apart from the name (which is immutable) and visibility.
+        symbol_in, apart from the name (which is immutable), visibility
+        and (optionally) the interface.
 
         :param symbol_in: the symbol from which the properties are copied.
-        :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param exclude_interface: whether or not to exclude the interface
+                                  when copying properties.
 
         :raises TypeError: if the argument is not the expected type.
 
@@ -123,7 +129,7 @@ class DataTypeSymbol(Symbol):
         if not isinstance(symbol_in, DataTypeSymbol):
             raise TypeError(f"Argument should be of type 'DataTypeSymbol' but "
                             f"found '{type(symbol_in).__name__}'.")
-        super(DataTypeSymbol, self).copy_properties(symbol_in)
+        super().copy_properties(symbol_in, exclude_interface=exclude_interface)
         self._datatype = symbol_in.datatype
 
     def reference_accesses(self):

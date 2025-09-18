@@ -482,18 +482,23 @@ def test_datasymbol_copy_properties():
     new_symbol = DataSymbol("other_name", INTEGER_SINGLE_TYPE,
                             initial_value=7)
 
-    symbol.copy_properties(new_symbol)
+    # Copy properties excluding the interface.
+    symbol.copy_properties(new_symbol, exclude_interface=True)
 
     assert symbol.name == "myname"
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
-    assert symbol.is_automatic
+    # Interface should be unchanged.
+    assert not symbol.is_automatic
     assert isinstance(symbol.initial_value, Literal)
     assert symbol.initial_value.value == "7"
     assert (symbol.initial_value.datatype.intrinsic ==
             symbol.datatype.intrinsic)
     assert (symbol.initial_value.datatype.precision ==
             symbol.datatype.precision)
+    # Repeat but this time include the interface.
+    symbol.copy_properties(new_symbol)
+    assert symbol.is_automatic
 
 
 def test_datasymbol_resolve_type(monkeypatch):
