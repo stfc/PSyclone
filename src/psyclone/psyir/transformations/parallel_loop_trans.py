@@ -187,18 +187,18 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             reduction_ops = options.get("reduction_ops", [])
 
         # Check type of reduction_ops (not handled by validate_options)
-        reduction_ops_ok = False
-        if isinstance(reduction_ops, List):
-            reduction_ops_ok = True
-            for op in reduction_ops:
-                reduction_ops_ok = reduction_ops_ok and (
-                    isinstance(op, BinaryOperation.Operator) or
-                    isinstance(op, IntrinsicCall.Intrinsic))
-        if not reduction_ops_ok:
+        if not isinstance(reduction_ops, list):
             raise TypeError(
-                "Element in reduction_ops has incorrect type. "
-                "Expected BinaryOperation.Operator or "
-                "IntrinsicCall.Intrinsic.")
+                    f"reduction_ops for ParallelLoopTrans.apply() should be "
+                    f"a list but found type {type(reduction_ops).__name__}")
+        for op in reduction_ops:
+            if not isinstance(op, (BinaryOperation.Operator,
+                                   IntrinsicCall.Intrinsic)):
+                raise TypeError(
+                        f"Elements of reduction_ops for "
+                        f"ParallelLoopTrans.apply() should have type "
+                        f"BinaryOperation.Operator or IntrinsicCall.Intrinsic "
+                        f"but found {type(op).__name__}")
 
         # This method produces a list of inferred reduction clauses
         self.inferred_reduction_clauses = []
@@ -285,7 +285,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                                 f"because it is not a plain local array or "
                                 f"it is used after the loop.")
                     continue
-                # See if the scalar in question allow parallelisation of
+                # See if the scalar in question allows parallelisation of
                 # the loop using reduction clauses.
                 if (reduction_ops and
                         message.code == DTCode.WARN_SCALAR_REDUCTION):
