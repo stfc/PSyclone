@@ -551,3 +551,22 @@ class Loop(Statement):
         return dtools.can_loop_be_parallelised(
             self, test_all_variables=test_all_variables,
             signatures_to_ignore=signatures_to_ignore)
+
+    def enters_scope(self, scope, visited_nodes=None) -> bool:
+        '''
+        This is a Reference method, but sometimes it will reach this point
+        because self.reference_accesses returns a Loop as the Node associated
+        with the loop variable.
+        In this case we can always return False as we know that this variable
+        gets the iteration value.
+
+        #TODO #3124: Alternatively move the loop variable to a child Reference.
+
+        :param scope: the given scope that we evaluate.
+        :param visited_nodes: a set of nodes already visited, this is necessary
+            because the dependency chains may contain cycles. Defaults to an
+            empty set.
+        :returns: whether the symbol lifetime starts before the given scope.
+        '''
+        # pylint: disable=unused-argument
+        return False

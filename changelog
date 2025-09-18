@@ -1,3 +1,12 @@
+   90) PR #3134 towards #2398. Create an AtomicDirective mixin and add
+   support for atomic types other than the default.
+
+   89) PR #3136 towards #3060. Adds named arguments to all intrinsic call
+   IAttr definitions. 
+
+   88) PR #3094 for #2851 and #3082. Improves the DA so that PSyclone
+   does not generate unnecessary firstprivate clauses on parallel regions.   
+
    87) PR #3127 for #3126. Disable python module index in latex version
    of docs.
 
