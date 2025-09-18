@@ -110,7 +110,7 @@ def check_intergrid(node):
         if kern.is_intergrid:
             raise TransformationError(
                 f"This Transformation cannot currently be applied to nodes "
-                f"which have inter-grid kernels as descendents and {kern.name}"
+                f"which have inter-grid kernels as descendants and {kern.name}"
                 f" is such a kernel.")
 
 

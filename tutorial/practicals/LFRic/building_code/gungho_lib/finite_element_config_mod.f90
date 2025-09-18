@@ -43,7 +43,6 @@
 module finite_element_config_mod
 
   use constants_mod, only: i_def, &
-                           i_native, &
                            l_def, &
                            str_def
   use log_mod,       only: log_event, log_scratch_space &
@@ -56,10 +55,10 @@ module finite_element_config_mod
             read_finite_element_namelist, postprocess_finite_element_namelist, &
             finite_element_is_loadable, finite_element_is_loaded, finite_element_final
 
-  integer(i_native), public, parameter :: cellshape_quadrilateral = 976
-  integer(i_native), public, parameter :: cellshape_triangle = 983
+  integer(i_def), public, parameter :: cellshape_quadrilateral = 976
+  integer(i_def), public, parameter :: cellshape_triangle = 983
 
-  integer(i_native), public, protected :: cellshape
+  integer(i_def), public, protected :: cellshape
   integer(i_def), public, protected :: coordinate_order
   integer(i_def), public, protected :: element_order_h
   integer(i_def), public, protected :: element_order_v
@@ -74,9 +73,9 @@ module finite_element_config_mod
           = [character(len=str_def) :: 'quadrilateral', &
                                        'triangle']
 
-  integer(i_native), parameter :: cellshape_value(2) &
-          = [976_i_native, &
-             983_i_native]
+  integer(i_def), parameter :: cellshape_value(2) &
+          = [976_i_def, &
+             983_i_def]
 
 contains
 
@@ -86,7 +85,7 @@ contains
   !>
   !> @param[in] key Enumeration key.
   !>
-  integer(i_native) function cellshape_from_key( key )
+  integer(i_def) function cellshape_from_key( key )
 
     use constants_mod, only: unset_key, imdi
 
@@ -94,12 +93,12 @@ contains
 
     character(*), intent(in) :: key
 
-    integer(i_native) :: key_index
+    integer(i_def) :: key_index
 
     if (key == unset_key) then
       write( log_scratch_space, '(A)') &
           'Missing key for cellshape enumeration in finite_element namelist.'
-      cellshape_from_key = int(imdi,i_native)
+      cellshape_from_key = int(imdi,i_def)
       call log_event( log_scratch_space, LOG_LEVEL_WARNING )
       return
     end if
@@ -133,13 +132,13 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: value
+    integer(i_def), intent(in) :: value
 
-    integer(i_native) :: value_index
+    integer(i_def) :: value_index
 
     value_index = 1
     do
-      if (cellshape_value(value_index) == int(imdi,i_native)) then
+      if (cellshape_value(value_index) == int(imdi,i_def)) then
         key_from_cellshape = unset_key
         return
       else if (cellshape_value(value_index) == value) then
@@ -168,8 +167,8 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
+    integer(i_def), intent(in) :: file_unit
+    integer(i_def), intent(in) :: local_rank
 
     call read_namelist( file_unit, local_rank, &
                         cellshape )
@@ -185,13 +184,9 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
-    integer(i_native), intent(out) :: dummy_cellshape
-
-    integer(i_def) :: buffer_integer_i_def(3)
-    integer(i_native) :: buffer_integer_i_native(1)
-    integer(i_native) :: buffer_logical_l_def(2)
+    integer(i_def), intent(in) :: file_unit
+    integer(i_def), intent(in) :: local_rank
+    integer(i_def), intent(out) :: dummy_cellshape
 
     character(str_def) :: cellshape
 
@@ -202,7 +197,7 @@ contains
                               rehabilitate, &
                               vorticity_in_w1
 
-    integer(i_native) :: condition
+    integer(i_def) :: condition
 
     cellshape = unset_key
     coordinate_order = imdi
@@ -223,20 +218,6 @@ contains
       dummy_cellshape = cellshape_from_key( cellshape )
 
     end if
-
-    buffer_integer_i_native(1) = dummy_cellshape
-    buffer_integer_i_def(1) = coordinate_order
-    buffer_integer_i_def(2) = element_order_h
-    buffer_integer_i_def(3) = element_order_v
-    buffer_logical_l_def(1) = merge( 1, 0, rehabilitate )
-    buffer_logical_l_def(2) = merge( 1, 0, vorticity_in_w1 )
-
-    dummy_cellshape = buffer_integer_i_native(1)
-    coordinate_order = buffer_integer_i_def(1)
-    element_order_h = buffer_integer_i_def(2)
-    element_order_v = buffer_integer_i_def(3)
-    rehabilitate = buffer_logical_l_def(1) /= 0
-    vorticity_in_w1 = buffer_logical_l_def(2) /= 0
 
     if ( any([element_order_h] == imdi) .or. &
          any([element_order_h] == rmdi) .or. &
@@ -300,7 +281,7 @@ contains
 
     implicit none
 
-    cellshape = int(imdi,i_native)
+    cellshape = int(imdi,i_def)
     coordinate_order = imdi
     element_order_h = imdi
     element_order_v = imdi

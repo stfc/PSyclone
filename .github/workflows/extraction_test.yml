@@ -92,10 +92,6 @@ jobs:
 
         # Create the new Fortran files, i.e. processing with Jinja2
         pushd lib/extract/netcdf/lfric
-        # We need to use the new field types, so copy the newer version over
-        # the old version
-        # TODO 2623 - this will remove the old field types
-        cp kernel_data_netcdf.jinja-new-field-types kernel_data_netcdf.jinja
         make read_kernel_data_mod.f90 compare_variables_mod.F90 extract_netcdf_base.F90 \
              kernel_data_netcdf.f90 psy_data_base.f90 read_kernel_data_mod.f90
         popd
