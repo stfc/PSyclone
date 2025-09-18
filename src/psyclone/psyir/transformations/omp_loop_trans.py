@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
+#           M. Naylor, University of Cambridge, UK
 
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
@@ -42,6 +43,7 @@ from psyclone.psyir.nodes import (
     Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
     OMPScheduleClause, OMPBarrierDirective, OMPParallelDirective,
+    OMPReductionClause, BinaryOperation, IntrinsicCall
 )
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
@@ -62,6 +64,34 @@ MAP_STR_TO_BARRIER_DIRECTIVE = {
 }
 #: List containing the valid names for OMP directives.
 VALID_OMP_DIRECTIVES = list(MAP_STR_TO_LOOP_DIRECTIVES.keys())
+
+#: Mapping from PSyIR reduction operator to OMP reduction operator.
+MAP_REDUCTION_OP_TO_OMP = {
+    BinaryOperation.Operator.ADD:
+        OMPReductionClause.ReductionClauseTypes.ADD,
+    BinaryOperation.Operator.SUB:
+        OMPReductionClause.ReductionClauseTypes.SUB,
+    BinaryOperation.Operator.MUL:
+        OMPReductionClause.ReductionClauseTypes.MUL,
+    BinaryOperation.Operator.AND:
+        OMPReductionClause.ReductionClauseTypes.AND,
+    BinaryOperation.Operator.OR:
+        OMPReductionClause.ReductionClauseTypes.OR,
+    BinaryOperation.Operator.EQV:
+        OMPReductionClause.ReductionClauseTypes.EQV,
+    BinaryOperation.Operator.NEQV:
+        OMPReductionClause.ReductionClauseTypes.NEQV,
+    IntrinsicCall.Intrinsic.MAX:
+        OMPReductionClause.ReductionClauseTypes.MAX,
+    IntrinsicCall.Intrinsic.MIN:
+        OMPReductionClause.ReductionClauseTypes.MIN,
+    IntrinsicCall.Intrinsic.IAND:
+        OMPReductionClause.ReductionClauseTypes.IAND,
+    IntrinsicCall.Intrinsic.IOR:
+        OMPReductionClause.ReductionClauseTypes.IOR,
+    IntrinsicCall.Intrinsic.IEOR:
+        OMPReductionClause.ReductionClauseTypes.IEOR
+}
 
 
 @transformation_documentation_wrapper
@@ -297,6 +327,7 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     def apply(self, node, options=None,
               reprod: bool = None,
+              enable_reductions: bool = False,
               **kwargs):
         '''Apply the OMPLoopTrans transformation to the specified PSyIR Loop.
 
@@ -308,18 +339,42 @@ class OMPLoopTrans(ParallelLoopTrans):
         :param options: a dictionary with options for transformations
                         and validation.
         :type options: Optional[Dict[str, Any]]
-
+        :param enable_reductions: whether to attempt to infer reduction
+            clauses or not.
         '''
+        if enable_reductions:
+            red_ops = list(MAP_REDUCTION_OP_TO_OMP.keys())
+        else:
+            red_ops = []
+
         # TODO 2668 - options dict is deprecated.
+        local_options = options.copy() if options is not None else None
         if not options:
             if reprod is None:
                 reprod = Config.get().reproducible_reductions
             self.validate_options(
-                    reprod=reprod, **kwargs
+                    reprod=reprod,
+                    enable_reductions=enable_reductions,
+                    reduction_ops=red_ops,
+                    **kwargs
             )
             self._reprod = reprod
         else:
             self._reprod = options.get("reprod",
                                        Config.get().reproducible_reductions)
+            if options.get("enable_reductions", False):
+                local_options["reduction_ops"] = list(
+                    MAP_REDUCTION_OP_TO_OMP.keys())
+            else:
+                local_options["reduction_ops"] = []
 
-        super().apply(node, options, **kwargs)
+        parent = node.parent
+        position = node.position
+        super().apply(node, local_options, reduction_ops=red_ops, **kwargs)
+
+        # Add reduction clauses to the newly introduced directive
+        directive = parent.children[position]
+        for (op, ref) in self.inferred_reduction_clauses:
+            clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
+            clause.addchild(ref)
+            directive.addchild(clause)
