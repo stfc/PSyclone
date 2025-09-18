@@ -1161,6 +1161,72 @@ def trans(psyir):
     assert "module newname\n" in new_code
 
 
+def test_code_transformation_fixed_form(tmpdir, capsys, caplog):
+    ''' Test that the fixed-form option works for code transformation.'''
+    code = '''
+      subroutine test
+c     Comment here.
+      integer n
+
+      n = 3 +
+     &4
+      end subroutine'''
+    inputfile = str(tmpdir.join("fixed_form.f90"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([inputfile, "--free-form", False])
+    captured, _ = capsys.readouterr()
+    correct = """subroutine test()
+  integer :: n
+
+  n = 3 + 4
+
+end subroutine test"""
+    assert correct in captured
+
+    with pytest.raises(SystemExit) as error:
+        main([inputfile])
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    assert error.value.code == 1
+    out, err = capsys.readouterr()
+    assert ("Failed to create PSyIR from file " in err)
+
+    # Check that if we use a fixed form file extension we get the expected
+    # behaviour.
+    code = '''
+      subroutine test
+c     Comment here.
+      integer n
+
+      n = 3 +
+     &4
+      end subroutine'''
+    inputfile = str(tmpdir.join("fixed_form.f"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([inputfile])
+    captured, _ = capsys.readouterr()
+    correct = """subroutine test()
+  integer :: n
+
+  n = 3 + 4
+
+end subroutine test"""
+    assert correct in captured
+
+    # Check an unknown file extension gives a log message and fails for a
+    # fixed form input.
+    inputfile = str(tmpdir.join("fixed_form.1s2"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    with pytest.raises(SystemExit) as error:
+        main([inputfile])
+    assert error.value.code == 1
+    out, err = capsys.readouterr()
+    assert ("Failed to create PSyIR from file " in err)
+
+
 @pytest.mark.parametrize("validate", [True, False])
 def test_code_transformation_backend_validation(validate: bool,
                                                 monkeypatch) -> None:
