@@ -61,8 +61,8 @@ include $(PSYROOT)/examples/common.mk
 TYPE?=binary
 
 GENERATED_FILES += *.o *.mod $(NAME)  alg.f90 psy.f90   \
-		  $(DRIVER_INIT).$(TYPE)   $(DRIVER_INIT).f90   \
-		  $(DRIVER_UPDATE).$(TYPE) $(DRIVER_UPDATE).f90 \
+		  $(DRIVER_INIT).$(TYPE)   $(DRIVER_INIT).F90   \
+		  $(DRIVER_UPDATE).$(TYPE) $(DRIVER_UPDATE).F90 \
 		  main.x90
 
 # Location of the infrastucture code (which is a submodule of the
