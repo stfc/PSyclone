@@ -4857,7 +4857,7 @@ def test_reduction_intrins(op, fortran_reader, fortran_writer):
 
 
 def test_bracketed_reductions(fortran_reader, fortran_writer):
-    ''' Test brakcted reductions are correctly detected.
+    ''' Test that bracketed reductions are correctly detected.
     '''
     psyir = fortran_reader.psyir_from_source('''
         function sum_arr(arr) result (acc)
@@ -4969,6 +4969,7 @@ def test_multiple_reduction_same_var_diff_op(fortran_reader, fortran_writer):
     loop = psyir.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
         omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
     assert ("Variable 'acc' is read first, which indicates a reduction"
             in str(err.value))
 
@@ -5018,6 +5019,7 @@ def test_non_reduction1(fortran_reader, fortran_writer):
     loop = psyir.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
         omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
     assert ("Variable 'count' is read first, which indicates a reduction"
             in str(err.value))
 
@@ -5039,6 +5041,7 @@ def test_non_reduction2(fortran_reader, fortran_writer):
     loop = psyir.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
         omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
     assert ("Variable 'count' is read first, which indicates a reduction"
             in str(err.value))
 
@@ -5060,6 +5063,7 @@ def test_non_reduction3(fortran_reader, fortran_writer):
     loop = psyir.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
         omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
     assert ("Variable 'count' is read first, which indicates a reduction"
             in str(err.value))
 
@@ -5148,6 +5152,7 @@ def test_reduction_struct_member(fortran_reader, fortran_writer):
     loop = psyir.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
         omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
     assert ("Variable 'struct%acc' is read first, which indicates a reduction"
             in str(err.value))
 
