@@ -4676,7 +4676,7 @@ def test_omp_serial_check_dependency_valid_pairing():
 
 
 def test_add_reduction_clause_parallel_do(fortran_reader, fortran_writer):
-    ''' Tests the add_reduction_clause() method of OMPParallelDoDirective.
+    ''' Test adding reduction clauses to OMPParallelDoDirective.
     '''
     psyir = fortran_reader.psyir_from_source('''
         function sum_arr(arr) result (acc)
@@ -4695,13 +4695,13 @@ def test_add_reduction_clause_parallel_do(fortran_reader, fortran_writer):
     loop_parent.addchild(do_directive, index=loop_position)
     clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
     clause.addchild(Reference(Symbol("acc")))
-    do_directive.add_reduction_clause(clause)
+    do_directive.addchild(clause)
     output = fortran_writer(psyir)
     assert "reduction(+: acc)" in output
 
 
 def test_add_reduction_clause_do(fortran_reader, fortran_writer):
-    ''' Tests the add_reduction_clause() method of OMPDoDirective.
+    ''' Test adding reduction clauses to OMPDoDirective.
     '''
     psyir = fortran_reader.psyir_from_source('''
         function sum_arr(arr) result (acc)
@@ -4721,13 +4721,13 @@ def test_add_reduction_clause_do(fortran_reader, fortran_writer):
     loop_parent.addchild(do_directive, index=loop_position)
     clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
     clause.addchild(Reference(Symbol("acc")))
-    do_directive.add_reduction_clause(clause)
+    do_directive.addchild(clause)
     output = fortran_writer(psyir)
     assert "reduction(+: acc)" in output
 
 
 def test_add_reduction_clause_loop(fortran_reader, fortran_writer):
-    ''' Tests the add_reduction_clause() method of OMPLoopDirective.
+    ''' Test adding reduction clauses to OMPLoopDirective.
     '''
     psyir = fortran_reader.psyir_from_source('''
         function sum_arr(arr) result (acc)
@@ -4747,7 +4747,7 @@ def test_add_reduction_clause_loop(fortran_reader, fortran_writer):
     loop_parent.addchild(loop_directive, index=loop_position)
     clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
     clause.addchild(Reference(Symbol("acc")))
-    loop_directive.add_reduction_clause(clause)
+    loop_directive.addchild(clause)
     output = fortran_writer(psyir)
     assert "reduction(+: acc)" in output
 
@@ -4760,22 +4760,22 @@ def test_reduction_clause_eq(fortran_reader, fortran_writer):
 
     clause1 = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
     clause1.addchild(Reference(Symbol("foo")))
-    do_directive1.add_reduction_clause(clause1)
+    do_directive1.addchild(clause1)
 
     clause2 = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
     clause2.addchild(Reference(Symbol("bar")))
-    do_directive2.add_reduction_clause(clause2)
+    do_directive2.addchild(clause2)
 
     assert do_directive1 != do_directive2
 
 
 def test_add_reduction_clause_validation(fortran_reader, fortran_writer):
-    ''' Check that add_reduction_clause() with a non reduction clause
+    ''' Check that adding a reduction clause with a non-reduction clause
         argument raises an error.
     '''
     do_directive = OMPDoDirective()
     with pytest.raises(GenerationError) as err:
-        do_directive.add_reduction_clause(OMPScheduleClause())
+        do_directive.addchild(OMPScheduleClause())
     assert ("Item 'OMPScheduleClause' can't be child 1 of 'OMPDoDirective'"
             in str(err.value))
 
@@ -5174,7 +5174,7 @@ def test_reduction_private_clash(fortran_reader, fortran_writer):
     loop_parent.addchild(do_directive, index=loop_position)
     clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.OR)
     clause.addchild(Reference(Symbol("acc")))
-    do_directive.add_reduction_clause(clause)
+    do_directive.addchild(clause)
     output = fortran_writer(psyir)
     assert "reduction(.OR.: acc)" in output
     private_search = re.search("private\\((.*?)\\)", output)

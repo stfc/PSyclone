@@ -1775,14 +1775,6 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
 
         self._collapse = value
 
-    def add_reduction_clause(self, clause):
-        '''Adds the given OMPReductionClause to the list of reduction clauses.
-
-        :param clause: an OMPReductionClause to be added.
-        :type clause: :py:class:`psyclone.psyir.nodes.OMPReductionClause`
-        '''
-        self.addchild(clause)
-
     def node_str(self, colour=True):
         '''
         Returns the name of this node with (optional) control codes
@@ -2034,14 +2026,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             return True
         return False
 
-    def add_reduction_clause(self, clause):
-        '''Adds the given OMPReductionClause to the list of reduction clauses.
-
-        :param clause: an OMPReductionClause to be added.
-        :type clause: :py:class:`psyclone.psyir.nodes.OMPReductionClause`
-        '''
-        self.addchild(clause)
-
     def lower_to_language_level(self):
         '''
         In-place construction of clauses as PSyIR constructs.
@@ -2287,14 +2271,6 @@ class OMPLoopDirective(OMPRegionDirective):
                 f"integer or None, but value '{value}' has been given.")
 
         self._collapse = value
-
-    def add_reduction_clause(self, clause):
-        '''Adds the given OMPReductionClause to the list of reduction clauses.
-
-        :param clause: an OMPReductionClause to be added.
-        :type clause: :py:class:`psyclone.psyir.nodes.OMPReductionClause`
-        '''
-        self.addchild(clause)
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes

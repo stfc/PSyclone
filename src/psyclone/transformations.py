@@ -291,7 +291,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         for (op, ref) in self.inferred_reduction_clauses:
             clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
             clause.addchild(ref)
-            directive.add_reduction_clause(clause)
+            directive.addchild(clause)
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)

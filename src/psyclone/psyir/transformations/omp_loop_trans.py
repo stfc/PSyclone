@@ -377,4 +377,4 @@ class OMPLoopTrans(ParallelLoopTrans):
         for (op, ref) in self.inferred_reduction_clauses:
             clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
             clause.addchild(ref)
-            directive.add_reduction_clause(clause)
+            directive.addchild(clause)
