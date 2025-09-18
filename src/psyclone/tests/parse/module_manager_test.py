@@ -40,12 +40,13 @@ import os
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.parse import FileInfo, ModuleInfo, ModuleManager
+from psyclone.parse import ModuleInfo, ModuleManager
+from psyclone.tests.utilities import get_infrastructure_path
 
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_mod_manager_instance():
+def test_mod_manager_instance() -> None:
     '''Tests the singleton functionality.'''
     mod_man1 = ModuleManager.get()
     mod_man2 = ModuleManager.get()
@@ -61,7 +62,7 @@ def test_mod_manager_instance():
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_mod_manager_directory_reading():
+def test_mod_manager_directory_reading() -> None:
     '''Tests that directories are read as expected. We use the standard
     directory and file setup (see mod_man_test_setup_directories).
     tmp/d1/a_mod.f90
@@ -103,7 +104,7 @@ def test_mod_manager_directory_reading():
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_mod_manager_precedence_preprocessed():
+def test_mod_manager_precedence_preprocessed() -> None:
     '''Make sure that a .f90 file is preferred over a .F90 file. Note that
     on linux systems the file names are returned alphabetically, with
     .f90 coming after .F90, which means the module manager handling of
@@ -124,7 +125,7 @@ def test_mod_manager_precedence_preprocessed():
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_mod_manager_add_files_from_dir():
+def test_mod_manager_add_files_from_dir() -> None:
     '''Tests that directories are read as expected. We use the standard
     directory and file setup (see mod_man_test_setup_directories).
     tmp/d1/a_mod.f90
@@ -162,7 +163,7 @@ def test_mod_manager_add_files_from_dir():
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_mod_manager_get_module_info():
+def test_mod_manager_get_module_info() -> None:
     '''Tests that module information is returned as expected. We use the
     standard directory and file setup (see mod_man_test_setup_directories).
     tmp/d1/a_mod.f90
@@ -227,7 +228,7 @@ def test_mod_manager_get_module_info():
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_mod_manager_get_all_dependencies_recursively(capsys):
+def test_mod_manager_get_all_dependencies_recursively(capsys) -> None:
     '''Tests that dependencies are correctly collected recursively. We use
     the standard directory and file setup (see mod_man_test_setup_directories)
     tmp/d1/a_mod.f90       : no dependencies
@@ -272,7 +273,7 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_mod_man_sort_modules(capsys):
+def test_mod_man_sort_modules(capsys) -> None:
     '''Tests that sorting of modules works as expected.'''
 
     mod_man = ModuleManager.get()
@@ -321,7 +322,7 @@ def test_mod_man_sort_modules(capsys):
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_mod_manager_add_ignore_modules():
+def test_mod_manager_add_ignore_modules() -> None:
     '''Tests that ignoring modules work. We use the standard
     directory and file setup (see mod_man_test_setup_directories).
     tmp/d1/a_mod.f90
@@ -346,9 +347,43 @@ def test_mod_manager_add_ignore_modules():
     assert mod_info.filename == "d1/d3/b_mod.F90"
 
 
+# ----------------------------------------------------------------------------
+@pytest.mark.parametrize('version', ["stub", "mpi"])
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_mod_manager_add_files_and_more():
+def test_mod_manager_add_ignore_files(version: str) -> None:
+    '''Tests that ignoring a file based on a substring works. We test the main
+    use case: ignoring parallel_utils_mod.f90 from dl_esm_inf, so the
+    non-MPI version parallel_utils_stub_mod.f90 is found instead.
+
+    Since there are two files, the order in which files are found might not
+    be the same on different platforms. So we set this test up to find
+    both files (by ignore the other), controlled by the 'version' parameter
+    (stub or mpi).
+
+    '''
+    mod_man = ModuleManager.get()
+    # Get the path to dl_esm_inf:
+    test_files_dir = get_infrastructure_path("gocean")
+    mod_man.add_search_path(str(test_files_dir))
+    if version == "mpi":
+        # Find the MPI module, and not the stub
+        expected_module = "parallel_utils_mod.f90"
+        ignored_file = "parallel_utils_stub_mod"
+    else:
+        # Find the stub, but not the MPI module
+        expected_module = "parallel_utils_stub_mod.f90"
+        ignored_file = "parallel_utils_mod"
+
+    mod_man.add_ignore_file(ignored_file)
+    mod_info = mod_man.get_module_info("parallel_utils_mod")
+    assert expected_module in mod_info.filename
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_mod_manager_add_files_and_more() -> None:
     '''Fixture will create the following files
 
     d1/a_mod.f90
@@ -374,7 +409,6 @@ def test_mod_manager_add_files_and_more():
     #
     mod_man.load_all_source_files()
     for file_info in mod_man._filepath_to_file_info.values():
-        file_info: FileInfo
         assert file_info._source_code is not None
         assert file_info._fparser_tree is None
         assert file_info._psyir_node is None
@@ -382,7 +416,6 @@ def test_mod_manager_add_files_and_more():
     mod_man.create_all_fparser_trees()
 
     for file_info in mod_man._filepath_to_file_info.values():
-        file_info: FileInfo
         assert file_info._source_code is not None
         assert file_info._fparser_tree is not None
         assert file_info._psyir_node is None
@@ -390,7 +423,6 @@ def test_mod_manager_add_files_and_more():
     mod_man.create_all_psyir_nodes()
 
     for file_info in mod_man._filepath_to_file_info.values():
-        file_info: FileInfo
         assert file_info._source_code is not None
         assert file_info._fparser_tree is not None
         assert file_info._psyir_node is not None
@@ -418,7 +450,7 @@ def test_mod_manager_add_files_and_more():
 
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_mod_manager_load_all_module_infos_trigger_error_module_read_twice():
+def test_mod_manager_load_all_module_trigger_error_module_read_twice() -> None:
     '''
     Make particular check for load_all_module_infos():
     - Reading in the same module twice is triggering an error.
@@ -451,7 +483,7 @@ def test_mod_manager_load_all_module_infos_trigger_error_module_read_twice():
 
 
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_mod_manager_load_all_module_infos_trigger_error_file_read_twice():
+def test_mod_manager_load_all_module_trigger_error_file_read_twice() -> None:
     '''
     Make particular check for load_all_module_infos():
     - Reading in the same file twice is triggering an error.

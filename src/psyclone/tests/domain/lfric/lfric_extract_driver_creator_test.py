@@ -37,53 +37,19 @@
 
 ''' This module tests the driver creation for extracted kernels.'''
 
-from pathlib import Path
 import pytest
 
 from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.line_length import FortLineLength
-from psyclone.parse import ModuleManager
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
     Literal, Routine, Schedule, Call, StructureReference)
 from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.tests.utilities import (
-    Compile, get_base_path, get_infrastructure_path, get_invoke)
+from psyclone.tests.utilities import Compile, get_invoke
 
 
 API = "lfric"
-
-
-@pytest.fixture(scope='function')
-def init_module_manager():
-    ''' The tests in this module all assume that there is no pre-existing
-    ModuleManager object, so this fixture ensures that the module manager
-    instance is deleted before and after each test function. The latter
-    makes sure that any other test executed next will automatically reload
-    the default ModuleManager file.
-    '''
-
-    test_files_dir = get_base_path(API)
-    infrastructure_path = Path(get_infrastructure_path(API))
-    # Define the path to the ReadKernelData module (which contains functions
-    # to read extracted data from a file) relative to the infrastructure path:
-    psyclone_root = infrastructure_path.parents[2]
-    read_mod_path = (psyclone_root / "lib" / "extract" /
-                     "binary" / "lfric")
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-    module_manager = ModuleManager.get()
-    module_manager.add_search_path(test_files_dir)
-    module_manager.add_search_path(str(infrastructure_path))
-    module_manager.add_search_path(str(read_mod_path))
-
-    # Now execute all tests
-    yield
-
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
 
 
 # ----------------------------------------------------------------------------
@@ -125,40 +91,6 @@ def test_lfric_driver_add_call(fortran_writer):
 
 
 # ----------------------------------------------------------------------------
-def test_lfric_driver_import_modules():
-    '''Tests that adding a call detects errors as expected.
-    '''
-    program = Routine.create("routine", is_program=True)
-    _, invoke = get_invoke("8_vector_field_2.f90", API,
-                           dist_mem=False, idx=0)
-
-    sched = invoke.schedule
-    # We need to lower to convert the kernels to calls
-    sched.lower_to_language_level()
-    # and add them to the extraction driver
-    program.children.extend([node.copy() for node in sched.children])
-
-    driver_creator = LFRicExtractDriverCreator()
-
-    # Initially we should only have no symbol other than the routine:
-    assert ['routine'] == [sym.name for sym in program.symbol_table.symbols]
-
-    driver_creator.import_modules(program)
-    # We should now have two more symbols:
-    all_symbols = ["routine",
-                   "testkern_coord_w0_2_mod",
-                   "testkern_coord_w0_2_code"]
-    assert (all_symbols == [sym.name for sym in program.symbol_table.symbols])
-
-    # Import twice so we test the handling of symbols that
-    # are already in the symbol table:
-    driver_creator.import_modules(program)
-
-    # The symbol table should be the same as it was before:
-    assert (all_symbols == [sym.name for sym in program.symbol_table.symbols])
-
-
-# ----------------------------------------------------------------------------
 def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
     '''This test checks the import_modules method if there is a call
     that has no ImportInterface by calling an unknown function.'''
@@ -179,74 +111,7 @@ def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
     assert (['routine'] == [sym.name for sym in program.symbol_table.symbols])
 
 
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
-def test_lfric_driver_simple_test():
-    '''Test the full pipeline: Add kernel extraction to a kernel and
-    request driver creation. Read in the written driver, and make sure
-    any variable that is provided in the kernel call is also read
-    in the driver. '''
-
-    psy, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
-                             dist_mem=False, idx=0)
-
-    extract = LFRicExtractTrans()
-
-    extract.apply(invoke.schedule.children[0],
-                  options={"create_driver": True,
-                           "region_name": ("field", "test")})
-    _ = psy.gen
-
-    filename = "driver-field-test.F90"
-    with open(filename, "r", encoding='utf-8') as my_file:
-        driver = my_file.read()
-
-    for line in [
-        "if (ALLOCATED(psydata_filename)) then",
-        "call extract_psy_data%OpenReadFileName(psydata_filename)",
-        "else",
-        "call extract_psy_data%OpenReadModuleRegion('field', 'test')",
-        "end if",
-        "call extract_psy_data%ReadVariable('a', a)",
-        "call extract_psy_data%ReadVariable('m1_data', m1_data)",
-        "call extract_psy_data%ReadVariable('m2_data', m2_data)",
-        "call extract_psy_data%ReadVariable('map_w1', map_w1)",
-        "call extract_psy_data%ReadVariable('map_w2', map_w2)",
-        "call extract_psy_data%ReadVariable('map_w3', map_w3)",
-        "call extract_psy_data%ReadVariable('ndf_w1', ndf_w1)",
-        "call extract_psy_data%ReadVariable('ndf_w2', ndf_w2)",
-        "call extract_psy_data%ReadVariable('ndf_w3', ndf_w3)",
-        "call extract_psy_data%ReadVariable('nlayers_x_ptr_vector', "
-        "nlayers_x_ptr_vector)",
-        "call extract_psy_data%ReadVariable('"
-        "self_vec_type_vector_data', self_vec_type_vector_data)",
-        "call extract_psy_data%ReadVariable('undf_w1', undf_w1)",
-        "call extract_psy_data%ReadVariable('undf_w2', undf_w2)",
-        "call extract_psy_data%ReadVariable('undf_w3', undf_w3)",
-        "call extract_psy_data%ReadVariable('x_ptr_vector_data', "
-        "x_ptr_vector_data)",
-        "call extract_psy_data%ReadVariable('cell_post', cell_post)"
-    ]:
-        assert line.lower() in driver.lower(), line
-
-    # A read-write/inc variable should not be allocated (since it will
-    # be allocated as part of reading in its value):
-    assert "ALLOCATE(x_ptr_vector," not in driver
-
-    # Check that all module dependencies have been inlined:
-    for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
-                "argument_mod", "log_mod", "fs_continuity_mod",
-                "testkern_mod"]:
-        assert f"module {mod}" in driver
-        assert f"end module {mod}" in driver
-
-    # While the actual code is LFRic, the driver is stand-alone, and as such
-    # does not need any of the infrastructure files
-    build = Compile(".")
-    build.compile_file("driver-field-test.F90")
-
-
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
 def test_lfric_driver_dm_test():
     '''Test the full pipeline with DM:  '''
 
@@ -284,7 +149,7 @@ def test_lfric_driver_dm_test():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
 def test_lfric_driver_import_precision():
     '''Test that all required precision symbols are imported from
     constants_mod'''
@@ -318,7 +183,7 @@ def test_lfric_driver_import_precision():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
 def test_lfric_driver_field_arrays():
     '''Test handling of array of fields: they are written in one call to
     the extraction library, but the library will write each array member
@@ -360,7 +225,7 @@ def test_lfric_driver_field_arrays():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
 def test_lfric_driver_operator():
     '''Test handling of operators, including the structure members
     that are implicitly added.'''
@@ -409,7 +274,7 @@ def test_lfric_driver_operator():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
 def test_lfric_driver_extract_some_kernels_only():
     '''Test that we can extract only some kernels of an invoke, but still
     get the right loop boundaries (which are dependent on the index
@@ -456,7 +321,7 @@ def test_lfric_driver_extract_some_kernels_only():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
 def test_lfric_driver_field_array_write():
     '''Test the handling of arrays of fields which are written.'''
 
@@ -507,7 +372,7 @@ def test_lfric_driver_field_array_write():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
 def test_lfric_driver_field_array_inc():
     '''Test the handling of arrays of fields which are incremented (i.e.
     read and written).'''
@@ -554,56 +419,7 @@ def test_lfric_driver_field_array_inc():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
-def test_lfric_driver_external_symbols():
-    '''Test the handling of symbols imported from other modules, or calls to
-    external functions that use module variables.
-
-    '''
-    psy, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-                             "symbols.f90", API, dist_mem=False, idx=0)
-
-    extract = LFRicExtractTrans()
-    extract.apply(invoke.schedule.children[0],
-                  options={"create_driver": True,
-                           "region_name": ("import", "test")})
-    code = psy.gen
-    assert ('CALL extract_psy_data % PreDeclareVariable("'
-            'module_var_a_post@module_with_var_mod", module_var_a)' in code)
-    assert ('CALL extract_psy_data % ProvideVariable("'
-            'module_var_a_post@module_with_var_mod", module_var_a)' in code)
-
-    # Check that const-size arrays are exported:
-    expected = [
-      'use module_with_var_mod, only : const_size_array',
-      'CALL extract_psy_data % PreDeclareVariable("const_size_array@'
-      'module_with_var_mod", const_size_array)',
-      'CALL extract_psy_data % PreDeclareVariable("const_size_array_post@'
-      'module_with_var_mod", const_size_array)',
-      'CALL extract_psy_data % ProvideVariable("const_size_array@'
-      'module_with_var_mod", const_size_array)',
-      'CALL extract_psy_data % ProvideVariable("const_size_array_post@'
-      'module_with_var_mod", const_size_array)']
-    for line in expected:
-        assert line in code, line
-
-    filename = "driver-import-test.F90"
-    with open(filename, "r", encoding='utf-8') as my_file:
-        driver = my_file.read()
-
-    assert ("call extract_psy_data%ReadVariable('module_var_a_post@"
-            "module_with_var_mod', module_var_a_post)" in driver)
-    assert ("call compare('module_var_a', module_var_a, module_var_a_post)"
-            in driver)
-
-    # While the actual code is LFRic, the driver is stand-alone, and as such
-    # does not need any of the infrastructure files
-    build = Compile(".")
-    build.compile_file("driver-import-test.F90")
-
-
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
 def test_lfric_driver_external_symbols_name_clash():
     '''Test the handling of symbols imported from other modules, or calls to
     external functions that use module variables. In this example the external
@@ -648,7 +464,7 @@ def test_lfric_driver_external_symbols_name_clash():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
 def test_lfric_driver_external_symbols_error():
     '''Test the handling of symbols imported from other modules, or calls to
     external functions that use module variables. In this example, the
@@ -671,7 +487,7 @@ def test_lfric_driver_external_symbols_error():
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
 def test_lfric_driver_rename_externals():
     '''Tests that we get the used non-local symbols from a routine that
     renames a symbol reported correctly. Additionally, this also tests
