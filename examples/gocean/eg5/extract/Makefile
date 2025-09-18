@@ -63,7 +63,7 @@ TYPE?=binary
 GENERATED_FILES += *.o *.mod $(NAME)  alg.f90 psy.f90   \
 		  $(DRIVER_INIT).$(TYPE)   $(DRIVER_INIT).F90   \
 		  $(DRIVER_UPDATE).$(TYPE) $(DRIVER_UPDATE).F90 \
-		  main.x90
+		  test.x90
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -148,13 +148,16 @@ psy.o:	$(KERNELS)
 # The driver will be created when creating the psy.f90 file.
 # This dependency is required, otherwise a 'make compile' in a clean
 # directory will fail.
-$(DRIVER_INIT).f90: psy.f90
-$(DRIVER_UPDATE).f90: psy.f90
+$(DRIVER_INIT).F90: psy.f90
+$(DRIVER_UPDATE).F90: psy.f90
 
 # Dependency to INF_LIB to make sure the mod file are available
 $(KERNELS):  $(INF_LIB)
 
 %.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
 
 %.x90: %.X90
