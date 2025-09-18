@@ -44,13 +44,13 @@ F90FLAGS ?= -Wall -g -fcheck=bound
 OBJ = main_alg_psy.o main_alg.o summation_w0_to_w3_kernel_mod.o
 
 EXEC = example
-# Path of the included simplified LFRic infrastructure files:
-LFRIC_PATH = ../../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+# Path of the included LFRic infrastructure files:
+LFRIC_PATH=$(ROOT_DIR)/external/lfric_infrastructure/src
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This sets up LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 # Various targets
@@ -67,7 +67,8 @@ run: compile
 	./example
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) \
+		   $$(nf-config --flibs)
 
 clean:
 	rm -f $(EXEC) $(OBJ) *.mod main_*alg.f90 main_*psy.f90

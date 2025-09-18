@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2023, Science and Technology Facilities Council
+! Modifications copyright (c) 2023-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,56 +33,84 @@
 
 program main
 
-    use global_mesh_base_mod,   only: global_mesh_base_type
+    use global_mesh_mod,        only: global_mesh_type
     use mesh_mod,               only: mesh_type, PLANE
+    use local_mesh_mod,         only: local_mesh_type
+    use mesh_collection_mod,    only: mesh_collection, mesh_collection_type
+    use driver_collections_mod, only: init_collections
     use partition_mod,          only: partition_type, partitioner_planar, partitioner_interface
     use extrusion_mod,          only: uniform_extrusion_type
     use function_space_mod,     only: function_space_type
     use fs_continuity_mod,      only: W0, W3
-    use field_mod,              only: field_type
-    use constants_mod,          only: r_def, i_def
-    use log_mod,                only: LOG_LEVEL_ALWAYS
+    use field_mod,              only: field_proxy_type, field_type
+    use constants_mod,          only: r_def, i_def, str_def
+    use log_mod,                only: initialise_logging, LOG_LEVEL_ALWAYS
     use summation_w0_to_w0_kernel_mod, only: summation_w0_to_w0_kernel_type
 
     implicit none
 
-    type(global_mesh_base_type), target        :: global_mesh
-    class(global_mesh_base_type), pointer      :: global_mesh_ptr
+    type(global_mesh_type), target             :: global_mesh
+    class(global_mesh_type), pointer           :: global_mesh_ptr
     type(partition_type)                       :: partition
     type(mesh_type), target                    :: mesh
+    type(local_mesh_type), target              :: local_mesh
+    type(local_mesh_type), pointer             :: local_mesh_ptr
     type(uniform_extrusion_type), target       :: extrusion
     type(uniform_extrusion_type), pointer      :: extrusion_ptr
     type(function_space_type), target          :: vector_space_0, vector_space_3
     type(function_space_type), pointer         :: vector_space_ptr_0, vector_space_ptr_3
     procedure (partitioner_interface), pointer :: partitioner_ptr
     type(field_type)                           :: field_0, field_3
+    type(field_proxy_type)                     :: field_0_proxy
     integer(kind=i_def)                        :: element_order_h = 0
     integer(kind=i_def)                        :: element_order_v = 0
-    integer(kind=i_def)                        :: ndata_sz
+    integer(kind=i_def)                        :: ndata_sz, mesh_id
+    character(str_def)                         :: name="test123"
+
+    call init_collections()
+    ! Enable logging
+    call initialise_logging(0,                        & ! communicator - ignored
+                            "log",                    & ! filename
+                            trace_on_warnings=.true., &
+                            log_to_rank_zero_only=.false.)
 
     ! Use the unit-testing constructor:
-    global_mesh = global_mesh_base_type()
+    global_mesh = global_mesh_type()
     global_mesh_ptr => global_mesh
 
     partitioner_ptr => partitioner_planar
     partition = partition_type(global_mesh_ptr, &
                                partitioner_ptr, &
-                               1, 1,  &    ! # procs in x and y direction
-                               0,     &    ! max stencil size
-                               0,     &    ! local rank
-                               1)          ! number of processes
+                               1, 1,    &    ! # procs in x and y direction
+                               1,       &    ! max stencil size
+                               .false., &    ! generate_inner_halos
+                               0,       &    ! local rank
+                               1)            ! number of processes
+    call local_mesh%initialise( global_mesh_ptr, partition )
+    call local_mesh%init_cell_owner()
+    local_mesh_ptr => local_mesh
 
     ! Creating a vertical mesh of height 100 m with 5 layers
     ! It is important to use 0.0_r_def, otherwise:
     ! Error: Component ‘atmosphere_bottom’ at (1) is a PRIVATE component of ‘extrusion_type’
     ! Because it tries to use the Fortran default constructor to assign individual components
-    extrusion = uniform_extrusion_type(0.0_r_def, 100.0_r_def, 5)
+    extrusion = uniform_extrusion_type(0.0_r_def, 100.0_r_def, 5, 1)
     extrusion_ptr => extrusion
-    mesh = mesh_type(global_mesh_ptr, partition, extrusion_ptr)
+    mesh = mesh_type(local_mesh_ptr, extrusion, mesh_name=name)
+    mesh_id = mesh_collection%add_new_mesh(mesh)
+
     write (*,*) "Mesh has", mesh%get_nlayers(), "layers."
     ndata_sz = 1
-    vector_space_0 = function_space_type( mesh, element_order_h, element_order_v, W0, ndata_sz)
-    vector_space_3 = function_space_type( mesh, element_order_h, element_order_v, W3, ndata_sz)
+    vector_space_0 = function_space_type(mesh%get_id(),    &
+                                         element_order_h,  &
+                                         element_order_v,  &
+                                         W0,               &
+                                         ndata_sz)
+    vector_space_3 = function_space_type(mesh%get_id(),    &
+                                         element_order_h,  &
+                                         element_order_v,  &
+                                         W3,               &
+                                         ndata_sz)
 
     vector_space_ptr_0 => vector_space_0
     vector_space_ptr_3 => vector_space_3
@@ -93,6 +121,9 @@ program main
                  setval_c( field_0,     1.0_r_def )  &
                  )
     call invoke( name = 'summation', summation_w0_to_w0_kernel_type(field_3, field_0) )
-    call field_3%log_minmax(LOG_LEVEL_ALWAYS, "minmax of field_3")
+
+    field_0_proxy = field_0%get_proxy()
+
+    print *,"minmax of field1", field_0_proxy % get_min(), field_0_proxy % get_max()!
 
 end program main

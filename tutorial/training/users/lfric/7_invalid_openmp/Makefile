@@ -45,13 +45,13 @@ F90FLAGS ?= -Wall -g -fcheck=bound -fopenmp
 OBJ = main_alg_psy.o main_alg.o summation_w0_to_w0_kernel_mod.o
 
 EXEC = example
-# Path of the included simplified LFRic infrastructure files:
-LFRIC_PATH = ../../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+# Path of the included LFRic infrastructure files:
+LFRIC_PATH=$(ROOT_DIR)/external/lfric_infrastructure/src
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This sets up LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 # Various targets
@@ -70,7 +70,8 @@ run: compile
 	OMP_NUM_THREADS=$${OMP_NUM_THREADS:-3} ./example
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) \
+		$$(nf-config --flibs)
 
 # Only required in case the optional colouring transformation is used
 clean:
@@ -90,7 +91,7 @@ main_alg_psy.f90: main_alg.x90 omp_transformation.py
 # For PSyclone CI:
 test:
 	$(MAKE) transform 2>&1 | grep " The kernel has an argument with INC "\
-	"access. Colouring is required." >/dev/null
+	"access but the loop is of type ''. Colouring is required." >/dev/null
 
 # External libraries - LFRic infrastructure
 # -----------------------------------------

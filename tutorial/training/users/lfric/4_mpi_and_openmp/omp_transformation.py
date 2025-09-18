@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council
+# Copyright (c) 2023-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,20 +31,20 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-## Author: J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
 
 '''This script applies OpenMP parallelisation to each loop.
 '''
 
 from psyclone.psyir.nodes import Loop
-from psyclone.transformations import DynamoOMPParallelLoopTrans
+from psyclone.transformations import LFRicOMPParallelLoopTrans
 
 
 def trans(psy):
     '''PSyclone transformation script for the dynamo0p3 api to apply
     OpenMP parallel to all loops.'''
 
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
