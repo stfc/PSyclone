@@ -37,14 +37,14 @@
 '''
 
 from psyclone.psyir.nodes import Loop
-from psyclone.transformations import DynamoOMPParallelLoopTrans
+from psyclone.transformations import LFRicOMPParallelLoopTrans
 
 
 def trans(psy):
     '''PSyclone transformation script for the dynamo0p3 api to apply
     OpenMP parallel to all loops.'''
 
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:

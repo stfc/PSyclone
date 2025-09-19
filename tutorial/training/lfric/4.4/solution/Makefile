@@ -62,7 +62,7 @@ run: compile
 	OMP_NUM_THREADS=$${OMP_NUM_THREADS:-3} ./example
 
 $(EXE): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXE) $(LDFLAGS)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXE) $(LDFLAGS)  $$(nf-config --flibs)
 
 # Only required in case the optional colouring transformation is used
 clean:
@@ -83,7 +83,7 @@ main_alg_psy.f90: main_alg.x90 $(TRANS)
 # For PSyclone CI:
 test:
 	$(MAKE) transform 2>&1 | grep " The kernel has an argument with INC "\
-	"access. Colouring is required." >/dev/null
+	"access but the loop is of type ''. Colouring is required." >/dev/null
 	$(MAKE) clean
 	$(MAKE) TRANS=./omp_colour_transformation.py transform
 

@@ -38,17 +38,17 @@
 
 from psyclone.psyir.nodes import Loop
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.transformations import (DynamoOMPParallelLoopTrans,
-                                      Dynamo0p3ColourTrans)
+from psyclone.transformations import (LFRicOMPParallelLoopTrans,
+                                      LFRicColourTrans)
 
 
 def trans(psy):
     '''PSyclone transformation script for the dynamo0p3 api to apply
     OpenMP parallel to all loops.'''
 
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     const = LFRicConstants()
-    colour_trans = Dynamo0p3ColourTrans()
+    colour_trans = LFRicColourTrans()
 
     # Loop over all of the Invokes in the PSy object to see if
     # colouring needs to be applied:

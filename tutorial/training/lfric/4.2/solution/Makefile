@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@ run: compile
 	./example
 
 $(EXE): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXE) $(LFRIC_LIB)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXE) $(LFRIC_LIB) $$(nf-config --flibs)
 
 clean:
 	rm -f $(EXE) $(OBJ) *.mod main_*alg.f90 main_*psy.f90

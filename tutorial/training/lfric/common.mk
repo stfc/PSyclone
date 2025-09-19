@@ -12,11 +12,11 @@ this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 # PSyclone directory is up two from this file
 ROOT_DIR := $(abspath $(dir $(this_file))../../..)
 
-LFRIC_PATH = $(ROOT_DIR)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH = $(ROOT_DIR)/external/lfric_infrastructure/src
 LFRIC_LIB ?= $(LFRIC_PATH)/liblfric.a
 
 # This sets up LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 LIBS +=  $(LFRIC_LIB)
