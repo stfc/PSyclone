@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
 '''A simple test program that shows the usage of the
-VariableAccessInformation class in PSyclone.
+variable access information tools in PSyclone.
 '''
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.core import VariablesAccessInfo
 
-code = """
+CODE = """
 subroutine foo(a, b)
 real, intent(inout) :: a
 real, intent(inout) :: b
@@ -27,12 +26,13 @@ reader = FortranReader()
 writer = FortranWriter()
 
 # Use the reader to convert source code to PSyIR
-psyir = reader.psyir_from_source(code)
+psyir = reader.psyir_from_source(CODE)
 
 # Get and print variable access info:
 # -----------------------------------
-# Use VariablesAccessInfo to get all info of the psyir
-var_info = VariablesAccessInfo(psyir)
+# Use the `reference_accesses` method to get all info of the psyir
+var_info = psyir.reference_accesses()
+
 print("Variable Access Info - Summary:")
 print(var_info)
 print("===============================")
@@ -40,7 +40,6 @@ for signature in var_info:
     print()
     print(signature, ":", var_info[signature])
     print("----------------------------")
-    for access in var_info[signature].all_accesses:
-        print(f"Type: {access.access_type} - location {access.location} - "
-              f"node {access.node}")
+    for access in var_info[signature]:
+        print(f"Type: {access.access_type} - node {access.node}")
 print("===============================")

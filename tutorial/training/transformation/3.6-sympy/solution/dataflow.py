@@ -43,29 +43,10 @@ in many cases. To use it:
 dot -Tjpeg out >out.jpg
 '''
 
-from psyclone.core.access_type import AccessType
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.core import VariablesAccessInfo
-from psyclone.psyir.nodes import Statement
-
-
-def find_previous_write(var_info, location, read_var):
-    '''Find the statement that previously writes
-    to variable 'read_var' in the list of all accesses in var_info before
-    the specified location.
-    '''
-    all_write_accesses = AccessType.all_write_accesses()
-    all_accesses = var_info[read_var].all_accesses
-    i = len(all_accesses) - 1
-    while i >= 0:
-        if not all_accesses[i].access_type in (all_write_accesses):
-            i -= 1
-            continue
-        if all_accesses[i].location < location:
-            return all_accesses[i].node.ancestor(Statement)
-        i -= 1
-    return None
+from psyclone.psyir.nodes import Reference, Statement
+from psyclone.psyir.tools. definition_use_chains import DefinitionUseChain
 
 
 code = """
@@ -93,7 +74,8 @@ end subroutine bar
 # Create the PSyIR, and get the variable access information:
 reader = FortranReader()
 psyir = reader.psyir_from_source(code)
-varinfo = VariablesAccessInfo(psyir.children[0])
+routine = psyir.find_routine_psyir("foo")
+varinfo = psyir.children[0].reference_accesses()
 
 # Create a writer to be able to include code in the graph
 writer = FortranWriter()
@@ -105,8 +87,9 @@ for var in varinfo:
     accesses = varinfo[var]
     for written in accesses.all_write_accesses:
         statement = written.node.ancestor(Statement)
+
         # Now get all variables used in this statement:
-        all_accessed = VariablesAccessInfo(statement)
+        all_accessed = statement.reference_accesses()
         for read_var in all_accessed:
             # Ignore the variable with the write access we
             # are currently looking at:
@@ -115,19 +98,40 @@ for var in varinfo:
             # If we have a write access to a variable, but it's not
             # the variable we are currently analysing, ignore it
             # (happens if we call a subroutine with several variables written)
-            if all_accessed.is_written(read_var) and \
-                    read_var != var:
+            if all_accessed.is_written(read_var) and read_var != var:
                 continue
             # Now we have a variable that is read in the current
             # statement. Find if and where it was previously
             # written:
-            prev = find_previous_write(varinfo, written.location, read_var)
-            if prev is None:
-                # No previous write found, just use the name of the var as node
-                print(f'{read_var} -> "{writer(statement).strip()}" '
-                      f'[label="{read_var}"]')
+            node = all_accessed[read_var][0].node
+            # TODO: #3143 atm requires to provide a stop_point,
+            # otherwise the call itself is returned.
+            if not isinstance(node, Statement):
+                stop_position = node.ancestor(Statement).abs_position
             else:
+                stop_position = node.abs_position
+            chain = DefinitionUseChain(node, stop_point=stop_position)
+            all_prev = chain.find_backward_accesses()
+
+            # Keep track if a write was found (if not, we will add the
+            # variable as a node by itself)
+            prev_write_found = False
+            for prev in all_prev:
+                # DUC will return all accesses, including reads. We are
+                # looking for previous write statements only, so ignore
+                # the read accesses:
+                if isinstance(prev, Reference) and not prev.is_write:
+                    continue
+                prev_write_found = True
+                if not isinstance(prev, Statement):
+                    prev = prev.ancestor(Statement)
                 print(f'"{writer(prev).strip()}" -> '
                       f'"{writer(statement).strip()}" [label="{read_var}"]')
+
+            if not prev_write_found:
+                # If no previous write access was found, add the variable
+                # itself as a node
+                print(f'{read_var} -> "{writer(statement).strip()}" '
+                      f'[label="{read_var}"]')
 
 print("}")

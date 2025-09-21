@@ -18,28 +18,29 @@ for the whole PSyIR. It already contains code to print out the accesses for
 all variables. Example output:
 
 	Variable Access Info - Summary:
-	a: READ, b: READWRITE, c: READWRITE, d: READ+WRITE, e: READ+WRITE, f: WRITE
+	a: READ, b: WRITE+READWRITE+READ, bar: CALL, c: WRITE+READ+READWRITE, d: WRITE+READ, e: WRITE+READ, f: WRITE
 	===============================
 
-	a : a:READ(0),READ(1),READ(4)
+	a : a:[READ,READ,READ]
 	----------------------------
-	Type: READ - location 0 - node Reference[name:'a']
-	Type: READ - location 1 - node Reference[name:'a']
-	Type: READ - location 4 - node Reference[name:'a']
+	Type: READ - node Reference[name:'a']
+	Type: READ - node Reference[name:'a']
+	Type: READ - node Reference[name:'a']
 
-	c : c:WRITE(0),READ(3),WRITE(4),READ(5),READWRITE(6),READ(7)
+	...
+
+	c : c:[WRITE,READ,WRITE,READ,READWRITE,READ]
 	----------------------------
-	Type: WRITE - location 0 - node Reference[name:'c']
-	Type: READ - location 3 - node Reference[name:'c']
-	Type: WRITE - location 4 - node Reference[name:'c']
-	Type: READ - location 5 - node Reference[name:'c']
-	Type: READWRITE - location 6 - node Reference[name:'c']
-	Type: READ - location 7 - node Reference[name:'c']
+	Type: WRITE - node Reference[name:'c']
+	Type: READ - node Reference[name:'c']
+	Type: WRITE - node Reference[name:'c']
+	Type: READ - node Reference[name:'c']
+	Type: READWRITE - node Reference[name:'c']
+	Type: READ - node Reference[name:'c']
 
-The location is based on locally numbering the statements. So location 0 is the first
-executable statement (`c = a + 1.0`) etc. The node, which is stored for each access,
+The node, which is stored for each access,
 is typically a ``Reference``. You can use the ``ancestor`` method to find the
-expressions where the variable is actually used in.
+statement where the variable is actually used in.
 
 You will find all variable accesses in this list. In the case of a call, the
 variables are marked as read and write, since PSyclone does not have any
@@ -47,7 +48,9 @@ information about the subroutine (without doing additional work).
 
 The solution directory contains a program ``dataflow.py``, which uses this
 information to create graphviz code to show a dataflow diagram. It is
-a small wrapper around the VariableAccessInformation class.
+a small wrapper around the `VariableAccessInformation` class, and uses
+PSyclone's `DefinitionUseChain` to find all previous write accesses to
+a `Reference`.
 
 Given the example code:
 
