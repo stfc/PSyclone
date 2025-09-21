@@ -15,7 +15,6 @@ contains
     !> @param[in]  current The current state.
     !> @param[in]  neighbours The number of live neighbours for each cell.
     subroutine compute_born(born, current, neighbours)
-        USE grid_mod, only             : grid_type
         USE field_mod, only            : r2d_field
 
         implicit none
