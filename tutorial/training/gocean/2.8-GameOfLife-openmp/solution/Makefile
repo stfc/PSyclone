@@ -8,6 +8,15 @@ include ../../common.mk
 $(EXE): $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
 
+TS=time_step_alg_mod
+test:
+	$(MAKE) test-default
+	#$(MAKE) --no-print-directory  run | tail -n 12 | diff -b - $(GOL_DIR)/glider.correct
+	$(PSYCLONE) -s ./fuse_loops.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
+	$(PSYCLONE) -s ./fuse_loops_last.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 time_step_alg_mod.x90
+	$(PSYCLONE) -s ./openmp_combined.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 time_step_alg_mod.x90
+	$(PSYCLONE) -s ./task.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 time_step_alg_mod.x90
+
 # Dependencies:
 # -------------
 # Ensure that PSyclone has finished (which will also create the psy file)
