@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council
+# Copyright (c) 2024-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 
+'''
+This example inlines all kernels, fuses loops together, applies OpenMP
+parallelisiation, and then tiles the fused loops.
+'''
 
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.transformations import MoveTrans, TransformationError
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 from psyclone.psyir.transformations import (InlineTrans, LoopFuseTrans,
@@ -50,12 +55,17 @@ def trans(psyir):
 
     '''
 
-    # First inline all kernels:
+    # First inline all kernels. We first need to 'module inline' each
+    # subroutine, i.e. copy the subroutine into the current module using
+    # the KernelModuleInlineTrans. Once this is done, we can use the
+    # inlining transformation:
+    kmit = KernelModuleInlineTrans()
     inline = InlineTrans()
+
     for call in psyir.walk(Call):
         if call.routine.name != #TODO: not for output_field
             print("Inlining", call.routine)
-            TODO appy inlining
+            TODO appy inlining, first kmit, then inline
 
     # Study the output code - and find a way to add openmp - ideally
     # by using `openmp parallel` only once around all loops.

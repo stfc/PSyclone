@@ -34,13 +34,16 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''
+This example inlines all kernels, fuses loops together, applies OpenMP
+parallelisiation, and then tiles the fused loops.
 '''
 
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.transformations import MoveTrans, TransformationError
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 from psyclone.psyir.transformations import (InlineTrans, LoopFuseTrans,
                                             LoopTiling2DTrans)
-from psyclone.psyir.nodes import Assignment, Call, Loop, Reference
+from psyclone.psyir.nodes import Assignment, Call, Loop, Reference, Routine
 
 
 def trans(psyir):
@@ -52,22 +55,41 @@ def trans(psyir):
 
     '''
 
-    # First inline all kernels:
+    # First inline all kernels. We first need to 'module inline' each
+    # subroutine, i.e. copy the subroutine into the current module using
+    # the KernelModuleInlineTrans. Once this is done, we can use the
+    # inlining transformation:
+    kmit = KernelModuleInlineTrans()
     inline = InlineTrans()
     for call in psyir.walk(Call):
         if call.routine.name != "output_field":
-            print("Inlining", call.routine)
+            kmit.apply(call)
             inline.apply(call)
 
-    # Collect all outer (latitude) loops. Outer loops have a
-    # loop as loop body:
+    # Collect all outer (latitude) loops. We only collect the loops
+    # in the `time_step` subroutine (due to kernel module inlining above
+    # the other subroutines would otherwise be found as well, but we
+    # do not want to modify them). Outer loops have a loop as loop body:
     lat_loops = []
-    for loop in psyir.walk(Loop):
+    time_step_routine = None
+    for subroutine in psyir.walk(Routine):
+        if subroutine.name == "time_step":
+            time_step_routine = subroutine
+            break
+    else:
+        raise RuntimeError("Cannot find subroutine 'time_step'.")
+
+    for loop in time_step_routine.walk(Loop):
         # We can't rely on variable names/loop types, since inlining will
         # create new, unique variable names. So identify outer loops by
         # checking if the body of the loop is a Loop:
         if isinstance(loop.loop_body.children[0], Loop):
             lat_loops.append(loop)
+
+    if len(lat_loops) == 0:
+        # Inlining didn't work? To support testing without inlining,
+        # just return here:
+        return
 
     parent = lat_loops[0].parent
     # Keep track of all assignments (see below)

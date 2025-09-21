@@ -22,8 +22,10 @@ be finished in the typical time of a single hands-on session.
 
 ## Use the inlining transformation to bring all the loops together
 
-All subroutines calls except output_field need to be inlined. You
-can use the ``walk`` method to find all ``Call``s, and the name
+All subroutines calls except output_field need to be inlined. Full
+inlining requires that the subroutine is first 'module inlined' using
+`KernelModuleInlineTrans`.
+You can use the ``walk`` method to find all ``Call``s, and the name
 of a routine can be accessed using ``call.routine.name``
 
 Make sure to study the code created after inlining:

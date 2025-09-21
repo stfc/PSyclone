@@ -2,6 +2,11 @@ module time_step_mod
 
     private
     public time_step
+    ! TODO #3144: if this `use` statement is moved into the subroutine
+    ! (where field_mod is etc), after inlining the `grid_type` is removed
+    ! from the use statement. For now work around thus by importing the
+    ! symbol in the module level
+    USE grid_mod, only : grid_type
 
 contains
 
@@ -11,7 +16,6 @@ contains
         use combine_mod, only          : combine
         use count_neighbours_mod, only : count_neighbours
         use output_field_mod, only     : output_field
-        USE grid_mod, only             : grid_type
         USE field_mod, only            : r2d_field, go_t_points
 
         implicit none
