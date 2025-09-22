@@ -265,8 +265,9 @@ class Call(Statement, DataNode):
                 f"'Call' node should be a string, but found "
                 f"{type(existing_name).__name__}.")
         index = 0
+        lname = existing_name.lower()
         for _, name in self._argument_names:
-            if name is not None and name.lower() == existing_name:
+            if name is not None and name.lower() == lname:
                 break
             index += 1
         else:
