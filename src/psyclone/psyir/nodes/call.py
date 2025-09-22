@@ -309,17 +309,6 @@ class Call(Statement, DataNode):
         '''
         var_accesses = VariablesAccessMap()
 
-        # TODO #3060: Specialise reference_access with a better
-        # implementation for IntrinsicCalls
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
-        if isinstance(self, IntrinsicCall) and self.is_pure:
-            # All the arguments of pure intrinsics are read-only
-            default_access = AccessType.READ
-        else:
-            # We conservatively default to READWRITE otherwise (TODO #446).
-            default_access = AccessType.READWRITE
-
         # The RoutineSymbol has a CALL access.
         sig, indices_list = self.routine.get_signature_and_indices()
         var_accesses.add_access(sig, AccessType.CALL, self.routine)
@@ -336,6 +325,7 @@ class Call(Statement, DataNode):
             for idx in indices:
                 var_accesses.update(idx.reference_accesses())
 
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols import ArgumentInterface
         for idx, arg in enumerate(self.arguments):
             if isinstance(arg, Reference):
@@ -349,7 +339,7 @@ class Call(Statement, DataNode):
                     else:
                         access_type = AccessType.READWRITE
                 else:
-                    access_type = default_access
+                    access_type = AccessType.READWRITE
                 var_accesses.add_access(sig, access_type, arg)
 
                 # Continue processing references in any index expressions.
