@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,13 +39,14 @@ to the code.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.transformations import (OMPParallelTrans, OMPLoopTrans,
-                                      TransformationError)
 from psyclone.domain.lfric import LFRicKern, LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.psyGen import InvokeSchedule
+from psyclone.transformations import (OMPParallelTrans, OMPLoopTrans,
+                                      TransformationError)
 
 
-def trans(psy):
+def trans(psyir):
     '''
     Take the supplied psy object, and fuse the first two loops
 
@@ -60,14 +61,13 @@ def trans(psy):
     omp_loop = OMPLoopTrans()
     inline = KernelModuleInlineTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
+    for invoke in psyir.walk(InvokeSchedule):
 
         # Module inline all kernels to help with inlining.
-        for kern in schedule.walk(LFRicKern):
+        for kern in invoke.walk(LFRicKern):
             inline.apply(kern)
 
-        all_loops = list(schedule.walk(LFRicLoop))
+        all_loops = list(invoke.walk(LFRicLoop))
         # We can't fuse the two builtins, and PSyclone will raise
         # an exception if you try. There is an option you can use
         # to overwrite PSyclone's warning, but it would create
@@ -91,4 +91,4 @@ def trans(psy):
         for loop in all_loops:
             omp_loop.apply(loop)
 
-        print(schedule.view())
+        print(invoke.view())

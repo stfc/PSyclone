@@ -52,9 +52,8 @@ include ../../common.mk
 # ---------------
 .PHONY: transform compile run clean allclean test
 
-# Default target: run PSyclone (even if the output file should already exist)
+# Default target: run PSyclone
 transform: main_alg_psy.f90
-	$(PSYCLONE) -s ./openmp.py -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 # This rule invokes the same PSyclone command, but it won't get run if
 # the output file already exist, which is useful for compilation to avoid

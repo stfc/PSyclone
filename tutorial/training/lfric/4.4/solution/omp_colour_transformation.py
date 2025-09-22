@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council
+# Copyright (c) 2023-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,18 +31,19 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-## Author: J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
 
 '''This script applies OpenMP parallelisation to each loop.
 '''
 
-from psyclone.psyir.nodes import Loop
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import Loop
 from psyclone.transformations import (LFRicOMPParallelLoopTrans,
                                       LFRicColourTrans)
 
 
-def trans(psy):
+def trans(psyir):
     '''PSyclone transformation script for the dynamo0p3 api to apply
     OpenMP parallel to all loops.'''
 
@@ -52,9 +53,8 @@ def trans(psy):
 
     # Loop over all of the Invokes in the PSy object to see if
     # colouring needs to be applied:
-    for invoke in psy.invokes.invoke_list:
-        print(f"Transforming invoke '{invoke.name}':")
-        schedule = invoke.schedule
+    for schedule in psyir.walk(InvokeSchedule):
+        print(f"Transforming invoke '{schedule.name}':")
         for loop in schedule.walk(Loop):
             if loop.field_space.orig_name \
                     not in const.VALID_DISCONTINUOUS_NAMES \
