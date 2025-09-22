@@ -41,7 +41,7 @@ import pytest
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import Kern, PSyFactory
-from psyclone.psyir.nodes import Call, CodeBlock, Loop
+from psyclone.psyir.nodes import CodeBlock, Loop
 from psyclone.psyir.transformations import InlineTrans, TransformationError
 from psyclone.transformations import OMPParallelTrans, \
     OMPSingleTrans
