@@ -162,7 +162,7 @@ The explanation can be found [here](#explanation-for-missing-parameter).
 ## Invalid OpenMP Transformation (`7_invalid_openmp`)
 Please ignore this for now.
 
-<!-- IGNORE THIS FOR NOT
+<!-- IGNORE THIS FOR NOW
 ## Invalid OpenMP Transformation (`7_invalid_openmp`)
 This example has a slightly different kernel: this kernel adds a field on the W0
 space (vertices) to another field on the W0 space, i.e. it is adding the blue dots
@@ -183,7 +183,8 @@ then allows PSyclone to apply OpenMP parallelisation. PSyclone will always
 internally verify if it is safe to apply a certain transformation, to make
 sure it does not create incorrect code.
 
-The explanation can be found [here](#explanation-for-invalid-transformation).
+The explanation can be found [here]
+TODO: CHANGE THIS TO A PROPER LINK( # explanation-for-invalid-transformation).
 
 Optional: A more advanced usage of a transformation script. This section can be skipped.
 There is a second transformation available in this directory called
