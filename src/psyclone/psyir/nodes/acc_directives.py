@@ -53,20 +53,17 @@ from psyclone.psyir.nodes.acc_clauses import (
     ACCAsyncQueueClause, ACCCopyClause, ACCCopyInClause,
     ACCCopyOutClause)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
-from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.atomic_mixin import AtomicDirectiveMixin
 from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.directive import (StandaloneDirective,
                                             RegionDirective)
-from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.operation import BinaryOperation
-from psyclone.psyir.symbols import ScalarType
 
 
 class ACCDirective(metaclass=abc.ABCMeta):
@@ -1068,7 +1065,7 @@ class ACCWaitDirective(ACCStandaloneDirective):
         return result
 
 
-class ACCAtomicDirective(ACCRegionDirective):
+class ACCAtomicDirective(ACCRegionDirective, AtomicDirectiveMixin):
     '''
     OpenACC directive to represent that the memory accesses in the associated
     assignment must be performed atomically.
@@ -1089,50 +1086,6 @@ class ACCAtomicDirective(ACCRegionDirective):
 
         '''
         return "acc end atomic"
-
-    @staticmethod
-    def is_valid_atomic_statement(stmt: Node) -> bool:
-        ''' Check if a given statement is a valid OpenACC atomic expression.
-
-        :param stmt: a node to be validated.
-
-        :returns: whether a given statement is compliant with the OpenACC
-            atomic expression.
-
-        '''
-        if not isinstance(stmt, Assignment):
-            return False
-
-        # Not all rules are checked, just that:
-        # - operands are of a scalar intrinsic type
-        if not isinstance(stmt.lhs.datatype, ScalarType):
-            return False
-
-        # - the top-level operator is one of: +, *, -, /, AND, OR, EQV, NEQV
-        if isinstance(stmt.rhs, BinaryOperation):
-            if stmt.rhs.operator not in (BinaryOperation.Operator.ADD,
-                                         BinaryOperation.Operator.SUB,
-                                         BinaryOperation.Operator.MUL,
-                                         BinaryOperation.Operator.DIV,
-                                         BinaryOperation.Operator.AND,
-                                         BinaryOperation.Operator.OR,
-                                         BinaryOperation.Operator.EQV,
-                                         BinaryOperation.Operator.NEQV):
-                return False
-        # - or intrinsics: MAX, MIN, IAND, IOR, or IEOR
-        if isinstance(stmt.rhs, IntrinsicCall):
-            if stmt.rhs.intrinsic not in (IntrinsicCall.Intrinsic.MAX,
-                                          IntrinsicCall.Intrinsic.MIN,
-                                          IntrinsicCall.Intrinsic.IAND,
-                                          IntrinsicCall.Intrinsic.IOR,
-                                          IntrinsicCall.Intrinsic.IEOR):
-                return False
-
-        # - one of the operands should be the same as the lhs
-        if stmt.lhs not in stmt.rhs.children:
-            return False
-
-        return True
 
     def validate_global_constraints(self):
         ''' Perform validation of those global constraints that can only be
