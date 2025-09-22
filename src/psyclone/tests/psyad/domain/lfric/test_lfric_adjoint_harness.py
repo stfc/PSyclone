@@ -458,7 +458,7 @@ def test_lfric_create_real_comparison(fortran_writer):
         "  ! Test the inner-product values for equality, allowing for the "
         "precision of the active variables\n"
         "  MachineTol = SPACING(MAX(ABS(var1), ABS(var2)))\n"
-        "  relative_diff = ABS(var1 - var2) / MachineTol\n"
+        "  relative_diff = ABS(a=var1 - var2) / MachineTol\n"
         "  if (relative_diff < overall_tolerance) then\n"
         "    ! PSyclone CodeBlock (unsupported code) reason:\n"
         "    !  - Unsupported statement: Write_Stmt\n"
@@ -500,7 +500,7 @@ def test_lfric_log_write(fortran_writer):
         "  ! Test the inner-product values for equality, allowing for the "
         "precision of the active variables\n"
         "  MachineTol = SPACING(MAX(ABS(var1), ABS(var2)))\n"
-        "  relative_diff = ABS(var1 - var2) / MachineTol\n"
+        "  relative_diff = ABS(a=var1 - var2) / MachineTol\n"
         "  if (relative_diff < overall_tolerance) then\n"
         "    ! PSyclone CodeBlock (unsupported code) reason:\n"
         "    !  - Unsupported statement: Write_Stmt\n"
@@ -594,7 +594,7 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
     assert ("call field_input%initialise(vector_space=vector_space_w3_ptr,"
             " name='field_input')" in gen)
     # So too must the scalar argument.
-    assert ("    call random_number(ascalar)\n"
+    assert ("    call random_number(harvest=ascalar)\n"
             "    ascalar_input = ascalar\n" in gen)
 
     # The field must be given random values and those copied into the copy.

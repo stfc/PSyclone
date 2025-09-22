@@ -260,9 +260,9 @@ def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
     call initialise_device_buffer(u_fld)
 
     ! do a set_args now so subsequent writes place the data appropriately
-    cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
-    p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
-    u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)
+    cu_fld_cl_mem = transfer(source=cu_fld%device_ptr, mold=cu_fld_cl_mem)
+    p_fld_cl_mem = transfer(source=p_fld%device_ptr, mold=p_fld_cl_mem)
+    u_fld_cl_mem = transfer(source=u_fld%device_ptr, mold=u_fld_cl_mem)
     call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
 p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
 
@@ -384,17 +384,18 @@ c_sizeof(field%grid%area_t(1,1))'''
       call initialise_grid_device_buffers(in_fld)
 
       ! do a set_args now so subsequent writes place the data appropriately
-      out_fld_cl_mem = transfer(out_fld%device_ptr, out_fld_cl_mem)
-      in_out_fld_cl_mem = transfer(in_out_fld%device_ptr, in_out_fld_cl_mem)
-      in_fld_cl_mem = transfer(in_fld%device_ptr, in_fld_cl_mem)
-      dx_cl_mem = transfer(dx%device_ptr, dx_cl_mem)
-      gphiu_cl_mem = transfer(in_fld%grid%gphiu_device, gphiu_cl_mem)
+      out_fld_cl_mem = transfer(source=out_fld%device_ptr, mold=out_fld_cl_mem)
+      in_out_fld_cl_mem = transfer(source=in_out_fld%device_ptr, mold=in_out_fld_cl_mem)
+      in_fld_cl_mem = transfer(source=in_fld%device_ptr, mold=in_fld_cl_mem)
+      dx_cl_mem = transfer(source=dx%device_ptr, mold=dx_cl_mem)
+      gphiu_cl_mem = transfer(source=in_fld%grid%gphiu_device, mold=gphiu_cl_mem)
       call compute_kernel_code_set_args(kernel_compute_kernel_code, \
 out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, \
 in_fld%grid%dx, gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
 ystop - 1)
 
       ! write data to the device'''
+    print(generated_code)
     assert expected in generated_code
 
     # The write_to_device() can appear in any order in the following 5 lines
@@ -707,7 +708,7 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
         # Check that the globalsize first dimension is a multiple of
         # the localsize first dimension
         expected += '''
-    if (MOD(p_fld%grid%nx, 64) /= 0) then
+    if (MOD(a=p_fld%grid%nx, p=64) /= 0) then
       call check_status('Global size is not a multiple of local size \
 (mandatory in OpenCL < 2.0).', -1)
     end if'''
@@ -721,9 +722,9 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
 
     # Cast dl_esm_inf pointers to cl_mem handlers
     expected += '''
-    cu_fld_cl_mem = TRANSFER(cu_fld%device_ptr, cu_fld_cl_mem)
-    p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)
-    u_fld_cl_mem = TRANSFER(u_fld%device_ptr, u_fld_cl_mem)'''
+    cu_fld_cl_mem = TRANSFER(source=cu_fld%device_ptr, mold=cu_fld_cl_mem)
+    p_fld_cl_mem = TRANSFER(source=p_fld%device_ptr, mold=p_fld_cl_mem)
+    u_fld_cl_mem = TRANSFER(source=u_fld%device_ptr, mold=u_fld_cl_mem)'''
 
     # Call the set_args subroutine with the boundaries corrected for the
     # OpenCL 0-indexing
@@ -747,7 +748,6 @@ C_NULL_PTR)'''
     call check_status('compute_cu_code clEnqueueNDRangeKernel', ierr)
     ierr = clFinish(cmd_queues(1))
     call check_status('Errors during compute_cu_code', ierr)'''
-
     assert expected in generated_code
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -964,7 +964,7 @@ def test_multiple_command_queues(dist_mem):
 
     kernelbarrier = '''
     ierr = clFinish(cmd_queues(2))
-    p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)'''
+    p_fld_cl_mem = TRANSFER(source=p_fld%device_ptr, mold=p_fld_cl_mem)'''
 
     haloexbarrier = '''
     ierr = clFinish(cmd_queues(2))

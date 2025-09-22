@@ -151,7 +151,7 @@ inputs to the tangent-linear kernel
   ! test the inner-product values for equality, allowing for the precision \
 of the active variables
   machinetol = spacing(max(abs(inner1), abs(inner2)))
-  relative_diff = abs(inner1 - inner2) / machinetol
+  relative_diff = abs(a=inner1 - inner2) / machinetol
   if (relative_diff < overall_tolerance) then
     ! psyclone codeblock (unsupported code) reason:
     !  - unsupported statement: write_stmt
@@ -534,6 +534,8 @@ def test_main_otest_option(tmpdir, capsys, extra_args):
     assert output == ""
     with open(harness_out, 'r', encoding='utf-8') as my_file:
         data = my_file.read()
+    print(EXPECTED_HARNESS_CODE)
+    print(data.lower())
     assert EXPECTED_HARNESS_CODE in data.lower()
 
 
