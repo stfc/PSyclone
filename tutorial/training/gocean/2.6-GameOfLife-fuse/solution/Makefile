@@ -10,6 +10,8 @@ $(EXE): $(OBJ)
 
 TS=time_step_alg_mod
 test: test-default
+	$(PSYCLONE) -s ./fuse_loops_last.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
+	$(PSYCLONE) -s ./inline.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
 	$(PSYCLONE) -s ./full_inline_loops.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
 
 # Dependencies:

@@ -44,7 +44,7 @@ from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.psyGen import InvokeSchedule
 
 
-def trans(psy):
+def trans(psyir):
     '''
     Take the supplied psy object, and fuse the first two loops
 

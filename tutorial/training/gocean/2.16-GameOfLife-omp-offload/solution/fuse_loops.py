@@ -41,9 +41,10 @@ all invokes.
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.gocean1p0 import GOKern
+from psyclone.psyGen import InvokeSchedule
 
 
-def trans(psy):
+def trans(psyir):
     '''
     Take the supplied psy object, and fuse the first two loops
 
@@ -57,8 +58,7 @@ def trans(psy):
     fuse = GOceanLoopFuseTrans()
     inline = KernelModuleInlineTrans()
 
-    invoke = psy.invokes.get("invoke_compute")
-    schedule = invoke.schedule
+    schedule = psyir.walk(InvokeSchedule)[0]
 
     # schedule.view()
     # Inline all kernels to help gfortran with inlining.
@@ -84,6 +84,4 @@ def trans(psy):
     fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
     # Then merge in the previous third, now second) loop
     fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
-    invoke.schedule.view()
-
-    return psy
+    schedule.view()
