@@ -68,9 +68,6 @@ def trans(psyir):
 
     # First merge the first two loops
     fuse.apply(schedule[0], schedule[1])
-    # fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
-    #schedule.view()
-    #return
 
     # Then merge the (previous third, now second) loop to the
     # fused loop
@@ -85,6 +82,4 @@ def trans(psyir):
     fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
     # Then merge in the previous third, now second) loop
     fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
-    invoke.schedule.view()
-
-    return psy
+    schedule.view()

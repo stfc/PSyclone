@@ -39,11 +39,11 @@ real inlining of a kernel, and then adds kernel fusion code to
 all invokes.
 '''
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.nodes import (ArrayReference, Assignment, Call,
-                                  Loop, Reference, Routine, Statement)
+from psyclone.psyir.nodes import Call, Loop, Reference, Routine
 from psyclone.psyir.symbols import AutomaticInterface, DataSymbol, REAL8_TYPE
 from psyclone.psyir.transformations import InlineTrans, TransformationError
 
@@ -80,38 +80,44 @@ class GOceanInlineTrans(InlineTrans):
             raise TransformationError(str(err.value)) from err
 
 
+# This list is used to store all used r2d_fields that are local to the
+# algorithm (this ensures we don't replace arrays that might be used
+# elsewhere). The information is collected from the algorithm layer (using
+# `trans_alg`), since on the psy layer this information is not available
+# anymore (since all fields are just arguments there). These symbols will
+# then in the kernel transformation be further analysed to potentially
+# replace arrays with scalars.
 potential_symbols = []
 
-def trans_alg(psyir):
+# While the code here is generic, it will replace the fields `born`
+# and `die` with scalars (`born_scalar` and `die_scalar`)
 
+
+def trans_alg(psyir):
+    '''This function is called on the algorithm layer. It detects all local
+    fields (i.e. not coming from an import or as a argument), so when
+    transforming the PSy layer, we will try to replace them with scalars
+    '''
+
+    # Replace arrays with scalars if possible - after inlining
+    # there is no need to store temporary values back to memory.
     psyir.lower_to_language_level()
     for routine in psyir.walk(Routine):
         symbol_table = routine.symbol_table
         r2d_field = symbol_table.lookup("r2d_field")
-        var_info = VariablesAccessInfo(routine)
+        var_info = routine.reference_accesses()
         for sig in var_info:
             sym = symbol_table.lookup(sig[0])
             if not isinstance(sym.interface, AutomaticInterface):
                 # Ignore any non-local variables, we don't know their scope
                 continue
-            if not sym.datatype == r2d_field:
-                continue
-            if len(var_info[sig].all_accesses) > 1:
-                # More than one access in alg layer, which indicates that this
-                # field cannot be replaced with a scalar
-                continue
-            if len(var_info[sig].all_accesses) == 1:
-                # Just one access, check if it's the constructor
-                node = var_info[sig].all_accesses[0].node
-                statement = node.ancestor(Statement)
-                if not (isinstance(statement, Assignment) and
-                        statement.lhs.symbol == sym and
-                        isinstance(statement.rhs, ArrayReference) and
-                        statement.rhs.name == "r2d_field"):
-                    continue
 
+            if not sym.datatype == r2d_field:
+                # Only replace r2d fields
+                continue
             print("potential replacement", sig)
             potential_symbols.append(sig)
+
 
 def trans(psyir):
     '''
@@ -121,7 +127,6 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
@@ -160,18 +165,23 @@ def trans(psyir):
     # do j do i count born die
     # do j do i combine
 
+    kmit = KernelModuleInlineTrans()
     inline = GOceanInlineTrans()
 
     # Inline all kernels. We need to replace kernel with actual calls
-    # for that to work:
+    # for that to work due to known issues inlining GOcean kernels:
     psyir.lower_to_language_level()
-
     for call in psyir.walk(Call):
+        kmit.apply(call)
         inline.apply(call)
 
-    var_info = VariablesAccessInfo(schedule)
+    # Now try to replace fields (that are locally used in the algorithm
+    # layer) with scalars
+    var_info = schedule.reference_accesses()
 
     for sig in potential_symbols:
+        # On the lowered level, the symbols have now "%data" attached, so
+        # update the signature used here:
         sig_data = Signature(f"{sig}%data")
         accesses = var_info[sig_data]
         if accesses[0].access_type in AccessType.all_write_accesses():
@@ -181,17 +191,16 @@ def trans(psyir):
                 continue
             symbol_table = schedule.symbol_table
             sym = symbol_table.lookup(sig[0])
+            # Now replace all instances of the array with a scalar:
             print("REPLACE", sig, sym.datatype, sym.interface,
                   sym.datatype.datatype)
             new_sym = \
                 symbol_table.find_or_create(f"{sig[0]}_scalar",
                                             symbol_type=DataSymbol,
                                             interface=AutomaticInterface(),
-                                            #datatype = sym.datatype)
-                                            datatype = REAL8_TYPE)
+                                            datatype=REAL8_TYPE)
             for ref in schedule.walk(Reference):
                 ref_sig, _ = ref.get_signature_and_indices()
                 if ref_sig == sig_data:
-                    #print("REF", ref)
                     new_ref = Reference(new_sym)
                     ref.replace_with(new_ref)

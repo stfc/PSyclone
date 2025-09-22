@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# flake8: noqa
 
 '''A very simple Python program that reads and writes a Fortran program
 '''

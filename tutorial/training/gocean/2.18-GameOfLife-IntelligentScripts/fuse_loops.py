@@ -40,9 +40,9 @@ all invokes.
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
-from psyclone.gocean1p0 import GOKern, GOLoop
+from psyclone.gocean1p0 import GOKern, GOLoop   # noqa: F401
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations import TransformationError   # noqa: F401
 
 
 def trans(psyir):
@@ -62,5 +62,5 @@ def trans(psyir):
     for kern in schedule.walk(GOKern):
         inline.apply(kern)
 
-    fuse = GOceanLoopFuseTrans()
+    fuse = GOceanLoopFuseTrans()   # noqa: F841
     # Do something intelligent here :)

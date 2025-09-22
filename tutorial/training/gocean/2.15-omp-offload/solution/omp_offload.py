@@ -42,8 +42,8 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern
 from psyclone.psyir.nodes import Directive, Loop, Routine
 from psyclone.psyir.transformations import TransformationError, OMPTargetTrans
-from psyclone.transformations import OMPDeclareTargetTrans, OMPLoopTrans
-
+from psyclone.transformations import OMPLoopTrans
+from psyclone.psyir.transformations import OMPDeclareTargetTrans
 from fuse_loops import trans as fuse_trans
 
 

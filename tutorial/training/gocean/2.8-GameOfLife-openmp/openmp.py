@@ -39,7 +39,7 @@ to the code.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.gocean1p0 import GOKern, GOLoop
+from psyclone.gocean1p0 import GOKern, GOLoop   # noqa: F401
 from psyclone.transformations import OMPParallelLoopTrans
 from psyclone.psyGen import InvokeSchedule
 
@@ -52,7 +52,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    omp_parallel = OMPParallelLoopTrans()
+    omp_parallel = OMPParallelLoopTrans()   # noqa: F841
     inline = KernelModuleInlineTrans()
 
     # We know that there is only one schedule

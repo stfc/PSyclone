@@ -38,11 +38,12 @@ function via the -s option. It adds optimised OpenMP statements.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.gocean1p0 import GOKern, GOLoop
+from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 
-from fuse_loops import trans as fuse_trans
+# pylint: disable=unused-import
+from fuse_loops import trans as fuse_trans   # noqa: F401
 
 
 def trans(psyir):

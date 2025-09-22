@@ -8,6 +8,10 @@ include ../../common.mk
 $(EXE): $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
 
+TS=time_step_alg_mod
+test: test-default
+	$(PSYCLONE) -s ./full_inline_loops.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
+
 # Dependencies:
 # -------------
 # Ensure that PSyclone has finished (which will also create the psy file)

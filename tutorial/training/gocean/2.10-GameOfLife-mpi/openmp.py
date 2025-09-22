@@ -37,12 +37,9 @@
 function via the -s option. It adds openmp for an MPI implementation.
 '''
 
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import InvokeSchedule
-from psyclone.transformations import (OMPLoopTrans, OMPParallelLoopTrans,
-                                      OMPParallelTrans,
-                                      GOceanOMPParallelLoopTrans)
+from psyclone.transformations import GOceanOMPParallelLoopTrans
 
 from fuse_loops import trans as fuse_trans
 

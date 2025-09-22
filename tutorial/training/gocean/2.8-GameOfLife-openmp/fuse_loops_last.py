@@ -1,3 +1,4 @@
+# flake8: noqa
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -34,13 +35,12 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel fuseion code to
+function via the -s option. It adds kernel fusion code to
 all invokes.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
-from psyclone.gocean1p0 import GOKern
 from psyclone.psyGen import InvokeSchedule
 
 
@@ -66,10 +66,10 @@ def trans(psyir):
     # count_neighbours, compute_born, compute_die, combine kernels
 
     # First merge 2nd and 3rd loops
-    fuse.apply(schedule[1], schedule[2])
+    fuse.apply(...)
     # Then merge the (previous fourth, now third) loop to the
     # fused loop
-    fuse.apply(schedule[1], schedule[2])
+    fuse.apply(...)
     # Now we have:
     # do j count_neighbours
     # do j
@@ -77,6 +77,6 @@ def trans(psyir):
     #   do i
     #   do i
     # Fuse the three inner loops:
-    fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
-    fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
-    invoke.schedule.view()
+    fuse.apply(...)
+    fuse.apply(...)
+    print(schedule.view())

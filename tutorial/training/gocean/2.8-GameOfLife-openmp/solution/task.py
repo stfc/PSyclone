@@ -39,16 +39,12 @@ all invokes.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.gocean1p0 import GOKern, GOLoop
+from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import OMPParallelDirective
-from psyclone.transformations import (OMPLoopTrans, OMPParallelLoopTrans, 
-                                      OMPParallelTrans, OMPTaskloopTrans,
-                                      GOceanOMPParallelLoopTrans,
-                                      OMPSingleTrans)
+from psyclone.psyir.transformations import OMPTaskloopTrans
+from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
 
-
-from fuse_loops import trans as fuse_trans
 
 def trans(psyir):
     '''
@@ -58,9 +54,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    omp_parallel_loop = GOceanOMPParallelLoopTrans()
     omp_parallel = OMPParallelTrans()
-    omp_do = OMPLoopTrans()
     omp_task = OMPTaskloopTrans()
     omp_single = OMPSingleTrans()
     inline = KernelModuleInlineTrans()

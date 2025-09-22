@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# flake8: noqa
 
 '''A simple PSyclone program that shows the usage of SymPy to
 modify Fortran expression. It first simplifies an expression,

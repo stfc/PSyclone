@@ -16,10 +16,14 @@ run: $(EXE)
 # Call the default test (which checks the output file), but do a second test to make
 # sure we get a 2x2 domain decomposition, otherwise the job was not running properly
 # with MPI
+TS=time_step_alg_mod
 test: test-default
-	@bash -c "if [[ $$(make run | grep -c 'go_decompose: using grid of   2x  2') != 1 ]]; then \
+	bash -c "if [[ $$(make run | grep -c 'go_decompose: using grid of   2x  2') != 1 ]]; then \
 		echo 'Job is not running properly with MPI'; \
 	fi"
+
+	$(PSYCLONE) -s ./openmp.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
+	$(PSYCLONE) -s ./openmp_combined.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
 
 
 # Dependencies:

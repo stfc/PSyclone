@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# flake8: noqa
 
 '''A simple test program that shows the usage of the
 variable access information tools in PSyclone.
