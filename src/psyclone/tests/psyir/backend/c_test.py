@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import (
     IntrinsicCall)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol,
-    INTEGER_TYPE, REAL_TYPE, IntrinsicSymbol)
+    INTEGER_TYPE, REAL_TYPE)
 
 
 def test_cw_gen_declaration():

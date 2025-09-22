@@ -385,10 +385,12 @@ c_sizeof(field%grid%area_t(1,1))'''
 
       ! do a set_args now so subsequent writes place the data appropriately
       out_fld_cl_mem = transfer(source=out_fld%device_ptr, mold=out_fld_cl_mem)
-      in_out_fld_cl_mem = transfer(source=in_out_fld%device_ptr, mold=in_out_fld_cl_mem)
+      in_out_fld_cl_mem = transfer(source=in_out_fld%device_ptr, \
+mold=in_out_fld_cl_mem)
       in_fld_cl_mem = transfer(source=in_fld%device_ptr, mold=in_fld_cl_mem)
       dx_cl_mem = transfer(source=dx%device_ptr, mold=dx_cl_mem)
-      gphiu_cl_mem = transfer(source=in_fld%grid%gphiu_device, mold=gphiu_cl_mem)
+      gphiu_cl_mem = transfer(source=in_fld%grid%gphiu_device, \
+mold=gphiu_cl_mem)
       call compute_kernel_code_set_args(kernel_compute_kernel_code, \
 out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, \
 in_fld%grid%dx, gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
