@@ -52,7 +52,7 @@ by the command:
 
   > psyclone -h
     usage: psyclone [-h] [-v] [-c CONFIG] [-s SCRIPT] [-I INCLUDE] [-l {off,all,output}] [-p {invokes,routines,kernels}]
-                    [--backend {enable-validation,disable-validation,disable-indentation}]
+                    [--backend {disable-validation,disable-indentation}]
                     [-o OUTPUT_FILE] [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE] [-okern OUTPUT_KERNEL_PATH] [-d DIRECTORY] [-dm] [-nodm]
                     [--kernel-renaming {multiple,single}] [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}]
                     [--log-file LOG_FILE] [--keep-comments] [--keep-directives]
@@ -80,7 +80,7 @@ by the command:
                            Use 'all' to apply limit to both input and output Fortran. Use
      -p {invokes,routines,kernels}, --profile {invokes,routines,kernels}
                            add profiling hooks for 'kernels', 'invokes' or 'routines'
-     --backend {enable-validation,disable-validation,disable-indentation}
+     --backend {disable-validation,disable-indentation}
                            options to control the PSyIR backend used for code generation.
                            Use 'disable-validation' to disable the validation checks that
                            are performed by default. Use 'disable-indentation' to turn
@@ -252,7 +252,7 @@ described below.
 Validation Checks
 ^^^^^^^^^^^^^^^^^
 
-The option ``{en,dis}able-validation`` turns on/off the
+The option ``disable-validation`` turns off the
 validation checks performed when doing code generation. By default,
 such validation is enabled as it is only at code-generation time that
 certain constraints can be checked (since PSyclone does not mandate

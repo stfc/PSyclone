@@ -481,8 +481,7 @@ def main(arguments):
         help="add profiling hooks for 'kernels', 'invokes' or 'routines'")
     parser.add_argument(
         '--backend', dest='backend', action="append",
-        choices=['enable-validation', 'disable-validation',
-                 'disable-indentation'],
+        choices=['disable-validation', 'disable-indentation'],
         help=("options to control the PSyIR backend used for code generation. "
               "Use 'disable-validation' to disable the validation checks that "
               "are performed by default. Use 'disable-indentation' to turn off"
@@ -601,8 +600,6 @@ def main(arguments):
     if args.backend:
         # A command-line flag overrides the setting in the Config file (if
         # any).
-        if "enable-validation" in args.backend:
-            Config.get().backend_checks_enabled = True
         if "disable-validation" in args.backend:
             Config.get().backend_checks_enabled = False
         if "disable-indentation" in args.backend:

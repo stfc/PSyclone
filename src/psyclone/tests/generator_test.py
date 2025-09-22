@@ -1007,8 +1007,7 @@ def test_main_backend_arg(capsys):
     assert Config.get().backend_indentation_disabled is False
     Config._instance = None
     filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
-    main([filename, "--backend", "enable-validation",
-          "--backend", "disable-indentation"])
+    main([filename, "--backend", "disable-indentation"])
     output, _ = capsys.readouterr()
     # None of the three DO loops should be indented.
     assert len(re.findall(r"^do j", output, re.MULTILINE)) == 3
@@ -1196,10 +1195,10 @@ def test_code_transformation_backend_validation(validate: bool,
     input_file = Path(get_base_path("gocean")) / "test27_loop_swap.f90"
 
     if validate:
-        option = "enable-validation"
+        options = []
     else:
-        option = "disable-validation"
-    main([str(input_file), "--backend", option])
+        options = ["--backend", "disable-validation"]
+    main([str(input_file)] + options)
     # The actual assert is in the dummy_fortran_writer function above
 
 
