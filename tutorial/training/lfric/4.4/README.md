@@ -3,7 +3,7 @@
 In this session you will add openmp parallelisation for an LFRic kernel
 that updates shared values, which will require colouring.
 
-![FEM mesh](fem-grid.png "Simplified FEM mesh")
+![FEM mesh](fem-grid1.png "Simplified FEM mesh")
 
 In this example a kernel adds a field on the W0
 space (vertices) to another field on the W0 space, i.e. it is adding the blue dots
