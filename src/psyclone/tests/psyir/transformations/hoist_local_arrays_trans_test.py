@@ -604,6 +604,26 @@ def test_validate_tagged_symbol_clash(fortran_reader):
             "of the parent Container (associated with variable 'b')" in
             str(err.value))
 
+def test_validate_symbol_cannot_be_renamed(fortran_reader):
+    '''Check that validation fails if the hoisting would require the renaming
+    of a variable that is present in a CodeBlock.'''
+    code = ('''\
+    module a_test
+      integer :: a_clash
+    contains
+      subroutine a_sub()
+        integer, dimension(10) :: a_clash
+        a_clash = 9
+        write (*,*) a_clash
+      end subroutine a_sub
+    end module a_test''')
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        hoist_trans.validate(routine)
+    assert "no digity" in str(err.value)
+
 
 def test_apply_with_hoist_with_dependent_symbols(fortran_reader,
                                                  fortran_writer):
