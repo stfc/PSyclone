@@ -43,7 +43,7 @@ from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, BinaryOperation, Call, Literal,
-    Node, Reference, Routine, Schedule)
+    Node, Reference, Routine, Schedule, IntrinsicCall)
 from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
@@ -406,12 +406,43 @@ def test_call_reference_accesses():
     var_info = call5.reference_accesses()
     assert var_info.has_read_write(Signature("gamma"))
     assert var_info.is_read(Signature("ji"))
-    # Call to a PURE routine - arguments should be READ only.
+    # Call to a PURE routine - if the definition is not found, they will be RW
     puresym = RoutineSymbol("dirk", is_pure=True)
     call6 = Call.create(puresym, [Reference(dsym)])
     var_info = call6.reference_accesses()
     assert var_info.is_read(Signature("beta"))
+    assert var_info.is_written(Signature("beta"))
+    # Unless it is an intrinsic (we know all are READ-only)
+    call7 = IntrinsicCall.create(IntrinsicCall.Intrinsic.ABS,
+                                 [Reference(dsym)])
+    var_info = call7.reference_accesses()
+    assert var_info.is_read(Signature("beta"))
     assert not var_info.is_written(Signature("beta"))
+
+
+def test_call_reference_accesses_findable_routine(fortran_reader):
+    '''Test the reference_accesses() when the psyir call find the declaration
+    of a routine'''
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine return_scalar(x, y)
+        integer, intent(in) :: x
+        integer, intent(out) :: y
+        y = x + 1
+    end subroutine return_scalar
+
+    subroutine test()
+        integer :: x, y
+        call return_scalar(x, y)
+    end subroutine test
+    """)
+    test_routine = psyir.walk(Routine)[1]
+    assert test_routine.name == "test"
+    call = test_routine.walk(Call)[0]
+    vam = call.reference_accesses()
+    assert vam.is_read(Signature("x"))
+    assert not vam.is_read(Signature("y"))
+    assert not vam.is_written(Signature("x"))
+    assert vam.is_written(Signature("y"))
 
 
 def test_type_bound_call_reference_accesses(fortran_reader):

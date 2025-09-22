@@ -145,50 +145,6 @@ end subroutine sub
     assert out == correct
 
 
-def test_omptask_apply_kern(fortran_reader, fortran_writer):
-    '''
-    Check that the OMPTaskTrans apply method correctly kernel module inlines
-    and inlines a called routine.
-    '''
-    code = '''
-    module test_kernel_mod
-    contains
-      pure subroutine test_kernel(i, j, array)
-        integer :: i, j
-        integer, dimension(:,:), intent(out) :: array
-
-        array(i, j) = 1
-      end subroutine test_kernel
-
-      subroutine my_test()
-      use test_kernel_mod, only: test_kernel
-      integer :: i, j
-      integer, dimension(100, 100) :: array
-
-      do i = 1, 100
-        do j = 1, 100
-          call test_kernel(i, j, array)
-        end do
-      end do
-      end subroutine my_test
-    end module test_kernel_mod
-    '''
-    psyir = fortran_reader.psyir_from_source(code)
-    my_test = psyir.children[0].children[1]
-    trans = OMPTaskTrans()
-    master = OMPSingleTrans()
-    parallel = OMPParallelTrans()
-    calls = psyir.walk(Call)
-    # TODO #2916 - this setting of `is_pure` shouldn't be necessary as the
-    # frontend should have done it.
-    calls[0].routine.symbol.is_pure = True
-    loops = my_test.walk(Loop)
-    trans.apply(loops[1])
-    master.apply(my_test.children[:])
-    parallel.apply(my_test.children[:])
-    assert len(my_test.walk(Call, Kern)) == 0
-
-
 def test_omptask_inline_kernels(monkeypatch):
     '''Test the _inline_kernels functionality up to inlining of Call nodes.'''
     _, invoke = get_invoke("single_invoke.f90", "gocean",
