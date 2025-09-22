@@ -175,9 +175,9 @@ BACKEND_CHECKS_ENABLED       Optional (defaults to True). Whether or not the PSy
                              flag (see :ref:`backend-options`).
 BACKEND_INDENTATION_DISABLED Optional (defaults to False). Whether or not the        bool
                              PSyIR backend should output nested code structures
-			     using indentation. Can be overridden by the
-			     ``--backend`` command-line flag (see
-			     :ref:`backend-options`).
+                             using indentation. Can be overridden by the
+                             ``--backend`` command-line flag (see
+                             :ref:`backend-options`).
 FORTRAN_STANDARD             Optional (defaults to f2008). The Fortran standard      str
                              that should be used by fparser. Valid values are
                              f2003 and f2008.
