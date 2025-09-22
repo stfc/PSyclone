@@ -232,7 +232,7 @@ Run PSyclone with the standard command:
 
 and look at the error message provided by PSyclone.
 
-The explanation can be found [here](#explanation-for-invalid-transformation).
+The explanation can be found [here](#explanation-for-incorrect-naming-scheme).
 
 
 # Explanations
@@ -480,6 +480,7 @@ In this small example, especially at the beginning, thread usage is limited to o
 threads. For a larger example, 
 
 -->
+
 ## Explanation for Incorrect Naming Scheme
 
 PSyclone will print the error message:
