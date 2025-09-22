@@ -160,6 +160,7 @@ jobs:
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=12
+        export CUDA_VISIBLE_DEVICES=1
         mpirun -n 1 ../bin/gungho_model configuration_c16_10it.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
@@ -190,6 +191,7 @@ jobs:
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=12
+        export CUDA_VISIBLE_DEVICES=1
         mpirun -n 1 ../bin/gungho_model configuration_c16_10it.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
@@ -255,6 +257,26 @@ jobs:
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
+
+    - name: LFRic Atm PSyclone transmutation
+      id: lfric_atm
+      run: |
+        # Set up environment
+        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment%gcc@${GCC_VERSION}
+        source .runner_venv/bin/activate
+        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
+        export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
+        cd ${LFRIC_DIR}
+
+        # For now we just build the base platform (don't transmute files with psyclone)
+        ./build/local_build.py -a lfric_atm -j 16 -w lfric_atm_workdir
+
+        # Run a the app with 8 threads
+        cd applications/lfric_atm/example/
+        OMP_NUM_THREADS=8 ../bin/lfric_atm configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
+        cat timer.txt
 
   upload_if_on_mirror:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
