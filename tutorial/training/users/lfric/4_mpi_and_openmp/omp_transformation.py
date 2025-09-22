@@ -50,7 +50,6 @@ def trans(psyir):
     # Loop over all of the Invokes in the PSy object
     for invoke in psyir.walk(InvokeSchedule):
         print(f"Transforming invoke '{invoke.name}':")
-        #schedule = invoke.schedule
         # Apply OpenMP to each of the loops
         for loop in invoke.walk(Loop):
             otrans.apply(loop)
