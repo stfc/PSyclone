@@ -838,11 +838,8 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         # Generate Fortran (We can disable the backend copy because at this
         # point we also drop the PSyIR and we don't need to guarantee that
         # is left unmodified)
-
-        indent = "" if Config.get().backend_indentation_disabled else None
         writer = FortranWriter(
             check_global_constraints=Config.get().backend_checks_enabled,
-            indent_string=indent,
             disable_copy=True)
         output = writer(psyir)
         # Fix line_length if requested

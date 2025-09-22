@@ -287,11 +287,8 @@ class PSy():
 
         # Use the PSyIR Fortran backend to generate Fortran code of the
         # supplied PSyIR tree.
-        config = Config.get()
-        indent = "" if Config.get().backend_indentation_disabled else None
         fortran_writer = FortranWriter(
             check_global_constraints=config.backend_checks_enabled,
-            indent_string=indent,
             disable_copy=True)  # We already made the copy manually above
         result = fortran_writer(new_container)
 
@@ -1650,9 +1647,7 @@ class CodedKern(Kern):
         # file using a PSyIR back-end. At the moment there is no way to choose
         # which back-end to use, so simply use the Fortran one (and limit the
         # line length).
-        indent = "" if config.backend_indentation_disabled else None
         fortran_writer = FortranWriter(
-            indent_string=indent,
             check_global_constraints=config.backend_checks_enabled)
         # Start from the root of the schedule as we want to output
         # any module information surrounding the kernel subroutine

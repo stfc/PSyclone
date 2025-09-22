@@ -44,6 +44,7 @@ back ends.
 import inspect
 from typing import Optional
 
+from psyclone.configuration import Config
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import Node, Schedule, Container
 from psyclone.psyir.commentable_mixin import CommentableMixin
@@ -94,7 +95,8 @@ class PSyIRVisitor():
     _DISABLE_LOWERING = False
 
     # The default string with which to indent nested code. Can be overridden
-    # in the constructor.
+    # in the constructor. All use of indentation can be disabled by setting
+    # backend_disable_indentation in the Configuration object.
     _DEFAULT_INDENT = "  "
 
     def __init__(self, skip_nodes: bool = False,
@@ -105,6 +107,10 @@ class PSyIRVisitor():
 
         if indent_string is None:
             indent_string = self._DEFAULT_INDENT
+        # If all indentation has been switched off then that takes priority.
+        config = Config.get()
+        if config.backend_indentation_disabled:
+            indent_string = ""
 
         if not isinstance(skip_nodes, bool):
             raise TypeError(
