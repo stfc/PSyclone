@@ -47,9 +47,9 @@ from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   CodeBlock, ACCRoutineDirective, Literal,
                                   IntrinsicCall, BinaryOperation, Reference)
 from psyclone.psyir.symbols import (
-    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol)
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+    ArrayType, INTEGER_TYPE, DataSymbol, DataTypeSymbol, Symbol, SymbolError)
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 
 
 class HoistLocalArraysTrans(Transformation):
@@ -462,6 +462,18 @@ then
                     f"also present in the symbol table of the parent "
                     f"Container (associated with variable "
                     f"'{cont_tags_dict[tag].name}').")
+            if container.symbol_table.lookup(sym.name, otherwise=None):
+                # This symbol would have to be renamed - is that possible?
+                new_name = node.symbol_table.next_available_name(sym.name)
+                try:
+                    node.symbol_table.rename_symbol(sym, new_name,
+                                                    dry_run=True)
+                except SymbolError as err:
+                    raise TransformationError(
+                        f"The supplied routine '{node.name}' contains a local "
+                        f"array '{sym.name}' but this clashes with a symbol "
+                        f"in the table of the parent Container and it cannot "
+                        f"be renamed because: {err}") from err
 
     def __str__(self):
         return "Hoist all local, automatic arrays to container scope."
