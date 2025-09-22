@@ -73,6 +73,11 @@ class PSyIRVisitor():
         optional argument which defaults to False.
     :param str indent_string: Specifies what to use for indentation. This
         is an optional argument that defaults to two spaces.
+
+        .. note::
+            if all indentation has been disabled in the Config object then this
+            argument is ignored.
+
     :param int initial_indent_depth: Specifies how much indentation to
         start with. This is an optional argument that defaults to 0.
     :param bool check_global_constraints: whether or not to validate all
