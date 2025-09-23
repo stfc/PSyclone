@@ -1,3 +1,6 @@
+   92) PR #3133 for #3132. Give specific paths to pytest compilation (
+   to prevent using the unpredictable '.' path) 
+
    91) PR #3137 for #3096. Add command-flag and config option to disable
    all backend indentations.
 
