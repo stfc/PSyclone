@@ -1155,7 +1155,8 @@ def test_create_inner_product_1d_arrays(fortran_writer):
     assert isinstance(nodes[1].rhs, BinaryOperation)
     assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
     code = fortran_writer(nodes[1])
-    assert "result = result + DOT_PRODUCT(vector_a=var1, vector_b=var2)" in code
+    assert ("result = result + DOT_PRODUCT(vector_a=var1, vector_b=var2)"
+            in code)
 
 
 def test_create_inner_product_arrays(fortran_writer):
