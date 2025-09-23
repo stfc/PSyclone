@@ -99,7 +99,11 @@ def test_lf_build_get_flags_with_compile(
     assert '.git' not in dir_list
     assert '__pycache__' not in dir_list
     # One additional test to make sure we are not at the wrong location.
-    # ATM, the infrastructure has 16 directories
+    # ATM, the infrastructure has 16 directories, but in order to
+    # accommodate future changes to the LFRic infrastructure directory
+    # without having to change this test, use some reasonable numbers.
+    # If "." should be used as a root directory (which we had in the past),
+    # there would be over 1000 directories, and this test will pick this up.
     assert len(dir_list) > 10 and len(dir_list) < 50
 
 
