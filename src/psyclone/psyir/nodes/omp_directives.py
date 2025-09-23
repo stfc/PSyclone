@@ -48,6 +48,8 @@ import itertools
 import sympy
 import logging
 
+from typing import List
+
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import (GenerationError,
@@ -55,6 +57,10 @@ from psyclone.errors import (GenerationError,
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.atomic_mixin import (
+        AtomicDirectiveMixin,
+        AtomicDirectiveType,
+)
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
         DataSharingAttributeMixin,
@@ -64,6 +70,7 @@ from psyclone.psyir.nodes.directive import StandaloneDirective, \
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause, \
@@ -75,7 +82,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, ScalarType, DataSymbol, ImportInterface, ContainerSymbol,
+    INTEGER_TYPE, DataSymbol, ImportInterface, ContainerSymbol,
     RoutineSymbol)
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
@@ -2317,21 +2324,53 @@ class OMPLoopDirective(OMPRegionDirective):
         super().validate_global_constraints()
 
 
-class OMPAtomicDirective(OMPRegionDirective):
+class OMPAtomicDirective(OMPRegionDirective, AtomicDirectiveMixin):
     '''
     OpenMP directive to represent that the memory accesses in the associated
     assignment must be performed atomically.
     Note that the standard supports blocks with 2 assignments but this is
     currently unsupported in the PSyIR.
 
+    :param ast: the entry in the fparser2 parse tree representing the code
+                contained within this directive or None.
+    :type ast: Optional[:py:class:`fparser.two.Fortran2003.Base`]
+    :param children: the nodes that will be children of this
+                     Directive node or None.
+    :param parent: PSyIR node that is the parent of this Directive or None.
+    :param directive_type: the directive type of the atomic operation.
+    :type directive_type: :py:class:`psyclone.psyir.nodes.OMPAtomicDirective.\
+                          AtomicDirectiveType`
     '''
+    def __init__(self, ast=None, children: List[Node] = None,
+                 parent: Node = None,
+                 directive_type: AtomicDirectiveType = None):
+        # The default atomic directive in OpenMP is UPDATE
+        if not directive_type:
+            directive_type = AtomicDirectiveType.UPDATE
+        if not isinstance(directive_type,
+                          AtomicDirectiveType):
+            raise TypeError(
+                f"OMPAtomicDirective expects an AtomicDirectiveType as the "
+                f"directive_type but found {directive_type}."
+            )
+        super().__init__(ast, children, parent)
+        # TODO #2398 - We can probably work out a directive_type for
+        # a lot of single statement OMPAtomicDirectives.
+        self._directive_type = directive_type
+
     def begin_string(self):
         '''
         :returns: the opening string statement of this directive.
         :rtype: str
 
         '''
-        return "omp atomic"
+        directive_type_to_str = {
+            AtomicDirectiveType.UPDATE: "update",
+            AtomicDirectiveType.READ: "read",
+            AtomicDirectiveType.WRITE: "write",
+            AtomicDirectiveType.CAPTURE: "capture",
+        }
+        return f"omp atomic {directive_type_to_str[self._directive_type]}"
 
     def end_string(self):
         '''
@@ -2340,53 +2379,6 @@ class OMPAtomicDirective(OMPRegionDirective):
 
         '''
         return "omp end atomic"
-
-    @staticmethod
-    def is_valid_atomic_statement(stmt):
-        ''' Check if a given statement is a valid OpenMP atomic expression. See
-            https://www.openmp.org/spec-html/5.0/openmpsu95.html
-
-        :param stmt: a node to be validated.
-        :type stmt: :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: whether a given statement is compliant with the OpenMP
-            atomic expression.
-        :rtype: bool
-
-        '''
-        if not isinstance(stmt, Assignment):
-            return False
-
-        # Not all rules are checked, just that:
-        # - operands are of a scalar intrinsic type
-        if not isinstance(stmt.lhs.datatype, ScalarType):
-            return False
-
-        # - the top-level operator is one of: +, *, -, /, AND, OR, EQV, NEQV
-        if isinstance(stmt.rhs, BinaryOperation):
-            if stmt.rhs.operator not in (BinaryOperation.Operator.ADD,
-                                         BinaryOperation.Operator.SUB,
-                                         BinaryOperation.Operator.MUL,
-                                         BinaryOperation.Operator.DIV,
-                                         BinaryOperation.Operator.AND,
-                                         BinaryOperation.Operator.OR,
-                                         BinaryOperation.Operator.EQV,
-                                         BinaryOperation.Operator.NEQV):
-                return False
-        # - or intrinsics: MAX, MIN, IAND, IOR, or IEOR
-        if isinstance(stmt.rhs, IntrinsicCall):
-            if stmt.rhs.intrinsic not in (IntrinsicCall.Intrinsic.MAX,
-                                          IntrinsicCall.Intrinsic.MIN,
-                                          IntrinsicCall.Intrinsic.IAND,
-                                          IntrinsicCall.Intrinsic.IOR,
-                                          IntrinsicCall.Intrinsic.IEOR):
-                return False
-
-        # - one of the operands should be the same as the lhs
-        if stmt.lhs not in stmt.rhs.children:
-            return False
-
-        return True
 
     def validate_global_constraints(self):
         ''' Perform validation of those global constraints that can only be

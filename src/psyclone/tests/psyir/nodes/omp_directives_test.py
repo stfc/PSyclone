@@ -59,7 +59,8 @@ from psyclone.psyir.nodes import (
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
     OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective,
-    StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective)
+    StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective,
+    AtomicDirectiveType)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
@@ -1642,8 +1643,6 @@ def test_omp_atomics_is_valid_atomic_statement(fortran_reader):
         integer :: i, j, val
 
         A(1,1) = A(1,1) ** 2  ! Operator is not supported
-        A(1,1) = A(2,1) * 2   ! The operands are different that the lhs
-        A(1,1) = A(1,1) / 2 + 3 - 5  ! A(1,1) is not a top-level operand
         A(:,1) = A(:,1) / 2      ! It is not a scalar expression
         A(1,1) = MOD(A(1,1), 3)  ! Intrinsic is not supported
         return
@@ -1695,11 +1694,35 @@ def test_omp_atomics_validate_global_constraints(fortran_reader, monkeypatch):
             "statement, but found: " in str(err.value))
 
 
+def test_omp_atomic_init_failure():
+    ''' Test the OMPAtomicDirective init routine fails when provided an
+    invalid directive_type.'''
+    with pytest.raises(TypeError) as excinfo:
+        _ = OMPAtomicDirective(directive_type=1)
+
+    assert ("OMPAtomicDirective expects an AtomicDirectiveType as the "
+            "directive_type but found 1." in str(excinfo.value))
+
+
 def test_omp_atomics_strings():
     ''' Test the OMPAtomicDirective begin and end strings '''
     atomic = OMPAtomicDirective()
-    assert atomic.begin_string() == "omp atomic"
+    assert atomic.begin_string() == "omp atomic update"
     assert atomic.end_string() == "omp end atomic"
+
+    atomic_read = OMPAtomicDirective(
+            directive_type=AtomicDirectiveType.READ
+    )
+    assert atomic_read.begin_string() == "omp atomic read"
+
+    atomic_write = OMPAtomicDirective(
+            directive_type=AtomicDirectiveType.WRITE
+    )
+    assert atomic_write.begin_string() == "omp atomic write"
+    atomic_capture = OMPAtomicDirective(
+            directive_type=AtomicDirectiveType.CAPTURE
+    )
+    assert atomic_capture.begin_string() == "omp atomic capture"
 
 
 def test_omp_simd_strings():
