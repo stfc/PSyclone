@@ -39,7 +39,7 @@
 !>
 module perturbation_bell_config_mod
 
-  use constants_mod, only: i_native, &
+  use constants_mod, only: i_def, &
                            r_def, &
                            str_def
   use log_mod,       only: log_event, log_scratch_space &
@@ -78,8 +78,8 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
+    integer(i_def), intent(in) :: file_unit
+    integer(i_def), intent(in) :: local_rank
 
     call read_namelist( file_unit, local_rank )
 
@@ -93,8 +93,8 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
+    integer(i_def), intent(in) :: file_unit
+    integer(i_def), intent(in) :: local_rank
 
     real(r_def) :: buffer_real_r_def(8)
 
@@ -107,7 +107,7 @@ contains
                                  u_vel, &
                                  v_vel
 
-    integer(i_native) :: condition
+    integer(i_def) :: condition
 
     half_width_x = rmdi
     half_width_y = rmdi

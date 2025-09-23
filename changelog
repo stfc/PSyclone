@@ -1,3 +1,30 @@
+   92) PR #3133 for #3132. Give specific paths to pytest compilation (
+   to prevent using the unpredictable '.' path) 
+
+   91) PR #3137 for #3096. Add command-flag and config option to disable
+   all backend indentations.
+
+   90) PR #3134 towards #2398. Create an AtomicDirective mixin and add
+   support for atomic types other than the default.
+
+   89) PR #3136 towards #3060. Adds named arguments to all intrinsic call
+   IAttr definitions. 
+
+   88) PR #3094 for #2851 and #3082. Improves the DA so that PSyclone
+   does not generate unnecessary firstprivate clauses on parallel regions.   
+
+   87) PR #3127 for #3126. Disable python module index in latex version
+   of docs.
+
+   86) PR #3129 for #2709. Ensures that the 'disable backends check'
+   configuration option is passed to the FortranWriter.
+
+   85) PR #3128 for #3123. Fixes Fortran file in lfric binary extraction
+   library so that it works with gfortran 15.
+
+   84) PR #3116 for #2623. Remove old LFRic infrastructure and bring in
+   new version.
+
    83) PR #3104. Move integration tests to new runner.
 
    82) PR #3107 towards #3074. Update dl_esm_inf submodule.

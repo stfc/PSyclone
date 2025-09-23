@@ -59,7 +59,8 @@ from psyclone.psyir.nodes import (
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
     OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective,
-    StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective)
+    StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective,
+    AtomicDirectiveType)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
@@ -893,6 +894,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
             type(my_type) :: mt1, mt2
             real, dimension(10) :: array
             mt1%scalar1 = 3
+            mt2%scalar1 = 3
             do i = 1, 10
                if (i .eq. 4) then
                   mt2%field1%scalar1 = array(i)
@@ -903,9 +905,12 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
         end subroutine''')
     omptrans = OMPParallelTrans()
     routine = psyir.walk(Routine)[0]
-    omptrans.apply(routine.children)
+    omptrans.apply(routine.children[2])
     directive = psyir.walk(OMPParallelDirective)[0]
     pvars, fpvars, sync = directive.infer_sharing_attributes()
+    pytest.xfail("#2094: Currently we only support top-level derived types"
+                 "as OpenMP sharing attributes, but there are cases that "
+                 "more detail is necessary.")
     assert len(pvars) == 2
     assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
     assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar1'
@@ -921,6 +926,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
             integer :: i, scalar1
             type(my_type) :: mt1
             real, dimension(10) :: array
+            mt1%another_scalar = 3
             do i = 1, 10
                if (i .eq. 4) then
                   mt1%scalar1 = 3
@@ -930,7 +936,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
         end subroutine''')
     omptrans = OMPParallelTrans()
     routine = psyir.walk(Routine)[0]
-    omptrans.apply(routine.children)
+    omptrans.apply(routine.children[1])
     directive = psyir.walk(OMPParallelDirective)[0]
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 1
@@ -1637,8 +1643,6 @@ def test_omp_atomics_is_valid_atomic_statement(fortran_reader):
         integer :: i, j, val
 
         A(1,1) = A(1,1) ** 2  ! Operator is not supported
-        A(1,1) = A(2,1) * 2   ! The operands are different that the lhs
-        A(1,1) = A(1,1) / 2 + 3 - 5  ! A(1,1) is not a top-level operand
         A(:,1) = A(:,1) / 2      ! It is not a scalar expression
         A(1,1) = MOD(A(1,1), 3)  ! Intrinsic is not supported
         return
@@ -1690,11 +1694,35 @@ def test_omp_atomics_validate_global_constraints(fortran_reader, monkeypatch):
             "statement, but found: " in str(err.value))
 
 
+def test_omp_atomic_init_failure():
+    ''' Test the OMPAtomicDirective init routine fails when provided an
+    invalid directive_type.'''
+    with pytest.raises(TypeError) as excinfo:
+        _ = OMPAtomicDirective(directive_type=1)
+
+    assert ("OMPAtomicDirective expects an AtomicDirectiveType as the "
+            "directive_type but found 1." in str(excinfo.value))
+
+
 def test_omp_atomics_strings():
     ''' Test the OMPAtomicDirective begin and end strings '''
     atomic = OMPAtomicDirective()
-    assert atomic.begin_string() == "omp atomic"
+    assert atomic.begin_string() == "omp atomic update"
     assert atomic.end_string() == "omp end atomic"
+
+    atomic_read = OMPAtomicDirective(
+            directive_type=AtomicDirectiveType.READ
+    )
+    assert atomic_read.begin_string() == "omp atomic read"
+
+    atomic_write = OMPAtomicDirective(
+            directive_type=AtomicDirectiveType.WRITE
+    )
+    assert atomic_write.begin_string() == "omp atomic write"
+    atomic_capture = OMPAtomicDirective(
+            directive_type=AtomicDirectiveType.CAPTURE
+    )
+    assert atomic_capture.begin_string() == "omp atomic capture"
 
 
 def test_omp_simd_strings():
@@ -4651,3 +4679,79 @@ def test_omp_serial_check_dependency_valid_pairing():
     assert test_dir._check_dependency_pairing_valid(
                array_reference1, array_reference2, None, None
            )
+
+
+def test_firstprivate_with_uninitialised(fortran_reader, fortran_writer):
+    ''' Check that guaranteed uninitialised symbols are not put in
+    firstprivate clauses. '''
+    code = '''
+    module test
+        integer :: a
+    contains
+        subroutine my_subroutine(b, cond)
+            integer, intent(inout) :: b, cond
+            integer :: c = 1, d, i, result
+            integer :: not_initialised
+
+            d = 1
+
+            do i = 10, 10, 1
+                if(cond < 1) then
+                    a = 1
+                    b = 1
+                    c = 1
+                    d = 1
+                    not_initialised = 1
+                    result = a + b + c + d + not_initialised
+                endif
+            end do
+        end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelLoopTrans()
+    loops = psyir.walk(Loop)
+    ptrans.apply(loops[0])
+    output = fortran_writer(psyir)
+    assert "private(i,not_initialised)" in output
+    assert "firstprivate(a,b,c,d)" in output
+
+    # Check that complex initialised cases, such as Codeblocks and
+    # initialisations below the loop are caught as a firstprivate
+    code = '''
+    module test
+    contains
+        subroutine my_subroutine(cond)
+            integer, intent(inout) :: cond
+            integer :: a, b, i, j, result
+
+            read(*,*) b
+
+            do j = 1, 10
+                if (j .neq. 1) then
+                    do i = 10, 10, 1
+                        if(cond < 1) then
+                            a = 1
+                        endif
+                        result = a
+                    end do
+                endif
+                a = 1
+            end do
+            do i = 10, 10, 1
+                if(cond < 1) then
+                    b = 1
+                endif
+                result = b
+            end do
+        end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelLoopTrans()
+    loops = psyir.walk(Loop)
+    ptrans.apply(loops[1])
+    ptrans.apply(loops[2])
+    output = fortran_writer(psyir)
+    assert "firstprivate(a)" in output
+    assert "firstprivate(b)" in output

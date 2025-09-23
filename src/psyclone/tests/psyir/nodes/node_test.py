@@ -1960,8 +1960,8 @@ def test_following(fortran_reader):
                                              include_children=False)
 
 
-def test_is_descendent_of(fortran_reader):
-    '''Test the is_descendent_of function of the Node class'''
+def test_is_descendant_of(fortran_reader):
+    '''Test the is_descendant_of function of the Node class'''
     code = """
     subroutine a()
     integer :: i, j, k
@@ -1974,13 +1974,37 @@ def test_is_descendent_of(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     one = Literal("1", INTEGER_TYPE)
-    assert not one.is_descendent_of(psyir)
+    assert not one.is_descendant_of(psyir)
 
     routine = psyir.children[0]
     loop = psyir.walk(Loop)[0]
-    assert loop.is_descendent_of(routine)
+    assert loop.is_descendant_of(routine)
     assign1 = routine.children[0]
     assign2 = loop.loop_body.children[0]
-    assert not assign1.is_descendent_of(loop)
-    assert assign2.is_descendent_of(loop)
-    assert assign2.is_descendent_of(routine)
+    assert not assign1.is_descendant_of(loop)
+    assert assign2.is_descendant_of(loop)
+    assert assign2.is_descendant_of(routine)
+
+
+def test_has_descendant(fortran_reader):
+    ''' Test the has_descendant method of the Node class.'''
+
+    code = '''subroutine test_sub()
+    integer :: i, j, k, l
+    k = 12
+    do i = 1, 128
+      do j = 2, 256
+        k = k + 32
+      end do
+    end do
+    l = k
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    # True if at least one of the descendants is of the given type(s)
+    assert psyir.has_descendant(Literal)
+    assert not psyir.has_descendant(KernelSchedule)
+
+    # Accepts tuples and checks self
+    routine = psyir.walk(Routine)[0]
+    assert routine.has_descendant((KernelSchedule, Routine))
