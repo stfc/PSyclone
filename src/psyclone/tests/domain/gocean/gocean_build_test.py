@@ -112,12 +112,8 @@ def test_make_flags_without_compilation(
     flags = GOceanBuild(tmpdir).get_infrastructure_flags()
     assert len(flags) == 2
     assert flags[0] == "-I"
-    # This should be a temporary path (*or the above /tmp/path/dl_esm/inf one),
-    # so we can't easily check this (different relative paths when testing in
-    # parallel). So just check for the name, and that it does not include
-    # `external` (so it is not the directory in the PSyclone directory)
-    assert "external" in flags[1]
-    assert "dl_esm_inf" in flags[1]
+    # When compilation is disabled, it must return the path of dl_esm_inf
+    # included in PSyclone:
     assert "external/dl_esm_inf" in flags[1]
 
 

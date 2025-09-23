@@ -112,7 +112,7 @@ def test_lf_build_get_flags_without_compile(
     the include paths is done relative, this should give the same results.
 
     '''
-    if Compile.TEST_COMPILE:
+    if Compile.TEST_COMPILE:   # pragma: no cover
         # This test should test setup without compilation, but compilation
         # is enabled. Monkey-patch a setup that pretends that compilation
         # is disabled, so we can test the appropriate paths:
@@ -235,6 +235,9 @@ def test_lfric_build_infrastructure_disabled(
     # directory does not exist.
     try:
         builder._build_infrastructure()
-    except FileNotFoundError:
+    except FileNotFoundError:   # pragma: no cover
+        # This code is NOT executed in a successful test. But the
+        # coverage CI reports this line as not covered, so add use
+        # a pragma to avoid a false positive.
         pytest.fail("LFRicBuild tried to change directory, which should "
                     "not be done if compilation is disabled")
