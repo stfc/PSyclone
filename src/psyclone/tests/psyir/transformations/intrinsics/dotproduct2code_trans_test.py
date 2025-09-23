@@ -146,8 +146,8 @@ def test_validate_references_matmul(fortran_reader):
     expected = (
         "The DotProduct2CodeTrans transformation only supports the "
         "transformation of a dotproduct intrinsic if its arguments "
-        "are plain arrays, but found MATMUL(a3, v1) in "
-        "DOT_PRODUCT(MATMUL(a3, v1), v2)")
+        "are plain arrays, but found MATMUL(matrix_a=a3, matrix_b=v1) in "
+        "DOT_PRODUCT(vector_a=MATMUL(matrix_a=a3, matrix_b=v1), vector_b=v2)")
     check_validate(code, expected, fortran_reader)
 
 
@@ -171,8 +171,8 @@ def test_validate_references_structure(fortran_reader):
     expected = (
         "The DotProduct2CodeTrans transformation only supports the "
         "transformation of a dotproduct intrinsic if its arguments are plain "
-        "arrays, but found grid%var1(:) in DOT_PRODUCT(grid%var1(:), "
-        "grid%var2(:)).")
+        "arrays, but found grid%var1(:) in DOT_PRODUCT(vector_a=grid%var1(:)"
+        ", vector_b=grid%var2(:)).")
     check_validate(code, expected, fortran_reader)
 
 
@@ -192,7 +192,8 @@ def test_validate_1d_array(fortran_reader):
         "The DotProduct2CodeTrans transformation only supports the "
         "transformation of a dotproduct intrinsic with an argument not "
         "containing an array slice if the argument is a 1D array, but "
-        "found a1 with 2 dimensions in DOT_PRODUCT(a1, a2).")
+        "found a1 with 2 dimensions in DOT_PRODUCT(vector_a=a1, "
+        "vector_b=a2).")
     check_validate(code, expected, fortran_reader)
 
 
@@ -214,7 +215,7 @@ def test_validate_array_slice_dim1(fortran_reader):
         "transformation of a dotproduct intrinsic with an argument "
         "containing an array slice if the array slice is for the 1st "
         "dimension of the array, but found a2(1,:) in "
-        "DOT_PRODUCT(a1(:,1), a2(1,:)).")
+        "DOT_PRODUCT(vector_a=a1(:,1), vector_b=a2(1,:)).")
     check_validate(code, expected, fortran_reader)
 
 
@@ -236,7 +237,7 @@ def test_validate_array_full_slice(fortran_reader):
         "transformation of a dotproduct intrinsic with an argument containing "
         "an array slice if the argument is for the 1st dimension of the array "
         "and is for the full range of that dimension, but found a1(2:4,1) in "
-        "DOT_PRODUCT(a1(2:4,1), a2(:,10)).")
+        "DOT_PRODUCT(vector_a=a1(2:4,1), vector_b=a2(:,10)).")
     check_validate(code, expected, fortran_reader)
 
 
@@ -254,7 +255,8 @@ def test_validate_real(fortran_reader):
         "end subroutine\n")
     expected = (
         "The DotProduct2CodeTrans transformation only supports arrays of "
-        "real data, but found v1 of type INTEGER in DOT_PRODUCT(v1, v2).")
+        "real data, but found v1 of type INTEGER in DOT_PRODUCT(vector_a=v1, "
+        "vector_b=v2).")
     check_validate(code, expected, fortran_reader)
 
 

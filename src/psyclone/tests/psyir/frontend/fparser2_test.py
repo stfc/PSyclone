@@ -1194,7 +1194,7 @@ def test_process_array_declarations_bound_expressions():
     assert l5dtype.shape[0].lower.intrinsic is IntrinsicCall.Intrinsic.NINT
     assert isinstance(l5dtype.shape[0].upper, IntrinsicCall)
     assert l5dtype.shape[0].upper.intrinsic is IntrinsicCall.Intrinsic.NINT
-    assert l5dtype.shape[0].upper.debug_string() == "NINT(MAXVAL(l4))"
+    assert l5dtype.shape[0].upper.debug_string() == "NINT(a=MAXVAL(array=l4))"
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -2619,7 +2619,7 @@ def test_intrinsiccall_args(f2008_parser):
     intrinsic_node = psyir.walk(IntrinsicCall)[0]
     assert isinstance(intrinsic_node, IntrinsicCall)
     assert len(intrinsic_node._argument_names) == len(intrinsic_node.arguments)
-    arg_names = [None, "dim", "mask"]
+    arg_names = ["array", "dim", "mask"]
     for idx, child in enumerate(intrinsic_node.arguments):
         assert intrinsic_node._argument_names[idx] == (
             id(child), arg_names[idx])

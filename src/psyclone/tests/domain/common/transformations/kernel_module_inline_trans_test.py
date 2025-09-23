@@ -92,7 +92,7 @@ end module my_mod
     call = psyir.walk(Call)[0]
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(call)
-    assert ("Cannot module-inline a call to an intrinsic (got 'SIN(b)')"
+    assert ("Cannot module-inline a call to an intrinsic (got 'SIN(x=b)')"
             in str(err.value))
 
 

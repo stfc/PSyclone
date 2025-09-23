@@ -543,9 +543,10 @@ end program test_prog
     psyir = fortran_reader.psyir_from_source(code)
     assert len(psyir.walk(IntrinsicCall)) == 3
     result = fortran_writer(psyir).lower()
-    assert "ind1 = index(clname, '_', back=.true.) + 1" in result
-    assert "ind2 = index(clname, '.') - 1" in result
-    assert "ind2 = index(clname, '.', kind=4) - 1" in result
+    assert ("ind1 = index(string=clname, substring='_', back=.true.) + 1" in
+            result)
+    assert "ind2 = index(string=clname, substring='.') - 1" in result
+    assert "ind2 = index(string=clname, substring='.', kind=4) - 1" in result
 
 
 def test_verify_intrinsic(fortran_reader, fortran_writer):
@@ -574,13 +575,14 @@ end program test_prog
     # Should have 4 VERIFY and 2 KIND
     assert len(psyir.walk(IntrinsicCall)) == 6
     result = fortran_writer(psyir).lower()
-    assert "if (verify(clname(ind1:ind2), '0123456789') == 0) then" in result
-    assert ("if (verify(clname(ind1:ind2), '0123456789', back=.true.) "
-            "== 0) then" in result)
-    assert ("if (verify(clname(ind1:ind2), '0123456789', kind=kind(1)) "
-            "== 0) then" in result)
-    assert ("if (verify(clname(ind1:ind2), '0123456789', kind=kind(1), "
+    assert ("if (verify(string=clname(ind1:ind2), set='0123456789') == 0) "
+            "then" in result)
+    assert ("if (verify(string=clname(ind1:ind2), set='0123456789', "
             "back=.true.) == 0) then" in result)
+    assert ("if (verify(string=clname(ind1:ind2), set='0123456789', "
+            "kind=kind(x=1)) == 0) then" in result)
+    assert ("if (verify(string=clname(ind1:ind2), set='0123456789', "
+            "back=.true., kind=kind(x=1)) == 0) then" in result)
 
 
 def test_intrinsic_canonicalisation(fortran_reader):

@@ -251,7 +251,7 @@ def test_validate_increment_with_unsupported_type(fortran_reader):
     node = psyir.walk(IntrinsicCall)[0]
     with pytest.raises(TransformationError) as info:
         trans.apply(node)
-    assert ("To loopify 'x(1) = x(1) + MAXVAL(a)' we need a temporary "
+    assert ("To loopify 'x(1) = x(1) + MAXVAL(array=a)' we need a temporary "
             "variable, but the type of 'x(1)' can not be resolved or is "
             "unsupported." in str(info.value))
 
@@ -373,7 +373,7 @@ def test_mask(fortran_reader, fortran_writer, tmpdir):
         "  result = -HUGE(x=result)\n"
         "  do idx = 1, 10, 1\n"
         "    do idx_1 = 1, 10, 1\n"
-        "      if (MOD(array(idx_1,idx), 2.0) == 1) then\n"
+        "      if (MOD(a=array(idx_1,idx), p=2.0) == 1) then\n"
         "        result = MAX(result, array(idx_1,idx))\n"
         "      end if\n"
         "    enddo\n"
@@ -477,7 +477,7 @@ def test_references(fortran_reader, fortran_writer, tmpdir):
         "  do idx = 1, 10, 1\n"
         "    do idx_1 = 1, 10, 1\n"
         "      if (tmask(idx_1,idx) == 1.0) then\n"
-        "        zmax(1) = MAX(zmax(1), ABS(sshn(idx_1,idx) + ssh_ref * "
+        "        zmax(1) = MAX(zmax(1), ABS(a=sshn(idx_1,idx) + ssh_ref * "
         "tmask(idx_1,idx)))\n"
         "      end if\n"
         "    enddo\n"
@@ -506,7 +506,7 @@ def test_nemo_example(fortran_reader, fortran_writer, tmpdir):
         "  do idx = LBOUND(array=sshn, dim=2), UBOUND(array=sshn, dim=2), 1\n"
         "    do idx_1 = LBOUND(array=sshn, dim=1), "
         "UBOUND(array=sshn, dim=1), 1\n"
-        "      zmax(1) = MAX(zmax(1), ABS(sshn(idx_1,idx) + ssh_ref * "
+        "      zmax(1) = MAX(zmax(1), ABS(a=sshn(idx_1,idx) + ssh_ref * "
         "tmask(idx_1,idx,1)))\n"
         "    enddo\n"
         "  enddo\n")
@@ -634,7 +634,7 @@ def test_multi_intrinsics(fortran_reader, fortran_writer, tmpdir):
         "  do idx = LBOUND(array=a, dim=1), UBOUND(array=a, dim=1), 1\n"
         "    x = MAX(x, a(idx))\n"
         "  enddo\n"
-        "  x = x + MAXVAL(b(:))\n")
+        "  x = x + MAXVAL(array=b(:))\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/BinaryOp/IntrinsicCall

@@ -689,7 +689,7 @@ def test_fw_gen_vardecl(fortran_writer):
     symbol = DataSymbol("dummy3i", INTEGER_TYPE, is_constant=True,
                         initial_value=initval)
     result = fortran_writer.gen_vardecl(symbol)
-    assert result == "integer, parameter :: dummy3i = SIN(10)\n"
+    assert result == "integer, parameter :: dummy3i = SIN(x=10)\n"
 
     # Symbol has initial value but is not constant (static). This is a property
     # of the Fortran language and therefore is only checked for when we attempt
@@ -1185,9 +1185,9 @@ def test_fw_mixed_operator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = -a + (-b + (-c))\n"
         "    a = -a + (-b - (-c))\n"
         "    b = c * (-2.0)\n"
-        "    a = ABS(-b - (-c))\n"
+        "    a = ABS(a=-b - (-c))\n"
         "    e = .NOT.f .OR. (.NOT.g)\n"
-        "    a = LOG(b * c)\n"
+        "    a = LOG(x=b * c)\n"
         "    a = b ** (-c)\n"
         "    a = b ** (-b + c)\n"
         "    a = (-b) ** c\n"
@@ -1289,9 +1289,9 @@ def test_fw_range(fortran_writer):
     range2 = Range.create(dim2_bound_start, plus, step=three)
     # Check the ranges in isolation
     result = fortran_writer(range1)
-    assert result == "1:UBOUND(a, dim=1)"
+    assert result == "1:UBOUND(array=a, dim=1)"
     result = fortran_writer(range2)
-    assert result == "LBOUND(a, dim=2):b + c:3"
+    assert result == "LBOUND(array=a, dim=2):b + c:3"
     # Check the ranges in context
     array = ArrayReference.create(
         symbol, [range1, range2])
@@ -1326,8 +1326,8 @@ def test_fw_range(fortran_writer):
          Range.create(dim3_bound_stop.copy(), dim3_bound_start.copy(),
                       step=three.copy())])
     result = fortran_writer.arrayreference_node(array)
-    assert result == ("a(LBOUND(b, dim=1):UBOUND(b, dim=1),:2:3,"
-                      "UBOUND(a, dim=3):LBOUND(a, dim=3):3)")
+    assert result == ("a(LBOUND(array=b, dim=1):UBOUND(array=b, dim=1),:2:3,"
+                      "UBOUND(array=a, dim=3):LBOUND(array=a, dim=3):3)")
 
 
 def test_fw_range_structureref(fortran_writer):
@@ -1363,8 +1363,8 @@ def test_fw_range_structureref(fortran_writer):
         ArrayOfStructuresReference.create(array_symbol, [range2],
                                           [("data", [range2.copy()])]))
     assert (result ==
-            "my_grids(:)%data(LBOUND(my_grids, dim=1):"
-            "UBOUND(my_grids, dim=1))")
+            "my_grids(:)%data(LBOUND(array=my_grids, dim=1):"
+            "UBOUND(array=my_grids, dim=1))")
 
     symbol = DataSymbol("field", UnresolvedType())
     int_one = Literal("1", INTEGER_TYPE)
@@ -1382,9 +1382,10 @@ def test_fw_range_structureref(fortran_writer):
                                              ("second", [my_range.copy()])])
     result = fortran_writer(ref)
     assert (result ==
-            "field(LBOUND(field%first, dim=1):"
-            "UBOUND(field%first, dim=1))%first%second("
-            "LBOUND(field%first, dim=1):UBOUND(field%first, dim=1))")
+            "field(LBOUND(array=field%first, dim=1):"
+            "UBOUND(array=field%first, dim=1))%first%second("
+            "LBOUND(array=field%first, dim=1):"
+            "UBOUND(array=field%first, dim=1))")
 
     data_ref = Reference(array_symbol)
     start = IntrinsicCall.create(
@@ -1516,7 +1517,7 @@ def test_fw_unaryoperator2(fortran_reader, fortran_writer, tmpdir):
 
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
-    assert "a = SIN(1.0)" in result
+    assert "a = SIN(x=1.0)" in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -1655,9 +1656,9 @@ def test_fw_query_intrinsics(fortran_reader, fortran_writer, tmpdir):
 
     # Generate Fortran from the PSyIR
     result = fortran_writer(psyir).lower()
-    assert "mysize = size(a, 2)" in result
-    assert "lb = lbound(a, 2)" in result
-    assert "ub = ubound(a, 2)" in result
+    assert "mysize = size(array=a, dim=2)" in result
+    assert "lb = lbound(array=a, dim=2)" in result
+    assert "ub = ubound(array=a, dim=2)" in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -1861,18 +1862,23 @@ def test_fw_intrinsic_call_node(fortran_writer):
     rcall = IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
                                  [Reference(sym)])
     gen = fortran_writer(rcall)
-    assert gen == "call RANDOM_NUMBER(var)\n"
+    assert gen == "call RANDOM_NUMBER(harvest=var)\n"
 
     for intrinsic_function in [IntrinsicCall.Intrinsic.MINVAL,
                                IntrinsicCall.Intrinsic.MAXVAL,
-                               IntrinsicCall.Intrinsic.SUM,
-                               IntrinsicCall.Intrinsic.TINY,
+                               IntrinsicCall.Intrinsic.SUM]:
+        intrinsic_call = IntrinsicCall.create(
+            intrinsic_function, [Reference(sym)])
+        assignment = Assignment.create(Reference(sym), intrinsic_call)
+        gen = fortran_writer(assignment)
+        assert gen == f"var = {intrinsic_function.name}(array=var)\n"
+    for intrinsic_function in [IntrinsicCall.Intrinsic.TINY,
                                IntrinsicCall.Intrinsic.HUGE]:
         intrinsic_call = IntrinsicCall.create(
             intrinsic_function, [Reference(sym)])
         assignment = Assignment.create(Reference(sym), intrinsic_call)
         gen = fortran_writer(assignment)
-        assert gen == f"var = {intrinsic_function.name}(var)\n"
+        assert gen == f"var = {intrinsic_function.name}(x=var)\n"
 
 
 def test_fw_comments(fortran_writer):

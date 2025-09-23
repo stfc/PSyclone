@@ -480,7 +480,7 @@ def test_symbolic_math_use_range(fortran_reader, expressions):
     # not it is a scalar.
     ("a / a(i)", "a / a(i)"),
     ("norm_u(idx+iw2) * u_e(idx + (LBOUND(u_e,dim=1)-iw2v), df2)",
-     "norm_u(idx + iw2) * u_e(idx - iw2v + LBOUND(u_e, 1),df2)")])
+     "norm_u(idx + iw2) * u_e(idx - iw2v + LBOUND(array=u_e, dim=1),df2)")])
 def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     '''Test the expand method works as expected.'''
     # A dummy program to easily create the PSyIR for the
@@ -526,7 +526,7 @@ def test_expand_with_intrinsic(fortran_reader, fortran_writer):
     sym_maths.expand(rhs)
     result = fortran_writer(psyir).lower()
     # Check that the 'u_e' argument remains unchanged.
-    assert "lbound(u_e, 1),df2)" in result
+    assert "lbound(array=u_e, dim=1),df2)" in result
 
 
 def test_symbolic_maths_expand_function(fortran_reader, fortran_writer):

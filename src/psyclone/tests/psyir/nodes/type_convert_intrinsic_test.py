@@ -64,13 +64,13 @@ def test_type_convert_intrinsic_create(intrinsic, intr_str, fortran_writer):
     assert intr_call.intrinsic is intrinsic
     check_links(intr_call, [intr_call.routine, lhs, rhs])
     result = fortran_writer(intr_call)
-    assert intr_str + "(tmp1, kind=wp)" in result.lower()
+    assert intr_str + "(a=tmp1, kind=wp)" in result.lower()
     # Kind specified with an integer literal
     rhs = Literal("4", INTEGER_SINGLE_TYPE)
     intr_call = IntrinsicCall.create(intrinsic, [lhs.detach(), ("kind", rhs)])
     check_links(intr_call, [intr_call.routine, lhs, rhs])
     result = fortran_writer(intr_call)
-    assert intr_str + "(tmp1, kind=4)" in result.lower()
+    assert intr_str + "(a=tmp1, kind=4)" in result.lower()
     # Kind specified as an arithmetic expression
     rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  Reference(wp_sym),
@@ -78,7 +78,7 @@ def test_type_convert_intrinsic_create(intrinsic, intr_str, fortran_writer):
     intr_call = IntrinsicCall.create(intrinsic, [lhs.detach(), ("kind", rhs)])
     check_links(intr_call, [intr_call.routine, lhs, rhs])
     result = fortran_writer(intr_call)
-    assert intr_str + "(tmp1, kind=wp + 2)" in result.lower()
+    assert intr_str + "(a=tmp1, kind=wp + 2)" in result.lower()
 
 
 @pytest.mark.xfail(reason="No PSyIR symbol type checking is performed on the "

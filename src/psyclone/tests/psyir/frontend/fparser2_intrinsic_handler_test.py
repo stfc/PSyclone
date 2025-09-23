@@ -196,7 +196,7 @@ end subroutine
     intrinsic_call = psyir.children[0].children[0].children[1]
     assert isinstance(intrinsic_call, IntrinsicCall)
     result = fortran_writer(intrinsic_call)
-    assert result == f"{intrinsic_name}(a, dim=d, mask=m)"
+    assert result == f"{intrinsic_name}(array=a, dim=d, mask=m)"
     routine_symbol = intrinsic_call.routine.symbol
 
     assert isinstance(routine_symbol, RoutineSymbol)
@@ -230,7 +230,7 @@ end subroutine
     intrinsic_call = psyir.children[0].children[0].children[1]
     assert isinstance(intrinsic_call, IntrinsicCall)
     result = fortran_writer(intrinsic_call)
-    assert result == f"{intrinsic_name}(a)"
+    assert result == f"{intrinsic_name}(x=a)"
     routine_symbol = intrinsic_call.routine.symbol
     assert isinstance(routine_symbol, RoutineSymbol)
     assert intrinsic_call.routine.name == intrinsic_name
@@ -242,36 +242,64 @@ end subroutine
 
 
 @pytest.mark.parametrize(
-    "code, expected_intrinsic",
-    [('x = exp(a)', IntrinsicCall.Intrinsic.EXP),
-     ('x = sin(a)', IntrinsicCall.Intrinsic.SIN),
-     ('x = asin(a)', IntrinsicCall.Intrinsic.ASIN),
-     ('idx = ceiling(a)', IntrinsicCall.Intrinsic.CEILING),
-     ('x = abs(a)', IntrinsicCall.Intrinsic.ABS),
-     ('x = cos(a)', IntrinsicCall.Intrinsic.COS),
-     ('x = acos(a)', IntrinsicCall.Intrinsic.ACOS),
-     ('x = tan(a)', IntrinsicCall.Intrinsic.TAN),
-     ('x = atan(a)', IntrinsicCall.Intrinsic.ATAN),
-     ('x = real(a)', IntrinsicCall.Intrinsic.REAL),
-     ('x = real(a, 8)', IntrinsicCall.Intrinsic.REAL),
-     ('x = int(a)', IntrinsicCall.Intrinsic.INT),
-     ('x = int(a, 8)', IntrinsicCall.Intrinsic.INT),
-     ('x = log(a)', IntrinsicCall.Intrinsic.LOG),
-     ('x = log10(a)', IntrinsicCall.Intrinsic.LOG10),
-     ('x = mod(a, b)', IntrinsicCall.Intrinsic.MOD),
-     ('x = matmul(a, b)', IntrinsicCall.Intrinsic.MATMUL),
-     ('x = max(a, b)', IntrinsicCall.Intrinsic.MAX),
-     ('x = mAx(a, b, c)', IntrinsicCall.Intrinsic.MAX),
-     ('x = min(a, b)', IntrinsicCall.Intrinsic.MIN),
-     ('x = min(a, b, c)', IntrinsicCall.Intrinsic.MIN),
-     ('x = sign(a, b)', IntrinsicCall.Intrinsic.SIGN),
-     ('x = sqrt(a)', IntrinsicCall.Intrinsic.SQRT),
-     ('x = aimag(a)', IntrinsicCall.Intrinsic.AIMAG),
-     ('x = dprod(a, b)', IntrinsicCall.Intrinsic.DPROD),
-     ('x = reshape(a, b, c)', IntrinsicCall.Intrinsic.RESHAPE),
-     ('x = sin(-3.0)', IntrinsicCall.Intrinsic.SIN)])
+    "code, expected_intrinsic, arg_names",
+    [('x = exp(a)', IntrinsicCall.Intrinsic.EXP,
+      ["x"]),
+     ('x = sin(a)', IntrinsicCall.Intrinsic.SIN,
+      ["x"]),
+     ('x = asin(a)', IntrinsicCall.Intrinsic.ASIN,
+      ["x"]),
+     ('idx = ceiling(a)', IntrinsicCall.Intrinsic.CEILING,
+      ["a"]),
+     ('x = abs(a)', IntrinsicCall.Intrinsic.ABS,
+      ["a"]),
+     ('x = cos(a)', IntrinsicCall.Intrinsic.COS,
+      ["x"]),
+     ('x = acos(a)', IntrinsicCall.Intrinsic.ACOS,
+      ["x"]),
+     ('x = tan(a)', IntrinsicCall.Intrinsic.TAN,
+      ["x"]),
+     ('x = atan(a)', IntrinsicCall.Intrinsic.ATAN,
+      ["x"]),
+     ('x = real(a)', IntrinsicCall.Intrinsic.REAL,
+      ["a"]),
+     ('x = real(a, 8)', IntrinsicCall.Intrinsic.REAL,
+      ["a", "kind"]),
+     ('x = int(a)', IntrinsicCall.Intrinsic.INT,
+      ["a"]),
+     ('x = int(a, 8)', IntrinsicCall.Intrinsic.INT,
+      ["a", "kind"]),
+     ('x = log(a)', IntrinsicCall.Intrinsic.LOG,
+      ["x"]),
+     ('x = log10(a)', IntrinsicCall.Intrinsic.LOG10,
+      ["x"]),
+     ('x = mod(a, b)', IntrinsicCall.Intrinsic.MOD,
+      ["a", "p"]),
+     ('x = matmul(a, b)', IntrinsicCall.Intrinsic.MATMUL,
+      ["matrix_a", "matrix_b"]),
+     ('x = max(a, b)', IntrinsicCall.Intrinsic.MAX,
+      [None, None]),
+     ('x = mAx(a, b, c)', IntrinsicCall.Intrinsic.MAX,
+      [None, None, None]),
+     ('x = min(a, b)', IntrinsicCall.Intrinsic.MIN,
+      [None, None]),
+     ('x = min(a, b, c)', IntrinsicCall.Intrinsic.MIN,
+      [None, None, None]),
+     ('x = sign(a, b)', IntrinsicCall.Intrinsic.SIGN,
+      ["a", "b"]),
+     ('x = sqrt(a)', IntrinsicCall.Intrinsic.SQRT,
+      ["x"]),
+     ('x = aimag(a)', IntrinsicCall.Intrinsic.AIMAG,
+      ["z"]),
+     ('x = dprod(a, b)', IntrinsicCall.Intrinsic.DPROD,
+      ["x", "y"]),
+     ('x = reshape(a, b, c)', IntrinsicCall.Intrinsic.RESHAPE,
+      ["source", "shape", "pad"]),
+     ('x = sin(-3.0)', IntrinsicCall.Intrinsic.SIN, 
+      ["x"])])
 @pytest.mark.usefixtures("f2008_parser")
-def test_handling_intrinsics(code, expected_intrinsic, symbol_table):
+def test_handling_intrinsics(code, expected_intrinsic, arg_names,
+                             symbol_table):
     '''Test that the fparser2 _intrinsic_handler method deals with
     Intrinsic_Function_Reference nodes that are translated to PSyIR
     IntrinsicCall nodes.
@@ -289,8 +317,8 @@ def test_handling_intrinsics(code, expected_intrinsic, symbol_table):
     assert assign.rhs.routine.symbol.intrinsic == expected_intrinsic, \
         "Fails when parsing '" + code + "'"
     assert len(assign.rhs.arguments) == len(assign.rhs.argument_names)
-    for named_arg in assign.rhs.argument_names:
-        assert named_arg is None
+    for i, named_arg in enumerate(assign.rhs.argument_names):
+        assert named_arg == arg_names[i]
 
 
 def test_handling_unsupported_intrinsics(symbol_table):
@@ -315,13 +343,13 @@ def test_handling_unsupported_intrinsics(symbol_table):
 @pytest.mark.parametrize(
     "code, expected_intrinsic, expected_names",
     [('x = sin(a)',
-      IntrinsicCall.Intrinsic.SIN, [None]),
-     ('x = sin(array=a)',
-      IntrinsicCall.Intrinsic.SIN, ["array"]),
+      IntrinsicCall.Intrinsic.SIN, ["x"]),
+     ('x = sin(x=a)',
+      IntrinsicCall.Intrinsic.SIN, ["x"]),
      ('x = dot_product(a, b)',
-      IntrinsicCall.Intrinsic.DOT_PRODUCT, [None, None]),
+      IntrinsicCall.Intrinsic.DOT_PRODUCT, ["vector_a", "vector_b"]),
      ('x = dot_product(a, vector_b=b)',
-      IntrinsicCall.Intrinsic.DOT_PRODUCT, [None, "vector_b"]),
+      IntrinsicCall.Intrinsic.DOT_PRODUCT, ["vector_a", "vector_b"]),
      ('x = dot_product(vector_a=a, vector_b=b)',
       IntrinsicCall.Intrinsic.DOT_PRODUCT, ["vector_a", "vector_b"]),
      ('x = max(a, b, c)',

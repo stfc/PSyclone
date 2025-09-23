@@ -248,7 +248,6 @@ class PSyIRVisitor():
         possible_method_names = [curr_class.__name__.lower()+"_node"
                                  for curr_class in inspect.getmro(type(node))]
         possible_method_names.remove("object_node")
-
         # Try to call methods using the class names in the order of
         # the class hierarchy (starting from the current class name).
         for method_name in possible_method_names:
