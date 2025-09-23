@@ -3087,6 +3087,7 @@ class Fparser2Reader():
             (e.g. allocate(character(len=10) :: my_var)).
 
         '''
+        # Canonicalise doesn't do anything for ALLOCATE so we don't need to.
         call = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE, parent=parent)
 
         type_spec = node.children[0]
@@ -3242,6 +3243,7 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
+        # Canonicalise doesn't do anything for DEALLOCATE so we don't need to.
         call = IntrinsicCall(
             IntrinsicCall.Intrinsic.DEALLOCATE, parent=parent)
         dealloc_list = node.children[0].children
@@ -4969,18 +4971,20 @@ class Fparser2Reader():
             if not intrinsic.optional_args:
                 # Intrinsics with no optional arguments
                 call = IntrinsicCall(intrinsic, parent=parent)
-                return self._process_args(node, call)
+                call = self._process_args(node, call)
+                call.canonicalise()
+                return call
             if intrinsic.name.lower() in ["minval", "maxval", "sum"]:
                 # Intrinsics with optional arguments require a
                 # canonicalise function
                 call = IntrinsicCall(intrinsic, parent=parent)
-                return self._process_args(
-                    node, call, canonicalise=_canonicalise_minmaxsum)
-            # TODO #2302: We do not canonicalise the order of the
-            # arguments of the remaining intrinsics, but this means
-            # PSyIR won't be able to guarantee what each child is.
+                call = self._process_args(node, call)
+                call.canonicalise()
+                return call
             call = IntrinsicCall(intrinsic, parent=parent)
-            return self._process_args(node, call)
+            call = self._process_args(node, call)
+            call.canonicalise()
+            return call
         except KeyError as err:
             raise NotImplementedError(
                 f"Intrinsic '{node.items[0].string}' is not supported"

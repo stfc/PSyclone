@@ -107,7 +107,7 @@ def test_correct(func, output, tmpdir):
         f"  real, intent(inout) :: arg\n"
         f"  real, intent(inout) :: arg_1\n"
         f"  real :: psyir_tmp\n\n"
-        f"  psyir_tmp = SIGN({output}, arg_1)\n\n"
+        f"  psyir_tmp = SIGN(a={output}, b=arg_1)\n\n"
         f"end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
     trans.apply(intr_call, root.symbol_table)
@@ -161,7 +161,7 @@ def test_correct_expr(tmpdir):
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp = 1.0 + SIGN(arg * 3.14, arg_1) + 2.0\n\n"
+        "  psyir_tmp = 1.0 + SIGN(a=arg * 3.14, b=arg_1) + 2.0\n\n"
         "end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
     trans.apply(intr_call, root.symbol_table)
@@ -215,7 +215,7 @@ def test_correct_2sign(tmpdir, fortran_writer):
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp = SIGN(1.0, 1.0) + SIGN(arg * 3.14, arg_1)\n\n"
+        "  psyir_tmp = SIGN(a=1.0, b=1.0) + SIGN(a=arg * 3.14, b=arg_1)\n\n"
         "end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
     trans.apply(intr_call, root.symbol_table)
@@ -271,7 +271,7 @@ def test_sign_with_integer_arg(fortran_reader, fortran_writer, tmpdir):
     program test_prog
       integer, parameter :: idef = kind(1)
       integer(idef) :: my_arg, other_arg
-      my_arg = SIGN(my_arg, other_arg)
+      my_arg = SIGN(a=my_arg, b=other_arg)
     end program test_prog'''
     psyir = fortran_reader.psyir_from_source(code)
     trans = Sign2CodeTrans()

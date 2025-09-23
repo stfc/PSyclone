@@ -320,7 +320,7 @@ def test_apply_unknown_dims(tmpdir, fortran_reader, fortran_writer):
         "  integer :: i\n"
         "  real(kind=r_def) :: res_dot_product\n\n"
         "  res_dot_product = 0.0\n"
-        "  do i = LBOUND(v1, dim=1), UBOUND(v1, dim=1), 1\n"
+        "  do i = LBOUND(array=v1, dim=1), UBOUND(array=v1, dim=1), 1\n"
         "    res_dot_product = res_dot_product + v1(i) * v2(i)\n"
         "  enddo\n"
         "  result = res_dot_product\n\n")
@@ -369,7 +369,7 @@ def test_apply_array_notation(
         "  integer :: i\n"
         "  real :: res_dot_product\n\n"
         "  res_dot_product = 0.0\n"
-        "  do i = LBOUND(v1, dim=1), UBOUND(v1, dim=1), 1\n"
+        "  do i = LBOUND(array=v1, dim=1), UBOUND(array=v1, dim=1), 1\n"
         "    res_dot_product = res_dot_product + v1(i) * v2(i)\n"
         "  enddo\n"
         "  result = res_dot_product\n\n")
@@ -397,7 +397,7 @@ def test_apply_extra_dims(tmpdir, fortran_reader, fortran_writer, arg1, arg2,
         f"  integer :: i\n"
         f"  real :: res_dot_product\n\n"
         f"  res_dot_product = 0.0\n"
-        f"  do i = LBOUND(v1, dim=1), UBOUND(v1, dim=1), 1\n"
+        f"  do i = LBOUND(array=v1, dim=1), UBOUND(array=v1, dim=1), 1\n"
         f"    res_dot_product = res_dot_product + v1{res1} * v2{res2}\n"
         f"  enddo\n"
         f"  result = res_dot_product\n\n")
@@ -426,7 +426,7 @@ def test_apply_extra_dims_sizes(tmpdir, fortran_reader, fortran_writer,
         f"  integer :: i\n"
         f"  real :: res_dot_product\n\n"
         f"  res_dot_product = 0.0\n"
-        f"  do i = LBOUND(v1, dim=1), UBOUND(v1, dim=1), 1\n"
+        f"  do i = LBOUND(array=v1, dim=1), UBOUND(array=v1, dim=1), 1\n"
         f"    res_dot_product = res_dot_product + v1{res1} * v2{res2}\n"
         f"  enddo\n"
         f"  result = res_dot_product\n\n")

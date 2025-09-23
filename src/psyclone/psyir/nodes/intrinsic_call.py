@@ -2539,6 +2539,8 @@ class IntrinsicCall(Call):
             # what we currently need to check (i.e. if we have a named
             # argument here we can't canonicalise it safely).
             for name in self.argument_names:
+                if not name:
+                    continue
                 if name not in optional_names:
                     raise NotImplementedError(
                         f"Cannot canonicalise '{self.intrinsic.name}' "

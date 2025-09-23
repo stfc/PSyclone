@@ -727,3 +727,9 @@ def test_intrinsic_canonicalisation(fortran_reader):
     intrinsic.addchild(Reference(DataSymbol("c", INTEGER_TYPE)))
     intrinsic.canonicalise()
     assert intrinsic.argument_names == ["array", "dim", "mask"]
+
+    # Check that we don't fail when the required argument name is None
+    # and no argument name is supported.
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATED)
+    intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
+    intrinsic.canonicalise()
