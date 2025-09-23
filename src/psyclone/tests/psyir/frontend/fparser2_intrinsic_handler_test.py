@@ -295,7 +295,7 @@ end subroutine
       ["x", "y"]),
      ('x = reshape(a, b, c)', IntrinsicCall.Intrinsic.RESHAPE,
       ["source", "shape", "pad"]),
-     ('x = sin(-3.0)', IntrinsicCall.Intrinsic.SIN, 
+     ('x = sin(-3.0)', IntrinsicCall.Intrinsic.SIN,
       ["x"])])
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_intrinsics(code, expected_intrinsic, arg_names,
