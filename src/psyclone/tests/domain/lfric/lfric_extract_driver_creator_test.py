@@ -37,7 +37,7 @@
 
 ''' This module tests the driver creation for extracted kernels.'''
 
-import os
+from pathlib import Path
 import pytest
 
 from psyclone.domain.lfric import LFRicExtractDriverCreator
@@ -48,7 +48,8 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
     Literal, Routine, Schedule, Call, StructureReference)
 from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.tests.utilities import Compile, get_base_path, get_invoke
+from psyclone.tests.utilities import (
+    Compile, get_base_path, get_infrastructure_path, get_invoke)
 
 
 API = "lfric"
@@ -63,19 +64,20 @@ def init_module_manager():
     the default ModuleManager file.
     '''
 
-    infrastructure_path = get_base_path(API)
+    test_files_dir = get_base_path(API)
+    infrastructure_path = Path(get_infrastructure_path(API))
     # Define the path to the ReadKernelData module (which contains functions
     # to read extracted data from a file) relative to the infrastructure path:
-    psyclone_root = os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.dirname(os.path.dirname(infrastructure_path)))))
-    read_mod_path = os.path.join(psyclone_root, "lib", "extract",
-                                 "binary", "lfric")
+    psyclone_root = infrastructure_path.parents[2]
+    read_mod_path = (psyclone_root / "lib" / "extract" /
+                     "binary" / "lfric")
     # Enforce loading of the default ModuleManager
     ModuleManager._instance = None
 
     module_manager = ModuleManager.get()
-    module_manager.add_search_path(infrastructure_path)
-    module_manager.add_search_path(read_mod_path)
+    module_manager.add_search_path(test_files_dir)
+    module_manager.add_search_path(str(infrastructure_path))
+    module_manager.add_search_path(str(read_mod_path))
 
     # Now execute all tests
     yield
