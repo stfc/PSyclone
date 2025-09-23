@@ -467,9 +467,7 @@ class Call(Statement, DataNode):
         '''
         Searches for the implementation(s) of all potential target routines
         for this Call without resolving static polymorphism by checking the
-        argument types. Updates the properties of the RoutineSymbol that is
-        the target of this Call with those associated with the RoutineSymbols
-        of the target routines.
+        argument types.
 
         :returns: the Routine(s) that this call targets.
 

@@ -166,8 +166,10 @@ class GenericInterfaceSymbol(RoutineSymbol):
             effects (guarantees that the routine always returns the same
             result for a given set of inputs).
         '''
-        # If one Routine in an Interface is pure then they all must be.
-        return self._routines[0].symbol.is_pure
+        if self._routines:
+            # If one Routine in an Interface is pure then they all must be.
+            return self._routines[0].symbol.is_pure
+        return None
 
     @is_pure.setter
     def is_pure(self, _):
@@ -185,8 +187,10 @@ class GenericInterfaceSymbol(RoutineSymbol):
             (acts element-by-element on supplied array arguments) or None if
             this is not known.
         '''
-        # If one Routine in an Interface is elemental then they all must be.
-        return self._routines[0].symbol.is_elemental
+        if self._routines:
+            # If one Routine is elemental then they all must be.
+            return self._routines[0].symbol.is_elemental
+        return None
 
     @is_elemental.setter
     def is_elemental(self, _):
@@ -247,6 +251,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
         '''
         :returns: the datatype of this symbol if it can be determined.
         '''
+        # Use the str representation of each type as that is hashable.
         dtypes = set([str(rinfo.symbol.datatype) for rinfo in self._routines])
         if len(dtypes) == 1:
             return self._routines[0].symbol.datatype
@@ -254,19 +259,23 @@ class GenericInterfaceSymbol(RoutineSymbol):
         return UnresolvedType()
 
     @datatype.setter
-    def datatype(self, _):
+    def datatype(self, value):
         '''
         This property is computed dynamically from the RoutineSymbols that
         this GenericInterfaceSymbol maps to and therefore cannot be set.
 
         This method exists for compatibility with the RoutineSymbol superclass.
         '''
+        if value:
+            assert 0
 
     def copy_properties(self,
                         symbol_in: RoutineSymbol,
                         exclude_interface: bool = False):
         '''
-        Copies the properties of the supplied Symbol into this one.
+        Replace all properties in this object with the properties from
+        symbol_in, apart from the name (which is immutable) and visibility.
+        If `exclude_interface` is True, the interface is also not updated.
 
         :param symbol_in: the Symbol to copy properties from.
         :param exclude_interface: whether or not to copy the interface
