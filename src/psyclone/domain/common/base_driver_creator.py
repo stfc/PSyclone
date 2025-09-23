@@ -38,31 +38,71 @@
 implementations.
 '''
 
-from typing import List, Optional, Tuple
+from abc import abstractmethod
+from typing import Optional
 
 from psyclone.core import Signature
+from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.language_writer import LanguageWriter
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Call, Literal, Reference, ExtractNode, Routine, Node)
+    Call, ExtractNode, FileContainer, Literal, Node, Reference, Routine,
+    StructureReference)
 from psyclone.psyir.symbols import (
-    CHARACTER_TYPE, ContainerSymbol, ImportInterface, INTEGER_TYPE, NoType,
-    RoutineSymbol, DataSymbol, UnsupportedFortranType, Symbol,
-    AutomaticInterface, UnresolvedType, SymbolTable)
+    CHARACTER_TYPE, ContainerSymbol, DataTypeSymbol, ImportInterface,
+    INTEGER_TYPE, NoType, RoutineSymbol, DataSymbol, UnsupportedFortranType,
+    Symbol, AutomaticInterface, UnresolvedType, SymbolTable)
 from psyclone.psyir.tools import ReadWriteInfo
 
 
 class BaseDriverCreator:
     '''This class provides the functionality common to all driver creations.
-    A more extended version will be created for TODO #2049, for now it only
-    provides two identical methods for LFRicExtractDriverCreator and
-    ExtractDriverCreator (which might need to be renamed to GOcean....)
+    The driver is created as follows:
 
+    1. A file container is created and the (empty) driver program is added.
+    2. All symbols from the `read_kernel_data_mod` are added to the symbol
+       table, and a `psy_data` symbol is created that handles the reading
+       of data from the kernel data file.
+    3. The command line handler is added to the driver. It is responsible
+       for handling command line parameters for the driver specifying the
+       kernel data file to read (and if nothing is specified to use the
+       default, which is the name used in the extraction without MPI
+       rank attached).
+    4. A copy of the kernel that is being instrumented is created, so that
+       it can be modified without affecting the actual code creation if
+       PSyclone..
+    5. The method `verify_and_cleanup_psyir` is called with the copied kernel
+       as parameter. The base implementation checks that no structure accesses
+       are in the code (which are not supported - the structures used by the
+       domain-specific code have already been replaced since the extracted
+       region has been lowered). This can be overwritten by domain-specific
+       implementation. For example, in LFRic calls to `set_dirty` and
+       `set_clean` are removed (since they are irrelevant) first.
+    6. The read-in code is added, using the read_write information which
+       is used when extracting the data. This ensures that the extraction
+       and driver are matching.
+    7. The copy of the kernel is added.
+    8. All modules required by the kernel are imported.
+    9. A call to `handle_precision_symbols` is made, allowing domain-specific
+       derived classes to add precision related symbols as required
+       (see `lfric_extract_driver_creator.py`), or to replace precision
+       symbols (see `extract_driver_creator.py`).
+    10. Add the code that will compare the results, i.e. comparing all output
+        variables computed in the kernel with the post values stored in the
+        kernel data file.
+
+    :param region_name: Suggested region name.
     '''
-    # TODO #2049: Turn this into a proper base class.
+
+    # -------------------------------------------------------------------------
+    def __init__(self, region_name: Optional[tuple[str, str]] = None):
+        self._region_name = region_name
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def add_call(program: Routine, name: str, args: List[Node]):
+    def add_call(program: Routine, name: str, args: list[Node]):
         '''This function creates a call to the subroutine of the given name,
         providing the arguments. The call will be added to the program and
         the corresponding RoutineSymbol to its symbol table (if not already
@@ -116,7 +156,7 @@ class BaseDriverCreator:
     # -------------------------------------------------------------------------
     @staticmethod
     def add_result_tests(program: Routine,
-                         output_symbols: List[Tuple[Symbol, Symbol]]) -> None:
+                         output_symbols: list[tuple[Symbol, Symbol]]) -> None:
         '''Adds tests to check that all output variables have the expected
         value.
 
@@ -151,9 +191,12 @@ class BaseDriverCreator:
 
     @staticmethod
     def _create_output_var_code(
-        name: str, program: Routine, read_var: str,
-        postfix: str, module_name: Optional[str] = None
-    ) -> Tuple[Symbol, Symbol]:
+        name: str,
+        program: Routine,
+        read_var: str,
+        postfix: str,
+        module_name: Optional[str] = None
+    ) -> tuple[Symbol, Symbol]:
         '''
         This function creates all code required for an output variable:
         1. It declares (and initialises if necessary) the post variable
@@ -219,8 +262,8 @@ class BaseDriverCreator:
             original_symtab: SymbolTable,
             read_write_info: ReadWriteInfo,
             postfix: str,
-            removable_vars: List[Tuple[str, Signature]],
-        ) -> List[Tuple[Symbol, Symbol]]:
+            removable_vars: list[tuple[str, Signature]],
+            ) -> list[tuple[Symbol, Symbol]]:
         '''This function creates the code that reads in the data file
         produced during extraction. For each:
 
@@ -264,7 +307,7 @@ class BaseDriverCreator:
                     name_lit = Literal(str(signature), CHARACTER_TYPE)
                     read_stmts.append((name_lit, sym))
 
-        # Now do the input external variables. This are done after the locals
+        # Now do the input external variables. These are done after the locals
         # so that they match the literal tags of the extracting psy-layer
         ExtractNode.bring_external_symbols(read_write_info, symbol_table)
         mod_man = ModuleManager.get()
@@ -348,3 +391,368 @@ class BaseDriverCreator:
             new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
                                             interface=ImportInterface(module))
             symtab.add(new_routine_sym)
+
+    # -------------------------------------------------------------------------
+    def verify_and_cleanup_psyir(self, extract_region: Node) -> None:
+        """This method is called to verify that no unsupported language
+        features are used. The base implementation checks for
+        StructureReferences (except for ones used in a call, which some
+        DLSs use, e.g. set_dirty in LFRic)
+
+        :param extract_region: the node with the extracted region.
+
+        :raises ValueError: if a StructureReference outside of a call
+            is found.
+        """
+        # DSLs use StructureReferences in calls (e.g in LFRic
+        # set_dirty etc) must be handled (e.g. removed) by a derived
+        # class first
+        print("BBB0", extract_region.view())
+        for sref in extract_region.walk(StructureReference):
+            raise ValueError(f"The DriverCreator does not support "
+                             f"StructureReferences, any such references "
+                             f"in the extraction region should have been "
+                             f"flattened by the ExtractNode, but found: "
+                             f"'{sref.debug_string()}'")
+
+    # -------------------------------------------------------------------------
+    @abstractmethod
+    def handle_precision_symbols(self, symbol_table: SymbolTable) -> None:
+        """This method is called to allow DSL-specific changes of type
+        information. E.g. it might replace DSL-specific integer types
+        with generic declarations, or add additional import statements
+        to make the required types available.
+
+        :param symbol_table: the SymbolTable of the driver.
+        """
+
+    # -------------------------------------------------------------------------
+    def _add_command_line_handler(self, program, psy_data_var, module_name,
+                                  region_name):
+        '''
+        This function adds code to handle the command line. For now an
+        alternative filename (to the default one that is hard-coded by
+        the created driver) can be specified, which allows the driver to
+        be used with different files, e.g. several dumps from one run, and/or
+        a separate file from each process. It will also add the code to
+        open the input file using the read_kernel_data routine from the
+        extraction library.
+
+        :param program: The driver PSyIR.
+        :type program: :py:class:`psyclone.psyir.nodes.Routine`
+        :param psy_data_var: the symbol of the PSyDataExtraction type.
+        :type psy_data_var: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param str module_name: the name of the module, used to create the
+            implicit default kernel dump file name.
+        :param str region_name: the name of the region, used to create the
+            implicit default kernel dump file name.
+
+        '''
+        # pylint: disable=too-many-locals
+        program_symbol_table = program.symbol_table
+
+        # PSyIR does not support allocatable strings, so create the two
+        # variables we need in a loop.
+        # TODO #2137: The UnsupportedFortranType could be reused for all
+        #             variables once this is fixed.
+        for str_name in ["psydata_filename", "psydata_arg"]:
+            str_unique_name = \
+                program_symbol_table.next_available_name(str_name)
+            str_type = UnsupportedFortranType(
+                f"character(:), allocatable :: {str_unique_name}")
+            sym = DataTypeSymbol(str_unique_name, str_type)
+            program_symbol_table.add(sym)
+            if str_name == "psydata_filename":
+                psydata_filename = str_unique_name
+            else:
+                psydata_arg = str_unique_name
+
+        psydata_len = \
+            program_symbol_table.find_or_create("psydata_len",
+                                                symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE).name
+        psydata_i = \
+            program_symbol_table.find_or_create("psydata_i",
+                                                symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE).name
+        # We can only parse one statement at a time, so start with the
+        # command line handling:
+        code = f"""
+        do {psydata_i}=1,command_argument_count()
+           call get_command_argument({psydata_i}, length={psydata_len})
+           allocate(character({psydata_len})::{psydata_arg})
+           call get_command_argument({psydata_i}, {psydata_arg}, &
+                                     length={psydata_len})
+           if ({psydata_arg} == "--update") then
+              ! For later to allow marking fields as being updated
+           else
+              allocate(character({psydata_len})::{psydata_filename})
+              {psydata_filename} = {psydata_arg}
+           endif
+           deallocate({psydata_arg})
+        enddo
+        """
+        command_line = \
+            FortranReader().psyir_from_statement(code, program_symbol_table)
+        program.children.insert(0, command_line)
+
+        # Now add the handling of the filename parameter
+        code = f"""
+        if (allocated({psydata_filename})) then
+           call {psy_data_var.name}%OpenReadFileName({psydata_filename})
+        else
+           call {psy_data_var.name}%OpenReadModuleRegion('{module_name}', &
+                                                         '{region_name}')
+        endif
+        """
+        filename_test = \
+            FortranReader().psyir_from_statement(code, program_symbol_table)
+        program.children.insert(1, filename_test)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def collect_all_required_modules(
+            file_container: FileContainer) -> dict[str, set[str]]:
+        '''Collects recursively all modules used in the file container.
+        It returns a dictionary, with the keys being all the (directly or
+        indirectly) used modules.
+
+        :param file_container: the FileContainer for which to collect all
+            used modules.
+
+        :returns: a dictionary, with the required module names as key, and
+            as value a set of all modules required by the key module.
+
+        '''
+        all_mods: set[str] = set()
+        for container in file_container.children:
+            sym_tab = container.symbol_table
+            # Add all imported modules (i.e. all container symbols)
+            all_mods.update(symbol.name for symbol in sym_tab.symbols
+                            if isinstance(symbol, ContainerSymbol))
+
+        mod_manager = ModuleManager.get()
+        return mod_manager.get_all_dependencies_recursively(
+            list(all_mods))
+
+    # -------------------------------------------------------------------------
+    def create(self,
+               nodes: list[Node],
+               read_write_info: ReadWriteInfo,
+               prefix: str,
+               postfix: str,
+               region_name: tuple[str, str],
+               removable_vars: list[tuple[str, Signature]]) -> FileContainer:
+        # pylint: disable=too-many-arguments
+        '''This function uses the PSyIR to create a stand-alone driver
+        that reads in a previously created file with kernel input and
+        output information, and calls the kernels specified in the 'nodes'
+        PSyIR tree with the parameters from the file. The `nodes` are
+        consecutive nodes from the PSyIR tree.
+        It returns the file container which contains the driver.
+
+        :param nodes: a list of nodes.
+        :param read_write_info: information about all input and output
+            parameters.
+        :param prefix: the prefix to use for each PSyData symbol,
+            e.g. 'extract' as prefix will create symbols ``extract_psydata``.
+        :param postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
+            driver code (see 'ExtractTrans.determine_postfix()').
+        :param region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
+            should uniquely identify a region.
+        :param removable_vars: a list of tuples containing signatures and
+            the container name of variables that were not written to the
+            kernel data file (and as such should not be read in, though
+            they still need to be declared).
+
+        :returns: the program PSyIR for a stand-alone driver.
+
+        '''
+        # pylint: disable=too-many-locals
+
+        module_name, local_name = region_name
+        unit_name = self._make_valid_unit_name(f"{module_name}_{local_name}")
+
+        # First create the file container, which will only store the program:
+        file_container = FileContainer(unit_name)
+
+        # Create the program and add it to the file container:
+        program = Routine.create(unit_name, is_program=True)
+        program_symbol_table = program.symbol_table
+        file_container.addchild(program)
+
+        # Add the extraction library symbols
+        psy_data_mod = ContainerSymbol("read_kernel_data_mod")
+        program_symbol_table.add(psy_data_mod)
+        psy_data_type = DataTypeSymbol("ReadKernelDataType", UnresolvedType(),
+                                       interface=ImportInterface(psy_data_mod))
+        program_symbol_table.add(psy_data_type)
+        if prefix:
+            prefix = prefix + "_"
+        root_name = prefix + "psy_data"
+        psy_data = program_symbol_table.new_symbol(root_name=root_name,
+                                                   symbol_type=DataSymbol,
+                                                   datatype=psy_data_type)
+
+        # Add cmd line hander, read in, and result comparison for the code
+        self._add_command_line_handler(program, psy_data, region_name[0],
+                                       region_name[1])
+
+        original_symbol_table = nodes[0].ancestor(Routine).symbol_table
+
+        # Add the modified extracted region into the driver program
+        extract_region = nodes[0].copy()
+        self.verify_and_cleanup_psyir(extract_region)
+        output_symbols = self._create_read_in_code(program, psy_data,
+                                                   original_symbol_table,
+                                                   read_write_info, postfix,
+                                                   removable_vars)
+
+        # Copy the nodes that are part of the extraction
+        program.children.extend(extract_region.pop_all_children())
+
+        # Find all imported modules and add them to the symbol table
+        self.import_modules(program)
+        self.handle_precision_symbols(program.scope.symbol_table)
+
+        self.add_result_tests(program, output_symbols)
+
+        # Replace pointers with allocatables
+        program_symbol_table = program.symbol_table
+        for symbol in program_symbol_table.datasymbols:
+            if isinstance(symbol.datatype, UnsupportedFortranType):
+                symbol.datatype = symbol.datatype.copy()
+                newt = symbol.datatype.declaration
+                newt = newt.replace('pointer', 'allocatable')
+                newt = newt.replace('=> null()', '')
+                symbol.datatype._declaration = newt
+
+        return file_container
+
+    # -------------------------------------------------------------------------
+    def get_driver_as_string(self,
+                             nodes: list[Node],
+                             read_write_info: ReadWriteInfo,
+                             prefix: str,
+                             postfix: str,
+                             region_name: tuple[str, str],
+                             removable_vars: list[tuple[str, Signature]],
+                             writer: LanguageWriter = FortranWriter()) -> str:
+        # pylint: disable=too-many-arguments, too-many-locals
+        '''This function uses the `create()` function to get the PSyIR of a
+        stand-alone driver, and then uses the provided language writer
+        to create a string representation in the selected language
+        (defaults to Fortran).
+        All required modules will be inlined in the correct order, i.e. each
+        module will only depend on modules inlined earlier, which will allow
+        compilation of the driver. No other dependencies (except system
+        dependencies like NetCDF) are required for compilation.
+
+        :param nodes: a list of nodes.
+        :param read_write_info: information about all input and output
+            parameters.
+        :param prefix: the prefix to use for each PSyData symbol,
+            e.g. 'extract' as prefix will create symbols `extract_psydata`.
+        :param postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
+            driver code (see 'ExtractTrans.determine_postfix()').
+        :param region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
+            should uniquely identify a region.
+        :param removable_vars: a list of tuples containing signatures and
+            the container name of variables that were not written to the
+            kernel data file (and as such should not be read in, though
+            they still need to be declared).
+        :param language_writer: a backend visitor to convert PSyIR
+            representation to the selected language. It defaults to
+            the FortranWriter.
+
+        :returns: the driver in the selected language.
+
+        '''
+        file_container = self.create(nodes, read_write_info, prefix,
+                                     postfix, region_name, removable_vars)
+
+        # Inline all required modules into the driver source file so that
+        # it is stand-alone.
+        module_dependencies = self.collect_all_required_modules(file_container)
+        # Sort the modules by dependencies, i.e. start with modules
+        # that have no dependency. This is required for compilation, the
+        # compiler must have found any dependent modules before it can
+        # compile a module.
+        mod_manager = ModuleManager.get()
+        sorted_modules = mod_manager.sort_modules(module_dependencies)
+
+        out = []
+
+        for module in sorted_modules:
+            # Note that all modules in `sorted_modules` are known to be in
+            # the module manager, so we can always get the module info here.
+            mod_info = mod_manager.get_module_info(module)
+            out.append(mod_info.get_source_code())
+
+        out.append(writer(file_container))
+
+        return "\n".join(out)
+
+    # -------------------------------------------------------------------------
+    def write_driver(self,
+                     nodes: list[Node],
+                     read_write_info: ReadWriteInfo,
+                     prefix: str,
+                     postfix: str,
+                     region_name: tuple[str, str],
+                     removable_vars: list[tuple[str, Signature]],
+                     writer: LanguageWriter = FortranWriter()) -> None:
+        # pylint: disable=too-many-arguments
+        '''This function uses the `get_driver_as_string()` function to get a
+        a stand-alone driver, and then writes this source code to a file. The
+        file name is derived from the region name:
+        "driver-"+module_name+"_"+region_name+".F90"
+
+        :param nodes: a list of nodes containing the body of the driver
+            routine.
+        :param read_write_info: information about all input and output
+            parameters.
+        :param prefix: the prefix to use for each PSyData symbol,
+            e.g. 'extract' as prefix will create symbols `extract_psydata`.
+        :param postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
+            driver code (see 'ExtractTrans.determine_postfix()').
+        :param region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
+            should uniquely identify a region.
+        :param removable_vars: a list of tuples containing signatures and
+            the container name of variables that were not written to the
+            kernel data file (and as such should not be read in, though
+            they still need to be declared).
+        :param writer: a backend visitor to convert PSyIR
+            representation to the selected language. It defaults to
+            the FortranWriter.
+
+        '''
+        if self._region_name is not None:
+            region_name = self._region_name
+        code = self.get_driver_as_string(nodes, read_write_info, prefix,
+                                         postfix, region_name,
+                                         removable_vars, writer=writer)
+        fll = FortLineLength()
+        code = fll.process(code)
+        module_name, local_name = region_name
+        with open(f"driver-{module_name}-{local_name}.F90", "w",
+                  encoding='utf-8') as out:
+            out.write(code)

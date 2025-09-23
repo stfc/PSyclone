@@ -58,7 +58,7 @@ class LFRicConstants():
 
     UTILITIES_MOD_MAP: dict[str, dict[str, str]]
 
-    def __init__(self):
+    def __init__(self) -> None:
         # pylint: disable=too-many-statements
         if LFRicConstants.HAS_BEEN_INITIALISED:
             return
