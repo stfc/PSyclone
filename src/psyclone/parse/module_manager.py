@@ -126,8 +126,10 @@ class ModuleManager:
         self._visited_files: dict[str, FileInfo] = {}
 
         # The list of all search paths which have not yet all their files
-        # checked. It is stored as an ordered dict to make it easier to avoid
-        # duplicating entries, but it only stores a 1 as 'value'.
+        # checked. It is stored as an ordered dict (there is no standard
+        # ordered set in Python) to make it easier to avoid
+        # duplicating entries (therefore, the value stored is neither
+        # important nor used).
         self._remaining_search_paths: OrderedDict[str, int] = OrderedDict()
         self._original_search_paths: list[str] = []
 
@@ -210,7 +212,7 @@ class ModuleManager:
                 full_path = os.path.join(directory, entry.name)
                 if full_path in self._visited_files:
                     continue
-                # Check if the full path matches an ignore pattern:
+                # Check if the full path contains an ignore pattern:
                 if any(i in full_path for i in self._ignore_files):
                     continue
                 self._visited_files[full_path] = \

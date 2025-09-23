@@ -349,7 +349,7 @@ class BaseDriverCreator:
             symtab.add(new_routine_sym)
 
     # -------------------------------------------------------------------------
-    def cleanup_psyir(self, extract_region: Node) -> None:
+    def verify_and_cleanup_psyir(self, extract_region: Node) -> None:
         """This method is called to verify that no unsupported language
         features are used. The base implementation checks for
         StructureReferences (except for ones used in a call, which some
@@ -360,15 +360,15 @@ class BaseDriverCreator:
         :raises ValueError: if a StructureReference outside of a call
             is found.
         """
+        # DSLs use StructureReferences in calls (e.g in LFRic
+        # set_dirty etc) must be handled (e.g. removed) by a derived
+        # class first
         for sref in extract_region.walk(StructureReference):
-            # DSLs use StructureReferences in calls (e.g in LFRic
-            # set_dirty etc), which should be accepted.
-            # So only flag StructureReferences that are not part of
-            # a call.
-            if not isinstance(sref.parent, Call):
-                raise ValueError(f"The provided PSyIR should not have "
-                                 f"StructureReferences, but found: "
-                                 f"{sref.debug_string()}")
+            raise ValueError(f"The DriverCreator does not support "
+                             f"StructureReferences, any such references "
+                             f"in the extraction region should have been "
+                             f"flattened by the ExtractNode, but found: "
+                             f"'{sref.debug_string()}'")
 
     # -------------------------------------------------------------------------
     @abstractmethod
@@ -557,9 +557,9 @@ class BaseDriverCreator:
         program = file_container.walk(Routine)[0]
         original_symbol_table = nodes[0].ancestor(Routine).symbol_table
 
-        # Copy the nodes that are part of the extraction
+        # Add the modified extracted region into the driver program
         extract_region = nodes[0].copy()
-        self.cleanup_psyir(extract_region)
+        self.verify_and_cleanup_psyir(extract_region)
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
                                                    read_write_info, postfix)
@@ -571,7 +571,7 @@ class BaseDriverCreator:
         self.import_modules(program)
         self.handle_precision_symbols(program.scope.symbol_table)
 
-        BaseDriverCreator.add_result_tests(program, output_symbols)
+        self.add_result_tests(program, output_symbols)
 
         # Replace pointers with allocatables
         program_symbol_table = program.symbol_table
@@ -628,6 +628,8 @@ class BaseDriverCreator:
         file_container = self.create(nodes, read_write_info, prefix,
                                      postfix, region_name)
 
+        # Inline all required modules into the driver source file so that
+        # it is stand-alone.
         module_dependencies = self.collect_all_required_modules(file_container)
         # Sort the modules by dependencies, i.e. start with modules
         # that have no dependency. This is required for compilation, the
@@ -636,8 +638,6 @@ class BaseDriverCreator:
         mod_manager = ModuleManager.get()
         sorted_modules = mod_manager.sort_modules(module_dependencies)
 
-        # Inline all required modules into the driver source file so that
-        # it is stand-alone.
         out = []
 
         for module in sorted_modules:
