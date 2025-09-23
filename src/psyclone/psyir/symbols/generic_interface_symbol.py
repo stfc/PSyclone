@@ -266,8 +266,6 @@ class GenericInterfaceSymbol(RoutineSymbol):
 
         This method exists for compatibility with the RoutineSymbol superclass.
         '''
-        if value:
-            assert 0
 
     def copy_properties(self,
                         symbol_in: RoutineSymbol,
