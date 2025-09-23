@@ -701,6 +701,7 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
     harness = fortran_writer(test_psyir)
     assert ("  real, dimension(npts) :: field\n"
             "  real, dimension(npts) :: field_input" in harness)
+    print(harness)
     assert ("  call random_number(field)\n"
             "  field_input = field\n"
             "\n"
@@ -710,7 +711,8 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
             "  ! compute the inner product of the results of the tangent-"
             "linear kernel\n"
             "  inner1 = 0.0\n"
-            "  inner1 = inner1 + dot_product(field, field)\n"
+            "  inner1 = inner1 + dot_product(vector_a=field, "
+            "vector_b=field)\n"
             "\n"
             "  ! call the adjoint of the kernel\n"
             "  call adj_kern(field, npts)\n"
@@ -718,11 +720,12 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
             "  ! compute inner product of results of adjoint kernel with "
             "the original inputs to the tangent-linear kernel\n"
             "  inner2 = 0.0\n"
-            "  inner2 = inner2 + dot_product(field, field_input)\n"
+            "  inner2 = inner2 + dot_product(vector_a=field, "
+            "vector_b=field_input)\n"
             "\n"
             "  ! test the inner-product values for equality, allowing for "
             "the precision of the active variables\n"
-            "  machinetol = spacing(max(abs(inner1), abs(inner2)))\n"
+            "  machinetol = spacing(x=max(abs(a=inner1), abs(a=inner2)))\n"
             in harness.lower())
     # Ideally we would test that the generated harness code compiles
     # but, since it depends on the TL and adjoint kernels, we can't
@@ -1152,7 +1155,7 @@ def test_create_inner_product_1d_arrays(fortran_writer):
     assert isinstance(nodes[1].rhs, BinaryOperation)
     assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
     code = fortran_writer(nodes[1])
-    assert "result = result + DOT_PRODUCT(var1, var2)" in code
+    assert "result = result + DOT_PRODUCT(vector_a=var1, vector_b=var2)" in code
 
 
 def test_create_inner_product_arrays(fortran_writer):
@@ -1176,7 +1179,7 @@ def test_create_inner_product_arrays(fortran_writer):
     assert isinstance(nodes[1].rhs, BinaryOperation)
     assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
     code = fortran_writer(nodes[1])
-    assert "result = result + SUM(var1(:,:,:) * var2(:,:,:))" in code
+    assert "result = result + SUM(array=var1(:,:,:) * var2(:,:,:))" in code
 
 
 def test_inner_product_scalars_and_arrays(fortran_writer):
@@ -1201,7 +1204,7 @@ def test_inner_product_scalars_and_arrays(fortran_writer):
     assert all(isinstance(node, Assignment) for node in nodes)
     assert fortran_writer(nodes[0]) == "result = 0.0\n"
     assert (fortran_writer(nodes[1]) ==
-            "result = result + SUM(var1(:,:,:) * var2(:,:,:))\n")
+            "result = result + SUM(array=var1(:,:,:) * var2(:,:,:))\n")
     assert (fortran_writer(nodes[2]) ==
-            "result = result + DOT_PRODUCT(vec1, vec2)\n")
+            "result = result + DOT_PRODUCT(vector_a=vec1, vector_b=vec2)\n")
     assert fortran_writer(nodes[3]) == "result = result + a1 * a2\n"

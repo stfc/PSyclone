@@ -99,7 +99,7 @@ def test_str():
          ("integer, dimension(:) :: x, y, z, t\n"
           "x(:) = y + size(y)\n",
           "  do idx = LBOUND(array=x, dim=1), UBOUND(array=x, dim=1), 1\n"
-          "    x(idx) = y(idx) + SIZE(y)\n"),
+          "    x(idx) = y(idx) + SIZE(array=y)\n"),
 
          # Mix different array ranks with fixed indices
          ("integer, dimension(:) :: x, z, t\n"
