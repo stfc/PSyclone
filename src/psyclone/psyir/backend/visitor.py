@@ -42,7 +42,9 @@ back ends.
 '''
 
 import inspect
+from typing import Optional
 
+from psyclone.configuration import Config
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import Node, Schedule, Container
 from psyclone.psyir.commentable_mixin import CommentableMixin
@@ -71,6 +73,11 @@ class PSyIRVisitor():
         optional argument which defaults to False.
     :param str indent_string: Specifies what to use for indentation. This
         is an optional argument that defaults to two spaces.
+
+        .. note::
+            if all indentation has been disabled in the Config object then this
+            argument is ignored.
+
     :param int initial_indent_depth: Specifies how much indentation to
         start with. This is an optional argument that defaults to 0.
     :param bool check_global_constraints: whether or not to validate all
@@ -92,9 +99,23 @@ class PSyIRVisitor():
     # is set to True as the modifications will persist after the Writer!
     _DISABLE_LOWERING = False
 
-    def __init__(self, skip_nodes=False, indent_string="  ",
-                 initial_indent_depth=0, check_global_constraints=True,
-                 disable_copy=False):
+    # The default string with which to indent nested code. Can be overridden
+    # in the constructor. All use of indentation can be disabled by setting
+    # backend_disable_indentation in the Configuration object.
+    _DEFAULT_INDENT = "  "
+
+    def __init__(self, skip_nodes: bool = False,
+                 indent_string: Optional[str] = None,
+                 initial_indent_depth: int = 0,
+                 check_global_constraints: bool = True,
+                 disable_copy: bool = False):
+
+        if indent_string is None:
+            indent_string = self._DEFAULT_INDENT
+        # If all indentation has been switched off then that takes priority.
+        config = Config.get()
+        if config.backend_indentation_disabled:
+            indent_string = ""
 
         if not isinstance(skip_nodes, bool):
             raise TypeError(
