@@ -210,7 +210,8 @@ class ExtractNode(PSyDataNode):
                 all_loops[loop_var_sig] = accesses_in_loop[loop_var_sig]
 
         # Now check all loop variables, and if all accesses to this variable
-        # are from loops only, the variable does not need to be stores
+        # are from loops only (i.e. the final value of the loop variable is
+        # not used outside of a loop), the variable does not need to be stored.
         for var_sig, accesses in all_loops.items():
             if len(accesses) == len(all_accesses[var_sig]):
                 ignore_list.append(('', var_sig))

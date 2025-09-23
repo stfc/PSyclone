@@ -112,7 +112,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # Here check for LFRic-specific set_dirty/set_clean calls, which
         # can just be removed:
         dm_methods = ("set_dirty", "set_clean")
-
         for sref in extract_region.walk(StructureReference):
             if (isinstance(sref.parent, Call) and
                     sref.member.name in dm_methods):

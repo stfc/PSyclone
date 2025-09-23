@@ -180,7 +180,7 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     def remove(self, signature: Signature, container_name: str = "") -> None:
         '''
-        This function removed a signature (if required with the corresponding
+        This function removes a signature (if required with the corresponding
         module name specified) from the read and/or write list. A warning
         will be logged if the specified name is not found in any of the
         two lists.
