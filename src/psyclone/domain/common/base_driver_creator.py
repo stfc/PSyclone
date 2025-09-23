@@ -58,6 +58,37 @@ from psyclone.psyir.tools import ReadWriteInfo
 
 class BaseDriverCreator:
     '''This class provides the functionality common to all driver creations.
+    The driver is created as follows:
+
+    1. A file container is created and the (empty) driver program is added.
+    2. All symbols from the `read_kernel_data_mod` are added to the symbol
+       table, and a `psy_data` symbol is created that handles the reading
+       of data from the kernel data file.
+    3. The command line handler is added to the driver. It is responsible
+       for handling command line parameters for the driver specifying the
+       kernel data file to read (and if nothing is specified to use the
+       default, which is the name used in the extraction without MPI
+       rank attached).
+    4. The read-in code is added, using the read_write information which
+       is used when extracting the data. This ensures that the extraction
+       and driver are matching.
+    5. A copy of the kernel that is being instrumented is added (before
+       the extraction code is added to the original kernel).
+    6. A call to `verify_and_cleanup_psyir` is done. The base implementation
+       checks that no structure accesses are in the code (which are not
+       supported - the structures used by the domain-specific code have
+       already been replaced since the extracted region has been lowered).
+       This can be overwritten by domain-specific implementation. For example,
+       in LFRic calls to `set_dirty` and `set_clean` are removed (since they
+       are irrelevant) first.
+    7. All modules required by the kernel are imported.
+    8. A call to `handle_precision_symbols` is made, allowing domain-specific
+       derived classes to add precision related symbols as required
+       (see `lfric_extract_driver_creator.py`), or to replace precision
+       symbols (see `extract_driver_creator.py`).
+    9. Add the code that will compare the results, i.e. comparing all output
+       variables computed in the kernel with the post values stored in the
+       kernel data file.
 
     :param region_name: Suggested region name.
     '''
@@ -266,7 +297,7 @@ class BaseDriverCreator:
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
                 read_stmts.append((name_lit, sym))
 
-        # Now do the input external variables. This are done after the locals
+        # Now do the input external variables. These are done after the locals
         # so that they match the literal tags of the extracting psy-layer
         ExtractNode.bring_external_symbols(read_write_info, symbol_table)
         mod_man = ModuleManager.get()
@@ -556,13 +587,13 @@ class BaseDriverCreator:
 
         original_symbol_table = nodes[0].ancestor(Routine).symbol_table
 
-        # Add the modified extracted region into the driver program
-        extract_region = nodes[0].copy()
-        self.verify_and_cleanup_psyir(extract_region)
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
                                                    read_write_info, postfix)
 
+        # Add the modified extracted region into the driver program
+        extract_region = nodes[0].copy()
+        self.verify_and_cleanup_psyir(extract_region)
         # Copy the nodes that are part of the extraction
         program.children.extend(extract_region.pop_all_children())
 
