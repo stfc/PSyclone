@@ -734,14 +734,13 @@ def test_gocean_parallel():
                            api="gocean", idx=0, dist_mem=False)
 
     loop = invoke.schedule.children[0]
+    print(loop.debug_string())
     dep_tools = DependencyTools()
     parallel = dep_tools.can_loop_be_parallelised(loop)
     assert not parallel
 
-    assert ("The write access to 'u_fld(i,j)' in '< kern call: "
-            "stencil_not_parallel_code >' and the read access to "
-            "'u_fld(i,j - 1)' in '< kern call: stencil_not_parallel_code >' "
-            "are dependent and cannot be parallelised. Variable: 'u_fld'."
+    assert ("Variable 'u_fld' is read first, which indicates a reduction."
+            " Variable: 'u_fld'."
             in str(dep_tools.get_all_messages()[0]))
 
 

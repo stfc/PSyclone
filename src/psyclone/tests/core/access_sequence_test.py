@@ -53,7 +53,7 @@ def test_access_info():
     '''
     access_info = AccessInfo(AccessType.READ, Node())
     assert access_info.access_type == AccessType.READ
-    assert access_info.component_indices == tuple(tuple())
+    assert access_info.component_indices() == tuple(tuple())
     assert not access_info.has_indices()
     assert str(access_info) == "READ"
     access_info.change_read_to_write()

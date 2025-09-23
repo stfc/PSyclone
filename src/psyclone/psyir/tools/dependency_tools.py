@@ -1091,8 +1091,17 @@ class DependencyTools():
                                   DTCode.ERROR_DIFFERENT_INDEX_LOCATIONS,
                                   [var_info1.signature[0]])
                 return False
-            first_index = all_accesses[0].component_indices()[0][index[0]]
-            other_index = other_access.component_indices()[0][index[0]]
+            # Flatten the component indices to match the partition indices
+            flatten_access = []
+            flatten_other = []
+            for comp in all_accesses[0].component_indices():
+                for idx in comp:
+                    flatten_access.append(idx)
+            for comp in other_access.component_indices():
+                for idx in comp:
+                    flatten_other.append(idx)
+            first_index = flatten_access[index[0]]
+            other_index = flatten_other[index[0]]
             if not SymbolicMaths.equal(
                     first_index, other_index,
                     identical_variables={loop_var_name1: loop_variable2.name}):
