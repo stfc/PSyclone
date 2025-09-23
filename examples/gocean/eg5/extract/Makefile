@@ -44,14 +44,15 @@
 #     export EXTRACT_DIR = ../../../../lib/extract/netcdf/dl_esm_inf
 
 MPI?=no
+FPP?=cpp
 
 ifeq ($(MPI), yes)
 	# -P suppresses linemarkers
-	FPP?=cpp -P -D_MPI
+	FPP_FLAGS=-P -D_MPI
 	# We need to compile with mpif90 if MPI is enabled
 	F90?=mpif90
 else
-	FPP?=cpp -P
+	FPP_FLAGS=-P
 endif
 
 PSYROOT=../../../..
@@ -86,7 +87,6 @@ else
 endif
 
 LIB_NAME = lib_extract.a
-
 
 # The two kernels used in the application.
 KERNELS = init_field_mod.o update_field_mod.o
@@ -155,7 +155,7 @@ $(KERNELS):  $(INF_LIB)
 	$(F90) $(F90FLAGS) -c $<
 
 %.x90: %.X90
-	$(FPP) $< >$@
+	$(FPP) $(FPP_FLAGS) $< >$@
 
 # This target requires that the netcdf (Fortran) development package be
 # installed

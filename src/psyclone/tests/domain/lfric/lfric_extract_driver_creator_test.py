@@ -144,8 +144,10 @@ def test_lfric_driver_dm_test():
             StructureReference.create(base_symbol, ["method"])))
     with pytest.raises(VisitorError) as err:
         code = psy.gen
-    assert ("The provided PSyIR should not have StructureReferences, "
-            "but found: x_ptr_vector%method" in str(err.value))
+    assert ("The DriverCreator does not support StructureReferences, any "
+            "such references in the extraction region should have been "
+            "flattened by the ExtractNode, but found: 'x_ptr_vector%method'"
+            in str(err.value))
 
 
 # ----------------------------------------------------------------------------

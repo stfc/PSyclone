@@ -57,98 +57,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
     reads in extracted data produced by using the PSyData kernel-extraction
     functionality.
 
-    The driver is created as follows:
-
-    1. The corresponding :py:class:`psyclone.psyGen.Invoke` statement that
-       contains the kernel(s) is copied. This way we avoid affecting the tree
-       of the caller. We need the invoke since it contains the symbol table.
-    2. We remove all halo exchange nodes.
-    3. We lower each kernel (child of the invoke) that was requested to
-       be extracted, all others are removed. This is required since the kernel
-       extraction will not contain the required data for the other kernels to
-       be called. The lowering is important to fix the variable names for the
-       loop boundaries of the :py:class:`psyclone.domain.lfric.LFRicLoop`: the
-       loop start/stop expressions (`loop0_start` etc.) depend on the position
-       of the loop in the tree. For example, if there are two kernels, they
-       will be using `loop0_start` and `loop1_start`. If only the second is
-       extracted, the former second (and now only) loop would be using
-       `loop0_start` without lowering, but the kernel extraction would have
-       written the values for `loop1_start`.
-    4. We create a program for the driver with a new symbol table and start
-       adding symbols for the program unit, precision symbols, PSyData read
-       module etc to it.
-    5. We add all required symbols to the new symbol table. The copied tree
-       will still rely on the symbol table in the original PSyIR, so the
-       symbols must be declared in the symbol table of the driver program.
-       This is done by replacing all references in the extracted region with
-       new references, which use new symbols which are declared in the driver
-       symbol table.
-
-       a. We first handle all non user-defined type. We can be certain that
-          these symbols are already unique (since it's the original kernel
-          code).
-       b. Then we handle user-defined types. Since we only use basic Fortran
-          types, accesses to these types need to be 'flattened': an access
-          like ``a%b%c`` will be flattened to ``a_b_c`` to create a valid
-          symbol name without needing the user-defined type. We use the
-          original access string (``a%b%c``) as tag, since we know this tag
-          is unique, and create a new, unique symbol based on ``a_b_c``. This
-          takes care if the user should be using this newly generated name
-          (e.g. if the user uses ``a%b%c`` and ``a_b_c``, ``a_b_c`` as non
-          user defined symbol will be added to the symbol table first. When
-          then ``a%b%c`` is flattened, the symbol table will detect that the
-          symbol ``a_b_c`` already exists and create ``a_b_c_1`` for the tag
-          ``a%b%c``). For known LFRic types, the actual name used in a
-          reference will be changed to the name the user expects. For example,
-          if field ``f`` is used, the access will be ``f_proxy%data``. The
-          kernel extraction does the same and stores the values under the name
-          ``f``, so the driver similarly simplifies the name back to the
-          original ``f``.
-          The :py:class:`psyclone.domain.lfric.KernCallArgList` class will
-          have enforced the appropriate basic Fortran type declaration for
-          each reference to a user defined variable. For example, if a field
-          ``f`` is used, the reference to ``f_proxy%data`` will have a data
-          type attribute of a 1D real array (with the correct precision).
-
-    6. We create the code for reading in all of the variables in the input-
-       and output-lists. Mostly, no special handling of argument type is
-       required (since the generic interface will make sure to call the
-       appropriate function). But in case of user-defined types, we need to
-       use the original names with '%' when calling the functions for reading
-       in data, since this is the name that was used when creating the data
-       file. For example, the name of a parameter like
-       ``f_proxy%local_stencil`` will be stored in the data file with the
-       '%' notation (which is also the tag used for the symbol). So when
-       reading the values in the driver, we need to use the original name
-       (or tag) with '%', but the values will be stored in a flattened
-       variable. For example, the code created might be:
-       `call extract_psy_data%ReadVariable('f_proxy%local_stencil',
-       fproxy_local_stencil)`
-
-       a. Input variables are read in using functions from the PSyData
-          ``ReadKernelData`` module. These function will allocate all array
-          variables to the right size based on the data from the input file.
-       b. For parameters that are read and written, two variables will be
-          declared: the input will be stored in the unmodified variable name,
-          and the output values in a variable with ``_post`` appended. For
-          example, a field ``f`` as input will be read into ``f`` using the
-          name ``f``, and output values will be read into ``f_post`` using
-          the name ``f_post``. The symbol table will make sure that the
-          ``_post`` name is unique.
-       c. Similar to b., output only parameters will be read into a variable
-          named with '_post' attached, e.g. output field ``f`` will be stored
-          in a variable ``f_post``. Then the array ``f`` is allocated based on
-          the shape of ``f_post`` and initialised to 0 (since it's an
-          output-only parameter the value doesn't really matter).
-
-    7. The extracted kernels are added to the program. Since in step 5 all
-       references have been replaced, the created code will use the correct
-       new variable names (which just have been read in). The output variables
-       with ``_post`` attached will not be used at all so far.
-    8. After the kernel calls are executed, each output variable is compared
-       with the value stored in the corresponding ``_post`` variable. For
-       example, a variable ``f`` which was modified in the kernel call(s),
-       will then be compared with ``f_post``.
 
     :param region_name: the suggested region_name.
     '''
@@ -190,8 +98,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                     interface=ImportInterface(constant_mod))
 
     # -------------------------------------------------------------------------
-    def cleanup_psyir(self,
-                      extract_region: Node) -> None:
+    def verify_and_cleanup_psyir(self, extract_region: Node) -> None:
         """This implementation removes MPI related calls in LFRic (`set_dirty`
         and `set_clean`. Note that any LFRic-specific StructureReferences
         should have been replaced as part of the lowering process.
@@ -202,9 +109,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             base class)
         """
 
-        # This will flag any StructureReference outside of method calls.
-        super().cleanup_psyir(extract_region)
-
         # Here check for LFRic-specific set_dirty/set_clean calls, which
         # can just be removed:
         dm_methods = ("set_dirty", "set_clean")
@@ -214,7 +118,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 # Some methods regarding distributed-memory can be deleted as
                 # we know the driver is executed with a single rank.
                 sref.parent.detach()
-            else:
-                raise ValueError(f"The provided PSyIR should not have "
-                                 f"StructureReferences, but found: "
-                                 f"{sref.debug_string()}")
+
+        # This will flag any StructureReference (including other calls)
+        # still remaining.
+        super().verify_and_cleanup_psyir(extract_region)

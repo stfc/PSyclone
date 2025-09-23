@@ -74,6 +74,7 @@ VALID_PSY_DATA_PREFIXES = profile, extract
 OCL_DEVICES_PER_NODE = 1
 IGNORE_MODULES = netcdf, mpi
 BACKEND_CHECKS_ENABLED = false
+BACKEND_INDENTATION_DISABLED = false
 FORTRAN_STANDARD = f2003
 [lfric]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
@@ -124,7 +125,8 @@ def clear_config_instance():
                         "REPRODUCIBLE_REDUCTIONS",
                         "COMPUTE_ANNEXED_DOFS",
                         "RUN_TIME_CHECKS",
-                        "BACKEND_CHECKS_ENABLED"])
+                        "BACKEND_CHECKS_ENABLED",
+                        "BACKEND_INDENTATION_DISABLED"])
 def bool_entry_fixture(request):
     '''
     Parameterised fixture that will cause a test that has it as an
@@ -393,31 +395,37 @@ def test_not_int(int_entry, tmpdir):
             in str(err.value))
 
 
-def test_backend_checks_from_file(tmpdir):
+@pytest.mark.parametrize("check_txt", ["BACKEND_CHECKS_ENABLED",
+                                       "BACKEND_INDENTATION_DISABLED"])
+def test_backend_checks_from_file(tmpdir, check_txt):
     '''
-    Check that the value for BACKEND_CHECKS_ENABLED is correctly read from
-    the config. file and defaults to True.
+    Check that the value for BACKEND_{CHECKS_ENABLED,INDENTATION_DISABLED} is
+    correctly read from the config. file and defaults to True/False.
 
     '''
     config_file = tmpdir.join("config")
     cfg = get_config(config_file, _CONFIG_CONTENT)
     assert cfg.backend_checks_enabled is False
-    content = re.sub(r"^BACKEND_CHECKS_ENABLED = false$",
-                     "BACKEND_CHECKS_ENABLED = true",
+    assert cfg.backend_indentation_disabled is False
+    content = re.sub(rf"^{check_txt} = false$",
+                     f"{check_txt} = true",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     config_file2 = tmpdir.join("config2")
     cfg2 = get_config(config_file2, content)
-    assert cfg2.backend_checks_enabled is True
+    if "ENABLED" in check_txt:
+        assert cfg2.backend_checks_enabled is True
+    else:
+        assert cfg2.backend_indentation_disabled is True
     # Remove it from the config file.
-    content = re.sub(r"^BACKEND_CHECKS_ENABLED = false$",
+    content = re.sub(rf"^{check_txt} = false$",
                      "",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     config_file3 = tmpdir.join("config3")
     cfg3 = get_config(config_file3, content)
-    # Defaults to True if not specified in the file.
-    assert cfg3.backend_checks_enabled is True
+    # Defaults to True/False if not specified in the file.
+    assert cfg3.backend_checks_enabled == ("ENABLED" in check_txt)
 
 
 def test_broken_fmt(tmpdir):
@@ -544,6 +552,19 @@ def test_enable_backend_checks_setter_getter():
             str(err.value))
     config.backend_checks_enabled = True
     assert config.backend_checks_enabled is True
+
+
+def test_disable_backend_indentation_setter_getter():
+    '''
+    Test the setter/getter for the backend_indentation_disabled property.
+    '''
+    config = Config()
+    with pytest.raises(TypeError) as err:
+        config.backend_indentation_disabled = "hllo"
+    assert ("backend_indentation_disabled must be a boolean but got 'str'" in
+            str(err.value))
+    config.backend_indentation_disabled = True
+    assert config.backend_indentation_disabled is True
 
 
 def test_kernel_naming_setter():

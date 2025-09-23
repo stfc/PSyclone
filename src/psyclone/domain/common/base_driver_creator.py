@@ -58,6 +58,39 @@ from psyclone.psyir.tools import ReadWriteInfo
 
 class BaseDriverCreator:
     '''This class provides the functionality common to all driver creations.
+    The driver is created as follows:
+
+    1. A file container is created and the (empty) driver program is added.
+    2. All symbols from the `read_kernel_data_mod` are added to the symbol
+       table, and a `psy_data` symbol is created that handles the reading
+       of data from the kernel data file.
+    3. The command line handler is added to the driver. It is responsible
+       for handling command line parameters for the driver specifying the
+       kernel data file to read (and if nothing is specified to use the
+       default, which is the name used in the extraction without MPI
+       rank attached).
+    4. A copy of the kernel that is being instrumented is created, so that
+       it can be modified without affecting the actual code creation if
+       PSyclone..
+    5. The method `verify_and_cleanup_psyir` is called with the copied kernel
+       as parameter. The base implementation checks that no structure accesses
+       are in the code (which are not supported - the structures used by the
+       domain-specific code have already been replaced since the extracted
+       region has been lowered). This can be overwritten by domain-specific
+       implementation. For example, in LFRic calls to `set_dirty` and
+       `set_clean` are removed (since they are irrelevant) first.
+    6. The read-in code is added, using the read_write information which
+       is used when extracting the data. This ensures that the extraction
+       and driver are matching.
+    7. The copy of the kernel is added.
+    8. All modules required by the kernel are imported.
+    9. A call to `handle_precision_symbols` is made, allowing domain-specific
+       derived classes to add precision related symbols as required
+       (see `lfric_extract_driver_creator.py`), or to replace precision
+       symbols (see `extract_driver_creator.py`).
+    10. Add the code that will compare the results, i.e. comparing all output
+        variables computed in the kernel with the post values stored in the
+        kernel data file.
 
     :param region_name: Suggested region name.
     '''
@@ -266,7 +299,7 @@ class BaseDriverCreator:
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
                 read_stmts.append((name_lit, sym))
 
-        # Now do the input external variables. This are done after the locals
+        # Now do the input external variables. These are done after the locals
         # so that they match the literal tags of the extracting psy-layer
         ExtractNode.bring_external_symbols(read_write_info, symbol_table)
         mod_man = ModuleManager.get()
@@ -349,7 +382,7 @@ class BaseDriverCreator:
             symtab.add(new_routine_sym)
 
     # -------------------------------------------------------------------------
-    def cleanup_psyir(self, extract_region: Node) -> None:
+    def verify_and_cleanup_psyir(self, extract_region: Node) -> None:
         """This method is called to verify that no unsupported language
         features are used. The base implementation checks for
         StructureReferences (except for ones used in a call, which some
@@ -360,15 +393,16 @@ class BaseDriverCreator:
         :raises ValueError: if a StructureReference outside of a call
             is found.
         """
+        # DSLs use StructureReferences in calls (e.g in LFRic
+        # set_dirty etc) must be handled (e.g. removed) by a derived
+        # class first
+        print("BBB0", extract_region.view())
         for sref in extract_region.walk(StructureReference):
-            # DSLs use StructureReferences in calls (e.g in LFRic
-            # set_dirty etc), which should be accepted.
-            # So only flag StructureReferences that are not part of
-            # a call.
-            if not isinstance(sref.parent, Call):
-                raise ValueError(f"The provided PSyIR should not have "
-                                 f"StructureReferences, but found: "
-                                 f"{sref.debug_string()}")
+            raise ValueError(f"The DriverCreator does not support "
+                             f"StructureReferences, any such references "
+                             f"in the extraction region should have been "
+                             f"flattened by the ExtractNode, but found: "
+                             f"'{sref.debug_string()}'")
 
     # -------------------------------------------------------------------------
     @abstractmethod
@@ -554,12 +588,11 @@ class BaseDriverCreator:
         self._add_command_line_handler(program, psy_data, region_name[0],
                                        region_name[1])
 
-        program = file_container.walk(Routine)[0]
         original_symbol_table = nodes[0].ancestor(Routine).symbol_table
 
-        # Copy the nodes that are part of the extraction
+        # Add the modified extracted region into the driver program
         extract_region = nodes[0].copy()
-        self.cleanup_psyir(extract_region)
+        self.verify_and_cleanup_psyir(extract_region)
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
                                                    read_write_info, postfix)
@@ -571,7 +604,7 @@ class BaseDriverCreator:
         self.import_modules(program)
         self.handle_precision_symbols(program.scope.symbol_table)
 
-        BaseDriverCreator.add_result_tests(program, output_symbols)
+        self.add_result_tests(program, output_symbols)
 
         # Replace pointers with allocatables
         program_symbol_table = program.symbol_table
@@ -628,6 +661,8 @@ class BaseDriverCreator:
         file_container = self.create(nodes, read_write_info, prefix,
                                      postfix, region_name)
 
+        # Inline all required modules into the driver source file so that
+        # it is stand-alone.
         module_dependencies = self.collect_all_required_modules(file_container)
         # Sort the modules by dependencies, i.e. start with modules
         # that have no dependency. This is required for compilation, the
@@ -636,8 +671,6 @@ class BaseDriverCreator:
         mod_manager = ModuleManager.get()
         sorted_modules = mod_manager.sort_modules(module_dependencies)
 
-        # Inline all required modules into the driver source file so that
-        # it is stand-alone.
         out = []
 
         for module in sorted_modules:
