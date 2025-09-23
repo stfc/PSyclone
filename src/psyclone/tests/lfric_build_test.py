@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author:  A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module contains tests for the lfric_build.py file. '''
 
@@ -212,32 +213,7 @@ def test_lfric_build_infrastructure(tmpdir: Path, monkeypatch) -> None:
     # status of 0).
     monkeypatch.setattr(Build, "RETURN_CODE", 0)
     monkeypatch.setattr(LFRicBuild, "_infrastructure_built", False)
-    builder._build_infrastructure()
-    # Check that the '_infrastructure_built' flag is set after a successful
+    LFRicBuild(tmpdir)
+    # Check that the '_infrastructure_built' flag is set after a 'successful'
     # build.
     assert LFRicBuild._infrastructure_built is True
-
-
-def test_lfric_build_infrastructure_disabled(
-        tmpdir: Path,
-        monkeypatch: pytest.MonkeyPatch) -> None:
-    """Tests that the infrastructure is indeed not compiled when compilation
-    is disabled.
-    """
-    monkeypatch.setattr(Compile, "TEST_COMPILE", False)
-
-    builder = LFRicBuild(tmpdir)
-    monkeypatch.setattr(builder, "_tmpdir", "/does/not/exist")
-    # The build_infrastructure will change into the temporary
-    # directory when doing a build. If the build would be
-    # triggered (in spite of setting TEST_COMPILE to False),
-    # it would trigger a FileNotFoundError, since the _tmpdir
-    # directory does not exist.
-    try:
-        builder._build_infrastructure()
-    except FileNotFoundError:   # pragma: no cover
-        # This code is NOT executed in a successful test. But the
-        # coverage CI reports this line as not covered, so add use
-        # a pragma to avoid a false positive.
-        pytest.fail("LFRicBuild tried to change directory, which should "
-                    "not be done if compilation is disabled")

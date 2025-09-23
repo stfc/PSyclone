@@ -83,7 +83,7 @@ class LFRicBuild(Compile):
             Path(get_infrastructure_path("lfric"))
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.
-        if not LFRicBuild._infrastructure_built:
+        if Compile.TEST_COMPILE and not LFRicBuild._infrastructure_built:
             self._build_infrastructure()
 
     def get_infrastructure_flags(self) -> list[str]:
@@ -116,8 +116,6 @@ class LFRicBuild(Compile):
 
         :raises CompileError: if a compilation error happened.
         '''
-        if not Compile.TEST_COMPILE:
-            return
 
         with change_dir(self._tmpdir):
             # Store the temporary path so that the compiled infrastructure

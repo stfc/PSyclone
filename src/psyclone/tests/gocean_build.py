@@ -61,7 +61,7 @@ class GOceanBuild(Compile):
     '''
     # A class variable to make sure we compile the infrastructure
     # file only once per process.
-    _infrastructure_built: Optional[bool] = None
+    _infrastructure_built: bool = False
 
     # The temporary path in which the compiled infrastructure files
     # (.o and .mod) are stored for this process.
@@ -83,8 +83,6 @@ class GOceanBuild(Compile):
 
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.
-        if GOceanBuild._infrastructure_built is None:
-            GOceanBuild._infrastructure_built = False
         if (Compile.TEST_COMPILE or Compile.TEST_COMPILE_OPENCL) and \
                 not GOceanBuild._infrastructure_built:
             self._build_infrastructure()
