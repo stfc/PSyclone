@@ -37,6 +37,7 @@
 '''This module tests the hoist local arrays transformation.
 '''
 
+import logging
 import pytest
 
 from psyclone.psyir.nodes import (
@@ -410,30 +411,31 @@ def test_get_local_arrays(fortran_reader):
     assert symbols[1] is routine.symbol_table.lookup("wrk2")
 
 
-def test_get_local_arrays_codeblock(fortran_reader):
+def test_get_local_arrays_codeblock(fortran_reader, caplog):
     ''' Check that the _get_local_arrays() method excludes any of the
     local arrays if they are accessed within a CodeBlock (since they
     may get renamed as part of the hoisting process). We check for the
     situation where we have more than one CodeBlock and the same symbol
-    is referenced in both. '''
+    is referenced in both, with different capitalisation. '''
     code = (
         "module my_mod\n"
         "contains\n"
         "subroutine test\n"
         "  integer :: i\n"
         "  real :: a(10), b(10)\n"
-        "  a(:) = 1.0\n"
+        "  A(:) = 1.0\n"
         "  write(*,*) a(10)\n"
         "  b(:) = 1.0\n"
-        "  write(*,*) b(1),a(1)\n"
+        "  write(*,*) B(1),a(1)\n"
         "end subroutine test\n"
         "end module my_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     hoist_trans = HoistLocalArraysTrans()
-    assert hoist_trans._get_local_arrays(routine) == []
-    # TODO #11. Once logging is implemented check that the exclusion of 'a'
-    # and 'b' has been logged.
+    with caplog.at_level(logging.WARNING):
+        assert hoist_trans._get_local_arrays(routine) == []
+    assert ("Cannot hoist local array(s) ['a', 'b'] out of Routine 'test' as "
+            "they are accessed in a CodeBlock" in caplog.text)
 
 
 def test_get_local_arrays_not_parameters(fortran_reader):
@@ -603,30 +605,6 @@ def test_validate_tagged_symbol_clash(fortran_reader):
             "'important_tag' but this tag is also present in the symbol table "
             "of the parent Container (associated with variable 'b')" in
             str(err.value))
-
-
-def test_validate_symbol_cannot_be_renamed(fortran_reader):
-    '''Check that validation fails if the hoisting would require the renaming
-    of a variable that is present in a CodeBlock.'''
-    code = ('''\
-    module a_test
-      integer :: a_clash
-    contains
-      subroutine uses_a_clash()
-        write (*,*) a_clash
-      end subroutine uses_a_clash
-      subroutine a_sub()
-        integer, dimension(10) :: a_clash
-        a_clash = 9
-      end subroutine a_sub
-    end module a_test''')
-    psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[1]
-    hoist_trans = HoistLocalArraysTrans()
-    import pdb; pdb.set_trace()
-    with pytest.raises(TransformationError) as err:
-        hoist_trans.validate(routine)
-    assert "no digity" in str(err.value)
 
 
 def test_apply_with_hoist_with_dependent_symbols(fortran_reader,

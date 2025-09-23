@@ -40,6 +40,7 @@ This module contains the HoistLocalArraysTrans transformation.
 '''
 
 import copy
+import logging
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
@@ -47,7 +48,7 @@ from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   CodeBlock, ACCRoutineDirective, Literal,
                                   IntrinsicCall, BinaryOperation, Reference)
 from psyclone.psyir.symbols import (
-    ArrayType, INTEGER_TYPE, DataSymbol, DataTypeSymbol, Symbol, SymbolError)
+    ArrayType, DataSymbol, DataTypeSymbol, INTEGER_TYPE, Symbol)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 
@@ -333,6 +334,7 @@ then
         :rtype: list[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
+        logger = logging.getLogger(__name__)
         local_arrays = {}
         for sym in node.symbol_table.automatic_datasymbols:
             # Check that the array is not the functions return symbol, or
@@ -374,14 +376,19 @@ then
         # Exclude any arrays that are accessed within a CodeBlock (as they
         # may get renamed as part of the transformation).
         cblocks = node.walk(CodeBlock)
+        all_names_in_cblock = set()
         for cblock in cblocks:
-            cblock_names = set(cblock.get_symbol_names())
-            array_names = set(local_arrays.keys())
+            cblock_names = set(nm.lower() for nm in cblock.get_symbol_names())
+            array_names = set(nm.lower() for nm in local_arrays.keys())
             names_in_cblock = cblock_names.intersection(array_names)
-            # TODO #11 - log the fact that we can't hoist the arrays
-            # listed in 'names_in_cblock'.
+            all_names_in_cblock.update(names_in_cblock)
             for name in names_in_cblock:
                 del local_arrays[name]
+        if all_names_in_cblock:
+            logger.warning(
+                "Cannot hoist local array(s) %s out of Routine '%s' as they "
+                "are accessed in a CodeBlock",
+                sorted(list(all_names_in_cblock)), node.name)
 
         for intrinsic in node.walk(IntrinsicCall):
             # Exclude arrays that are used in a RESHAPE expression
@@ -462,18 +469,6 @@ then
                     f"also present in the symbol table of the parent "
                     f"Container (associated with variable "
                     f"'{cont_tags_dict[tag].name}').")
-            if container.symbol_table.lookup(sym.name, otherwise=None):
-                # This symbol would have to be renamed - is that possible?
-                new_name = node.symbol_table.next_available_name(sym.name)
-                try:
-                    node.symbol_table.rename_symbol(sym, new_name,
-                                                    dry_run=True)
-                except SymbolError as err:
-                    raise TransformationError(
-                        f"The supplied routine '{node.name}' contains a local "
-                        f"array '{sym.name}' but this clashes with a symbol "
-                        f"in the table of the parent Container and it cannot "
-                        f"be renamed because: {err}") from err
 
     def __str__(self):
         return "Hoist all local, automatic arrays to container scope."
