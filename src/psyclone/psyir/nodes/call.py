@@ -313,6 +313,8 @@ class Call(Statement, DataNode):
         sig, indices_list = self.routine.get_signature_and_indices()
         var_accesses.add_access(sig, AccessType.CALL, self.routine)
 
+        # Attempt to find the target of the Call so that the argument intents
+        # can be examined.
         try:
             routine = self.get_callee()[0]
             args = routine.symbol_table.argument_list
@@ -339,6 +341,8 @@ class Call(Statement, DataNode):
                     else:
                         access_type = AccessType.READWRITE
                 else:
+                    # We haven't resolved the target of the Call so arguments
+                    # default to having the READWRITE (worst-case) access.
                     access_type = AccessType.READWRITE
                 var_accesses.add_access(sig, access_type, arg)
 
