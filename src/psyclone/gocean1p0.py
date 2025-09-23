@@ -1021,8 +1021,8 @@ class GOKern(CodedKern):
                     else:
                         acc = AccessType.READ
 
-                    var_accesses.add_access(signature, acc, self,
-                                            [i_expr, j_expr])
+                    var_accesses.add_access(signature, acc, self)
+                                            # [i_expr, j_expr])
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''
@@ -1064,8 +1064,9 @@ class GOKern(CodedKern):
                     symbol_i = sym_tab.lookup_with_tag("contiguous_kidx")
                     symbol_j = sym_tab.lookup_with_tag("noncontiguous_kidx")
                     var_accesses.add_access(signature, arg.access,
-                                            self, [Reference(symbol_i),
-                                                   Reference(symbol_j)])
+                                            self)
+                    # , [Reference(symbol_i),
+                    #                                Reference(symbol_j)])
         var_accesses.update(super().reference_accesses())
         return var_accesses
 

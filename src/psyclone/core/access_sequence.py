@@ -97,11 +97,14 @@ class AccessInfo():
         '''
         from psyclone.psyir.nodes import Reference
         if not isinstance(self._node, Reference):
-            return tuple(tuple())
+            return lambda: tuple(tuple())
         return self._node.component_indices
 
     def has_indices(self) -> bool:
         from psyclone.psyir.nodes.array_mixin import ArrayMixin
+        from psyclone.psyir.nodes import Reference
+        if not isinstance(self._node, Reference):
+            return False
         return self._node.has_descendant(ArrayMixin)
 
     @property

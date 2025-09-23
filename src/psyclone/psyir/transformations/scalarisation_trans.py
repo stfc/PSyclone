@@ -149,29 +149,26 @@ class ScalarisationTrans(LoopTrans):
         scalarisable = True
         for access in var_accesses[signature]:
             if array_indices is None:
-                array_indices = access.component_indices
-            # For some reason using == on the component_lists doesn't work
-            # so we use [:] notation.
-            elif array_indices[:] != access.component_indices[:]:
+                array_indices = access.component_indices()
+            elif array_indices != access.component_indices():
                 scalarisable = False
                 break
             # For each index, we need to check they're not written to in
             # the loop.
-            flattened_indices = list(itertools.chain.from_iterable(
-                    array_indices))
-            for index in flattened_indices:
-                # Index may not be a Reference, so we need to loop over the
-                # References
-                for ref in index.walk(Reference):
-                    # This Reference could be the symbol for a Call or
-                    # IntrinsicCall, which we don't allow to scalarise
-                    if isinstance(ref.symbol, RoutineSymbol):
-                        scalarisable = False
-                        break
-                    sig, _ = ref.get_signature_and_indices()
-                    if var_accesses[sig].is_written():
-                        scalarisable = False
-                        break
+            for component in array_indices:
+                for index in component:
+                    # Index may not be a Reference, so we need to loop over the
+                    # References
+                    for ref in index.walk(Reference):
+                        # This Reference could be the symbol for a Call or
+                        # IntrinsicCall, which we don't allow to scalarise
+                        if isinstance(ref.symbol, RoutineSymbol):
+                            scalarisable = False
+                            break
+                        sig, _ = ref.get_signature_and_indices()
+                        if var_accesses[sig].is_written():
+                            scalarisable = False
+                            break
 
         return scalarisable
 

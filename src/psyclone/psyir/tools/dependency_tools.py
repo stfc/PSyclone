@@ -527,13 +527,22 @@ class DependencyTools():
         :type: bool
 
         '''
+        # Flatten the component indices to match the partition indices
+        flatten_write = []
+        flatten_other = []
+        for comp in write_access.component_indices():
+            for idx in comp:
+                flatten_write.append(idx)
+        for comp in other_access.component_indices():
+            for idx in comp:
+                flatten_other.append(idx)
         # If we find one subscript that is independent, the loop can be
         # parallelised. E.g. `a(i, index(i)) = a(i, 5)`. The fact that
         # the first subscript is i, means that each different iteration
         # will access a different column, even if index(i) is 5.
         for ind in subscripts:
-            index_written = write_access.component_indices[ind]
-            index_other = other_access.component_indices[ind]
+            index_written = flatten_write[ind]
+            index_other = flatten_other[ind]
             distance = DependencyTools._get_dependency_distance(var_name,
                                                                 index_written,
                                                                 index_other)
@@ -582,6 +591,16 @@ class DependencyTools():
         # Get the name of the loop variable that is to be parallelised:
         loop_var = loop_variables[0]
 
+        # Flatten the component indices to match the partition indices
+        flatten_write = []
+        flatten_other = []
+        for comp in write_access.component_indices():
+            for idx in comp:
+                flatten_write.append(idx)
+        for comp in other_access.component_indices():
+            for idx in comp:
+                flatten_other.append(idx)
+
         # Analyse each subscript partition individually. If we find even
         # one partition that guarantees that the accesses cannot interfere
         # with each other, the accesses can be parallelised and we do not
@@ -593,9 +612,8 @@ class DependencyTools():
                 # There is only one subscript involved in this test.
                 # Get its index of its component_index:
                 subscript = subscripts[0]
-                # FIXME: Not sure about this [0]
-                index_write = write_access.component_indices()[0][subscript]
-                index_other = other_access.component_indices()[0][subscript]
+                index_write = flatten_write[subscript]
+                index_other = flatten_other[subscript]
                 if len(set_of_vars) == 0:
                     # No loop variable used, constant access (which might
                     # still be using unknown non-loop variables).
@@ -1038,12 +1056,12 @@ class DependencyTools():
         # Compare all accesses with the first one. If the loop variable
         # is used in a different subscript, raise an error. We test this
         # by computing the partition of the indices:
-        comp_1 = all_accesses[0].component_indices
+        comp_1 = all_accesses[0].component_indices()
         # Note that we compare an access with itself, this will
         # help us detecting if an array is accessed without using
         # the loop variable (which would indicate a kind of reduction):
         for other_access in all_accesses:
-            comp_other = other_access.component_indices
+            comp_other = other_access.component_indices()
             partitions = self._partition(comp_1, comp_other,
                                          [loop_var_name1])
             for (set_of_vars, index) in partitions:
@@ -1073,8 +1091,8 @@ class DependencyTools():
                                   DTCode.ERROR_DIFFERENT_INDEX_LOCATIONS,
                                   [var_info1.signature[0]])
                 return False
-            first_index = all_accesses[0].component_indices[index[0]]
-            other_index = other_access.component_indices[index[0]]
+            first_index = all_accesses[0].component_indices()[0][index[0]]
+            other_index = other_access.component_indices()[0][index[0]]
             if not SymbolicMaths.equal(
                     first_index, other_index,
                     identical_variables={loop_var_name1: loop_variable2.name}):
