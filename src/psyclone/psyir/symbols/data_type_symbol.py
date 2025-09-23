@@ -116,8 +116,8 @@ class DataTypeSymbol(Symbol):
                         symbol_in: DataTypeSymbol,
                         exclude_interface: bool = False):
         '''Replace all properties in this object with the properties from
-        symbol_in, apart from the name (which is immutable), visibility
-        and (optionally) the interface.
+        symbol_in, apart from the name (which is immutable) and visibility.
+        If `exclude_interface` is True, the interface is also not updated.
 
         :param symbol_in: the symbol from which the properties are copied.
         :param exclude_interface: whether or not to exclude the interface
