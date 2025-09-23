@@ -151,7 +151,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                         and access.is_read):
                     continue
                 # If it's inside the directive then we should skip it.
-                if access.is_descendent_of(directive):
+                if access.is_descendant_of(directive):
                     continue
                 # Otherwise find the abs_position
                 abs_position = access.abs_position
@@ -173,10 +173,10 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                 # an ifblock, which can get very complex.
                 shared_if_anc = access.ancestor(IfBlock, shared_with=closest)
                 if shared_if_anc and shared_if_anc.else_body:
-                    if ((access.is_descendent_of(shared_if_anc.if_body) and
-                         closest.is_descendent_of(shared_if_anc.else_body)) or
-                        (access.is_descendent_of(shared_if_anc.else_body) and
-                         closest.is_descendent_of(shared_if_anc.if_body))):
+                    if ((access.is_descendant_of(shared_if_anc.if_body) and
+                         closest.is_descendant_of(shared_if_anc.else_body)) or
+                        (access.is_descendant_of(shared_if_anc.else_body) and
+                         closest.is_descendant_of(shared_if_anc.if_body))):
                         dependencies.append(shared_if_anc)
                 # Otherwise if the closest is after the input nodes, then
                 # whichever access is closer is the closest dependency.
@@ -195,7 +195,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                 # If none of the accesses in dependencies are a child of
                 # the ancestor loop then the dependencies is itself
                 for access in dependencies:
-                    if access.is_descendent_of(node_ancestor):
+                    if access.is_descendant_of(node_ancestor):
                         break
                 else:
                     return False
@@ -204,9 +204,9 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                 # contained within the ancestor loop, then the next dependency
                 # is itself unless we have a prior dependency inside the
                 # ancestor loop.
-                if not closest.is_descendent_of(node_ancestor):
+                if not closest.is_descendant_of(node_ancestor):
                     for access in dependencies:
-                        if access.is_descendent_of(node_ancestor):
+                        if access.is_descendant_of(node_ancestor):
                             break
                     else:
                         return False
@@ -227,19 +227,19 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                 if if_anc:
                     # If they're not both in the same part of the IfBlock
                     # ancestor, then we need to keep both.
-                    if not ((closest.is_descendent_of(if_anc.if_body) and
-                             depend.is_descendent_of(if_anc.if_body)) or
+                    if not ((closest.is_descendant_of(if_anc.if_body) and
+                             depend.is_descendant_of(if_anc.if_body)) or
                             (if_anc.else_body and
-                             closest.is_descendent_of(if_anc.else_body) and
-                             depend.is_descendent_of(if_anc.else_body))):
+                             closest.is_descendant_of(if_anc.else_body) and
+                             depend.is_descendant_of(if_anc.else_body))):
                         continue
                 # Check that they share the Loop ancestor of closest that is
                 # the first loop ancestor of the directive.
                 remove = False
                 loop_anc = closest.ancestor((Loop, WhileLoop))
                 while loop_anc:
-                    if directive.is_descendent_of(loop_anc):
-                        if depend.is_descendent_of(loop_anc):
+                    if directive.is_descendant_of(loop_anc):
+                        if depend.is_descendant_of(loop_anc):
                             remove = True
                             break
                     loop_anc = loop_anc.ancestor((Loop, WhileLoop))
@@ -261,8 +261,18 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             # directive, since this means that the next dependency is the
             # condition of a while loop, which means we can't satisfy the
             # dependency
-            if directive.is_descendent_of(closest):
+            if directive.is_descendant_of(closest):
                 return False
+            # If closest is in the same IfBlock as the input directive, but
+            # one is in the if and the other is in the else, add the
+            # entire IfBlock as the dependency.
+            shared_if_anc = closest.ancestor(IfBlock, shared_with=directive)
+            if shared_if_anc and shared_if_anc.else_body:
+                if ((directive.is_descendant_of(shared_if_anc.if_body) and
+                     closest.is_descendant_of(shared_if_anc.else_body)) or
+                    (directive.is_descendant_of(shared_if_anc.else_body)
+                     and closest.is_descendant_of(shared_if_anc.if_body))):
+                    closest = shared_if_anc
             # Don't add repeats
             for dep in final_dependencies:
                 if dep is closest:

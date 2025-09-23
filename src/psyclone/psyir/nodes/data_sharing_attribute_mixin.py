@@ -42,7 +42,6 @@ from typing import Set, Tuple
 from psyclone.core import AccessType
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.symbols import DataSymbol, Symbol
 
@@ -125,16 +124,21 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             if (isinstance(symbol, DataSymbol) and
                     isinstance(self.dir_body[0], Loop) and
                     symbol in self.dir_body[0].explicitly_private_symbols):
-                if any(ref.symbol is symbol for ref in self.preceding()
-                       if isinstance(ref, Reference)):
-                    # If it's used before the loop, make it firstprivate
+                visited = set()
+                if (
+                    # The loop variable is always private
+                    self.dir_body[0].variable is not symbol and
+                    # For anything else, if it uses a value coming from before
+                    # the loop scope, make it firstprivate
+                    any(access.node.enters_scope(self, visited_nodes=visited)
+                        for access in accesses)):
                     fprivate.add(symbol)
                 else:
                     private.add(symbol)
                 continue
 
             # All arrays not explicitly marked as threadprivate are shared
-            if any(accs.is_array() for accs in accesses):
+            if any(accs.has_indices() for accs in accesses):
                 continue
 
             # If a variable is only accessed once, it is either an error
@@ -181,7 +185,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
 
                     # Otherwise, the assignment to this variable is inside a
                     # loop (and it will be repeated for each iteration), so
-                    # we declare it as private or need_synch
+                    # we declare it as private or need_sync
                     name = signature.var_name
                     # TODO #2094: var_name only captures the top-level
                     # component in the derived type accessor. If the attributes
@@ -208,11 +212,14 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                         limit=loop_ancestor,
                         include_self=True)
                     if conditional_write:
-                        fprivate.add(symbol)
-                        break
-
-                    # Already found the first write and decided if it is
-                    # shared, private or firstprivate. We can stop looking.
+                        # If it's used before the loop, make it firstprivate
+                        visited = set()
+                        if any(access.node.enters_scope(
+                                                self, visited_nodes=visited)
+                               for access in accesses):
+                            fprivate.add(symbol)
+                            break
+                    # Otherwise it is just private
                     private.add(symbol)
                     break
 

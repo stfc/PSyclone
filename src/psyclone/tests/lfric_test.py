@@ -1873,8 +1873,7 @@ def test_lfrickernelargument_idtp_vector_field():
 @pytest.mark.parametrize("filename,kind_name", [
     ("26.6.2_mixed_precision_rsolver_vector.f90", "r_solver"),
     ("26.6.3_mixed_precision_rtran_vector.f90", "r_tran"),
-    ("26.6.4_mixed_precision_rbl_vector.f90", "r_bl"),
-    ("26.6.5_mixed_precision_rphys_vector.f90", "r_phys")])
+    ("26.6.4_mixed_precision_rbl_vector.f90", "r_bl")])
 def test_lfrickernelargument_idtp_vector_field_kind(filename, kind_name):
     '''Test the '_init_data_type_properties' method in the
     LFRicKernelArgument class for a field that is part of a
@@ -3388,7 +3387,7 @@ def test_HaloReadAccess_input_field():
         _ = HaloReadAccess(None, Schedule())
     assert (
         f"Generation Error: HaloInfo class expects an argument of type "
-        f"LFRicArgument, or equivalent, on initialisation, but found, "
+        f"LFRicKernelArgument, or equivalent, on initialisation, but found, "
         f"'{type(None)}'" == str(excinfo.value))
 
 
@@ -4079,8 +4078,8 @@ def test_lfricruntimechecks_multikern(tmpdir, monkeypatch):
     generated_code = str(psy.gen)
     assert "use testkern_mod, only : testkern_code" in generated_code
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use fs_continuity_mod"
     assert "use mesh_mod, only : mesh_type" in generated_code
+    assert "use fs_continuity_mod, only" in generated_code
     expected2 = (
         "    f3_proxy = f3%get_proxy()\n"
         "    f3_data => f3_proxy%data\n"
@@ -4155,7 +4154,6 @@ def test_lfricruntimechecks_builtins(tmpdir, monkeypatch):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use fs_continuity_mod\n"
     assert "use mesh_mod, only : mesh_type" in generated_code
     assert "type(field_type), intent(in) :: f3" in generated_code
     expected_code2 = (
@@ -4346,15 +4344,13 @@ r_solver_operator_type
   use r_tran_operator_mod, only : r_tran_operator_proxy_type, \
 r_tran_operator_type
   use r_bl_field_mod, only : r_bl_field_proxy_type, r_bl_field_type
-  use r_phys_field_mod, only : r_phys_field_proxy_type, r_phys_field_type
   implicit none
   public
 
   contains
   subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, \
 scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, \
-field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl, scalar_r_phys, \
-field_r_phys)
+field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
     use mesh_mod, only : mesh_type
     use mixed_kernel_mod, only : mixed_code
     real(kind=r_def), intent(in) :: scalar_r_def
@@ -4368,8 +4364,6 @@ field_r_phys)
     type(r_tran_operator_type), intent(in) :: operator_r_tran
     real(kind=r_bl), intent(in) :: scalar_r_bl
     type(r_bl_field_type), intent(in) :: field_r_bl
-    real(kind=r_phys), intent(in) :: scalar_r_phys
-    type(r_phys_field_type), intent(in) :: field_r_phys
     integer(kind=i_def) :: cell
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
@@ -4377,7 +4371,6 @@ field_r_phys)
     real(kind=r_solver), pointer, dimension(:) :: field_r_solver_data => null()
     real(kind=r_tran), pointer, dimension(:) :: field_r_tran_data => null()
     real(kind=r_bl), pointer, dimension(:) :: field_r_bl_data => null()
-    real(kind=r_phys), pointer, dimension(:) :: field_r_phys_data => null()
     real(kind=r_def), pointer, dimension(:,:,:) :: \
 operator_r_def_local_stencil => null()
     real(kind=r_solver), pointer, dimension(:,:,:) :: \
@@ -4388,7 +4381,6 @@ operator_r_tran_local_stencil => null()
     integer(kind=i_def) :: nlayers_field_r_solver
     integer(kind=i_def) :: nlayers_field_r_tran
     integer(kind=i_def) :: nlayers_field_r_bl
-    integer(kind=i_def) :: nlayers_field_r_phys
     integer(kind=i_def) :: ndf_w3
     integer(kind=i_def) :: undf_w3
     integer(kind=i_def) :: ndf_w0
@@ -4397,7 +4389,6 @@ operator_r_tran_local_stencil => null()
     type(r_solver_field_proxy_type) :: field_r_solver_proxy
     type(r_tran_field_proxy_type) :: field_r_tran_proxy
     type(r_bl_field_proxy_type) :: field_r_bl_proxy
-    type(r_phys_field_proxy_type) :: field_r_phys_proxy
     type(operator_proxy_type) :: operator_r_def_proxy
     type(r_solver_operator_proxy_type) :: operator_r_solver_proxy
     type(r_tran_operator_proxy_type) :: operator_r_tran_proxy
@@ -4409,8 +4400,6 @@ operator_r_tran_local_stencil => null()
     integer(kind=i_def) :: loop2_stop
     integer(kind=i_def) :: loop3_start
     integer(kind=i_def) :: loop3_stop
-    integer(kind=i_def) :: loop4_start
-    integer(kind=i_def) :: loop4_stop
 """ in generated_code
 
     # Test compilation

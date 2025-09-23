@@ -249,13 +249,17 @@ class LFRicConstants():
         # in the LFRic API ('real' and 'integer')
         LFRicConstants.VALID_BUILTIN_DATA_TYPES = ["gh_real", "gh_integer"]
 
+        # Iteration spaces for user-supplied kernels that must include halo
+        # regions for correctness.
+        LFRicConstants.HALO_KERNEL_ITERATION_SPACES = [
+            "halo_cell_column",
+            "owned_and_halo_cell_column"]
+
         # Valid LFRic iteration spaces for user-supplied kernels and
         # built-in kernels
         LFRicConstants.USER_KERNEL_ITERATION_SPACES = [
-            "cell_column", "domain",
-            "dof",
-            "halo_cell_column",
-            "owned_and_halo_cell_column"]
+            "cell_column", "domain", "dof"
+            ] + LFRicConstants.HALO_KERNEL_ITERATION_SPACES
 
         LFRicConstants.VALID_ITERATION_SPACES = \
             list(OrderedDict.fromkeys(
@@ -389,12 +393,6 @@ class LFRicConstants():
                            "proxy_type": "r_bl_field_proxy_type",
                            "intrinsic": "real",
                            "kind": "r_bl"},
-            # 'real'-valued field with data of kind 'r_phys'
-            "r_phys_field": {"module": "r_phys_field_mod",
-                             "type": "r_phys_field_type",
-                             "proxy_type": "r_phys_field_proxy_type",
-                             "intrinsic": "real",
-                             "kind": "r_phys"},
             # 'integer'-valued field with data of kind 'i_def'
             "integer_field": {"module": "integer_field_mod",
                               "type": "integer_field_type",
@@ -435,8 +433,7 @@ class LFRicConstants():
             "field_vector_type": "field_type",
             "r_solver_field_vector_type": "r_solver_field_type",
             "r_tran_field_vector_type": "r_tran_field_type",
-            "r_bl_field_vector_type": "r_bl_field_type",
-            "r_phys_field_vector_type": "r_phys_field_type"}
+            "r_bl_field_vector_type": "r_bl_field_type"}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.

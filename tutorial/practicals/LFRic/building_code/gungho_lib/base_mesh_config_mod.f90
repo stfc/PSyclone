@@ -39,7 +39,7 @@
 !>
 module base_mesh_config_mod
 
-  use constants_mod, only: i_native, &
+  use constants_mod, only: i_medium, &
                            l_def, &
                            r_def, &
                            str_def, &
@@ -55,17 +55,17 @@ module base_mesh_config_mod
             read_base_mesh_namelist, postprocess_base_mesh_namelist, &
             base_mesh_is_loadable, base_mesh_is_loaded, base_mesh_final
 
-  integer(i_native), public, parameter :: geometry_planar = 781
-  integer(i_native), public, parameter :: geometry_spherical = 348
-  integer(i_native), public, parameter :: partitioner_cubedsphere = 791
-  integer(i_native), public, parameter :: partitioner_planar = 200
+  integer(i_medium), public, parameter :: geometry_planar = 781
+  integer(i_medium), public, parameter :: geometry_spherical = 348
+  integer(i_medium), public, parameter :: partitioner_cubedsphere = 791
+  integer(i_medium), public, parameter :: partitioner_planar = 200
 
   real(r_def), public, protected :: f_lat
   real(r_def), public, protected :: f_lat_deg
   character(str_max_filename), public, protected :: filename
   logical(l_def), public, protected :: fplane
-  integer(i_native), public, protected :: geometry
-  integer(i_native), public, protected :: partitioner
+  integer(i_medium), public, protected :: geometry
+  integer(i_medium), public, protected :: partitioner
   character(str_def), public, protected :: prime_mesh_name
 
   logical :: namelist_loaded = .false.
@@ -77,12 +77,12 @@ module base_mesh_config_mod
           = [character(len=str_def) :: 'cubedsphere', &
                                        'planar']
 
-  integer(i_native), parameter :: geometry_value(2) &
-          = [781_i_native, &
-             348_i_native]
-  integer(i_native), parameter :: partitioner_value(2) &
-          = [791_i_native, &
-             200_i_native]
+  integer(i_medium), parameter :: geometry_value(2) &
+          = [781_i_medium, &
+             348_i_medium]
+  integer(i_medium), parameter :: partitioner_value(2) &
+          = [791_i_medium, &
+             200_i_medium]
 
 contains
 
@@ -92,7 +92,7 @@ contains
   !>
   !> @param[in] key Enumeration key.
   !>
-  integer(i_native) function geometry_from_key( key )
+  integer(i_medium) function geometry_from_key( key )
 
     use constants_mod, only: imdi, unset_key
 
@@ -100,12 +100,12 @@ contains
 
     character(*), intent(in) :: key
 
-    integer(i_native) :: key_index
+    integer(i_medium) :: key_index
 
     if (key == unset_key) then
       write( log_scratch_space, '(A)') &
           'Missing key for geometry enumeration in base_mesh namelist.'
-      geometry_from_key = int(imdi,i_native)
+      geometry_from_key = int(imdi,i_medium)
       call log_event( log_scratch_space, LOG_LEVEL_WARNING )
       return
     end if
@@ -139,13 +139,13 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: value
+    integer(i_medium), intent(in) :: value
 
-    integer(i_native) :: value_index
+    integer(i_medium) :: value_index
 
     value_index = 1
     do
-      if (geometry_value(value_index) == int(imdi,i_native)) then
+      if (geometry_value(value_index) == int(imdi,i_medium)) then
         key_from_geometry = unset_key
         return
       else if (geometry_value(value_index) == value) then
@@ -169,7 +169,7 @@ contains
   !>
   !> @param[in] key Enumeration key.
   !>
-  integer(i_native) function partitioner_from_key( key )
+  integer(i_medium) function partitioner_from_key( key )
 
     use constants_mod, only: unset_key, imdi
 
@@ -177,12 +177,12 @@ contains
 
     character(*), intent(in) :: key
 
-    integer(i_native) :: key_index
+    integer(i_medium) :: key_index
 
     if (key == unset_key) then
       write( log_scratch_space, '(A)') &
           'Missing key for partitioner enumeration in base_mesh namelist.'
-      partitioner_from_key = int(imdi,i_native)
+      partitioner_from_key = int(imdi,i_medium)
       call log_event( log_scratch_space, LOG_LEVEL_WARNING )
       return
     end if
@@ -216,13 +216,13 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: value
+    integer(i_medium), intent(in) :: value
 
-    integer(i_native) :: value_index
+    integer(i_medium) :: value_index
 
     value_index = 1
     do
-      if (partitioner_value(value_index) == int(imdi,i_native)) then
+      if (partitioner_value(value_index) == int(imdi,i_medium)) then
         key_from_partitioner = unset_key
         return
       else if (partitioner_value(value_index) == value) then
@@ -251,8 +251,8 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
+    integer(i_medium), intent(in) :: file_unit
+    integer(i_medium), intent(in) :: local_rank
 
     call read_namelist( file_unit, local_rank, &
                         geometry, &
@@ -270,15 +270,15 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
-    integer(i_native), intent(out) :: dummy_geometry
-    integer(i_native), intent(out) :: dummy_partitioner
+    integer(i_medium), intent(in) :: file_unit
+    integer(i_medium), intent(in) :: local_rank
+    integer(i_medium), intent(out) :: dummy_geometry
+    integer(i_medium), intent(out) :: dummy_partitioner
 
     character(str_def) :: buffer_character_str_def(1)
     character(str_max_filename) :: buffer_character_str_max_filename(1)
-    integer(i_native) :: buffer_integer_i_native(2)
-    integer(i_native) :: buffer_logical_l_def(1)
+    integer(i_medium) :: buffer_integer_i_medium(2)
+    integer(i_medium) :: buffer_logical_l_def(1)
     real(r_def) :: buffer_real_r_def(1)
 
     character(str_def) :: geometry
@@ -291,7 +291,7 @@ contains
                          partitioner, &
                          prime_mesh_name
 
-    integer(i_native) :: condition
+    integer(i_medium) :: condition
 
     f_lat = rmdi
     f_lat_deg = rmdi
@@ -316,15 +316,15 @@ contains
     buffer_real_r_def(1) = f_lat_deg
     buffer_character_str_max_filename(1) = filename
     buffer_logical_l_def(1) = merge( 1, 0, fplane )
-    buffer_integer_i_native(1) = dummy_geometry
-    buffer_integer_i_native(2) = dummy_partitioner
+    buffer_integer_i_medium(1) = dummy_geometry
+    buffer_integer_i_medium(2) = dummy_partitioner
     buffer_character_str_def(1) = prime_mesh_name
 
     f_lat_deg = buffer_real_r_def(1)
     filename = buffer_character_str_max_filename(1)
     fplane = buffer_logical_l_def(1) /= 0
-    dummy_geometry = buffer_integer_i_native(1)
-    dummy_partitioner = buffer_integer_i_native(2)
+    dummy_geometry = buffer_integer_i_medium(1)
+    dummy_partitioner = buffer_integer_i_medium(2)
     prime_mesh_name = buffer_character_str_def(1)
 
 
@@ -390,8 +390,8 @@ contains
     f_lat_deg = real(rmdi,r_def)
     filename = cmdi
     fplane = .false.
-    geometry = int(imdi,i_native)
-    partitioner = int(imdi,i_native)
+    geometry = int(imdi,i_medium)
+    partitioner = int(imdi,i_medium)
     prime_mesh_name = cmdi
 
     return

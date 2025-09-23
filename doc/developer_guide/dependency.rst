@@ -81,22 +81,63 @@
     fortran_writer = FortranWriter()
 
 
-Dependency Analysis Functionality in PSyclone
-#############################################
+Dependency Analysis Tools
+#########################
 
-There are two different dependency analysis methods implemented, 
-the old :ref:`dependency analysis<old_dependency_analysis>`
-one, and a new one based on a 
-:ref:`variable access API<variable_accesses>`. There is a certain
-overlap between these two methods, and it is expected that the current
-dependency analysis, which does not support the NEMO API, will be
-integrated with the variable access API in the future (see
+PSyIR nodes provide multiple methods to reason about the dependencies
+and lifetimes of the symbols used in a PSyIR tree. These are described
+in :ref:`the PSyIR dependency analysis methods section<psyir_dependency_methods>`.
+
+These methods currently use two distinct implementations, the new
+:ref:`variable access API<variable_accesses>` (which also provides the
+:ref:`DefinitionUseChains<defusechain>` and the
+:ref:`Loop Dependency Tools<deptools>` for deeper analysis), and the older
+:ref:`PSyKAl halo exchange dependency analysis<old_dependency_analysis>`.
+There is a certain overlap between these two methods, and it is expected that
+the old PSyKAl dependency analysis will be integrated with the variable access
+API in the future (see
 `#1148 <https://github.com/stfc/PSyclone/issues/1148>`_).
+
+.. _psyir_dependency_methods:
+
+PSyIR Dependency Analysis Methods
+=================================
+
+
+.. automethod:: psyclone.psyir.nodes.Node.reference_accesses
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Reference.previous_accesses
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Reference.next_accesses
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Reference.escapes_scope
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Reference.enters_scope
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Loop.independent_iterations
+    :no-index:
+
+PSyKAl analysis methods:
+
+.. automethod:: psyclone.psyir.nodes.Node.dag
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Node.backward_dependence
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Node.forward_dependence
+    :no-index:
+
 
 .. _old_dependency_analysis:
 
-Dependence Analysis
-===================
+PSyKAl Dependence Analysis
+==========================
 
 Dependence Analysis in PSyclone produces ordering constraints between
 instances of the `Argument` class within a PSyIR tree.
@@ -451,8 +492,10 @@ until we find accesses that would prevent parallelisation:
           from the kernel metadata, not from the actual kernel source 
           code.
 
-Dependency Tools
-================
+.. _deptools:
+
+Loop Dependency Tools
+=====================
 
 PSyclone contains a class that builds upon the data-dependency functionality
 to provide useful tools for dependency analysis. It especially provides
@@ -503,6 +546,8 @@ can be parallelised:
     :hide:
 
     Error: The write access to 'a(i,i)' and the read access to 'a(i + 1,i + 1)' are dependent and cannot be parallelised. Variable: 'a'.
+
+.. _defusechain:
 
 DefinitionUseChain
 ==================

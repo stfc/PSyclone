@@ -97,16 +97,9 @@ class AccessInfo():
         '''
         return self._node.component_indices
 
-    def is_array(self):
-        '''Test if any of the components has an index. E.g. an access like
-        a(i)%b would still be considered an array.
-
-        :returns: if any of the variable components uses an index, i.e.\
-            the variable is an array.
-        :rtype: bool
-        '''
+    def has_indices(self) -> bool:
         from psyclone.psyir.nodes.array_mixin import ArrayMixin
-        return self._node.has_a(ArrayMixin)
+        return self._node.has_decendant(ArrayMixin)
 
     @property
     def access_type(self):
@@ -319,34 +312,31 @@ class AccessSequence(list):
                 f" it does not have a 'READ' access.")
         read_access.change_read_to_write()
 
-    def is_array(self, index_variable=None):
-        '''Checks if the variable is used as an array, i.e. if it has
-        an index expression. If the optional `index_variable` is specified,
-        this variable must be used in (at least one) index access in order
-        for this variable to be considered as an array.
+    def has_indices(self, index_variable: str = None) -> bool:
+        ''' Checks whether this variable accesses has any index. If the
+        optional `index_variable` is provided, only indices involving the given
+        variable are considered.
 
-        :param str index_variable: only considers this variable to be used \
-            as array if there is at least one access using this \
-            index_variable.
+        :param index_variable: only consider index expressions that involve
+            this variable.
 
-        :returns: true if there is at least one access to this variable \
-            that uses an index.
-        :rtype: bool
+        :returns: true if any of the accesses has an index.
 
         '''
-        is_array = any(access_info.is_array() for access_info in self)
+        has_indices = any(access.has_indices() for access in self)
 
         # If there is no access information using an index, or there is no
         # index variable specified, return the current result:
-        if not is_array or index_variable is None:
-            return is_array
+        if not has_indices or index_variable is None:
+            return has_indices
 
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Reference
 
+        lowered_name = index_variable.lower()
         for access_info in self:
-            if any(ref.symbol.name == index_variable
+            if any(ref.symbol.name.lower() == lowered_name
                    for ref in access_info.node.walk(Reference)):
                 return True
 

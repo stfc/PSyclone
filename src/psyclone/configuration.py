@@ -226,6 +226,12 @@ class Config:
         # checks which can be useful in the case of unimplemented features.
         self._backend_checks_enabled = True
 
+        # By default, the PSyIR backends output indented code. Although the
+        # line-length limiter can ensure that the output code remains standards
+        # compliant, occasionally there are circumstances when the only
+        # solution is to remove all indentation.
+        self._backend_indentation_disabled = False
+
         # The Fortran standard that fparser should use
         self._fortran_standard = None
 
@@ -340,6 +346,18 @@ class Config:
             except ValueError as err:
                 raise ConfigurationError(
                     f"Error while parsing BACKEND_CHECKS_ENABLED: {err}",
+                    config=self) from err
+
+        # Whether all indentation should be removed from the output of PSyIR
+        # backends.
+        if 'BACKEND_INDENTATION_DISABLED' in self._config['DEFAULT']:
+            try:
+                self._backend_indentation_disabled = (
+                    self._config['DEFAULT'].getboolean(
+                        'BACKEND_INDENTATION_DISABLED'))
+            except ValueError as err:
+                raise ConfigurationError(
+                    f"Error while parsing BACKEND_INDENTATION_DISABLED: {err}",
                     config=self) from err
 
         # Now we deal with the API-specific sections of the config file. We
@@ -571,6 +589,29 @@ class Config:
             raise TypeError(f"Config.backend_checks_enabled must be a boolean "
                             f"but got '{type(value).__name__}'")
         self._backend_checks_enabled = value
+
+    @property
+    def backend_indentation_disabled(self) -> bool:
+        '''
+        :returns: whether or not all indentation is disabled in the PSyIR
+                  backend.
+        '''
+        return self._backend_indentation_disabled
+
+    @backend_indentation_disabled.setter
+    def backend_indentation_disabled(self, value: bool):
+        '''
+        Setter for whether or not all indentation is to be disabled in the
+        PSyIR backend.
+
+        :raises TypeError: if the supplied value is not a boolean.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"Config.backend_indentation_disabled must be a boolean but "
+                f"got '{type(value).__name__}'")
+        self._backend_indentation_disabled = value
 
     @property
     def supported_stub_apis(self):

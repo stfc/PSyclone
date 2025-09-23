@@ -287,9 +287,8 @@ class PSy():
 
         # Use the PSyIR Fortran backend to generate Fortran code of the
         # supplied PSyIR tree.
-        config = Config.get()
         fortran_writer = FortranWriter(
-            check_global_constraints=config.backend_checks_enabled,
+            check_global_constraints=Config.get().backend_checks_enabled,
             disable_copy=True)  # We already made the copy manually above
         result = fortran_writer(new_container)
 
@@ -2857,7 +2856,10 @@ class Transformation(metaclass=abc.ABCMeta):
             signature = inspect.signature(base_cls_apply)
             # Loop over the arguments to the apply call.
             for k, v in signature.parameters.items():
-                if k == "options":
+                # Since the 'options' argument is deprecated, its not
+                # inherited from superclasses as newer Transformations
+                # may not implement it.
+                if k == "options" and base_cls is not cls:
                     continue
                 # If the argument is a keyword argument, i.e. it has a default
                 # value then we add it to the list of options.
@@ -2895,8 +2897,6 @@ class Transformation(metaclass=abc.ABCMeta):
         invalid_options = []
         wrong_types = {}
         for option in kwargs:
-            if option == "options":
-                continue
             if option not in valid_options:
                 invalid_options.append(option)
                 continue
