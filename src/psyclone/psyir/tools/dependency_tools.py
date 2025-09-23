@@ -228,11 +228,35 @@ class DependencyTools():
         :rtype: List[Tuple[Set[str], List[int]]]
 
         '''
+        def get_subscripts_of(component_indices, set_of_vars):
+            '''This function returns a flat list of which variable from the
+            given set of variables is used in each subscript. For example, the
+            access `a(i+i2)%b(j*j+k,k)%c(l,5)` would have the component_indices
+            `[[i+i2], [j*j+k,k], [l,5]]`. If the set of variables is
+            `(i,j,k)`, then `get_subscripts_of` would return
+            `[{i},{j,k},{k},{l},{}]`.
+
+            :param set_of_vars: set with name of all variables.
+            :type set_of_vars: Set[str]
+
+            :return: a list of sets with all variables used in the corresponding \
+                array subscripts as strings.
+            :rtype: List[Set[str]]
+
+            '''
+            indices = []
+            for component in component_indices:
+                for idx in component:
+                    index_vars = idx.reference_accesses()
+                    unique_vars = set(str(sig) for sig in index_vars.keys())
+                    unique_vars = unique_vars.intersection(set_of_vars)
+                    indices.append(unique_vars)
+            return indices
         # Get the (string) name of all variables used in each subscript
         # of the two accesses. E.g. `a(i,j+k)` --> [ {"i"}, {"j","k"}]
         set_of_loop_vars = set(loop_variables)
-        indices_1 = comp_ind1.get_subscripts_of(set_of_loop_vars)
-        indices_2 = comp_ind2.get_subscripts_of(set_of_loop_vars)
+        indices_1 = get_subscripts_of(comp_ind1, set_of_loop_vars)
+        indices_2 = get_subscripts_of(comp_ind2, set_of_loop_vars)
         # This list stores the partition information, which
         # is a pair consisting of:
         # - a set of all loop variables used in the subscript of
@@ -242,15 +266,18 @@ class DependencyTools():
         # Example: `a(i,j)` and `a(i,k)` -->
         #          [ ({"i"}, [(0,0)]), ({"j","k"}, [(0,1)])]
         partition_infos = []
-        for i, indx in enumerate(comp_ind1.iterate()):
-            # This can happen if there is a mixture of accesses to an array
-            # with and without indices, e.g.: a(i) = a*a
-            # In this case we don't add this to the partition, which will
-            # result in an empty partition (which in turns will disable
-            # parallelisation).
-            if i < len(indices_2):
-                partition_infos.append((indices_1[i].union(indices_2[i]),
-                                        [indx]))
+        i = 0
+        for component in comp_ind1:
+            for indx in component:
+                # This can happen if there is a mixture of accesses to an array
+                # with and without indices, e.g.: a(i) = a*a
+                # In this case we don't add this to the partition, which will
+                # result in an empty partition (which in turns will disable
+                # parallelisation).
+                if i < len(indices_2):
+                    partition_infos.append((indices_1[i].union(indices_2[i]),
+                                            [i]))
+                i = i + 1
 
         # Check each loop variable to find subscripts in which they are used:
         for loop_var in loop_variables:
@@ -549,8 +576,8 @@ class DependencyTools():
         # 1) subscript 0: only variable i is used.
         # 2) subscript 1+2: uses the variables j and k
         # 3) subscript 3: only uses l
-        partitions = self._partition(write_access.component_indices,
-                                     other_access.component_indices,
+        partitions = self._partition(write_access.component_indices(),
+                                     other_access.component_indices(),
                                      loop_variables)
         # Get the name of the loop variable that is to be parallelised:
         loop_var = loop_variables[0]
@@ -566,8 +593,9 @@ class DependencyTools():
                 # There is only one subscript involved in this test.
                 # Get its index of its component_index:
                 subscript = subscripts[0]
-                index_write = write_access.component_indices[subscript]
-                index_other = other_access.component_indices[subscript]
+                # FIXME: Not sure about this [0]
+                index_write = write_access.component_indices()[0][subscript]
+                index_other = other_access.component_indices()[0][subscript]
                 if len(set_of_vars) == 0:
                     # No loop variable used, constant access (which might
                     # still be using unknown non-loop variables).

@@ -126,8 +126,7 @@ class VariablesAccessMap(dict):
                     self[signature] = var_info
 
                 var_info.add_access(access_info.access_type,
-                                    access_info.node,
-                                    access_info.component_indices)
+                                    access_info.node)
 
     def is_called(self, signature: Signature) -> bool:
         '''

@@ -206,7 +206,7 @@ class Reference(DataNode):
         for indices in all_indices:
             for index in indices:
                 var_accesses.update(index.reference_accesses())
-        var_accesses.add_access(sig, AccessType.READ, self, all_indices)
+        var_accesses.add_access(sig, AccessType.READ, self)
         return var_accesses
 
     @property

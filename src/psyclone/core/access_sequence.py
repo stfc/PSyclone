@@ -95,11 +95,14 @@ class AccessInfo():
         :returns: the indices used in this access for each component.
         :rtype: :py:class:`psyclone.core.component_indices.ComponentIndices`
         '''
+        from psyclone.psyir.nodes import Reference
+        if not isinstance(self._node, Reference):
+            return tuple(tuple())
         return self._node.component_indices
 
     def has_indices(self) -> bool:
         from psyclone.psyir.nodes.array_mixin import ArrayMixin
-        return self._node.has_decendant(ArrayMixin)
+        return self._node.has_descendant(ArrayMixin)
 
     @property
     def access_type(self):
@@ -276,7 +279,7 @@ class AccessSequence(list):
         :param component_indices: indices used for each component of the \
             access.
         '''
-        self.append(AccessInfo(access_type, node, component_indices))
+        self.append(AccessInfo(access_type, node))
 
     def change_read_to_write(self):
         '''This function is only used when analysing an assignment statement.

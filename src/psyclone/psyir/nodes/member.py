@@ -148,7 +148,7 @@ class Member(Node):
         it returns `((i,),(j,k))`, for scalar accesses it returns `((,),)`, and
         for `a%b` it returns ((,),(,)). Each member of the tuples is the PSyIR
         node describing the index expression used.'''
-        return tuple()
+        return (tuple(),)
 
 
 # For Sphinx AutoAPI documentation generation
