@@ -554,7 +554,6 @@ class BaseDriverCreator:
         self._add_command_line_handler(program, psy_data, region_name[0],
                                        region_name[1])
 
-        program = file_container.walk(Routine)[0]
         original_symbol_table = nodes[0].ancestor(Routine).symbol_table
 
         # Add the modified extracted region into the driver program
