@@ -69,26 +69,28 @@ class BaseDriverCreator:
        kernel data file to read (and if nothing is specified to use the
        default, which is the name used in the extraction without MPI
        rank attached).
-    4. The read-in code is added, using the read_write information which
+    4. A copy of the kernel that is being instrumented is created, so that
+       it can be modified without affecting the actual code creation if
+       PSyclone..
+    5. The method `verify_and_cleanup_psyir` is called with the copied kernel
+       as parameter. The base implementation checks that no structure accesses
+       are in the code (which are not supported - the structures used by the
+       domain-specific code have already been replaced since the extracted
+       region has been lowered). This can be overwritten by domain-specific
+       implementation. For example, in LFRic calls to `set_dirty` and
+       `set_clean` are removed (since they are irrelevant) first.
+    6. The read-in code is added, using the read_write information which
        is used when extracting the data. This ensures that the extraction
        and driver are matching.
-    5. A copy of the kernel that is being instrumented is added (before
-       the extraction code is added to the original kernel).
-    6. A call to `verify_and_cleanup_psyir` is done. The base implementation
-       checks that no structure accesses are in the code (which are not
-       supported - the structures used by the domain-specific code have
-       already been replaced since the extracted region has been lowered).
-       This can be overwritten by domain-specific implementation. For example,
-       in LFRic calls to `set_dirty` and `set_clean` are removed (since they
-       are irrelevant) first.
-    7. All modules required by the kernel are imported.
-    8. A call to `handle_precision_symbols` is made, allowing domain-specific
+    7. The copy of the kernel is added.
+    8. All modules required by the kernel are imported.
+    9. A call to `handle_precision_symbols` is made, allowing domain-specific
        derived classes to add precision related symbols as required
        (see `lfric_extract_driver_creator.py`), or to replace precision
        symbols (see `extract_driver_creator.py`).
-    9. Add the code that will compare the results, i.e. comparing all output
-       variables computed in the kernel with the post values stored in the
-       kernel data file.
+    10. Add the code that will compare the results, i.e. comparing all output
+        variables computed in the kernel with the post values stored in the
+        kernel data file.
 
     :param region_name: Suggested region name.
     '''
@@ -394,6 +396,7 @@ class BaseDriverCreator:
         # DSLs use StructureReferences in calls (e.g in LFRic
         # set_dirty etc) must be handled (e.g. removed) by a derived
         # class first
+        print("BBB0", extract_region.view())
         for sref in extract_region.walk(StructureReference):
             raise ValueError(f"The DriverCreator does not support "
                              f"StructureReferences, any such references "
@@ -587,13 +590,13 @@ class BaseDriverCreator:
 
         original_symbol_table = nodes[0].ancestor(Routine).symbol_table
 
+        # Add the modified extracted region into the driver program
+        extract_region = nodes[0].copy()
+        self.verify_and_cleanup_psyir(extract_region)
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
                                                    read_write_info, postfix)
 
-        # Add the modified extracted region into the driver program
-        extract_region = nodes[0].copy()
-        self.verify_and_cleanup_psyir(extract_region)
         # Copy the nodes that are part of the extraction
         program.children.extend(extract_region.pop_all_children())
 
