@@ -5895,6 +5895,7 @@ class LFRicKernelArgument(KernelArgument):
                 # The collection datatype is not recognised or supported.
                 alg_datatype = None
 
+        # TODO: Check this is correct after is_scalar is fixed
         if self.is_scalar:
             self._init_scalar_properties(alg_datatype, alg_precision,
                                          check)
@@ -5936,6 +5937,7 @@ class LFRicKernelArgument(KernelArgument):
             not declared with default precision.
 
         '''
+        # TODO: Check whether this needs scalars and ScalarArray separated
         const = LFRicConstants()
         # Check the type of scalar defined in the metadata is supported.
         if self.intrinsic_type not in const.VALID_INTRINSIC_TYPES:
@@ -6151,7 +6153,18 @@ class LFRicKernelArgument(KernelArgument):
         :rtype: bool
         '''
         const = LFRicConstants()
-        return self._argument_type in const.VALID_SCALAR_NAMES
+        return self._argument_type in (const.VALID_SCALAR_NAMES +
+                                       const.VALID_ARRAY_NAMES)
+
+    @property
+    def is_scalar_array(self):
+        '''
+        :returns: True if this kernel argument represents a \
+                  ScalarArray, False otherwise.
+        :rtype: bool
+        '''
+        const = LFRicConstants()
+        return self._argument_type in const.VALID_ARRAY_NAMES
 
     @property
     def is_field(self):
@@ -6261,6 +6274,9 @@ class LFRicKernelArgument(KernelArgument):
                     f"PSyIR contains one or more References.")
             return lit
 
+        # TODO: this possibly needs altering to consider ScalarArrays
+        # Currently .is_scalar doesn't include ScalarArrays so this won't
+        # pass. Need to work out if it needs to start for a ScalarArray
         if self.is_scalar:
             try:
                 scalar_sym = symbol_table.lookup(self.name)
