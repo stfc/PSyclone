@@ -307,8 +307,8 @@ def test_get_non_local_read_write_info(caplog):
     with caplog.at_level(logging.WARNING):
         ctu.get_non_local_read_write_info(schedule, rw_info)
     assert "Unknown routine 'unknown_subroutine - ignored." in caplog.text
-    # assert ("Cannot find module 'constants_mod' - ignoring unknown symbol "
-    #         "'eps'." in caplog.text)
+    assert ("Cannot find module 'constants_mod' - ignoring unknown symbol "
+            "'eps'." in caplog.text)
 
     # We don't test the 14 local variables here, this was tested earlier.
     # Focus on the remote symbols that are read:
@@ -627,8 +627,8 @@ def testcall_tree_utils_non_local_inout_parameters(caplog):
         rw_info = ctu.get_in_out_parameters(schedule,
                                             collect_non_local_symbols=True)
     assert "Unknown routine 'unknown_subroutine - ignored." in caplog.text
-    # assert ("Cannot find module 'constants_mod' - ignoring unknown symbol "
-    #         "'eps'." in caplog.text)
+    assert ("Cannot find module 'constants_mod' - ignoring unknown symbol "
+            "'eps'." in caplog.text)
 
     # We don't test the 14 local variables here, this was tested earlier.
     # Focus on the remote symbols that are read:
