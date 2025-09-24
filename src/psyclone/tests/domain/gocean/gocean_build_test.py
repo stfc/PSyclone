@@ -39,6 +39,8 @@ Module containing tests related to building generated code for
 the GOcean domain.
 '''
 
+from pathlib import Path
+
 import pytest
 
 from psyclone.tests.gocean_build import GOceanBuild, GOceanOpenCLBuild
@@ -48,30 +50,74 @@ from psyclone.tests.utilities import Compile, CompileError
 @pytest.fixture(scope="function", autouse=True)
 def reset_infrastructure_compiled_flag():
     '''During testing the compilation path will be modified. Make sure
-    we restore the original path (which actualy contains the compiled
-    files) after each test. Also set the built flag to false to always
-    trigger a fresh building of the infrastructure.
+    we restore the original path (which actually contains the compiled
+    files) after each test.
 
     '''
-    GOceanBuild._infrastructure_built = False
     saved_orig_path = GOceanBuild._compilation_path
     yield
     GOceanBuild._compilation_path = saved_orig_path
 
 
-def test_make_flags(tmpdir):
-    '''Test that the compiler flags consists of a list with "-I"
-    in every second position: `-I operator -I field -I mesh`
+def test_make_flags_with_compilation(tmpdir: Path,
+                                     monkeypatch: pytest.MonkeyPatch) -> None:
+    '''Test that the compiler flags contains a single "-I",
+    followed by a path when testing with compilation. If compilation is
+    disabled, we monkey patch GOceanBuild to still take the paths
+    that would be taken if compilation is enabled.
 
     '''
+    if not Compile.TEST_COMPILE:
+        # Compilation is disabled, so there would be no infrastructure
+        # to point to (it would point to external/dl_esm_inf). In order
+        # to test behaviour when compiling is actually disabled, patch
+        # GOceanBuild to have a specific (though invalid) infrastructure
+        # path, and indicating that the infrastructure has already been
+        # compiled (to avoid it being compiled in the constructor).
+        monkeypatch.setattr(GOceanBuild, "_infrastructure_built", True)
+        monkeypatch.setattr(GOceanBuild, "_compilation_path",
+                            "/tmp/path/dl_esm_inf")
+        monkeypatch.setattr(Compile, "TEST_COMPILE", True)
     flags = GOceanBuild(tmpdir).get_infrastructure_flags()
-    i = 0
-    while i < len(flags):
-        assert flags[i] == "-I"
-        i += 2
+    assert len(flags) == 2
+    assert flags[0] == "-I"
+    # This should be a temporary path (*or the above /tmp/path/dl_esm/inf one),
+    # so we can't easily check this (different relative paths when testing in
+    # parallel). So just check for the name, and that it does not include
+    # `external` (so it is not the directory in the PSyclone directory)
+    assert "external" not in flags[1]
+    assert "dl_esm_inf" in flags[1]
 
 
-def test_make_fail(tmpdir, monkeypatch):
+def test_make_flags_without_compilation(
+        tmpdir: Path,
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    '''Test that the compiler flags contains a single "-I", followed by a
+    path when testing without compilation. In this case, it should point
+    to the external/dl_esm_inf directory. If compilation is actually enabled
+    (in which case the compiled directory path in a temp directory would be
+    used), we monkey-patch GOceanBuild so that it takes the path used when
+    compilation is disabled.
+
+    '''
+    if Compile.TEST_COMPILE:
+        # Compilation is enabled. In order to test behaviour when not
+        # compiling, patch GOceanBuild to have specific (though invalid)
+        # infrastructure path, and indicating that the infrastructure has
+        # already been compiled:
+        monkeypatch.setattr(GOceanBuild, "_infrastructure_built", True)
+        monkeypatch.setattr(GOceanBuild, "_compilation_path",
+                            "/tmp/path/dl_esm_inf")
+        monkeypatch.setattr(Compile, "TEST_COMPILE", False)
+    flags = GOceanBuild(tmpdir).get_infrastructure_flags()
+    assert len(flags) == 2
+    assert flags[0] == "-I"
+    # When compilation is disabled, it must return the path of dl_esm_inf
+    # included in PSyclone:
+    assert "external/dl_esm_inf" in flags[1]
+
+
+def test_make_fail(tmpdir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     '''Test that compilation fails as expected if there is no `make`
     installed. This is simulated by replacing the 'make' command
     with a non-existing command.
@@ -86,7 +132,8 @@ def test_make_fail(tmpdir, monkeypatch):
             in str(excinfo.value))
 
 
-def test_make_error_code(tmpdir, monkeypatch):
+def test_make_error_code(tmpdir: Path,
+                         monkeypatch: pytest.MonkeyPatch) -> None:
     '''Test that a non-zero return code from the build command is
     handled correctly.
 
@@ -100,7 +147,7 @@ def test_make_error_code(tmpdir, monkeypatch):
             in str(excinfo.value))
 
 
-def test_make_works(tmpdir, monkeypatch):
+def test_make_works(tmpdir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     '''Tests that no error is raised if the build process worked.
     This done by using `true` as build command.
 
@@ -114,7 +161,8 @@ def test_make_works(tmpdir, monkeypatch):
     assert GOceanBuild._infrastructure_built is True
 
 
-def test_opencl_compiles(tmpdir, monkeypatch):
+def test_opencl_compiles(tmpdir: Path,
+                         monkeypatch: pytest.MonkeyPatch) -> None:
     '''Test that the OpenCL compilation works as expected.
 
     '''
