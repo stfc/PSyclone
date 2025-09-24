@@ -56,12 +56,14 @@ from psyclone.core import AccessSequence, Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.call import Call
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.directive import Directive
 from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.routine import Routine
+from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArrayType, ContainerSymbol, DataSymbol, DataType, ImportInterface,
     INTEGER_TYPE, REAL8_TYPE, Symbol, SymbolTable)
@@ -212,8 +214,18 @@ class ExtractNode(PSyDataNode):
         # Now check all loop variables, and if all accesses to this variable
         # are from loops only (i.e. the final value of the loop variable is
         # not used outside of a loop), the variable does not need to be stored.
+        # As a complication, any variable usage in a directive must be
+        # discarded (e.g. a loop variable might be declared as omp private).
+        # We do this by counting how many directive nodes are in the list, and
+        # then subtracting this number from all accesses:
         for var_sig, accesses in all_loops.items():
-            if len(accesses) == len(all_accesses[var_sig]):
+            directive_count = 0
+            for access in all_accesses[var_sig]:
+                statement = access.node.ancestor(Statement, include_self=True)
+                if isinstance(statement, Directive):
+                    directive_count += 1
+
+            if len(accesses) == len(all_accesses[var_sig]) - directive_count:
                 ignore_list.append(('', var_sig))
 
         return ignore_list
@@ -228,7 +240,7 @@ class ExtractNode(PSyDataNode):
 
         '''
         # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel, too-many-locals
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
         self._populate_region_name()
 
