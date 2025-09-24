@@ -1855,6 +1855,8 @@ class Node():
 
         :returns: whether potential_ancestor is an ancestor of this node.
         '''
+        if self is potential_ancestor:
+            return False
         current_node = self
         while (current_node is not potential_ancestor and
                current_node.parent is not None):
