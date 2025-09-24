@@ -504,9 +504,8 @@ def test_driver_generation_flag(create_driver):
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
 def test_driver_loop_variables():
-    '''Test that loop variables are not stored. ATM this test
-    fails because of #641.
-
+    '''Test that loop variables are not stored, and also not
+    read in the driver.
     '''
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("driver_test.f90",
@@ -515,7 +514,19 @@ def test_driver_loop_variables():
 
     etrans.apply(schedule.children[0], {'create_driver': True})
     # We are only interested in the driver, so ignore results.
-    str(psy.gen)
+    code = str(psy.gen)
+    unexpected_code = [
+        'PreDeclareVariable("i", i)',
+        'PreDeclareVariable("j", j)',
+        'PreDeclareVariable("i_post", i)',
+        'PreDeclareVariable("j_post", j)',
+        'ProvideVariable("i", i)',
+        'ProvideVariable("j", j)',
+        'ProvideVariable("i_post", i)',
+        'ProvideVariable("j_post", j)',
+    ]
+    for line in unexpected_code:
+        assert line not in code, line
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
@@ -526,15 +537,16 @@ def test_driver_loop_variables():
     with open(driver, "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
+    # Loop variables are not be stored, so should not be read:
     # Since atm types are not handled, scalars are actually considered
     # to be arrays. Once this is fixed, none of those lines should be
     # in the code anymore (j_post should be declared as scalar):
-    unexpected_lines = ['  integer :: j_post', 'j = 0']
+    unexpected_code = ["j_post", "i_post", "ReadVariable('j', j)",
+                       "ReadVariable('i', i)", "compare('i', i, i_post)",
+                       "compare('j', j, j_post)"]
 
-    for line in unexpected_lines:
-        if line in driver_code:
-            pytest.xfail("#641 Loop variables are stored.")
-    assert False, "X-failing test working: #641 Loop variables."
+    for line in unexpected_code:
+        assert line not in driver_code
 
 
 # -----------------------------------------------------------------------------
