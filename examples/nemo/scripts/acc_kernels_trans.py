@@ -75,6 +75,7 @@ from psyclone.psyir.nodes import (
     Literal,
     ACCLoopDirective,
     IntrinsicCall,
+    Statement,
 )
 from psyclone.psyir.transformations import (
     ACCKernelsTrans,
@@ -222,11 +223,10 @@ def valid_acc_kernel(node):
         # check that the 'region' contains a loop.
         ACC_KERN_TRANS.validate(node, options={"disable_loop_check": True})
     except TransformationError as err:
-        log_msg(
-            routine_name,
-            f"Node rejected by ACCKernelTrans.validate: " f"{err.value}",
-            node,
-        )
+        msg = f"Node rejected by ACCKernelTrans.validate: {err.value}"
+        parent_stmt = node.ancestor(Statement, include_self=True)
+        if msg not in parent_stmt.preceding_comment:
+            parent_stmt.append_preceding_comment(msg)
         return False
 
     # Allow for per-routine setting of what to exclude from within KERNELS
@@ -263,7 +263,9 @@ def valid_acc_kernel(node):
                 and excluding.ifs_scalars
                 and not isinstance(enode.condition, BinaryOperation)
             ):
-                log_msg(routine_name, "IF references scalars", enode)
+                msg = "IF references scalars"
+                if msg not in enode.preceding_comment:
+                    enode.append_preceding_comment(msg)
                 return False
             # When using CUDA Unified Memory, only allocated arrays reside in
             # shared memory (including those that are created by compiler-
@@ -272,10 +274,9 @@ def valid_acc_kernel(node):
             # arrays are often static in NEMO. Hence, we disallow IFs where the
             # logical expression involves the latter.
             if any(len(array.children) == 1 for array in arrays):
-                log_msg(
-                    routine_name,
-                    "IF references 1D arrays that may be static", enode
-                )
+                msg = "IF references 1D arrays that may be static"
+                if msg not in enode.preceding_comment:
+                    enode.append_preceding_comment(msg)
                 return False
 
         elif isinstance(enode, Loop):
@@ -407,13 +408,16 @@ def try_kernels_trans(nodes):
                     try:
                         ACC_LOOP_TRANS.apply(loop, {"collapse": 2})
                     except TransformationError as err:
-                        print(f"Failed to collapse lat-lon loop: {loop}")
-                        print(f"Error was: {err}")
+                        msg = f"Failed to collapse acc lat-lon \
+                                loop \n Error was: {err}"
+                        if msg not in loop.preceding_comment:
+                            loop.append_preceding_comment(msg)
 
         return True
     except (TransformationError, InternalError) as err:
-        print(f"Failed to insert acc kernels around nodes: {nodes}")
-        print(f"Error was: {err}")
+        msg = f"Failed to insert acc kernels around nodes \n Error was: {err}"
+        if msg not in node.preceding_comment:
+            node.append_preceding_comment(msg)
         return False
 
 
