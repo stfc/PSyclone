@@ -52,7 +52,6 @@ from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOKernelSchedule
-from psyclone.psyir.nodes import Reference
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.utilities import get_invoke

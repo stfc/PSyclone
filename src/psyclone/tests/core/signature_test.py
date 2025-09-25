@@ -40,10 +40,6 @@ import pytest
 
 from psyclone.core import Signature
 from psyclone.errors import InternalError
-from psyclone.psyir.backend.c import CWriter
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Reference
-from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
 
 
 def test_signature():

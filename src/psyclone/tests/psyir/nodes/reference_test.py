@@ -623,6 +623,7 @@ def test_reference_component_indices(fortran_reader):
                                            tuple(),
                                            array_accessor[3].indices)
 
+
 def test_reference_enters_and_escapes_scope(fortran_reader):
     ''' Test that the enters_scope and escapes_scope work as expected with
     local and global symbols.

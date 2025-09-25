@@ -35,7 +35,6 @@
 
 '''This module provides the sclarization transformation class.'''
 
-import itertools
 from typing import Optional, Dict, Any, List, Tuple
 
 from psyclone.core import VariablesAccessMap, Signature, SymbolicMaths

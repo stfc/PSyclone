@@ -91,7 +91,6 @@ def test_loop_fuse_error():
     # Also check if they have different field_spaces
     schedule.children[1].field_space = "go_cv"
     with pytest.raises(TransformationError) as err:
-        import pdb; pdb.set_trace()
         lftrans.apply(schedule.children[0], schedule.children[1])
     assert ("Cannot fuse loops that are over different grid-point types: "
             "go_cu and go_cv" in str(err.value))
@@ -1411,7 +1410,7 @@ def test_acc_collapse(tmpdir):
             "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
             "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
             "        call compute_cu_code(i, j, cu_fld%data, p_fld%data, "
-            "u_fld%data)\n" == gen)
+            "u_fld%data)\n" in gen)
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 

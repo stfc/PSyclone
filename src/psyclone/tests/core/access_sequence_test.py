@@ -185,8 +185,6 @@ def test_variable_access_sequence_has_indices(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     scalar_assignment = psyir.walk(Assignment)[0]
     rhs = scalar_assignment.rhs
-    # Get the reference to i
-    ref_i = rhs.children[0]
 
     vam = AccessSequence(Signature("b"))
     vam.add_access(AccessType.READ, rhs)

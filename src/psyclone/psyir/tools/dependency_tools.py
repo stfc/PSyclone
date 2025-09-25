@@ -228,7 +228,9 @@ class DependencyTools():
         :rtype: List[Tuple[Set[str], List[int]]]
 
         '''
-        def get_subscripts_of(component_indices, set_of_vars):
+        def get_subscripts_of(
+                component_indices, set_of_vars: set[str]
+        ) -> list[set[str]]:
             '''This function returns a flat list of which variable from the
             given set of variables is used in each subscript. For example, the
             access `a(i+i2)%b(j*j+k,k)%c(l,5)` would have the component_indices
@@ -237,11 +239,9 @@ class DependencyTools():
             `[{i},{j,k},{k},{l},{}]`.
 
             :param set_of_vars: set with name of all variables.
-            :type set_of_vars: Set[str]
 
-            :return: a list of sets with all variables used in the corresponding \
-                array subscripts as strings.
-            :rtype: List[Set[str]]
+            :return: a list of sets with all variables used in the
+                corresponding array subscripts as strings.
 
             '''
             indices = []

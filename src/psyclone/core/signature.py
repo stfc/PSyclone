@@ -39,7 +39,6 @@
 '''This module provides management of variable access information.'''
 
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
 # =============================================================================

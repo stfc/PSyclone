@@ -411,6 +411,11 @@ class GOLoop(PSyLoop):
         :rtype: bool
 
         '''
+        # By definition a GOLoop with one GOKern is loop-independent
+        if len(self.children) == 4 and len(self.loop_body.children) == 1:
+            if isinstance(self.loop_body.children[0], GOKern):
+                return True
+
         if not dep_tools:
             dtools = DependencyTools()
         else:
@@ -994,25 +999,13 @@ class GOKern(CodedKern):
             :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        # TODO #2530: if we parse the actual kernel code, it might not
-        # be required anymore to add these artificial accesses, instead
-        # the actual kernel accesses could be added.
-        sym_tab = self.ancestor(GOInvokeSchedule).symbol_table
-        symbol_i = sym_tab.lookup_with_tag("contiguous_kidx")
-        symbol_j = sym_tab.lookup_with_tag("noncontiguous_kidx")
         # Query each possible stencil direction and add corresponding
         # variable accesses. Note that if (i,j) itself is accessed, the
         # depth will be 1, so one access to (i,j) is then added.
         for j in [-1, 0, 1]:
             for i in [-1, 0, 1]:
                 depth = arg.stencil.depth(i, j)
-                for current_depth in range(1, depth+1):
-                    # Create PSyIR expressions for the required
-                    # i+/- and j+/- expressions
-                    i_expr = GOKern._create_psyir_for_access(symbol_i, i,
-                                                             current_depth)
-                    j_expr = GOKern._create_psyir_for_access(symbol_j, j,
-                                                             current_depth)
+                for _ in range(1, depth+1):
                     # Even if a GOKern argument is declared to be written, it
                     # can only ever write to (i,j), so any other references
                     # must be read:
@@ -1022,7 +1015,6 @@ class GOKern(CodedKern):
                         acc = AccessType.READ
 
                     var_accesses.add_access(signature, acc, self)
-                                            # [i_expr, j_expr])
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''
@@ -1057,16 +1049,7 @@ class GOKern(CodedKern):
                     self._record_stencil_accesses(signature, arg,
                                                   var_accesses)
                 else:
-                    # In case of an array for now add an arbitrary array
-                    # reference to (i,j) so it is properly recognised as
-                    # an array access.
-                    sym_tab = self.ancestor(GOInvokeSchedule).symbol_table
-                    symbol_i = sym_tab.lookup_with_tag("contiguous_kidx")
-                    symbol_j = sym_tab.lookup_with_tag("noncontiguous_kidx")
-                    var_accesses.add_access(signature, arg.access,
-                                            self)
-                    # , [Reference(symbol_i),
-                    #                                Reference(symbol_j)])
+                    var_accesses.add_access(signature, arg.access, self)
         var_accesses.update(super().reference_accesses())
         return var_accesses
 
