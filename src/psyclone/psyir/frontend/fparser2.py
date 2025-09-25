@@ -4971,18 +4971,18 @@ class Fparser2Reader():
             if not intrinsic.optional_args:
                 # Intrinsics with no optional arguments
                 call = IntrinsicCall(intrinsic, parent=parent)
-                call = self._process_args(node, call)
+                call = self._process_args(node, call, True)
                 call.canonicalise()
                 return call
             if intrinsic.name.lower() in ["minval", "maxval", "sum"]:
                 # Intrinsics with optional arguments require a
                 # canonicalise function
                 call = IntrinsicCall(intrinsic, parent=parent)
-                call = self._process_args(node, call)
+                call = self._process_args(node, call, True)
                 call.canonicalise()
                 return call
             call = IntrinsicCall(intrinsic, parent=parent)
-            call = self._process_args(node, call)
+            call = self._process_args(node, call, True)
             call.canonicalise()
             return call
         except KeyError as err:
@@ -5287,7 +5287,7 @@ class Fparser2Reader():
 
         return self._process_args(node, call)
 
-    def _process_args(self, node, call, canonicalise=None):
+    def _process_args(self, node, call, canonicalise: bool = False):
         '''Processes fparser2 call or intrinsic arguments contained in the
         node argument and adds them to the PSyIR Call or IntrinsicCall
         contained in the call argument, respectively.
@@ -5347,14 +5347,6 @@ class Fparser2Reader():
                     raise GenerationError(
                         f"In Fortran, all named arguments should follow all "
                         f"positional arguments, but found '{node}'.")
-
-        # Call the canonicalise function if it is supplied. This
-        # re-orders arg_nodes and renames arg_names appropriately for
-        # the particular call to make a canonical version. This is
-        # required because intrinsics can be written with and without
-        # named arguments (or combinations thereof) in Fortran.
-        if canonicalise:
-            canonicalise(arg_nodes, arg_names, node)
 
         self.process_nodes(parent=call, nodes=arg_nodes)
 
