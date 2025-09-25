@@ -856,13 +856,13 @@ class FortranWriter(LanguageWriter):
 
         :param symbol_table: the SymbolTable instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool is_module_scope: whether or not the declarations are in \
+        :param bool is_module_scope: whether or not the declarations are in
                                      a module scoping unit. Default is False.
 
         :returns: Fortran code declaring all parameters.
         :rtype: str
 
-        :raises VisitorError: if there is no way of resolving \
+        :raises VisitorError: if there is no way of resolving
                               interdependencies between parameter declarations.
 
         '''
@@ -875,13 +875,15 @@ class FortranWriter(LanguageWriter):
                 local_constants.append(sym)
 
         # There may be dependencies between these constants so setup a dict
-        # listing the required inputs for each one.
+        # holding a set of the required inputs (lowered symbol names) for
+        # each one.
         decln_inputs = {}
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools.read_write_info import ReadWriteInfo
         for symbol in local_constants:
-            decln_inputs[symbol.name] = set()
+            lname = symbol.name.lower()
+            decln_inputs[lname] = set()
             read_write_info = ReadWriteInfo()
             self._call_tree_utils.get_input_parameters(read_write_info,
                                                        [symbol.initial_value])
@@ -897,20 +899,25 @@ class FortranWriter(LanguageWriter):
                 read_write_info.add_read(
                     Signature(symbol.datatype.precision.name))
             # Remove any 'inputs' that are not local since these do not affect
-            # the ordering of local declarations.
+            # the ordering of local declarations. Also make sure that we avoid
+            # circular deps where a Symbol depends upon itself.
             for sig in read_write_info.signatures_read:
-                if symbol_table.lookup(sig.var_name) in local_constants:
-                    decln_inputs[symbol.name].add(sig)
+                signame = sig.var_name.lower()
+                if (symbol_table.lookup(signame) in local_constants and
+                        lname != signame):
+                    decln_inputs[lname].add(signame)
         # We now iterate over the declarations, declaring those that have their
         # inputs satisfied. Creating a declaration for a given symbol removes
-        # that symbol as a dependence from any outstanding declarations.
-        declared = set()
+        # that symbol as a dependence from any outstanding declarations and
+        # adds its (lowered) name to the 'declared' set.
+        declared: set[str] = set()
         while local_constants:
             for symbol in local_constants[:]:
-                inputs = decln_inputs[symbol.name]
+                lname = symbol.name.lower()
+                inputs = decln_inputs[lname]
                 if inputs.issubset(declared):
                     # All inputs are satisfied so this declaration can be added
-                    declared.add(Signature(symbol.name))
+                    declared.add(lname)
                     local_constants.remove(symbol)
                     declarations += self.gen_vardecl(
                         symbol, include_visibility=is_module_scope)
