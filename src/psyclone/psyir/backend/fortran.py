@@ -878,30 +878,14 @@ class FortranWriter(LanguageWriter):
         # holding a set of the required inputs (lowered symbol names) for
         # each one.
         decln_inputs = {}
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.read_write_info import ReadWriteInfo
         for symbol in local_constants:
             lname = symbol.name.lower()
             decln_inputs[lname] = set()
-            read_write_info = ReadWriteInfo()
-            self._call_tree_utils.get_input_parameters(read_write_info,
-                                                       [symbol.initial_value])
-            # The dependence analysis tools do not include symbols used to
-            # define precision so check for those here.
-            for lit in symbol.initial_value.walk(Literal):
-                if isinstance(lit.datatype.precision, DataSymbol):
-                    read_write_info.add_read(
-                        Signature(lit.datatype.precision.name))
-            # If the precision of the Symbol being declared is itself defined
-            # by a Symbol then include that as an 'input'.
-            if isinstance(symbol.datatype.precision, DataSymbol):
-                read_write_info.add_read(
-                    Signature(symbol.datatype.precision.name))
+            vmap = symbol.reference_accesses()
             # Remove any 'inputs' that are not local since these do not affect
             # the ordering of local declarations. Also make sure that we avoid
             # circular deps where a Symbol depends upon itself.
-            for sig in read_write_info.signatures_read:
+            for sig in vmap.all_signatures:
                 signame = sig.var_name.lower()
                 if (symbol_table.lookup(signame) in local_constants and
                         lname != signame):
