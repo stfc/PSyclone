@@ -494,7 +494,7 @@ def test_driver_generation_flag(create_driver):
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
-                  "kernel-compute_kernel_code-r0.f90")
+                  "kernel-compute_kernel_code-r0.F90")
     # When create_driver is None, as a default no driver should be created.
     # Since "None or False" is "False", this simple test can be used in all
     # three cases.
@@ -504,9 +504,8 @@ def test_driver_generation_flag(create_driver):
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
 def test_driver_loop_variables():
-    '''Test that loop variables are not stored. ATM this test
-    fails because of #641.
-
+    '''Test that loop variables are not stored, and also not
+    read in the driver.
     '''
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("driver_test.f90",
@@ -515,26 +514,39 @@ def test_driver_loop_variables():
 
     etrans.apply(schedule.children[0], {'create_driver': True})
     # We are only interested in the driver, so ignore results.
-    str(psy.gen)
+    code = str(psy.gen)
+    unexpected_code = [
+        'PreDeclareVariable("i", i)',
+        'PreDeclareVariable("j", j)',
+        'PreDeclareVariable("i_post", i)',
+        'PreDeclareVariable("j_post", j)',
+        'ProvideVariable("i", i)',
+        'ProvideVariable("j", j)',
+        'ProvideVariable("i_post", i)',
+        'ProvideVariable("j_post", j)',
+    ]
+    for line in unexpected_code:
+        assert line not in code, line
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
-                  "kernel-compute_kernel_code-r0.f90")
+                  "kernel-compute_kernel_code-r0.F90")
 
     assert driver.is_file()
 
     with open(driver, "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
+    # Loop variables are not be stored, so should not be read:
     # Since atm types are not handled, scalars are actually considered
     # to be arrays. Once this is fixed, none of those lines should be
     # in the code anymore (j_post should be declared as scalar):
-    unexpected_lines = ['  integer :: j_post', 'j = 0']
+    unexpected_code = ["j_post", "i_post", "ReadVariable('j', j)",
+                       "ReadVariable('i', i)", "compare('i', i, i_post)",
+                       "compare('j', j, j_post)"]
 
-    for line in unexpected_lines:
-        if line in driver_code:
-            pytest.xfail("#641 Loop variables are stored.")
-    assert False, "X-failing test working: #641 Loop variables."
+    for line in unexpected_code:
+        assert line not in driver_code
 
 
 # -----------------------------------------------------------------------------
@@ -572,7 +584,7 @@ def test_driver_scalars(fortran_writer):
     # Now test the created driver:
     # ----------------------------
     driver_name = ("driver-psy_single_invoke_scalar_float_test-"
-                   "invoke_0_bc_ssh-bc_ssh_code-r0.f90")
+                   "invoke_0_bc_ssh-bc_ssh_code-r0.F90")
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
@@ -631,7 +643,7 @@ def test_driver_grid_properties(fortran_writer):
     # Now test the created driver:
     # ----------------------------
     driver_name = ("driver-psy_single_invoke_scalar_float_test-"
-                   "invoke_0_bc_ssh-bc_ssh_code-r0.f90")
+                   "invoke_0_bc_ssh-bc_ssh_code-r0.F90")
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
@@ -677,7 +689,7 @@ def test_rename_region():
 
     # Now test if the created driver has the right name, and will open the
     # right file:
-    driver_name = "driver-main-update.f90"
+    driver_name = "driver-main-update.F90"
     with open(driver_name, "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
     assert ("call extract_psy_data%OpenReadModuleRegion('main', 'update')"
@@ -714,7 +726,7 @@ def test_change_prefix(monkeypatch, dist_mem):
         in gen
 
     # Now test if the created driver has the right prefix:
-    driver_name = "driver-main-update.f90"
+    driver_name = "driver-main-update.F90"
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
     assert ("call NEW_psy_data%OpenReadModuleRegion('main', 'update')"
