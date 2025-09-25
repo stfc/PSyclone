@@ -91,7 +91,6 @@ class OMPTaskTrans(ParallelLoopTrans):
                 "OMPTaskTransformation cannot be applied to a region "
                 "containing a code block")
 
-        super().validate(node, options)
         # Check we can apply all the required transformations on any sub
         # nodes
         root_ancestor = node.root
@@ -131,7 +130,10 @@ class OMPTaskTrans(ParallelLoopTrans):
             if isinstance(call, IntrinsicCall):
                 continue
             kintrans.apply(call)
-            intrans.validate(call)
+            intrans.apply(call)
+
+        # Check if the resulting code would be valid
+        super().validate(node_copy, options)
 
     def _directive(self, children, collapse=None):
         '''
