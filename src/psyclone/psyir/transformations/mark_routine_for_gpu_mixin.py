@@ -110,7 +110,7 @@ class MarkRoutineForGPUMixin:
             for sig in vam.all_signatures:
                 name = sig.var_name
                 first = vam[sig][0].node
-                if (isinstance(first, Reference)):
+                if isinstance(first, Reference):
                     table = ktable
                 else:
                     try:

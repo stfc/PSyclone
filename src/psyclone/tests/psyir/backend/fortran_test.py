@@ -200,9 +200,9 @@ def test_gen_datatype_invalid_relative_precision(
         symbol = DataSymbol("dummy", my_type)
         with pytest.raises(VisitorError) as excinfo:
             fortran_writer.gen_datatype(symbol.datatype, symbol.name)
-        assert (f"ScalarType.Precision,DOUBLE is not supported for datatypes "
+        assert (f"ScalarType.Precision.DOUBLE is not supported for datatypes "
                 f"other than floating point numbers in Fortran, found "
-                f"{result}" in str(excinfo.value))
+                f"'{result}'" in str(excinfo.value))
 
 
 @pytest.mark.parametrize("precision", [1, 2, 4, 8, 16, 32])

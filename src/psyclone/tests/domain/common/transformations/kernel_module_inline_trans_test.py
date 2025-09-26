@@ -321,7 +321,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     assert rsym.visibility == Symbol.Visibility.PRIVATE
 
 
-def test_validate_local_routine(fortran_reader):
+def test_validate_already_existing_local_routine(fortran_reader):
     '''Test that validate rejects a call to a routine that is already present
     in the current Container.'''
     psyir = fortran_reader.psyir_from_source('''
@@ -342,9 +342,8 @@ def test_validate_local_routine(fortran_reader):
     inline_trans = KernelModuleInlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("routine 'do_something' cannot be module inlined into Container "
-            "'my_mod' because a *different* routine with that name already "
-            "exists and versioning" in str(err.value))
+    assert ("The target of 'call do_something(a)' is already module inlined."
+            in str(err.value))
 
 
 def test_validate_fail_to_get_psyir(fortran_reader, config_instance):
@@ -661,13 +660,15 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     # Also, if they are in datatype precision expressions
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
-        use external_mod1, only: r_def, kind_multiplier
-        use external_mod2, only: my_user_type
+        use external_mod1, only: r_def
+        use external_mod2, only: kind_multiplier
+        use external_mod3, only: init_val
+        use external_mod4, only: my_user_type
         use not_needed
         implicit none
         contains
         subroutine code()
-            real(kind=r_def*kind_multiplier) :: a,b
+            real(kind=r_def*kind_multiplier) :: a,b = init_val
             type(my_user_type) :: x
             a = b + x%data
         end subroutine code
@@ -677,8 +678,12 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     routine = psyir.walk(Routine)[0]
     new_routines = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
-    assert "use external_mod1, only : kind_multiplier, r_def" in result
-    assert "use external_mod2, only : my_user_type" in result
+    # The code_to_inline will contain the needed module imports, but
+    # will ignore the non-used imports
+    assert "use external_mod1, only : r_def" in result
+    assert "use external_mod2, only : kind_multiplier" in result
+    assert "use external_mod3, only : init_val" in result
+    assert "use external_mod4, only : my_user_type" in result
     assert "use not_needed" not in result
 
     # Also, if they are literal precision expressions

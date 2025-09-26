@@ -337,9 +337,9 @@ class FortranWriter(LanguageWriter):
                 if fortrantype.lower() == "real":
                     return "double precision"
                 raise VisitorError(
-                    f"ScalarType.Precision,DOUBLE is not supported for "
+                    f"ScalarType.Precision.DOUBLE is not supported for "
                     f"datatypes other than floating point numbers in "
-                    f"Fortran, found {fortrantype}")
+                    f"Fortran, found '{fortrantype}'")
             return fortrantype
 
         if isinstance(precision, DataNode):

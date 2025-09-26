@@ -436,7 +436,7 @@ class ScalarType(DataType):
             raise ValueError(
                 f"The precision of a DataSymbol when specified as an integer "
                 f"number of bytes must be > 0 but found '{precision}'.")
-        if (isinstance(precision, DataNode)):
+        if isinstance(precision, DataNode):
             dtype = precision.datatype
             if (not (isinstance(dtype, ScalarType) and
                      dtype.intrinsic ==

@@ -424,8 +424,7 @@ class SymPyWriter(FortranWriter):
                 # Since ScalarType can contain references now, we need to
                 # skip over those used to define data kinds, as we don't
                 # need those here.
-                if (isinstance(sva[0].node, Reference) and
-                        sva[0].access_type != AccessType.TYPE_INFO):
+                if isinstance(sva[0].node, Reference):
                     orig_sym = sva[0].node.symbol
                 else:
                     orig_sym = None
@@ -454,7 +453,6 @@ class SymPyWriter(FortranWriter):
                     self._specialise_array_symbol(orig_sym, sva)
             else:
                 # A scalar access.
-                print(unique_sym.name)
                 if sig.is_structure:
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
                         sig.to_language(), **assumptions)
