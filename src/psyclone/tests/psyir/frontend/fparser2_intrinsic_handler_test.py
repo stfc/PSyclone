@@ -46,7 +46,6 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Execution_Part
 
-from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, _get_arg_names)
 from psyclone.psyir.nodes import (
