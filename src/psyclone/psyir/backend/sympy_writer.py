@@ -46,6 +46,7 @@ from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.core import (Signature, AccessSequence,
                            VariablesAccessMap)
+from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
@@ -757,20 +758,25 @@ class SymPyWriter(FortranWriter):
         :returns: the SymPy representation for the Intrinsic.
 
         '''
+        # Force canoniclisation of the intrinsic
+        try:
+            node.canonicalise()
+        except (GenerationError, NotImplementedError):
+            raise VisitorError(
+                f"Sympy handler can't handle an IntrinsicCall that "
+                f"can't be canonicalised. Use explicit argument names "
+                f"to force canonicalisation. Failing node was "
+                f"'{node.debug_string()}'.")
+
         # Sympy does not support argument names, remove them for now
         if any(node.argument_names):
-            # TODO #2302: This is not totally right without canonical intrinsic
-            # positions for arguments. One alternative is to refuse it with:
-            # raise VisitorError(
-            #     f"Named arguments are not supported by SymPy but found: "
-            #     f"'{node.debug_string()}'.")
-            # but this leaves sympy comparisons almost always giving false when
-            # out of order arguments are rare, so instead we ignore it for now.
-
             # It makes a copy (of the parent because if matters to the call
             # visitor) because we don't want to delete the original arg names
-            parent = node.parent.copy()
-            node = parent.children[node.position]
+            if node.parent:
+                parent = node.parent.copy()
+                node = parent.children[node.position]
+            else:
+                node = node.copy()
             for idx in range(len(node.argument_names)):
                 # pylint: disable=protected-access
                 node._argument_names[idx] = (node._argument_names[idx][0],

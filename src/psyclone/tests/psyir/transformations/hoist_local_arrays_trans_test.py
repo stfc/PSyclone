@@ -138,8 +138,8 @@ def test_apply_multi_dim_imported_limits(fortran_reader, fortran_writer):
     # We cannot test the compilation of the generated code because of
     # the 'use some_mod'.
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
-    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= jpi .or. "
-            "ubound(a, dim=2) /= jpj) then\n"
+    assert ("    if (.not.allocated(a) .or. ubound(array=a, dim=1) /= jpi "
+            ".or. ubound(array=a, dim=2) /= jpj) then\n"
             "      if (allocated(a)) then\n"
             "        deallocate(a)\n"
             "      end if\n"
@@ -167,8 +167,8 @@ def test_apply_arg_limits(fortran_reader, fortran_writer, tmpdir):
     hoist_trans.apply(routine)
     code = fortran_writer(psyir).lower()
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
-    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx .or. "
-            "ubound(a, dim=2) /= ny) then\n"
+    assert ("    if (.not.allocated(a) .or. ubound(array=a, dim=1) /= nx "
+            ".or. ubound(array=a, dim=2) /= ny) then\n"
             "      if (allocated(a)) then\n"
             "        deallocate(a)\n"
             "      end if\n"
@@ -199,16 +199,16 @@ def test_apply_runtime_checks(fortran_reader, fortran_writer, tmpdir):
     hoist_trans.apply(routine)
     code = fortran_writer(psyir).lower()
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
-    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx .or. "
-            "ubound(a, dim=2) /= ny) then\n"
+    assert ("    if (.not.allocated(a) .or. ubound(array=a, dim=1) /= nx "
+            ".or. ubound(array=a, dim=2) /= ny) then\n"
             "      if (allocated(a)) then\n"
             "        deallocate(a)\n"
             "      end if\n"
             "      allocate(a(1:nx,1:ny))\n"
             "    end if\n" in code)
-    assert ("    if (.not.allocated(b) .or. lbound(b, dim=1) /= nx .or. "
-            "ubound(b, dim=1) /= ny .or. lbound(b, dim=2) /= nx .or. "
-            "ubound(b, dim=2) /= ny) then\n"
+    assert ("    if (.not.allocated(b) .or. lbound(array=b, dim=1) /= nx "
+            ".or. ubound(array=b, dim=1) /= ny .or. lbound(array=b, dim=2) "
+            "/= nx .or. ubound(array=b, dim=2) /= ny) then\n"
             "      if (allocated(b)) then\n"
             "        deallocate(b)\n"
             "      end if\n"
@@ -244,15 +244,15 @@ def test_apply_multi_arrays(fortran_reader, fortran_writer):
     assert "real, allocatable, dimension(:,:), private :: a" in code
     assert "integer, allocatable, dimension(:,:), private :: mask" in code
     assert (
-        "    if (.not.allocated(mask) .or. ubound(mask, dim=1) /= jpi .or. "
-        "ubound(mask, dim=2) /= jpj) then\n"
+        "    if (.not.allocated(mask) .or. ubound(array=mask, dim=1) /= jpi "
+        ".or. ubound(array=mask, dim=2) /= jpj) then\n"
         "      if (allocated(mask)) then\n"
         "        deallocate(mask)\n"
         "      end if\n"
         "      allocate(mask(1:jpi,1:jpj))\n"
         "    end if\n"
-        "    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx .or. "
-        "ubound(a, dim=2) /= ny) then\n"
+        "    if (.not.allocated(a) .or. ubound(array=a, dim=1) /= nx .or. "
+        "ubound(array=a, dim=2) /= ny) then\n"
         "      if (allocated(a)) then\n"
         "        deallocate(a)\n"
         "      end if\n"
@@ -283,8 +283,8 @@ def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
     code = fortran_writer(psyir).lower()
     assert ("  real, allocatable, dimension(:,:), private :: a\n"
             "  real, allocatable, dimension(:,:), private :: a_2\n" in code)
-    assert ("    if (.not.allocated(a_2) .or. ubound(a_2, dim=1) /= nx .or. "
-            "ubound(a_2, dim=2) /= ny) then\n"
+    assert ("    if (.not.allocated(a_2) .or. ubound(array=a_2, dim=1) /= nx "
+            ".or. ubound(array=a_2, dim=2) /= ny) then\n"
             "      if (allocated(a_2)) then\n"
             "        deallocate(a_2)\n"
             "      end if\n"
@@ -743,14 +743,14 @@ module my_mod
       if (.NOT.ALLOCATED(a)) then
         ALLOCATE(a(10))
       end if
-      if (.NOT.ALLOCATED(b) .OR. UBOUND(b, dim=1) /= var) then
+      if (.NOT.ALLOCATED(b) .OR. UBOUND(array=b, dim=1) /= var) then
         if (ALLOCATED(b)) then
           DEALLOCATE(b)
         end if
         ALLOCATE(b(10:var))
       end if
-      if (.NOT.ALLOCATED(c) .OR. LBOUND(c, dim=1) /= var - 5 .OR. \
-UBOUND(c, dim=1) /= var + 5) then
+      if (.NOT.ALLOCATED(c) .OR. LBOUND(array=c, dim=1) /= var - 5 .OR. \
+UBOUND(array=c, dim=1) /= var + 5) then
         if (ALLOCATED(c)) then
           DEALLOCATE(c)
         end if

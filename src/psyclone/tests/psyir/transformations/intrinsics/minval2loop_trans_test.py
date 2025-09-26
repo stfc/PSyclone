@@ -68,7 +68,7 @@ def test_init_var():
     trans = Minval2LoopTrans()
     var_symbol = DataSymbol("var", REAL_TYPE)
     result = trans._init_var(Reference(var_symbol))
-    assert result.debug_string() == "HUGE(var)\n"
+    assert result.debug_string() == "HUGE(x=var)\n"
 
 
 def test_str():
@@ -116,7 +116,7 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
         "  result = minval(array)\n"
         "end subroutine\n")
     expected = (
-        "  result = HUGE(result)\n"
+        "  result = HUGE(x=result)\n"
         "  do idx = 1, 20, 1\n"
         "    do idx_1 = 1, 10, 1\n"
         "      result = MIN(result, array(idx_1,idx))\n"

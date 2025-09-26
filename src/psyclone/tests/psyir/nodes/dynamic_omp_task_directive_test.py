@@ -2817,12 +2817,12 @@ va(:,j_out_var - 32),sshn_v(:,j_out_var - 32)) depend(out: va(:,j_out_var))
         if (.NOT.boundary(i,j) + boundary(i,j + 1) <= (-1)) then
           if (boundary(i,j) < 0) then
             jiv = j + 1
-            va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
+            va(i,j) = va(i,jiv) + SQRT(x=g / hv(i,j)) * (sshn_v(i,j) - \
 sshn_v(i,jiv))
           else
             if (boundary(i,j + 1) < 0) then
               jiv = j - 1
-              va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
+              va(i,j) = va(i,jiv) + SQRT(x=g / hv(i,j)) * (sshn_v(i,j) - \
 sshn_v(i,jiv))
             end if
           end if
@@ -2842,6 +2842,7 @@ va(:,j_out_var))
       enddo
     enddo
     !$omp end task'''
+    print(fortran_writer(tree))
     assert correct in fortran_writer(tree)
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
@@ -3230,7 +3231,7 @@ def test_omp_task_directive_disallowed_intrinsic(fortran_reader):
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
     assert ("Attempted to lower to OMPTaskDirective node, but the "
-            "node contains a 'SUM(b)' intrinsic call, which is not "
+            "node contains a 'SUM(array=b)' intrinsic call, which is not "
             "supported." in str(excinfo.value))
 
 
@@ -3271,8 +3272,8 @@ def test_omp_task_directive_intrinsic_loop_bound(fortran_reader,
     ptrans.apply(parent.children)
     correct = '''\
 !$omp task private(i,j) shared(a,b) depend(in: b(:,:)) depend(out: a(:,:))
-  do i = LBOUND(a, 2), UBOUND(a, 2), 1
-    do j = LBOUND(a, 1), UBOUND(a, 1), 1
+  do i = LBOUND(array=a, dim=2), UBOUND(array=a, dim=2), 1
+    do j = LBOUND(array=a, dim=1), UBOUND(array=a, dim=1), 1
       a(i,j) = b(i,j) + 1
     enddo
   enddo
@@ -3319,7 +3320,7 @@ def test_omp_task_directive_intrinsic_loop_step(fortran_reader):
         tdir.lower_to_language_level()
     assert ("IntrinsicCall not supported in the step variable of a Loop"
             " in an OMPTaskDirective node. The step expression is "
-            "'LBOUND(a, 2)'." in str(excinfo.value))
+            "'LBOUND(array=a, dim=2)'." in str(excinfo.value))
 
 
 def test_evaluate_write_reference_failcase():

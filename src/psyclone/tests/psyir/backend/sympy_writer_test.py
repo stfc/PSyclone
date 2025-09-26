@@ -46,7 +46,9 @@ from sympy.parsing.sympy_parser import parse_expr
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Assignment, Literal, Node
+from psyclone.psyir.nodes import (
+        Assignment, Literal, Node, IntrinsicCall, Reference
+)
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
                                     INTEGER_TYPE)
 
@@ -323,6 +325,32 @@ def test_sympy_writer_type_map(expr, sym_map, fortran_reader):
     expr.detach()
     _ = writer([expr])
     assert writer._sympy_type_map.keys() == sym_map.keys()
+
+
+def test_sympy_writer_type_map_non_canonical(fortran_reader):
+    ''' Test we get an error when the intrinsic can't be canonicalised.'''
+    source = """program test_prog
+    use my_mod
+    integer :: i, j, k
+    end program test_prog"""
+    psyir = fortran_reader.psyir_from_source(source)
+    # Create an ambigious intrinsic.
+    routine = psyir.children[0]
+    ref_i = Reference(routine.symbol_table.lookup("i"))
+    ref_j = Reference(routine.symbol_table.lookup("j"))
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
+    intrinsic.addchild(ref_i)
+    intrinsic.addchild(ref_j)
+    assign = Assignment.create(ref_i.copy(), intrinsic)
+    routine.addchild(assign)
+
+    writer = SymPyWriter()
+    with pytest.raises(VisitorError) as err:
+        _ = writer([assign.rhs])
+    assert ("Sympy handler can't handle an IntrinsicCall that can't be "
+            "canonicalised. Use explicit argument names to force "
+            "canonicalisation. Failing node was 'SUM(i, j)'."
+            in str(err.value))
 
 
 def test_sym_writer_parse_expr(fortran_reader):
