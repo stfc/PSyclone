@@ -37,7 +37,6 @@
 '''This module tests the hoist local arrays transformation.
 '''
 
-import logging
 import pytest
 
 from psyclone.psyir.nodes import (
@@ -411,7 +410,7 @@ def test_get_local_arrays(fortran_reader):
     assert symbols[1] is routine.symbol_table.lookup("wrk2")
 
 
-def test_get_local_arrays_codeblock(fortran_reader, caplog):
+def test_get_local_arrays_codeblock(fortran_reader):
     ''' Check that the _get_local_arrays() method excludes any of the
     local arrays if they are accessed within a CodeBlock (since they
     may get renamed as part of the hoisting process). We check for the
@@ -432,10 +431,17 @@ def test_get_local_arrays_codeblock(fortran_reader, caplog):
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     hoist_trans = HoistLocalArraysTrans()
-    with caplog.at_level(logging.WARNING):
-        assert hoist_trans._get_local_arrays(routine) == []
-    assert ("Cannot hoist local array(s) ['a', 'b'] out of Routine 'test' as "
-            "they are accessed in a CodeBlock" in caplog.text)
+    # _get_local_arrays only returns local arrays that are eligible for
+    # hoisting.
+    assert hoist_trans._get_local_arrays(routine) == []
+    asym = routine.symbol_table.lookup("a")
+    assert asym.preceding_comment == (
+        "PSyclone warning: cannot hoist 'a' to global scope as it is "
+        "accessed in a CodeBlock")
+    bsym = routine.symbol_table.lookup("b")
+    assert bsym.preceding_comment == (
+        "PSyclone warning: cannot hoist 'b' to global scope as it is "
+        "accessed in a CodeBlock")
 
 
 def test_get_local_arrays_not_parameters(fortran_reader):

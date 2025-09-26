@@ -40,7 +40,6 @@ This module contains the HoistLocalArraysTrans transformation.
 '''
 
 import copy
-import logging
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
@@ -334,7 +333,6 @@ then
         :rtype: list[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
-        logger = logging.getLogger(__name__)
         local_arrays = {}
         for sym in node.symbol_table.automatic_datasymbols:
             # Check that the array is not the functions return symbol, or
@@ -384,11 +382,11 @@ then
             all_names_in_cblock.update(names_in_cblock)
             for name in names_in_cblock:
                 del local_arrays[name]
-        if all_names_in_cblock:
-            logger.warning(
-                "Cannot hoist local array(s) %s out of Routine '%s' as they "
-                "are accessed in a CodeBlock",
-                sorted(list(all_names_in_cblock)), node.name)
+        for name in all_names_in_cblock:
+            sym = node.symbol_table.lookup(name)
+            sym.append_preceding_comment(
+                f"PSyclone warning: cannot hoist '{name}' to global "
+                f"scope as it is accessed in a CodeBlock")
 
         for intrinsic in node.walk(IntrinsicCall):
             # Exclude arrays that are used in a RESHAPE expression
