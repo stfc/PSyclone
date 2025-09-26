@@ -43,11 +43,10 @@
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Execution_Part
 
 from psyclone.psyir.frontend.fparser2 import (
-    Fparser2Reader, _get_arg_names)
+    Fparser2Reader)
 from psyclone.psyir.nodes import (
     Schedule, Assignment, Reference, IntrinsicCall, Literal, CodeBlock)
 from psyclone.psyir.symbols import (
