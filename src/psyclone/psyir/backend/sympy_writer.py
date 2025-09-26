@@ -46,7 +46,6 @@ from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.core import (Signature, AccessSequence,
                            VariablesAccessMap)
-from psyclone.core.access_type import AccessType
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader

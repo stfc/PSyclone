@@ -47,11 +47,11 @@ from typing import List
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
+    ContainerSymbol, ImportInterface,
     GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError, SymbolTable)
 from psyclone.psyir.nodes import (
-    Call, Container, DataNode, FileContainer, Routine, ScopingNode,
-    IntrinsicCall, Reference)
+    Call, Container, FileContainer, Routine, ScopingNode,
+    IntrinsicCall, )
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -290,15 +290,6 @@ class KernelModuleInlineTrans(Transformation):
                     # bring into the subroutine all modules that it could come
                     # from.
                     symbols_to_bring_in.add(symbol)
-#                if isinstance(symbol, DataSymbol):
-#                    # DataTypes can reference other symbols
-#                    if isinstance(symbol.datatype, DataTypeSymbol):
-#                        symbols_to_bring_in.add(symbol.datatype)
-#                    elif hasattr(symbol.datatype, 'precision'):
-#                        if isinstance(symbol.datatype.precision, DataNode):
-#                            for ref in symbol.datatype.precision.walk(
-#                                    Reference):
-#                                symbols_to_bring_in.add(ref.symbol)
 
             # Bring the selected symbols inside the subroutine
             for symbol in symbols_to_bring_in:
