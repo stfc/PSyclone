@@ -59,6 +59,8 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # array privatisation is disabled.
 NEMOV4 = os.environ.get('NEMOV4', False)
 
+CPU_REDUCTIONS = os.environ.get('CPU_REDUCTIONS', False)
+
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = []
 
@@ -112,5 +114,5 @@ def trans(psyir):
                     collapse=False,
                     privatise_arrays=(not NEMOV4 and
                                       psyir.name not in PRIVATISATION_ISSUES),
-                    enable_reductions=True
+                    enable_reductions=CPU_REDUCTIONS,
             )
