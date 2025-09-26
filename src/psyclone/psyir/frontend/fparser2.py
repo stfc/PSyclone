@@ -1949,7 +1949,7 @@ class Fparser2Reader():
                 sym = symbol_table.lookup(sym_name, scope_limit=scope)
                 # pylint: disable=unidiomatic-typecheck
                 if type(sym) is Symbol:
-                    # This was a generic symbol. We now know what it is
+                    # This was a generic symbol. We now know what it is.
                     sym.specialise(DataSymbol, datatype=datatype,
                                    visibility=visibility,
                                    interface=this_interface,
@@ -1961,6 +1961,16 @@ class Fparser2Reader():
                             f"Symbol '{sym_name}' already present in "
                             f"SymbolTable with a defined interface "
                             f"({sym.interface}).")
+                    # We already had a DataSymbol but we need to update all of
+                    # its properties now we've found a declaration.
+                    tmp_sym = DataSymbol(
+                        sym_name,
+                        datatype=datatype,
+                        visibility=visibility,
+                        interface=this_interface,
+                        is_constant=has_constant_value,
+                        initial_value=init_expr)
+                    sym.copy_properties(tmp_sym)
             except KeyError:
                 try:
                     sym = DataSymbol(sym_name, datatype,

@@ -40,8 +40,9 @@
 import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation,
-                                  Container, Routine, Return)
+from psyclone.psyir.nodes import (
+    BinaryOperation, Container, IntrinsicCall, Literal, Reference, Routine,
+    Return)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, ContainerSymbol,
     GenericInterfaceSymbol,
@@ -69,6 +70,22 @@ def test_gen_param_decls_dependencies(fortran_writer):
     assert (result == "integer, parameter :: rlg = 8\n"
                       "integer, parameter :: wp = rlg\n"
                       "integer, parameter :: var = rlg + wp\n")
+    # A Symbol can depend upon itself. We can't currently create such a Symbol
+    # directly (because we need the symbol to exist in order to make a
+    # Reference to it).
+    circ_sym = DataSymbol("circle", INTEGER_TYPE, is_constant=True,
+                          initial_value=IntrinsicCall.create(
+                              IntrinsicCall.Intrinsic.HUGE,
+                              [Reference(var_sym)]))
+    # Now that we have the Symbol, update the initial value to refer to it.
+    circ_sym.initial_value.arguments[0].replace_with(Reference(circ_sym))
+    symbol_table.add(circ_sym)
+    result = fortran_writer._gen_parameter_decls(symbol_table)
+    assert (result == "integer, parameter :: rlg = 8\n"
+                      "integer, parameter :: wp = rlg\n"
+                      "integer, parameter :: var = rlg + wp\n"
+                      "integer, parameter :: circle = HUGE(circle)\n")
+
     # Check that an (invalid, obviously) circular dependency is handled.
     # Replace "rlg" with a new one that depends on "wp".
     del symbol_table._symbols[rlg_sym.name]
@@ -119,6 +136,34 @@ def test_gen_param_decls_kind_dep(fortran_writer):
                       "integer, parameter :: wp = r_def\n"
                       "real, parameter :: var2 = 1.0_wp\n"
                       "real(kind=wp), parameter :: var = 1.0_wp\n")
+
+
+def test_gen_param_decls_case_insensitive(fortran_reader,
+                                          fortran_writer):
+    '''
+    Checks that _gen_parameter_decls is not case sensitive. We have to
+    use the fortran frontend to exercise this.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+module my_mod
+  implicit none
+  integer(kind=AN_int), parameter :: a_second_int = 5_i_def
+  integer, parameter :: an_int=6
+  Integer, Parameter :: InterpolationLevels(nfieldnames3d) = &
+                  [ 2, 0, Huge(InterpolationLevels)/3, 0 ]
+  integer, parameter :: nFieldNames3d = 4
+  integer, parameter :: I_DEF = 4
+end module my_mod''')
+    container = psyir.walk(Container)[1]
+    result = fortran_writer._gen_parameter_decls(container.symbol_table)
+    assert result == (
+        "integer, parameter :: an_int = 6\n"
+        "integer, parameter :: i_def = 4\n"
+        "integer(kind=an_int), parameter :: a_second_int = 5_i_def\n"
+        "integer, parameter :: nfieldnames3d = 4\n"
+        "integer, dimension(nfieldnames3d), parameter :: "
+        "interpolationlevels = [2, 0, HUGE(InterpolationLevels) / 3, 0]\n")
 
 
 def test_gen_decls(fortran_writer):

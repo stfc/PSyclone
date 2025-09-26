@@ -554,12 +554,19 @@ def test_process_declarations():
     assert symtab.lookup("i2").initial_value.value == "2.2"
     assert symtab.lookup("i3").initial_value.value == "3.3"
 
-    # Initialisation with constant expressions
-    reader = FortranStringReader("real, parameter :: i4 = 1.1, i5 = i4 * 2")
+    # Initialisation with constant expressions, including where the expression
+    # references the symbol being declared.
+    reader = FortranStringReader("real, parameter :: i4 = HUGE(i4), "
+                                 "i5 = i4 * 2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert symtab.lookup("i4").initial_value.value == "1.1"
-    assert isinstance(symtab.lookup("i5").initial_value, BinaryOperation)
+    i4sym = symtab.lookup("i4")
+    assert isinstance(i4sym.initial_value, IntrinsicCall)
+    # The initial value of i4sym should contain a reference to i4sym.
+    assert i4sym.initial_value.arguments[0].symbol is i4sym
+    i5sym = symtab.lookup("i5")
+    assert isinstance(i5sym.initial_value, BinaryOperation)
+    assert i5sym.initial_value.operands[0].symbol is i4sym
 
     # Initialisation with a constant expression (1) and with a symbol (val1)
     reader = FortranStringReader("integer, parameter :: val1 = 1, val2 = val1")
