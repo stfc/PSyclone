@@ -37,6 +37,8 @@
 
 ''' This module contains the RoutineSymbol.'''
 
+from __future__ import annotations
+
 from psyclone.psyir.symbols.datatypes import NoType
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
@@ -47,7 +49,7 @@ class RoutineSymbol(TypedSymbol):
     :param str name: name of the symbol.
     :param datatype: data type of the symbol. Default to NoType().
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param kwargs: additional keyword arguments provided by \
+    :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
     :type kwargs: unwrapped dict.
 
@@ -169,6 +171,29 @@ class RoutineSymbol(TypedSymbol):
                           interface=self.interface.copy(),
                           is_pure=self.is_pure,
                           is_elemental=self.is_elemental)
+
+    def copy_properties(self,
+                        symbol_in: RoutineSymbol,
+                        exclude_interface: bool = False):
+        '''Replace all properties in this object with the properties from
+        symbol_in, apart from the name (which is immutable) and visibility.
+
+        :param symbol_in: the symbol from which the properties are copied.
+        :param exclude_interface: whether or not to copy the interface
+            property of the provided Symbol (default is to include it).
+
+        :raises TypeError: if the argument is not the expected type.
+
+        '''
+        if not isinstance(symbol_in, RoutineSymbol):
+            raise TypeError(
+                f"Argument should be of type 'RoutineSymbol' but "
+                f"found '{type(symbol_in).__name__}'.")
+
+        super().copy_properties(symbol_in, exclude_interface=exclude_interface)
+
+        self._is_elemental = symbol_in.is_elemental
+        self._is_pure = symbol_in.is_pure
 
 
 # For Sphinx AutoAPI documentation generation
