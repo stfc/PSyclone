@@ -396,7 +396,7 @@ Some PSyIR nodes have an associated Symbol Table
 Symbols (`psyclone.psyir.symbols.Symbol`) specified and used within them.
 
 Symbol Tables can be nested (i.e. a node with an attached symbol table
-can be an ancestor or descendent of a node with an attached symbol
+can be an ancestor or descendant of a node with an attached symbol
 table). If the same symbol name is used in a hierarchy of symbol tables
 then the symbol within the symbol table attached to the closest
 ancestor node is in scope. By default, symbol tables are aware of

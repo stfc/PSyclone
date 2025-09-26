@@ -247,7 +247,8 @@ class FortranModuleInterface(ContainerSymbolInterface):
 
         # TODO #2011 - rationalise how this interacts with the kernel search
         # path set in generate().
-        mod_manager.add_search_path(Config.get().include_paths)
+        mod_manager.add_search_path(Config.get().include_paths,
+                                    recursive=False)
 
         minfo = None
         try:

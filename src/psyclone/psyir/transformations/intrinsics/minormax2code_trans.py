@@ -108,7 +108,7 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
         MAX](A, B, C ...)`` can be arbitrary PSyIR code.
 
         This transformation requires the IntrinsicCall node to be a
-        descendent of an assignment and will raise an exception if
+        descendant of an assignment and will raise an exception if
         this is not the case.
 
         :param node: a MIN or MAX intrinsic.
