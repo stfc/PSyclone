@@ -1,3 +1,6 @@
+   95) PR #3108 for #2446. Adds the ability to automatically add reduction
+   clauses to some OpenMP loops.
+
    94) PR #3095 for #2916. Dynamically propagate pure and elemental
    attributes to GenericInterefaceSymbols.
 
