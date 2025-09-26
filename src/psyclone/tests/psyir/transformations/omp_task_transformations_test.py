@@ -178,7 +178,6 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     trans = OMPTaskTrans()
     master = OMPSingleTrans()
     parallel = OMPParallelTrans()
-    calls = psyir.walk(Call)
     loops = my_test.walk(Loop)
     trans.apply(loops[1])
     master.apply(my_test.children[:])
