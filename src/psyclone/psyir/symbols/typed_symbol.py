@@ -40,6 +40,7 @@
 
 '''
 
+from __future__ import annotations
 import abc
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
@@ -52,7 +53,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param kwargs: additional keyword arguments provided by \
+    :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.Symbol`
     :type kwargs: unwrapped dict.
 
@@ -138,12 +139,15 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         copy.inline_comment = self.inline_comment
         return copy
 
-    def copy_properties(self, symbol_in):
+    def copy_properties(self, symbol_in: TypedSymbol,
+                        exclude_interface: bool = False):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name (which is immutable) and visibility.
+        If `exclude_interface` is True, the interface is also not updated.
 
         :param symbol_in: the symbol from which the properties are copied.
-        :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param exclude_interface: whether or not to copy the interface
+            property of the provided Symbol (default is to include it).
 
         :raises TypeError: if the argument is not the expected type.
 
@@ -151,31 +155,29 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         if not isinstance(symbol_in, TypedSymbol):
             raise TypeError(f"Argument should be of type 'TypedSymbol' but "
                             f"found '{type(symbol_in).__name__}'.")
-        super(TypedSymbol, self).copy_properties(symbol_in)
+        super().copy_properties(symbol_in, exclude_interface=exclude_interface)
         self._datatype = symbol_in.datatype
 
-    def resolve_type(self):
-        ''' If the symbol has an Unresolved datatype, find where it is defined
+    def resolve_type(self) -> TypedSymbol:
+        ''' If the symbol has an Unresolved datatype or is an import and
+        is of NoType (indicating a RoutineSymbol), find where it is defined
         (i.e. an external container) and obtain the properties of the symbol.
 
-        :returns: this TypedSymbol with its properties updated. This is for \
-                  consistency with the equivalent method in the Symbol \
+        :returns: this TypedSymbol with its properties updated. This is for
+                  consistency with the equivalent method in the Symbol
                   class which returns a new Symbol object.
-        :rtype: :py:class:`psyclone.psyir.symbols.TypedSymbol`
 
         '''
-        # This import has to be local to this method to avoid circular
-        # dependencies.
+        # Avoid circular dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import UnresolvedType
-        if isinstance(self.datatype, UnresolvedType):
+        from psyclone.psyir.symbols.datatypes import NoType, UnresolvedType
+        if (isinstance(self.datatype, UnresolvedType) or
+                (isinstance(self.datatype, NoType) and self.is_import)):
             # Copy all the symbol properties but the interface and
             # visibility (the latter is determined by the current
             # scoping unit)
-            tmp = self.interface
             extern_symbol = self.get_external_symbol()
-            self.copy_properties(extern_symbol)
-            self.interface = tmp
+            self.copy_properties(extern_symbol, exclude_interface=True)
 
         return self
 

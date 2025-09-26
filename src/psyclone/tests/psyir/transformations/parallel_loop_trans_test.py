@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: M. Naylor, University of Cambridge, UK
 
 ''' pytest tests for the parallel_loop_trans module. '''
 
@@ -1134,3 +1135,21 @@ def test_parallel_loop_trans_add_asynchronicity():
     paratrans = ParaTrans()
     # Default implementation does nothing.
     paratrans._add_asynchronicity(None)
+
+
+def test_paralooptrans_reduction_ops_type(fortran_reader):
+    '''
+    Test that the type of the 'reduction_ops' option is checked.
+    '''
+    psyir = fortran_reader.psyir_from_source(CODE)
+    loop = psyir.walk(Loop)[1]
+    trans = ParaTrans()
+    with pytest.raises(TypeError) as err:
+        trans.apply(loop, reduction_ops=False)
+    assert ("reduction_ops for ParallelLoopTrans.apply() should be a list "
+            "but found type bool") in str(err.value)
+    with pytest.raises(TypeError) as err:
+        trans.apply(loop, reduction_ops=[False])
+    assert ("Elements of reduction_ops for ParallelLoopTrans.apply() should "
+            "have type BinaryOperation.Operator or IntrinsicCall.Intrinsic "
+            "but found bool" in str(err.value))
