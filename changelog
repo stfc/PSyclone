@@ -1,3 +1,6 @@
+   94) PR #3095 for #2916. Dynamically propagate pure and elemental
+   attributes to GenericInterefaceSymbols.
+
    93) PR #3147 for #3138. Fixes reference_accesses() for Calls.   
 
    92) PR #3133 for #3132. Give specific paths to pytest compilation (
