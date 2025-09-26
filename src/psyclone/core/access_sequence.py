@@ -132,10 +132,23 @@ class AccessInfo():
         return self._component_indices.has_indices()
 
     @property
-    def access_type(self):
-        ''':returns: the access type.
-        :rtype: :py:class:`psyclone.core.access_type.AccessType`'''
+    def access_type(self) -> AccessType:
+        '''
+        :returns: the access type.
+        '''
         return self._access_type
+
+    def is_any_write(self) -> bool:
+        '''
+        :returns: whether this access represents a write of any kind.
+        '''
+        return self._access_type in AccessType.all_write_accesses()
+
+    def is_any_read(self) -> bool:
+        '''
+        :returns: whether this access represents a write of any kind.
+        '''
+        return self._access_type in AccessType.all_read_accesses()
 
     @property
     def is_data_access(self) -> bool:

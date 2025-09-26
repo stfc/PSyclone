@@ -46,6 +46,10 @@ from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
 from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.atomic_mixin import (
+    AtomicDirectiveType,
+    AtomicDirectiveMixin,
+)
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.node import colored, Node
@@ -111,6 +115,8 @@ __all__ = [
         'ArrayOfStructuresMember',
         'ArrayOfStructuresReference',
         'Assignment',
+        'AtomicDirectiveType',
+        'AtomicDirectiveMixin',
         'BinaryOperation',
         'Call',
         'Clause',
