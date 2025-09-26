@@ -39,7 +39,6 @@
 import abc
 from typing import Set, Tuple
 
-from psyclone.core import AccessType
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.while_loop import WhileLoop
@@ -162,11 +161,11 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             has_been_read = False
             last_read_position = 0
             for access in accesses:
-                if access.access_type == AccessType.READ:
+                if access.is_any_read():
                     has_been_read = True
                     last_read_position = access.node.abs_position
 
-                if access.access_type == AccessType.WRITE:
+                if access.is_any_write():
                     # Check if the write access is outside a loop. In this case
                     # it will be marked as shared. This is done because it is
                     # likely to be re-used later. e.g:
