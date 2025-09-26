@@ -78,28 +78,6 @@ def make_symbol_table():
     return symbol_table
 
 
-def _get_intrinsic_info(string):
-    '''Utility function to take a Fortran string for a Fortran intrinsic
-    call and return its fparser2 tree as well as its arguments as a
-    list and its the names of its named arguments as a list.
-
-    :param str string: Fortran instrinsic call to be processed.
-
-    :returns: the fparser2 argument nodes as a list, the names of any \
-        named arguments as a list and the fparser2 tree of the \
-        intrinsic call.
-    :rtype: Tuple[List[:py:class:`fparser.two.utils.Base`], \
-            List[Union[str, None]], \
-            :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`)
-
-    '''
-    reader = FortranStringReader(string)
-    intrinsic = Fortran2003.Intrinsic_Function_Reference(reader)
-    args = intrinsic.items[1].items
-    arg_nodes, arg_names = _get_arg_names(args)
-    return (arg_nodes, arg_names, intrinsic)
-
-
 @pytest.mark.parametrize("arguments", ["a, dim=d, mask=m", "a, d, m"])
 @pytest.mark.parametrize("intrinsic_name", ["MINVAL", "MAXVAL", "SUM"])
 def test_intrinsic_handler_intrinsiccall_mms(
