@@ -252,7 +252,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
         :returns: the datatype of this symbol if it can be determined.
         '''
         # Use the str representation of each type as that is hashable.
-        dtypes = set([str(rinfo.symbol.datatype) for rinfo in self._routines])
+        dtypes = set(str(rinfo.symbol.datatype) for rinfo in self._routines)
         if len(dtypes) == 1:
             return self._routines[0].symbol.datatype
         # We have more than one possible datatype.

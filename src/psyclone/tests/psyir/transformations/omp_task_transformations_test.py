@@ -179,9 +179,6 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     master = OMPSingleTrans()
     parallel = OMPParallelTrans()
     calls = psyir.walk(Call)
-    # TODO #2916 - this setting of `is_pure` shouldn't be necessary as the
-    # frontend should have done it.
-    calls[0].routine.symbol.is_pure = True
     loops = my_test.walk(Loop)
     trans.apply(loops[1])
     master.apply(my_test.children[:])
