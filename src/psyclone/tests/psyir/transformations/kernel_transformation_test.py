@@ -355,7 +355,7 @@ def test_gpumixin_validate_no_import(fortran_reader):
     be a compile-time constant.
 
     '''
-    code = '''\
+    code = '''
 module my_mod
   use other_mod, only: some_data
 contains
@@ -378,6 +378,20 @@ end module my_mod'''
     sym = psyir.children[0].symbol_table.lookup("some_data")
     sym.specialise(DataSymbol, datatype=INTEGER_TYPE, is_constant=True)
     # Validation should now pass.
+    rtrans.validate(routine)
+
+    # TYPE_INFO imports should be ok
+    code = '''module my_mod
+    use other_mod, only: wp
+contains
+    subroutine my_sub(arg)
+        integer :: arg
+        arg = arg + 1_wp
+    end subroutine my_sub
+end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    rtrans = ACCRoutineTrans()
     rtrans.validate(routine)
 
 

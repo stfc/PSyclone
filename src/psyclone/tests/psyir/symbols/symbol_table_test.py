@@ -874,7 +874,8 @@ def test_table_merge():
     table2.add(wp_sym)
     table2.add(symbols.DataSymbol(
         "marvin",
-        symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL, wp_sym)))
+        symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL,
+                           Reference(wp_sym))))
     table1.merge(table2, symbols_to_skip=[dent])
     assert table1.lookup("beeblebrox")
     assert "dent" not in table1
@@ -1981,7 +1982,8 @@ def test_precision_datasymbols():
                               interface=symbols.UnresolvedInterface())
     sym_table.add(rdef)
     # Add a symbol that uses r_def for its precision
-    scalar_type = symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL, rdef)
+    scalar_type = symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL,
+                                     Reference(rdef))
     sym_table.add(symbols.DataSymbol("s2", scalar_type))
     # By default we should get this precision symbol
     assert sym_table.precision_datasymbols == [rdef]
@@ -2201,7 +2203,8 @@ def test_deep_copy():
     # Initial value containing a Reference to an unresolved Symbol.
     sym5a = symbols.DataSymbol(
         "sym5a",
-        symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER, wp),
+        symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER,
+                           Reference(wp)),
         initial_value=BinaryOperation.create(BinaryOperation.Operator.ADD,
                                              Reference(sym1),
                                              Reference(other_sym)))
@@ -2293,7 +2296,7 @@ def test_deep_copy():
     # Check that precision value has been updated.
     new_wp = symtab2.lookup("wp")
     new_dp = symtab2.lookup("dp")
-    assert newsym5a.datatype.precision is new_wp
+    assert newsym5a.datatype.precision == Reference(new_wp)
     assert new_wp.initial_value.arguments[0].symbol is new_dp
 
     # Add new symbols and rename symbols in both symbol tables and check
@@ -3350,7 +3353,7 @@ def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
     mod = psyir.children[0]
     subroutine = psyir.walk(Routine)[0]
     lit = subroutine.walk(Literal)[0]
-    sym = lit.datatype.precision
+    sym = lit.datatype.precision.symbol
     mod.symbol_table.resolve_imports(symbol_target=sym)
     # A new Symbol with the correct properties should have been added to the
     # table associated with the Container.

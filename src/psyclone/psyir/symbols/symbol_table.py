@@ -1544,14 +1544,18 @@ class SymbolTable():
         :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.datanode import DataNode
+        from psyclone.psyir.nodes.reference import Reference
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
         for sym in self.datasymbols:
             # Not all types have the 'precision' attribute (e.g.
             # UnresolvedType)
             if (hasattr(sym.datatype, "precision") and
-                    isinstance(sym.datatype.precision, DataSymbol)):
-                precision_symbols.add(sym.datatype.precision)
+                    isinstance(sym.datatype.precision, DataNode)):
+                for ref in sym.datatype.precision.walk(Reference):
+                    precision_symbols.add(ref.symbol)
         return list(precision_symbols)
 
     @property

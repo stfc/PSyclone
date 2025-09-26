@@ -49,7 +49,6 @@ from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
-from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 
 
@@ -377,7 +376,7 @@ class ScalarType(DataType):
     :type intrinsic: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
     :param precision: the precision of this scalar type.
     :type precision: :py:class:`psyclone.psyir.symbols.ScalarType.Precision` |
-                     int | :py:class:`psyclone.psyir.symbols.DataSymbol`
+                     int | :py:class:`psyclone.psyir.nodes.DataNode`
 
     :raises TypeError: if any of the arguments are of the wrong type.
     :raises ValueError: if any of the argument have unexpected values.
@@ -403,6 +402,13 @@ class ScalarType(DataType):
         DOUBLE = 2
         UNDEFINED = 3
 
+        def copy(self):
+            '''
+            :returns: a copy of self.
+            :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`
+            '''
+            return copy.copy(self)
+
     #: Mapping from PSyIR scalar data types to intrinsic Python types
     #: ignoring precision.
     TYPE_MAP_TO_PYTHON = {
@@ -419,25 +425,31 @@ class ScalarType(DataType):
                 f"'{type(intrinsic).__name__}'.")
 
         self._intrinsic = intrinsic
-
-        if not isinstance(precision, (int, ScalarType.Precision, DataSymbol)):
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.datanode import DataNode
+        if not isinstance(precision, (DataNode, ScalarType.Precision, int)):
             raise TypeError(
                 f"ScalarType expected 'precision' argument to be of type "
-                f"int, ScalarType.Precision or DataSymbol, but found "
-                f"'{type(precision).__name__}'.")
+                f"DataNode, int or ScalarType.Precision, "
+                f"but found '{type(precision).__name__}'.")
         if isinstance(precision, int) and precision <= 0:
             raise ValueError(
                 f"The precision of a DataSymbol when specified as an integer "
                 f"number of bytes must be > 0 but found '{precision}'.")
-        if (isinstance(precision, DataSymbol) and
-                not (isinstance(precision.datatype, ScalarType) and
-                     precision.datatype.intrinsic ==
+        if isinstance(precision, DataNode):
+            dtype = precision.datatype
+            if (not (isinstance(dtype, ScalarType) and
+                     dtype.intrinsic ==
                      ScalarType.Intrinsic.INTEGER) and
-                not isinstance(precision.datatype, UnresolvedType)):
-            raise ValueError(
-                f"A DataSymbol representing the precision of another "
-                f"DataSymbol must be of either 'unresolved' or scalar, "
-                f"integer type but got: {precision}")
+                    not isinstance(dtype, UnresolvedType)):
+                raise ValueError(
+                    f"A DataNode representing the precision of another "
+                    f"DataSymbol must be of either 'unresolved' or "
+                    f"scalar, integer type but got: ScalarType with "
+                    f"datatype {dtype}")
+        # TODO #3135 If the precision is an int, then we would like to make
+        # a Literal containing it instead, however this is not currently
+        # possible due to circular imports.
         self._precision = precision
 
     @property
@@ -453,7 +465,7 @@ class ScalarType(DataType):
         '''
         :returns: the precision of this scalar type.
         :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision` |
-                int | :py:class:`psyclone.psyir.symbols.DataSymbol`
+                int | :py:class:`psyclone.psyir.nodes.DataNode`
         '''
         return self._precision
 
@@ -484,15 +496,15 @@ class ScalarType(DataType):
         # up with a brand new instance of a precision symbol.
         # return (self.precision == other.precision and
         #         self.intrinsic == other.intrinsic)
-        # Therefore, we have to take special action in the case where the
-        # precision is given by a Symbol:
-        if isinstance(other.precision, Symbol) and isinstance(self.precision,
-                                                              Symbol):
-            # If the precision in both types is given by a Symbol then we just
-            # compare their interfaces and their names.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.reference import Reference
+        if (isinstance(other.precision, Reference) and
+                isinstance(self.precision, Reference)):
             precision_match = (
-                other.precision.name == self.precision.name and
-                other.precision.interface == self.precision.interface)
+                    other.precision.symbol.name == self.precision.symbol.name
+                    and other.precision.symbol.interface ==
+                    self.precision.symbol.interface
+                )
         else:
             precision_match = self.precision == other.precision
         return precision_match and self.intrinsic == other.intrinsic
@@ -510,18 +522,10 @@ class ScalarType(DataType):
             :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        # Only the 'precision' of a ScalarType can refer to a Symbol.
-        if isinstance(self.precision, Symbol):
-            # Update any 'precision' information.
-            new_sym = None
-            if isinstance(table_or_symbol, Symbol):
-                if table_or_symbol.name.lower() == self.precision.name.lower():
-                    new_sym = table_or_symbol
-            else:
-                new_sym = table_or_symbol.lookup(self.precision.name,
-                                                 otherwise=None)
-            if new_sym:
-                self._precision = new_sym
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.datanode import DataNode
+        if isinstance(self.precision, DataNode):
+            self._precision.replace_symbols_using(table_or_symbol)
 
     def reference_accesses(self):
         '''
@@ -534,16 +538,35 @@ class ScalarType(DataType):
         '''
         access_info = super().reference_accesses()
 
-        if isinstance(self.precision, Symbol):
-            # Avoid circular import
-            # pylint: disable=import-outside-toplevel
-            from psyclone.core.signature import Signature
-            from psyclone.core.access_type import AccessType
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core.access_type import AccessType
+        from psyclone.psyir.nodes.datanode import DataNode
+        if isinstance(self.precision, DataNode):
+            precision_ras = self.precision.reference_accesses()
+            # TODO #3060, use the helper function implemented in
+            # 3119.
+            # Change all the precision_ras to be of TYPE_INFO type,
+            # since this is a kind expression we know the symbols
+            # are not runtime-read
+            for sig in precision_ras:
+                for access in precision_ras[sig]:
+                    access._access_type = AccessType.TYPE_INFO
+            access_info.update(precision_ras)
 
-            access_info.add_access(
-                Signature(self.precision.name),
-                AccessType.TYPE_INFO, self)
         return access_info
+
+    def copy(self):
+        '''
+        :returns: a copy of self.
+        :rtype: :py:class:`psyclone.psyir.symbols.DatatTypes.ScalarType`
+        '''
+        # TODO #3135 After the precision is always either a Precision or
+        # a DataNode this hasattr check can be removed.
+        if hasattr(self.precision, "copy"):
+            return ScalarType(self.intrinsic, self.precision.copy())
+        else:
+            return ScalarType(self.intrinsic, self.precision)
 
 
 class ArrayType(DataType):
@@ -1007,6 +1030,12 @@ class ArrayType(DataType):
                 # This dimension is specified with an ArrayType.Extent
                 # so no need to copy.
                 new_shape.append(dim)
+        # If we copy the ScalarType then we need to create a copy of it, as
+        # it can contain DataNodes, which must be copied.
+        if isinstance(self.datatype, ScalarType):
+            return ArrayType(self.datatype.copy(), new_shape)
+        # Otherwise we continue with this type's datatype, to handle cases
+        # such as a DataTypeSymbol datatype (which should not be copied).
         return ArrayType(self.datatype, new_shape)
 
     def replace_symbols_using(self, table_or_symbol):
@@ -1034,19 +1063,12 @@ class ArrayType(DataType):
         else:
             self.datatype.replace_symbols_using(table_or_symbol)
 
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.datanode import DataNode
         # TODO #1857: we will probably remove '_precision' and have
         # 'intrinsic' be 'datatype'.
-        if self._precision and isinstance(self._precision, Symbol):
-            if isinstance(table_or_symbol, Symbol):
-                if (table_or_symbol.name.lower() ==
-                        self._precision.name.lower()):
-                    self._precision = table_or_symbol
-            else:
-                try:
-                    self._precision = table_or_symbol.lookup(
-                        self._precision.name)
-                except KeyError:
-                    pass
+        if isinstance(self._precision, DataNode):
+            self._precision.replace_symbols_using(table_or_symbol)
         if self._intrinsic and isinstance(self._intrinsic, Symbol):
             if isinstance(table_or_symbol, Symbol):
                 if (table_or_symbol.name.lower() ==
@@ -1084,6 +1106,7 @@ class ArrayType(DataType):
         # pylint: disable=import-outside-toplevel
         from psyclone.core.signature import Signature
         from psyclone.core.access_type import AccessType
+        from psyclone.psyir.nodes.datanode import DataNode
 
         access_info = super().reference_accesses()
 
@@ -1092,10 +1115,17 @@ class ArrayType(DataType):
                 Signature(self.intrinsic.name),
                 AccessType.TYPE_INFO, self)
 
-        if isinstance(self.precision, Symbol):
-            access_info.add_access(
-                Signature(self.precision.name),
-                AccessType.TYPE_INFO, self)
+        if isinstance(self.precision, DataNode):
+            precision_ras = self.precision.reference_accesses()
+            # TODO #3060, use the helper function implemented in
+            # 3119.
+            # Change all the precision_ras to be of TYPE_INFO type,
+            # since this is a kind expression we know the symbols
+            # are not runtime-read
+            for sig in precision_ras:
+                for access in precision_ras[sig]:
+                    access._access_type = AccessType.TYPE_INFO
+            access_info.update(precision_ras)
 
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
