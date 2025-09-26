@@ -153,17 +153,15 @@ class InlineTrans(Transformation):
 
         # Ensure we don't modify the original Routine by working with a
         # copy of it.
-        container = orig_routine.ancestor(Container).copy()
-        routine = container.find_routine_psyir(orig_routine.name,
-                                               allow_private=True)
+        routine = orig_routine.copy()
         routine_table = routine.symbol_table
 
         # Construct lists of the nodes that will be inserted and all of the
         # References that they contain.
         new_stmts = []
         refs = []
-        for child in routine.children:
-            new_stmts.append(child.copy())
+        for child in routine.pop_all_children():
+            new_stmts.append(child)
             refs.extend(new_stmts[-1].walk(Reference))
 
         # Shallow copy the symbols from the routine into the table at the
