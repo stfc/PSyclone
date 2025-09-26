@@ -48,7 +48,7 @@ from fparser.two.Fortran2003 import Execution_Part
 
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import (
-    Fparser2Reader, _get_arg_names, _canonicalise_minmaxsum)
+    Fparser2Reader, _get_arg_names)
 from psyclone.psyir.nodes import (
     Schedule, Assignment, Reference, IntrinsicCall, Literal, CodeBlock)
 from psyclone.psyir.symbols import (
@@ -99,75 +99,6 @@ def _get_intrinsic_info(string):
     args = intrinsic.items[1].items
     arg_nodes, arg_names = _get_arg_names(args)
     return (arg_nodes, arg_names, intrinsic)
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_canonicalise_minmaxsum():
-    '''Check that the _canonicalise_minmaxsum function in fparser2.py
-    works as expected.
-
-    '''
-    # All args named a) first arg first, b) first arg not first c)
-    # array name not found.
-    for string in [
-            "sum(array=a, dim=d, mask=m)",
-            "sum(dim=d, array=a, mask=m)",
-            "sum(dim=d, mask=m, array=a)"]:
-        arg_nodes, arg_names, intrinsic = _get_intrinsic_info(string)
-        _canonicalise_minmaxsum(arg_nodes, arg_names, intrinsic)
-        assert arg_names == [None, 'dim', 'mask']
-        assert arg_nodes[0].string == "a"
-        assert arg_nodes[1].string == "d"
-        assert arg_nodes[2].string == "m"
-
-    string = "sum(arg1=a, arg2=d, arg3=m)"
-    arg_nodes, arg_names, intrinsic = _get_intrinsic_info(string)
-    with pytest.raises(InternalError) as info:
-        _canonicalise_minmaxsum(arg_nodes, arg_names, intrinsic)
-    assert ("Invalid intrinsic arguments found. Expecting one of the named "
-            "arguments to be 'array', but found 'SUM(arg1 = a, arg2 = d, "
-            "arg3 = m)'." in str(info.value))
-
-    # Two arguments and the second is not named. Returns
-    # NotImplementedError which results in a CodeBlock as we need to
-    # try to determine the datatypes to disambiguate and don't do that
-    # yet.
-    arg_nodes, arg_names, intrinsic = _get_intrinsic_info("sum(a, d)")
-    with pytest.raises(NotImplementedError) as info:
-        _canonicalise_minmaxsum(arg_nodes, arg_names, intrinsic)
-    assert (str(info.value) ==
-            "In 'SUM(a, d)' there are two arguments that are not named. "
-            "The second could be a dim or a mask so we need datatype "
-            "information to determine which and we do not determine "
-            "this information at the moment.")
-
-    # Optional arguments are not named but can be determined from
-    # their order. Canonical form has them named. The last version
-    # shows that an argument in canonical form remains unchanged. Any
-    # upper case named-argument names become lower case.
-    for string in [
-            "sum(a, d, m)",
-            "sum(a, d, mask=m)",
-            "sum(a, d, MASK=m)"]:
-        arg_nodes, arg_names, intrinsic = _get_intrinsic_info(string)
-        _canonicalise_minmaxsum(arg_nodes, arg_names, intrinsic)
-        assert arg_names == [None, 'dim', 'mask']
-        assert arg_nodes[0].string == "a"
-        assert arg_nodes[1].string == "d"
-        assert arg_nodes[2].string == "m"
-
-    # Already in canonical form so no change from input to output.
-    for string in [
-            "SUM(a)",
-            "SUM(a, dim = d)",
-            "SUM(a, dim = d, mask = m)",
-            "SUM(a, mask = m)",
-            "SUM(a, mask = m, dim = d)"]:
-        arg_nodes, arg_names, intrinsic = _get_intrinsic_info(string)
-        _canonicalise_minmaxsum(arg_nodes, arg_names, intrinsic)
-        intrinsic._children = arg_nodes
-        intrinsic.arg_names = arg_names
-        assert str(intrinsic) == string
 
 
 @pytest.mark.parametrize("arguments", ["a, dim=d, mask=m", "a, d, m"])
