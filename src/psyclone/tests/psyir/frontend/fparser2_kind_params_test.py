@@ -45,7 +45,7 @@ from fparser.two import Fortran2003
 
 from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
                                               _kind_find_or_create)
-from psyclone.psyir.nodes import KernelSchedule
+from psyclone.psyir.nodes import IntrinsicCall, KernelSchedule
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, UnsupportedFortranType, RoutineSymbol, SymbolTable,
     Symbol, UnresolvedType, ContainerSymbol, UnresolvedInterface)
@@ -105,7 +105,6 @@ def test_process_declarations_kind_new_param():
     assert isinstance(sym.datatype, UnsupportedFortranType)
 
 
-@pytest.mark.xfail(reason="Kind parameter declarations not supported - #569")
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations_kind_param():
     ''' Test that process_declarations handles the kind attribute when
@@ -118,8 +117,28 @@ def test_process_declarations_kind_param():
                                  "real(kind=r_def) :: var2")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
-    assert isinstance(fake_parent.symbol_table.lookup("var2").precision,
-                      DataSymbol)
+    assert isinstance(
+        fake_parent.symbol_table.lookup("var2").datatype.precision,
+        DataSymbol)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_kind_param_accessed_first():
+    ''' Test that process_declarations handles the kind attribute when
+    it specifies a symbol that hasn't yet been declared.
+
+    '''
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("real(kind=r_def) :: var2\n"
+                                 "integer, parameter :: r_def = KIND(1.0D0)")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert isinstance(
+        fake_parent.symbol_table.lookup("var2").datatype.precision,
+        DataSymbol)
+    sym = fake_parent.symbol_table.lookup("r_def")
+    assert isinstance(sym.initial_value, IntrinsicCall)
 
 
 @pytest.mark.usefixtures("f2008_parser")
