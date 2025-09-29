@@ -55,9 +55,9 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    from psyclone.transformations import Dynamo0p3RedundantComputationTrans, \
+    from psyclone.transformations import LFRicRedundantComputationTrans, \
         MoveTrans
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     m_trans = MoveTrans()
 
     # Get first invoke subroutine

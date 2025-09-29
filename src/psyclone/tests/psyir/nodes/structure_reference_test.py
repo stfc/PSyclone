@@ -40,7 +40,7 @@
 
 import pytest
 
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir import symbols, nodes
 from psyclone.tests.utilities import check_links
@@ -118,8 +118,8 @@ def test_struc_ref_create_errors():
     ''' Tests for the validation checks in the create method. '''
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(None, [])
-    assert ("'symbol' argument to StructureReference.create() should be a "
-            "DataSymbol but found 'NoneType'" in str(err.value))
+    assert ("The 'symbol' argument to StructureReference.create() should be a"
+            " DataSymbol but found 'NoneType'" in str(err.value))
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("grid", symbols.UnresolvedType()), [],
@@ -129,8 +129,9 @@ def test_struc_ref_create_errors():
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("fake", symbols.INTEGER_TYPE), [])
-    assert ("symbol that is (or could be) a structure, however symbol "
-            "'fake' has type 'Scalar" in str(err.value))
+    assert ("A StructureReference must refer to a symbol that is (or could be)"
+            " a structure, however symbol 'fake' has type 'Scalar"
+            in str(err.value))
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("grid", symbols.UnresolvedType()), 1)
@@ -202,8 +203,7 @@ def test_reference_accesses():
             "grid",
             symbols.DataTypeSymbol("grid_type", symbols.UnresolvedType())),
         ["data"])
-    var_access_info = VariablesAccessInfo()
-    dref.reference_accesses(var_access_info)
+    var_access_info = dref.reference_accesses()
 
     assert var_access_info.all_signatures == [Signature(("grid", "data"))]
     # By default all accesses are marked as read

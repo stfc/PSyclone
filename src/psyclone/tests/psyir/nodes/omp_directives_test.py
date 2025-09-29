@@ -35,14 +35,16 @@
 #         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 #          J. Remy, Université Grenoble Alpes, Inria
+#          M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenMP PSyIR Directive nodes. '''
 
 import os
+import re
 import pytest
+import logging
 from psyclone.errors import UnresolvedDependencyError
-from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
@@ -59,26 +61,28 @@ from psyclone.psyir.nodes import (
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
     OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective,
-    StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective)
+    StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective,
+    AtomicDirectiveType)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
     REAL_TYPE, DataTypeSymbol)
 from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
 from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.transformations.omp_taskloop_trans import OMPTaskloopTrans
 from psyclone.transformations import (
-    Dynamo0p3OMPLoopTrans, OMPParallelTrans,
-    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans,
-    OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans)
+    LFRicOMPLoopTrans, OMPParallelTrans,
+    OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
+    OMPMasterTrans, OMPLoopTrans, TransformationError)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+    os.path.abspath(__file__)))), "test_files", "lfric")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
                                 "gocean1p0")
 
 
-def test_ompparallel_lowering(fortran_reader, monkeypatch):
+def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
     ''' Check that lowering an OMP Parallel region leaves it with the
     appropriate begin_string and clauses for the backend to generate
     the right code'''
@@ -141,11 +145,12 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
     a_sym = Symbol("a")
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({}, {}, {a_sym}))
-    with pytest.raises(GenerationError) as err:
+    with caplog.at_level(logging.WARNING):
         pdir.lower_to_language_level()
-    assert ("Lowering 'OMPParallelDirective' does not support symbols that "
-            "need synchronisation unless they are in a depend clause, but "
-            "found: 'a' which is not in a depend clause." in str(err.value))
+    assert ("Lowering 'OMPParallelDirective' detected a possible race "
+            "condition for symbol 'a'. Make sure this is a false WaW "
+            "dependency or the code includes the necessary synchronisations."
+            "\n" in caplog.text)
 
     # Also a case which contains the symbol in an input dependency clause.
     task_dir = OMPTaskDirective()
@@ -158,126 +163,15 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
     task_dir.addchild(in_clause)
     pdir.children[0].addchild(task_dir)
 
-    with pytest.raises(GenerationError) as err:
+    with caplog.at_level(logging.WARNING):
         pdir.lower_to_language_level()
-    assert ("Lowering 'OMPParallelDirective' does not support symbols that "
-            "need synchronisation unless they are in a depend clause, but "
-            "found: 'a' which is not in a depend clause." in str(err.value))
+    assert ("Lowering 'OMPParallelDirective' detected a possible race "
+            "condition for symbol 'a'. Make sure this is a false WaW "
+            "dependency or the code includes the necessary synchronisations."
+            "\n" in caplog.text)
 
 
-def test_ompparallel_gen_code_clauses(monkeypatch):
-    ''' Check that the OMP Parallel region clauses are generated
-    appropriately. '''
-
-    # Check with an LFRic kernel, the cell variable must be private
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    tree = psy.invokes.invoke_list[0].schedule
-    ptrans = OMPParallelTrans()
-    tdir = OMPDoDirective()
-    loops = tree.walk(Loop)
-    loop = loops[0]
-    parent = loop.parent
-    loop.detach()
-    tdir.children[0].addchild(loop)
-    parent.addchild(tdir, index=0)
-    ptrans.apply(loops[0].parent.parent)
-
-    assert isinstance(tree.children[0], OMPParallelDirective)
-    pdir = tree.children[0]
-    code = str(psy.gen).lower()
-    assert len(pdir.children) == 4
-    assert "private(cell)" in code
-
-    # Check that making a change (add private k variable) after the first
-    # time psy.gen is called recomputes the clauses attributes
-    new_loop = pdir.children[0].children[0].children[0].children[0].copy()
-    routine = pdir.ancestor(Routine)
-    routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
-    # Change the loop variable to j
-    jvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
-    new_loop.variable = jvar
-    tdir2 = OMPDoDirective()
-    tdir2.children[0].addchild(new_loop)
-    # Add loop
-    pdir.children[0].addchild(tdir2)
-
-    code = str(psy.gen).lower()
-    assert "private(cell,k)" in code
-
-    # Monkeypatch a case with private and firstprivate clauses
-    monkeypatch.setattr(pdir, "infer_sharing_attributes",
-                        lambda: ({Symbol("a")}, {Symbol("b")}, None))
-
-    code = str(psy.gen).lower()
-    assert "private(a)" in code
-    assert "firstprivate(b)" in code
-
-    # Monkeypatch a case with shared variables that need synchronisation
-    monkeypatch.setattr(pdir, "infer_sharing_attributes",
-                        lambda: ({}, {}, {Symbol("a")}))
-    with pytest.raises(GenerationError) as err:
-        code = str(psy.gen).lower()
-    assert ("OMPParallelDirective.gen_code() does not support symbols that "
-            "need synchronisation, but found: ['a']" in str(err.value))
-
-
-def test_omp_paralleldo_clauses_gen_code(monkeypatch):
-    ''' Check that the OMP ParallelDo clauses are generated
-    appropriately. '''
-
-    # Check with an LFRic kernel, the cell variable must be private
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    tree = psy.invokes.invoke_list[0].schedule
-    ptrans = OMPParallelLoopTrans()
-    loops = tree.walk(Loop)
-    ptrans.apply(loops[0])
-
-    assert isinstance(tree.children[0], OMPParallelDoDirective)
-    pdir = tree.children[0]
-    code = str(psy.gen).lower()
-    assert len(pdir.children) == 2
-    assert "private(cell)" in code
-    assert "schedule(auto)" in code
-    assert "firstprivate" not in code
-
-    # Check that making a change (add private k variable) after the first
-    # time psy.gen is called recomputes the clauses attributes
-    routine = pdir.ancestor(Routine)
-    routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
-    # Change the loop variable to k
-    kvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
-    pdir.children[0].children[0].variable = kvar
-    # Change the schedule to 'none'
-    pdir.omp_schedule = "none"
-
-    # No 'schedule' clause should now be present on the OMP directive.
-    code = str(psy.gen).lower()
-    assert "schedule(" not in code
-    assert "private(k)" in code
-    assert "firstprivate" not in code
-
-    # Monkeypatch a case with firstprivate clauses
-    monkeypatch.setattr(pdir, "infer_sharing_attributes",
-                        lambda: ({Symbol("a")}, {Symbol("b")}, None))
-
-    code = str(psy.gen).lower()
-    assert "private(a)" in code
-    assert "firstprivate(b)" in code
-
-    # Monkeypatch a case with shared variables that need synchronisation
-    monkeypatch.setattr(pdir, "infer_sharing_attributes",
-                        lambda: ({}, {}, {Symbol("a")}))
-    with pytest.raises(GenerationError) as err:
-        code = str(psy.gen).lower()
-    assert ("OMPParallelDoDirective.gen_code() does not support symbols that "
-            "need synchronisation, but found: ['a']" in str(err.value))
-
-
-def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
+def test_omp_parallel_do_lowering(fortran_reader, monkeypatch, caplog):
     ''' Check that lowering an OMP Parallel Do leaves it with the
     appropriate begin_string and clauses for the backend to generate
     the right code'''
@@ -343,11 +237,12 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     # Monkeypatch a case with shared variables that need synchronisation
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({}, {}, {Symbol("a")}))
-    with pytest.raises(GenerationError) as err:
+    with caplog.at_level(logging.WARNING):
         pdir.lower_to_language_level()
-    assert ("Lowering 'OMPParallelDoDirective' does not support symbols that "
-            "need synchronisation unless they are in a depend clause, but "
-            "found: 'a' which is not in a depend clause." in str(err.value))
+    assert ("Lowering 'OMPParallelDoDirective' detected a possible race "
+            "condition for symbol 'a'. Make sure this is a false WaW "
+            "dependency or the code includes the necessary synchronisations."
+            "\n" in caplog.text)
 
 
 def test_omp_teams_distribute_parallel_do_strings(
@@ -563,7 +458,8 @@ def test_omp_pdo_validate_child():
     prclause = OMPPrivateClause()
     fprclause = OMPFirstprivateClause()
     scclause = OMPScheduleClause()
-    reclause = OMPReductionClause()
+    reclause = OMPReductionClause(
+            operator=OMPReductionClause.ReductionClauseTypes.ADD)
 
     assert OMPParallelDoDirective._validate_child(0, sched) is True
     assert OMPParallelDoDirective._validate_child(1, declause) is True
@@ -675,7 +571,7 @@ def test_directiveinfer_sharing_attributes_lfric():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # We use Transformations to introduce the necessary directives
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do directive to the loop
     otrans.apply(schedule.children[0], {"reprod": True})
@@ -1000,6 +896,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
             type(my_type) :: mt1, mt2
             real, dimension(10) :: array
             mt1%scalar1 = 3
+            mt2%scalar1 = 3
             do i = 1, 10
                if (i .eq. 4) then
                   mt2%field1%scalar1 = array(i)
@@ -1010,9 +907,12 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
         end subroutine''')
     omptrans = OMPParallelTrans()
     routine = psyir.walk(Routine)[0]
-    omptrans.apply(routine.children)
+    omptrans.apply(routine.children[2])
     directive = psyir.walk(OMPParallelDirective)[0]
     pvars, fpvars, sync = directive.infer_sharing_attributes()
+    pytest.xfail("#2094: Currently we only support top-level derived types"
+                 "as OpenMP sharing attributes, but there are cases that "
+                 "more detail is necessary.")
     assert len(pvars) == 2
     assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
     assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar1'
@@ -1028,6 +928,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
             integer :: i, scalar1
             type(my_type) :: mt1
             real, dimension(10) :: array
+            mt1%another_scalar = 3
             do i = 1, 10
                if (i .eq. 4) then
                   mt1%scalar1 = 3
@@ -1037,7 +938,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
         end subroutine''')
     omptrans = OMPParallelTrans()
     routine = psyir.walk(Routine)[0]
-    omptrans.apply(routine.children)
+    omptrans.apply(routine.children[1])
     directive = psyir.walk(OMPParallelDirective)[0]
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 1
@@ -1138,16 +1039,38 @@ def test_omp_parallel_validate_child():
     assert OMPParallelDirective._validate_child(0, Schedule()) is True
     assert OMPParallelDirective._validate_child(1, OMPDefaultClause()) is True
     assert OMPParallelDirective._validate_child(2, OMPPrivateClause()) is True
-    assert OMPParallelDirective._validate_child(3, OMPFirstprivateClause()) \
-        is True
-    assert OMPParallelDirective._validate_child(2, OMPReductionClause())\
-        is False
-    assert OMPParallelDirective._validate_child(4, OMPReductionClause())\
-        is True
-    assert OMPParallelDirective._validate_child(5, OMPReductionClause())\
-        is True
+    assert (OMPParallelDirective._validate_child(3, OMPFirstprivateClause())
+            is True)
+    assert (OMPParallelDirective._validate_child(2, OMPReductionClause(
+                operator=OMPReductionClause.ReductionClauseTypes.ADD))
+            is False)
+    assert (OMPParallelDirective._validate_child(4, OMPReductionClause(
+                operator=OMPReductionClause.ReductionClauseTypes.ADD))
+            is True)
+    assert (OMPParallelDirective._validate_child(
+            5, OMPReductionClause(
+                operator=OMPReductionClause.ReductionClauseTypes.ADD))
+            is True)
     assert OMPParallelDirective._validate_child(0, OMPDefaultClause()) is False
     assert OMPParallelDirective._validate_child(6, "test") is False
+
+
+def test_omp_do_validate_child():
+    ''' Test the validate_child method of OMPDoDirective'''
+    assert OMPDoDirective._validate_child(-1, None) is False
+    assert OMPDoDirective._validate_child(0, Schedule()) is True
+    rc = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    rc.addchild(Reference(Symbol("acc")))
+    assert OMPDoDirective._validate_child(1, rc) is True
+
+
+def test_omp_loop_validate_child():
+    ''' Test the validate_child method of OMPLoopDirective'''
+    assert OMPLoopDirective._validate_child(-1, None) is False
+    assert OMPLoopDirective._validate_child(0, Schedule()) is True
+    rc = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    rc.addchild(Reference(Symbol("acc")))
+    assert OMPLoopDirective._validate_child(1, rc) is True
 
 
 def test_omp_forward_dependence():
@@ -1160,7 +1083,7 @@ def test_omp_forward_dependence():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    otrans = LFRicOMPParallelLoopTrans()
     for child in schedule.children:
         otrans.apply(child)
     read4 = schedule.children[4]
@@ -1280,27 +1203,6 @@ def test_omp_single_nested_validate_global_constraints(monkeypatch):
             "region") in str(excinfo.value)
 
 
-@pytest.mark.parametrize("nowait", [False, True])
-def test_omp_single_gencode(nowait):
-    '''Check that the gen_code method in the OMPSingleDirective class
-    generates the expected code.
-    '''
-    subroutine = Routine.create("testsub")
-    temporary_module = ModuleGen("test")
-    parallel = OMPParallelDirective.create()
-    single = OMPSingleDirective(nowait=nowait)
-    parallel.dir_body.addchild(single)
-    subroutine.addchild(parallel)
-    parallel.gen_code(temporary_module)
-
-    clauses = ""
-    if nowait:
-        clauses += " nowait"
-
-    assert "!$omp single" + clauses + "\n" in str(temporary_module.root)
-    assert "!$omp end single\n" in str(temporary_module.root)
-
-
 def test_omp_master_strings():
     ''' Test the begin_string and end_string methods of the OMPMaster
         directive '''
@@ -1308,22 +1210,6 @@ def test_omp_master_strings():
 
     assert omp_master.begin_string() == "omp master"
     assert omp_master.end_string() == "omp end master"
-
-
-def test_omp_master_gencode():
-    '''Check that the gen_code method in the OMPMasterDirective class
-    generates the expected code.
-    '''
-    subroutine = Routine.create("testsub")
-    temporary_module = ModuleGen("test")
-    parallel = OMPParallelDirective.create()
-    master = OMPMasterDirective()
-    parallel.dir_body.addchild(master)
-    subroutine.addchild(parallel)
-    parallel.gen_code(temporary_module)
-
-    assert "!$omp master\n" in str(temporary_module.root)
-    assert "!$omp end master\n" in str(temporary_module.root)
 
 
 def test_omp_master_validate_global_constraints():
@@ -1411,21 +1297,6 @@ def test_omptaskwait_strings():
     assert taskwait.begin_string() == "omp taskwait"
 
 
-def test_omptaskwait_gencode():
-    '''Check that the gen_code method in the OMPTaskwaitDirective
-    class generates the expected code.
-    '''
-    subroutine = Routine.create("testsub")
-    temporary_module = ModuleGen("test")
-    parallel = OMPParallelDirective.create()
-    directive = OMPTaskwaitDirective()
-    parallel.dir_body.addchild(directive)
-    subroutine.addchild(parallel)
-    parallel.gen_code(temporary_module)
-
-    assert "!$omp taskwait\n" in str(temporary_module.root)
-
-
 def test_omp_taskwait_clauses():
     ''' Test the clauses property of the OMPTaskwait directive. '''
     omp_taskwait = OMPTaskwaitDirective()
@@ -1444,7 +1315,7 @@ def test_omp_taskloop_strings():
 def test_omp_taskloop_clauses():
     ''' Test the clauses property of the OMPTaskloop directive. '''
     omp_taskloop = OMPTaskloopDirective()
-    assert omp_taskloop.clauses == []
+    assert omp_taskloop.clauses == ()
 
 
 def test_omp_taskloop_init():
@@ -1453,37 +1324,12 @@ def test_omp_taskloop_init():
         OMPTaskloopDirective(grainsize=32, num_tasks=32)
     assert ("OMPTaskloopDirective must not have both grainsize and "
             "numtasks clauses specified.") in str(excinfo.value)
-
-
-@pytest.mark.parametrize("grainsize,num_tasks,nogroup,clauses",
-                         [(None, None, False, ""),
-                          (32, None, False, " grainsize(32)"),
-                          (None, 32, True, " num_tasks(32), nogroup")])
-def test_omp_taskloop_gencode(grainsize, num_tasks, nogroup, clauses):
-    '''Check that the gen_code method in the OMPTaskloopDirective
-    class generates the expected code.
-    '''
-    temporary_module = ModuleGen("test")
-    subroutine = Routine.create("testsub")
-    parallel = OMPParallelDirective.create()
-    single = OMPSingleDirective()
-    directive = OMPTaskloopDirective(grainsize=grainsize, num_tasks=num_tasks,
-                                     nogroup=nogroup)
-    parallel.dir_body.addchild(single)
-    single.dir_body.addchild(directive)
-    sym = subroutine.symbol_table.new_symbol(
-            "i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    loop = Loop.create(sym,
-                       Literal("1", INTEGER_TYPE),
-                       Literal("10", INTEGER_TYPE),
-                       Literal("1", INTEGER_TYPE),
-                       [])
-    directive.dir_body.addchild(loop)
-    subroutine.addchild(parallel)
-    parallel.gen_code(temporary_module)
-
-    assert "!$omp taskloop" + clauses + "\n" in str(temporary_module.root)
-    assert "!$omp end taskloop\n" in str(temporary_module.root)
+    tl1 = OMPTaskloopDirective(grainsize=32)
+    assert tl1.walk(OMPGrainsizeClause)
+    assert not tl1.walk(OMPNumTasksClause)
+    tl2 = OMPTaskloopDirective(num_tasks=32)
+    assert not tl2.walk(OMPGrainsizeClause)
+    assert tl2.walk(OMPNumTasksClause)
 
 
 @pytest.mark.parametrize("nogroup", [False, True])
@@ -1580,11 +1426,6 @@ def test_omp_declare_target_directive_constructor_and_strings(monkeypatch):
     target = OMPDeclareTargetDirective()
     assert target.begin_string() == "omp declare target"
     assert str(target) == "OMPDeclareTargetDirective[]"
-
-    monkeypatch.setattr(target, "validate_global_constraints", lambda: None)
-    temporary_module = ModuleGen("test")
-    target.gen_code(temporary_module)
-    assert "!$omp declare target\n" in str(temporary_module.root)
 
 
 def test_omp_declare_target_directive_validate_global_constraints():
@@ -1822,8 +1663,6 @@ def test_omp_atomics_is_valid_atomic_statement(fortran_reader):
         integer :: i, j, val
 
         A(1,1) = A(1,1) ** 2  ! Operator is not supported
-        A(1,1) = A(2,1) * 2   ! The operands are different that the lhs
-        A(1,1) = A(1,1) / 2 + 3 - 5  ! A(1,1) is not a top-level operand
         A(:,1) = A(:,1) / 2      ! It is not a scalar expression
         A(1,1) = MOD(A(1,1), 3)  ! Intrinsic is not supported
         return
@@ -1875,11 +1714,35 @@ def test_omp_atomics_validate_global_constraints(fortran_reader, monkeypatch):
             "statement, but found: " in str(err.value))
 
 
+def test_omp_atomic_init_failure():
+    ''' Test the OMPAtomicDirective init routine fails when provided an
+    invalid directive_type.'''
+    with pytest.raises(TypeError) as excinfo:
+        _ = OMPAtomicDirective(directive_type=1)
+
+    assert ("OMPAtomicDirective expects an AtomicDirectiveType as the "
+            "directive_type but found 1." in str(excinfo.value))
+
+
 def test_omp_atomics_strings():
     ''' Test the OMPAtomicDirective begin and end strings '''
     atomic = OMPAtomicDirective()
-    assert atomic.begin_string() == "omp atomic"
+    assert atomic.begin_string() == "omp atomic update"
     assert atomic.end_string() == "omp end atomic"
+
+    atomic_read = OMPAtomicDirective(
+            directive_type=AtomicDirectiveType.READ
+    )
+    assert atomic_read.begin_string() == "omp atomic read"
+
+    atomic_write = OMPAtomicDirective(
+            directive_type=AtomicDirectiveType.WRITE
+    )
+    assert atomic_write.begin_string() == "omp atomic write"
+    atomic_capture = OMPAtomicDirective(
+            directive_type=AtomicDirectiveType.CAPTURE
+    )
+    assert atomic_capture.begin_string() == "omp atomic capture"
 
 
 def test_omp_simd_strings():
@@ -4838,32 +4701,586 @@ def test_omp_serial_check_dependency_valid_pairing():
            )
 
 
-def test_omptarget_gen_code():
-    ''' Check that the OMPTarget gen_code produces the right code '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    kern = schedule.children[-1]
+def test_add_reduction_clause_parallel_do(fortran_reader, fortran_writer):
+    ''' Test adding reduction clauses to OMPParallelDoDirective.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
 
-    # Add an OMPTarget and move the kernel inside it
-    target = OMPTargetDirective()
-    schedule.addchild(target)
-    target.dir_body.addchild(kern.detach())
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    loop = psyir.walk(Loop)[0]
+    loop_parent = loop.parent
+    loop_position = loop.position
+    do_directive = OMPParallelDoDirective(children=[loop.detach()])
+    loop_parent.addchild(do_directive, index=loop_position)
+    clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause.addchild(Reference(Symbol("acc")))
+    do_directive.addchild(clause)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
 
-    # Check that the "omp target" is produced, and that the set_dirty is
-    # generated after it
-    code = str(psy.gen)
-    assert """
-      !$omp target
-      DO cell = loop0_start, loop0_stop, 1
-        CALL testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, \
-m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), \
-ndf_w3, undf_w3, map_w3(:,cell))
-      END DO
-      !$omp end target
-      !
-      ! Set halos dirty/clean for fields modified in the above loop(s)
-      !
-      CALL f1_proxy%set_dirty()
-    """ in code
+
+def test_add_reduction_clause_do(fortran_reader, fortran_writer):
+    ''' Test adding reduction clauses to OMPDoDirective.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    loop = psyir.walk(Loop)[0]
+    OMPParallelTrans().apply(loop)
+    loop_parent = loop.parent
+    loop_position = loop.position
+    do_directive = OMPDoDirective(children=[loop.detach()])
+    loop_parent.addchild(do_directive, index=loop_position)
+    clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause.addchild(Reference(Symbol("acc")))
+    do_directive.addchild(clause)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_add_reduction_clause_loop(fortran_reader, fortran_writer):
+    ''' Test adding reduction clauses to OMPLoopDirective.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    loop = psyir.walk(Loop)[0]
+    OMPParallelTrans().apply(loop)
+    loop_parent = loop.parent
+    loop_position = loop.position
+    loop_directive = OMPLoopDirective(children=[loop.detach()])
+    loop_parent.addchild(loop_directive, index=loop_position)
+    clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause.addchild(Reference(Symbol("acc")))
+    loop_directive.addchild(clause)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_reduction_clause_eq(fortran_reader, fortran_writer):
+    ''' Test OMPParallelDoDirective equality with reduction clauses
+    '''
+    do_directive1 = OMPParallelDoDirective()
+    do_directive2 = OMPParallelDoDirective()
+    do_directive3 = OMPParallelDoDirective()
+
+    clause1 = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause1.addchild(Reference(Symbol("foo")))
+    do_directive1.addchild(clause1)
+
+    clause2 = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause2.addchild(Reference(Symbol("bar")))
+    do_directive2.addchild(clause2)
+
+    assert do_directive1 != do_directive2
+
+    clause3 = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause3.addchild(Reference(Symbol("foo")))
+    do_directive3.addchild(clause3)
+
+    assert do_directive1 == do_directive3
+
+
+def test_add_reduction_clause_validation(fortran_reader, fortran_writer):
+    ''' Check that adding a reduction clause with a non-reduction clause
+        argument raises an error.
+    '''
+    do_directive = OMPDoDirective()
+    with pytest.raises(GenerationError) as err:
+        do_directive.addchild(OMPScheduleClause())
+    assert ("Item 'OMPScheduleClause' can't be child 1 of 'OMPDoDirective'"
+            in str(err.value))
+
+
+@pytest.mark.parametrize("op", ["*", "-", "*"])
+def test_reduction_arith_ops(op, fortran_reader, fortran_writer):
+    ''' Test that reduction loops involing arithmetic reduction operators are
+    parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source(f'''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc {op} arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert f"reduction({op}: acc)" in output
+
+
+@pytest.mark.parametrize("op", [".AND.", ".OR.", ".EQV.", ".NEQV."])
+def test_reduction_logical(op, fortran_reader, fortran_writer):
+    ''' Test that reduction loops involing logical reduction operators are
+    parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source(f'''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            logical :: acc = .false.
+
+            do i = 1, ubound(arr)
+                acc = acc {op} arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert f"reduction({op}: acc)" in output
+
+
+@pytest.mark.parametrize("op", ["MAX", "MIN", "IAND", "IOR", "IEOR"])
+def test_reduction_intrins(op, fortran_reader, fortran_writer):
+    ''' Test that reduction loops involing intrinsic reduction operators are
+    parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source(f'''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = {op}(acc, arr(i))
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert f"reduction({op}: acc)" in output
+
+
+def test_bracketed_reductions(fortran_reader, fortran_writer):
+    ''' Test that bracketed reductions are correctly detected.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = (arr(i) + i) + acc
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_multiple_reductions(fortran_reader, fortran_writer):
+    ''' Test that a loop containing multiple reductions is parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc
+            integer :: acc1 = 0
+            integer :: acc2 = 1
+
+            do i = 1, ubound(arr)
+                acc1 = acc1 + arr(i)
+                acc2 = acc2 * arr(i)
+            end do
+            acc = acc1 + acc2
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc1)" in output
+    assert "reduction(*: acc2)" in output
+
+
+def test_conditional_reduction(fortran_reader, fortran_writer):
+    ''' Test that a loop containing a reduction inside a conditional
+    is parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                if (arr(i) > 0) then
+                    acc = acc + arr(i)
+                end if
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_multiple_reduction_same_var(fortran_reader, fortran_writer):
+    ''' Test that a loop containing multiple reductions of the same
+    operator/variable pair is parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+                if (arr(i) > 0) then
+                    acc = acc + 1
+                end if
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_multiple_reduction_same_var_diff_op(fortran_reader, fortran_writer):
+    ''' Test that a loop containing multiple reductions of the same
+    variable, but involve different operators, is not parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+                if (arr(i) > 0) then
+                    acc = acc * 2
+                end if
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
+    assert ("Variable 'acc' is read first, which indicates a reduction"
+            in str(err.value))
+
+
+def test_nested_reductions(fortran_reader, fortran_writer):
+    ''' Tests that nested loops containing reductions can be collapsed.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:, :)
+            integer :: i, j
+            integer :: acc = 0
+
+            do j = 1, size(arr, 2)
+                do i = 1, size(arr, 1)
+                    acc = acc + arr(i, j)
+                end do
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True, collapse=2)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+    assert "collapse(2)" in output
+
+
+def test_non_reduction1(fortran_reader, fortran_writer):
+    ''' Test that a loop that looks like it contains a reduction (but
+    doesn't), is not parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sub(arr1, arr2) result (count)
+            integer, intent(in) :: arr1(:)
+            integer, intent(out) :: arr2(:)
+            integer :: i
+            integer :: count = 1
+
+            do i = 1, size(arr)
+                if (arr1(i) > 0) then
+                    count = count + 1
+                end if
+                arr2(i) = count
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
+    assert ("Variable 'count' is read first, which indicates a reduction"
+            in str(err.value))
+
+
+def test_non_reduction2(fortran_reader, fortran_writer):
+    ''' Test that x = x + x does not lead to a reduction clause.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sub(arr) result (count)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: count = 1
+
+            do i = 1, size(arr)
+                count = count + count
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
+    assert ("Variable 'count' is read first, which indicates a reduction"
+            in str(err.value))
+
+
+def test_non_reduction3(fortran_reader, fortran_writer):
+    ''' Test that x = x / 2 does not lead to a reduction clause.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sub(arr) result (count)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: count = 1
+
+            do i = 1, size(arr)
+                count = count / 2
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
+    assert ("Variable 'count' is read first, which indicates a reduction"
+            in str(err.value))
+
+
+@pytest.mark.parametrize("d", ["teamsdistributeparalleldo", "teamsloop"])
+def test_reduction_teams(d, fortran_reader, fortran_writer):
+    ''' Test that reduction loops with a teams directive are parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive=d)
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, options={"enable_reductions": True})
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+@pytest.mark.parametrize("d", ["do", "loop"])
+def test_reduction_do_loop(d, fortran_reader, fortran_writer):
+    ''' Test that reduction loops with a do/loop directive inside a parallel
+        region are parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive=d)
+    loop = psyir.walk(Loop)[0]
+    OMPParallelTrans().apply(loop)
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_reduction_omp_parallel_loop_trans(fortran_reader, fortran_writer):
+    ''' Test that reduction loops are inferred in OMPParallelLoopTrans
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, options={"enable_reductions": True})
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_reduction_struct_member(fortran_reader, fortran_writer):
+    ''' Test that reduction loops involving struct members are
+    not parallelised. This is not yet supported by OpenMP.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (struct)
+            use mod
+            integer, intent(in) :: arr(:)
+            integer :: i
+            type(struct_type) :: struct
+
+            struct%acc = 0
+            do i = 1, ubound(arr)
+                struct%acc = struct%acc + arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
+    assert ("Variable 'struct%acc' is read first, which indicates a reduction"
+            in str(err.value))
+
+
+def test_reduction_private_clash(fortran_reader, fortran_writer):
+    '''Test that a variable does not occur in both a reduction clause
+       and a private clause.'''
+    psyir = fortran_reader.psyir_from_source('''
+        function or_arr(arr) result (acc)
+            logical, intent(in) :: arr(:)
+            integer :: i
+            logical :: acc = .false.
+
+            do i = 1, ubound(arr)
+                if (arr(i)) then
+                    acc = .true.
+                end if
+            end do
+        end function''')
+    loop = psyir.walk(Loop)[0]
+    loop_parent = loop.parent
+    loop_position = loop.position
+    do_directive = OMPParallelDoDirective(children=[loop.detach()])
+    loop_parent.addchild(do_directive, index=loop_position)
+    clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.OR)
+    clause.addchild(Reference(Symbol("acc")))
+    do_directive.addchild(clause)
+    output = fortran_writer(psyir)
+    assert "reduction(.OR.: acc)" in output
+    private_search = re.search("private\\((.*?)\\)", output)
+    if private_search:
+        assert "acc" not in private_search.group(1)
+
+
+def test_firstprivate_with_uninitialised(fortran_reader, fortran_writer):
+    ''' Check that guaranteed uninitialised symbols are not put in
+    firstprivate clauses. '''
+    code = '''
+    module test
+        integer :: a
+    contains
+        subroutine my_subroutine(b, cond)
+            integer, intent(inout) :: b, cond
+            integer :: c = 1, d, i, result
+            integer :: not_initialised
+
+            d = 1
+
+            do i = 10, 10, 1
+                if(cond < 1) then
+                    a = 1
+                    b = 1
+                    c = 1
+                    d = 1
+                    not_initialised = 1
+                    result = a + b + c + d + not_initialised
+                endif
+            end do
+        end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelLoopTrans()
+    loops = psyir.walk(Loop)
+    ptrans.apply(loops[0])
+    output = fortran_writer(psyir)
+    assert "private(i,not_initialised)" in output
+    assert "firstprivate(a,b,c,d)" in output
+
+    # Check that complex initialised cases, such as Codeblocks and
+    # initialisations below the loop are caught as a firstprivate
+    code = '''
+    module test
+    contains
+        subroutine my_subroutine(cond)
+            integer, intent(inout) :: cond
+            integer :: a, b, i, j, result
+
+            read(*,*) b
+
+            do j = 1, 10
+                if (j .neq. 1) then
+                    do i = 10, 10, 1
+                        if(cond < 1) then
+                            a = 1
+                        endif
+                        result = a
+                    end do
+                endif
+                a = 1
+            end do
+            do i = 10, 10, 1
+                if(cond < 1) then
+                    b = 1
+                endif
+                result = b
+            end do
+        end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelLoopTrans()
+    loops = psyir.walk(Loop)
+    ptrans.apply(loops[1])
+    ptrans.apply(loops[2])
+    output = fortran_writer(psyir)
+    assert "firstprivate(a)" in output
+    assert "firstprivate(b)" in output

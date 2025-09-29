@@ -46,10 +46,11 @@
 .. _psyir-ug:
 
 ===============================================
-PSyIR: the PSyclone Intermediate Representation
+The PSyIR
 ===============================================
 
-The PSyIR is at the heart of PSyclone, representing code for existing
+The PSyIR (PSyclone Intermediate Representation) is at the heart of PSyclone,
+representing both existing
 code and PSyKAl DSLs (at both the PSy- and kernel-layer levels). A PSyIR
 tree may be constructed from scratch (in Python) or by processing existing
 source code using a frontend. Transformations act on the PSyIR and
@@ -221,6 +222,12 @@ The semantic navigation methods are:
 - Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
        :no-index:
+- ``BinaryOperation``:
+   .. automethod:: psyclone.psyir.nodes.BinaryOperation.operands()
+       :no-index:
+- ``UnaryOperation``:
+   .. automethod:: psyclone.psyir.nodes.UnaryOperation.operand()
+       :no-index:
 
 
 DataTypes
@@ -281,39 +288,38 @@ Array DataType
 An Array datatype itself has another datatype (or ``DataTypeSymbol``)
 specifying the type of its elements and a shape. The shape can have an
 arbitrary number of dimensions. Each dimension captures what is known
-about its extent. It is necessary to distinguish between four cases:
+about its extent. It is necessary to distinguish between three cases:
 
 .. tabularcolumns:: |p{9cm}|L|
 
 +--------------------------------------------+--------------------------------+
 |Description                                 | Entry in ``shape`` list        |
 +============================================+================================+
-|An array has a static extent known at       | ``ArrayType.ArrayBounds``      |
-|compile time.                               | containing integer ``Literal`` |
-|                                            | values                         |
-+--------------------------------------------+--------------------------------+
-|An array has an extent defined by another   | ``ArrayType.ArrayBounds``      |
-|symbol or (constant) PSyIR expression.      | containing ``Reference`` or    |
-|                                            | ``Operation`` nodes            |
+|An array that has explict bound             | ``ArrayType.ArrayBounds``      |
+|expressions.                                | containing two PSyIR DataNodes.|
 +--------------------------------------------+--------------------------------+
 |An array has a definite extent which is not | ``ArrayType.Extent.ATTRIBUTE`` |
-|known at compile time but can be queried    |                                |
-|at runtime.                                 |                                |
+|known at compile time but can be queried    | or ``ArrayType.ArrayBounds``   |
+|at runtime.                                 | with the lower bound given by a|
+|                                            | ``DataNode`` and the upper     |
+|                                            | bound  by                      |
+|                                            | ``ArrayType.Extent.ATTRIBUTE`` |
 +--------------------------------------------+--------------------------------+
 |It is not known whether an array has memory | ``ArrayType.Extent.DEFERRED``  |
 |allocated to it in the current scoping unit.|                                |
 +--------------------------------------------+--------------------------------+
 
-where ``ArrayType.ArrayBounds`` is a ``namedtuple`` with ``lower`` and
+where ``ArrayType.ArrayBounds`` is a ``dataclass`` with ``lower`` and
 ``upper`` members holding the lower- and upper-bounds of the extent of a
-given array dimension.
+given array dimension. Sometimes, the lower bound of an array will be
+known while its extent is unknown. This is represented by having the
+``upper`` member set to ``ArrayType.Extent.ATTRIBUTE``.
 
 The distinction between the last two cases is that in the former the
 extents are known but are kept internally with the array (for example
-an assumed shape array in Fortran) and in the latter the array has not
+an assumed-shape array in Fortran) while in the latter, the array has not
 yet been allocated any memory (for example the declaration of an
-allocatable array in Fortran) so the extents may have not been defined
-yet.
+allocatable array in Fortran) so the extents may have not yet been defined.
 
 For example:
 
@@ -329,6 +335,10 @@ For example:
     ...                                     ArrayType.Extent.ATTRIBUTE])
 
     >>> array_type = ArrayType(BOOLEAN_TYPE, [ArrayType.Extent.DEFERRED])
+
+Note that Fortran "assumed-size" arrays (which have the last dimension
+specified with a ``*``) are not supported in the PSyIR and any such
+declaration will result in a ``DataSymbol`` of ``UnsupportedFortranType``.
 
 Structure Datatype
 ------------------
@@ -386,7 +396,7 @@ Some PSyIR nodes have an associated Symbol Table
 Symbols (`psyclone.psyir.symbols.Symbol`) specified and used within them.
 
 Symbol Tables can be nested (i.e. a node with an attached symbol table
-can be an ancestor or descendent of a node with an attached symbol
+can be an ancestor or descendant of a node with an attached symbol
 table). If the same symbol name is used in a hierarchy of symbol tables
 then the symbol within the symbol table attached to the closest
 ancestor node is in scope. By default, symbol tables are aware of

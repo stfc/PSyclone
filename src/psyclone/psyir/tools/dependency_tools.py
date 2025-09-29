@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter, R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
+#           M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 ''' This module provides tools that are based on the code
@@ -44,7 +45,7 @@ import sympy
 
 from psyclone.configuration import Config
 from psyclone.core import (AccessType, Signature, SymbolicMaths,
-                           VariablesAccessInfo)
+                           AccessInfo, AccessSequence)
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -90,15 +91,21 @@ class Message:
     :param int code: error or warning code.
     :param var_names: list of variable names (defaults to []).
     :type var_names: List[str]
+    :param var_infos: list of Signature/AccessSequence pairs (defaults
+       to None). If not None, each list element contains the info pair for
+       corresponding variable in the var_names list.
+    :type var_infos: List[Tuple[:py:class:`psyclone.core.Signature`,
+                                :py:class:`psyclone.core.AccessSequence`]]
 
     '''
-    def __init__(self, message, code, var_names=None):
+    def __init__(self, message, code, var_names=None, var_infos=None):
         self._message = message
         self._code = code
         if var_names:
             self._var_names = var_names
         else:
             self._var_names = []
+        self._var_infos = var_infos
 
     # ------------------------------------------------------------------------
     def __str__(self):
@@ -127,6 +134,18 @@ class Message:
         # We convert each expression into a string to support LazyStrings
         # inside of 'var_names'
         return [str(i) for i in self._var_names]
+
+    # ------------------------------------------------------------------------
+    @property
+    def var_infos(self):
+        ''':returns: the Signature/AccessSequence pair for each variable to
+        which the message applies, or None if this information does not exist.
+
+        :rtype: List[Tuple[:py:class:`psyclone.core.Signature`,
+                           :py:class:`psyclone.core.AccessSequence`]]
+
+        '''
+        return self._var_infos
 
 
 # ============================================================================
@@ -171,7 +190,7 @@ class DependencyTools():
         self._messages = []
 
     # -------------------------------------------------------------------------
-    def _add_message(self, message, code, var_names=None):
+    def _add_message(self, message, code, var_names=None, var_infos=None):
         '''Adds an informational message to the internal message
         handling system.
 
@@ -179,6 +198,11 @@ class DependencyTools():
         :param int code: error or warning code.
         :param var_names: list of variable names (defaults to []).
         :type var_names: List[str]
+        :param var_infos: list of Signature/AccessSequence pairs (defaults to
+           None). If not None, each list element contains the info pair for
+           corresponding variable in the var_names list.
+        :type var_infos: List[Tuple[:py:class:`psyclone.core.Signature`,
+                                    :py:class:`psyclone.core.AccessSequence`]]
 
         '''
         if DTCode.INFO_MIN <= code <= DTCode.INFO_MAX:
@@ -190,8 +214,22 @@ class DependencyTools():
         else:
             raise InternalError(f"Unknown message code {code}.")
 
+        if var_infos is not None:
+            if var_names is None or len(var_names) != len(var_infos):
+                raise InternalError("The var_names and var_infos arguments "
+                                    "to _add_message must have the same "
+                                    "length")
+            for info in var_infos:
+                if not (isinstance(info, tuple) and
+                        len(info) == 2 and
+                        isinstance(info[0], Signature) and
+                        isinstance(info[1], AccessSequence)):
+                    raise TypeError(
+                              "The var_infos argument to _add_message must "
+                              "be a list of Signature/AccessSequence pairs")
+
         self._messages.append(Message(f"{message_type}: {message}", code,
-                                      var_names))
+                                      var_names, var_infos))
 
     # -------------------------------------------------------------------------
     def get_all_messages(self):
@@ -639,7 +677,7 @@ class DependencyTools():
         :type loop_variables: List[str]
         :param var_info: access information for this variable.
         :type var_info:
-            :py:class:`psyclone.core.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.AccessSequence`
 
         :return: whether the variable can be used in parallel.
         :rtype: bool
@@ -734,33 +772,33 @@ class DependencyTools():
         return True
 
     # -------------------------------------------------------------------------
-    def _is_scalar_parallelisable(self, var_info):
+    def _is_scalar_parallelisable(self, sig: Signature,
+                                  access_info: AccessInfo):
         '''Checks if the accesses to the given scalar variable can be
         parallelised, i.e. it is not a reduction.
 
-        :param var_info: the access information for the variable to test.
-        :type var_info: :py:class:`psyclone.core.var_info.VariableInfo`
+        :param sig: the signature for the variable to test.
+        :param access_info: the access information for the variable to test.
         :return: True if the scalar variable is not a reduction, i.e. it
             can be parallelised.
         :rtype: bool
         '''
 
         # Read only scalar variables can be parallelised
-        if var_info.is_read_only():
+        if access_info.is_read_only():
             return True
 
-        all_accesses = var_info.all_accesses
-        if len(all_accesses) == 1:
+        if len(access_info) == 1:
             # The variable is used only once. Either it is a read-only
             # variable, or it is supposed to store the result from the loop to
             # be used outside of the loop (or it is bad code). Read-only access
             # has already been tested above, so it must be a write access here,
             # which prohibits parallelisation.
             # We could potentially use lastprivate here?
-            self._add_message(f"Scalar variable '{var_info.var_name}' is "
-                              f"only written once.",
+            self._add_message(f"Scalar variable '{access_info.var_name}' "
+                              "is only written once.",
                               DTCode.WARN_SCALAR_WRITTEN_ONCE,
-                              [f"{var_info.var_name}"])
+                              [f"{access_info.var_name}"])
             return False
 
         # Now we have at least two accesses. If the first access is a WRITE,
@@ -769,16 +807,16 @@ class DependencyTools():
         # a 'READWRITE' access because, in that case, all we know is what the
         # kernel metadata tells us. However, we do know that such an access is
         # *not* a reduction because that would have 'SUM' access.
-        if all_accesses[0].access_type in (AccessType.WRITE,
-                                           AccessType.READWRITE):
+        if access_info[0].access_type in (AccessType.WRITE,
+                                          AccessType.READWRITE):
             return True
 
         # Otherwise there is a read first, which would indicate that this loop
         # is a reduction, which is not supported atm.
-        self._add_message(f"Variable '{var_info.var_name}' is read first, "
-                          f"which indicates a reduction.",
+        self._add_message(f"Variable '{access_info.var_name}' is read "
+                          f"first, which indicates a reduction.",
                           DTCode.WARN_SCALAR_REDUCTION,
-                          [var_info.var_name])
+                          [access_info.var_name], [(sig, access_info)])
         return False
 
     # -------------------------------------------------------------------------
@@ -814,7 +852,7 @@ class DependencyTools():
                             f"instance of class Loop but got "
                             f"'{type(loop).__name__}'")
 
-        var_accesses = VariablesAccessInfo(loop)
+        var_accesses = loop.reference_accesses()
         if not signatures_to_ignore:
             signatures_to_ignore = []
 
@@ -837,7 +875,7 @@ class DependencyTools():
 
             # Access the symbol by inspecting the first access reference
             try:
-                symbol = var_info.all_accesses[0].node.symbol
+                symbol = var_info[0].node.symbol
             except AttributeError:
                 # If its a node without a symbol, look it up
                 var_name = signature.var_name
@@ -851,7 +889,7 @@ class DependencyTools():
                                                              var_info)
             else:
                 # Handle scalar variable
-                par_able = self._is_scalar_parallelisable(var_info)
+                par_able = self._is_scalar_parallelisable(signature, var_info)
             if not par_able:
                 if not test_all_variables:
                     return False
@@ -880,8 +918,8 @@ class DependencyTools():
         # has done tests for loop boundaries (depending on domain)
 
         self._clear_messages()
-        vars1 = VariablesAccessInfo(loop1)
-        vars2 = VariablesAccessInfo(loop2)
+        vars1 = loop1.reference_accesses()
+        vars2 = loop2.reference_accesses()
 
         # Check if the loops have the same loop variable
         loop_var1 = loop1.variable
@@ -991,10 +1029,10 @@ class DependencyTools():
 
         :param var_info1: access information for variable in the first loop.
         :type var_info1: \
-            :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.var_info.AccessSequence`
         :param var_info2: access information for variable in the second loop.
         :type var_info2: \
-            :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.var_info.AccessSequence`
         :param loop_variable1: symbol of the variable associated with the \
             first loop being fused.
         :type loop_variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -1008,7 +1046,7 @@ class DependencyTools():
 
         '''
         # pylint: disable=too-many-locals
-        all_accesses = var_info1.all_accesses + var_info2.all_accesses
+        all_accesses = var_info1 + var_info2
         loop_var_name1 = loop_variable1.name
         # Compare all accesses with the first one. If the loop variable
         # is used in a different subscript, raise an error. We test this

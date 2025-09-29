@@ -1,9 +1,9 @@
 # Kernel Extraction Library Using NetCDF
 
 This directory contains files related to [writing (extracting)](
-https://psyclone.readthedocs.io/en/stable/psyke.html) input and output
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html) input and output
 parameters of instrumented code regions to a [NetCDF file](
-https://psyclone.readthedocs.io/en/stable/psyke.html#netcdf-extraction-example).
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html#netcdf-extraction-example).
 There is a [PSyData base class](
 https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#psydata-base-class)
 as a Jinja template that can be used to simplify the creation of API-specific
@@ -34,14 +34,13 @@ variable ``MPI=yes``.
 ## [``dl_esm_inf``](./dl_esm_inf) directory
 
 Contains the NetCDF-extract, PSyData-API-based, wrapper library for the
-``dl_esm_inf`` [GOcean API](
-https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
+``dl_esm_inf`` [GOcean API](https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html).
 
 ## [``lfric``](./lfric) directory
 
 Contains the NetCDF-extract, PSyData-API-based, wrapper library for the
-[LFRic (Dynamo 0.3) API](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
+[LFRic API](
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html).
 
 <!--
 ## Licence

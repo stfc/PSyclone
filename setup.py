@@ -162,8 +162,7 @@ if __name__ == '__main__':
         packages=PACKAGES,
         package_dir={"": "src"},
         install_requires=['pyparsing', 'fparser>=0.2.0', 'configparser',
-                          'jsonschema', 'sympy', "Jinja2", 'termcolor',
-                          'graphviz'],
+                          'sympy', "Jinja2", 'termcolor', 'graphviz'],
         extras_require={
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_design",
                     "pydata-sphinx-theme", "sphinx-autodoc-typehints",
@@ -171,7 +170,12 @@ if __name__ == '__main__':
             'test': ["flake8", "pylint", "pytest-cov", "pytest-xdist"],
         },
         include_package_data=True,
-        scripts=['bin/psyclone', 'bin/psyclone-kern', 'bin/psyad'],
+        scripts=[
+            'bin/psyclone',
+            'bin/psyclone-kern',
+            'bin/psyad',
+            'bin/psyclonefc',
+        ],
         data_files=[
             ('share/psyclone',
              ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL+LIBS,)

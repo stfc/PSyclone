@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
+#           M. Naylor, University of Cambridge, UK
 
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
@@ -41,10 +43,11 @@ from psyclone.psyir.nodes import (
     Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
     OMPScheduleClause, OMPBarrierDirective, OMPParallelDirective,
+    OMPReductionClause, BinaryOperation, IntrinsicCall
 )
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 #: Mapping from simple string to actual directive class.
 MAP_STR_TO_LOOP_DIRECTIVES = {
@@ -62,13 +65,43 @@ MAP_STR_TO_BARRIER_DIRECTIVE = {
 #: List containing the valid names for OMP directives.
 VALID_OMP_DIRECTIVES = list(MAP_STR_TO_LOOP_DIRECTIVES.keys())
 
+#: Mapping from PSyIR reduction operator to OMP reduction operator.
+MAP_REDUCTION_OP_TO_OMP = {
+    BinaryOperation.Operator.ADD:
+        OMPReductionClause.ReductionClauseTypes.ADD,
+    BinaryOperation.Operator.SUB:
+        OMPReductionClause.ReductionClauseTypes.SUB,
+    BinaryOperation.Operator.MUL:
+        OMPReductionClause.ReductionClauseTypes.MUL,
+    BinaryOperation.Operator.AND:
+        OMPReductionClause.ReductionClauseTypes.AND,
+    BinaryOperation.Operator.OR:
+        OMPReductionClause.ReductionClauseTypes.OR,
+    BinaryOperation.Operator.EQV:
+        OMPReductionClause.ReductionClauseTypes.EQV,
+    BinaryOperation.Operator.NEQV:
+        OMPReductionClause.ReductionClauseTypes.NEQV,
+    IntrinsicCall.Intrinsic.MAX:
+        OMPReductionClause.ReductionClauseTypes.MAX,
+    IntrinsicCall.Intrinsic.MIN:
+        OMPReductionClause.ReductionClauseTypes.MIN,
+    IntrinsicCall.Intrinsic.IAND:
+        OMPReductionClause.ReductionClauseTypes.IAND,
+    IntrinsicCall.Intrinsic.IOR:
+        OMPReductionClause.ReductionClauseTypes.IOR,
+    IntrinsicCall.Intrinsic.IEOR:
+        OMPReductionClause.ReductionClauseTypes.IEOR
+}
 
+
+@transformation_documentation_wrapper
 class OMPLoopTrans(ParallelLoopTrans):
     '''
     Adds an OpenMP directive to parallelise this loop. It can insert different
     directives such as "omp do/for", "omp parallel do/for", "omp teams
     distribute parallel do/for" or "omp loop" depending on the provided
     parameters.
+
     The OpenMP schedule to use can also be specified, but this will be ignored
     in case of the "omp loop" (as the 'schedule' clause is not valid for this
     specific directive). The configuration-defined 'reprod' parameter
@@ -77,15 +110,19 @@ class OMPLoopTrans(ParallelLoopTrans):
     same number of OpenMP threads, not for different numbers of OpenMP threads.
 
     :param str omp_schedule: the OpenMP schedule to use. Defaults to 'auto'.
-    :param str omp_directive: choose which OpenMP loop directive to use. \
-        Defaults to "omp do"
+    :param str omp_directive: choose which OpenMP loop directive to use.
+        Defaults to "do". The available options are "do" for "omp do";
+        "paralleldo" for "omp parallel do"; "teamsdistributeparalleldo"
+        for "omp teams distribute parallel do"; "teamsloop" for
+        "omp teams loop"; and "loop" for "omp loop".
 
     For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.nodes import Loop
-    >>> from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
+    >>> from psyclone.psyir.transformations import OMPLoopTrans
+    >>> from psyclone.transformations import OMPParallelTrans
     >>>
     >>> psyir = FortranReader().psyir_from_source("""
     ...     subroutine my_subroutine()
@@ -178,29 +215,23 @@ class OMPLoopTrans(ParallelLoopTrans):
                 containing_schedule.addchild(barrier_type())
             return
 
-        # Otherwise we have the next dependency and we need to find where the
-        # correct place for the preceding barrier is. Need to find a
+        # Otherwise we have the next dependencies and we need to find where
+        # the correct place for the preceding barrier is. Need to find a
         # guaranteed control flow path to place it.
-
-        # Find the deepest schedule in the tree containing both.
-        sched = next_depend.ancestor(Schedule, shared_with=node)
-        routine = node.ancestor(Routine)
-        if sched and sched.is_descendent_of(routine):
-            # Get the path from sched to next_depend
-            path = next_depend.path_from(sched)
+        for depend in next_depend:
+            # Find the deepest schedule in the tree containing both.
+            sched = depend.ancestor(Schedule, shared_with=node)
+            # Get the path from sched to depend
+            path = depend.path_from(sched)
             # The first element of path is the position of the ancestor
             # of next_depend that is in sched, so we add the barrier there.
             sched.addchild(barrier_type(), path[0])
-            instance.nowait = True
-
-        # If we didn't find anywhere to put the barrier then we just don't
-        # add the nowait.
-        # TODO #11: If we fail to have nowait added then log it.
+        instance.nowait = True
 
     @property
     def omp_directive(self):
         '''
-        :returns: the type of OMP directive that this transformation will \
+        :returns: the type of OMP directive that this transformation will
             insert.
         :rtype: str
         '''
@@ -223,7 +254,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     @property
     def omp_schedule(self):
         '''
-        :returns: the OpenMP schedule that will be specified by \
+        :returns: the OpenMP schedule that will be specified by
             this transformation.
         :rtype: str
 
@@ -233,12 +264,12 @@ class OMPLoopTrans(ParallelLoopTrans):
     @omp_schedule.setter
     def omp_schedule(self, value):
         '''
-        :param str value: Sets the OpenMP schedule value that will be \
-            specified by this transformation, unless adding an OMP Loop \
+        :param str value: Sets the OpenMP schedule value that will be
+            specified by this transformation, unless adding an OMP Loop
             directive (in which case it is not applicable).
 
         :raises TypeError: if the provided value is not a string.
-        :raises ValueError: if the provided string is not a valid OpenMP \
+        :raises ValueError: if the provided string is not a valid OpenMP
             schedule format.
         '''
 
@@ -271,17 +302,17 @@ class OMPLoopTrans(ParallelLoopTrans):
         ''' Creates the type of directive needed for this sub-class of
         transformation.
 
-        :param children: list of Nodes that will be the children of \
+        :param children: list of Nodes that will be the children of
             the created directive.
         :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param int collapse: number of nested loops to collapse or None if \
+        :param int collapse: number of nested loops to collapse or None if
             no collapse attribute is required.
 
         :returns: the new node representing the directive in the AST
-        :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective` | \
-            :py:class:`psyclone.psyir.nodes.OMPParallelDoDirective` | \
-            :py:class:`psyclone.psyir.nodes. \
-            OMPTeamsDistributeParallelDoDirective` | \
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPDoDirective` |
+            :py:class:`psyclone.psyir.nodes.OMPParallelDoDirective` |
+            :py:class:`psyclone.psyir.nodes.
+            OMPTeamsDistributeParallelDoDirective` |
             :py:class:`psyclone.psyir.nodes.OMPLoopDirective`
         '''
         node = MAP_STR_TO_LOOP_DIRECTIVES[self._omp_directive](
@@ -294,42 +325,56 @@ class OMPLoopTrans(ParallelLoopTrans):
             node.reprod = self._reprod
         return node
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None,
+              reprod: bool = None,
+              enable_reductions: bool = False,
+              **kwargs):
         '''Apply the OMPLoopTrans transformation to the specified PSyIR Loop.
 
-        :param node: the supplied node to which we will apply the \
+        :param node: the supplied node to which we will apply the
                      OMPLoopTrans transformation
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations\
+        :param bool reprod: indicating whether reproducible reductions should
+            be used. By default the value from the config file will be used.
+        :param options: a dictionary with options for transformations
                         and validation.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["reprod"]:
-                indicating whether reproducible reductions should be used. \
-                By default the value from the config file will be used.
-
+        :param enable_reductions: whether to attempt to infer reduction
+            clauses or not.
         '''
+        if enable_reductions:
+            red_ops = list(MAP_REDUCTION_OP_TO_OMP.keys())
+        else:
+            red_ops = []
+
+        # TODO 2668 - options dict is deprecated.
+        local_options = options.copy() if options is not None else None
         if not options:
-            options = {}
-        self._reprod = options.get("reprod",
-                                   Config.get().reproducible_reductions)
+            if reprod is None:
+                reprod = Config.get().reproducible_reductions
+            self.validate_options(
+                    reprod=reprod,
+                    enable_reductions=enable_reductions,
+                    reduction_ops=red_ops,
+                    **kwargs
+            )
+            self._reprod = reprod
+        else:
+            self._reprod = options.get("reprod",
+                                       Config.get().reproducible_reductions)
+            if options.get("enable_reductions", False):
+                local_options["reduction_ops"] = list(
+                    MAP_REDUCTION_OP_TO_OMP.keys())
+            else:
+                local_options["reduction_ops"] = []
 
-        if self._reprod:
-            # When reprod is True, the variables th_idx and nthreads are
-            # expected to be declared in the scope.
-            root = node.ancestor(Routine)
+        parent = node.parent
+        position = node.position
+        super().apply(node, local_options, reduction_ops=red_ops, **kwargs)
 
-            symtab = root.symbol_table
-            try:
-                symtab.lookup_with_tag("omp_thread_index")
-            except KeyError:
-                symtab.new_symbol(
-                    "th_idx", tag="omp_thread_index",
-                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-            try:
-                symtab.lookup_with_tag("omp_num_threads")
-            except KeyError:
-                symtab.new_symbol(
-                    "nthreads", tag="omp_num_threads",
-                    symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-
-        super().apply(node, options)
+        # Add reduction clauses to the newly introduced directive
+        directive = parent.children[position]
+        for (op, ref) in self.inferred_reduction_clauses:
+            clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
+            clause.addchild(ref)
+            directive.addchild(clause)

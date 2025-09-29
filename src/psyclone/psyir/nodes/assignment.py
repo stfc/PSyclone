@@ -39,9 +39,8 @@
 
 ''' This module contains the Assignment node implementation.'''
 
-from psyclone.core import VariablesAccessInfo
+from psyclone.core import VariablesAccessMap
 from psyclone.errors import InternalError
-from psyclone.f2pygen import PSyIRGen
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.datanode import DataNode
@@ -173,22 +172,18 @@ class Assignment(Statement):
             result += str(entity)
         return result
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information from this node. The assigned-to
-        variable will be set to 'WRITE'.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
 
         '''
         # It is important that a new instance is used to handle the LHS,
         # since a check in 'change_read_to_write' makes sure that there
-        # is only one access to the variable! Also forward the options
-        # from the original object to the new object.
-        accesses_left = VariablesAccessInfo(options=var_accesses.options())
-        self.lhs.reference_accesses(accesses_left)
+        # is only one access to the variable!
+        lhs_accesses = self.lhs.reference_accesses()
         # Now change the (one) access to the assigned variable to be WRITE.
         # Note that if the LHS is a CodeBlock then reference_accesses() will
         # already have given all Signatures READWRITE access. This is not
@@ -196,7 +191,7 @@ class Assignment(Statement):
         # subject of #2863.
         if isinstance(self.lhs, Reference):
             sig, _ = self.lhs.get_signature_and_indices()
-            var_info = accesses_left[sig]
+            var_info = lhs_accesses[sig]
             try:
                 var_info.change_read_to_write()
             except InternalError as err:
@@ -212,9 +207,9 @@ class Assignment(Statement):
         # RHS is added, so that in statements like 'a=a+1' the read on
         # the RHS comes before the write on the LHS (they have the same
         # location otherwise, but the order is still important)
-        self.rhs.reference_accesses(var_accesses)
-        var_accesses.merge(accesses_left)
-        var_accesses.next_location()
+        rhs_accesses = self.rhs.reference_accesses()
+        rhs_accesses.update(lhs_accesses)
+        return rhs_accesses
 
     @property
     def is_array_assignment(self):
@@ -261,11 +256,3 @@ class Assignment(Statement):
 
         '''
         return isinstance(self.rhs, Literal)
-
-    def gen_code(self, parent):
-        '''F2pygen code generation of an Assignment.
-
-        :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        '''
-        parent.add(PSyIRGen(parent, self))

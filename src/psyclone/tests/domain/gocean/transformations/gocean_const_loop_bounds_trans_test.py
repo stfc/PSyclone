@@ -38,7 +38,6 @@
 ''' Module containing tests of GOConstLoopBoundsTrans when using the
     GOcean 1.0 API '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOLoop
@@ -88,10 +87,10 @@ def test_const_loop_bounds_trans(tmpdir):
     # First check that the generated code doesn't use constant loop
     # bounds by default.
     gen = str(psy.gen)
-    assert "DO j = cv_fld%internal%ystart, cv_fld%internal%ystop" in gen
-    assert "DO i = cv_fld%internal%xstart, cv_fld%internal%xstop" in gen
-    assert "DO j = p_fld%whole%ystart, p_fld%whole%ystop" in gen
-    assert "DO i = p_fld%whole%xstart, p_fld%whole%xstop" in gen
+    assert "do j = cv_fld%internal%ystart, cv_fld%internal%ystop" in gen
+    assert "do i = cv_fld%internal%xstart, cv_fld%internal%xstop" in gen
+    assert "do j = p_fld%whole%ystart, p_fld%whole%ystop" in gen
+    assert "do i = p_fld%whole%xstart, p_fld%whole%xstop" in gen
 
     # Next, check the generated code applying the constant loop-bounds
     # transformation.
@@ -100,12 +99,12 @@ def test_const_loop_bounds_trans(tmpdir):
     schedule = invoke.schedule
     cbtrans.apply(schedule)
     gen = str(psy.gen)
-    assert "INTEGER istop" in gen
-    assert "INTEGER jstop" in gen
+    assert "integer :: istop" in gen
+    assert "integer :: jstop" in gen
     assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
     assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
-    assert "DO j = 2, jstop - 1" in gen
-    assert "DO i = 2, istop" in gen
+    assert "do j = 2, jstop - 1" in gen
+    assert "do i = 2, istop" in gen
 
     assert GOceanBuild(tmpdir).code_compiles(psy)
 

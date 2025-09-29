@@ -34,33 +34,29 @@
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 
-include ../../common.mk
+include ../lfric_common.mk
 
 GENERATED_FILES = mixed_precision_psy.f90 alg.f90 ${EXEC} ${OBJ} *.mod
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
-
 OBJ = alg.o mixed_precision_psy.o mixed_kernel_mod.o
 
 EXEC = will_not_run.exe
-LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-
-# This will add the required include flags to LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
 
 .PHONY: transform compile run
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) $(LDFLAGS)
 
 compile: transform $(EXEC)
 
+# Runs PSyclone to do the code generation. Also demonstrates the use of the
+# example 'kernel_print' transformation which prints the Fortran of each
+# kernel found.
 transform:
-	${PSYCLONE} -api lfric algorithm.x90 -opsy mixed_precision_psy.f90 -oalg alg.f90
+	${PSYCLONE} -api lfric algorithm.x90 -s ../scripts/kernel_print.py -opsy mixed_precision_psy.f90 -oalg alg.f90
 
 alg.f90 mixed_precision_psy.f90: transform
 alg.o: mixed_precision_psy.o
@@ -69,15 +65,11 @@ mixed_precision_psy.o: mixed_kernel_mod.o
 run: compile
 	@echo "No run targets for lfric/eg19"
 
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
-
-
 %.o: %.F90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -c $<
 
 allclean: clean
 	make -C $(LFRIC_PATH) allclean

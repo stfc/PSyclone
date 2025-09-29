@@ -127,11 +127,11 @@ def test_omptask_apply(fortran_reader, fortran_writer):
   integer, dimension(10,10) :: t
   integer, dimension(10,10) :: s
 
-  !$omp parallel default(shared), private(ji,jj)
+  !$omp parallel default(shared) private(ji,jj)
   !$omp single
   do jj = 1, 10, 1
-    !$omp task private(ji), firstprivate(jj), shared(t,s), \
-depend(in: s(:,jj)), depend(out: t(:,jj))
+    !$omp task private(ji) firstprivate(jj) shared(t,s) \
+depend(in: s(:,jj)) depend(out: t(:,jj))
     do ji = 1, SIZE(ji, 2), 1
       t(ji,jj) = INT(s(ji,jj))
     enddo
@@ -178,10 +178,6 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     trans = OMPTaskTrans()
     master = OMPSingleTrans()
     parallel = OMPParallelTrans()
-    calls = psyir.walk(Call)
-    # TODO #2916 - this setting of `is_pure` shouldn't be necessary as the
-    # frontend should have done it.
-    calls[0].routine.symbol.is_pure = True
     loops = my_test.walk(Loop)
     trans.apply(loops[1])
     master.apply(my_test.children[:])

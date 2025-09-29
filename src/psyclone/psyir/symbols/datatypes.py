@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the datatype definitions.'''
@@ -42,7 +43,7 @@ import copy
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -93,18 +94,22 @@ class DataType(metaclass=abc.ABCMeta):
 
         '''
 
-    def reference_accesses(self, sym: Symbol, access_info):
+    def reference_accesses(self):
         '''
-        Get all symbols referenced in this datatype.
-
-        :param sym: the Symbol that this datatype is for.
-        :param access_info: instance in which to store access info.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core import VariablesAccessMap
+        return VariablesAccessMap()
 
     @property
-    def is_allocatable(self) -> Union[bool, None]:
+    def is_allocatable(self) -> Optional[bool]:
         '''
         :returns: whether this DataType is allocatable. In the base class
             set this to be always False.'''
@@ -119,7 +124,7 @@ class UnresolvedType(DataType):
         return "UnresolvedType"
 
     @property
-    def is_allocatable(self) -> Union[bool, None]:
+    def is_allocatable(self) -> Optional[bool]:
         '''
         :returns: whether this DataType is allocatable. In case of an
             UnresolvedType we don't know.'''
@@ -323,29 +328,33 @@ class UnsupportedFortranType(UnsupportedType):
             return self.partial_datatype.intrinsic
         return None
 
-    def reference_accesses(self, sym: Symbol, access_info):
+    def reference_accesses(self):
         '''
-        Get all symbols referenced in this datatype.
-
-        :param sym: the Symbol that this datatype is for.
-        :param access_info: instance in which to store access info.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        super().reference_accesses(sym, access_info)
+        access_info = super().reference_accesses()
 
         if self.partial_datatype:
             if isinstance(self.partial_datatype, DataTypeSymbol):
+                # Avoid circular import
+                # pylint: disable=import-outside-toplevel
                 from psyclone.core.signature import Signature
                 from psyclone.core.access_type import AccessType
                 access_info.add_access(
                     Signature(self.partial_datatype.name),
                     AccessType.TYPE_INFO, self)
             else:
-                self.partial_datatype.reference_accesses(sym, access_info)
+                access_info.update(
+                    self.partial_datatype.reference_accesses())
+        return access_info
 
     @property
-    def is_allocatable(self) -> Union[bool, None]:
+    def is_allocatable(self) -> Optional[bool]:
         '''If we have enough information in the partial_datatype,
         determines whether this data type is allocatable or not.
         If it is unknown, it will return None. Note that atm PSyclone
@@ -514,24 +523,27 @@ class ScalarType(DataType):
             if new_sym:
                 self._precision = new_sym
 
-    def reference_accesses(self, sym, access_info):
+    def reference_accesses(self):
         '''
-        Get all symbols referenced in this datatype.
-
-        :param sym: the Symbol that this datatype is for.
-        :param access_info: instance in which to store access info.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        super().reference_accesses(sym, access_info)
+        access_info = super().reference_accesses()
 
         if isinstance(self.precision, Symbol):
+            # Avoid circular import
+            # pylint: disable=import-outside-toplevel
             from psyclone.core.signature import Signature
             from psyclone.core.access_type import AccessType
 
             access_info.add_access(
                 Signature(self.precision.name),
-                AccessType.TYPE_INFO, sym)
+                AccessType.TYPE_INFO, self)
+        return access_info
 
 
 class ArrayType(DataType):
@@ -565,11 +577,12 @@ class ArrayType(DataType):
     class Extent(Enum):
         '''
         Enumeration of array shape extents that are unspecified at compile
-        time. An 'ATTRIBUTE' extent means that the lower bound is 1 with an
-        unknown extent (which can be retrieved with appropriate run-time
-        intrinsics). A 'DEFERRED' extent means that we don't know anything
-        about the bounds, and run-time intrinsics may or may not be able
-        to retrieve them (e.g. the array may need to be allocated/malloc'd).
+        time. An 'ATTRIBUTE' extent means that the lower bound is known
+        (defaults to 1 if not specified) with an unknown extent (which can be
+        retrieved at run-time with the UBOUND intrinsic). A 'DEFERRED' extent
+        means that we don't know anything about the bounds, and run-time
+        intrinsics may or may not be able to retrieve them (e.g. the array may
+        need to be allocated/malloc'd).
 
         '''
         DEFERRED = 1
@@ -582,31 +595,86 @@ class ArrayType(DataType):
             '''
             return copy.copy(self)
 
-        def reference_accesses(self, _):
+        def reference_accesses(self):
             '''
-            An Extent cannot contain any variable accesses so there's nothing
-            to do.
+            :returns: a map of all the symbol accessed inside this object, the
+                keys are Signatures (unique identifiers to a symbol and its
+                structure acccessors) and the values are
+                AccessSequence (a sequence of AccessTypes).
+            :rtype: :py:class:`psyclone.core.VariablesAccessMap`
+
             '''
+            # pylint: disable=import-outside-toplevel
+            from psyclone.core import VariablesAccessMap
+            return VariablesAccessMap()
 
     @dataclass(frozen=True)
     class ArrayBounds:
         '''
-        Class to store lower and upper limits of an array dimension.
+        Class to store lower and upper limits of a declared array dimension.
 
         :param lower: the lower bound of the array dimension.
         :type lower: :py:class:`psyclone.psyir.nodes.DataNode`
-        :param upper: the upper bound of the array dimension.
-        :type upper: :py:class:`psyclone.psyir.nodes.DataNode`
+        :param upper: the upper bound of the array dimension or
+             ArrayType.Extent.ATTRIBUTE if unspecified.
+        :type upper: Union[:py:class:`psyclone.psyir.nodes.DataNode`,
+            `psyclone.psyir.symbols.datatypes.ArrayType.Extent.ATTRIBUTE`]
         '''
         # Have to use Any here as using DataNode causes a circular dependence.
         lower: Any
         upper: Any
 
+        def __post_init__(self):
+            '''
+            Adds validation of the values provided to the constructor.
+
+            :raises TypeError: if either bound is not a DataNode (or
+                               ArrayType.Extent.ATTRIBUTE for the upper bound).
+            '''
+            # This import must be placed here to avoid circular dependencies.
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.psyir.nodes import Assignment, DataNode
+
+            def _dangling_parent(
+                    node: Union[DataNode, ArrayType.Extent]
+            ) -> Union[DataNode, ArrayType.Extent]:
+                ''' Helper routine that copies and adds a dangling parent
+                Assignment to a given node, this implicitly guarantees that the
+                node is not attached anywhere else (and is unexpectedly
+                modified) and also makes it behave like other nodes (e.g. calls
+                inside an expression do not have the "call" keyword in Fortran)
+
+                :param node: The given bound.
+
+                :returns: the node with dangling parent when necessary.
+                '''
+                if isinstance(node, DataNode):
+                    parent = Assignment()
+                    parent.addchild(node.copy())
+                    return parent.children[0]
+                return node
+
+            if not isinstance(self.lower, DataNode):
+                raise TypeError(
+                    f"The lower bound provided when constructing an "
+                    f"ArrayBounds must be an instance of DataNode but got "
+                    f"'{type(self.lower).__name__}'")
+            if (self.upper != ArrayType.Extent.ATTRIBUTE and
+                    not isinstance(self.upper, DataNode)):
+                raise TypeError(
+                    f"The upper bound provided when constructing an "
+                    f"ArrayBounds must be either ArrayType.Extent.ATTRIBUTE or"
+                    f" an instance of DataNode but got "
+                    f"'{type(self.upper).__name__}'")
+            # setattr necessary to bypass frozen dataclass restrictions
+            object.__setattr__(self, 'lower', _dangling_parent(self.lower))
+            object.__setattr__(self, 'upper', _dangling_parent(self.upper))
+
     def __init__(self, datatype, shape):
 
         # This import must be placed here to avoid circular dependencies.
         # pylint: disable-next=import-outside-toplevel
-        from psyclone.psyir.nodes import Literal, DataNode, Assignment
+        from psyclone.psyir.nodes import Literal, DataNode
 
         def _node_from_int(var):
             ''' Helper routine that simply creates a Literal out of an int.
@@ -621,25 +689,6 @@ class ArrayType(DataType):
             '''
             if isinstance(var, int):
                 return Literal(str(var), INTEGER_TYPE)
-            return var
-
-        def _dangling_parent(var):
-            ''' Helper routine that copies and adds a dangling parent
-            Assignment to a given node, this implicitly guarantees that the
-            node is not attached anywhere else (and is unexpectedly modified)
-            and also makes it behave like other nodes (e.g. calls inside an
-            expression do not have the "call" keyword in Fortran)
-
-            :param var: variable with a dangling parent if necessary.
-            :type var: int | :py:class:`psyclone.psyir.nodes.DataNode` | Extent
-
-            :returns: the variable with dangling parent when necessary.
-            :rtype: :py:class:`psyclone.psyir.nodes.DataNode` | Extent
-            '''
-            if isinstance(var, DataNode):
-                parent = Assignment()
-                parent.addchild(var.copy())
-                return parent.children[0]
             return var
 
         if isinstance(datatype, DataType):
@@ -674,14 +723,11 @@ class ArrayType(DataType):
             if isinstance(dim, (DataNode, int)):
                 # The lower bound is 1 by default.
                 self._shape.append(
-                    ArrayType.ArrayBounds(
-                        _dangling_parent(one.copy()),
-                        _dangling_parent(_node_from_int(dim))))
+                    ArrayType.ArrayBounds(one, _node_from_int(dim)))
             elif isinstance(dim, tuple):
                 self._shape.append(
-                    ArrayType.ArrayBounds(
-                        _dangling_parent(_node_from_int(dim[0])),
-                        _dangling_parent(_node_from_int(dim[1]))))
+                    ArrayType.ArrayBounds(_node_from_int(dim[0]),
+                                          _node_from_int(dim[1])))
             else:
                 self._shape.append(dim)
 
@@ -1026,35 +1072,36 @@ class ArrayType(DataType):
                 if isinstance(bnd, Node):
                     bnd.replace_symbols_using(table_or_symbol)
 
-    def reference_accesses(self, sym, access_info):
+    def reference_accesses(self):
         '''
-        Get all symbols referenced in this datatype.
-
-        :param sym: the Symbol that this datatype is for.
-        :param access_info: instance in which to store access info.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.core.signature import Signature
         from psyclone.core.access_type import AccessType
 
-        super().reference_accesses(sym, access_info)
+        access_info = super().reference_accesses()
 
         if isinstance(self.intrinsic, Symbol):
             access_info.add_access(
                 Signature(self.intrinsic.name),
-                AccessType.TYPE_INFO, sym)
+                AccessType.TYPE_INFO, self)
 
         if isinstance(self.precision, Symbol):
             access_info.add_access(
                 Signature(self.precision.name),
-                AccessType.TYPE_INFO, sym)
+                AccessType.TYPE_INFO, self)
 
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
-                dim.lower.reference_accesses(access_info)
-                dim.upper.reference_accesses(access_info)
+                access_info.update(dim.lower.reference_accesses())
+                access_info.update(dim.upper.reference_accesses())
+        return access_info
 
 
 class StructureType(DataType):
@@ -1081,7 +1128,6 @@ class StructureType(DataType):
         :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         name: str
-        # Use Union for compatibility with Python < 3.10
         datatype: Union[DataType, DataTypeSymbol]
         visibility: Symbol.Visibility
         initial_value: Any
@@ -1129,9 +1175,9 @@ class StructureType(DataType):
         '''
         stype = StructureType()
         for component in components:
-            if len(component) not in (4, 5, 6):
+            if len(component) not in (3, 4, 5, 6):
                 raise TypeError(
-                    f"Each component must be specified using a 4 to 6-tuple "
+                    f"Each component must be specified using a 3 to 6-tuple "
                     f"of (name, type, visibility, initial_value, "
                     f"preceding_comment, inline_comment) but found a "
                     f"tuple with {len(component)} members: {component}")
@@ -1146,13 +1192,13 @@ class StructureType(DataType):
         '''
         return self._components
 
-    def add(self, name, datatype, visibility, initial_value,
-            preceding_comment="", inline_comment=""):
+    def add(self, name: str, datatype, visibility, initial_value=None,
+            preceding_comment: str = "", inline_comment: str = ""):
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.
 
-        :param str name: the name of the new component.
+        :param name: the name of the new component.
         :param datatype: the type of the new component.
         :type datatype: :py:class:`psyclone.psyir.symbols.DataType` |
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
@@ -1162,10 +1208,8 @@ class StructureType(DataType):
         :type initial_value: Optional[
             :py:class:`psyclone.psyir.nodes.DataNode`]
         :param preceding_comment: a comment that precedes this component.
-        :type preceding_comment: Optional[str]
         :param inline_comment: a comment that follows this component on the
                                same line.
-        :type inline_comment: Optional[str]
 
         :raises TypeError: if any of the supplied values are of the wrong type.
 
@@ -1292,27 +1336,30 @@ class StructureType(DataType):
                      preceding_comment=component.preceding_comment,
                      inline_comment=component.inline_comment)
 
-    def reference_accesses(self, sym, access_info):
+    def reference_accesses(self):
         '''
-        Get all symbols referenced in this datatype.
-
-        :param sym: the Symbol that this datatype is for.
-        :param access_info: instance in which to store access info.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        super().reference_accesses(sym, access_info)
+        access_info = super().reference_accesses()
         for cmpt in self.components.values():
             if isinstance(cmpt.datatype, DataTypeSymbol):
+                # Avoid circular import
+                # pylint: disable=import-outside-toplevel
                 from psyclone.core.signature import Signature
                 from psyclone.core.access_type import AccessType
                 access_info.add_access(
                     Signature(cmpt.datatype.name),
-                    AccessType.TYPE_INFO, sym)
+                    AccessType.TYPE_INFO, self)
             else:
-                cmpt.datatype.reference_accesses(sym, access_info)
+                access_info.update(cmpt.datatype.reference_accesses())
             if cmpt.initial_value:
-                cmpt.initial_value.reference_accesses(access_info)
+                access_info.update(cmpt.initial_value.reference_accesses())
+        return access_info
 
 
 # Create common scalar datatypes

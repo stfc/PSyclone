@@ -1,7 +1,7 @@
 # NVTX Wrapper
 
 This is a wrapper library that maps the [PSyclone profiling API](
-https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) to the
+https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling) to the
 NVIDIA Tools Extension library (NVTX). Unlike some of the other
 profiling tools, the use of this library does *not* require that calls
 to ``profile_PSyDataInit()`` and ``profile_PSyDataShutdown()`` be inserted
@@ -41,7 +41,7 @@ Finally, at the link stage the location of the wrapper *and* NVTX
 libraries must be provided, e.g.:
 
 ```shell
-nvfortran <my object files> -cuda -L<PATH-TO-PSYCLONE>/lib/profiling/nvidia -lnvtx_prof -L<CUDA_LIB_DIR> -lnvToolsExt
+nvfortran <my object files> -cuda -L<PATH-TO-PSYCLONE>/lib/profiling/nvidia -lnvtx_prof -L<CUDA_LIB_DIR> -lnvtx3interop
 ```
 
 where ``<CUDA_LIB_DIR>`` will depend upon your system but is likely to be

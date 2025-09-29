@@ -50,7 +50,7 @@ from psyclone.psyir.transformations import Matmul2CodeTrans
 
 
 def trans(psyir):
-    '''PSyclone transformation script for the Dynamo0.3 API to optimise
+    '''PSyclone transformation script for the LFRic API to optimise
     the matvec kernel for many-core CPUs. This is currently limited to
     running on the scaled_matrix_vector_code kernel but should work
     more generally. Any matmul calls are replaced with inline matrix
@@ -65,7 +65,7 @@ def trans(psyir):
     for kernel in psyir.coded_kernels():
         if kernel.name.lower() == "scaled_matrix_vector_code":
             kernel.modified = True
-            kernel_schedule = kernel.get_kernel_schedule()
+            kernel_schedule = kernel.get_callees()
             # Replace matmul with inline code
             for icall in kernel_schedule.walk(IntrinsicCall):
                 if icall.intrinsic == IntrinsicCall.Intrinsic.MATMUL:

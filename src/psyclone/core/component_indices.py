@@ -36,8 +36,6 @@
 
 '''This module provides a class to manage indices in variable accesses.'''
 
-from __future__ import print_function, absolute_import
-
 
 from psyclone.errors import InternalError
 
@@ -149,14 +147,9 @@ class ComponentIndices():
         return self._component_indices
 
     # ------------------------------------------------------------------------
-    def is_array(self):
-        '''Test whether there is an index used in any component. E.g. an access
-        like `a(i)%b` with indices `[ [i], [] ]` would still be considered an
-        array.
-
-        :returns: whether any of the variable components uses an index, i.e.\
-            the variable is an array.
-        :rtype: bool
+    def has_indices(self) -> bool:
+        '''
+        :returns: whether any of the access components uses an index
         '''
         return any(grp for grp in self._component_indices)
 
@@ -177,14 +170,10 @@ class ComponentIndices():
         :rtype: List[Set[str]]
 
         '''
-        # Circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core import VariablesAccessInfo
-
         indices = []
         for i in self.iterate():
             indx = self[i]
-            index_vars = VariablesAccessInfo(indx)
+            index_vars = indx.reference_accesses()
             unique_vars = set(str(sig) for sig in index_vars.keys())
             unique_vars = unique_vars.intersection(set_of_vars)
             indices.append(unique_vars)

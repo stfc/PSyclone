@@ -46,6 +46,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 import inspect
 import copy
+import logging
 from typing import Any, List, Optional, Set, Union
 
 from psyclone.configuration import Config
@@ -301,7 +302,12 @@ class SymbolTable():
 
         # Prepare the new tag dict
         for tag, symbol in self._tags.items():
-            new_st._tags[tag] = new_st.lookup(symbol.name)
+            try:
+                new_st._tags[tag] = new_st.lookup(symbol.name)
+            except KeyError:
+                # TODO 898: If the lookup fails it means that the symbol was
+                # removed from the symbol table but not the tags dictionary
+                pass
 
         # Update any references to Symbols within Symbols (initial values,
         # precision etc.)
@@ -1203,16 +1209,16 @@ class SymbolTable():
 
         # Check for any references to it.
         # pylint: disable=import-outside-toplevel
-        from psyclone.core import Signature, VariablesAccessInfo
-        vai = VariablesAccessInfo()
+        from psyclone.core import Signature, VariablesAccessMap
+        vam = VariablesAccessMap()
         if self.node:
-            self.node.reference_accesses(vai)
-        self.reference_accesses(vai)
+            vam.update(self.node.reference_accesses())
+        vam.update(self.reference_accesses())
         sig = Signature(symbol.name)
-        if sig not in vai:
+        if sig not in vam:
             return
 
-        # TODO #2424 - ideally SingleVariableAccessInfo.AccessInfo or
+        # TODO #2424 - ideally AccessSequence.AccessInfo or
         # Signature would store the actual Symbol that the access is to. In
         # the absence of that, we have to examine each access to determine
         # the Symbol.
@@ -1220,7 +1226,7 @@ class SymbolTable():
         from psyclone.psyir.symbols.generic_interface_symbol import (
             GenericInterfaceSymbol)
         try:
-            for access in vai[sig].all_accesses:
+            for access in vam[sig]:
                 if isinstance(access.node, GenericInterfaceSymbol):
                     for rinfo in access.node.routines:
                         if rinfo.symbol is symbol:
@@ -1365,8 +1371,9 @@ class SymbolTable():
 
     def append_argument(self, argument):
         '''
-        Append a new argument to the argument list and add it in the symbol
-        table itself.
+        Append the given argument to the argument list and add it in the symbol
+        table itself. If the argument is already part of the argument_list it
+        does nothing.
 
         :param argument: the new argument to add to the list.
         :type argument: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -1385,9 +1392,12 @@ class SymbolTable():
             raise ValueError(
                 f"DataSymbol '{argument.name}' is not marked as a kernel "
                 "argument.")
+        if argument in self._argument_list:
+            return
 
         self._argument_list.append(argument)
-        self.add(argument)
+        if argument not in self.get_symbols().values():
+            self.add(argument)
 
         try:
             self._validate_arg_list(self._argument_list)
@@ -1727,14 +1737,13 @@ class SymbolTable():
                 # This Symbol matches the name of a symbol at the import site.
                 local_sym = self.lookup(local_name)
                 interface = local_sym.interface
-                visibility = local_sym.visibility
 
                 # Found a match, update the interface if necessary or raise
                 # an error if it is an ambiguous match
                 if isinstance(interface, UnresolvedInterface):
                     # Now we know where the symbol is coming from
-                    interface = ImportInterface(csymbol,
-                                                orig_name=orig_name)
+                    local_sym.interface = ImportInterface(csymbol,
+                                                          orig_name=orig_name)
                 elif isinstance(interface, ImportInterface):
                     # If it is already an ImportInterface we don't need
                     # to update the interface information
@@ -1760,11 +1769,10 @@ class SymbolTable():
                         else:
                             local_sym.specialise(type(imported_sym))
 
-                    local_sym.copy_properties(imported_sym)
-                    # Restore the interface and visibility as these are
-                    # local (not imported) properties
-                    local_sym.interface = interface
-                    local_sym.visibility = visibility
+                    # Copy over the properties of the imported Symbol but don't
+                    # update the interface as this is a local property.
+                    local_sym.copy_properties(imported_sym,
+                                              exclude_interface=True)
             else:
                 # This table did not already contain a symbol with this
                 # name.
@@ -1887,15 +1895,12 @@ class SymbolTable():
                     local_node=self.node)
             # pylint: disable-next=broad-except
             except Exception:
-                # Ignore this container if the associated module file has not
-                # been found in the given include_path or any issue has arisen
-                # during parsing.
-                # TODO #11: It would be useful to log this.
-                continue
+                external_container = None
 
             if not external_container:
-                # Failed to get a Container (possibly due to parsing or raising
-                # errors).
+                message = f"Module '{c_symbol.name}' not found"
+                logger = logging.getLogger(__name__)
+                logger.warning(message)
                 continue
 
             imported_symbols = self._import_symbols_from(
@@ -1904,7 +1909,7 @@ class SymbolTable():
                 symbol_target=symbol_target)
 
             for isym in imported_symbols:
-                # Determine if there is an Unresolved Symbol in a descendent
+                # Determine if there is an Unresolved Symbol in a descendant
                 # symbol table that matches the name of the symbol we are
                 # importing. If there is no intervening wildcard import then
                 # we must have now resolved that symbol so move it to this
@@ -2021,23 +2026,22 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def reference_accesses(self, access_info):
+    def reference_accesses(self):
         '''
-        Get all variable access information *within* this table. This ensures
-        that any Symbols appearing in precision specifications, array shapes,
-        initialisation expressions or routine interfaces are captured.
-
-        N.B. imported Symbols are skipped since their properties are not a
-        part of this table.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the
-            information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.core import VariablesAccessMap
+        vam = VariablesAccessMap()
         for sym in self.symbols:
             if not sym.is_import:
-                sym.reference_accesses(access_info)
+                vam.update(sym.reference_accesses())
+        return vam
 
     def wildcard_imports(self, scope_limit=None) -> List[ContainerSymbol]:
         '''

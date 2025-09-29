@@ -41,6 +41,7 @@
 
 import re
 import os
+import logging
 from collections import OrderedDict
 import pytest
 
@@ -2210,6 +2211,11 @@ def test_deep_copy():
     gisym = symbols.GenericInterfaceSymbol("generic_sub", [(rsym, False)])
     symtab.add(rsym)
     symtab.add(gisym)
+    # Add a broken tag (the symbol doesn't exist anymore), this shouldn't
+    # happen but since we often remove symbols without calling the proper
+    # remove method, it is worth checking that we handle the situation
+    symtab._tags["broken"] = symbols.DataSymbol(
+        "not_in_the_st", symbols.REAL_DOUBLE_TYPE)
 
     # Create a copy and check the contents are the same
     symtab2 = symtab.deep_copy()
@@ -2221,6 +2227,9 @@ def test_deep_copy():
     assert symtab2.lookup("symbol1") in symtab2.argument_list
     assert symtab2._node is None
     assert symtab2.default_visibility == symbols.Symbol.Visibility.PRIVATE
+    # The broken tag has dissapeared
+    assert "broken" not in symtab2._tags
+    assert "not_in_the_st" not in symtab2
 
     # But the symbols are not the same objects as the original ones
     assert symtab2.lookup("symbol1") is not sym1
@@ -2834,7 +2843,7 @@ def test_import_symbol_from_specific(fortran_reader):
 # resolve_imports
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
+def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
     ''' Tests that the SymbolTable resolve_imports method works as expected
     when importing symbol information from external containers and respects
     the method optional keywords. '''
@@ -2982,8 +2991,10 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     assert not isinstance(b_1, symbols.DataSymbol)
 
     # Now resolve all found containers (this will not fail for the
-    # unavailable c_mod)
-    subroutine.symbol_table.resolve_imports()
+    # unavailable c_mod, but it will be logged)
+    with caplog.at_level(logging.WARNING):
+        subroutine.symbol_table.resolve_imports()
+    assert "Module 'c_mod' not found" in caplog.text
 
     # b_1 have all relevant info now
     assert isinstance(b_1, symbols.DataSymbol)
@@ -3010,9 +3021,10 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     assert a_2.visibility == symbols.Symbol.Visibility.PRIVATE
 
 
-def test_resolve_imports_missing_container(monkeypatch):
+def test_resolve_imports_missing_container(monkeypatch, caplog):
     '''
-    Test that a clean failure to get Container PSyIR does not cause problems.
+    Test that a clean failure to get Container PSyIR does not raise an error,
+    but it is logged.
     '''
     table = symbols.SymbolTable()
     csym = symbols.ContainerSymbol("a_mod")
@@ -3020,8 +3032,10 @@ def test_resolve_imports_missing_container(monkeypatch):
     # so that it returns None.
     monkeypatch.setattr(csym, "find_container_psyir", lambda local_node: None)
     table.add(csym)
-    # Resolving imports should run without problems.
-    table.resolve_imports()
+    # Resolving imports should run without problems, but log a Warning.
+    with caplog.at_level(logging.WARNING):
+        table.resolve_imports()
+    assert "Module 'a_mod' not found" in caplog.text
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")

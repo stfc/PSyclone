@@ -43,7 +43,6 @@
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
-from psyclone.core import VariablesAccessInfo
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.commentable_mixin import CommentableMixin
@@ -213,13 +212,13 @@ class Routine(Schedule, CommentableMixin):
 
         '''
         # TODO #2424 - this suffers from the limitation that
-        # VariablesAccessInfo does not work with nested scopes. (e.g. 2
+        # VariablesAccessMap does not work with nested scopes. (e.g. 2
         # different symbols with the same name but declared in different,
         # nested scopes will be assumed to be the same symbol).
-        vai = VariablesAccessInfo(self)
+        vam = self.reference_accesses()
         table = self.symbol_table
         name = self.name
-        for sig in vai.all_signatures:
+        for sig in vam.all_signatures:
             symbol = table.lookup(sig.var_name, otherwise=None)
             if not symbol:
                 raise SymbolError(
@@ -232,7 +231,7 @@ class Routine(Schedule, CommentableMixin):
                 if permit_unresolved:
                     continue
                 if (ignore_non_data_accesses and
-                        not vai[sig].has_data_access()):
+                        not vam[sig].has_data_access()):
                     continue
                 raise SymbolError(
                     f"{kern_or_call} '{name}' contains accesses to "
@@ -359,7 +358,8 @@ class Routine(Schedule, CommentableMixin):
             # replace_with, which is handled here.
             if sym is self._symbol:
                 try:
-                    new_parent.symbol_table.lookup(self._symbol.name)
+                    new_parent.symbol_table.lookup(self._symbol.name,
+                                                   scope_limit=new_parent)
                 except KeyError:
                     new_parent.symbol_table.add(self._symbol)
                 # As we now have the RoutineSymbol back in a Container, we
@@ -414,13 +414,18 @@ class Routine(Schedule, CommentableMixin):
                 self.parent.symbol_table.rename_symbol(symbol, new_name)
             else:
                 # Check if the symbol in our own symbol table is the symbol
-                try:
-                    sym = self.symbol_table.lookup(symbol.name)
-                    if sym is self._symbol:
-                        self.symbol_table.rename_symbol(symbol, new_name)
-                except KeyError:
-                    # Symbol isn't in a symbol table so we can modify its
-                    # name freely
+                # During a copy it is possible for a Routine to not yet
+                # have a SymbolTable so allow for that.
+                if self.symbol_table:
+                    try:
+                        sym = self.symbol_table.lookup(symbol.name)
+                        if sym is self._symbol:
+                            self.symbol_table.rename_symbol(symbol, new_name)
+                    except KeyError:
+                        # Symbol isn't in a symbol table so we can modify its
+                        # name freely
+                        symbol._name = new_name
+                else:
                     symbol._name = new_name
 
     def __str__(self):
@@ -508,9 +513,9 @@ class Routine(Schedule, CommentableMixin):
                     other.return_symbol.name)
 
     def replace_with(self, node, keep_name_in_context=True):
-        '''Removes self and its descendents from the PSyIR tree to which it
+        '''Removes self and its descendants from the PSyIR tree to which it
         is connected and replaces it with the supplied node (and its
-        descendents).
+        descendants).
 
         The node must be a Routine (or subclass) and has the same Symbol as
         self.

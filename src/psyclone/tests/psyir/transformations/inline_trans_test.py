@@ -105,32 +105,6 @@ def test_apply_empty_routine(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
-def test_apply_single_return(fortran_reader, fortran_writer, tmpdir):
-    '''Check that a call to a routine containing only a return statement
-    is removed. '''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "    integer :: i\n"
-        "    i = 10\n"
-        "    call sub(i)\n"
-        "  end subroutine run_it\n"
-        "  subroutine sub(idx)\n"
-        "    integer :: idx\n"
-        "    return\n"
-        "  end subroutine sub\n"
-        "end module test_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Call)[0]
-    inline_trans = InlineTrans()
-    inline_trans.apply(routine)
-    output = fortran_writer(psyir)
-    assert ("    i = 10\n\n"
-            "  end subroutine run_it\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
-
-
 def test_apply_return_then_cb(fortran_reader, fortran_writer, tmpdir):
     '''Check that a call to a routine containing a return statement followed
     by a CodeBlock is removed.'''
@@ -767,6 +741,33 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
             "    do i_4 = 1, 10, 1\n"
             "      b(i_4,:5) = 2.0 * b(i_4,:5)\n" in output)
     assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_array_slice_assumed_size_arg(fortran_reader, fortran_writer,
+                                            tmpdir):
+    '''
+    Check that the apply() method works correctly when an array slice is
+    passed to a routine where it is declared as assumed size.
+
+    '''
+    code = ('''\
+        module test_mod
+        contains
+          subroutine run_it()
+            real :: a(10)
+            call sub1(a(3:8))
+          end subroutine run_it
+          subroutine sub1(var)
+            real, dimension(4:) :: var
+            var(5:6) = 1.0
+          end subroutine sub1
+        end module test_mod''')
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    output = fortran_writer(psyir)
+    assert "a(5 - 4 + 3:6 - 4 + 3) = 1.0" in output
 
 
 def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
@@ -1552,6 +1553,7 @@ def test_apply_raw_subroutine(
     if start:
         modinline_trans = KernelModuleInlineTrans()
         modinline_trans.apply(call)
+        assert "sub" in psyir.children[0].symbol_table
     inline_trans = InlineTrans()
     inline_trans.apply(call)
     output = fortran_writer(psyir)

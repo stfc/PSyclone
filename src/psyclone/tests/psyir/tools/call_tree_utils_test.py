@@ -40,18 +40,20 @@
 
 import os
 import re
+import logging
 
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core import Signature, SingleVariableAccessInfo
+from psyclone.core import Signature, AccessSequence
 from psyclone.domain.lfric import LFRicKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import CodeBlock, Reference, Schedule
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
-from psyclone.tests.utilities import get_base_path, get_invoke
+from psyclone.tests.utilities import (get_base_path, get_infrastructure_path,
+                                      get_invoke)
 
 # This is used in a fixture
 # pylint: disable-next=unused-import
@@ -261,7 +263,7 @@ def test_call_tree_get_used_symbols_from_modules_renamed():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_get_non_local_read_write_info(capsys):
+def test_get_non_local_read_write_info(caplog):
     '''Tests the collection of non-local input and output parameters.
     '''
     Config.get().api = "lfric"
@@ -281,15 +283,16 @@ def test_get_non_local_read_write_info(capsys):
     # Since the right search path is missing, this will result
     # in the testkern_import_symbols_mod module not being found:
     read_write_info = ReadWriteInfo()
-    rw_info = ctu.get_non_local_read_write_info(schedule, read_write_info)
-    out, _ = capsys.readouterr()
+    with caplog.at_level(logging.WARNING):
+        rw_info = ctu.get_non_local_read_write_info(schedule, read_write_info)
     assert ("Could not find module 'testkern_import_symbols_mod' - ignored."
-            in out)
+            in caplog.text)
 
     # The search directories are absolute, so use a regex:
     assert re.search("Could not find source file for module "
                      "'testkern_import_symbols_mod' in any of the "
-                     "directories '.*kernels/dead_end/no_really'.", out)
+                     "directories '.*kernels/dead_end/no_really'.",
+                     caplog.text)
 
     # Now add the correct search path of the driver creation tests to the
     # module manager:
@@ -301,11 +304,11 @@ def test_get_non_local_read_write_info(capsys):
     # infrastructure directory has not been added, so constants_mod cannot
     # be found:
     rw_info = ReadWriteInfo()
-    ctu.get_non_local_read_write_info(schedule, rw_info)
-    out, _ = capsys.readouterr()
-    assert "Unknown routine 'unknown_subroutine - ignored." in out
+    with caplog.at_level(logging.WARNING):
+        ctu.get_non_local_read_write_info(schedule, rw_info)
+    assert "Unknown routine 'unknown_subroutine - ignored." in caplog.text
     assert ("Cannot find module 'constants_mod' - ignoring unknown symbol "
-            "'eps'." in out)
+            "'eps'." in caplog.text)
 
     # We don't test the 14 local variables here, this was tested earlier.
     # Focus on the remote symbols that are read:
@@ -327,14 +330,15 @@ def test_get_non_local_read_write_info(capsys):
     # Check that we can ignore a module:
     mod_man.add_ignore_module("constants_mod")
     rw_info = ReadWriteInfo()
-    ctu.get_non_local_read_write_info(schedule, rw_info)
-    out, _ = capsys.readouterr()
-    assert "Unknown routine 'unknown_subroutine - ignored." in out
-    assert "constants_mod" not in out
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        ctu.get_non_local_read_write_info(schedule, rw_info)
+    assert "Unknown routine 'unknown_subroutine - ignored." in caplog.text
+    assert "constants_mod" not in caplog.text
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_get_non_local_read_write_info_errors(capsys):
+def test_get_non_local_read_write_info_errors(caplog):
     '''
     Test get_non_local_read_write_info() when we fail to get either the Routine
     PSyIR or the Container PSyIR.
@@ -356,31 +360,32 @@ def test_get_non_local_read_write_info_errors(capsys):
     routine.detach()
 
     rw_info = ReadWriteInfo()
-    ctu.get_non_local_read_write_info(schedule, rw_info)
-    out, _ = capsys.readouterr()
+    with caplog.at_level(logging.WARNING):
+        ctu.get_non_local_read_write_info(schedule, rw_info)
     assert (f"Could not get PSyIR for Routine 'testkern_import_symbols_code' "
-            f"from module '{kernels[0].module_name}' as no possible" in out)
+            f"from module '{kernels[0].module_name}' as no possible"
+            in caplog.text)
 
     # Add a RoutineSymbol back into the symbol table to mimic a CodeBlock
     # representing the routine.
     cntr.symbol_table.add(RoutineSymbol("testkern_import_symbols_code"))
     rw_info = ReadWriteInfo()
-    ctu.get_non_local_read_write_info(schedule, rw_info)
-    out, _ = capsys.readouterr()
+    with caplog.at_level(logging.WARNING):
+        ctu.get_non_local_read_write_info(schedule, rw_info)
     assert (f"Could not get PSyIR for Routine 'testkern_import_symbols_code' "
-            f"from module '{kernels[0].module_name}' -" in out)
+            f"from module '{kernels[0].module_name}' -" in caplog.text)
 
     # Remove the module Container from the PSyIR.
     cntr.detach()
-    ctu.get_non_local_read_write_info(schedule, rw_info)
-    out, _ = capsys.readouterr()
+    with caplog.at_level(logging.WARNING):
+        ctu.get_non_local_read_write_info(schedule, rw_info)
     assert (f"Could not get PSyIR for module '{kernels[0].module_name}'"
-            in out)
+            in caplog.text)
 
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_call_tree_utils_resolve_calls_unknowns(capsys):
+def test_call_tree_utils_resolve_calls_unknowns(caplog):
     '''Tests resolving symbols in case of missing modules, subroutines, and
     unknown type (e.g. function call or array access).
     '''
@@ -399,9 +404,9 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
              None)]
     ctu = CallTreeUtils()
     rw_info = ReadWriteInfo()
-    ctu._resolve_calls_and_unknowns(todo, rw_info)
-    out, _ = capsys.readouterr()
-    assert "Cannot find module 'unknown_module' - ignored." in out
+    with caplog.at_level(logging.WARNING):
+        ctu._resolve_calls_and_unknowns(todo, rw_info)
+    assert "Cannot find module 'unknown_module' - ignored." in caplog.text
     assert rw_info.read_list == []
     assert rw_info.write_list == []
 
@@ -409,19 +414,19 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     # get a warning printed for this (which we did in the past):
     todo = [('routine', 'module_with_var_mod', Signature("module_subroutine"),
              None)]
-    ctu._resolve_calls_and_unknowns(todo, rw_info)
-    out, _ = capsys.readouterr()
+    with caplog.at_level(logging.WARNING):
+        ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert ("Cannot resolve routine 'module_subroutine' in module "
-            "'module_with_var_mod' - ignored." not in out)
+            "'module_with_var_mod' - ignored." not in caplog.text)
 
     rw_info = ReadWriteInfo()
     # Now try to find a routine that does not exist in an existing module:
     todo = [('routine', 'module_with_var_mod', Signature("does-not-exist"),
              None)]
-    ctu._resolve_calls_and_unknowns(todo, rw_info)
-    out, _ = capsys.readouterr()
+    with caplog.at_level(logging.WARNING):
+        ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert ("Cannot resolve routine 'does-not-exist' in module "
-            "'module_with_var_mod' - ignored." in out)
+            "'module_with_var_mod' - ignored." in caplog.text)
     assert rw_info.read_list == []
     assert rw_info.write_list == []
 
@@ -442,7 +447,7 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
 
     # Get the associated PSyIR and break it by removing the Routine and
     # associated Symbol.
-    info = SingleVariableAccessInfo(Signature("module_subroutine"))
+    info = AccessSequence(Signature("module_subroutine"))
     minfo = mod_man.get_module_info("module_with_var_mod")
     cntr = minfo.get_psyir()
     cntr.find_routine_psyir("module_subroutine").detach()
@@ -452,10 +457,10 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     cntr.symbol_table.add(RoutineSymbol("module_subroutine"))
     todo = [('routine', 'module_with_var_mod',
              Signature("module_subroutine"), info)]
-    ctu._resolve_calls_and_unknowns(todo, rw_info)
-    out, _ = capsys.readouterr()
+    with caplog.at_level(logging.WARNING):
+        ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert ("Cannot find routine 'module_subroutine' in module "
-            "'module_with_var_mod' - ignored" in out)
+            "'module_with_var_mod' - ignored" in caplog.text)
 
     # Note that module_subroutine has been removed from the PSyIR,
     # so it cannot be found:
@@ -463,25 +468,25 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     cntr.symbol_table.remove(rsym)
     todo = [('unknown', 'module_with_var_mod',
              Signature("module_subroutine"), info)]
-    ctu._resolve_calls_and_unknowns(todo, rw_info)
-    out, _ = capsys.readouterr()
-    assert "Cannot find symbol 'module_subroutine'." in out
+    with caplog.at_level(logging.WARNING):
+        ctu._resolve_calls_and_unknowns(todo, rw_info)
+    assert "Cannot find symbol 'module_subroutine'." in caplog.text
 
     todo = [('routine', 'module_with_var_mod',
              Signature("module_subroutine"), info)]
-    ctu._resolve_calls_and_unknowns(todo, rw_info)
-    out, _ = capsys.readouterr()
+    with caplog.at_level(logging.WARNING):
+        ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert ("Cannot resolve routine 'module_subroutine' in module "
-            "'module_with_var_mod' - ignored" in out)
+            "'module_with_var_mod' - ignored" in caplog.text)
 
     # Break the PSyIR more seriously by removing the Container.
     cntr.detach()
     todo = [('unknown', 'module_with_var_mod',
              Signature("module_subroutine"), info)]
-    ctu._resolve_calls_and_unknowns(todo, rw_info)
-    out, _ = capsys.readouterr()
+    with caplog.at_level(logging.WARNING):
+        ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert ("Cannot get PSyIR for module 'module_with_var_mod' - ignoring "
-            "unknown symbol 'module_subroutine'" in out)
+            "unknown symbol 'module_subroutine'" in caplog.text)
 
 
 # -----------------------------------------------------------------------------
@@ -519,13 +524,13 @@ def test_module_info_generic_interfaces():
     # be reported once (even though it is used in both functions), and
     # each variable specific to the two functions:
     expected = set([("reference", "g_mod", Signature("module_var_1"),
-                     'module_var_1:READ(0)'),
+                     'module_var_1:[READ]'),
                     ("reference", "g_mod", Signature("module_var_2"),
-                     'module_var_2:READ(0)'),
+                     'module_var_2:[READ]'),
                     ("reference", "g_mod", Signature("module_var"),
-                     'module_var:READ(0)'),
+                     'module_var:[READ]'),
                     ("reference", "g_mod", Signature("module_var"),
-                     'module_var:WRITE(0)')])
+                     'module_var:[WRITE]')])
     # Convert the access info to a string for easy comparison:
     assert (set((i[0], i[1], i[2], str(i[3])) for i in all_non_locals) ==
             expected)
@@ -575,7 +580,7 @@ def test_call_tree_utils_inout_parameters_generic(fortran_reader):
     read_write_info = ReadWriteInfo()
     ctu.get_input_parameters(read_write_info, loops,
                              include_non_data_accesses=True)
-    input_set = set(sig for _, sig in read_write_info.set_of_all_used_vars)
+    input_set = set(sig for _, sig in read_write_info.all_used_vars_list)
     assert input_set == set([Signature("b"), Signature("c"),
                              Signature("jpj"), Signature("dummy")])
 
@@ -602,7 +607,7 @@ def test_call_tree_utils_const_argument():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance", "lfric_config")
-def testcall_tree_utils_non_local_inout_parameters(capsys):
+def testcall_tree_utils_non_local_inout_parameters(caplog):
     '''Tests the collection of non-local input and output parameters.
     '''
     ctu = CallTreeUtils()
@@ -618,12 +623,12 @@ def testcall_tree_utils_non_local_inout_parameters(capsys):
     # The example does contain an unknown subroutine (by design), and the
     # infrastructure directory has not been added, so constants_mod cannot
     # be found:
-    rw_info = ctu.get_in_out_parameters(schedule,
-                                        collect_non_local_symbols=True)
-    out, _ = capsys.readouterr()
-    assert "Unknown routine 'unknown_subroutine - ignored." in out
+    with caplog.at_level(logging.WARNING):
+        rw_info = ctu.get_in_out_parameters(schedule,
+                                            collect_non_local_symbols=True)
+    assert "Unknown routine 'unknown_subroutine - ignored." in caplog.text
     assert ("Cannot find module 'constants_mod' - ignoring unknown symbol "
-            "'eps'." in out)
+            "'eps'." in caplog.text)
 
     # We don't test the 14 local variables here, this was tested earlier.
     # Focus on the remote symbols that are read:
@@ -639,24 +644,24 @@ def testcall_tree_utils_non_local_inout_parameters(capsys):
 
 
 # -----------------------------------------------------------------------------
-def test_call_tree_error_var_not_found(capsys):
+def test_call_tree_error_var_not_found(caplog):
     '''Tests that trying to import a variable from a module that does not
     contain the variable is handled, i.e. printing a warning and otherwise
     ignores (TODO #2120)
     '''
-    dyn_test_dir = get_base_path("lfric")
+    infra_dir = get_infrastructure_path("lfric")
     mod_man = ModuleManager.get()
-    mod_man.add_search_path(os.path.join(dyn_test_dir, "infrastructure"))
+    mod_man.add_search_path(infra_dir)
 
     read_write_info = ReadWriteInfo()
     ctu = CallTreeUtils()
-    sva = SingleVariableAccessInfo(Signature("a"))
-    ctu._resolve_calls_and_unknowns([("unknown", "constants_mod",
-                                      Signature("does_not_exist"), sva)],
-                                    read_write_info)
-    out, _ = capsys.readouterr()
-
-    assert "Cannot find symbol 'does_not_exist'." in out
+    sva = AccessSequence(Signature("a"))
+    with caplog.at_level(logging.WARNING):
+        ctu._resolve_calls_and_unknowns([("unknown", "constants_mod",
+                                          Signature("does_not_exist"),
+                                          sva)],
+                                        read_write_info)
+    assert "Cannot find symbol 'does_not_exist'." in caplog.text
 
 
 # -----------------------------------------------------------------------------
@@ -665,9 +670,9 @@ def test_call_tree_error_module_is_codeblock(capsys):
     '''Tests that a module that cannot be parsed and becomes a codeblock
     is handled correctly.
     '''
-    dyn_test_dir = get_base_path("lfric")
+    lfric_test_dir = get_base_path("lfric")
     mod_man = ModuleManager.get()
-    mod_man.add_search_path(os.path.join(dyn_test_dir, "driver_creation"))
+    mod_man.add_search_path(os.path.join(lfric_test_dir, "driver_creation"))
 
     cblock = CodeBlock([], "dummy")
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
@@ -677,7 +682,7 @@ def test_call_tree_error_module_is_codeblock(capsys):
     container.replace_with(cblock)
 
     ctu = CallTreeUtils()
-    sva = SingleVariableAccessInfo(Signature("a"))
+    sva = AccessSequence(Signature("a"))
     read_write_info = ReadWriteInfo()
     ctu._resolve_calls_and_unknowns(
         [("routine", "testkern_import_symbols_mod",

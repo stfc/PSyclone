@@ -39,11 +39,13 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
+from typing import Optional, Set
 
-from psyclone.core import AccessType, Signature
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.symbols import Symbol, AutomaticInterface
 from psyclone.psyir.symbols.datatypes import UnresolvedType
 
 
@@ -83,16 +85,6 @@ class Reference(DataNode):
         # implemented)
         is_eq = is_eq and (self.symbol.name == other.symbol.name)
         return is_eq
-
-    @property
-    def is_array(self):
-        '''
-        :returns: whether this reference is an array, False if it can not be
-            determined.
-        :rtype: bool
-
-        '''
-        return self.symbol.is_array
 
     @property
     def is_read(self):
@@ -201,31 +193,21 @@ class Reference(DataNode):
         '''
         return (Signature(self.name), [[]])
 
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information from this node, i.e.
-        it sets this variable to be read. It relies on
-        `get_signature_and_indices` and will correctly handle
-        array expressions.
-
-        :param var_accesses: VariablesAccessInfo instance that stores the \
-            information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
 
         '''
+        var_accesses = VariablesAccessMap()
         sig, all_indices = self.get_signature_and_indices()
-        if self.symbol.is_import and \
-                var_accesses.options("USE-ORIGINAL-NAMES") and \
-                self.symbol.interface.orig_name:
-            # If the option is set to return the original (un-renamed)
-            # name of an imported symbol, get the original name from
-            # the interface and use it. The rest of the signature is
-            # used from the original access, it does not change.
-            sig = Signature(self.symbol.interface.orig_name, sig[1:])
         for indices in all_indices:
             for index in indices:
-                index.reference_accesses(var_accesses)
+                var_accesses.update(index.reference_accesses())
         var_accesses.add_access(sig, AccessType.READ, self, all_indices)
+        return var_accesses
 
     @property
     def datatype(self):
@@ -266,6 +248,123 @@ class Reference(DataNode):
         from psyclone.psyir.tools import DefinitionUseChain
         chain = DefinitionUseChain(self)
         return chain.find_forward_accesses()
+
+    def escapes_scope(
+            self, scope: Node, visited_nodes: Optional[Set] = None
+    ) -> bool:
+        '''
+        Whether the symbol lifetime continues after the given scope. For
+        example, given the following fortran code:
+
+        .. code-block:: fortran
+
+                do i=1,10
+                  a = 1
+                  b = 2
+                  c = 3
+                end do
+                b = 4
+                call mysub(a, b)
+            end subroutine
+
+        'b' and 'c' if it is local, finish their value lifetime at the end
+        of the loop scope (it is not re-used afterwards). While for 'a' and
+        'c' if it is global, their value may be used later and they "escape the
+        scope".
+
+        :param scope: the given scope that we evaluate.
+        :param visited_nodes: a set of nodes already visited, this is necessary
+            because the dependency chains may contain cycles. Defaults to an
+            empty set.
+        :returns: whether the symbol lifetime continues after the given scope.
+        '''
+
+        # Populate visited_nodes, and stop recursion when appropriate
+        if visited_nodes is None:
+            visited_nodes = set()
+        if id(self) in visited_nodes:
+            return False
+        visited_nodes.add(id(self))
+
+        # If it's not a local symbol, we cannot guarantee its lifetime
+        if not isinstance(self.symbol.interface, AutomaticInterface):
+            return True
+
+        # Check if this instance is in the provided scope
+        if not self.is_descendant_of(scope):
+            # If following the recursive calls through next_accesses()
+            # it reaches a point outside the scope, return True (
+            # it has escaped the scope), unless this is a write-only
+            # access (the symbol is reassigned to a new value)
+            if self.is_write and not self.is_read:
+                return False
+            return True
+
+        # Now check all possible next accesses
+        for ref in self.next_accesses():
+            # Not all accesses are references as some other nodes (e.g.
+            # Loop) represent an access to a symbol
+            # TODO #3124: explore making all symbol accesses References
+            if (not isinstance(ref, Reference) or
+                    ref.escapes_scope(scope, visited_nodes)):
+                return True
+
+        return False
+
+    def enters_scope(
+            self, scope: Node, visited_nodes: Optional[Set] = None
+    ) -> bool:
+        '''
+        Whether the symbol lifetime starts before the given scope. For
+        example, given the following fortran code:
+
+        .. code-block:: fortran
+
+            do i=1,10
+              a = 1
+              if (b>3) c = 1
+            end do
+
+        'a' does not enter the scope. Even if it had a value before in the loop
+        scope this is reassigned to a new value. However, 'b' and 'c' values
+        enter the scope, because there is a path in which they take the value
+        the symbol had before the scope.
+
+        :param scope: the given scope that we evaluate.
+        :param visited_nodes: a set of nodes already visited, this is necessary
+            because the dependency chains may contain cycles. Defaults to an
+            empty set.
+        :returns: whether the symbol lifetime starts before the given scope.
+        '''
+
+        # Populate visited_nodes, and stop recursion when appropriate
+        if visited_nodes is None:
+            visited_nodes = set()
+        if id(self) in visited_nodes:
+            return False
+        visited_nodes.add(id(self))
+
+        # Check if this instance is in the provided scope
+        if not self.is_descendant_of(scope):
+            return True
+
+        # If the 'value' starts here  (i.e. the first access in the scoping
+        # region is a write), stop this search chain (the DUC does not stop
+        # because if searches for WaWs)
+        if self.is_write and not self.is_read:
+            return False
+
+        # If it's not a local symbol, we cannot guarantee its lifetime
+        if not isinstance(self.symbol.interface, AutomaticInterface):
+            return True
+
+        # Now check all possible previous accesses
+        for ref in self.previous_accesses():
+            if (not isinstance(ref, Reference) or
+                    ref.enters_scope(scope, visited_nodes)):
+                return True
+
+        return False
 
     def replace_symbols_using(self, table_or_symbol):
         '''

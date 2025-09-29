@@ -44,7 +44,7 @@ module time_evolution_alg_mod
   use log_mod,       only : log_event, &
                             LOG_LEVEL_INFO
   use mesh_mod,      only : mesh_type
-  use field_mod,     only : field_type
+  use field_mod,     only : field_type, field_proxy_type
 
   implicit none
 
@@ -69,7 +69,8 @@ contains
     type(mesh_type),  intent(in)    :: mesh
     type(field_type), intent(in)    :: chi(3)
 
-    integer(i_def)   :: i
+    type(field_proxy_type)          :: perturbation_proxy
+    integer(i_def)                  :: i
 
     call log_event( "time_evolution_alg_init: Initialising perturbation "// &
                     "field", LOG_LEVEL_INFO )
@@ -87,7 +88,9 @@ contains
     !---------------------------------------------------------------------------
 
     ! Check the min/max values of the perturbation field
-    call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
+    perturbation_proxy = perturbation%get_proxy()
+    print *,"minmax of perturbation", perturbation_proxy % get_min(), &
+                                      perturbation_proxy % get_max()
 
   end subroutine time_evolution_alg_init
 
@@ -107,8 +110,9 @@ contains
     type(field_type), intent(in)    :: chi(3)
     integer(i_def),   intent(in)    :: tstep
 
-    real(r_def)              :: t_tot
-    character(len=str_short) :: tstr
+    type(field_proxy_type)          :: perturbation_proxy
+    real(r_def)                     :: t_tot
+    character(len=str_short)        :: tstr
 
     write(tstr, '(I5)') tstep  ! Convert integer time-step to string
     call log_event( "time_evolution_alg_step: Propagating perturbation "// &
@@ -130,7 +134,9 @@ contains
     !---------------------------------------------------------------------------
 
     ! Check the min/max values of the perturbation field using
-    call perturbation%log_minmax(LOG_LEVEL_INFO, perturbation%name)
+    perturbation_proxy = perturbation%get_proxy()
+    print *,"minmax of perturbation", perturbation_proxy % get_min(), &
+                                      perturbation_proxy % get_max()
 
   end subroutine time_evolution_alg_step
 

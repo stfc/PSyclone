@@ -16,7 +16,7 @@ There are two parts of this tutorial and each should be done in turn.
 
 *Note:* For more information on the supported LFRic function spaces in
 PSyclone please refer to this PSyclone [user guide section](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces).
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#lfric-function-space).
 
 Each kernel in this tutorial performs one simple mathematical operation
 in order to learn how to work with the basic building blocks of an

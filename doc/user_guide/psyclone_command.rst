@@ -36,8 +36,8 @@
 
 .. _psyclone_command:
 
-The psyclone command
-====================
+The ``psyclone`` command
+========================
 
 The ``psyclone`` command is an executable script designed to be run from the
 command line, e.g.:
@@ -51,38 +51,40 @@ by the command:
 .. parsed-literal::
 
   > psyclone -h
-   usage: psyclone [-h] [--version] [--config CONFIG] [-s SCRIPT] [-I INCLUDE]
-                   [-l {off,all,output}] [--profile {invokes,routines,kernels}]
-				   [--backend {enable-validation,disable-validation}] [-o OUTPUT_FILE]
-				   [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE]
-                   [-okern OUTPUT_KERNEL_PATH] [-d DIRECTORY] [-dm] [-nodm]
-                   [--kernel-renaming {multiple,single}]
-                   filename
+    usage: psyclone [-h] [-v] [-c CONFIG] [-s SCRIPT] [-I INCLUDE] [-l {off,all,output}] [-p {invokes,routines,kernels}]
+                    [--backend {disable-validation,disable-indentation}]
+                    [-o OUTPUT_FILE] [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE] [-okern OUTPUT_KERNEL_PATH] [-d DIRECTORY] [-dm] [-nodm]
+                    [--kernel-renaming {multiple,single}] [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+                    [--log-file LOG_FILE] [--keep-comments] [--keep-directives]
+                    filename
 
-   Transform a file using the PSyclone source-to-source Fortran compiler
-
-   positional arguments:
-     filename              input source code
-
-   options:
+    Transform a file using the PSyclone source-to-source Fortran compiler
+    
+    positional arguments:
+      filename              input source code
+    
+    options:
      -h, --help            show this help message and exit
-     --version, -v         display version information
-     --config CONFIG, -c CONFIG
+     -v, --version         display version information
+     -c CONFIG, --config CONFIG
                            config file with PSyclone specific options
      -s SCRIPT, --script SCRIPT
                            filename of a PSyclone optimisation recipe
      -I INCLUDE, --include INCLUDE
                            path to Fortran INCLUDE or module files
+     --enable-cache        whether to enable caching of imported module dependencies (if
+                           enabled, it will generate a .psycache file of each imported
+                           module in the same location as the imported source file).
      -l {off,all,output}, --limit {off,all,output}
                            limit the Fortran line length to 132 characters (default 'off').
                            Use 'all' to apply limit to both input and output Fortran. Use
-                           'output' to apply line-length limit to output Fortran only.
-     --profile {invokes,routines,kernels}, -p {invokes,routines,kernels}
+     -p {invokes,routines,kernels}, --profile {invokes,routines,kernels}
                            add profiling hooks for 'kernels', 'invokes' or 'routines'
-     --backend {enable-validation,disable-validation}
+     --backend {disable-validation,disable-indentation}
                            options to control the PSyIR backend used for code generation.
                            Use 'disable-validation' to disable the validation checks that
-                           are performed by default.
+                           are performed by default. Use 'disable-indentation' to turn
+			   off all indentation in the generated code.
      -o OUTPUT_FILE        (code-transformation mode) output file
      -api DSL, --psykal-dsl DSL
                            whether to use a PSyKAl DSL (one of ['lfric', 'gocean'])
@@ -91,8 +93,7 @@ by the command:
      -opsy OUTPUT_PSY_FILE
                            (psykal mode) filename of generated PSy-layer code
      -okern OUTPUT_KERNEL_PATH
-                           (psykal mode) directory in which to put transformed kernels, default
-                           is the current working directory.
+                           (psykal mode) directory in which to put transformed kernels, default is the current working directory
      -d DIRECTORY, --directory DIRECTORY
                            (psykal mode) path to a root directory structure containing kernel
                            source code. Multiple roots can be specified by using multiple -d
@@ -101,7 +102,12 @@ by the command:
      -nodm, --no_dist_mem  (psykal mode) do not generate distributed memory code
      --kernel-renaming {multiple,single}
                            (psykal mode) naming scheme to use when re-naming transformed kernels
-
+     --log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}
+                           sets the level of the logging (defaults to OFF).
+     --log-file LOG_FILE   sets the output file to use for logging (defaults to stderr).
+     --keep-comments       keeps comments from the original code (defaults to False).
+                           Directives are not kept with this option (use --keep-directives).
+     --keep-directives     keeps directives from the original code (defaults to False).
 
 Basic Use
 ---------
@@ -141,12 +147,11 @@ section. With a transformation recipe the command looks like:
 Fortran INCLUDE Files and Modules
 ---------------------------------
 
-If the source code to be processed by PSyclone
-contains INCLUDE statements then the location of any INCLUDE'd files
-*must* be supplied to PSyclone via the ``-I`` or ``--include``
-option. (This is necessary because INCLUDE lines are a part of the
-Fortran language and must therefore be parsed - they are not handled
-by any pre-processing step.) Multiple locations may be specified by
+If the source code to be processed by PSyclone contains INCLUDE statements
+then the location of any INCLUDE'd files *must* be supplied to PSyclone via
+the ``-I`` or ``--include`` option. (This is necessary because INCLUDE lines
+are a part of the Fortran language and must therefore be parsed - they are not
+handled by any pre-processing step.) Multiple locations may be specified by
 using multiple ``-I`` flags, e.g.:
 
 .. code-block:: console
@@ -163,6 +168,15 @@ an appropriate error. For example:
 
     psyclone -I nonexisting test.f90
     PSyclone configuration error: Include path 'nonexisting' does not exist
+
+The `-I` locations will also be used when a script requests to follow module
+dependencies in order to obtain more information about the code symbols (see
+:ref:`sec_script_globals`). But note that if the whole program has many
+dependencies and the imports happen from multiple files, it can increase the
+psyclone processing time considerably. In this case it is recommended to use
+the `--enable-cache` flag. This will creates a `filename.psycache` file in the
+same location as the original file for every import followed. The next time
+the same import is requested, if the hashes match, the cached file will be used.
 
 Currently, the PSyKAl-based APIs (LFRic and GOcean - see below) will ignore
 (but preserve) INCLUDE statements in algorithm-layer code. However, INCLUDE
@@ -214,9 +228,15 @@ and raises an error if they do not conform.
 Line wrapping is not performed by default. There are two reasons for
 this. This first reason is that most compilers are able to cope with
 long lines. The second reason is that the line wrapping implementation
-could fail in certain pathological cases. The implementation and
-limitations of line wrapping are discussed in the
-:ref:`line-length-limitations` section.
+could fail in certain pathological cases.
+
+For very deeply-nested code structures, it can be that the amount of
+indentation (white space) alone exceeds the 132-character limit. The
+line-length limiter will simply remove all indentation on any such lines.
+
+Finally, if all else fails, the code-generation part of PSyclone (the
+"backend") can be instructed not to use any indentation at all. See the
+:ref:`backend-options` section.
 
 .. _backend-options:
 
@@ -226,8 +246,13 @@ Backend Options
 The final code generated by PSyclone is created by passing the PSyIR
 tree to one of the 'backends' (see :ref:`psyir-backends` in
 the Developer Guide for more details). The ``--backend`` flag permits
-a user to tune the behaviour of this code generation. Currently, the
-only option is ``{en,dis}able-validation`` which turns on/off the
+a user to tune the behaviour of this code generation in the ways
+described below.
+
+Validation Checks
+^^^^^^^^^^^^^^^^^
+
+The option ``disable-validation`` turns off the
 validation checks performed when doing code generation. By default,
 such validation is enabled as it is only at code-generation time that
 certain constraints can be checked (since PSyclone does not mandate
@@ -237,10 +262,23 @@ implementations), at which point it is useful to be able to disable
 them.  The default behaviour may be changed by adding the
 ``BACKEND_CHECKS_ENABLED`` entry to the
 :ref:`configuration file <config-default-section>`. Any
-command-line setting always takes precendence though. It is
+command-line setting always takes precedence though. It is
 recommended that validation only be disabled as a last resort and for
 as few input source files as possible.
 
+Code Indentation
+^^^^^^^^^^^^^^^^
+
+The ``--backend disable-indentation`` command-line
+flag disables all indentation in the code generated by the backend.
+By default, indentation is used to make the generated code human
+readable. However, in certain compilers, this can interact
+with the line-length limiter to produce code that cannot be compiled.
+Disabling all indentation can solve this problem.
+The default behaviour may be changed by adding the 
+``BACKEND_INDENTATION_DISABLED`` entry in the PSyclone
+:ref:`configuration file <config-default-section>`. Note that any
+command-line setting always takes precedence.
 
 Automatic Profiling Instrumentation
 -----------------------------------
@@ -379,7 +417,7 @@ specified directory:
     > cd <PSYCLONEHOME>/src/psyclone
     > psyclone -d . use.f90 
     More than one match for kernel file 'testkern.[fF]90' found!
-    > psyclone -d tests/test_files/dynamo0p3 -api lfric use.f90 
+    > psyclone -d tests/test_files/lfric -api lfric use.f90 
     [code output]
 
 .. note:: The ``-d`` option can be repeated to add as many search
@@ -414,3 +452,37 @@ PSyclone will check the kernel output directory and if a transformed
 version of that kernel is already present then that will be
 used. Note, if the kernel file on disk does not match with what would
 be generated then PSyclone will raise an exception.
+
+Enabling the Logging Infrastructure
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+PSyclone supports logging which can provide additional information
+on what is happening inside PSyclone. This logging will also
+control the behaviour of any logging calls inside a user script.
+
+Logging output can be controlled through the ``--log-level`` option.
+By default, logging is set to ``OFF``, which means
+no logging output will be produced. There are 5 other levels as
+detailed in the ``psyclone -h`` information.
+
+By default the output from the logging goes into stderr.
+To control the logging output, PSyclone provides the
+``--log-file`` option. If this is set, the logging output will instead
+be directed to the provided file.
+
+Keeping Comments and Directives
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+PSyclone can now keep comments and directives from the original code, with
+some limitations:
+
+  1. Comments that appear after all statements in a routine are not currently
+     kept.
+  2. Directives are kept as ``CodeBlock`` nodes in the PSyIR which means
+     some transformations will be unavailable on regions containing these
+     nodes. Also PSyclone will not know any details about these nodes
+     (including that they contain directives) but this functionality will
+     be improved over time.
+
+Note that using the ``keep-comments`` option alone means that any comments
+that PSyclone interprets as directives will be lost from the input.

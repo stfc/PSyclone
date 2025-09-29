@@ -1,9 +1,9 @@
 # Kernel Extraction Library Using NetCDF for LFRic
 
 This wrapper library [writes (extracts)](
-https://psyclone.readthedocs.io/en/stable/psyke.html) input and output
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html) input and output
 parameters of instrumented code regions to a [NetCDF file](
-https://psyclone.readthedocs.io/en/stable/psyke.html#netcdf-extraction-example)
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html#netcdf-extraction-example)
 using the LFRic infrastructure library. A stand-alone driver can then be
 used to rerun this specific code region and verify the results (or
 compare performance).
@@ -11,7 +11,7 @@ compare performance).
 ## Dependencies
 
 This library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
 the application. The following dependencies must be available:
 
 - The LFRic infrastructure library. A pared-down version of LFRic
@@ -20,7 +20,7 @@ the application. The following dependencies must be available:
   https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17), however
   it is not included in the PSyclone [installation](
   ./../../../README.md#installation). See the [LFRic API](
-  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html) documentation
+  https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html) documentation
   for information on how to obtain access to the LFRic code.
 
 - This library uses NetCDF to store the data, so NetCDF must
@@ -65,7 +65,7 @@ that ``NO_MPI`` is not set).
 The NetCDF helper program ``nf-config`` is used to get the NetCDF-specific
 include paths. By default it is set to the relative path to the pared-down
 LFRic infrastructure located in a clone of PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
 This is not available in the PSyclone [installation](
 ./../../../README.md#installation) so the exact path
 **must be specified** using the environment variable ``LFRIC_INF_DIR``, e.g.
@@ -90,7 +90,7 @@ infrastructure library, ``liblfric_netcdf.a``, if required, with the
 previously selected compiler flags.
 
 Similar to compilation of the [examples](
-https://psyclone.readthedocs.io/en/latest/tutorials_and_examples.html#compilation), the
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#compilation), the
 compiled wrapper library can be removed by running ``make clean``. To also
 remove the compiled infrastructure library it is necessary to run
 ``make allclean`` (this is especially important if changing compilers

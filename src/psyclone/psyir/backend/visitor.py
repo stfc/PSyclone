@@ -42,7 +42,9 @@ back ends.
 '''
 
 import inspect
+from typing import Optional
 
+from psyclone.configuration import Config
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import Node, Schedule, Container
 from psyclone.psyir.commentable_mixin import CommentableMixin
@@ -71,6 +73,11 @@ class PSyIRVisitor():
         optional argument which defaults to False.
     :param str indent_string: Specifies what to use for indentation. This
         is an optional argument that defaults to two spaces.
+
+        .. note::
+            if all indentation has been disabled in the Config object then this
+            argument is ignored.
+
     :param int initial_indent_depth: Specifies how much indentation to
         start with. This is an optional argument that defaults to 0.
     :param bool check_global_constraints: whether or not to validate all
@@ -92,9 +99,23 @@ class PSyIRVisitor():
     # is set to True as the modifications will persist after the Writer!
     _DISABLE_LOWERING = False
 
-    def __init__(self, skip_nodes=False, indent_string="  ",
-                 initial_indent_depth=0, check_global_constraints=True,
-                 disable_copy=False):
+    # The default string with which to indent nested code. Can be overridden
+    # in the constructor. All use of indentation can be disabled by setting
+    # backend_disable_indentation in the Configuration object.
+    _DEFAULT_INDENT = "  "
+
+    def __init__(self, skip_nodes: bool = False,
+                 indent_string: Optional[str] = None,
+                 initial_indent_depth: int = 0,
+                 check_global_constraints: bool = True,
+                 disable_copy: bool = False):
+
+        if indent_string is None:
+            indent_string = self._DEFAULT_INDENT
+        # If all indentation has been switched off then that takes priority.
+        config = Config.get()
+        if config.backend_indentation_disabled:
+            indent_string = ""
 
         if not isinstance(skip_nodes, bool):
             raise TypeError(
@@ -253,8 +274,7 @@ class PSyIRVisitor():
         # the class hierarchy (starting from the current class name).
         for method_name in possible_method_names:
             try:
-                # pylint: disable=eval-used
-                node_result = eval(f"self.{method_name}(node)")
+                node_result = getattr(self, method_name)(node)
 
                 # We can only proceed to add comments if the Visitor
                 # returned a string, otherwise we just return
@@ -273,6 +293,10 @@ class PSyIRVisitor():
                     if not parent or valid:
                         if node.preceding_comment and self._COMMENT_PREFIX:
                             lines = node.preceding_comment.split('\n')
+                            # For better readability separate with a linebreak
+                            # any comment that is not at the top of their scope
+                            if node.position != 0:
+                                result += "\n"
                             for line in lines:
                                 result += (self._nindent +
                                            self._COMMENT_PREFIX +

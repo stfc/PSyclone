@@ -41,12 +41,17 @@ import os
 
 import pytest
 
+from fparser.one.block_statements import Program
+
 from psyclone.parse.algorithm import parse
+from psyclone.parse.module_manager import ModuleManager
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.utilities import (
-    change_dir, count_lines, Compile, CompileError, get_invoke,
-    get_infrastructure_path, line_number, print_diffs)
+    change_dir, check_links, count_lines, Compile, CompileError, get_ast,
+    get_base_path, get_infrastructure_path, get_invoke, line_number,
+    make_external_module, print_diffs)
 
 
 HELLO_CODE = '''
@@ -104,7 +109,7 @@ def test_compiler_works(monkeypatch):
     example.'''
 
     _compile = Compile("/some-random-dir")
-    assert _compile.base_path is None
+    assert _compile.base_path == ""
     assert _compile._tmpdir == "/some-random-dir"
     _compile.base_path = "/tmp"
     assert _compile.base_path == "/tmp"
@@ -362,12 +367,106 @@ def test_change_directory():
     assert os.getcwd() == old_dir
 
 
+# -----------------------------------------------------------------------------
+def test_get_base_path() -> None:
+    """
+    Tests get_base_path.
+    """
+    gocean = get_base_path("gocean")
+    assert "tests/test_files/gocean1p0" in gocean
+    lfric = get_base_path("lfric")
+    assert "tests/test_files/lfric" in lfric
+    nemo = get_base_path("nemo")
+    assert "nemo/test_files" in nemo
+
+    with pytest.raises(RuntimeError) as err:
+        _ = get_base_path("INVALID")
+    assert "The API 'INVALID' is not supported" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
 def test_get_infrastructure_path():
-    '''Tests the get_infrastructure_path() method.'''
+    '''Tests the get_infrastructure_path() function.
+    '''
     result = get_infrastructure_path("gocean")
     assert "dl_esm_inf" in result
     result = get_infrastructure_path("lfric")
-    assert "dynamo0p3" in result
+    assert "lfric" in result
     with pytest.raises(RuntimeError) as err:
         _ = get_infrastructure_path("wrong")
     assert "API 'wrong' is not supported" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_get_ast():
+    """Tests the get_ast function.
+    """
+    ast = get_ast("lfric", "19.12_single_stencil_region.f90")
+    program = ast.content[1]
+    assert isinstance(program, Program)
+    assert program.name == "single_stencil_region"
+
+
+# -----------------------------------------------------------------------------
+def test_check_links():
+    """Test the check_links function.
+    """
+
+    class MyNode(Node):
+        '''Dummy class which implements a validate_child method
+        that allows it to be nested with anything (esp. itself).'''
+        def __init__(self):
+            super().__init__(MyNode._validate_child)
+
+        @staticmethod
+        def _validate_child(position, child):
+            return True
+
+    parent = MyNode()
+    child1 = MyNode()
+    child2 = MyNode()
+    check_links(parent, [])
+    parent.addchild(child1)
+    check_links(parent, [child1])
+
+    # Note that an assert does not add any message that could be tested
+    # (not even when `assert condition, message` syntax is used).
+    # Error one: different number of elements:
+    with pytest.raises(AssertionError):
+        check_links(parent, [child1, child2])
+
+    # Error two: a child has not the parent as parent:
+    with pytest.raises(AssertionError):
+        check_links(parent, [child2])
+
+    # Error three: incorrect ordering
+    parent.addchild(child2)
+    with pytest.raises(AssertionError):
+        check_links(parent, [child2, child1])
+
+
+# -----------------------------------------------------------------------------
+def test_make_external_module(monkeypatch, fortran_reader):
+    """Test the make_external_module function.
+    """
+    code = """subroutine sub()
+    end subroutine sub
+    """
+    # Trying to avoid a file not found error, likely caused by temporary
+    # created files that make it into the module manager. Making sure
+    # we get a clean copy here:
+    ModuleManager._instance = None
+
+    mod_man = ModuleManager.get()
+
+    # Make sure that the module is initially missing.
+    with pytest.raises(FileNotFoundError) as err:
+        mod_info = mod_man.get_module_info("test_module")
+    assert ("Could not find source file for module 'test_module'"
+            in str(err.value))
+
+    # Create the temporary module
+    make_external_module(monkeypatch, fortran_reader,
+                         "test_module", code)
+    mod_info = mod_man.get_module_info("test_module")
+    assert mod_info.name == "test_module"

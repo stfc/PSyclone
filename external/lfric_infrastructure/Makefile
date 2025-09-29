@@ -1,0 +1,110 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# ------------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
+# Modified: R. W. Ford, STFC Daresbury Lab
+
+F90 ?= gfortran
+F90FLAGS ?= -Wall -g -fcheck=bound
+PRE_DIR = src
+# MAKEFILE_LIST is a Gnu-make variable that contains all of the
+# arguments passed to the first invocation of Make. The last entry
+# in this list is the current file.
+this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
+# PSyclone directory is up two from this file
+LFRIC_PATH := $(dir $(this_file))/$(PRE_DIR)
+
+# $(LFRIC_PATH) is the location of the source files. Define
+# $(BUILD_DIR) to point to the build directory, which the include
+# makefile will then use instead of $(LFRIC_PATH) for creating the
+# include paths (note: do not use $PWD, this variable might not
+# get updated when `make -C ...` is used to change the directory)
+include $(LFRIC_PATH)/lfric_include_flags.mk
+LFRIC_INCLUDE_FLAGS += $$(nf-config --fflags)
+
+# Since the repo includes the pre-processed files (.f90), we only
+# need to search for those here.
+ALL_SRC := $(subst $(LFRIC_PATH)/,,\
+		    $(shell find $(LFRIC_PATH) -name '*.f90' -print))
+OBJ = $(subst .F90,.o,$(subst .f90,.o,$(ALL_SRC)))
+
+.PHONY: default dirs liblfric get_include_flags
+
+default:
+	# Switch into the preprocessed directory to compile:
+	$(MAKE) -C $(LFRIC_PATH)
+
+# Target for the actual library
+liblfric: dirs liblfric.a
+
+dirs:
+	# Create the directories, required if the CI builds
+	# this for compilation tests.
+	mkdir -p $(DIRS)
+
+liblfric.a: $(OBJ)
+	$(AR) $(ARFLAGS) $@ $(OBJ)
+
+# Dependencies
+# ------------
+include $(LFRIC_PATH)/dependencies.mk
+
+# Compilation rules
+# -----------------
+
+# The following function defines a rule to compile SOMEDIR/*.f90 into
+# SOMEDIR/*.o. Since LFRic stores the mod and
+# .o files in the same directory, we mirror this behaviour here. Instead
+# of using compiler-specific flags to control the output location for
+# .mod files, this macro changes into the directory where the .o files should
+# be stored. This avoids the hassle of handling compiler specific flags.
+# An example for the rule created:
+# field/%.o: $(LFRIC_PATH)/field/%.f90
+#     cd field; $(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $< -o $(notdir $@)
+
+define compile_rule_template =
+$(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.f90
+	cd $(1); $$(F90) $$(F90FLAGS) $$(LFRIC_INCLUDE_FLAGS) -c $$< -o $$(notdir $$@)
+endef
+
+# Define the required rules for each subdirectory. DIRS is defined
+# by the included file `lfric_include_flags.mk`
+$(foreach dir,$(DIRS),$(eval $(call compile_rule_template,$(dir))))
+
+clean:
+	find $(LFRIC_PATH) -iname "*.o" -delete
+	find $(LFRIC_PATH) -iname "*.mod" -delete
+	rm -f $(LFRIC_PATH)/liblfric.a
+
+allclean: clean

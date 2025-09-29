@@ -35,27 +35,34 @@
 #         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified M. Naylor, University of Cambridge, UK
 
 '''
 API-agnostic tests for various transformation classes.
 '''
 
+import sys
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
-    Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
-    OMPDoDirective, OMPLoopDirective, Routine
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
-    ImportInterface, ContainerSymbol
-from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
-    TransformationError
+from psyclone.psyir.nodes import (
+    CodeBlock, Literal, Loop, Node, Reference, Schedule, Statement,
+    ACCLoopDirective, OMPMasterDirective,
+    OMPDoDirective, OMPLoopDirective, Routine)
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE,
+    ImportInterface, ContainerSymbol)
+from psyclone.psyir.transformations import (
+    ProfileTrans, RegionTrans, TransformationError)
 from psyclone.tests.utilities import get_invoke, Compile
-from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
-    ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
-    OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPDeclareTargetTrans
+from psyclone.transformations import (
+    ACCEnterDataTrans, ACCLoopTrans,
+    ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans,
+    OMPSingleTrans, OMPMasterTrans)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.transformations import (
+    OMPTaskloopTrans, OMPDeclareTargetTrans)
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -137,6 +144,11 @@ def test_accparalleltrans_validate(fortran_reader):
                 char = 'a' // 'b'
             end do
         end do
+        do i = 1, 10
+            do j = 1, 10
+                A(i,j) = GET_COMMAND(2)
+            end do
+        end do
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
@@ -152,6 +164,19 @@ def test_accparalleltrans_validate(fortran_reader):
         omptargettrans.validate(loops[1])
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a ACCParallel"
             "Trans transformation" in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[2])
+    assert ("'GET_COMMAND' is not available on the default accelerator "
+            "device. Use the 'device_string' option to specify a different "
+            "device." in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[2], options={'device_string':
+                                                   'nvfortran-all'})
+    assert ("'GET_COMMAND' is not available on the 'nvfortran-all' accelerator"
+            " device. Use the 'device_string' option to specify a different "
+            "device." in str(err.value))
 
 
 def test_accenterdata():
@@ -176,6 +201,7 @@ def test_omptaskloop_getters_and_setters():
     ''' Check that the OMPTaskloopTrans getters and setters
     correctly throw TransformationErrors on illegal values '''
     trans = OMPTaskloopTrans()
+    assert "Adds an 'OpenMP TASKLOOP' directive to a loop" in str(trans)
     with pytest.raises(TransformationError) as err:
         trans.omp_num_tasks = "String"
     assert "num_tasks must be an integer or None, got str" in str(err.value)
@@ -219,7 +245,7 @@ def test_omptaskloop_getters_and_setters():
 
 
 def test_omptaskloop_apply(monkeypatch):
-    '''Check that the gen_code method in the OMPTaskloopDirective
+    '''Check that the lowering method in the OMPTaskloopDirective
     class generates the expected code when passing options to
     the OMPTaskloopTrans's apply method and correctly overrides the
     taskloop's inbuilt value. Use the gocean API.
@@ -245,20 +271,20 @@ def test_omptaskloop_apply(monkeypatch):
 
     clauses = " nogroup"
     assert (
-        f"    !$omp parallel default(shared), private(i,j)\n"
-        f"      !$omp master\n"
-        f"      !$omp taskloop{clauses}\n"
-        f"      DO" in code)
+        f"  !$omp parallel default(shared) private(i,j)\n"
+        f"    !$omp master\n"
+        f"    !$omp taskloop{clauses}\n"
+        f"    do" in code)
     assert (
-        "      END DO\n"
-        "      !$omp end taskloop\n"
-        "      !$omp end master\n"
-        "      !$omp end parallel" in code)
+        "    enddo\n"
+        "    !$omp end taskloop\n"
+        "    !$omp end master\n"
+        "    !$omp end parallel" in code)
 
     assert taskloop_node.begin_string() == "omp taskloop"
 
     # Create a fake validate function to throw an exception
-    def validate(self, options):
+    def validate(self, options, **kwargs):
         raise TransformationError("Fake error")
     monkeypatch.setattr(taskloop, "validate", validate)
     # Test that the nogroup attribute isn't permanently changed if validate
@@ -427,8 +453,8 @@ def test_omplooptrans_apply_firstprivate(fortran_reader, fortran_writer,
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop)
     expected = '''\
-    !$omp parallel do default(shared), private(ji,jj,jk,scalar2), \
-firstprivate(scalar1), schedule(auto)
+    !$omp parallel do default(shared) private(ji,jj,jk,scalar2) \
+firstprivate(scalar1) schedule(auto)
     do jk = 2, jpkm1, 1
       do jj = 2, jpjm1, 1
         do ji = 2, jpim1, 1
@@ -516,7 +542,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
 
     # Check that the full resulting code looks like this
     expected = '''
-  !$omp parallel default(shared), private(i,j)
+  !$omp parallel default(shared) private(i,j)
   !$omp do schedule(dynamic,2)
   do i = 1, 10, 1
     do j = 1, 10, 1
@@ -525,7 +551,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
   enddo
   !$omp end do
   !$omp end parallel
-  !$omp parallel default(shared), private(i,j)
+  !$omp parallel default(shared) private(i,j)
   !$omp loop collapse(2)
   do i = 1, 10, 1
     do j = 1, 10, 1
@@ -536,6 +562,49 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
   !$omp end parallel\n'''
 
     assert expected in fortran_writer(tree)
+
+
+def test_omploop_trans_new_options(sample_psyir):
+    ''' Thest the new options and validation methods work correctly using
+    OMPLoopTrans apply'''
+    omplooptrans = OMPLoopTrans()
+    tree = sample_psyir.copy()
+
+    # Check we get the relevant error message when adding multiple invalid
+    # options.
+    with pytest.raises(ValueError) as excinfo:
+        omplooptrans.apply(tree.walk(Loop)[0], fakeoption1=1, fakeoption2=2)
+    assert ("'OMPLoopTrans' received invalid options ['fakeoption1', "
+            "'fakeoption2']. Valid options are '['node_type_check', "
+            "'verbose', 'collapse', 'force', 'ignore_dependencies_for', "
+            "'privatise_arrays', 'sequential', 'nowait', 'reduction_ops', "
+            "'options', 'reprod', 'enable_reductions']."
+            in str(excinfo.value))
+
+    # Check we get the relevant error message when submitting multiple
+    # options with the wrong type
+    with pytest.raises(TypeError) as excinfo:
+        omplooptrans.apply(tree.walk(Loop)[0], verbose=3, force="a")
+    assert ("'OMPLoopTrans' received options with the wrong types:\n"
+            "'verbose' option expects type 'bool' but received '3' "
+            "of type 'int'.\n"
+            "'force' option expects type 'bool' but received 'a' "
+            "of type 'str'.\n"
+            "Please see the documentation and check the provided types."
+            in str(excinfo.value))
+
+    with pytest.raises(TypeError) as excinfo:
+        omplooptrans.apply(tree.walk(Loop)[0], collapse="x")
+    if sys.version_info >= (3, 10):
+        assert ("'OMPLoopTrans' received options with the wrong types:\n"
+                "'collapse' option expects type 'int | bool' but "
+                "received 'x' of type 'str'.\n"
+                "Please see the documentation and check the provided types."
+                in str(excinfo.value))
+    else:
+        assert ("The 'collapse' argument must be an integer or a bool but got"
+                " an object of type <class 'str'>"
+                in str(excinfo.value))
 
 
 def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):
@@ -565,7 +634,7 @@ def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):
   integer :: i
   integer, dimension(100) :: arr
 
-  !$omp parallel default(shared), private(i)
+  !$omp parallel default(shared) private(i)
   !$omp do schedule(auto)
   do i = 1, 100, 1
     arr(i) = i
@@ -611,7 +680,7 @@ end subroutine x"""
   integer, dimension(100) :: arr
   integer, dimension(100) :: arr2
 
-  !$omp parallel default(shared), private(i,j)
+  !$omp parallel default(shared) private(i,j)
   !$omp do schedule(auto)
   do i = 1, 100, 1
     j = i + i
@@ -673,28 +742,6 @@ end subroutine x"""
     assert "nowait" not in out
 
 
-def test_ifblock_children_region():
-    ''' Check that we reject attempts to transform the conditional part of
-    an If statement or to include both the if- and else-clauses in a region
-    (without their parent). '''
-    acct = ACCParallelTrans()
-    # Construct a valid IfBlock
-    condition = Reference(DataSymbol('condition', BOOLEAN_TYPE))
-    ifblock = IfBlock.create(condition, [], [])
-
-    # Attempt to put all of the children of the IfBlock into a region. This
-    # is an error because the first child is the conditional part of the
-    # IfBlock.
-    with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct).validate([ifblock.children[0]])
-    assert ("transformation to the immediate children of a Loop/IfBlock "
-            "unless it is to a single Schedule" in str(err.value))
-    with pytest.raises(TransformationError) as err:
-        super(ACCParallelTrans, acct).validate(ifblock.children[1:])
-    assert (" to multiple nodes when one or more is a Schedule. "
-            "Either target a single Schedule or " in str(err.value))
-
-
 def test_regiontrans_wrong_children():
     ''' Check that the validate method raises the expected error if
         passed the wrong children of a Node. (e.g. those representing the
@@ -711,24 +758,6 @@ def test_regiontrans_wrong_children():
         RegionTrans.validate(rtrans, parent.children)
     assert ("Cannot apply a transformation to multiple nodes when one or more "
             "is a Schedule" in str(err.value))
-
-
-def test_parallelregion_refuse_codeblock():
-    ''' Check that ParallelRegionTrans.validate() rejects a loop nest that
-    encloses a CodeBlock. We use OMPParallelTrans as ParallelRegionTrans
-    is abstract. '''
-    otrans = OMPParallelTrans()
-    # Construct a valid Loop in the PSyIR with a CodeBlock in its body
-    parent = Loop.create(DataSymbol("ji", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE),
-                         Literal("10", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE),
-                         [CodeBlock([], CodeBlock.Structure.STATEMENT,
-                                    None)])
-    with pytest.raises(TransformationError) as err:
-        otrans.validate([parent])
-    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
-            "OMPParallelTrans transformation" in str(err.value))
 
 
 def test_parallellooptrans_refuse_codeblock():

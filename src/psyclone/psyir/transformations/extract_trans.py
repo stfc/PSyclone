@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: I. Kavcic, Met Office
-#          A. R. Porter and N. Nobre, STFC Daresbury Lab
+#          A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 
 '''This module contains the base class for extracting extracting a region
@@ -55,7 +55,7 @@ class ExtractTrans(PSyDataTrans):
     write the input and output parameters to a file. The node might
     also create a stand-alone driver program that can read the created
     file and then execute the instrumented region.
-    Examples are given in the derived classes DynamoExtractTrans and
+    Examples are given in the derived classes LFRicExtractTrans and
     GOceanExtractTrans.
 
     After applying the transformation the Nodes marked for extraction are
@@ -78,45 +78,6 @@ class ExtractTrans(PSyDataTrans):
         # This function is required to provide the appropriate default
         # node class.
         super().__init__(node_class=node_class)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def determine_postfix(read_write_info, postfix="_post"):
-        '''
-        This function prevents any name clashes that can occur when adding
-        the postfix to output variable names. For example, if there is an
-        output variable 'a', the driver (and the output file) will contain
-        two variables: 'a' and 'a_post'. But if there is also another variable
-        called 'a_post', a name clash would occur (two identical keys in the
-        output file, and two identical local variables in the driver). In
-        order to avoid this, the suffix 'post' is changed (to 'post0',
-        'post1', ...) until any name clashes are avoided. This works for
-        structured and non-structured types.
-
-        :param read_write_info: information about all input and output \
-            parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str postfix: the postfix to append to each output variable.
-
-        :returns: a postfix that can be added to each output variable without
-            generating a name clash.
-        :rtype: str
-
-        '''
-        suffix = ""
-        # Create the a set of all input and output variables (to avoid
-        # checking input+output variables more than once)
-        all_vars = read_write_info.set_of_all_used_vars
-        # The signatures in the input/output list need to be converted
-        # back to strings to easily append the suffix.
-        all_vars_string = [str(input_var) for _, input_var in all_vars]
-        while any(str(out_sig)+postfix+str(suffix) in all_vars_string
-                  for out_sig in read_write_info.signatures_written):
-            if suffix == "":
-                suffix = 0
-            else:
-                suffix += 1
-        return postfix+str(suffix)
 
     # -------------------------------------------------------------------------
     def validate(self, node_list, options=None):

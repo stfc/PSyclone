@@ -62,12 +62,12 @@ F90FLAGS += -I $(PSYDATA_PATH)
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../..
-LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME = lfric_netcdf
+LFRIC_PATH ?= $(PSYCLONE_RELPATH)/external/lfric_infrastructure/src
+LFRIC_NAME = lfric
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This will add the required include flags to F90FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 
 # GungHo auxiliary libraries
 GHLIB_PATH = ../gungho_lib
@@ -89,7 +89,7 @@ $(GHLIB_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(GHLIB_PATH)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) netcdf
+	$(MAKE) -C $(LFRIC_PATH)
 
 $(PSYDATA_LIB): $(LFRIC_LIB)
 ifneq ($(PSYDATA_PATH),)
@@ -111,6 +111,9 @@ time_evolution_alg_mod_psy.o: init_perturbation_kernel_mod.o \
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
+
 %.f90 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) \
 	-opsy $*_psy.f90 -oalg $*.f90 $<
@@ -120,7 +123,7 @@ clean:
 
 allclean: clean
 	$(MAKE) -C $(GHLIB_PATH)   clean
-	$(MAKE) -C $(LFRIC_PATH)   clean
+	$(MAKE) -C $(LFRIC_PATH)   allclean
 
 # If PSYDATA_PATH is not defined (i.e. this is invoked from
 # Makefile, not solution/Makefile.*), we don't know which

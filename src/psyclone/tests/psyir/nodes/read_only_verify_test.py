@@ -36,7 +36,6 @@
 
 ''' Module containing pytest tests for the ReadOnlyVerifyNode. '''
 
-from __future__ import absolute_import
 from psyclone.psyir.nodes import ReadOnlyVerifyNode, CodeBlock, Routine, \
     Reference, Return, IfBlock, Schedule
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE

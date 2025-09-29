@@ -40,21 +40,26 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT,
-    PRIVATISATION_ISSUES)
+    enhance_tree_information, PARALLELISATION_ISSUES, PRIVATISATION_ISSUES,
+    NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
 # Enable the insertion of profiling hooks during the transformation script
 PROFILING_ENABLED = False
 
-# List of all module names that PSyclone will chase during the creation of the
-# PSyIR tree in order to use the symbol information from those modules
+# Whether to chase the imported modules to improve symbol information (it can
+# also be a list of module filenames to limit the chasing to only specific
+# modules). This has to be used in combination with '-I' command flag in order
+# to point to the module location directory. We also strongly recommend using
+# the '--enable-cache' flag to reduce the performance overhead.
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # A environment variable can inform if this is targeting NEMOv4, in which case
 # array privatisation is disabled.
 NEMOV4 = os.environ.get('NEMOV4', False)
+
+CPU_REDUCTIONS = os.environ.get('CPU_REDUCTIONS', False)
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = []
@@ -94,6 +99,8 @@ def trans(psyir):
                 subroutine,
                 hoist_local_arrays=False,
                 convert_array_notation=True,
+                # See issue #3022
+                loopify_array_intrinsics=psyir.name != "getincom.f90",
                 convert_range_loops=True,
                 hoist_expressions=False,
                 scalarise_loops=False
@@ -106,5 +113,6 @@ def trans(psyir):
                     loop_directive_trans=omp_loop_trans,
                     collapse=False,
                     privatise_arrays=(not NEMOV4 and
-                                      psyir.name not in PRIVATISATION_ISSUES)
+                                      psyir.name not in PRIVATISATION_ISSUES),
+                    enable_reductions=CPU_REDUCTIONS,
             )

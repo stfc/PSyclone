@@ -343,8 +343,10 @@ module test_mod
     ! Comment on assignment 'a = 1'
     ! and second line
     a = 1
+
     ! Comment on call 'call test_sub()'
     call test_sub()
+
     ! Comment on if block 'if (a == 1) then'
     if (a == 1) then
       ! Comment on assignment 'a = 2'
@@ -361,10 +363,12 @@ module test_mod
         ! Comment on 'end if' => CodeBlock
       end if
     end if  ! Inline comment on 'end if'
+
     ! Comment on loop 'do i = 1, 10'
     do i = 1, 10, 1
       ! Comment on assignment 'a = 5'
       a = 5
+
       ! Comment on loop 'do j = 1, 10'
       do j = 1, 10, 1
         ! Comment on assignment 'a = 6'
@@ -373,6 +377,7 @@ module test_mod
       enddo  ! Inline comment on 'end do j = 1, 10'
       ! Comment at end of loop on i => CodeBlock
     enddo  ! Inline comment on 'end do i = 1, 10'
+
     ! Comment on 'do while (a < 10)'
     do while (a < 10)
       ! Comment on assignment 'a = 7'
@@ -418,8 +423,10 @@ module test_mod
     ! Comment on assignment 'a = 1'
     ! and second line
     a = 1
+
     ! Comment on call 'call test_sub()'
     call test_sub()
+
     ! Comment on if block 'if (a == 1) then'
     if (a == 1) then
       ! Comment on assignment 'a = 2'
@@ -433,16 +440,19 @@ module test_mod
         a = 4
       end if
     end if  ! Inline comment on 'end if'
+
     ! Comment on loop 'do i = 1, 10'
     do i = 1, 10, 1
       ! Comment on assignment 'a = 5'
       a = 5
+
       ! Comment on loop 'do j = 1, 10'
       do j = 1, 10, 1
         ! Comment on assignment 'a = 6'
         a = 6
       enddo  ! Inline comment on 'end do j = 1, 10'
     enddo  ! Inline comment on 'end do i = 1, 10'
+
     ! Comment on 'do while (a < 10)'
     do while (a < 10)
       ! Comment on assignment 'a = 7'
@@ -499,10 +509,10 @@ def test_directives():
     psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE)
 
     loop = psyir.walk(Loop)[0]
-    assert (
-        loop.preceding_comment
-        == "Comment on loop 'do i = 1, 10'\n$omp parallel do"
-    )
+    directive = loop.preceding(reverse=True)[0]
+    assert isinstance(directive, CodeBlock)
+    assert (directive.debug_string() ==
+            "! Comment on loop 'do i = 1, 10'\n!$omp parallel do\n")
 
 
 EXPECTED_WITH_DIRECTIVES = """subroutine test_sub()
@@ -519,10 +529,6 @@ end subroutine test_sub
 """
 
 
-@pytest.mark.xfail(
-    reason="Directive is written back as '! $omp parallel do'"
-    "instead of '!$omp parallel do'"
-)
 def test_write_directives():
     """Test that the directives are written back to the code"""
     reader = FortranReader(ignore_comments=False, ignore_directives=False)
@@ -581,3 +587,37 @@ def test_inline_comment():
     assert "a = i + 1" in assignment.debug_string()
     assert assignment.preceding_comment == ""
     assert assignment.inline_comment == "Third line of inline comment"
+
+
+def test_lost_program_comments():
+    """Test that the FortranReader doesn't lose comments after the
+    declarations when reading a Program."""
+    reader = FortranReader(ignore_comments=False)
+    code = """program a
+    integer :: i ! inline here
+
+    ! Comment here
+    i = 1
+    end program"""
+    psyir = reader.psyir_from_source(code)
+    assert (psyir.children[0].symbol_table.lookup("i").inline_comment ==
+            "inline here")
+    assignment = psyir.walk(Assignment)[0]
+    assert assignment.preceding_comment == "Comment here"
+
+
+def test_directive_at_end():
+    """Test that the FortranReader stores a directive after all
+    other code in a subroutine."""
+
+    code = """subroutine x
+    integer :: i
+    i = i + 1
+    !$omp barrier
+    end subroutine"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    # The directive is a codeblock
+    assert isinstance(routine.children[-1], CodeBlock)
+    assert routine.children[-1].debug_string() == "!$omp barrier\n"

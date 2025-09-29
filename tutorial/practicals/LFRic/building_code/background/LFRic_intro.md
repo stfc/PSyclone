@@ -12,7 +12,7 @@ portability, is **separation of concerns** between the science code and
 parallel code.
 
 **PSyclone** generates the parallel code for shared and distributed
-memory support on CPUs via the LFRic (Dynamo 0.3) API. The generated
+memory support on CPUs via the LFRic API. The generated
 code calls the appropriate functionality from the LFRic infrastructure
 (e.g. halo exchange, colouring). PSyclone optimisations are routinely
 used in building and running LFRic. Together with the developing
@@ -36,8 +36,8 @@ the Met Office and external LFRic developers and users.
 
 ### PSyclone in LFRic
 
-PSyclone LFRic (Dynamo 0.3) API documentation can be found [here](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
+PSyclone LFRic API documentation can be found [here](
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html).
 
 LFRic wiki hosts pages on the use of PSyclone in LFRic, starting with the
 [PSyclone in LFRic wiki (requires login)](

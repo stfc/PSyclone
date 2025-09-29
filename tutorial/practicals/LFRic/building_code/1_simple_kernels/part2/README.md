@@ -1,7 +1,7 @@
 # Tutorial 1, Part 2: Update fields on a generic function space
 
 In this part of the [first tutorial](../README.md), we will use the
-[stub-generation](https://psyclone.readthedocs.io/en/stable/psyclone_kern.html)
+[stub-generation](https://psyclone.readthedocs.io/en/latest/user_guide/psyclone_kern.html)
 functionality of the PSyclone kernel tool to
 create the argument list and declarations for a generic kernel that
 assigns a value to a field on any function space. For this we will use
@@ -47,13 +47,13 @@ field is to be updated (`GH_INC`) while the scalar is read only (`GH_READ`).
 the same as the access for an updated field on a continuous function
 space `W0` in [`setval_field_w0_kernel_mod.f90`](
 ../part1/setval_field_w0_kernel_mod.f90) (see [here](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#valid-access-modes)
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#valid-access-modes)
 for more information of valid access modes depending on the function
 space that an argument is defined on). The generic function spaces are
 treated as continuous (the "worst case scenario") except in the case of
 a generic discontinuous function space `ANY_DISCONTINUOUS_SPACE_n`
 (see [here](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#supported-function-spaces)
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#supported-function-spaces)
 for information on the supported function spaces).
 
 * Unlike the specific function space identifier `W0` that is located
@@ -86,7 +86,7 @@ The argument list and declarations are generated in one line per
 statement each, so in this case of long argument names they may overrun
 the free-form Fortran line-length limit of 132 characters and PSyclone
 will complain when building the code (see e.g. [here](
-https://psyclone.readthedocs.io/en/stable/line_length.html)). To wrap
+https://psyclone.readthedocs.io/en/latest/user_guide/psyclone_command.html#fortran-line-length)). To wrap
 long lines just use the `-l output` flag when running the kernel tool, e.g.
 
 ```shell
@@ -249,7 +249,7 @@ The completed algorithm can be found in the
 We will now run `make` to create the executable `simple_kernels_part2`
 using the provided [`simple_kernels_driver.f90`](simple_kernels_driver.f90)
 and the LFRic infrastructure [code support](
-../README.md#lfric-code-support). If the build is successful we can
+../../README.md#lfric-code-support). If the build is successful we can
 run the executable
 
 ```shell

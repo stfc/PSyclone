@@ -77,7 +77,7 @@ def test_omp_explicit_gen(fortran_reader, fortran_writer):
         "  real :: r\n"
         "  real, dimension(jpi,jpj,jpk) :: umask\n"
         "\n"
-        "  !$omp parallel do default(shared), private(ji,jj,jk), "
+        "  !$omp parallel do default(shared) private(ji,jj,jk) "
         "schedule(auto)\n"
         "  do jk = 1, jpk, 1\n"
         "    do jj = 1, jpj, 1\n"
@@ -97,7 +97,7 @@ def test_omp_explicit_gen(fortran_reader, fortran_writer):
 def test_omp_private_declaration(fortran_reader, fortran_writer):
     ''' Check code generation and private/shared declaration when
     an assignment is parallelised. In this case the code is like:
-    !$omp parallel default(shared), private()
+    !$omp parallel default(shared) private()
     jpk = 100
     do k=1, jpk ...
     enddo
@@ -118,7 +118,7 @@ def test_omp_private_declaration(fortran_reader, fortran_writer):
     # assignment statement is not allowed by default, so we need to disable
     # the node type check in order to apply the omp parallel transform.
     omp_parallel.apply(schedule.children[0:2], {'node-type-check': False})
-    expected = "!$omp parallel default(shared), private(ji,jj,jk)"
+    expected = "!$omp parallel default(shared) private(ji,jj,jk)"
     assert expected in fortran_writer(psyir)
 
 
@@ -131,7 +131,7 @@ def test_omp_parallel(fortran_reader, fortran_writer):
     schedule = psyir.children[0]
     otrans = OMPParallelTrans()
     otrans.apply([schedule[0]])
-    assert ("  !$omp parallel default(shared), private(ji,jj,jk)\n"
+    assert ("  !$omp parallel default(shared) private(ji,jj,jk)\n"
             "  do jk = 1, jpk, 1\n"
             "    do jj = 1, jpj, 1\n"
             "      do ji = 1, jpi, 1\n"
@@ -155,13 +155,13 @@ def test_omp_parallel_multi(fortran_reader, fortran_writer):
     # loop nests (Python's slice notation is such that the expression below
     # gives elements 2-3).
     otrans.apply(schedule[0].loop_body[2:4])
-    gen_code = fortran_writer(psyir).lower()
-    assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,"
+    code = fortran_writer(psyir).lower()
+    assert ("    !$omp parallel default(shared) private(ji,jj,zabe1,zcof1,"
             "zmsku)\n"
             "    do jj = 1, jpjm1, 1\n"
             "      do ji = 1, jpim1, 1\n"
             "        zabe1 = pahu(ji,jj,jk) * e2_e1u(ji,jj) * "
-            "e3u_n(ji,jj,jk)\n" in gen_code)
+            "e3u_n(ji,jj,jk)\n" in code)
     assert ("    do jj = 2, jpjm1, 1\n"
             "      do ji = 2, jpim1, 1\n"
             "        pta(ji,jj,jk,jn) = pta(ji,jj,jk,jn) + "
@@ -170,7 +170,7 @@ def test_omp_parallel_multi(fortran_reader, fortran_writer):
             "e3t_n(ji,jj,jk)\n"
             "      enddo\n"
             "    enddo\n"
-            "    !$omp end parallel\n" in gen_code)
+            "    !$omp end parallel\n" in code)
     directive = schedule[0].loop_body[2]
     assert isinstance(directive, OMPParallelDirective)
 
@@ -208,8 +208,8 @@ def test_omp_do_code_gen(fortran_reader, fortran_writer):
                     .else_body[0].else_body[0])
     loop_trans.apply(schedule[0].loop_body[1]
                      .else_body[0].else_body[0].dir_body[0])
-    gen_code = fortran_writer(psyir).lower()
-    correct = '''        !$omp parallel default(shared), private(ji,jj)
+    code = fortran_writer(psyir).lower()
+    correct = '''        !$omp parallel default(shared) private(ji,jj)
         !$omp do schedule(auto)
         do jj = 1, jpj, 1
           do ji = 1, jpi, 1
@@ -219,7 +219,7 @@ wmask(ji,jj,jk)
         enddo
         !$omp end do
         !$omp end parallel'''
-    assert correct in gen_code
+    assert correct in code
     directive = schedule[0].loop_body[1].else_body[0].else_body[0].dir_body[0]
     assert isinstance(directive, OMPDoDirective)
 
@@ -238,7 +238,7 @@ def test_omp_do_within_if(fortran_reader, fortran_writer):
     gen = fortran_writer(psyir).lower()
     expected = (
         "      else\n"
-        "        !$omp parallel do default(shared), private(ji,jj), "
+        "        !$omp parallel do default(shared) private(ji,jj) "
         "schedule(auto)\n"
         "        do jj = 1, jpj, 1\n"
         "          do ji = 1, jpi, 1\n"

@@ -43,7 +43,6 @@ PSyclone-conformant kernel code.
 '''
 
 import os
-import sys
 
 from pyparsing import ParseException
 
@@ -143,25 +142,20 @@ def get_kernel_filepath(module_name, kernel_paths, alg_filename):
     return matches[0]
 
 
-def get_kernel_parse_tree(filepath):
+def get_kernel_parse_tree(filepath: str):
     '''Parse the file in filepath with fparser1 and return a parse tree.
 
-    :param str filepath: path to a file (hopefully) containing \
-    PSyclone kernel code.
+    :param filepath: path to a file (hopefully) containing PSyclone
+                     kernel code.
 
-    :returns: Parse tree of the kernel code contained in the specified \
-    file.
+    :returns: Parse tree of the kernel code contained in the specified
+              file.
     :rtype: :py:class:`fparser.one.block_statements.BeginSource`
 
     :raises ParseError: if fparser fails to parse the file
 
     '''
     parsefortran.FortranParser.cache.clear()
-
-    # If logging is disable during a sphinx doctest run, doctest will just
-    # stop working. So only disable logging if we are not running doctest.
-    if 'sphinx.ext.doctest' not in sys.modules:
-        fparser.logging.disable(fparser.logging.CRITICAL)
 
     try:
         parse_tree = fpapi.parse(filepath)
@@ -827,7 +821,7 @@ class KernelType():
         operates_on = self.get_integer_variable("operates_on")
         # The GOcean API still uses the 'iterates_over' metadata entry
         # although this is deprecated in the LFRic API.
-        # Validation is left to the API-specific code in either dynamo0p3.py
+        # Validation is left to the API-specific code in either lfric.py
         # or gocean1p0.py.
         iterates_over = self.get_integer_variable("iterates_over")
         if operates_on:

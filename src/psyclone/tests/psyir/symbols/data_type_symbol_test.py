@@ -39,11 +39,12 @@
 
 import pytest
 
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import Signature
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DataTypeSymbol, INTEGER_TYPE, Symbol,
-    UnresolvedInterface, UnresolvedType, REAL_SINGLE_TYPE)
+    ArrayType, AutomaticInterface, DataSymbol, DataTypeSymbol,
+    INTEGER_TYPE, Symbol, UnresolvedInterface, UnresolvedType,
+    REAL_SINGLE_TYPE)
 
 
 def test_create_datatypesymbol():
@@ -80,10 +81,11 @@ def test_datatypesymbol_copy():
 
 def test_data_type_symbol_copy_properties():
     ''' Check that the copy_properties() method works as expected. '''
-    symbol = DataTypeSymbol("origin", ArrayType(REAL_SINGLE_TYPE, [1, 2]))
+    symbol = DataTypeSymbol("origin", ArrayType(REAL_SINGLE_TYPE, [1, 2]),
+                            interface=UnresolvedInterface())
     new_sym = DataTypeSymbol("new_name", UnresolvedType())
 
-    new_sym.copy_properties(symbol)
+    new_sym.copy_properties(symbol, exclude_interface=True)
 
     # new_sym name should be unchanged, but its datatype should be updated
     assert new_sym.name == "new_name"
@@ -91,6 +93,12 @@ def test_data_type_symbol_copy_properties():
     assert isinstance(new_sym.datatype, ArrayType)
     assert new_sym.datatype.intrinsic.name == "REAL"
     assert new_sym.datatype.shape[1] == symbol.datatype.shape[1]
+    # Interface should also be unchanged.
+    assert isinstance(new_sym.interface, AutomaticInterface)
+
+    # Repeat but include the interface this time.
+    new_sym.copy_properties(symbol)
+    assert isinstance(new_sym.interface, UnresolvedInterface)
 
     with pytest.raises(TypeError) as err:
         new_sym.copy_properties(REAL_SINGLE_TYPE)
@@ -103,6 +111,5 @@ def test_dts_reference_accesses():
     ndim = DataSymbol("ndim", INTEGER_TYPE)
     symbol = DataTypeSymbol("origin", ArrayType(REAL_SINGLE_TYPE,
                                                 [1, Reference(ndim)]))
-    vai = VariablesAccessInfo()
-    symbol.reference_accesses(vai)
-    assert vai.all_signatures == [Signature("ndim")]
+    vam = symbol.reference_accesses()
+    assert vam.all_signatures == [Signature("ndim")]

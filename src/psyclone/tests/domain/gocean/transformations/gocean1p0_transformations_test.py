@@ -47,7 +47,7 @@ from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Loop, Routine
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import (
     LoopFuseTrans, LoopTrans, TransformationError)
 from psyclone.transformations import ACCRoutineTrans, \
@@ -116,7 +116,7 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
 
     gen = fortran_writer(psy.container)
     expected = (
-        "    !$omp parallel do default(shared), private(i,j), "
+        "    !$omp parallel do default(shared) private(i,j) "
         "schedule(static)\n"
         "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
         "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
@@ -129,7 +129,7 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
 
     cbtrans.apply(schedule)
     gen = fortran_writer(psy.container)
-    expected = ("!$omp parallel do default(shared), private(i,j), "
+    expected = ("!$omp parallel do default(shared) private(i,j) "
                 "schedule(static)\n"
                 "    do j = 2, jstop, 1\n"
                 "      do i = 2, istop + 1, 1\n"
@@ -486,7 +486,7 @@ def test_omp_region_before_loops_trans(tmpdir):
             omp_region_idx = idx
         if '!$omp do' in line:
             omp_do_idx = idx
-        if 'DO j =' in line:
+        if 'do j =' in line:
             break
 
     assert omp_region_idx != -1
@@ -523,7 +523,7 @@ def test_omp_region_after_loops_trans(tmpdir):
             omp_region_idx = idx
         if '!$omp do' in line:
             omp_do_idx = idx
-        if 'DO j =' in line:
+        if 'do j =' in line:
             break
 
     assert omp_region_idx != -1
@@ -982,10 +982,10 @@ def test_module_noinline_default(tmpdir):
                         dist_mem=False)
     gen = str(psy.gen)
     # check that the subroutine has not been inlined
-    assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' not in gen
+    assert 'subroutine compute_cu_code(i, j, cu, p, u)' not in gen
     # check that the associated use exists (as this is removed when
     # inlining)
-    assert 'USE compute_cu_mod, ONLY: compute_cu_code' in gen
+    assert 'use compute_cu_mod, only : compute_cu_code' in gen
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
@@ -1030,7 +1030,7 @@ def test_acc_parallel_trans(tmpdir):
     for idx, line in enumerate(code.split('\n')):
         if "!$acc parallel default(present)" in line:
             acc_idx = idx
-        if (do_idx == -1) and "DO j" in line:
+        if (do_idx == -1) and "do j" in line:
             do_idx = idx
         if "!$acc end parallel" in line:
             acc_end_idx = idx
@@ -1060,14 +1060,14 @@ def test_acc_parallel_trans_dm():
     accdt.apply(schedule)
     code = str(psy.gen)
     # Check that the start of the parallel region is in the right place.
-    assert ("      !$acc parallel default(present)\n"
-            "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+    assert ("    !$acc parallel default(present)\n"
+            "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
             in code)
     # Check that the end parallel is generated correctly.
-    assert ("        END DO\n"
-            "      END DO\n"
-            "      !$acc end parallel\n\n"
-            "    END SUBROUTINE invoke_0\n" in code)
+    assert ("      enddo\n"
+            "    enddo\n"
+            "    !$acc end parallel\n\n"
+            "  end subroutine invoke_0\n" in code)
 
 
 def test_acc_incorrect_parallel_trans():
@@ -1148,7 +1148,7 @@ def test_acc_data_copyin(tmpdir):
     code = str(psy.gen)
 
     assert (
-        "      !$acc enter data copyin(cu_fld,cu_fld%data,cv_fld,cv_fld%data,"
+        "    !$acc enter data copyin(cu_fld,cu_fld%data,cv_fld,cv_fld%data,"
         "p_fld,p_fld%data,u_fld,u_fld%data,unew_fld,unew_fld%data,"
         "uold_fld,uold_fld%data,v_fld,v_fld%data)\n" in code)
 
@@ -1185,7 +1185,7 @@ def test_acc_data_grid_copyin(tmpdir):
     for obj in ["u_fld", "cu_fld", "du_fld", "d_fld"]:
         assert f"{obj}%data_on_device = .true." in code
     # Check that we have no acc_update_device calls
-    assert "CALL acc_update_device" not in code
+    assert "call acc_update_device" not in code
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
@@ -1324,30 +1324,25 @@ def test_acc_enter_directive_infrastructure_setup():
 
     # Check that the read_from_device routine has been generated
     expected = """\
-    SUBROUTINE read_from_device(from, to, startx, starty, nx, ny, blocking)
-      USE iso_c_binding, ONLY: c_ptr
-      USE kind_params_mod, ONLY: go_wp
-      TYPE(c_ptr), intent(in) :: from
-      REAL(KIND=go_wp), DIMENSION(:, :), INTENT(INOUT), TARGET :: to
-      INTEGER, intent(in) :: startx
-      INTEGER, intent(in) :: starty
-      INTEGER, intent(in) :: nx
-      INTEGER, intent(in) :: ny
-      LOGICAL, intent(in) :: blocking
+  subroutine read_from_device(from, to, startx, starty, nx, ny, blocking)
+    use iso_c_binding, only : c_ptr
+    use kind_params_mod, only : go_wp
+    type(c_ptr), intent(in) :: from
+    REAL(KIND = go_wp), DIMENSION(:, :), INTENT(INOUT), TARGET :: to
+    integer, intent(in) :: startx
+    integer, intent(in) :: starty
+    integer, intent(in) :: nx
+    integer, intent(in) :: ny
+    logical, intent(in) :: blocking
 
-      !$acc update host(to)
+    !$acc update host(to)
 
-    END SUBROUTINE read_from_device"""
+  end subroutine read_from_device"""
     assert expected in gen
 
-    # Check that the routine has been introduced to the tree (with the
-    # appropriate tag) and only once (even if there are 3 fields)
-    symbol = schedule.symbol_table.lookup_with_tag("openacc_read_func")
-    assert symbol.name == "read_from_device"
-    assert len(schedule.parent.children) == 2
-    assert isinstance(schedule.parent.children[1], Routine)
-    assert schedule.parent.children[1].name == symbol.name
-    count = count_lines(gen, "SUBROUTINE read_from_device(")
+    # Check that the routine has been introduced to the tree only once
+    # (even if there are 3 fields)
+    count = count_lines(gen, "subroutine read_from_device(")
     assert count == 1
 
     # Check that each field data_on_device and read_from_device_f have been
@@ -1410,11 +1405,11 @@ def test_acc_collapse(tmpdir):
     accdata.apply(schedule)
 
     gen = str(psy.gen)
-    assert ("      !$acc parallel default(present)\n"
-            "      !$acc loop independent collapse(2)\n"
-            "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
-            "        DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
-            "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
+    assert ("    !$acc parallel default(present)\n"
+            "    !$acc loop independent collapse(2)\n"
+            "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+            "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
+            "        call compute_cu_code(i, j, cu_fld%data, p_fld%data, "
             "u_fld%data)\n" in gen)
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
@@ -1434,8 +1429,8 @@ def test_acc_indep(tmpdir):
     accdata.apply(schedule)
     # Check the generated code
     gen = str(psy.gen)
-    assert "!$acc loop\n      DO j = cu_fld%internal%ystart," in gen
-    assert "!$acc loop independent\n      DO j = cv_fld%internal%ystart" in gen
+    assert "!$acc loop\n    do j = cu_fld%internal%ystart," in gen
+    assert "!$acc loop independent\n    do j = cv_fld%internal%ystart" in gen
 
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
@@ -1454,9 +1449,9 @@ def test_acc_loop_seq():
     accdata.apply(schedule)
     # Check the generated code
     gen = str(psy.gen).lower()
-    assert ("      !$acc parallel default(present)\n"
-            "      !$acc loop seq\n"
-            "      do j = cu_fld%internal%ystart, cu_fld%internal%ystop"
+    assert ("    !$acc parallel default(present)\n"
+            "    !$acc loop seq\n"
+            "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop"
             ", 1\n" in gen)
 
 
@@ -1499,14 +1494,15 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     assert rtrans.name == "ACCRoutineTrans"
     rtrans.apply(kern)
     # Check that there is a acc routine directive in the kernel
-    code = fortran_writer(kern.get_kernel_schedule())
+    schedules = kern.get_callees()
+    code = fortran_writer(schedules[0])
     assert "!$acc routine seq\n" in code
 
     # If the kernel schedule is not accessible, the transformation fails
     def raise_gen_error():
         '''Simple function that raises GenerationError.'''
         raise GenerationError("error")
-    monkeypatch.setattr(kern, "get_kernel_schedule", raise_gen_error)
+    monkeypatch.setattr(kern, "get_callees", raise_gen_error)
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kern)
     assert ("Failed to create PSyIR for kernel 'continuity_code'. Cannot "
@@ -1522,16 +1518,16 @@ def test_accroutinetrans_with_routine(fortran_writer):
     assert isinstance(kern, GOKern)
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
-    routine = kern.get_kernel_schedule()
-    rtrans.apply(routine)
+    routines = kern.get_callees()
+    rtrans.apply(routines[0])
     # Check that there is a acc routine directive in the routine
-    code = fortran_writer(routine)
+    code = fortran_writer(routines[0])
     assert "!$acc routine seq\n" in code
 
     # Even if applied multiple times the Directive is only there once
-    previous_num_children = len(routine.children)
-    rtrans.apply(routine)
-    assert previous_num_children == len(routine.children)
+    previous_num_children = len(routines[0].children)
+    rtrans.apply(routines[0])
+    assert previous_num_children == len(routines[0].children)
 
 
 def test_accroutinetrans_with_invalid_node():

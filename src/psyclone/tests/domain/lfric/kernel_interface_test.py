@@ -44,7 +44,7 @@ LFRic-specific PSyIR classes.
 import os
 import pytest
 
-from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import FunctionSpace, KernelInterface, LFRicTypes
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
@@ -59,7 +59,7 @@ from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 # pylint: disable=isinstance-second-argument-not-valid-type
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         os.pardir, os.pardir, "test_files", "dynamo0p3")
+                         os.pardir, os.pardir, "test_files", "lfric")
 
 
 def test_init():
@@ -75,7 +75,7 @@ def test_init():
     assert kernel_interface._arglist == []
 
 
-@pytest.mark.parametrize("var_accesses", [None, VariablesAccessInfo()])
+@pytest.mark.parametrize("var_accesses", [None, VariablesAccessMap()])
 def test_generate(var_accesses):
     '''Test that the KernelInterface class generate method creates the
     expected symbols and adds them to the symbol table and its
@@ -141,12 +141,12 @@ def test_generate(var_accesses):
         # Test all read-only variables
         for var in ["nlayers", "undf_w0", "f2", "ndf_w0", "dofmap_w0"]:
             accesses = var_accesses[Signature(var)]
-            assert len(accesses.all_accesses) == 1
+            assert len(accesses) == 1
             assert accesses[0].access_type == AccessType.READ
 
         # Test the read-write variable
         accesses = var_accesses[Signature("f1")]
-        assert len(accesses.all_accesses) == 1
+        assert len(accesses) == 1
         assert accesses[0].access_type == AccessType.READWRITE
 
 

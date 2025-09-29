@@ -57,7 +57,7 @@ from psyclone.errors import InternalError
 # pylint: disable=invalid-name
 
 LFRIC_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               os.path.pardir, "test_files", "dynamo0p3")
+                               os.path.pardir, "test_files", "lfric")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.path.pardir, "test_files", "gocean1p0")
 
@@ -197,7 +197,7 @@ def test_getkernelfilepath_nodir_supplied():
 
 def test_getkernelfilepath_nomatch():
     '''Test that the expected exception is raised if the kernel file is
-    not found in the supplied directory (or its descendents).
+    not found in the supplied directory (or its descendants).
 
     '''
     kern_module_name = "testkern_mod"
@@ -270,7 +270,7 @@ def test_getkernelast_nodir():
 
 def test_getkernelast_nomatch():
     '''Test that the expected exception is raised if the kernel file is
-    not found in the supplied directory (or its descendents).
+    not found in the supplied directory (or its descendants).
 
     '''
     kern_module_name = "testkern_mod"

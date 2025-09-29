@@ -37,7 +37,8 @@
 
 ''' This module contains the DataTypeSymbol. '''
 
-from __future__ import absolute_import
+from __future__ import annotations
+
 from psyclone.psyir.symbols.symbol import Symbol
 
 
@@ -111,12 +112,16 @@ class DataTypeSymbol(Symbol):
                 f"DataType but got: '{type(value).__name__}'")
         self._datatype = value
 
-    def copy_properties(self, symbol_in):
+    def copy_properties(self,
+                        symbol_in: DataTypeSymbol,
+                        exclude_interface: bool = False):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name (which is immutable) and visibility.
+        If `exclude_interface` is True, the interface is also not updated.
 
         :param symbol_in: the symbol from which the properties are copied.
-        :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param exclude_interface: whether or not to exclude the interface
+                                  when copying properties.
 
         :raises TypeError: if the argument is not the expected type.
 
@@ -124,20 +129,21 @@ class DataTypeSymbol(Symbol):
         if not isinstance(symbol_in, DataTypeSymbol):
             raise TypeError(f"Argument should be of type 'DataTypeSymbol' but "
                             f"found '{type(symbol_in).__name__}'.")
-        super(DataTypeSymbol, self).copy_properties(symbol_in)
+        super().copy_properties(symbol_in, exclude_interface=exclude_interface)
         self._datatype = symbol_in.datatype
 
-    def reference_accesses(self, access_info):
+    def reference_accesses(self):
         '''
-        Update the supplied VariablesAccessInfo with information on the symbols
-        referenced by the definition of this Symbol.
+        :returns: a map of all the symbol accessed inside this Symbol, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
-        :param access_info: the object in which to accumulate access
-                            information.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
         '''
-        super().reference_accesses(access_info)
-        self.datatype.reference_accesses(self, access_info)
+        access_info = super().reference_accesses()
+        access_info.update(self.datatype.reference_accesses())
+        return access_info
 
     def replace_symbols_using(self, table_or_symbol):
         '''

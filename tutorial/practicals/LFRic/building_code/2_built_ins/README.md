@@ -4,12 +4,12 @@ In the [first tutorial](../1_simple_kernels) we used [kernels](
 ../1_simple_kernels/LFRic_kernel_structure.md) for simple mathematical
 linear algebra operations, such as setting field to a value and adding fields.
 PSyclone provides [built-ins support](
-https://psyclone.readthedocs.io/en/stable/introduction_to_psykal.html#built-ins)
+https://psyclone.readthedocs.io/en/latest/user_guide/introduction_to_psykal.html#built-ins)
 for such simple operations.
 
 In this tutorial we will learn how to utilise the
-[LFRic (Dynamo 0.3) API built-ins](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins)
+[LFRic API built-ins](
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#built-ins)
 support in PSyclone instead of using kernels. A quick introduction to
 built-ins is also given in the [section below](#quick-intro-to-built-ins).
 
@@ -119,26 +119,26 @@ This step consists of applying the following mathematical operations:
 The following built-ins need to be used for the operations above:
 
 * [`setval_c` built-in](
-  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#setval-c) for
+  https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#setval-c) for
   initialising (setting) fields to a scalar value (e.g. `field_out_w0 = 0`);
 
 * [`X_plus_Y` built-in](
-  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#x-plus-y)
+  https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#x-plus-y)
   for adding two fields (`field_out_w0 = field1_in_w0 + field2_in_w0`);
 
 * [`a_times_X` built-in](
-  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#a-times-x) for
+  https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#a-times-x) for
   multiplying a field by a scalar value (`field2_in_w3 = 2*field1_in_w3`);
 
 * [`X_minus_bY` built-in](
-  https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#x-minus-by) for
+  https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#x-minus-by) for
   subtracting scaled fields (`field_out_w3 = field1_in_w3 - 0.5*field2_in_w3`).
 
 For more information on how the built-ins are named, look into the
 [*Naming scheme* section](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#naming-scheme)
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#naming-scheme)
 of the [PSyclone LFRic API built-ins documentation](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#built-ins).
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#built-ins).
 
 The calls to some of the listed built-ins are outlined below:
 
@@ -202,7 +202,7 @@ below).
 As each `invoke` call generates a PSy-layer subroutine (see the
 *Step 3* below for the algorithm code processing), it can be
 easier to specify a [label (name) for an `invoke`](
-https://psyclone.readthedocs.io/en/stable/introduction_to_psykal.html#algorithm-layer)
+https://psyclone.readthedocs.io/en/latest/user_guide/introduction_to_psykal.html#algorithm-layer)
 (and hence the subroutine) call to make it easier to search for in the
 generated code. To do this here modify the completed `invoke` by adding a
 name in the first line of the `invoke` call, e.g.
@@ -300,7 +300,7 @@ The generated code for the specific mathematical operation here
 
 ```fortran
       !
-      ! Call our kernels
+      ! Call kernels
       !
       ...
       DO df=1,undf_aspc1_field_out_w0
@@ -330,8 +330,7 @@ run the executable
 ```
 
 The program prints out several log messages about setting up the model
-and calling the algorithm subroutine `builtins_alg`. As outlined
-[above](#algorithm-structure), the algorithm checks the minimum
+and calling the algorithm subroutine `builtins_alg`. The algorithm checks the minimum
 and maximum values of all fields after calling the built-ins to update
 them. The correct values for the output fields depend on the values you
 set the fields to (for instance, `field_w0_out` should return the
@@ -345,11 +344,11 @@ can be removed by running `make clean`.
 Similar to the user-defined [LFRic kernels](
 ../1_simple_kernels/LFRic_kernel_structure.md),
 the built-in kernels also have metadata but their metadata are defined in
-the PSyclone [LFRic (Dynamo 0.3) API](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
+the PSyclone [LFRic API](
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html).
 
 Below is an example of metadata for the [built-in `X_plus_Y`](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#x-plus-y)
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#x-plus-y)
 that adds two fields and stores the result in a third:
 
 ```fortran
@@ -376,5 +375,5 @@ fields passed to a built-in call **must be on the same function space**.
 Built-ins need to work with fields on any function space, hence using the
 `ANY_SPACE_1` identifier for the generic function space (see the
 [*Supported Function Spaces* section](
-https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#dynamo0-3-function-space)
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#lfric-function-space)
 for more information).

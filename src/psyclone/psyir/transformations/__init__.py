@@ -53,6 +53,8 @@ from psyclone.psyir.transformations.arrayaccess2loop_trans import \
     ArrayAccess2LoopTrans
 from psyclone.psyir.transformations.arrayassignment2loops_trans import \
     ArrayAssignment2LoopsTrans
+from psyclone.psyir.transformations.debug_checksum_trans import \
+    DebugChecksumTrans
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
@@ -62,6 +64,8 @@ from psyclone.psyir.transformations.hoist_local_arrays_trans import \
 from psyclone.psyir.transformations.hoist_loop_bound_expr_trans import \
     HoistLoopBoundExprTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans
+from psyclone.psyir.transformations.increase_rank_loop_arrays_trans import \
+    IncreaseRankLoopArraysTrans
 from psyclone.psyir.transformations.inline_trans import InlineTrans
 from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
     Abs2CodeTrans
@@ -83,12 +87,16 @@ from psyclone.psyir.transformations.intrinsics.sum2loop_trans import \
     Sum2LoopTrans
 from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
+from psyclone.psyir.transformations.loop_tiling_trans \
+    import LoopTilingTrans
 from psyclone.psyir.transformations.loop_tiling_2d_trans \
     import LoopTiling2DTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.value_range_check_trans import (
     ValueRangeCheckTrans)
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
+from psyclone.psyir.transformations.omp_minimise_sync_trans import \
+    OMPMinimiseSyncTrans
 from psyclone.psyir.transformations.omp_target_trans import OMPTargetTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 from psyclone.psyir.transformations.omp_task_trans import OMPTaskTrans
@@ -110,7 +118,12 @@ from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
 from psyclone.psyir.transformations.scalarisation_trans import \
     ScalarisationTrans
-
+from psyclone.psyir.transformations.parallel_region_trans import \
+    ParallelRegionTrans
+from psyclone.psyir.transformations.omp_taskloop_trans import \
+    OMPTaskloopTrans
+from psyclone.psyir.transformations.omp_declare_target_trans import \
+    OMPDeclareTargetTrans
 
 # For AutoAPI documentation generation
 __all__ = [
@@ -119,12 +132,14 @@ __all__ = [
     "AllArrayAccess2LoopTrans",
     "ArrayAccess2LoopTrans",
     "ArrayAssignment2LoopsTrans",
+    "DebugChecksumTrans",
     "ChunkLoopTrans",
     "ExtractTrans",
     "FoldConditionalReturnExpressionsTrans",
     "HoistLocalArraysTrans",
     "HoistLoopBoundExprTrans",
     "HoistTrans",
+    "IncreaseRankLoopArraysTrans",
     "InlineTrans",
     "Abs2CodeTrans",
     "DotProduct2CodeTrans",
@@ -135,11 +150,13 @@ __all__ = [
     "Sum2LoopTrans",
     "LoopFuseTrans",
     "LoopSwapTrans",
+    "LoopTilingTrans",
     "LoopTiling2DTrans",
     "LoopTrans",
     "Maxval2LoopTrans",
     "Minval2LoopTrans",
     "OMPLoopTrans",
+    "OMPMinimiseSyncTrans",
     "OMPTargetTrans",
     "OMPTaskTrans",
     "OMPTaskwaitTrans",
@@ -154,4 +171,7 @@ __all__ = [
     "ReplaceReferenceByLiteralTrans",
     "TransformationError",
     "ValueRangeCheckTrans",
+    "ParallelRegionTrans",
+    "OMPTaskloopTrans",
+    "OMPDeclareTargetTrans",
 ]

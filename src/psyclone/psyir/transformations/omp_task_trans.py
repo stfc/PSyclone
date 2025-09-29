@@ -32,11 +32,11 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. B. G. Chalk, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 ''' This module provides the OMPTaskTrans transformation.'''
 
 from psyclone.errors import GenerationError
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import Kern
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
         import FoldConditionalReturnExpressionsTrans
@@ -69,7 +69,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         '''
         return "OMPTaskTrans"
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Validity checks for input arguments.
 
@@ -91,7 +91,6 @@ class OMPTaskTrans(ParallelLoopTrans):
                 "OMPTaskTransformation cannot be applied to a region "
                 "containing a code block")
 
-        super().validate(node, options)
         # Check we can apply all the required transformations on any sub
         # nodes
         root_ancestor = node.root
@@ -106,17 +105,23 @@ class OMPTaskTrans(ParallelLoopTrans):
             node_copy = node_copy.children[index]
 
         kerns = node_copy.walk(Kern)
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.transformations import \
+            KernelModuleInlineTrans
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
 
         for kern in kerns:
             kintrans.validate(kern)
-            cond_trans.validate(kern.get_kernel_schedule())
+            routines = kern.get_callees()
+            for routine in routines:
+                cond_trans.validate(routine)
             # We need to apply these transformations to ensure we can
             # validate the InlineTrans
             kintrans.apply(kern)
-            cond_trans.apply(kern.get_kernel_schedule())
+            for routine in routines:
+                cond_trans.apply(routine)
             kern.lower_to_language_level()
 
         calls = node_copy.walk(Call)
@@ -125,7 +130,10 @@ class OMPTaskTrans(ParallelLoopTrans):
             if isinstance(call, IntrinsicCall):
                 continue
             kintrans.apply(call)
-            intrans.validate(call)
+            intrans.apply(call)
+
+        # Check if the resulting code would be valid
+        super().validate(node_copy, options)
 
     def _directive(self, children, collapse=None):
         '''
@@ -167,12 +175,17 @@ class OMPTaskTrans(ParallelLoopTrans):
         '''
 
         kerns = node.walk(Kern)
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.transformations import \
+            KernelModuleInlineTrans
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
         for kern in kerns:
             kintrans.apply(kern)
-            cond_trans.apply(kern.get_kernel_schedule())
+            schedules = kern.get_callees()
+            for sched in schedules:
+                cond_trans.apply(sched)
             kern.lower_to_language_level()
 
         calls = node.walk(Call)
@@ -182,7 +195,7 @@ class OMPTaskTrans(ParallelLoopTrans):
                 continue
             intrans.apply(call)
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the OMPTaskTrans to the specified node in a Schedule.
 
         Can only be applied to a Loop.
@@ -215,3 +228,7 @@ class OMPTaskTrans(ParallelLoopTrans):
             options = {}
         self._inline_kernels(node)
         super().apply(node, options)
+
+
+# For AutoAPI documentation generation.
+__all__ = ["OMPTaskTrans"]

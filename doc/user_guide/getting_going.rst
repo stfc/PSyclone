@@ -77,6 +77,19 @@ please see the
     in its own ``virtual environment`` we recommend reading the
     `Python Packaging User Guide <https://packaging.python.org/en/latest/tutorials/installing-packages/>`_.
 
+  .. tab-item:: From Conda:
+
+    PSyclone is available in the ``conda-forge`` Conda channel.
+
+    To create a conda environment containing PSyclone use:
+
+    .. code-block:: bash
+
+      conda create -n psyclone-env -c conda-forge psyclone
+
+    For more information about how to use Conda we recommend reading the `Conda
+    documentation <https://docs.conda.io/projects/conda/en/stable/>`_.
+
   .. tab-item:: From Spack:
 
     To install psyclone to your loaded Spack installation use:
@@ -160,10 +173,13 @@ command. To list the available options run: ``psyclone -h``, it should output::
 
    usage: psyclone [-h] [--version] [--config CONFIG] [-s SCRIPT] [-I INCLUDE]
                    [-l {off,all,output}] [--profile {invokes,routines,kernels}]
-				   [--backend {enable-validation,disable-validation}] [-o OUTPUT_FILE]
-				   [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE]
-                   [-okern OUTPUT_KERNEL_PATH] [-d DIRECTORY] [-dm] [-nodm]
+		   [--backend {disable-validation,disable-indentation}]
+		   [-o OUTPUT_FILE] [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE]
+		   [-opsy OUTPUT_PSY_FILE] [-okern OUTPUT_KERNEL_PATH]
+		   [-d DIRECTORY] [-dm] [-nodm]
                    [--kernel-renaming {multiple,single}]
+		   [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+		   [--log-file LOG_FILE] [--keep-comments] [--keep-directives]
                    filename
 
    Transform a file using the PSyclone source-to-source Fortran compiler
@@ -174,22 +190,26 @@ command. To list the available options run: ``psyclone -h``, it should output::
    options:
      -h, --help            show this help message and exit
      --version, -v         display version information
-     --config CONFIG, -c CONFIG
+     -c CONFIG, --config CONFIG
                            config file with PSyclone specific options
      -s SCRIPT, --script SCRIPT
                            filename of a PSyclone optimisation recipe
      -I INCLUDE, --include INCLUDE
                            path to Fortran INCLUDE or module files
+     --enable-cache        whether to enable caching of imported module dependencies (if
+                           enabled, it will generate a .psycache file of each imported
+			   module in the same location as the imported source file).
      -l {off,all,output}, --limit {off,all,output}
                            limit the Fortran line length to 132 characters (default 'off').
                            Use 'all' to apply limit to both input and output Fortran. Use
                            'output' to apply line-length limit to output Fortran only.
-     --profile {invokes,routines,kernels}, -p {invokes,routines,kernels}
+     -p {invokes,routines,kernels}, --profile {invokes,routines,kernels}
                            add profiling hooks for 'kernels', 'invokes' or 'routines'
-     --backend {enable-validation,disable-validation}
+     --backend {disable-validation,disable-indentation}
                            options to control the PSyIR backend used for code generation.
                            Use 'disable-validation' to disable the validation checks that
-                           are performed by default.
+                           are performed by default. Use 'disable-indentation' to turn off
+			   all indentation in the generated code.
      -o OUTPUT_FILE        (code-transformation mode) output file
      -api DSL, --psykal-dsl DSL
                            whether to use a PSyKAl DSL (one of ['lfric', 'gocean'])
@@ -208,6 +228,13 @@ command. To list the available options run: ``psyclone -h``, it should output::
      -nodm, --no_dist_mem  (psykal mode) do not generate distributed memory code
      --kernel-renaming {multiple,single}
                            (psykal mode) naming scheme to use when re-naming transformed kernels
+     --log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}
+                           sets the level of the logging (defaults to OFF).
+     --log-file LOG_FILE   sets the output file to use for logging (defaults to stderr).
+     --keep-comments       keeps comments from the original code (defaults to False).
+                           Directives are not kept with this option (use
+			   --keep-directives).
+     --keep-directives     keeps directives from the original code (defaults to False).
 
 There is more detailed information about each flag in :ref:`psyclone_command` section,
 but the main parameters are the input source file that we aim to transform, and a transformation
@@ -240,7 +267,7 @@ This should not transform the semantics of the code (only the syntax), and is
 what we sometimes refer to as a "passthrough" run. This can be useful as an initial
 correctness test when applying PSyclone to a new code.
 
-However, PSyclone allows users to programatically change the source code of the
+However, PSyclone allows users to programmatically change the source code of the
 processed file. This is achieved using transformation recipes which are python scripts
 with a `trans` function defined. For example:
 
@@ -273,7 +300,7 @@ with a `trans` function defined. For example:
 
            :param psy: the PSy object that PSyclone has constructed for the
                        'invoke'(s) found in the Algorithm file.
-           :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+           :type psy: :py:class:`psyclone.lfric.LFRicPSy`
 
            '''
            for invoke in psy.invokes.invoke_list:

@@ -36,8 +36,12 @@
 
 ''' This module contains the GenericInterfaceSymbol.'''
 
+from __future__ import annotations
 from dataclasses import dataclass
+from typing import Union
 
+from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+from psyclone.psyir.symbols.datatypes import DataType, UnresolvedType
 from psyclone.psyir.symbols.symbol import Symbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 
@@ -46,6 +50,10 @@ class GenericInterfaceSymbol(RoutineSymbol):
     '''Symbol identifying a generic interface that maps to a number of
     different callable routines.
 
+    Unlike the parent classes, the constructor for this class cannot be
+    supplied with the 'is_pure', 'is_elemental' or 'datatype' properties as
+    these are derived from the RoutineSymbols contained within this interface.
+
     :param str name: name of the interface.
     :param routines: the routines that this interface provides access
         to and whether or not each of them is a module procedure.
@@ -53,9 +61,12 @@ class GenericInterfaceSymbol(RoutineSymbol):
                              :py:class:`psyclone.psyir.symbols.RoutineSymbol`,
                              bool]]
     :param kwargs: additional keyword arguments provided by
-                   :py:class:`psyclone.psyir.symbols.TypedSymbol`
+        :py:class:`psyclone.psyir.symbols.TypedSymbol`. Note that 'is_pure',
+        'is_elemental' and 'datatype' are not supported.
     :type kwargs: unwrapped dict.
 
+    :raises ValueError: if passed the 'is_pure', 'is_elemental' or 'datatype'
+                        properties.
     '''
     @dataclass(frozen=True)
     class RoutineInfo:
@@ -70,6 +81,13 @@ class GenericInterfaceSymbol(RoutineSymbol):
         from_container: bool
 
     def __init__(self, name, routines, **kwargs):
+        for keyword in ["is_pure", "is_elemental", "datatype"]:
+            if keyword in kwargs:
+                raise ValueError(
+                    f"The '{keyword}' property of GenericInterfaceSymbol "
+                    f"cannot be supplied to the constructor - it is "
+                    f"computed dynamically from its constituent RoutineSymbols"
+                )
         super().__init__(name, **kwargs)
         self._routines = []
         self._process_arguments(routines=routines,
@@ -86,7 +104,6 @@ class GenericInterfaceSymbol(RoutineSymbol):
                  :py:class:`psyclone.psyir.symbols.RoutineSymbol`,
                  bool]]
         '''
-
         if "routines" in kwargs:
             # Use the setter for 'routines' as it performs checking.
             self.routines = kwargs.pop("routines")
@@ -143,6 +160,48 @@ class GenericInterfaceSymbol(RoutineSymbol):
             self._routines.append(self.RoutineInfo(item[0], item[1]))
 
     @property
+    def is_pure(self) -> Union[bool, None]:
+        '''
+        :returns: whether the routine represented by this Symbol has no side
+            effects (guarantees that the routine always returns the same
+            result for a given set of inputs).
+        '''
+        if self._routines:
+            # If one Routine in an Interface is pure then they all must be.
+            return self._routines[0].symbol.is_pure
+        return None
+
+    @is_pure.setter
+    def is_pure(self, _):
+        '''
+        This property is computed dynamically from the RoutineSymbols that
+        this GenericInterfaceSymbol maps to and therefore cannot be set.
+
+        This method exists for compatibility with the RoutineSymbol superclass.
+        '''
+
+    @property
+    def is_elemental(self) -> Union[bool, None]:
+        '''
+        :returns: whether the routine represented by this Symbol is elemental
+            (acts element-by-element on supplied array arguments) or None if
+            this is not known.
+        '''
+        if self._routines:
+            # If one Routine is elemental then they all must be.
+            return self._routines[0].symbol.is_elemental
+        return None
+
+    @is_elemental.setter
+    def is_elemental(self, _):
+        '''
+        This property is computed dynamically from the RoutineSymbols that
+        this GenericInterfaceSymbol maps to and therefore cannot be set.
+
+        This method exists for compatibility with the RoutineSymbol superclass.
+        '''
+
+    @property
     def container_routines(self):
         '''
         :returns: those routines that are defined in a Container.
@@ -184,18 +243,45 @@ class GenericInterfaceSymbol(RoutineSymbol):
         # first positional argument.
         rt_info = [(rt.symbol, rt.from_container) for rt in self.routines]
         return type(self)(self.name, rt_info,
-                          datatype=self.datatype.copy(),
                           visibility=self.visibility,
                           interface=self.interface.copy())
 
-    def copy_properties(self, symbol_in: RoutineSymbol):
+    @property
+    def datatype(self) -> Union[DataType, DataTypeSymbol]:
         '''
-        Copies the properties of the supplied Symbol into this one.
+        :returns: the datatype of this symbol if it can be determined.
+        '''
+        # Use the str representation of each type as that is hashable.
+        dtypes = set(str(rinfo.symbol.datatype) for rinfo in self._routines)
+        if len(dtypes) == 1:
+            return self._routines[0].symbol.datatype
+        # We have more than one possible datatype.
+        return UnresolvedType()
+
+    @datatype.setter
+    def datatype(self, value):
+        '''
+        This property is computed dynamically from the RoutineSymbols that
+        this GenericInterfaceSymbol maps to and therefore cannot be set.
+
+        This method exists for compatibility with the RoutineSymbol superclass.
+        '''
+
+    def copy_properties(self,
+                        symbol_in: RoutineSymbol,
+                        exclude_interface: bool = False):
+        '''
+        Replace all properties in this object with the properties from
+        symbol_in, apart from the name (which is immutable) and visibility.
+        If `exclude_interface` is True, the interface is also not updated.
 
         :param symbol_in: the Symbol to copy properties from.
+        :param exclude_interface: whether or not to copy the interface
+            property of the provided Symbol (default is to include it).
 
         '''
-        super().copy_properties(symbol_in)
+        super().copy_properties(symbol_in,
+                                exclude_interface=exclude_interface)
         # We must add information on the routines which this interface
         # can bind to.
         new_values = []
@@ -241,21 +327,23 @@ class GenericInterfaceSymbol(RoutineSymbol):
             new_routines.append((new_rt, routine.from_container))
         self.routines = new_routines
 
-    def reference_accesses(self, access_info):
+    def reference_accesses(self):
         '''
-        Update the supplied VariablesAccessInfo with information on the symbols
-        referenced by the definition of this Symbol.
+        :returns: a map of all the symbol accessed inside this object, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure acccessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
 
-        :param access_info: the object in which to accumulate access
-                            information.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
         '''
-        super().reference_accesses(access_info)
+        access_info = super().reference_accesses()
 
+        # pylint: disable=import-outside-toplevel
         from psyclone.core import AccessType, Signature
         for rt_info in self.routines:
             access_info.add_access(Signature(rt_info.symbol.name),
                                    AccessType.TYPE_INFO, self)
+        return access_info
 
 
 # For Sphinx AutoAPI documentation generation

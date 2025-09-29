@@ -86,23 +86,6 @@ class ValueRangeCheckNode(PSyDataNode):
         return {'pre_var_list': read_write_info.read_list,
                 'post_var_list': read_write_info.write_list}
 
-    def gen_code(self, parent, options=None):
-        '''Old style code creation function.
-
-        :param parent: f2pygen node to which to add AST nodes.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-        :param options: a dictionary with options for transformations
-            and validation.
-        :type options: Optional[Dict[str, Any]]
-
-        '''
-        local_options = options.copy() if options else {}
-
-        var_lists_options = self._get_var_lists()
-        local_options.update(var_lists_options)
-
-        super().gen_code(parent, local_options)
-
     def lower_to_language_level(self):
         # pylint: disable=arguments-differ
         '''
