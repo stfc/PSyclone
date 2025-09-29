@@ -247,6 +247,13 @@ def test_symbol_copy_properties():
     sym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
                  interface=ImportInterface(csym))
     new_sym = Symbol("b")
+    # First, exclude the interface from the update.
+    new_sym.copy_properties(sym, exclude_interface=True)
+    assert isinstance(new_sym.interface, AutomaticInterface)
+    # Name and visibility should also be unchanged
+    assert new_sym.name == "b"
+    assert new_sym.visibility == Symbol.Visibility.PUBLIC
+    # Repeat but include the interface in the update.
     new_sym.copy_properties(sym)
     # Name and visibility should be unchanged
     assert new_sym.name == "b"

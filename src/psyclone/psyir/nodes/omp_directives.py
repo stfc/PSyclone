@@ -37,6 +37,7 @@
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
 #         J. Remy, Université Grenoble Alpes, Inria
+#         M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the various OpenMP Directive
@@ -1362,11 +1363,8 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
             for call in reversed(reprod_red_call_list):
                 call.reduction_sum_loop()
 
-        # Keep the first two children and compute the rest using the current
-        # state of the node/tree (lowering it first in case new symbols are
-        # created)
-        self._children = self._children[:2]
-        for child in self.children:
+        # Lower the first two children
+        for child in self.children[:2]:
             child.lower_to_language_level()
 
         # Create data sharing clauses (order alphabetically to make generation
@@ -1399,8 +1397,8 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
                         " or the code includes the necessary "
                         "synchronisations.", type(self).__name__, sym.name)
 
-        self.addchild(private_clause)
-        self.addchild(fprivate_clause)
+        self.children[2].replace_with(private_clause)
+        self.children[3].replace_with(fprivate_clause)
 
         return self
 
@@ -1667,6 +1665,8 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
     '''
     _directive_string = "do"
 
+    _children_valid_format = ("Schedule, [OMPReductionClause]*")
+
     def __init__(self, omp_schedule: str = "none",
                  collapse: int = None, reprod: bool = None,
                  nowait: bool = False,
@@ -1687,11 +1687,32 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         self._lowered_reduction_string = ""
         self.nowait = nowait
 
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        Decides whether a given child and position are valid for this node.
+        Currently, the children are a Schedule followed by zero or more
+        OMPReductionClause.
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+        '''
+        if position == 0:
+            return isinstance(child, Schedule)
+        elif position >= 1:
+            return isinstance(child, OMPReductionClause)
+        return False
+
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two OMPDoDirective nodes are equal
         if they have the same schedule, the same reproducible reduction option
-        (and the inherited equality is True).
+        (and the inherited equality is True), and they have the same reduction
+        clauses.
 
         :param object other: the object to check equality to.
 
@@ -1967,6 +1988,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         OMPDoDirective.__init__(self, **kwargs)
         self.addchild(OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.SHARED))
+        self.addchild(OMPPrivateClause())
+        self.addchild(OMPFirstprivateClause())
+        self.addchild(OMPScheduleClause())
 
     @classmethod
     def create(cls, children=None, **kwargs):
@@ -2023,7 +2047,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # with the multiple-inheritance
         self._lowered_reduction_string = self._reduction_string()
         OMPParallelDirective.lower_to_language_level(self)
-        self.addchild(OMPScheduleClause(self._omp_schedule))
+        self.children[4].replace_with(OMPScheduleClause(self._omp_schedule))
+
         return self
 
     def begin_string(self):
@@ -2154,17 +2179,39 @@ class OMPLoopDirective(OMPRegionDirective):
     :type kwargs: unwrapped dict.
     '''
 
+    _children_valid_format = ("Schedule, [OMPReductionClause]*")
+
     def __init__(self, collapse=None, nowait: bool = False, **kwargs):
         super().__init__(**kwargs)
         self._collapse = None
         self.collapse = collapse  # Use setter with error checking
         self.nowait = nowait
 
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        Decides whether a given child and position are valid for this node.
+        Currently, the children are zero or more OMPReductionClause.
+
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        if position == 0:
+            return isinstance(child, Schedule)
+        elif position >= 1:
+            return isinstance(child, OMPReductionClause)
+        return False
+
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two OMPLoopDirective nodes are
         equal if they have the same collapse status and the inherited
-        equality is true.
+        equality is true, and they have the same reduction clauses.
 
         :param object other: the object to check equality to.
 
