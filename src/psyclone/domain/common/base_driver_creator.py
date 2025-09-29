@@ -396,7 +396,6 @@ class BaseDriverCreator:
         # DSLs use StructureReferences in calls (e.g in LFRic
         # set_dirty etc) must be handled (e.g. removed) by a derived
         # class first
-        print("BBB0", extract_region.view())
         for sref in extract_region.walk(StructureReference):
             raise ValueError(f"The DriverCreator does not support "
                              f"StructureReferences, any such references "

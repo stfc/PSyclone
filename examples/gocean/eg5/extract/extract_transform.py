@@ -42,10 +42,7 @@ driver program is also created for each invoke which can read the
 created NetCDF files, execute the invokes and then compare the results.
 '''
 
-import os
-
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
-from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule
 
 
@@ -57,17 +54,6 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    module_manager = ModuleManager.get()
-    # dl_esm_inf has two parallel implementation: one supporting and
-    # requiring MPI, the other a stub wrapper that can be compiled without
-    # MPI. Pick up the MPI environment variable set by the Makefile to
-    # ignore the version we do not need.
-    do_mpi = os.environ.get("MPI", "no") == "yes"
-    if do_mpi:
-        module_manager.add_ignore_file("parallel_utils_stub_mod")
-    else:
-        module_manager.add_ignore_file("parallel_utils_mod")
-
     extract = GOceanExtractTrans()
 
     for schedule in psyir.walk(InvokeSchedule):
