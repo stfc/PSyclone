@@ -480,7 +480,7 @@ class Call(Statement, DataNode):
 
         return new_copy
 
-    def get_callees(self):
+    def get_callees(self, load_external_files=True):
         '''
         Searches for the implementation(s) of all potential target routines
         for this Call without resolving static polymorphism by checking the
@@ -578,7 +578,9 @@ class Call(Statement, DataNode):
                 else:
                     target_name = cursor.name
                 try:
-                    container = csym.find_container_psyir(local_node=self)
+                    container = csym.find_container_psyir(
+                        local_node=self,
+                        load_external_files=load_external_files)
                 except SymbolError:
                     raise NotImplementedError(
                         f"RoutineSymbol '{rsym.name}' is imported from "
@@ -777,6 +779,7 @@ class Call(Statement, DataNode):
     def get_callee(
         self,
         check_matching_arguments: bool = True,
+        load_external_files: bool = True
     ):
         '''
         Searches for the implementation(s) of the target routine for this Call
@@ -803,7 +806,7 @@ class Call(Statement, DataNode):
             in any containers in scope at the call site.
         '''
 
-        routine_list = self.get_callees()
+        routine_list = self.get_callees(load_external_files)
 
         err_info_list = []
 

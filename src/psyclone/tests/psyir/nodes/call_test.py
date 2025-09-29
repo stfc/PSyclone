@@ -1489,7 +1489,8 @@ end subroutine top'''
             " but the source defining that container could not be found. The "
             "module search path is set to [" in str(err.value))
     monkeypatch.setattr(ContainerSymbol, "find_container_psyir",
-                        lambda _1, local_node=None: None)
+                        lambda _1, local_node=None,
+                        load_external_files=False: None)
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
     assert ("RoutineSymbol 'this_one' is imported from Container 'another_mod'"
