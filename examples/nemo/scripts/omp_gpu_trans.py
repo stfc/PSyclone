@@ -227,6 +227,7 @@ def trans(psyir):
                     privatise_arrays=False,
                     asynchronous_parallelism=ASYNC_PARALLEL,
                     uniform_intrinsics_only=REPRODUCIBLE,
+                    enable_reductions=not REPRODUCIBLE
             )
         elif psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
             print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
@@ -238,6 +239,7 @@ def trans(psyir):
                     privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
                     asynchronous_parallelism=ASYNC_PARALLEL,
                     uniform_intrinsics_only=REPRODUCIBLE,
+                    enable_reductions=not REPRODUCIBLE
             )
         elif psyir.name not in PARALLELISATION_ISSUES:
             # This have issues offloading, but we can still do OpenMP threading
@@ -251,7 +253,7 @@ def trans(psyir):
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
                     privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
-                    asynchronous_parallelism=True
+                    asynchronous_parallelism=ASYNC_PARALLEL
             )
 
     # Iterate again and add profiling hooks when needed

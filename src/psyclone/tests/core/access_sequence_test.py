@@ -67,6 +67,56 @@ def test_access_info():
     access_info = AccessInfo(AccessType.UNKNOWN, Node())
     assert access_info.access_type == AccessType.UNKNOWN
 
+    access_info = AccessInfo(AccessType.UNKNOWN, Node())
+    assert access_info.access_type == AccessType.UNKNOWN
+
+    access_info = AccessInfo(AccessType.UNKNOWN, Node())
+    assert access_info.access_type == AccessType.UNKNOWN
+
+
+def test_access_info_is_any_read_or_write():
+    ''' Test the AccessInfo is_any_read/write methods. '''
+
+    # read-only types
+    access_info = AccessInfo(AccessType.READ, Node())
+    assert access_info.is_any_read()
+    assert not access_info.is_any_write()
+
+    # write-only types
+    access_info = AccessInfo(AccessType.WRITE, Node())
+    assert not access_info.is_any_read()
+    assert access_info.is_any_write()
+    access_info = AccessInfo(AccessType.SUM, Node())
+    assert not access_info.is_any_read()
+    assert access_info.is_any_write()
+
+    # read and write types
+    access_info = AccessInfo(AccessType.INC, Node())
+    assert access_info.is_any_read()
+    assert access_info.is_any_write()
+    access_info = AccessInfo(AccessType.READINC, Node())
+    assert access_info.is_any_read()
+    assert access_info.is_any_write()
+    access_info = AccessInfo(AccessType.READWRITE, Node())
+    assert access_info.is_any_read()
+    assert access_info.is_any_write()
+
+    # non-read nor write types
+    access_info = AccessInfo(AccessType.CALL, Node())
+    assert not access_info.is_any_read()
+    assert not access_info.is_any_write()
+    access_info = AccessInfo(AccessType.INQUIRY, Node())
+    assert not access_info.is_any_read()
+    assert not access_info.is_any_write()
+    access_info = AccessInfo(AccessType.TYPE_INFO, Node())
+    assert not access_info.is_any_read()
+    assert not access_info.is_any_write()
+
+    # TODO #2863: This is probably wrong, it should be read and written
+    access_info = AccessInfo(AccessType.UNKNOWN, Node())
+    assert not access_info.is_any_read()
+    assert not access_info.is_any_write()
+
 
 def test_access_info_description():
     '''
