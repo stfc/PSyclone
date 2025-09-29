@@ -420,13 +420,9 @@ class SymPyWriter(FortranWriter):
                 # have a scope, hence the try...except.
                 orig_sym = sva[0].node.scope.symbol_table.lookup(sig.var_name)
             except SymbolError:
-                # Since ScalarType can contain references now, we need to
-                # skip over those used to define data kinds, as we don't
-                # need those here.
-                if isinstance(sva[0].node, Reference):
-                    orig_sym = sva[0].node.symbol
-                else:
-                    orig_sym = None
+                # Otherwise the node itself is a Reference and we just
+                # pull the symbol from the Reference.
+                orig_sym = sva[0].node.symbol
 
             is_fn_call = isinstance(orig_sym, RoutineSymbol)
 
