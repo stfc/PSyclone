@@ -39,10 +39,10 @@
 import abc
 from typing import Set, Tuple
 
-from psyclone.core import AccessType
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.while_loop import WhileLoop
+from psyclone.psyir.nodes.omp_clauses import OMPReductionClause
 from psyclone.psyir.symbols import DataSymbol, Symbol
 
 
@@ -105,6 +105,15 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         fprivate = set()
         need_sync = set()
 
+        # Collate reduction variables
+        # TODO #2446 Ensure this behaves correctly for OpenACC when
+        # OpenACC reductions are supported.
+        red_vars = []
+        for clause in self.children:
+            if isinstance(clause, OMPReductionClause):
+                for ref in clause.children:
+                    red_vars.append(ref.name)
+
         # Determine variables that must be private, firstprivate or need_sync
         var_accesses = self.reference_accesses()
         for signature in var_accesses.all_signatures:
@@ -116,6 +125,8 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             # only apply to a sub-component, this won't be captured
             # appropriately.
             name = signature.var_name
+            if name in red_vars:
+                continue
             symbol = accesses[0].node.scope.symbol_table.lookup(
                 name, otherwise=None)
 
@@ -162,11 +173,11 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             has_been_read = False
             last_read_position = 0
             for access in accesses:
-                if access.access_type == AccessType.READ:
+                if access.is_any_read():
                     has_been_read = True
                     last_read_position = access.node.abs_position
 
-                if access.access_type == AccessType.WRITE:
+                if access.is_any_write():
                     # Check if the write access is outside a loop. In this case
                     # it will be marked as shared. This is done because it is
                     # likely to be re-used later. e.g:
