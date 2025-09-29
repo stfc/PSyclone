@@ -356,14 +356,14 @@ def test_call_replacenamedarg():
     assert ("The value of the existing_name argument (new_name) in "
             "'replace_named_arg' in the 'Call' node was not found in the "
             "existing arguments." in str(info.value))
-    # ok
+    # ok - including change in case
     assert call.arguments == (op1, op2)
     assert call.argument_names == ["name1", "name2"]
     assert call._argument_names[0][0] == id(op1)
     assert call._argument_names[1][0] == id(op2)
-    call.replace_named_arg("name1", op3)
+    call.replace_named_arg("nAMe1", op3)
     assert call.arguments == (op3, op2)
-    assert call.argument_names == ["name1", "name2"]
+    assert call.argument_names == ["nAMe1", "name2"]
     assert call._argument_names[0][0] == id(op3)
     assert call._argument_names[1][0] == id(op2)
 
