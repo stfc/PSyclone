@@ -4134,7 +4134,7 @@ def test_rc_no_halo_kernels():
 
 def test_rc_no_owned_cell_kernels(monkeypatch):
     '''
-    Test that Dynamo0p3RedundantComputationTrans refuses to transform a kernel
+    Test that LFRicRedundantComputationTrans refuses to transform a kernel
     that must operate only on owned cells or dofs.
 
     '''
@@ -4145,17 +4145,17 @@ def test_rc_no_owned_cell_kernels(monkeypatch):
     monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", False)
     _, invoke = get_invoke("1.4.5_owned_only_invoke.f90",
                            TEST_API, idx=0, dist_mem=True)
-    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans = LFRicRedundantComputationTrans()
     loops = invoke.schedule.walk(LFRicLoop)
     with pytest.raises(TransformationError) as err:
         rc_trans.validate(loops[0])
-    assert ("Dynamo0p3RedundantComputationTrans transformation to kernel "
+    assert ("LFRicRedundantComputationTrans transformation to kernel "
             "'testkern_owned_cell_code' because it does not support redundant "
             "computation (it operates on 'owned_cell_column')"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
         rc_trans.validate(loops[1])
-    assert ("Dynamo0p3RedundantComputationTrans transformation to kernel "
+    assert ("LFRicRedundantComputationTrans transformation to kernel "
             "'setval_random' because it does not support redundant computation"
             " (it operates on 'owned_dof')" in str(err.value))
 
