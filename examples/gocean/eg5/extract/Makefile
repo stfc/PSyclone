@@ -46,13 +46,25 @@
 MPI?=no
 FPP?=cpp
 
+# dl_esm_inf has two implementation of parallel_utils_mod: one supporting
+# and requiring MPI, the other a stub wrapper that can be compiled without
+# MPI. The module manager must pick the correct version when inlining the
+# modules in the driver (otherwise the non-MPI version driver could inline
+# the MPI version of parallel_utils_mod), so we instruct it to ignore the
+# wrong implementation in the 'ignore_file' variable, which is passed to
+# PSyclone later.
+
 ifeq ($(MPI), yes)
 	# -P suppresses linemarkers
 	FPP_FLAGS=-P -D_MPI
 	# We need to compile with mpif90 if MPI is enabled
 	F90?=mpif90
+	# Ignore the stub implementation when MPI is enabled
+	ignore_file=parallel_utils_stub_mod
 else
 	FPP_FLAGS=-P
+	# Ignore the MPI version of the parallel_utils if MPI is disabled
+	ignore_file=parallel_utils_mod
 endif
 
 PSYROOT=../../../..
@@ -66,7 +78,7 @@ GENERATED_FILES += *.o *.mod $(NAME)  alg.f90 psy.f90   \
 		  $(DRIVER_UPDATE).$(TYPE) $(DRIVER_UPDATE).F90 \
 		  test.x90
 
-# Location of the infrastucture code (which is a submodule of the
+# Location of the infrastructure code (which is a submodule of the
 # PSyclone git repo).
 SHARED_DIR ?= $(PSYROOT)/external
 INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
@@ -117,9 +129,10 @@ F90FLAGS += -I$(INF_INC) -I$(EXTRACT_DIR)
 # The dependency on the extraction library here is required to trigger
 # the processing of the jinja files (which must be inlined into the driver).
 alg.f90 psy.f90: $(EXTRACT_DIR)/$(LIB_NAME) test.x90 extract_transform.py
-	$(PSYCLONE) -nodm -api "gocean" -s ./extract_transform.py\
-		-d $(INF_INC) -d $(EXTRACT_DIR) -d . \
-		-opsy psy.f90 -oalg alg.f90 test.x90
+	$(PSYCLONE) -nodm -api "gocean" -s ./extract_transform.py \
+	     --modman-file-ignore $(ignore_file)                  \
+		-d . -d $(INF_INC) -d $(EXTRACT_DIR)                  \
+	-opsy psy.f90 -oalg alg.f90 test.x90
 
 $(NAME): $(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
 	$(F90) $(F90FLAGS) $(KERNELS) alg.o psy.o -o $(NAME) \

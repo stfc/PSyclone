@@ -461,9 +461,6 @@ def main(arguments):
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation recipe')
     parser.add_argument(
-        '-I', '--include', default=[], action="append",
-        help='path to Fortran INCLUDE or module files')
-    parser.add_argument(
         '--enable-cache', action="store_true", default=False,
         help='whether to enable caching of imported module dependencies (if '
              'enabled, it will generate a .psycache file of each imported '
@@ -506,10 +503,6 @@ def main(arguments):
                         'transformed kernels, default is the current working'
                         ' directory')
     parser.add_argument(
-        '-d', '--directory', default=[], action="append", help='(psykal mode) '
-        'path to a root directory structure containing kernel source code. '
-        'Multiple roots can be specified by using multiple -d arguments.')
-    parser.add_argument(
         '-dm', '--dist_mem', dest='dist_mem', action='store_true',
         help='(psykal mode) generate distributed memory code')
     parser.add_argument(
@@ -539,6 +532,23 @@ def main(arguments):
     parser.add_argument(
         "--keep-directives", default=False, action="store_true",
         help="keeps directives from the original code (defaults to False)."
+    )
+    group = parser.add_argument_group("Directory management")
+    group.add_argument(
+        '-I', '--include', default=[], action="append",
+        help='path to Fortran INCLUDE or module files'
+    )
+    group.add_argument(
+        '-d', '--directory', default=[], action="append",
+        help='(psykal mode) path to a root directory structure containing '
+             'kernel source code. Multiple roots can be specified by using '
+             'multiple -d arguments. These directories will be searched'
+             'recursively.'
+    )
+    group.add_argument(
+        '--modman-file-ignore', default=[], action="append",
+        metavar='IGNORE_PATTERN',
+        help='Ignore files that contain the specified pattern.'
     )
 
     args = parser.parse_args(arguments)
@@ -570,7 +580,10 @@ def main(arguments):
 
     # This has to be before the Config.get, because otherwise that creates a
     # ModuleManager Singleton without caching
-    _ = ModuleManager.get(cache_active=args.enable_cache)
+    mod_manager = ModuleManager.get(cache_active=args.enable_cache)
+    # Set the ignore patterns:
+    for pattern in args.modman_file_ignore:
+        mod_manager.add_ignore_file(pattern)
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.

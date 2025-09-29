@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+# Modified: M. Naylor, University of Cambridge, UK
 
 '''Tool module, containing all generic (API independent) tools.
 '''
@@ -40,10 +41,12 @@ from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 from psyclone.psyir.tools.dependency_tools import DTCode, DependencyTools
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
+from psyclone.psyir.tools.reduction_inference import ReductionInferenceTool
 
 # For AutoAPI documentation generation.
 __all__ = ['CallTreeUtils',
            'DTCode',
            'DependencyTools',
            'DefinitionUseChain', 
-           'ReadWriteInfo']
+           'ReadWriteInfo',
+           'ReductionInferenceTool']
