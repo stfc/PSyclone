@@ -51,25 +51,25 @@ PACKAGES = find_packages(where=SRC_PATH,
                                   "psyclone.tests.*"])
 
 NAME = 'PSyclone'
-AUTHOR = ('Rupert Ford <rupert.ford@stfc.ac.uk>, '
+AUTHOR = ('Rupert Ford, '
           'Andrew Porter <andrew.porter@stfc.ac.uk>, '
           'Sergi Siso <sergi.siso@stfc.ac.uk>')
 AUTHOR_EMAIL = 'andrew.porter@stfc.ac.uk'
 URL = 'https://github.com/stfc/psyclone'
 DOWNLOAD_URL = 'https://github.com/stfc/psyclone'
-DESCRIPTION = ('PSyclone - a compiler for Finite Element/Volume/Difference'
-               ' DSLs in Fortran')
+DESCRIPTION = ('PSyclone - a source-to-source Fortran compiler for HPC '
+               'applications')
 LONG_DESCRIPTION = '''\
-PSyclone is a compiler for Fortran-embedded Domain Specific Languages
-targetting Finite Element/Volume/Difference methods in earth-system
-modelling.
+PSyclone is a source-to-source Fortran compiler designed to programmatically
+optimise, parallelise and instrument HPC applications via user-provided
+transformation scripts.
 
 See https://github.com/stfc/psyclone for more information.
 '''
 LICENSE = 'OSI Approved :: BSD 3-Clause License'
 
 CLASSIFIERS = [
-    'Development Status :: 3 - Alpha',
+    'Development Status :: 5 - Production/Stable',
     'Environment :: Console',
     'Intended Audience :: Developers',
     'Intended Audience :: Science/Research',
