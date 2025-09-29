@@ -291,7 +291,7 @@ def test_variable_access_sequence_update() -> None:
 
 def test_variable_access_sequence_has_indices(
         fortran_reader: "FortranReader"
-    ) -> None:
+        ) -> None:
     '''Test that the AccessSequence class handles indices as expected.
 
     '''

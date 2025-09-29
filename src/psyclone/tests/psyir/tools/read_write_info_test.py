@@ -35,8 +35,6 @@
 
 '''This module tests the ReadWriteInfo class.'''
 
-from pytest import LogCaptureFixture
-
 from psyclone.core import Signature
 from psyclone.psyir.tools import ReadWriteInfo
 
