@@ -1218,7 +1218,7 @@ end subroutine test"""
     assert error.value.code == 1
     out, err = capsys.readouterr()
     assert ("Failed to create PSyIR from file " in err)
-    assert ("File was treated as free form" in err) 
+    assert ("File was treated as free form" in err)
 
     # Check that if we use a fixed form file extension we get the expected
     # behaviour.
