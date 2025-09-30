@@ -1,3 +1,6 @@
+   99) PR #3161 for #3155. Optimise InlineTrans to only to a copy of the
+   target routine instead of the whole Container.
+
    98) PR #3110 for #3087. Add support for declaration kind expressions by
    representing them with a PSyIR tree.
 
