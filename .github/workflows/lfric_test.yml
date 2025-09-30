@@ -265,16 +265,46 @@ jobs:
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%gcc@${GCC_VERSION}
         source .runner_venv/bin/activate
-        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
-        cd ${LFRIC_DIR}
+        export TEST_PREFIX=/archive/psyclone-tests/latest-run/lfric_atm
+        rm -rf ${TEST_PREFIX}
+        mkdir ${TEST_PREFIX}
+        cd ${TEST_PREFIX}
 
-        # For now we just build the base platform (don't transmute files with psyclone)
-        ./build/local_build.py -a lfric_atm -j 16 -w lfric_atm_workdir
+        # Fetch dependencies
+        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
+          https://code.metoffice.gov.uk/svn/lfric_apps/main/trunk lfric_apps
+        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
+          https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
+        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
+          https://code.metoffice.gov.uk/svn/monc/casim/trunk casim
+        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
+          https://code.metoffice.gov.uk/svn/jules/main/trunk jules
+        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
+           https://code.metoffice.gov.uk/svn/socrates/main/trunk socrates
+        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
+           https://code.metoffice.gov.uk/svn/ukca/main/trunk ukca
+
+        # Update dependencies.sh to point to the downloaded version
+        sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" lfric_apps/dependencies.sh
+        sed -i "s|lfric_core_sources=|lfric_core_sources=${TEST_PREFIX}/lfric_core|g" lfric_apps/dependencies.sh
+        sed -i "s|casim_rev=.*|casim_rev=|g" lfric_apps/dependencies.sh
+        sed -i "s|casim_sources=|casim_sources=${TEST_PREFIX}/casim|g" lfric_apps/dependencies.sh
+        sed -i "s|jules_rev=.*|jules_rev=|g" lfric_apps/dependencies.sh
+        sed -i "s|jules_sources=|jules_sources=${TEST_PREFIX}/jules|g" lfric_apps/dependencies.sh
+        sed -i "s|socrates_rev=.*|socrates_rev=|g" lfric_apps/dependencies.sh
+        sed -i "s|socrates_sources=|socrates_sources=${TEST_PREFIX}/casim|g" lfric_apps/dependencies.sh
+        sed -i "s|ukca_rev=.*|ukca_rev=|g" lfric_apps/dependencies.sh
+        sed -i "s|ukca_sources=|ukca_sources=${TEST_PREFIX}/ukca|g" lfric_apps/dependencies.sh
+
+        # Now build the 'meto-ex1a' platform, that includes psyclone-transmutation
+        cd lfric_apps
+        ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16 -w lfric_atm_workdir
 
         # Run a the app with 8 threads
         cd applications/lfric_atm/example/
         OMP_NUM_THREADS=8 ../bin/lfric_atm configuration.nml
+
+        # And compare the results
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
         cat timer.txt
 
