@@ -129,11 +129,11 @@ class ArrayOfStructuresMixin(ArrayMixin,  StructureAccessorMixin,
 
     def component_indices(self) -> tuple[tuple[Node]]:
         '''
-        :returns: a tuple of each index in the accessor, e.g. for `a(i)%b(j,k)`
-        it returns `((i,),(j,k))`, for scalar accesses it returns `(())`, and
-        for `a%b` it returns ((),()) - two components with 0 indicies in each.
-        Each item of the tuples is the PSyIR node that descrives the index
-        expression.
+        :returns: a tuple of each indexed compoment in the accessor with
+            a tuple of each index expression in that compoment. For example,
+            for a scalar it returns `(())`, for `a%b` it returns ((),()) - two
+            components with 0 indicies in each, and for `a(i)%b(j,k+1)` it
+            returns `((i,),(j,k+1))`.
         '''
         return (self.indices, *self.member.component_indices())
 
