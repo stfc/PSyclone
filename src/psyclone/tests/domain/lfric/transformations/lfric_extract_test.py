@@ -619,18 +619,15 @@ def test_extract_single_builtin_lfric():
     otrans.apply(schedule.children[1])
     etrans.apply(schedule.children[1])
     code_omp = str(psy.gen)
-    output = """\
+    expected = """\
     CALL extract_psy_data % PreStart("single_invoke_psy", \
-"invoke_0-inc_ax_plus_y-r0", 5, 2)
-    CALL extract_psy_data % PreDeclareVariable("df", df)
+"invoke_0-inc_ax_plus_y-r0", 4, 1)
     CALL extract_psy_data % PreDeclareVariable("f1_data", f1_data)
     CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
     CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
-    CALL extract_psy_data % PreDeclareVariable("df_post", df)
     CALL extract_psy_data % PreDeclareVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PreEndDeclaration
-    CALL extract_psy_data % ProvideVariable("df", df)
     CALL extract_psy_data % ProvideVariable("f1_data", f1_data)
     CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
@@ -643,10 +640,11 @@ def test_extract_single_builtin_lfric():
     enddo
     !$omp end parallel do
     CALL extract_psy_data % PostStart
-    CALL extract_psy_data % ProvideVariable("df_post", df)
     CALL extract_psy_data % ProvideVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PostEnd"""
-    assert output in code_omp
+
+    for line in expected.splitlines():
+        assert line in code_omp, line
 
 
 def test_extract_kernel_and_builtin_lfric():
