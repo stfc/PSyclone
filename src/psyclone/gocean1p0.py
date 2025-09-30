@@ -69,8 +69,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Literal, Schedule, KernelSchedule, StructureReference, IntrinsicCall,
     Reference, Call, Assignment, ACCEnterDataDirective, ACCParallelDirective,
-    ACCKernelsDirective, Container, ACCUpdateDirective, Routine,
-    BinaryOperation)
+    ACCKernelsDirective, Container, ACCUpdateDirective, Routine)
 from psyclone.psyir.symbols import (
     ImportInterface, INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol,
     ScalarType, UnresolvedType, DataTypeSymbol, UnresolvedInterface,
