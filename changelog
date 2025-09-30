@@ -1,5 +1,32 @@
-   89) PR #3136 towards #3060. Adds named arguments to all intrinsic call
-   IAttr definitions. 
+   99) PR #3161 for #3155. Optimise InlineTrans to only to a copy of the
+   target routine instead of the whole Container.
+
+   98) PR #3110 for #3087. Add support for declaration kind expressions by
+   representing them with a PSyIR tree.
+
+   97) PR #3160 for #3159 and #3140. Fix declarations with self-references.
+
+   96) PR #3153 for #3151. Fix some case-related naming comparison issues.
+
+   95) PR #3108 for #2446. Adds the ability to automatically add reduction
+   clauses to some OpenMP loops.
+
+   94) PR #3095 for #2916. Dynamically propagate pure and elemental
+   attributes to GenericInterefaceSymbols.
+
+   93) PR #3147 for #3138. Fixes reference_accesses() for Calls.   
+
+   92) PR #3133 for #3132. Give specific paths to pytest compilation (
+   to prevent using the unpredictable '.' path) 
+
+   91) PR #3137 for #3096. Add command-flag and config option to disable
+   all backend indentations.
+
+   90) PR #3134 towards #2398. Create an AtomicDirective mixin and add
+   support for atomic types other than the default.
+
+   89) PR #3136 towards #3060. Names all arguments to all calls of the
+   IAttr constructor (which represents intrinsic calls).
 
    88) PR #3094 for #2851 and #3082. Improves the DA so that PSyclone
    does not generate unnecessary firstprivate clauses on parallel regions.   

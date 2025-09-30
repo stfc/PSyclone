@@ -51,7 +51,7 @@ import re
 import shutil
 import stat
 from sys import modules
-
+from typing import Optional
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -990,8 +990,8 @@ def test_main_directory_arg(capsys):
           "-d", NEMO_BASE_PATH])
 
 
-def test_main_disable_backend_validation_arg(capsys):
-    '''Test the --backend option in main().'''
+def test_main_backend_arg(capsys):
+    '''Test the --backend options in main().'''
     filename = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
     with pytest.raises(SystemExit):
         main([filename, "-api", "lfric", "--backend", "invalid"])
@@ -1004,9 +1004,15 @@ def test_main_disable_backend_validation_arg(capsys):
     assert Config.get().backend_checks_enabled is True
     main([filename, "-api", "lfric", "--backend", "disable-validation"])
     assert Config.get().backend_checks_enabled is False
+    assert Config.get().backend_indentation_disabled is False
     Config._instance = None
-    main([filename, "-api", "lfric", "--backend", "enable-validation"])
+    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    main([filename, "--backend", "disable-indentation"])
+    output, _ = capsys.readouterr()
+    # None of the three DO loops should be indented.
+    assert len(re.findall(r"^do j", output, re.MULTILINE)) == 3
     assert Config.get().backend_checks_enabled is True
+    assert Config.get().backend_indentation_disabled is True
     Config._instance = None
 
 
@@ -1238,7 +1244,8 @@ def test_code_transformation_backend_validation(validate: bool,
     # Create a dummy Fortran writer, which we use to check
     # the values passed in
     def dummy_fortran_writer(check_global_constraints: bool,
-                             disable_copy: bool):
+                             disable_copy: bool,
+                             indent_string: Optional[str] = None):
         # pylint: disable=unused-argument
         """A dummy function used to test that the FortranWriter
         gets the backend-validation flag as intended.
@@ -1254,10 +1261,10 @@ def test_code_transformation_backend_validation(validate: bool,
     input_file = Path(get_base_path("gocean")) / "test27_loop_swap.f90"
 
     if validate:
-        option = "enable-validation"
+        options = []
     else:
-        option = "disable-validation"
-    main([str(input_file), "--backend", option])
+        options = ["--backend", "disable-validation"]
+    main([str(input_file)] + options)
     # The actual assert is in the dummy_fortran_writer function above
 
 
