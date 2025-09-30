@@ -756,39 +756,8 @@ class DependencyTools():
                             DTCode.ERROR_WRITE_WRITE_RACE,
                             [var_info.var_name])
                     else:
-                        # Circular dependency:
-                        # pylint: disable-next=import-outside-toplevel
-                        from psyclone.gocean1p0 import GOKern
-
-                        # If the node is a GOKern, the node.debug_string()
-                        # only contains '< kern call: NAME >', so no
-                        # information about the variable and its indices is
-                        # available. For GOKerns, 'reference_accesses' adds
-                        # artificial accesses to the component indices
-                        # depending on the declared stencil. Use these indices
-                        # and the signature to add additional info to the
-                        # error message that indicates which access exactly is
-                        # causing the problem:
-
-                        if isinstance(write_access.node, GOKern):
-                            comp_ind = write_access.component_indices
-                            write_str = var_info.signature.to_language(
-                                component_indices=comp_ind)
-                            write_info = (f"The write access to '{write_str}'"
-                                          " in")
-                        else:
-                            write_info = "The write access to"
-
                         # Get 'read' or 'write' etc
                         access_type = str(other_access.access_type).lower()
-                        if isinstance(other_access.node, GOKern):
-                            comp_ind = other_access.component_indices
-                            write_str = var_info.signature.to_language(
-                                component_indices=comp_ind)
-                            other_info = (f"{access_type} access to "
-                                          f"'{write_str}' in")
-                        else:
-                            other_info = f"{access_type} access to"
 
                         # We need to use default parameters for wnode and
                         # onode, since otherwise the value of a variable might
@@ -800,9 +769,9 @@ class DependencyTools():
                         self._add_message(LazyString(
                             lambda wnode=write_access.node,
                             onode=other_access.node:
-                                (f"{write_info} "
+                                (f"The write access to "
                                  f"'{wnode.debug_string().strip()}' and the "
-                                 f"{other_info} "
+                                 f"{access_type} access to "
                                  f"'{onode.debug_string().strip()}' "
                                  f"are dependent and cannot be "
                                  f"parallelised.")),

@@ -954,36 +954,6 @@ class GOKern(CodedKern):
         # invoked by an application are using compatible index offsets.
         self._index_offset = call.ktype.index_offset
 
-    @staticmethod
-    def _create_psyir_for_access(symbol, var_value, depth):
-        '''This function creates the PSyIR of an index-expression:
-        - if `var_value` is negative, it returns 'symbol-depth'.
-        - if `var_value` is positive, it returns 'symbol+depth`
-        - otherwise it just returns a Reference to `symbol`.
-        This is used to create artificial stencil accesses for GOKernels.
-
-        :param symbol: the symbol to use.
-        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param int var_value: value of the variable, which determines the \
-            direction (adding or subtracting depth).
-        :param int depth: the depth of the access (>0).
-
-        :returns: the index expression for an access in the given direction.
-        :rtype: union[:py:class:`psyclone.psyir.nodes.Reference`,
-                      :py:class:`psyclone.psyir.nodes.BinaryOperation`]
-
-        '''
-        if var_value == 0:
-            return Reference(symbol)
-        if var_value > 0:
-            operator = BinaryOperation.Operator.ADD
-        else:
-            operator = BinaryOperation.Operator.SUB
-
-        return BinaryOperation.create(operator,
-                                      Reference(symbol),
-                                      Literal(str(depth), INTEGER_TYPE))
-
     def _record_stencil_accesses(self, signature, arg, var_accesses):
         '''This function adds accesses to a field depending on the
         meta-data declaration for this argument (i.e. accounting for
