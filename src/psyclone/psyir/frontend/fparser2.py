@@ -2864,6 +2864,7 @@ class Fparser2Reader():
         self.process_nodes(parent=dummy_assignment, nodes=[kind_items])
         # Create a copy of the created node.
         kind_expression = dummy_assignment.rhs.detach()
+        kind_expression._parent = psyir_parent
         # For each symbol used in the kind_expression, we need to update
         # kindvar with the ones from the real symbol_table.
         for ref in kind_expression.walk(Reference):

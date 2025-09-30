@@ -749,6 +749,42 @@ def test_declarations_with_initialisations(fortran_reader):
 
 
 @pytest.mark.usefixtures("f2008_parser")
+def test_declarations_connections(fortran_reader):
+    '''Test that Fparser2Reader keeps all variables that are part of a
+    declaration consistent with the scope, and the symbols in that scope.
+    '''
+
+    psyir = fortran_reader.psyir_from_source(
+        """
+        module test
+            contains
+            subroutine mysub
+                integer, parameter :: before = 1
+                integer(kind=before+after), dimension(before,after) :: &
+                    ref = berfore * after
+                integer, parameter :: after = 1
+            end subroutine
+        end module test
+        """)
+
+    routine = psyir.walk(Routine)[0]
+    st = routine.symbol_table
+    before = st.lookup('before')
+    after = st.lookup('after')
+    ref = st.lookup('ref')
+    assert ref.datatype.precision.scope is routine
+    assert ref.datatype.precision.children[0].symbol is before
+    assert ref.datatype.precision.children[1].symbol is after
+    assert ref.datatype.shape[0].upper.scope is routine
+    assert ref.datatype.shape[0].upper.symbol is before
+    assert ref.datatype.shape[1].upper.scope is routine
+    assert ref.datatype.shape[1].upper.symbol is after
+    assert ref.initial_value.scope is routine
+    assert ref.initial_value.children[0].symbol is before
+    assert ref.initial_value.children[1].symbol is after
+
+
+@pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations_accessibility():
     ''' Check that process_declarations behaves as expected when a visibility
     map is or is not supplied. '''

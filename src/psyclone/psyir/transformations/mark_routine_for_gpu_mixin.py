@@ -106,20 +106,10 @@ class MarkRoutineForGPUMixin:
         # imported via a 'use' statement.
         for sched in kernel_schedules:
             vam = sched.reference_accesses()
-            ktable = sched.symbol_table
             for sig in vam.all_signatures:
                 name = sig.var_name
                 first = vam[sig][0].node
-                if isinstance(first, Reference):
-                    table = ktable
-                else:
-                    try:
-                        table = first.scope.symbol_table
-                    except SymbolError:
-                        # The node associated with this access is not within a
-                        # scoping region.
-                        table = ktable
-                symbol = table.lookup(name)
+                symbol = first.scope.symbol_table.lookup(name)
                 if symbol.is_import:
                     # resolve_type does nothing if the Symbol type is known.
                     try:
