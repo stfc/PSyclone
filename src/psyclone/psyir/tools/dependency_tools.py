@@ -40,7 +40,9 @@
     dependency analysis.'''
 
 from enum import IntEnum
+from typing import Any, Iterable
 
+import itertools
 import sympy
 
 from psyclone.configuration import Config
@@ -53,6 +55,14 @@ from psyclone.psyir.nodes import Loop, Node, Range
 
 
 # pylint: disable=too-many-lines
+
+def flatten(iterable: Iterable) -> list[Any]:
+    '''
+    :param iterable: a nested list or tuple.
+    :returns: a flattened list version of the given iterable.
+    '''
+    return list(itertools.chain.from_iterable(iterable))
+
 
 class DTCode(IntEnum):
     '''A simple enum to store the various info, warning and error
@@ -305,18 +315,14 @@ class DependencyTools():
         # Example: `a(i,j)` and `a(i,k)` -->
         #          [ ({"i"}, [(0,0)]), ({"j","k"}, [(0,1)])]
         partition_infos = []
-        i = 0
-        for component in comp_ind1:
-            for indx in component:
-                # This can happen if there is a mixture of accesses to an array
-                # with and without indices, e.g.: a(i) = a*a
-                # In this case we don't add this to the partition, which will
-                # result in an empty partition (which in turns will disable
-                # parallelisation).
-                if i < len(indices_2):
-                    partition_infos.append((indices_1[i].union(indices_2[i]),
-                                            [i]))
-                i = i + 1
+        for i, _ in enumerate(flatten(comp_ind1)):
+            # This can happen if there is a mixture of accesses to an array
+            # with and without indices, e.g.: a(i) = a*a
+            # In this case we don't add this to the partition, which will
+            # result in an empty partition (which in turns will disable
+            # parallelisation).
+            if i < len(indices_2):
+                partition_infos.append((indices_1[i].union(indices_2[i]), [i]))
 
         # Check each loop variable to find subscripts in which they are used:
         for loop_var in loop_variables:
@@ -567,14 +573,9 @@ class DependencyTools():
 
         '''
         # Flatten the component indices to match the partition indices
-        flatten_write = []
-        flatten_other = []
-        for comp in write_access.component_indices():
-            for idx in comp:
-                flatten_write.append(idx)
-        for comp in other_access.component_indices():
-            for idx in comp:
-                flatten_other.append(idx)
+        flatten_write = flatten(write_access.component_indices())
+        flatten_other = flatten(other_access.component_indices())
+
         # If we find one subscript that is independent, the loop can be
         # parallelised. E.g. `a(i, index(i)) = a(i, 5)`. The fact that
         # the first subscript is i, means that each different iteration
@@ -631,14 +632,8 @@ class DependencyTools():
         loop_var = loop_variables[0]
 
         # Flatten the component indices to match the partition indices
-        flatten_write = []
-        flatten_other = []
-        for comp in write_access.component_indices():
-            for idx in comp:
-                flatten_write.append(idx)
-        for comp in other_access.component_indices():
-            for idx in comp:
-                flatten_other.append(idx)
+        flatten_write = flatten(write_access.component_indices())
+        flatten_other = flatten(other_access.component_indices())
 
         # Analyse each subscript partition individually. If we find even
         # one partition that guarantees that the accesses cannot interfere
@@ -1132,15 +1127,11 @@ class DependencyTools():
                                   DTCode.ERROR_DIFFERENT_INDEX_LOCATIONS,
                                   [var_info1.signature[0]])
                 return False
+
             # Flatten the component indices to match the partition indices
-            flatten_access = []
-            flatten_other = []
-            for comp in all_accesses[0].component_indices():
-                for idx in comp:
-                    flatten_access.append(idx)
-            for comp in other_access.component_indices():
-                for idx in comp:
-                    flatten_other.append(idx)
+            flatten_access = flatten(all_accesses[0].component_indices())
+            flatten_other = flatten(other_access.component_indices())
+
             first_index = flatten_access[index[0]]
             other_index = flatten_other[index[0]]
             if not SymbolicMaths.equal(

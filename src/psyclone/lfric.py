@@ -500,8 +500,6 @@ class LFRicMeshProperties(LFRicCollection):
                     if var_accesses:
                         var_accesses.add_access(Signature(adj_face),
                                                 AccessType.READ, self._kernel)
-                        # ,
-                        #                         [":", cell_ref])
 
                 if not stub:
                     adj_face = self.symtab.find_or_create_tag(

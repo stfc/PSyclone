@@ -84,23 +84,28 @@ class AccessInfo():
         self._access_type = AccessType.WRITE
 
     @property
-    def component_indices(self):
+    def component_indices(self) -> tuple[tuple[Node]]:
         '''
-        This function returns the list of accesses used for each component
-        as an instance of ComponentIndices. For example, `a(i)%b(j,k)%c`
-        will return an instance of ComponentIndices representing
-        `[ [i], [j, k], [] ]`. In the case of a simple scalar variable
-        such as `a`, the `component_indices` will represent `[ [] ]`.
-
-        :returns: the indices used in this access for each component.
-        :rtype: :py:class:`psyclone.core.component_indices.ComponentIndices`
+        :returns: a tuple of each index in the accessor, e.g. for `a(i)%b(j,k)`
+        it returns `((i,),(j,k))`, for scalar accesses it returns `(())`, and
+        for `a%b` it returns ((),()) - two components with 0 indicies in each.
+        Each item of the tuples is the PSyIR node that descrives the index
+        expression.
         '''
+        # Only Reference has component_indices, for everything else we assume
+        # it is a scalar
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Reference
         if not isinstance(self._node, Reference):
             return lambda: tuple(tuple())
         return self._node.component_indices
 
     def has_indices(self) -> bool:
+        '''
+        Check if the expression is a reference that has indices in any
+        of its compoments.
+        '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.array_mixin import ArrayMixin
         from psyclone.psyir.nodes import Reference
         if not isinstance(self._node, Reference):

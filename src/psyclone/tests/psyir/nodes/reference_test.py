@@ -604,20 +604,29 @@ def test_reference_is_write(fortran_reader):
 
 
 def test_reference_component_indices(fortran_reader):
-    '''Test the component_indices function for a Reference'''
-    code = '''subroutine my_sub()
-    use other
-    a = 1
-    a%b = 1
-    a(1,2,3) = 1
-    a(i,j,k+4)%b(j,k)%c%d(i) = 1
+    ''' Test the Reference component_indices method returns a tuple
+    for each expression component containing a tuple for each index.
+    '''
+    code = '''
+    subroutine my_sub()
+        use other
+        a = 1
+        a%b%c = 1
+        a(1,2,3) = 1
+        a(i,j,k+4)%b(j,k)%c%d(i) = 1
     end subroutine my_sub'''
     psyir = fortran_reader.psyir_from_source(code)
     refs = psyir.walk(Reference)
     array_accessor = psyir.walk(ArrayMixin)
+    # A scalar is a tuple with an emtpy tuple
     assert refs[0].component_indices() == tuple(tuple())
-    # assert refs[1].component_indices() == (tuple(), tuple())
+    # A structure accessor without array is a tuple with an empty tuple
+    # for each compoment
+    assert refs[1].component_indices() == (tuple(), tuple(), tuple())
+    # An array is a single-element tuple, with the nodes representing the
+    # indices in the tuple
     assert refs[2].component_indices() == (array_accessor[0].indices,)
+    # Structures and Arrays can be combined
     assert refs[3].component_indices() == (array_accessor[1].indices,
                                            array_accessor[2].indices,
                                            tuple(),

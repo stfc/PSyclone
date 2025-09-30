@@ -391,12 +391,14 @@ class Reference(DataNode):
         # Walk on down the tree.
         super().replace_symbols_using(table_or_symbol)
 
-    def component_indices(self):
+    def component_indices(self) -> tuple[tuple[Node]]:
         '''
         :returns: a tuple of each index in the accessor, e.g. for `a(i)%b(j,k)`
-        it returns `((i,),(j,k))`, for scalar accesses it returns `((,),)`, and
-        for `a%b` it returns ((,),(,)). Each member of the tuples is the PSyIR
-        node describing the index expression used.'''
+        it returns `((i,),(j,k))`, for scalar accesses it returns `(())`, and
+        for `a%b` it returns ((),()) - two components with 0 indicies in each.
+        Each item of the tuples is the PSyIR node that descrives the index
+        expression.
+        '''
         return tuple(tuple())
 
 

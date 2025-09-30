@@ -277,11 +277,6 @@ def test_partition(lhs, rhs, partition, fortran_reader):
         # not matter:
         assert correct[0] == part_info[0]
 
-        # Then check that the partition indices are the same as well.
-        # The partition function returns the indices as lists, so
-        # convert them to sets to get an order independent comparison:
-        # assert correct[1] == set(part_info[1])
-
 
 # -----------------------------------------------------------------------------
 @pytest.mark.parametrize("lhs, rhs, is_dependent",
@@ -746,7 +741,6 @@ def test_gocean_parallel():
                            api="gocean", idx=0, dist_mem=False)
 
     loop = invoke.schedule.children[0]
-    print(loop.debug_string())
     dep_tools = DependencyTools()
     parallel = dep_tools.can_loop_be_parallelised(loop)
     assert not parallel

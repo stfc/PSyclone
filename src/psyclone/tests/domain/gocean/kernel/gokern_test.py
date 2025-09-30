@@ -166,9 +166,3 @@ def test_gok_access_info_scalar_and_property():
     tmask = vam[Signature("p_fld%grid%tmask")]
     comp_ind = tmask[0].component_indices()
     assert not comp_ind
-
-    # And it should have PSyIR expressions for (i,j) as the last component:
-    # assert isinstance(comp_ind[2][0], Reference)
-    # assert isinstance(comp_ind[2][1], Reference)
-    # assert comp_ind[2][0].symbol.name == "i"
-    # assert comp_ind[2][1].symbol.name == "j"
