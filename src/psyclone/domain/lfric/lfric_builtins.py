@@ -2739,7 +2739,7 @@ class LFRicRealToIntXKern(LFRicBuiltIn):
 
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.INT,
-            [arg_refs[1], ("kind", Reference(datatype.precision))])
+            [arg_refs[1], ("kind", datatype.precision.copy())])
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)
@@ -2797,7 +2797,7 @@ class LFRicRealToRealXKern(LFRicBuiltIn):
 
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,
-            [arg_refs[1], ("kind", Reference(datatype.precision))])
+            [arg_refs[1], ("kind", datatype.precision.copy())])
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)
@@ -3137,10 +3137,9 @@ class LFRicIntToRealXKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         # proxy0%data(df) = REAL(proxy1%data, kind=r_<prec>)
         lhs = arg_refs[0]
-        r_precision = arg_refs[0].datatype.precision
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,
-            [arg_refs[1], ("kind", Reference(r_precision))])
+            [arg_refs[1], ("kind", arg_refs[0].datatype.precision.copy())])
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)
