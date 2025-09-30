@@ -1167,6 +1167,27 @@ def trans(psyir):
     assert "module newname\n" in new_code
 
 
+def test_code_transformation_free_form(tmpdir, capsys):
+    '''Test that the free-form option works for code transformation.'''
+    code = '''
+    subroutine test
+    integer :: n
+    n = 3 + 4
+    end subroutine'''
+    inputfile = str(tmpdir.join("free_form.f90"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([inputfile, "--free-form"])
+    captured, _ = capsys.readouterr()
+    correct = """subroutine test()
+  integer :: n
+
+  n = 3 + 4
+
+end subroutine test"""
+    assert correct in captured
+
+
 def test_code_transformation_fixed_form(tmpdir, capsys, caplog):
     ''' Test that the fixed-form option works for code transformation.'''
     code = '''
@@ -1180,7 +1201,7 @@ c     Comment here.
     inputfile = str(tmpdir.join("fixed_form.f90"))
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
-    main([inputfile, "--free-form", False])
+    main([inputfile, "--fixed-form"])
     captured, _ = capsys.readouterr()
     correct = """subroutine test()
   integer :: n
@@ -1197,6 +1218,7 @@ end subroutine test"""
     assert error.value.code == 1
     out, err = capsys.readouterr()
     assert ("Failed to create PSyIR from file " in err)
+    assert ("File was treated as free form" in err) 
 
     # Check that if we use a fixed form file extension we get the expected
     # behaviour.
@@ -1221,16 +1243,22 @@ c     Comment here.
 end subroutine test"""
     assert correct in captured
 
+    caplog.clear()
     # Check an unknown file extension gives a log message and fails for a
     # fixed form input.
-    inputfile = str(tmpdir.join("fixed_form.1s2"))
-    with open(inputfile, "w", encoding='utf-8') as my_file:
-        my_file.write(code)
-    with pytest.raises(SystemExit) as error:
-        main([inputfile])
-    assert error.value.code == 1
-    out, err = capsys.readouterr()
-    assert ("Failed to create PSyIR from file " in err)
+    with caplog.at_level(logging.INFO):
+        inputfile = str(tmpdir.join("fixed_form.1s2"))
+        with open(inputfile, "w", encoding='utf-8') as my_file:
+            my_file.write(code)
+        with pytest.raises(SystemExit) as error:
+            main([inputfile])
+        assert error.value.code == 1
+        out, err = capsys.readouterr()
+        assert ("Failed to create PSyIR from file " in err)
+        assert caplog.records[0].levelname == "INFO"
+        assert ("' doesn't end with a known "
+                "file extension. Assuming free form." in
+                caplog.record_tuples[0][2])
 
 
 @pytest.mark.parametrize("validate", [True, False])

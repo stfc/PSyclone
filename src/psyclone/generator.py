@@ -104,9 +104,12 @@ LOG_LEVELS = {"OFF": sys.maxsize,
               logging.getLevelName(logging.ERROR): logging.ERROR,
               logging.getLevelName(logging.CRITICAL): logging.CRITICAL}
 
-# Default file extensions as defined by gfortran.
+# Default free format file extensions. We've chosen to follow the gfortran
+# specification, with some extensions as requested.
 FREE_FORM = (".f90", ".f95", ".f03", ".f08", ".F90", ".F95", ".F03", ".F08",
-             ".x90")
+             ".x90", ".xu90")
+# Default fixed format file extensions. We've chosen to follow the gfortran
+# specification.
 FIXED_FORM = (".f", ".for", ".fpp", ".ftn", ".F", ".FOR", ".FPP", ".FTN")
 
 
@@ -550,8 +553,13 @@ def main(arguments):
     )
 
     parser.add_argument(
-        "--free-form", default=argparse.SUPPRESS, type=bool,
-        help="defines whether the original code is free form Fortran "
+        "--free-form", default=argparse.SUPPRESS, action="store_true",
+        help="forces PSyclone to parse this file as free format "
+             "(defaults to looking at the input file extension)."
+    )
+    parser.add_argument(
+        "--fixed-form", default=argparse.SUPPRESS, action="store_true",
+        help="forces PSyclone to parse this file as fixed format "
              "(defaults to looking at the input file extension)."
     )
 
@@ -637,10 +645,12 @@ def main(arguments):
                        "PSyclone enabled keep_comments.")
         args.keep_comments = True
 
-    # If free_form is set in the arguments then it overrides default
-    # behaviour.
+    # If free_form or fixed_form is set in the arguments then it overrides
+    # default behaviour.
     if "free_form" in args:
-        free_form = args.free_form
+        free_form = True
+    elif "fixed_form" in args:
+        free_form = False
     else:
         fname = args.filename
         if fname.endswith(FIXED_FORM):
@@ -649,8 +659,8 @@ def main(arguments):
             free_form = True
             if not fname.endswith(FREE_FORM):
                 logger.info(
-                    "Filename doesn't end with a known file extension. "
-                    "Assuming free form."
+                    f"Filename '{fname}' doesn't end with a known file "
+                    f"extension. Assuming free form."
                 )
 
     if not args.psykal_dsl:
@@ -854,8 +864,10 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         try:
             psyir = reader.psyir_from_file(input_file)
         except (InternalError, ValueError, IOError) as err:
+            form = "free form" if free_form else "fixed form"
             print(f"Failed to create PSyIR from file '{input_file}' due "
-                  f"to:\n{str(err)}", file=sys.stderr)
+                  f"to:\n{str(err)}. File was treated as {form}.",
+                  file=sys.stderr)
             logger.error(err, exc_info=True)
             sys.exit(1)
 
