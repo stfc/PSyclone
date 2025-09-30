@@ -50,7 +50,6 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
     GenericInterfaceSymbol,
-    DefaultModuleInterface,
     RoutineSymbol,
     Symbol,
     SymbolError,
@@ -265,8 +264,9 @@ class Call(Statement, DataNode):
                 f"'Call' node should be a string, but found "
                 f"{type(existing_name).__name__}.")
         index = 0
+        lname = existing_name.lower()
         for _, name in self._argument_names:
-            if name is not None and name.lower() == existing_name:
+            if name is not None and name.lower() == lname:
                 break
             index += 1
         else:
@@ -480,14 +480,13 @@ class Call(Statement, DataNode):
 
         return new_copy
 
-    def get_callees(self, load_external_files=True):
+    def get_callees(self, load_external_files: bool = True) -> List[Routine]:
         '''
         Searches for the implementation(s) of all potential target routines
         for this Call without resolving static polymorphism by checking the
         argument types.
 
         :returns: the Routine(s) that this call targets.
-        :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
 
         :raises NotImplementedError: if the routine is not found or a
             limitation prevents definite determination of the target routine.
@@ -514,7 +513,6 @@ class Call(Statement, DataNode):
                         if psyir:
                             routines.append(psyir)
                     if routines:
-                        rsym.interface = DefaultModuleInterface()
                         return routines
                 if not have_codeblock:
                     have_codeblock = any(isinstance(child, CodeBlock) for

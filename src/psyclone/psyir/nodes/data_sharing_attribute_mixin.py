@@ -39,9 +39,11 @@
 import abc
 from typing import Set, Tuple
 
+from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.while_loop import WhileLoop
+from psyclone.psyir.nodes.omp_clauses import OMPReductionClause
 from psyclone.psyir.symbols import DataSymbol, Symbol
 
 
@@ -104,10 +106,23 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         fprivate = set()
         need_sync = set()
 
+        # Collate reduction variables
+        # TODO #2446 Ensure this behaves correctly for OpenACC when
+        # OpenACC reductions are supported.
+        red_vars = []
+        for clause in self.children:
+            if isinstance(clause, OMPReductionClause):
+                for ref in clause.children:
+                    red_vars.append(ref.name)
+
         # Determine variables that must be private, firstprivate or need_sync
         var_accesses = self.reference_accesses()
         for signature in var_accesses.all_signatures:
             if not var_accesses[signature].has_data_access():
+                continue
+            # Skip those that are TYPE_INFO accesses.
+            if any(x.access_type == AccessType.TYPE_INFO
+                    for x in var_accesses[signature]):
                 continue
             accesses = var_accesses[signature]
             # TODO #2094: var_name only captures the top-level
@@ -115,6 +130,8 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             # only apply to a sub-component, this won't be captured
             # appropriately.
             name = signature.var_name
+            if name in red_vars:
+                continue
             symbol = accesses[0].node.scope.symbol_table.lookup(
                 name, otherwise=None)
 
