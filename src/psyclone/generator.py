@@ -552,13 +552,13 @@ def main(arguments):
         help="keeps directives from the original code (defaults to False)."
     )
 
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
+    fortran_format_group = parser.add_mutually_exclusive_group()
+    fortran_format_group.add_argument(
         "--free-form", default=argparse.SUPPRESS, action="store_true",
         help="forces PSyclone to parse this file as free format "
              "(default is to look at the input file extension)."
     )
-    group.add_argument(
+    fortran_format_group.add_argument(
         "--fixed-form", default=argparse.SUPPRESS, action="store_true",
         help="forces PSyclone to parse this file as fixed format "
              "(default is to look at the input file extension)."
