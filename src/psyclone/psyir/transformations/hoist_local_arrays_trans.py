@@ -45,11 +45,12 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
                                   CodeBlock, ACCRoutineDirective, Literal,
-                                  IntrinsicCall, BinaryOperation, Reference)
+                                  IntrinsicCall, BinaryOperation, Reference,
+                                  DataNode)
 from psyclone.psyir.symbols import (
-    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol)
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+    ArrayType, DataSymbol, DataTypeSymbol, INTEGER_TYPE, Symbol)
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 
 
 class HoistLocalArraysTrans(Transformation):
@@ -353,15 +354,23 @@ then
                         f"{sym.datatype.intrinsic.name}'"
                         f" is not guaranteed to be a global symbol")
                     continue
-            # TODO #3087: Precision could include multiple symbols
-            if isinstance(sym.datatype.precision, DataSymbol):
-                if sym.datatype.precision.name in node.symbol_table:
-                    sym.append_preceding_comment(
-                        f"PSyclone warning: '{sym.name}' cannot be hoisted "
-                        f"to the global scope as '"
-                        f"{sym.datatype.precision.name}'"
-                        f" is not guaranteed to be a global symbol")
+            # Precision could include multiple symbols - handle in the same
+            # way as for DataSymbol but check all of them.
+            if isinstance(sym.datatype.precision, DataNode):
+                failed = False
+                for ref in sym.datatype.precision.walk(Reference):
+                    if isinstance(ref.symbol, DataSymbol):
+                        if ref.symbol.name in node.symbol_table:
+                            sym.append_preceding_comment(
+                                f"PSyclone warning: '{sym.name}' cannot "
+                                f"be hoisted to the global scope as '"
+                                f"{ref.symbol.name}'"
+                                f" is not guaranteed to be a global symbol")
+                            failed = True
+                            break
+                if failed:
                     continue
+
             # Check whether all of the bounds of the array are defined - an
             # allocatable array will have array dimensions of
             # ArrayType.Extent.DEFERRED
@@ -374,14 +383,19 @@ then
         # Exclude any arrays that are accessed within a CodeBlock (as they
         # may get renamed as part of the transformation).
         cblocks = node.walk(CodeBlock)
+        all_names_in_cblock = set()
         for cblock in cblocks:
-            cblock_names = set(cblock.get_symbol_names())
-            array_names = set(local_arrays.keys())
+            cblock_names = set(nm.lower() for nm in cblock.get_symbol_names())
+            array_names = set(nm.lower() for nm in local_arrays.keys())
             names_in_cblock = cblock_names.intersection(array_names)
-            # TODO #11 - log the fact that we can't hoist the arrays
-            # listed in 'names_in_cblock'.
+            all_names_in_cblock.update(names_in_cblock)
             for name in names_in_cblock:
                 del local_arrays[name]
+        for name in all_names_in_cblock:
+            sym = node.symbol_table.lookup(name)
+            sym.append_preceding_comment(
+                f"PSyclone warning: cannot hoist '{name}' to global "
+                f"scope as it is accessed in a CodeBlock")
 
         for intrinsic in node.walk(IntrinsicCall):
             # Exclude arrays that are used in a RESHAPE expression

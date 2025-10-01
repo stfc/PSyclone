@@ -198,7 +198,7 @@ def test_sym_writer_functions(fortran_reader, expressions):
                           ("c + c(1)", {'c': Function('c')}),
                           ("a%b + a%b(1)", {'a_b': Function('a_b')}),
                           # iptr will be of UnknownFortranType
-                          ("LBOUND(iptr)", {'iptr': Function('iptr')})
+                          ("LBOUND(iptr)", {'iptr': Function('iptr')}),
                           ])
 def test_sympy_writer_create_type_map(expr, sym_map, fortran_reader):
     '''Tests that the static create_type_map creates a dictionary

@@ -39,7 +39,6 @@
 ! Modified by A. R. Porter, STFC Daresbury Lab
 
 PROGRAM tra_adv
-   USE iso_c_binding, only: C_INT64_T
    INTEGER, PARAMETER :: wp = KIND(1.0d0)
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) :: t3sn, t3ns, t3ew, t3we
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   :: tsn 
@@ -51,9 +50,7 @@ PROGRAM tra_adv
    REAL(wp) :: r
    REAL(wp) :: zw, z0w
    INTEGER  :: jpi, jpj, jpk, ji, jj, jk, jt
-   ! TODO #588 it would be more natural to do INTEGER*8 here but PSyclone does
-   ! not yet support such syntax.
-   INTEGER(KIND=C_INT64_T) :: it
+   INTEGER*8 :: it
    CHARACTER(len=10) :: env
 
    CALL get_environment_variable("JPI", env)
