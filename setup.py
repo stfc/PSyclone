@@ -57,12 +57,19 @@ AUTHOR = ('Rupert Ford, '
 AUTHOR_EMAIL = 'andrew.porter@stfc.ac.uk'
 URL = 'https://github.com/stfc/psyclone'
 DOWNLOAD_URL = 'https://github.com/stfc/psyclone'
-DESCRIPTION = ('PSyclone - a source-to-source Fortran compiler for HPC '
-               'applications')
+DESCRIPTION = ('PSyclone - a source-to-source and DSL Fortran compiler for '
+               'HPC applications')
 LONG_DESCRIPTION = '''\
 PSyclone is a source-to-source Fortran compiler designed to programmatically
 optimise, parallelise and instrument HPC applications via user-provided
-transformation scripts.
+transformation scripts. It also supports domain-specific language extensions
+to the Fortran language, which simplify the implementation of Finite Element/
+Volume/Difference codes.
+
+PSyclone is used by the UK Met Office in their new weather model, LFRic
+(https://www.metoffice.gov.uk/research/approach/modelling-systems/lfric), and
+by the NEMO ocean-modelling framework
+(https://sites.nemo-ocean.io/user-guide/psyclone.html).
 
 See https://github.com/stfc/psyclone for more information.
 '''
