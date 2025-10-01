@@ -53,7 +53,8 @@ PACKAGES = find_packages(where=SRC_PATH,
 NAME = 'PSyclone'
 AUTHOR = ('Rupert Ford, '
           'Andrew Porter <andrew.porter@stfc.ac.uk>, '
-          'Sergi Siso <sergi.siso@stfc.ac.uk>')
+          'Sergi Siso <sergi.siso@stfc.ac.uk>, '
+          'Joerg Henrichs <joerg.henrichs@bom.gov.au>')
 AUTHOR_EMAIL = 'andrew.porter@stfc.ac.uk'
 URL = 'https://github.com/stfc/psyclone'
 DOWNLOAD_URL = 'https://github.com/stfc/psyclone'
