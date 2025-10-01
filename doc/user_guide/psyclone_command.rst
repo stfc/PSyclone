@@ -55,7 +55,7 @@ by the command:
                     [--backend {disable-validation,disable-indentation}]
                     [-o OUTPUT_FILE] [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE] [-okern OUTPUT_KERNEL_PATH] [-d DIRECTORY] [-dm] [-nodm]
                     [--kernel-renaming {multiple,single}] [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}]
-                    [--log-file LOG_FILE] [--keep-comments] [--keep-directives] [--free-form] [--fixed-form]
+                    [--log-file LOG_FILE] [--keep-comments] [--keep-directives] [--free-form | --fixed-form]
                     filename
 
     Transform a file using the PSyclone source-to-source Fortran compiler
