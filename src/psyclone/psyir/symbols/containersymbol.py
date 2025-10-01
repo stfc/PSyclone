@@ -37,10 +37,14 @@
 # -----------------------------------------------------------------------------
 
 ''' This module contains the ContainerSymbol and its interfaces.'''
+from typing import TYPE_CHECKING, Optional
 
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.interfaces import SymbolInterface
 from psyclone.configuration import Config
+
+if TYPE_CHECKING:  # pragma: no cover
+    from psyclone.psyir.nodes import Container, Node
 
 
 class ContainerSymbol(Symbol):
@@ -125,7 +129,11 @@ class ContainerSymbol(Symbol):
         new_symbol.is_intrinsic = self.is_intrinsic
         return new_symbol
 
-    def find_container_psyir(self, local_node=None, load_external_files=True):
+    def find_container_psyir(
+        self,
+        local_node: Optional['Node'] = None,
+        load_external_files: bool = True
+    ) -> 'Container':
         ''' Searches for the Container that this Symbol refers to. If it is
         not available, use the interface to import the container. If
         `local_node` is supplied then the PSyIR tree below it is searched for
@@ -134,6 +142,8 @@ class ContainerSymbol(Symbol):
         :param local_node: root of PSyIR sub-tree to include in search for
                            the container.
         :type local_node: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :param load_external_files: allow this method to load external files
+            to find the needed declarations.
 
         :returns: referenced container.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`

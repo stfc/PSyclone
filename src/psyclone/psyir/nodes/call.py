@@ -486,6 +486,9 @@ class Call(Statement, DataNode):
         for this Call without resolving static polymorphism by checking the
         argument types.
 
+        :param load_external_files: allow this method to load external files
+            to find the needed declarations.
+
         :returns: the Routine(s) that this call targets.
 
         :raises NotImplementedError: if the routine is not found or a
@@ -793,7 +796,8 @@ class Call(Statement, DataNode):
             the very first implementation of the matching routine will be
             returned (even if the argument type check failed). The argument
             types and number of arguments might therefore mismatch!
-        :type ret_arg_match_list: bool
+        :param load_external_files: allow this method to load external files
+            to find the needed declarations.
 
         :returns: A tuple of two elements. The first element is the routine
             that this call targets. The second one a list of arguments
