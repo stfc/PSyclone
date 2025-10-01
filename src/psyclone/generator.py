@@ -552,15 +552,16 @@ def main(arguments):
         help="keeps directives from the original code (defaults to False)."
     )
 
-    parser.add_argument(
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
         "--free-form", default=argparse.SUPPRESS, action="store_true",
         help="forces PSyclone to parse this file as free format "
-             "(defaults to looking at the input file extension)."
+             "(default is to look at the input file extension)."
     )
-    parser.add_argument(
+    group.add_argument(
         "--fixed-form", default=argparse.SUPPRESS, action="store_true",
         help="forces PSyclone to parse this file as fixed format "
-             "(defaults to looking at the input file extension)."
+             "(default is to look at the input file extension)."
     )
 
     args = parser.parse_args(arguments)
@@ -659,7 +660,7 @@ def main(arguments):
             free_form = True
             if not fname.endswith(FREE_FORM):
                 logger.info(
-                    f"Filename '{fname}' doesn't end with a known file "
+                    f"Filename '{fname}' doesn't end with a recognised file "
                     f"extension. Assuming free form."
                 )
 

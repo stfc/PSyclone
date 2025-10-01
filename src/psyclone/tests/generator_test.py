@@ -1174,7 +1174,9 @@ def test_code_transformation_free_form(tmpdir, capsys):
     integer :: n
     n = 3 + 4
     end subroutine'''
-    inputfile = str(tmpdir.join("free_form.f90"))
+    # Using a fixed format file extension to check the --free-form
+    # option is correctly overriding the default behaviour.
+    inputfile = str(tmpdir.join("free_form.f"))
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     main([inputfile, "--free-form"])
@@ -1256,7 +1258,7 @@ end subroutine test"""
         out, err = capsys.readouterr()
         assert ("Failed to create PSyIR from file " in err)
         assert caplog.records[0].levelname == "INFO"
-        assert ("' doesn't end with a known "
+        assert ("' doesn't end with a recognised "
                 "file extension. Assuming free form." in
                 caplog.record_tuples[0][2])
 

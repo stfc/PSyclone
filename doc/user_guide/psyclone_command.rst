@@ -109,9 +109,9 @@ by the command:
                            Directives are not kept with this option (use --keep-directives).
      --keep-directives     keeps directives from the original code (defaults to False).
      --free-form           forces PSyclone to parse this file as free format
-                           (defaults to looking at the input file extension).
+                           (default is to look at the input file extension).
      --fixed-form          forces PSyclone to parse this file as fixed format
-                           (defaults to looking at the input file extension).
+                           (default is to look at the input file extension).
 
 Basic Use
 ---------
@@ -260,8 +260,9 @@ current uses cases: .x90, .xu90
 PSyclone also provides the ``--free-form`` and ``-fixed-form`` to override the
 default behaviour, and will use the specified option over the file extension.
 
-If the file extension is not defined, PSyclone defaults to assuming the input
-source is free form Fortran.
+If the file extension is not one of the ones listed above, and neither of the
+``free-form`` or ``--fixed-form`` flags is used then PSyclone defaults to
+assuming the input source is free form Fortran.
 
 
 .. _backend-options:
