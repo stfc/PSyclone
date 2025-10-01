@@ -272,7 +272,7 @@ jobs:
 
         # Fetch dependencies
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          https://code.metoffice.gov.uk/svn/lfric_apps/main/trunk lfric_apps
+          https://code.metoffice.gov.uk/svn/lfric_apps/main/branches/dev/stephencook/vn2.2_spectral_gwd_psyclone_transmute lfric_apps
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
           https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
@@ -283,6 +283,8 @@ jobs:
            https://code.metoffice.gov.uk/svn/socrates/main/trunk socrates
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
            https://code.metoffice.gov.uk/svn/ukca/main/trunk ukca
+        ln -s ${TEST_PREFIX}/ukca ${TEST_PREFIX}/trunk@
+        ln -s ${TEST_PREFIX}/casim ${TEST_PREFIX}/trunk@
 
         # Update dependencies.sh to point to the downloaded version
         sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" lfric_apps/dependencies.sh
