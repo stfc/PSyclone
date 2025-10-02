@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR PRODUCT intrinsic to
 an equivalent PSyIR loop structure. This could be useful if the PRODUCT
@@ -44,8 +45,10 @@ from psyclone.psyir.nodes import IntrinsicCall, BinaryOperation, Literal
 from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
     import ArrayReductionBaseTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class Product2LoopTrans(ArrayReductionBaseTrans):
     '''Provides a transformation from a PSyIR PRODUCT IntrinsicCall node to
     an equivalent PSyIR loop structure that is suitable for running in
@@ -177,3 +180,15 @@ class Product2LoopTrans(ArrayReductionBaseTrans):
         # Note, the validate method guarantees that an else branch is
         # not required.
         return Literal(value_str, scalar_type)
+
+    def apply(self, node, options=None, **kwargs):
+        '''
+        Apply the Product2LoopTrans to the input node.
+
+        :param node: the PRODUCT intrinsic to transform.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :param options: options for the transformation.
+        :type options: Optional[Dict[str, Any]]
+
+        '''
+        super().apply(node, options=options, **kwargs) 

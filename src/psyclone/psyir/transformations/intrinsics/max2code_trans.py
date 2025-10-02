@@ -43,8 +43,9 @@ than the intrinsic.
 from psyclone.psyir.nodes import BinaryOperation, IntrinsicCall
 from psyclone.psyir.transformations.intrinsics.minormax2code_trans import (
     MinOrMax2CodeTrans)
+from psyclone.utils import transformation_documentation_wrapper
 
-
+@transformation_documentation_wrapper
 class Max2CodeTrans(MinOrMax2CodeTrans):
     '''Provides a transformation from a PSyIR MAX Intrinsic node to
     equivalent code in a PSyIR tree. Validity checks are also
@@ -72,3 +73,15 @@ class Max2CodeTrans(MinOrMax2CodeTrans):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.MAX
         self._compare_operator = BinaryOperation.Operator.GT
+
+    def apply(self, node, options=None, **kwargs):
+        '''
+        Applies the Max2CodeTrans to the provided node.
+
+        
+        :param node: a MAX intrinsic.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        '''
+        super().apply(node, options=options, **kwargs)

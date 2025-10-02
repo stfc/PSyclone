@@ -34,6 +34,7 @@
 # Author: R. W. Ford, STFC Daresbury Laboratory
 # Modified: A. R. Porter, STFC Daresbury Laboratory
 # Modified: S. Siso, STFC Daresbury Laboratory
+# Modified: A. B. G. Chalk, STFC Daresbury Laboratory
 
 '''Module providing a transformation from a PSyIR MIN intrinsic to
 PSyIR code. This could be useful if the MIN intrinsic is not supported
@@ -45,8 +46,10 @@ than the intrinsic.
 from psyclone.psyir.nodes import BinaryOperation, IntrinsicCall
 from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
         MinOrMax2CodeTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class Min2CodeTrans(MinOrMax2CodeTrans):
     '''Provides a transformation from a PSyIR MIN Intrinsic node to
     equivalent code in a PSyIR tree. Validity checks are also
@@ -74,3 +77,15 @@ class Min2CodeTrans(MinOrMax2CodeTrans):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.MIN
         self._compare_operator = BinaryOperation.Operator.LT
+
+    def apply(self, node, options=None, **kwargs):
+        '''
+        Applies the Min2CodeTrans to the provided node.
+
+
+        :param node: a MIN intrinsic.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        '''
+        super().apply(node, options=options, **kwargs)

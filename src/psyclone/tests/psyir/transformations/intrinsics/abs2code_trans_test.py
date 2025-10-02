@@ -32,10 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing tests for the abs2code transformation.'''
 
 import pytest
+import warnings
+
 from psyclone.psyir.transformations import Abs2CodeTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
     ArgumentInterface, REAL_TYPE
@@ -105,7 +108,7 @@ def test_correct(func, output, tmpdir):
         f"  psyir_tmp = ABS({output})\n\n"
         f"end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
-    trans.apply(intr_call, root.symbol_table)
+    trans.apply(intr_call)
     result = writer(root)
     assert (
         f"subroutine abs_example(arg)\n"
@@ -152,7 +155,7 @@ def test_correct_expr(tmpdir):
         "  psyir_tmp = 1.0 + ABS(arg * 3.14) + 2.0\n\n"
         "end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
-    trans.apply(intr_call, root.symbol_table)
+    trans.apply(intr_call)
     result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
@@ -199,8 +202,8 @@ def test_correct_2abs(tmpdir):
         "  psyir_tmp = ABS(arg * 3.14) + ABS(1.0)\n\n"
         "end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
-    trans.apply(intr_call, root.symbol_table)
-    trans.apply(intr_call2, root.symbol_table)
+    trans.apply(intr_call)
+    trans.apply(intr_call2)
     result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
@@ -238,3 +241,25 @@ def test_invalid():
     assert (
         "Error in Abs2CodeTrans transformation. The supplied node must be an "
         "'IntrinsicCall', but found 'NoneType'." in str(excinfo.value))
+
+
+# TODO #2668 Remove this test.
+def test_abs2code_deprecation_warning():
+    '''Check that a deprecation warning is output when provided an options
+     dict to apply.
+    '''
+    intr_call = example_psyir(lambda arg: arg)
+    root = intr_call.root
+    trans = Abs2CodeTrans()
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to be triggered.
+        warnings.simplefilter("always")
+        trans.apply(intr_call, options={"a": "test"})
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in str(w[0].message))

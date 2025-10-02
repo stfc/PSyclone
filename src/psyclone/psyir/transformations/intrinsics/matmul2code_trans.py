@@ -34,6 +34,7 @@
 # Author: R. W. Ford, STFC Daresbury Laboratory
 # Modified: S. Siso, A. R. Porter and N. Nobre, STFC Daresbury Lab
 #           T. Vockerodt, Met Office
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR MATMUL operator to
 PSyIR code. This could be useful if the MATMUL operator is not
@@ -43,6 +44,8 @@ matrix vector multiply. This transformation supports both with the
 restriction that the first matrix must be of at least rank 2.
 
 '''
+import warnings
+
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference,
     Loop, Literal, ArrayReference, Range, IntrinsicCall)
@@ -50,6 +53,7 @@ from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL_TYPE, TypedSymbol, UnsupportedType)
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
+from psyclone.utils import transformation_documentation_wrapper
 
 
 def _create_array_ref(array_symbol, loop_idx_symbols, other_dims,
@@ -91,6 +95,7 @@ def _create_array_ref(array_symbol, loop_idx_symbols, other_dims,
     return ArrayReference.create(array_symbol, indices)
 
 
+@transformation_documentation_wrapper
 class Matmul2CodeTrans(Intrinsic2CodeTrans):
     '''Provides a transformation from a PSyIR MATMUL Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
@@ -212,7 +217,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                     f"indices of the array '{array.debug_string()}' "
                     f"must be full ranges but found {n_full_ranges}.")
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''Perform checks to ensure that it is valid to apply the
         Matmul2CodeTran transformation to the supplied node.
 
@@ -308,7 +313,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                 f"'{result.symbol.name}' is the result location and one of "
                 f"the MATMUL operators. This is not supported.")
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the MATMUL intrinsic conversion transformation to the
         specified node. This node must be a MATMUL IntrinsicCall. The first
         argument must currently have two dimensions while the second must have
@@ -326,7 +331,11 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        # TODO #2668 options dict is now deprecated
+        if options:
+           warnings.warn(self._deprecation_warning, DeprecationWarning, 2) 
+
+        self.validate(node, options, **kwargs)
 
         arg2 = node.arguments[1]
         full_range_order, _, _ = self._get_full_range_split(arg2)

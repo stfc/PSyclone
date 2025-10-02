@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR MAXVAL intrinsic to
 an equivalent PSyIR loop structure. This could be useful if the MAXVAL
@@ -43,8 +44,10 @@ better than the intrinsic.
 from psyclone.psyir.nodes import IntrinsicCall, UnaryOperation
 from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
     import ArrayReductionBaseTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class Maxval2LoopTrans(ArrayReductionBaseTrans):
     '''Provides a transformation from a PSyIR MAXVAL IntrinsicCall node to
     an equivalent PSyIR loop structure that is suitable for running in
@@ -170,3 +173,15 @@ class Maxval2LoopTrans(ArrayReductionBaseTrans):
         huge = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.HUGE, [reference.copy()])
         return UnaryOperation.create(UnaryOperation.Operator.MINUS, huge)
+
+    def apply(self, node, options=None, **kwargs):
+        '''
+        Apply the Maxval2LoopTrans to the input node.
+
+        :param node: the MAXVAL intrinsic to transform.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :param options: options for the transformation.
+        :type options: Optional[Dict[str, Any]]
+
+        '''
+        super().apply(node, options=options, **kwargs)

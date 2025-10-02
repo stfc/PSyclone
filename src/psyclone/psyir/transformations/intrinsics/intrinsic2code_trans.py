@@ -34,6 +34,7 @@
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing an abstract class which provides some generic
 functionality required by transformations of PSyIR intrinsic
@@ -46,8 +47,10 @@ from psyclone.psyir.nodes import Assignment, IntrinsicCall
 from psyclone.psyir.symbols import ArrayType, ScalarType
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class Intrinsic2CodeTrans(Transformation, metaclass=abc.ABCMeta):
     '''Provides support for transformations from PSyIR IntrinsicCall
     nodes to equivalent PSyIR code in a PSyIR tree. Such
@@ -64,7 +67,7 @@ class Intrinsic2CodeTrans(Transformation, metaclass=abc.ABCMeta):
         return (f"Convert the PSyIR '{self._intrinsic.name}' "
                 f"intrinsic to equivalent PSyIR code.")
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''Perform various checks to ensure that it is valid to apply
         an intrinsic transformation to the supplied Node.
 
@@ -73,12 +76,16 @@ class Intrinsic2CodeTrans(Transformation, metaclass=abc.ABCMeta):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the node argument is not the \
+        :raises TransformationError: if the node argument is not the
             expected type.
-        :raises TransformationError: if the IntrinsicCall node does \
+        :raises TransformationError: if the IntrinsicCall node does
             not have an Assignment Node as an ancestor.
 
         '''
+        # Validate any keyword argument options
+        if not options:
+            self.validate_options(**kwargs)
+
         # Check that the node is one of the expected types.
         if not isinstance(node, IntrinsicCall):
             raise TransformationError(
@@ -124,3 +131,15 @@ class Intrinsic2CodeTrans(Transformation, metaclass=abc.ABCMeta):
                 f"'{node.debug_string()} because the type of the "
                 f"argument '{node.arguments[0].debug_string()}' is "
                 f"{result_type}")
+
+    @abc.abstractmethod
+    def apply(self, node, options=None, **kwargs):
+        '''
+        Apply the Intrinsic2CodeTrans transformation.
+
+        :param node: the target intrinsic call.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :param options: any options for the transformation.
+        :type options: dict[str, Any]
+        '''
+        super().apply(node, options=options, **kwargs)
