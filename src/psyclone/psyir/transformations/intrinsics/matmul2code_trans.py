@@ -333,7 +333,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         '''
         # TODO #2668 options dict is now deprecated
         if options:
-           warnings.warn(self._deprecation_warning, DeprecationWarning, 2) 
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
         self.validate(node, options, **kwargs)
 

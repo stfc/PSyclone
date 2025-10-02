@@ -50,6 +50,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.utils import transformation_documentation_wrapper
 
+
 @transformation_documentation_wrapper
 class Abs2CodeTrans(Intrinsic2CodeTrans):
     '''Provides a transformation from a PSyIR ABS Operator node to

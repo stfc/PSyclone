@@ -45,6 +45,7 @@ from psyclone.psyir.transformations.intrinsics.minormax2code_trans import (
     MinOrMax2CodeTrans)
 from psyclone.utils import transformation_documentation_wrapper
 
+
 @transformation_documentation_wrapper
 class Max2CodeTrans(MinOrMax2CodeTrans):
     '''Provides a transformation from a PSyIR MAX Intrinsic node to
@@ -78,7 +79,7 @@ class Max2CodeTrans(MinOrMax2CodeTrans):
         '''
         Applies the Max2CodeTrans to the provided node.
 
-        
+
         :param node: a MAX intrinsic.
         :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: a dictionary with options for transformations.

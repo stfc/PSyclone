@@ -249,7 +249,6 @@ def test_abs2code_deprecation_warning():
      dict to apply.
     '''
     intr_call = example_psyir(lambda arg: arg)
-    root = intr_call.root
     trans = Abs2CodeTrans()
     with warnings.catch_warnings(record=True) as w:
         # Cause all warnings to be triggered.

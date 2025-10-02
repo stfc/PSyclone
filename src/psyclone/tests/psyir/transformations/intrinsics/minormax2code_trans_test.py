@@ -334,7 +334,6 @@ def test_minormax_deprecation_warning():
     deprecation warning when provided an options dict.
     '''
     intr_call = example_psyir_binary(lambda arg: arg)
-    root = intr_call.root
     trans = MinOrMax2CodeTrans()
     # Configure this transformation to use MIN
     trans._intrinsic = IntrinsicCall.Intrinsic.MIN

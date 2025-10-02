@@ -53,6 +53,7 @@ from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 from psyclone.utils import transformation_documentation_wrapper
 
+
 @transformation_documentation_wrapper
 class ArrayReductionBaseTrans(Transformation, ABC):
     '''An abstract parent class providing common functionality to
@@ -122,7 +123,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
 
         if not options:
             self.validate_options(**kwargs)
-        
+
         if not isinstance(node, IntrinsicCall):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "

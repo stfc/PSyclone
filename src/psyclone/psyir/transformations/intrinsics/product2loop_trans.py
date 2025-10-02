@@ -191,4 +191,4 @@ class Product2LoopTrans(ArrayReductionBaseTrans):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        super().apply(node, options=options, **kwargs) 
+        super().apply(node, options=options, **kwargs)
