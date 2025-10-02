@@ -1357,7 +1357,6 @@ def test_module_inline_deprecation_warning():
     '''Tests that the transformation gives the expected deprecation warning
     when an options dict is provided.
     '''
-    config = Config.get()
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric",
                              name="invoke_0", dist_mem=False)
     kern_call = invoke.schedule.walk(CodedKern)[0]
