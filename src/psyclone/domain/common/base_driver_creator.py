@@ -71,7 +71,7 @@ class BaseDriverCreator:
        rank attached).
     4. A copy of the kernel that is being instrumented is created, so that
        it can be modified without affecting the actual code creation if
-       PSyclone..
+       PSyclone.
     5. The method `verify_and_cleanup_psyir` is called with the copied kernel
        as parameter. The base implementation checks that no structure accesses
        are in the code (which are not supported - the structures used by the
