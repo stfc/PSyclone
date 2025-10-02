@@ -41,6 +41,7 @@ which uses specialised classes.
 # pylint: disable=protected-access
 
 from fparser.two.Fortran2003 import Structure_Constructor
+import warnings
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
@@ -52,8 +53,10 @@ from psyclone.domain.common.algorithm import (
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class RaisePSyIR2AlgTrans(Transformation):
     '''Transform a generic PSyIR representation of an Algorithm-layer
     invoke call to a PSyclone version with specialised domain-specific
@@ -145,7 +148,7 @@ class RaisePSyIR2AlgTrans(Transformation):
                 f"invoke codeblock to contain a Structure-Constructor, but "
                 f"found '{type(fp2_node).__name__}'.")
 
-    def validate(self, node, options=None):
+    def validate(self, node: Call, options=None, **kwargs):
         '''Validate the node argument.
 
         :param node: a PSyIR call node capturing an invoke call in
@@ -167,6 +170,9 @@ class RaisePSyIR2AlgTrans(Transformation):
             PSyIR ArrayReference or CodeBlock.
 
         '''
+        if not options:
+            self.validate_options(**kwargs)
+
         self._call_name = None
 
         if not isinstance(node, Call):
@@ -224,27 +230,30 @@ class RaisePSyIR2AlgTrans(Transformation):
                 raise TransformationError(
                     f"Error in {self.name} transformation. {info}")
 
-    def apply(self, call, index, options=None):
+    def apply(self, node: Call, index: int = None, options=None, **kwargs):
         ''' Apply the transformation to the supplied node.
 
-        :param call: a PSyIR call node capturing an invoke call in \
+        :param node: a PSyIR call node capturing an invoke call in
             generic PSyIR.
-        :type call: :py:class:`psyclone.psyir.nodes.Call`
-        :param int index: the position of this invoke call relative to \
+        :param index: the position of this invoke call relative to
             other invokes in the algorithm layer.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(call, options=options)
+        if options:
+            # TODO 2668 - options dict is deprecated.
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2) 
+
+        self.validate(node, index=index, options=options, **kwargs)
 
         call_name = None
         calls = []
-        for idx, call_arg in enumerate(call.arguments):
+        for idx, call_arg in enumerate(node.arguments):
 
             # pylint: disable=protected-access
             arg_info = []
-            if call.argument_names[idx]:
+            if node.argument_names[idx]:
                 call_name = f"{call_arg.value}"
                 continue
             elif isinstance(call_arg, ArrayReference):
@@ -257,7 +266,7 @@ class RaisePSyIR2AlgTrans(Transformation):
                 # a StructureConstructor fparser2 node inside
                 for fp2_node in call_arg.get_ast_nodes:
                     # This child is a kernel
-                    type_symbol = self._get_symbol(call, fp2_node)
+                    type_symbol = self._get_symbol(node, fp2_node)
                     args = self._parse_args(call_arg, fp2_node)
                     arg_info.append((type_symbol, args))
 
@@ -266,13 +275,13 @@ class RaisePSyIR2AlgTrans(Transformation):
                 calls.append(KernelFunctor.create(type_symbol, args))
 
         invoke_call = AlgorithmInvokeCall.create(
-            call.routine.symbol, calls, index, name=call_name)
+            node.routine.symbol, calls, index, name=call_name)
 
         # Keep comments
-        invoke_call.preceding_comment = call.preceding_comment
-        invoke_call.inline_comment = call.inline_comment
+        invoke_call.preceding_comment = node.preceding_comment
+        invoke_call.inline_comment = node.inline_comment
 
-        call.replace_with(invoke_call)
+        node.replace_with(invoke_call)
 
 
 __all__ = ['RaisePSyIR2AlgTrans']
