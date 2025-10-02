@@ -420,10 +420,10 @@ class SymPyWriter(FortranWriter):
                 # have a scope, hence the try...except.
                 orig_sym = sva[0].node.scope.symbol_table.lookup(sig.var_name)
             except SymbolError:
+                # If we can't find it, use the symbol associated to the sva
+                orig_sym = None
                 if isinstance(sva[0].node, Reference):
                     orig_sym = sva[0].node.symbol
-                else:
-                    orig_sym = None
 
             is_fn_call = (
                 isinstance(orig_sym, RoutineSymbol) or

@@ -51,25 +51,33 @@ PACKAGES = find_packages(where=SRC_PATH,
                                   "psyclone.tests.*"])
 
 NAME = 'PSyclone'
-AUTHOR = ('Rupert Ford <rupert.ford@stfc.ac.uk>, '
+AUTHOR = ('Rupert Ford, '
           'Andrew Porter <andrew.porter@stfc.ac.uk>, '
-          'Sergi Siso <sergi.siso@stfc.ac.uk>')
+          'Sergi Siso <sergi.siso@stfc.ac.uk>, '
+          'Joerg Henrichs <joerg.henrichs@bom.gov.au>')
 AUTHOR_EMAIL = 'andrew.porter@stfc.ac.uk'
 URL = 'https://github.com/stfc/psyclone'
 DOWNLOAD_URL = 'https://github.com/stfc/psyclone'
-DESCRIPTION = ('PSyclone - a compiler for Finite Element/Volume/Difference'
-               ' DSLs in Fortran')
+DESCRIPTION = ('PSyclone - a source-to-source and DSL Fortran compiler for '
+               'HPC applications')
 LONG_DESCRIPTION = '''\
-PSyclone is a compiler for Fortran-embedded Domain Specific Languages
-targetting Finite Element/Volume/Difference methods in earth-system
-modelling.
+PSyclone is a source-to-source Fortran compiler designed to programmatically
+optimise, parallelise and instrument HPC applications via user-provided
+transformation scripts. It also supports domain-specific language extensions
+to the Fortran language, which simplify the implementation of Finite Element/
+Volume/Difference codes.
+
+PSyclone is used by the UK Met Office in their new weather model, LFRic
+(https://www.metoffice.gov.uk/research/approach/modelling-systems/lfric), and
+by the NEMO ocean-modelling framework
+(https://sites.nemo-ocean.io/user-guide/psyclone.html).
 
 See https://github.com/stfc/psyclone for more information.
 '''
 LICENSE = 'OSI Approved :: BSD 3-Clause License'
 
 CLASSIFIERS = [
-    'Development Status :: 3 - Alpha',
+    'Development Status :: 5 - Production/Stable',
     'Environment :: Console',
     'Intended Audience :: Developers',
     'Intended Audience :: Science/Research',
@@ -161,7 +169,7 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser>=0.2.0', 'configparser',
+        install_requires=['pyparsing', 'fparser>=0.2.1', 'configparser',
                           'sympy', "Jinja2", 'termcolor', 'graphviz'],
         extras_require={
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_design",

@@ -358,14 +358,14 @@ def test_call_replacenamedarg():
     assert ("The value of the existing_name argument (new_name) in "
             "'replace_named_arg' in the 'Call' node was not found in the "
             "existing arguments." in str(info.value))
-    # ok
+    # ok - including change in case
     assert call.arguments == (op1, op2)
     assert call.argument_names == ["name1", "name2"]
     assert call._argument_names[0][0] == id(op1)
     assert call._argument_names[1][0] == id(op2)
-    call.replace_named_arg("name1", op3)
+    call.replace_named_arg("nAMe1", op3)
     assert call.arguments == (op3, op2)
-    assert call.argument_names == ["name1", "name2"]
+    assert call.argument_names == ["nAMe1", "name2"]
     assert call._argument_names[0][0] == id(op3)
     assert call._argument_names[1][0] == id(op2)
 
@@ -408,12 +408,40 @@ def test_call_reference_accesses():
     var_info = call5.reference_accesses()
     assert var_info.has_read_write(Signature("gamma"))
     assert var_info.is_read(Signature("ji"))
-    # Call to a PURE routine - arguments should be READ only.
+    # Call to a routine - if the definition is not found, they will be RW
     puresym = RoutineSymbol("dirk", is_pure=True)
     call6 = Call.create(puresym, [Reference(dsym)])
     var_info = call6.reference_accesses()
     assert var_info.is_read(Signature("beta"))
-    assert not var_info.is_written(Signature("beta"))
+    assert var_info.is_written(Signature("beta"))
+
+
+def test_call_reference_accesses_findable_routine(fortran_reader):
+    '''Test the reference_accesses() when the psyir call find the declaration
+    of a routine'''
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine return_scalar(x, y, z)
+        integer, intent(in) :: x
+        integer, intent(out) :: y
+        integer, intent(inout) :: z
+        y = x + 1
+    end subroutine return_scalar
+
+    subroutine test()
+        integer :: x, y, z
+        call return_scalar(x, y, z)
+    end subroutine test
+    """)
+    test_routine = psyir.walk(Routine)[1]
+    assert test_routine.name == "test"
+    call = test_routine.walk(Call)[0]
+    vam = call.reference_accesses()
+    assert vam.is_read(Signature("x"))
+    assert not vam.is_written(Signature("x"))
+    assert not vam.is_read(Signature("y"))
+    assert vam.is_written(Signature("y"))
+    assert vam.is_read(Signature("z"))
+    assert vam.is_written(Signature("z"))
 
 
 def test_type_bound_call_reference_accesses(fortran_reader):
@@ -712,6 +740,7 @@ end module some_mod'''
     result = call.get_callees()
     assert len(result) == 2
     assert result == psyir.walk(Routine)[1:]
+    assert isinstance(call.routine.symbol.datatype, NoType)
 
 
 def test_call_get_callees_local_file_container(fortran_reader):
@@ -763,7 +792,7 @@ contains
   end subroutine
 
   ! Matching routine
-  subroutine foo(a, b, c)
+  pure subroutine foo(a, b, c)
     integer :: a, b, c
   end subroutine
 
@@ -775,6 +804,7 @@ end module some_mod'''
     assert routine_main.name == "main"
 
     call_foo: Call = routine_main.walk(Call)[0]
+    assert call_foo.routine.symbol.is_pure is True
 
     (result, _) = call_foo.get_callee()
 
@@ -1489,12 +1519,12 @@ contains
     call bottom(luggage)
   end subroutine top
 
-  subroutine ibottom(luggage)
+  pure subroutine ibottom(luggage)
     integer :: luggage
     luggage = luggage + 1
   end subroutine ibottom
 
-  subroutine rbottom(luggage)
+  pure subroutine rbottom(luggage)
     real :: luggage
     luggage = luggage + 1.0
   end subroutine rbottom
@@ -1502,6 +1532,7 @@ end module my_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
+    assert call.routine.symbol.is_pure is True
     callees = call.get_callees()
     assert len(callees) == 2
     assert isinstance(callees[0], Routine)

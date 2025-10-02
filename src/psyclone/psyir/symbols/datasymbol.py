@@ -38,6 +38,7 @@
 
 ''' This module contains the DataSymbol and its interfaces.'''
 
+from __future__ import annotations
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.psyir.symbols.interfaces import StaticInterface
 
@@ -328,12 +329,16 @@ class DataSymbol(TypedSymbol):
         copy.inline_comment = self.inline_comment
         return copy
 
-    def copy_properties(self, symbol_in):
+    def copy_properties(self,
+                        symbol_in: DataSymbol,
+                        exclude_interface: bool = False):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name (which is immutable) and visibility.
+        If `exclude_interface` is True, the interface is also not updated.
 
         :param symbol_in: the symbol from which the properties are copied.
-        :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param exclude_interface: whether to copy the interface from the
+                                  provided symbol.
 
         :raises TypeError: if the argument is not the expected type.
 
@@ -341,7 +346,7 @@ class DataSymbol(TypedSymbol):
         if not isinstance(symbol_in, DataSymbol):
             raise TypeError(f"Argument should be of type 'DataSymbol' but "
                             f"found '{type(symbol_in).__name__}'.")
-        super().copy_properties(symbol_in)
+        super().copy_properties(symbol_in, exclude_interface=exclude_interface)
         self._is_constant = symbol_in.is_constant
         self._initial_value = symbol_in.initial_value
         self.preceding_comment = symbol_in.preceding_comment

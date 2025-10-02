@@ -38,8 +38,6 @@
 ''' This module contains the DataNode abstract node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols.datatypes import (
-    ScalarType, UnresolvedType, INTEGER_TYPE)
 
 
 class DataNode(Node):
@@ -59,6 +57,7 @@ class DataNode(Node):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.loop import Loop
         from psyclone.psyir.nodes.ranges import Range
+        from psyclone.psyir.symbols.datatypes import UnresolvedType, INTEGER_TYPE
         # If it is a direct child of Loop or Range, it can only be an Integer
         if self.parent and isinstance(self.parent, (Loop, Range)):
             return INTEGER_TYPE
@@ -77,6 +76,8 @@ class DataNode(Node):
         :raises ValueError: if the intrinsic type cannot be determined.
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import ScalarType
         if not hasattr(self.datatype, "intrinsic"):
             if unknown_as is None:
                 raise ValueError(

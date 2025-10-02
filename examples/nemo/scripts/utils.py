@@ -394,6 +394,7 @@ def insert_explicit_loop_parallelism(
         privatise_arrays: bool = False,
         asynchronous_parallelism: bool = False,
         uniform_intrinsics_only: bool = False,
+        enable_reductions: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -416,6 +417,8 @@ def insert_explicit_loop_parallelism(
     to the parallel sections.
     :param uniform_intrinsics_only: if True it prevent offloading loops
         with non-reproducible device intrinsics.
+    :param enable_reductions: whether to enable generation of reduction
+        clauses automatically.
 
     '''
     nemo_v4 = os.environ.get('NEMOV4', False)
@@ -428,7 +431,8 @@ def insert_explicit_loop_parallelism(
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True, "nowait": asynchronous_parallelism}
+                "verbose": True, "nowait": asynchronous_parallelism,
+                "enable_reductions": enable_reductions}
 
         if uniform_intrinsics_only:
             opts["device_string"] = "nvfortran-uniform"

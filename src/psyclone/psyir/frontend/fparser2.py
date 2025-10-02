@@ -741,7 +741,7 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
             raise InternalError(
                 f"Failed to find a symbol table to which to add the kind "
                 f"symbol '{precision_name}'.") from err
-        return _kind_find_or_create(precision_name, symbol_table)
+        return Reference(_kind_find_or_create(precision_name, symbol_table))
 
 
 def _process_routine_symbols(module_ast, container, visibility_map):
@@ -1989,7 +1989,7 @@ class Fparser2Reader():
                 sym = symbol_table.lookup(sym_name, scope_limit=scope)
                 # pylint: disable=unidiomatic-typecheck
                 if type(sym) is Symbol:
-                    # This was a generic symbol. We now know what it is
+                    # This was a generic symbol. We now know what it is.
                     sym.specialise(DataSymbol, datatype=datatype,
                                    visibility=visibility,
                                    interface=this_interface,
@@ -2001,6 +2001,16 @@ class Fparser2Reader():
                             f"Symbol '{sym_name}' already present in "
                             f"SymbolTable with a defined interface "
                             f"({sym.interface}).")
+                    # We already had a DataSymbol but we need to update all of
+                    # its properties now we've found a declaration.
+                    tmp_sym = DataSymbol(
+                        sym_name,
+                        datatype=datatype,
+                        visibility=visibility,
+                        interface=this_interface,
+                        is_constant=has_constant_value,
+                        initial_value=init_expr)
+                    sym.copy_properties(tmp_sym)
             except KeyError:
                 try:
                     sym = DataSymbol(sym_name, datatype,
@@ -2819,8 +2829,7 @@ class Fparser2Reader():
                         f"The symbol interface of a common block variable "
                         f"could not be updated because of {error}.") from error
 
-    @staticmethod
-    def _process_precision(type_spec, psyir_parent):
+    def _process_precision(self, type_spec, psyir_parent):
         '''Processes the fparser2 parse tree of the type specification of a
         variable declaration in order to extract precision
         information. Two formats for specifying precision are
@@ -2836,7 +2845,7 @@ class Fparser2Reader():
 
         :returns: the precision associated with the type specification.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
-            :py:class:`psyclone.psyir.symbols.DataSymbol` or int or NoneType
+            :py:class:`psyclone.psyir.nodes.DataNode` or int or NoneType
 
         :raises NotImplementedError: if a KIND intrinsic is found with an \
             argument other than a real or integer literal.
@@ -2881,14 +2890,32 @@ class Fparser2Reader():
                 f"'{type(kind_arg).__name__}' in: {kind_selector}")
 
         # We have kind=kind-param
-        # TODO #3087: This misses expresssions such as "2*wp"
-        kind_names = walk(kind_selector.items, Fortran2003.Name)
-        if not kind_names:
-            raise NotImplementedError(
-                f"Failed to find valid Name in Fortran Kind Selector: "
-                f"{kind_selector}'")
 
-        return _kind_find_or_create(str(kind_names[0]), symbol_table)
+        # Create a dummy Routine and Assignment to capture the kind=...
+        # so we can capture expressions such as 2*wp.
+        # The input from fparser2 is ['(', kind, ')']
+        kind_items = kind_selector.items[1]
+        fake_routine = Routine(RoutineSymbol("dummy"))
+        # Create a dummy assignment "a = " to place the kind statement on
+        # the rhs of.
+        dummy_assignment = Assignment()
+        fake_routine.addchild(dummy_assignment)
+        dummy_assignment.addchild(Reference(Symbol("a")))
+        self.process_nodes(parent=dummy_assignment, nodes=[kind_items])
+        # Create a copy of the created node.
+        kind_expression = dummy_assignment.rhs.detach()
+        # For each symbol used in the kind_expression, we need to update
+        # kindvar with the ones from the real symbol_table.
+        for ref in kind_expression.walk(Reference):
+            sym_name = ref.symbol.name
+            sym = _kind_find_or_create(sym_name, symbol_table)
+            ref.symbol = sym
+        if len(kind_expression.walk(CodeBlock)) != 0:
+            raise NotImplementedError(
+                f"Unsupported kind declaration: "
+                f"{kind_expression.debug_string()}"
+            )
+        return kind_expression
 
     def _add_comments_to_tree(self, parent: Node, preceding_comments,
                               psy_child: Node) -> None:

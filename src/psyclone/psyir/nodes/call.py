@@ -50,7 +50,6 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
     GenericInterfaceSymbol,
-    DefaultModuleInterface,
     RoutineSymbol,
     Symbol,
     SymbolError,
@@ -265,8 +264,9 @@ class Call(Statement, DataNode):
                 f"'Call' node should be a string, but found "
                 f"{type(existing_name).__name__}.")
         index = 0
+        lname = existing_name.lower()
         for _, name in self._argument_names:
-            if name is not None and name.lower() == existing_name:
+            if name is not None and name.lower() == lname:
                 break
             index += 1
         else:
@@ -309,31 +309,48 @@ class Call(Statement, DataNode):
         '''
         var_accesses = VariablesAccessMap()
 
-        if self.is_pure:
-            # If the called routine is pure then any arguments are only
-            # read.
-            default_access = AccessType.READ
-        else:
-            # We conservatively default to READWRITE otherwise (TODO #446).
-            default_access = AccessType.READWRITE
-
         # The RoutineSymbol has a CALL access.
         sig, indices_list = self.routine.get_signature_and_indices()
+
         # pylint: disable=unidiomatic-typecheck
         if type(self.symbol) is Symbol:
             var_accesses.add_access(sig, AccessType.UNKNOWN, self.routine)
         else:
             var_accesses.add_access(sig, AccessType.CALL, self.routine)
+
+        # Attempt to find the target of the Call so that the argument intents
+        # can be examined.
+        try:
+            routine = self.get_callee()[0]
+            args = routine.symbol_table.argument_list
+            routine_intents = [arg.interface.access for arg in args]
+        except Exception:
+            routine_intents = None
+
         # Continue processing references in any index expressions.
         for indices in indices_list:
             for idx in indices:
                 var_accesses.update(idx.reference_accesses())
 
-        for arg in self.arguments:
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols import ArgumentInterface
+        for idx, arg in enumerate(self.arguments):
             if isinstance(arg, Reference):
                 # This argument is pass-by-reference.
                 sig, indices_list = arg.get_signature_and_indices()
-                var_accesses.add_access(sig, default_access, arg)
+                if routine_intents:
+                    if routine_intents[idx] == ArgumentInterface.Access.WRITE:
+                        access_type = AccessType.WRITE
+                    elif routine_intents[idx] == ArgumentInterface.Access.READ:
+                        access_type = AccessType.READ
+                    else:
+                        access_type = AccessType.READWRITE
+                else:
+                    # We haven't resolved the target of the Call so arguments
+                    # default to having the READWRITE (worst-case) access.
+                    access_type = AccessType.READWRITE
+                var_accesses.add_access(sig, access_type, arg)
+
                 # Continue processing references in any index expressions.
                 for indices in indices_list:
                     for idx in indices:
@@ -478,14 +495,13 @@ class Call(Statement, DataNode):
 
         return new_copy
 
-    def get_callees(self):
+    def get_callees(self) -> List[Routine]:
         '''
         Searches for the implementation(s) of all potential target routines
         for this Call without resolving static polymorphism by checking the
         argument types.
 
         :returns: the Routine(s) that this call targets.
-        :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
 
         :raises NotImplementedError: if the routine is not found or a
             limitation prevents definite determination of the target routine.
@@ -512,7 +528,6 @@ class Call(Statement, DataNode):
                         if psyir:
                             routines.append(psyir)
                     if routines:
-                        rsym.interface = DefaultModuleInterface()
                         return routines
                 if not have_codeblock:
                     have_codeblock = any(isinstance(child, CodeBlock) for
