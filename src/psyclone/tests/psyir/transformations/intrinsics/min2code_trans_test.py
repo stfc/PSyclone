@@ -53,6 +53,7 @@ def test_initialise():
     assert trans._intrinsic == IntrinsicCall.Intrinsic.MIN
     assert trans._compare_operator == BinaryOperation.Operator.LT
 
+
 def test_apply(fortran_reader, fortran_writer):
     '''Test that applying the Min2CodeTrans behaves as expected.
     '''

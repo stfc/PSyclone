@@ -52,6 +52,7 @@ def test_initialise():
     assert trans._intrinsic == IntrinsicCall.Intrinsic.MAX
     assert trans._compare_operator == BinaryOperation.Operator.GT
 
+
 def test_apply(fortran_reader, fortran_writer):
     '''Test that applying the Max2CodeTrans behaves as expected.
     '''
