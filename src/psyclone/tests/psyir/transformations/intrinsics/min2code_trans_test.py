@@ -52,3 +52,36 @@ def test_initialise():
     trans = Min2CodeTrans()
     assert trans._intrinsic == IntrinsicCall.Intrinsic.MIN
     assert trans._compare_operator == BinaryOperation.Operator.LT
+
+def test_apply(fortran_reader, fortran_writer):
+    '''Test that applying the Min2CodeTrans behaves as expected.
+    '''
+    code = """subroutine test
+        integer :: i, j, k, l
+        k = MIN(i,j, l)
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Min2CodeTrans()
+    trans.apply(psyir.children[0].children[0].rhs)
+    correct = """subroutine test()
+  integer :: i
+  integer :: j
+  integer :: k
+  integer :: l
+  real :: res_min
+  real :: tmp_min
+
+  res_min = i
+  tmp_min = j
+  if (tmp_min < res_min) then
+    res_min = tmp_min
+  end if
+  tmp_min = l
+  if (tmp_min < res_min) then
+    res_min = tmp_min
+  end if
+  k = res_min
+
+end subroutine test"""
+    assert correct in fortran_writer(psyir)

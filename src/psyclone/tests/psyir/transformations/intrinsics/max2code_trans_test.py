@@ -51,3 +51,36 @@ def test_initialise():
     trans = Max2CodeTrans()
     assert trans._intrinsic == IntrinsicCall.Intrinsic.MAX
     assert trans._compare_operator == BinaryOperation.Operator.GT
+
+def test_apply(fortran_reader, fortran_writer):
+    '''Test that applying the Max2CodeTrans behaves as expected.
+    '''
+    code = """subroutine test
+        integer :: i, j, k, l
+        k = MAX(i,j, l)
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Max2CodeTrans()
+    trans.apply(psyir.children[0].children[0].rhs)
+    correct = """subroutine test()
+  integer :: i
+  integer :: j
+  integer :: k
+  integer :: l
+  real :: res_max
+  real :: tmp_max
+
+  res_max = i
+  tmp_max = j
+  if (tmp_max > res_max) then
+    res_max = tmp_max
+  end if
+  tmp_max = l
+  if (tmp_max > res_max) then
+    res_max = tmp_max
+  end if
+  k = res_max
+
+end subroutine test"""
+    assert correct in fortran_writer(psyir)

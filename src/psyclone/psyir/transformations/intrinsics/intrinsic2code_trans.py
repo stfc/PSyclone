@@ -142,4 +142,3 @@ class Intrinsic2CodeTrans(Transformation, metaclass=abc.ABCMeta):
         :param options: any options for the transformation.
         :type options: dict[str, Any]
         '''
-        super().apply(node, options=options, **kwargs)
