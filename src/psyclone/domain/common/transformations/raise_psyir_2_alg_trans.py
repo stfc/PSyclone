@@ -243,7 +243,7 @@ class RaisePSyIR2AlgTrans(Transformation):
         '''
         if options:
             # TODO 2668 - options dict is deprecated.
-            warnings.warn(self._deprecation_warning, DeprecationWarning, 2) 
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
         self.validate(node, index=index, options=options, **kwargs)
 
