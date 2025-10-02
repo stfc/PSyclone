@@ -52,7 +52,7 @@ from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol,
                                     SymbolTable)
 
 
-class LFRicExtractDriverCreator(BaseDriverCreator):
+class LFRicDriverCreator(BaseDriverCreator):
     '''This class provides the functionality to create a driver that
     reads in extracted data produced by using the PSyData kernel-extraction
     functionality.

@@ -39,7 +39,7 @@
 
 import pytest
 
-from psyclone.domain.lfric import LFRicExtractDriverCreator
+from psyclone.domain.lfric import LFRicDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.line_length import FortLineLength
 from psyclone.psyir.backend.visitor import VisitorError
@@ -58,12 +58,12 @@ def test_lfric_driver_valid_unit_name():
     and no ":" in name.'''
 
     long_name = "A"*100
-    new_name = LFRicExtractDriverCreator._make_valid_unit_name(long_name)
+    new_name = LFRicDriverCreator._make_valid_unit_name(long_name)
     assert new_name == "A"*63
 
     special_characters = "aaa-bbb"
     new_name = \
-        LFRicExtractDriverCreator._make_valid_unit_name(special_characters)
+        LFRicDriverCreator._make_valid_unit_name(special_characters)
     assert new_name == "aaabbb"
 
 
@@ -74,7 +74,7 @@ def test_lfric_driver_add_call(fortran_writer):
     '''
     program = Routine.create("routine", is_program=True)
     program.symbol_table.find_or_create_tag("test")
-    driver_creator = LFRicExtractDriverCreator()
+    driver_creator = LFRicDriverCreator()
     with pytest.raises(TypeError) as err:
         driver_creator.add_call(program, "test", [])
     assert ("Error creating call to 'test' - existing symbol is of type "
@@ -103,7 +103,7 @@ def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
     # Find the schedule:
     sched = psyir.walk(Schedule)[0]
     sched.lower_to_language_level()
-    driver_creator = LFRicExtractDriverCreator()
+    driver_creator = LFRicDriverCreator()
     program = Routine.create("routine", is_program=True)
     driver_creator.import_modules(program)
     # No symbols other than the routine should be in the symbol table after
