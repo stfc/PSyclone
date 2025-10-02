@@ -641,11 +641,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         f"'{self.debug_string()}' is of '{dtype}' type and "
                         f"therefore whether it is an array slice (i.e. an "
                         f"indirect access) cannot be determined.")
-            else:
-                # TODO #1799: Anything else is not supported
-                raise NotImplementedError(
-                    f"Querying the datatype of '{self.debug_string()}' "
-                    f"is yet to be implemented.")
+            # The validate only allows [Range | DataNode] children, so there is
+            # no else condition
 
         return shape
 
