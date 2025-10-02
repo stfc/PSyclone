@@ -53,7 +53,6 @@ region is found to contain such a node (by the ``valid_acc_kernel``
 routine) then the script moves a level down the tree and then repeats
 the process of attempting to create the largest possible Kernel region.
 
-Tested with the NVIDIA HPC SDK version 23.7.
 """
 
 import logging
@@ -64,7 +63,6 @@ from utils import (
     NEMO_MODULES_TO_IMPORT,
 )
 from psyclone.errors import InternalError
-from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
     IfBlock,
     ArrayReference,
@@ -73,8 +71,7 @@ from psyclone.psyir.nodes import (
     Loop,
     Routine,
     Literal,
-    ACCLoopDirective,
-    IntrinsicCall,
+    ACCLoopDirective, 
     Statement,
 )
 from psyclone.psyir.transformations import (
@@ -82,11 +79,13 @@ from psyclone.psyir.transformations import (
     ACCUpdateTrans,
     TransformationError,
     ProfileTrans,
-    DebugChecksumTrans,
 )
-from psyclone.transformations import ACCEnterDataTrans
+from psyclone.transformations import (
+        ACCEnterDataTrans,
+        ACCLoopTrans,
+        ACCRoutineTrans,
+)
 
-# from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol, ArrayType
 
 # Set up some loop_type inference rules in order to reference useful domain
 # loop constructs by name
@@ -108,12 +107,11 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = ACCKernelsTrans()
-ACC_LOOP_TRANS = TransInfo().get_trans_name("ACCLoopTrans")
-ACC_ROUTINE_TRANS = TransInfo().get_trans_name("ACCRoutineTrans")
+ACC_LOOP_TRANS = ACCLoopTrans()
+ACC_ROUTINE_TRANS = ACCRoutineTrans()
 ACC_EDATA_TRANS = ACCEnterDataTrans()
 ACC_UPDATE_TRANS = ACCUpdateTrans()
 PROFILE_TRANS = ProfileTrans()
-CHECKSUM_TRANS = DebugChecksumTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
 # N.B. this can inhibit PSyclone's ability to inline!
@@ -148,9 +146,10 @@ ACC_IGNORE = [
     "bdy_init",
     "bdy_segs",
     "sbc_cpl_init",
+    # Str handling, init routine
     "asm_inc_init",
     "dia_obs_init",
-]  # Str handling, init routine
+]
 
 
 class ExcludeSettings:
@@ -236,14 +235,9 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_types = (IfBlock, Loop, ArrayReference, IntrinsicCall)
+    excluded_types = (IfBlock, Loop, ArrayReference)
     excluded_nodes = node.walk(excluded_types)
-
     for enode in excluded_nodes:
-        if isinstance(enode, IntrinsicCall):
-            if "dim" in enode.argument_names:
-                return False
-
         if isinstance(enode, IfBlock):
             # We permit IF blocks originating from WHERE constructs and
             # single-statement IF blocks containing a Loop in KERNELS regions
@@ -287,11 +281,6 @@ def valid_acc_kernel(node):
             # In general, this heuristic will depend upon how many levels the
             # model configuration will contain.
             child = enode.loop_body[0] if enode.loop_body.children else None
-            # if isinstance(child, Loop) and child.loop_type == "levels":
-            # We have a loop around a loop over levels
-            #   log_msg(routine_name, "Loop is around a loop over levels",
-            #        enode)
-            #   return False
             if (
                     enode.loop_type == "levels"
                     and len(enode.loop_body.children) > 1
@@ -428,11 +417,6 @@ def trans(psyir):
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
-    logging.basicConfig(
-        filename="psyclone.log",
-        filemode="w", level=logging.INFO
-    )
-
     for subroutine in psyir.walk(Routine):
         print(f"Transforming subroutine: {subroutine.name}")
 
@@ -447,7 +431,8 @@ def trans(psyir):
         if subroutine.name.lower() not in ACC_IGNORE:
             print(f"Transforming {subroutine.name} with acc kernels")
             enhance_tree_information(subroutine)
-            # inline_calls(subroutine)
+            # inline_calls(subroutine)   # Inlining isn't robust enough for use
+            have_kernels = add_kernels(subroutine.children)
             add_kernels(subroutine.children)
         else:
             print(

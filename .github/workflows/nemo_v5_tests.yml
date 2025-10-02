@@ -470,7 +470,7 @@ jobs:
 
 
         
-    - name: NEMO 5.0 nvidia OpenACC for GPUs (BENCH - managed memory)
+    - name: NEMO 5.0 nvidia OpenACC Kernels for GPUs (BENCH - managed memory)
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -479,16 +479,14 @@ jobs:
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=${HOME}/${NEMODIR_NAME}
-        export TEST_DIR=BENCH_ACC_OFFLOAD_NVHPC
+        export TEST_DIR=BENCH_ACC_KERNELS_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         # We compile with "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -acc -gpu=mem:managed,math_uniform"
-
-        # Clean up and compile
-        # Without key_mpi_off it fails to compile (even without psyclone)
+ 
         rm -rf tests/${TEST_DIR}
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/acc_kernel_trans.py \
           add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
@@ -569,9 +567,10 @@ jobs:
               '"$COMMON_FIELDS"'
             },
             {
-            ci_test: "NEMOv5 OpenACC for GPU (BENCH)", 
-            nemo_version: "NEMOv5", system: "GlaDos",
-            compiler:"nvhpc-24.5" ,
-            date: new Date(), 
-            elapsed_time: '"${TIME_sec}"'
+            ci_test: "NEMOv5 OpenACC Kernels for GPU (BENCH)", 
+            nemo_version: "NEMO 5.0-RC MO patch",
+            compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+            elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_nvfortran_acc_kernels__offload_async}}"',
+
+            '"$COMMON_FIELDS"'
             }])'
