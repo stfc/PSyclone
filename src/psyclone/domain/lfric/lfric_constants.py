@@ -56,6 +56,8 @@ class LFRicConstants():
     '''
     HAS_BEEN_INITIALISED = False
 
+    #: Dictionary allowing us to look-up the name of the Fortran modules
+    #: that store various utilities in LFRic.
     UTILITIES_MOD_MAP: dict[str, dict[str, str]]
 
     def __init__(self) -> None:
