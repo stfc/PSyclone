@@ -314,6 +314,8 @@ class Call(Statement, DataNode):
 
         # pylint: disable=unidiomatic-typecheck
         if type(self.symbol) is Symbol:
+            # If the type of the Symbol is unknown then this may be a Call or
+            # an array access so the access is UNKNOWN.
             var_accesses.add_access(sig, AccessType.UNKNOWN, self.routine)
         else:
             var_accesses.add_access(sig, AccessType.CALL, self.routine)

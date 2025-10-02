@@ -367,7 +367,7 @@ def _refine_symbols_with_usage_location(
     the declarations sections by knowledge inferred by looking at the
     usage location of the symbols in the execution_part
 
-    :param symtab: SymbolTable to enhance information for.
+    :param location: scope to enhance information for.
     :param execution_part: fparser nodes to analyse for symbol usage.
 
     '''
@@ -390,6 +390,8 @@ def _refine_symbols_with_usage_location(
                 if not any(isinstance(subchild, Fortran2003.Subscript_Triplet)
                            for subchild in child.items):
                     continue
+                # The same considereation applies if this is an derived type
+                # accessor: a%b(:)
                 if isinstance(part_ref.parent, Fortran2003.Data_Ref):
                     continue
                 name = part_ref.items[0].string.lower()

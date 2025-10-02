@@ -57,7 +57,8 @@ class DataNode(Node):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.loop import Loop
         from psyclone.psyir.nodes.ranges import Range
-        from psyclone.psyir.symbols.datatypes import UnresolvedType, INTEGER_TYPE
+        from psyclone.psyir.symbols.datatypes import (
+            UnresolvedType, INTEGER_TYPE)
         # If it is a direct child of Loop or Range, it can only be an Integer
         if self.parent and isinstance(self.parent, (Loop, Range)):
             return INTEGER_TYPE

@@ -1254,8 +1254,6 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    # The output is split as the location of the algorithm file varies
-    # due to it being stored in a temporary directory by pytest.
     assert ("The invoke call argument 'setval_c' has been used as the "
             "Algorithm routine name. This is not allowed." in output)
 
