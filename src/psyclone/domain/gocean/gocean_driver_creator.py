@@ -47,7 +47,7 @@ from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE, REAL8_TYPE,
                                     ScalarType, SymbolTable)
 
 
-class ExtractDriverCreator(BaseDriverCreator):
+class GOceanDriverCreator(BaseDriverCreator):
     '''This class provides the functionality to create a driver that
     reads in extracted data produced by using the PSyData kernel-extraction
     functionality.
