@@ -482,14 +482,12 @@ jobs:
         export TEST_DIR=BENCH_ACC_KERNELS_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
-        # We compile with "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -acc -gpu=mem:managed,math_uniform"
- 
+        export FCFLAGS="-i4 -Mr8 -cpp -Minline -Minfo=accel -Mnofma -O1 -gopt -traceback -acc -gpu=mem:managed,math_uniform" 
         rm -rf tests/${TEST_DIR}
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/acc_kernel_trans.py \
-          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
+        ./makenemo  -r BENCH -m linux_spack -n ${TEST_DIR}  del_key "key_si3" add_key \ 
+        "key_mpi_off key_nosignedzero" -p ${PSYCLONE_NEMO_DIR}/acc_kernels_trans.py -j ${NUM_PARALLEL} -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
