@@ -696,7 +696,7 @@ contains
   end subroutine bottom
 end module some_mod'''
     psyir = fortran_reader.psyir_from_source(code)
-    call: Call = psyir.walk(Call)[0]
+    call = psyir.walk(Call)[0]
     result = call.get_callees()
     assert result == [psyir.walk(Routine)[1]]
 
