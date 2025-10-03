@@ -44,7 +44,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 import os
 import sys
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
@@ -4897,19 +4897,6 @@ class Fparser2Reader():
         try:
             intrinsic = IntrinsicCall.Intrinsic[node.items[0].string.upper()]
 
-            if not intrinsic.optional_args:
-                # Intrinsics with no optional arguments
-                call = IntrinsicCall(intrinsic, parent=parent)
-                call = self._process_args(node, call, True)
-                call.canonicalise()
-                return call
-            if intrinsic.name.lower() in ["minval", "maxval", "sum"]:
-                # Intrinsics with optional arguments require a
-                # canonicalise function
-                call = IntrinsicCall(intrinsic, parent=parent)
-                call = self._process_args(node, call, True)
-                call.canonicalise()
-                return call
             call = IntrinsicCall(intrinsic, parent=parent)
             call = self._process_args(node, call, True)
             call.canonicalise()
@@ -5216,7 +5203,13 @@ class Fparser2Reader():
 
         return self._process_args(node, call)
 
-    def _process_args(self, node, call, canonicalise: bool = False):
+    def _process_args(self, node: Union[
+                          Fortran2003.Call_Stmt,
+                          Fortran2003.Intrinsic_Function_Reference
+                      ],
+                      call: Union[Call, IntrinsicCall],
+                      canonicalise: bool = False) -> Union[
+                              Call, IntrinsicCall]:
         '''Processes fparser2 call or intrinsic arguments contained in the
         node argument and adds them to the PSyIR Call or IntrinsicCall
         contained in the call argument, respectively.
@@ -5233,23 +5226,17 @@ class Fparser2Reader():
         all optional arguments as named arguments, which would result
         in sum(a, dim=dim, mask=mask) in this case.
 
-        :param node: an fparser call node representing a call or \
+        :param node: an fparser call node representing a call or
             an intrinsic call.
-        :type node: :py:class:`fparser.two.Fortran2003.Call_Stmt` or \
-            :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
-        :param call: a PSyIR call argument representing a call or an \
+        :param call: a PSyIR call argument representing a call or an
             intrinsic call.
-        :type call: :py:class:`psyclone.psyir.nodes.Call` or \
-            :py:class:`psyclone.psyir.nodes.IntrinsicCall`
-        :param function canonicalise: a function that canonicalises \
-            the call arguments.
+        :param canonicalise: whether to canonicalise the call (for
+            IntrinsicCalls).
 
-        :returns: the PSyIR call argument with the PSyIR \
+        :returns: the PSyIR call argument with the PSyIR
             representation of the fparser2 node arguments.
-        :rtype: :py:class:`psyclone.psyir.nodes.Call` or \
-                :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
-        :raises GenerationError: if all named arguments do not follow \
+        :raises GenerationError: if all named arguments do not follow
             all positional arguments.
 
         '''

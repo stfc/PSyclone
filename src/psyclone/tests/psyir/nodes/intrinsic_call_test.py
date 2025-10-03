@@ -210,12 +210,12 @@ def test_intrinsiccall_alloc_create():
         IntrinsicCall.Intrinsic.ALLOCATE,
         [Reference(sym), ("Mold", Reference(bsym))])
     assert isinstance(alloc, IntrinsicCall)
-    assert alloc.argument_names == [None, "Mold"]
+    assert alloc.argument_names == [None, "mold"]
     alloc = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.ALLOCATE,
         [Reference(sym), ("Source", Reference(bsym)),
          ("stat", Reference(isym)), ("errmsg", Reference(csym))])
-    assert alloc.argument_names == [None, "Source", "stat", "errmsg"]
+    assert alloc.argument_names == [None, "source", "stat", "errmsg"]
 
 
 def test_intrinsiccall_dealloc_create():
@@ -236,7 +236,7 @@ def test_intrinsiccall_dealloc_create():
     dealloc = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.DEALLOCATE, [Reference(sym),
                                              ("Stat", Reference(ierr))])
-    assert dealloc.argument_names == [None, "Stat"]
+    assert dealloc.argument_names == [None, "stat"]
 
 
 def test_intrinsiccall_random_create():
@@ -618,7 +618,7 @@ def test_intrinsic_canonicalisation(fortran_reader):
     with pytest.raises(ValueError) as err:
         intrinsic.canonicalise()
     assert ("Found too many arguments when canonicalising the 'SUM' "
-            "IntrinsicCall. Requires at most 2 arguments but found 4."
+            "IntrinsicCall. Requires at most 3 arguments but found 4."
             in str(err.value))
 
     # Test canonicalisation works if we have 1 argument for SUM.

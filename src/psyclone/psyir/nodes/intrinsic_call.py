@@ -68,7 +68,9 @@ IAttr = namedtuple(
 # a particular intrinsic. If there's no limit on the number of arguments
 # then `max_count` will be None. If max_count is not None, then arg_names
 # will contain a list of the argument names of the required arguments, in
-# the order defined by the standard.
+# the order defined by the standard. If max_count is None, arg_names will
+# be a tuple containing None to ensure the canonicalisation logic still
+# works.
 ArgDesc = namedtuple('ArgDesc', 'min_count max_count types arg_names')
 
 
@@ -114,7 +116,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, None, Reference, ((None,),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=None,
+                types=Reference,
+                arg_names=((None,),)),
             optional_args={
                 "mold": Reference,
                 "source": Reference,
@@ -129,7 +135,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, None, Reference, ((None,),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=None,
+                types=Reference,
+                arg_names=((None,),)),
             optional_args={"stat": Reference},
             return_type=None,
             reference_accesses=None,
@@ -139,7 +149,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, None, Reference, ((None,),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=None,
+                types=Reference,
+                arg_names=((None,),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -151,7 +165,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("a",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -161,7 +179,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("i",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("i",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -171,7 +193,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -181,7 +207,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -191,7 +221,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("string",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("string",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -201,7 +235,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("string",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("string",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -211,7 +249,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("z",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("z",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -221,7 +263,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -231,7 +277,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("mask",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("mask",),)),
             optional_args={"dim": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -242,7 +292,11 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=True,
             # Argname of allocated depends on the input.
-            required_args=ArgDesc(1, 1, DataNode, (("",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -252,7 +306,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -262,7 +320,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("mask",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("mask",),)),
             optional_args={"dim": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -272,7 +334,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -282,7 +348,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -292,7 +362,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("pointer",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("pointer",),)),
             optional_args={"target": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -302,7 +376,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 2, DataNode, (("x",), ("y", "x"))),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("x",), ("y", "x"))),
             optional_args={},
             # N. B. If this has 2 arguments then the return value
             # is the of the second argument, however the standard defines
@@ -315,7 +393,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("y", "x"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("y", "x"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -325,7 +407,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -335,7 +421,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("atom", "value"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("atom", "value"),)),
             optional_args={"stat": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -345,7 +435,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("atom", "value"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("atom", "value"),)),
             optional_args={"stat": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -356,7 +450,10 @@ class IntrinsicCall(Call):
             is_elemental=True,
             is_inquiry=False,
             required_args=ArgDesc(
-                4, 4, DataNode, (
+                min_count=4,
+                max_count=4,
+                types=DataNode,
+                arg_names=(
                     ("atom", "old", "compare", "new"),
                 )
             ),
@@ -369,7 +466,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("atom", "value"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("atom", "value"),)),
             optional_args={"stat": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -380,7 +481,10 @@ class IntrinsicCall(Call):
             is_elemental=True,
             is_inquiry=False,
             required_args=ArgDesc(
-                3, 3, DataNode, (
+                min_count=3,
+                max_count=3,
+                types=DataNode,
+                arg_names=(
                     ("atom", "value", "old"),
                 )
             ),
@@ -394,7 +498,10 @@ class IntrinsicCall(Call):
             is_elemental=True,
             is_inquiry=False,
             required_args=ArgDesc(
-                3, 3, DataNode, (
+                min_count=3,
+                max_count=3,
+                types=DataNode,
+                arg_names=(
                     ("atom", "value", "old"),
                 )
             ),
@@ -408,7 +515,10 @@ class IntrinsicCall(Call):
             is_elemental=True,
             is_inquiry=False,
             required_args=ArgDesc(
-                3, 3, DataNode, (
+                min_count=3,
+                max_count=3,
+                types=DataNode,
+                arg_names=(
                     ("atom", "value", "old"),
                 )
             ),
@@ -422,7 +532,10 @@ class IntrinsicCall(Call):
             is_elemental=True,
             is_inquiry=False,
             required_args=ArgDesc(
-                3, 3, DataNode, (
+                min_count=3,
+                max_count=3,
+                types=DataNode,
+                arg_names=(
                     ("atom", "value", "old"),
                 )
             ),
@@ -435,7 +548,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("atom", "value"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("atom", "value"),)),
             optional_args={"stat": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -445,7 +562,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("value", "atom"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("value", "atom"),)),
             optional_args={"stat": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -455,7 +576,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("atom", "value"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("atom", "value"),)),
             optional_args={"stat": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -465,7 +590,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -475,7 +604,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -488,7 +621,10 @@ class IntrinsicCall(Call):
             is_elemental=None,
             is_inquiry=False,
             required_args=ArgDesc(
-                2, 3, DataNode, (
+                min_count=2,
+                max_count=3,
+                types=DataNode,
+                arg_names=(
                     ("n", "x"),
                     ("n1", "n2", "x"),
                 )
@@ -502,7 +638,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -512,7 +652,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -525,7 +669,10 @@ class IntrinsicCall(Call):
             is_elemental=None,
             is_inquiry=False,
             required_args=ArgDesc(
-                2, 3, DataNode, (
+                min_count=2,
+                max_count=3,
+                types=DataNode,
+                arg_names=(
                     ("n", "x"),
                     ("n1", "n2", "x"),
                 )
@@ -539,7 +686,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("i", "j"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("i", "j"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -549,7 +700,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("i", "j"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("i", "j"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -559,7 +714,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("i",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("i",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -569,7 +728,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("i", "j"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("i", "j"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -579,7 +742,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("i", "j"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("i", "j"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -589,7 +756,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("i", "pos"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("i", "pos"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -599,7 +770,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -609,7 +784,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("i",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("i",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -619,7 +798,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={"Y": DataNode, "kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -630,7 +813,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                2, 2, DataNode, (
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     ("a", "source_image"),
                 )
              ),
@@ -643,7 +829,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("a",),)),
             optional_args={"result_image": DataNode,
                            "stat": DataNode,
                            "errmsg": DataNode},
@@ -655,7 +845,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("a",),)),
             optional_args={"result_image": DataNode,
                            "stat": DataNode,
                            "errmsg": DataNode},
@@ -668,7 +862,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                2, 2, DataNode, (
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     ("a", "operation"),
                 )
             ),
@@ -683,7 +880,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("a",),)),
             optional_args={"result_image": DataNode,
                            "stat": DataNode,
                            "errmsg": DataNode},
@@ -695,7 +896,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(0, 0, None, ()),
+            required_args=ArgDesc(
+                min_count=0,
+                max_count=0,
+                types=None,
+                arg_names=()),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -705,7 +910,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("z",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("z",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -715,7 +924,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -725,7 +938,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -735,7 +952,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("coarray",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("coarray",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -745,7 +966,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("mask",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("mask",),)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -755,7 +980,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("time",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("time",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -765,7 +994,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("array", "shift"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("array", "shift"),)),
             optional_args={"dim": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -775,7 +1008,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(0, 0, DataNode, ()),
+            required_args=ArgDesc(
+                min_count=0,
+                max_count=0,
+                types=DataNode,
+                arg_names=()),
             optional_args={
                 "date": DataNode,
                 "time": DataNode,
@@ -790,7 +1027,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("a",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -800,7 +1041,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -810,7 +1055,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("x", "y"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("x", "y"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -821,7 +1070,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                2, 2, DataNode, (("vector_a", "vector_b"),)
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("vector_a", "vector_b"),)
             ),
             optional_args={},
             return_type=None,
@@ -832,7 +1084,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("x", "y"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("x", "y"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -842,7 +1098,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(3, 3, DataNode, (("i", "j", "shift"),)),
+            required_args=ArgDesc(
+                min_count=3,
+                max_count=3,
+                types=DataNode,
+                arg_names=(("i", "j", "shift"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -852,7 +1112,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(3, 3, DataNode, (("i", "j", "shift"),)),
+            required_args=ArgDesc(
+                min_count=3,
+                max_count=3,
+                types=DataNode,
+                arg_names=(("i", "j", "shift"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -862,7 +1126,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("array", "shift"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("array", "shift"),)),
             optional_args={"boundary": DataNode, "dim": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -872,7 +1140,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -882,7 +1154,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -892,7 +1168,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -902,7 +1182,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -912,7 +1196,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("event", "count"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("event", "count"),)),
             optional_args={"stat": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -922,7 +1210,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("command",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("command",),)),
             optional_args={
                 "wait": DataNode,
                 "exitstat": DataNode,
@@ -937,7 +1229,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -947,7 +1243,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -957,7 +1257,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(2, 2, DataNode, (("a", "mold"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("a", "mold"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -967,7 +1271,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(0, 0, DataNode, ()),
+            required_args=ArgDesc(
+                min_count=0,
+                max_count=0,
+                types=DataNode,
+                arg_names=()),
             optional_args={"team": DataNode, "kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -978,7 +1286,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                2, 3, DataNode, (
+                min_count=2,
+                max_count=3,
+                types=DataNode,
+                arg_names=(
                     ("array", "value", "dim"),
                     ("array", "value")
                 )
@@ -994,7 +1305,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("i",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("i",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1004,7 +1319,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1014,7 +1333,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1024,7 +1347,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1034,7 +1361,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(0, 0, DataNode, ()),
+            required_args=ArgDesc(
+                min_count=0,
+                max_count=0,
+                types=DataNode,
+                arg_names=()),
             optional_args={
                 "command": DataNode,
                 "length": DataNode,
@@ -1049,7 +1380,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("number",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("number",),)),
             optional_args={
                 "value": DataNode,
                 "length": DataNode,
@@ -1064,7 +1399,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("name",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("name",),)),
             optional_args={
                 "value": DataNode,
                 "length": DataNode,
@@ -1080,7 +1419,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(0, 0, DataNode, ()),
+            required_args=ArgDesc(
+                min_count=0,
+                max_count=0,
+                types=DataNode,
+                arg_names=()),
             optional_args={"level": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1090,7 +1433,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, (Reference, Literal), (("x",),)),
+            required_args=ArgDesc(
+                 min_count=1,
+                 max_count=1,
+                 types=(Reference, Literal),
+                 arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1100,7 +1447,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("x", "y"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("x", "y"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1110,7 +1461,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("c",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("c",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1121,7 +1476,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                1, 2, DataNode, (
+                min_count=1,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     ("array",),
                     ("array", "dim")
                 )
@@ -1135,7 +1493,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("i", "j"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("i", "j"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1146,7 +1508,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                1, 2, DataNode, (
+                min_count=1,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     ("array",),
                     ("array", "dim")
                 )
@@ -1160,7 +1525,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("i", "pos"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("i", "pos"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1170,7 +1539,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(3, 3, DataNode, (("i", "pos", "len"),)),
+            required_args=ArgDesc(
+                min_count=3,
+                max_count=3,
+                types=DataNode,
+                arg_names=(("i", "pos", "len"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1180,7 +1553,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("i", "pos"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("i", "pos"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1190,7 +1567,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("c",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("c",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1200,7 +1581,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("i", "j"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("i", "j"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1212,7 +1597,11 @@ class IntrinsicCall(Call):
             is_inquiry=True,
             # Argument names depend on input, as TEAM vs TEAM_NUMBER
             # are not distinguishable without context.
-            required_args=ArgDesc(2, 3, DataNode, (("",),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=3,
+                types=DataNode,
+                arg_names=(("",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1222,7 +1611,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("image",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("image",),)),
             optional_args={"team": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1232,7 +1625,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("string", "substring"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("string", "substring"),)),
             optional_args={"back": DataNode, "kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1242,7 +1639,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1252,7 +1653,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("i", "j"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("i", "j"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1263,7 +1668,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                1, 2, DataNode, (
+                min_count=1,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     ("array",),
                     ("array", "dim")
                 )
@@ -1277,7 +1685,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("array",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("array",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1287,7 +1699,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("i",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("i",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1297,7 +1713,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("i",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("i",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1307,7 +1727,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("i", "shift"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("i", "shift"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1317,7 +1741,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("i", "shift"))),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("i", "shift"))),
             optional_args={"size": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1327,7 +1755,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1337,7 +1769,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("array",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("array",),)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1347,7 +1783,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("coarray",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("coarray",),)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1357,7 +1797,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("i",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("i",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1367,7 +1811,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("string",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("string",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1377,7 +1825,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("string",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("string",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1388,8 +1840,10 @@ class IntrinsicCall(Call):
             is_elemental=True,
             is_inquiry=False,
             required_args=ArgDesc(
-                2, 2, DataNode,
-                (("string_a", "string_b"),)
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("string_a", "string_b"),)
             ),
             optional_args={},
             return_type=None,
@@ -1401,8 +1855,10 @@ class IntrinsicCall(Call):
             is_elemental=True,
             is_inquiry=False,
             required_args=ArgDesc(
-                2, 2, DataNode,
-                (("string_a", "string_b"),)
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("string_a", "string_b"),)
             ),
             optional_args={},
             return_type=None,
@@ -1414,8 +1870,10 @@ class IntrinsicCall(Call):
             is_elemental=True,
             is_inquiry=False,
             required_args=ArgDesc(
-                2, 2, DataNode,
-                (("string_a", "string_b"),)
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("string_a", "string_b"),)
             ),
             optional_args={},
             return_type=None,
@@ -1427,8 +1885,10 @@ class IntrinsicCall(Call):
             is_elemental=True,
             is_inquiry=False,
             required_args=ArgDesc(
-                2, 2, DataNode,
-                (("string_a", "string_b"),)
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("string_a", "string_b"),)
             ),
             optional_args={},
             return_type=None,
@@ -1439,7 +1899,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1449,7 +1913,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1459,7 +1927,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1469,7 +1941,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("l",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("l",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1479,7 +1955,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("i",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("i",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1489,7 +1969,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("i",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("i",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1500,7 +1984,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                2, 2, DataNode, (("matrix_a", "matrix_b"),)
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("matrix_a", "matrix_b"),)
             ),
             optional_args={},
             return_type=None,
@@ -1513,7 +2000,11 @@ class IntrinsicCall(Call):
             is_inquiry=False,
             # No upper limit on argument type so we don't store an
             # argument list of names.
-            required_args=ArgDesc(2, None, DataNode, ((None,),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=None,
+                types=DataNode,
+                arg_names=((None,),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1523,7 +2014,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1534,7 +2029,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                1, 2, DataNode, (
+                min_count=1,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     ("array",),
                     ("array", "dim")
                 )
@@ -1553,7 +2051,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                1, 2, DataNode, (
+                min_count=1,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     ("array",),
                     ("array", "dim")
                 )
@@ -1567,8 +2068,12 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(3, 3, DataNode,
-                                  (("tsource", "fsource", "mask"),)),
+            required_args=ArgDesc(
+                min_count=3,
+                max_count=3,
+                types=DataNode,
+                arg_names=(("tsource", "fsource", "mask"),)
+            ),
             optional_args={},
             return_type=None,
             reference_accesses=None
@@ -1578,7 +2083,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(3, 3, DataNode, (("i", "j", "mask"),)),
+            required_args=ArgDesc(
+                min_count=3,
+                max_count=3,
+                types=DataNode,
+                arg_names=(("i", "j", "mask"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1590,7 +2099,11 @@ class IntrinsicCall(Call):
             is_inquiry=False,
             # No upper limit on argument type so we don't store an
             # argument list of names.
-            required_args=ArgDesc(2, None, DataNode, ((None,),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=None,
+                types=DataNode,
+                arg_names=((None,),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1600,7 +2113,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1611,7 +2128,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                1, 2, DataNode, (
+                min_count=1,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     ("array",),
                     ("array", "dim")
                 )
@@ -1630,7 +2150,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                1, 2, DataNode, (
+                min_count=1,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     ("array",),
                     ("array", "dim")
                 )
@@ -1644,7 +2167,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("a", "p"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("a", "p"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None
@@ -1654,7 +2181,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("a", "p"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("a", "p"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1664,7 +2195,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("from", "to"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("from", "to"),)),
             optional_args={"stat": DataNode, "errmsg": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1675,7 +2210,10 @@ class IntrinsicCall(Call):
             is_elemental=True,
             is_inquiry=False,
             required_args=ArgDesc(
-                5, 5, DataNode, (
+                min_count=5,
+                max_count=5,
+                types=DataNode,
+                arg_names=(
                     ("from", "frompos", "len", "to", "topos"),
                 )
             ),
@@ -1688,7 +2226,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("x", "s"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("x", "s"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1698,7 +2240,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("c"),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("c"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1708,7 +2254,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1719,7 +2269,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                1, 2, DataNode, (
+                min_count=1,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     ("x",),
                     ("x", "dim")
                 )
@@ -1733,7 +2286,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("i",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("i",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None
@@ -1743,7 +2300,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(0, 0, DataNode, ()),
+            required_args=ArgDesc(
+                min_count=0,
+                max_count=0,
+                types=DataNode,
+                arg_names=()),
             optional_args={"mold": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1754,7 +2315,11 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             # Argnames depends on the input.
-            required_args=ArgDesc(0, 1, DataNode, (("",),)),
+            required_args=ArgDesc(
+                min_count=0,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1764,7 +2329,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("x", "mold",),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("x", "mold",),)),
             optional_args={"round": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1774,7 +2343,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("array", "mask"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("array", "mask"),)),
             optional_args={"vector": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1785,7 +2358,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                1, 2, DataNode, (
+                min_count=1,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     ("mask",),
                     ("mask", "dim")
                 )
@@ -1799,7 +2375,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("i",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("i",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1809,7 +2389,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("i",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("i",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1819,7 +2403,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1829,7 +2417,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("a",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1840,7 +2432,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                1, 2, DataNode, (
+                min_count=1,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     ("array",),
                     ("array", "dim")
                 )
@@ -1854,7 +2449,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None
@@ -1864,8 +2463,12 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode,
-                                  (("repeatable", "image_distinct"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("repeatable", "image_distinct"),)
+            ),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1875,7 +2478,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, Reference, (("harvest",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=Reference,
+                arg_names=(("harvest",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1885,7 +2492,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(0, 0, Reference, ()),
+            required_args=ArgDesc(
+                min_count=0,
+                max_count=0,
+                types=Reference,
+                arg_names=()),
             optional_args={"size": DataNode, "put": DataNode, "Get": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1895,7 +2506,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, Reference, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=Reference,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1905,7 +2520,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, Reference, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=Reference,
+                arg_names=(("a",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None
@@ -1915,7 +2534,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, Reference, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=Reference,
+                arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1926,7 +2549,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                2, 3, DataNode, (
+                min_count=2,
+                max_count=3,
+                types=DataNode,
+                arg_names=(
                     ("array", "operation"),
                     ("array", "operation", "dim")
                 )
@@ -1942,7 +2568,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, Reference, (("string", "ncopies"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=Reference,
+                arg_names=(("string", "ncopies"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1952,7 +2582,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, Reference, (("source", "shape"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=Reference,
+                arg_names=(("source", "shape"),)),
             optional_args={"pad": DataNode, "order": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -1962,7 +2596,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, Reference, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=Reference,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1972,7 +2610,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(2, 2, Reference, (("a", "b"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=Reference,
+                arg_names=(("a", "b"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1982,7 +2624,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, Reference, (("x", "i"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=Reference,
+                arg_names=(("x", "i"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -1992,7 +2638,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, Reference, (("string", "set"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=Reference,
+                arg_names=(("string", "set"),)),
             optional_args={"back": DataNode, "kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -2002,7 +2652,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, Reference, (("name",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=Reference,
+                arg_names=(("name",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -2012,7 +2666,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, Reference, (("r",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=Reference,
+                arg_names=(("r",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -2022,7 +2680,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(0, 0, Reference, ()),
+            required_args=ArgDesc(
+                min_count=0,
+                max_count=0,
+                types=Reference,
+                arg_names=()),
             optional_args={"P": DataNode, "R": DataNode, "radix": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -2032,7 +2694,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, Reference, (("x", "i"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=Reference,
+                arg_names=(("x", "i"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -2042,7 +2708,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, Reference, (("source",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=Reference,
+                arg_names=(("source",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -2052,7 +2722,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, Reference, (("i", "shift"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=Reference,
+                arg_names=(("i", "shift"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -2062,7 +2736,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, Reference, (("i", "shift"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=Reference,
+                arg_names=(("i", "shift"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -2072,7 +2750,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, Reference, (("i", "shift"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=Reference,
+                arg_names=(("i", "shift"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -2082,7 +2764,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("a", "b"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("a", "b"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None
@@ -2092,7 +2778,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None
@@ -2102,7 +2792,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None
@@ -2112,7 +2806,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("array",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("array",),)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -2122,7 +2820,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -2132,8 +2834,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(3, 3, DataNode, (
-                ("source", "dim", "ncopies"),)
+            required_args=ArgDesc(
+                min_count=3,
+                max_count=3,
+                types=DataNode,
+                arg_names=(("source", "dim", "ncopies"),)
             ),
             optional_args={},
             return_type=None,
@@ -2144,7 +2849,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None
@@ -2154,7 +2863,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(0, 0, DataNode, ()),
+            required_args=ArgDesc(
+                min_count=0,
+                max_count=0,
+                types=DataNode,
+                arg_names=()),
             optional_args={"team": DataNode, "kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -2164,7 +2877,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("a",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -2175,7 +2892,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                1, 2, DataNode, (
+                min_count=1,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     ("array",),
                     ("array", "dim")
                 )
@@ -2189,7 +2909,11 @@ class IntrinsicCall(Call):
             is_pure=False,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(0, 0, DataNode, ()),
+            required_args=ArgDesc(
+                min_count=0,
+                max_count=0,
+                types=DataNode,
+                arg_names=()),
             optional_args={"count": DataNode,
                            "count_rate": DataNode,
                            "count_max": DataNode},
@@ -2201,7 +2925,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None
@@ -2211,7 +2939,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("x",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None
@@ -2221,7 +2953,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(0, 0, DataNode, ()),
+            required_args=ArgDesc(
+                min_count=0,
+                max_count=0,
+                types=DataNode,
+                arg_names=()),
             optional_args={"team": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -2232,7 +2968,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                0, 2, DataNode, (
+                min_count=0,
+                max_count=2,
+                types=DataNode,
+                arg_names=(
                     (),
                     ("coarray",),
                     ("coarray", "dim")
@@ -2247,7 +2986,12 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, (Reference, Literal), (("x",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=(Reference, Literal),
+                arg_names=(("x",),)
+            ),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -2257,7 +3001,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("i",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("i",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -2267,7 +3015,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("source", "mold"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("source", "mold"),)),
             optional_args={"size": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -2277,7 +3029,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("matrix",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("matrix",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
@@ -2287,7 +3043,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=False,
-            required_args=ArgDesc(1, 1, DataNode, (("string",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("string",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None
@@ -2297,7 +3057,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("array",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("array",),)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -2307,7 +3071,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=False,
             is_inquiry=True,
-            required_args=ArgDesc(1, 1, DataNode, (("coarray",),)),
+            required_args=ArgDesc(
+                min_count=1,
+                max_count=1,
+                types=DataNode,
+                arg_names=(("coarray",),)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -2318,7 +3086,10 @@ class IntrinsicCall(Call):
             is_elemental=False,
             is_inquiry=False,
             required_args=ArgDesc(
-                3, 3, DataNode, (("vector", "mask", "field"),)
+                min_count=3,
+                max_count=3,
+                types=DataNode,
+                arg_names=(("vector", "mask", "field"),)
             ),
             optional_args={},
             return_type=None,
@@ -2329,7 +3100,11 @@ class IntrinsicCall(Call):
             is_pure=True,
             is_elemental=True,
             is_inquiry=False,
-            required_args=ArgDesc(2, 2, DataNode, (("string", "set"),)),
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=2,
+                types=DataNode,
+                arg_names=(("string", "set"),)),
             optional_args={"back": DataNode, "kind": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -2406,10 +3181,20 @@ class IntrinsicCall(Call):
         :raises NotImplementedError: If there is argument ambiguity and
             canonicalisation is not possible.
         '''
+        # First step is to convert all the argument names in the
+        # intrinsic call to lower case. This also avoids constant
+        # need to convert argument names to lower case when doing
+        # comparisons.
+        argument_names = self.argument_names
+        for i, name in enumerate(argument_names):
+            if name:
+                self._argument_names[i] = (self._argument_names[i][0],
+                                           name.lower())
+
         # Get the optional argument names
         optional_names = list(self.intrinsic.optional_args.keys())
 
-        # If PSyclone can't handle the required args arg_names due
+        # If PSyclone can't handle the required args due
         # to them being non-finite or context sensitive, then skip
         # checking argument names (This is if [0][0] is None or '').
         if (not (len(self.intrinsic.required_args.arg_names) == 1 and
@@ -2452,59 +3237,64 @@ class IntrinsicCall(Call):
                                    len(optional_names))):
             raise ValueError(
                 f"Found too many arguments when canonicalising the "
-                f"'{self.intrinsic.name}' IntrinsicCall. Requires at "
-                f"most {self.intrinsic.required_args.max_count} "
-                f"arguments but found {len(self.arguments)}."
+                f"'{self.intrinsic.name}' IntrinsicCall. Requires at most "
+                f"{self.intrinsic.required_args.max_count +
+                  len(optional_names)}"
+                f" arguments but found {len(self.arguments)}."
             )
 
-        # Find which argument list we are canonicalising
+        # Find which intrinsic call interface we are canonicalising with.
         if len(self.intrinsic.required_args.arg_names) > 1:
-            available_args = list(range(len(
-                self.intrinsic.required_args.arg_names
-            )))
-            # Discount any of the required argument lists that don't contain
-            # a named non-optional argument
+            # Create a list of all the possible interface's argument lists.
+            available_args = [
+                    names for names in self.intrinsic.required_args.arg_names
+            ]
+            # Remove any of the interfaces that don't contain
+            # a named non-optional argument from the list of potential
+            # candidate interfaces.
             for name in self.argument_names:
                 if not name:
                     continue
+                # Optional argument names are skipped over as they don't
+                # affect which interface is being used.
                 if name in optional_names:
                     continue
-                for i, arglist in enumerate(
-                        self.intrinsic.required_args.arg_names):
-                    if i not in available_args:
-                        continue
+                for arglist in available_args:
                     if name not in arglist:
-                        available_args.remove(i)
+                        available_args.remove(arglist)
 
-            # Remove any of the argument lists that we have too many or
-            # too few total arguments to handle.
+            # Remove any of the interfaces that we have too many or
+            # too few *total* arguments to be candidates.
             for choice in available_args[:]:
-                min_args = len(self.intrinsic.required_args.arg_names[choice])
+                min_args = len(choice)
                 max_args = min_args + len(optional_names)
                 if (len(self.arguments) < min_args or
                         len(self.arguments) > max_args):
                     available_args.remove(choice)
 
-            # Remove any of the argument lists that we have too many or
-            # too few required arguments to handle.
+            # Remove any of the interfaces that we have too many or
+            # too few *required* arguments to be candidates.
             # At this point the total arguments must be valid for all
             # remaining choices, and all named arguments must also be
             # present.
             for choice in available_args[:]:
-                required_args = len(
-                    self.intrinsic.required_args.arg_names[choice]
-                )
+                required_args = len(choice)
                 # Check if the number of unnamed arguments is greater
                 # than the number of required arguments. If so then
-                # this choice is still acceptable.
+                # this choice is still acceptable (because optional
+                # arguments can also be positional).
                 if (len([x for x in self.argument_names if x is None]) >=
                         required_args):
                     continue
                 # Otherwise we need to check if all the
                 # required arguments are present as named arguments.
-                remaining_required = self.intrinsic.required_args.\
-                    arg_names[choice][len([x for x in self.argument_names
-                                           if x is None]):]
+                # This operation pulls all the argument names from the
+                # potential interface that are not already matched to a
+                # positional argument in this IntrinsicCall. These must
+                # be matched to named arguments in this IntrinsicCall, else
+                # this interface cannot be a candidate for canonicalisation.
+                remaining_required = choice[len([
+                    x for x in self.argument_names if x is None]):]
                 for name in remaining_required:
                     if name not in self.argument_names:
                         available_args.remove(choice)
@@ -2519,9 +3309,7 @@ class IntrinsicCall(Call):
                     f"argument set it should use. This can be resolved by "
                     f"using named arguments in the Fortran source."
                 )
-            arg_list = self.intrinsic.required_args.arg_names[
-                    available_args[0]
-            ]
+            arg_list = available_args[0]
         elif len(self.intrinsic.required_args.arg_names) == 1:
             arg_list = self.intrinsic.required_args.arg_names[0]
         else:

@@ -758,15 +758,15 @@ class SymPyWriter(FortranWriter):
         :returns: the SymPy representation for the Intrinsic.
 
         '''
-        # Force canoniclisation of the intrinsic
+        # Force canonicalisation of the intrinsic
         try:
             node.canonicalise()
-        except (GenerationError, NotImplementedError):
+        except (GenerationError, NotImplementedError) as err:
             raise VisitorError(
                 f"Sympy handler can't handle an IntrinsicCall that "
                 f"can't be canonicalised. Use explicit argument names "
                 f"to force canonicalisation. Failing node was "
-                f"'{node.debug_string()}'.")
+                f"'{node.debug_string()}'.") from err
 
         # Sympy does not support argument names, remove them for now
         if any(node.argument_names):

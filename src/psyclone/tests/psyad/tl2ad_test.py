@@ -337,7 +337,6 @@ def test_get_active_variables_datatype_error(fortran_reader):
 
     with pytest.raises(NotImplementedError) as err:
         _get_active_variables_datatype(tl_psyir, ["a", "c"])
-    print(str(err.value))
     assert ("active variables of different datatype: 'a' is of intrinsic "
             "type 'Intrinsic.REAL' and precision 'Precision.UNDEFINED' while "
             "'c' is of intrinsic type 'Intrinsic.REAL' and precision "
@@ -702,7 +701,6 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
     harness = fortran_writer(test_psyir)
     assert ("  real, dimension(npts) :: field\n"
             "  real, dimension(npts) :: field_input" in harness)
-    print(harness)
     assert ("  call random_number(field)\n"
             "  field_input = field\n"
             "\n"
