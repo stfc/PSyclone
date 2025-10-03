@@ -2343,12 +2343,9 @@ def test_validate_non_unit_stride_slice(fortran_reader):
             str(err.value))
 
 
-def test_validate_named_arg(fortran_reader):
-    '''Test that the validate method is successful in an attempt to inline
-    a routine that has a named argument.'''
-    # In reality, the routine with a named argument would almost certainly
-    # use the 'present' intrinsic but, since that gives a CodeBlock that itself
-    # prevents inlining, our test example omits it.
+def test_apply_named_arg(fortran_reader, fortran_writer):
+    '''Test that the transformation successfully inlines a routine that has
+    a named argument, including handling the PRESENT intrinsic.'''
     code = (
         "module test_mod\n"
         "contains\n"
@@ -2360,7 +2357,7 @@ def test_validate_named_arg(fortran_reader):
         "  real, intent(inout) :: x\n"
         "  real, optional :: opt\n"
         "  if( present(opt) )then\n"
-        "    x = x + opt\n"
+        "    x = x + 2.14 * opt\n"
         "  end if\n"
         "  x = x + 1.0\n"
         "end subroutine sub\n"
@@ -2368,8 +2365,15 @@ def test_validate_named_arg(fortran_reader):
     )
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
+    routine = call.ancestor(Routine)
     inline_trans = InlineTrans()
-    inline_trans.validate(call)
+    inline_trans.apply(call)
+    output = fortran_writer(routine)
+    assert ('''\
+  var = var + 2.14 * 1.0
+  var = var + 1.0
+
+end subroutine main''' in output)
 
 
 def test_apply_optional_arg_with_special_cases(fortran_reader,
@@ -2393,7 +2397,7 @@ def test_apply_optional_arg_with_special_cases(fortran_reader,
         "  real, intent(inout) :: x\n"
         "  real, optional :: opt, opt2\n"
         "  if( present(opt) )then\n"
-        "    x = x + opt\n"
+        "    x = x + 4.2 * opt\n"
         "  end if\n"
         "  if( present(opt2) )then\n"
         "    x = opt2 * x\n"
@@ -2408,27 +2412,30 @@ def test_apply_optional_arg_with_special_cases(fortran_reader,
     psyir = fortran_reader.psyir_from_source(code)
     calls = psyir.walk(Call)
     inline_trans = InlineTrans()
+    routine = calls[0].ancestor(Routine)
     inline_trans.apply(calls[0])
-    output = fortran_writer(psyir)
+    output = fortran_writer(routine)
     assert ('''\
-    real, save :: var = 0.0
+  real, save :: var = 0.0
 
-    if (.true.) then
-      var = var
-    end if
-    var = var + 1.0''' in output)
+  if (.true.) then
+    var = var
+  end if
+  var = var + 1.0''' in output)
     # Second call has the second, optional argument present.
     inline_trans.apply(calls[1])
-    output = fortran_writer(psyir)
+    output = fortran_writer(routine)
     assert ('''\
-    var = 3.0 * var
-    if (.true.) then
-      var = var
-    end if
-    var = var + 1.0
+  var = 3.0 * var
+  if (.true.) then
+    var = var
+  end if
+  var = var + 1.0
 
-  end subroutine main''' in output)
-    assert Compile(tmpdir).string_compiles(output)
+end subroutine main''' in output)
+    # First optional arg. is not present
+    assert "4.2" not in output
+    assert Compile(tmpdir).string_compiles(fortran_writer(psyir))
 
 
 def test_apply_optional_arg_error(fortran_reader):

@@ -265,30 +265,27 @@ class InlineTrans(Transformation):
         # initialisation expressions here as they imply that a variable is
         # static. We don't support inlining routines with static variables.
         for sym in table.automatic_datasymbols:
-            if isinstance(sym.datatype, ArrayType):
-                new_shape = []
-                for dim in sym.datatype.shape:
-                    if isinstance(dim, ArrayType.Extent):
-                        new_shape.append(dim)
-                    else:
-                        lower = self._replace_formal_arg(
-                            dim.lower,
-                            node,
-                            formal_args,
-                            routine_node=routine,
-                            use_first_callee_and_no_arg_check=(
-                                use_first_callee_and_no_arg_check),
-                        )
-                        upper = self._replace_formal_arg(
-                            dim.upper,
-                            node,
-                            formal_args,
-                            routine_node=routine,
-                            use_first_callee_and_no_arg_check=(
-                                use_first_callee_and_no_arg_check),
-                        )
-                        new_shape.append(ArrayType.ArrayBounds(lower, upper))
-                sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
+            if not isinstance(sym.datatype, ArrayType):
+                continue
+            new_shape = []
+            for dim in sym.datatype.shape:
+                if isinstance(dim, ArrayType.Extent):
+                    new_shape.append(dim)
+                else:
+                    lower = self._replace_formal_arg(
+                        dim.lower, node, formal_args,
+                        routine_node=routine,
+                        use_first_callee_and_no_arg_check=(
+                            use_first_callee_and_no_arg_check),
+                    )
+                    upper = self._replace_formal_arg(
+                        dim.upper, node, formal_args,
+                        routine_node=routine,
+                        use_first_callee_and_no_arg_check=(
+                            use_first_callee_and_no_arg_check),
+                    )
+                    new_shape.append(ArrayType.ArrayBounds(lower, upper))
+            sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
 
         for sym in table.datatypesymbols:
             if not isinstance(sym.datatype, StructureType):
@@ -298,17 +295,13 @@ class InlineTrans(Transformation):
                     new_shape = []
                     for dim in ctype.datatype.shape:
                         lower = self._replace_formal_arg(
-                            dim.lower,
-                            node,
-                            formal_args,
+                            dim.lower, node, formal_args,
                             routine_node=routine,
                             use_first_callee_and_no_arg_check=(
                                 use_first_callee_and_no_arg_check),
                         )
                         upper = self._replace_formal_arg(
-                            dim.upper,
-                            node,
-                            formal_args,
+                            dim.upper, node, formal_args,
                             routine_node=routine,
                             use_first_callee_and_no_arg_check=(
                                 use_first_callee_and_no_arg_check),
@@ -348,9 +341,9 @@ class InlineTrans(Transformation):
                 idx += 1
                 parent.addchild(child, idx)
 
-    def _optional_arg_resolve_present_intrinsics(
-        self, routine_node: Routine, arg_match_list: List = []
-    ):
+    def _optional_arg_resolve_present_intrinsics(self,
+                                                 routine_node: Routine,
+                                                 arg_match_list: List = []):
         """Replace PRESENT(some_argument) intrinsics in routine with constant
         booleans depending on whether `some_argument` has been provided
         (`True`) or not (`False`).
@@ -476,13 +469,9 @@ class InlineTrans(Transformation):
             # Recurse down in case this is e.g. an Operation or Range.
             for child in ref.children[:]:
                 self._replace_formal_arg(
-                    child,
-                    call_node,
-                    formal_args,
-                    routine_node,
+                    child, call_node, formal_args, routine_node,
                     use_first_callee_and_no_arg_check=(
-                        use_first_callee_and_no_arg_check)
-                )
+                        use_first_callee_and_no_arg_check))
             return ref
 
         if ref.symbol not in formal_args:
@@ -552,14 +541,11 @@ class InlineTrans(Transformation):
         # Neither the actual or local references are simple, i.e. they
         # include array accesses and/or structure accesses.
         new_ref = self._replace_formal_struc_arg(
-            actual_arg,
-            ref,
-            call_node,
-            formal_args,
+            actual_arg, ref, call_node, formal_args,
             routine_node=routine_node,
             use_first_callee_and_no_arg_check=(
-                use_first_callee_and_no_arg_check),
-        )
+                use_first_callee_and_no_arg_check))
+
         # If the local reference we are replacing has a parent then we must
         # ensure the parent's child list is updated. (It may not have a parent
         # if we are in the process of constructing a brand new reference.)
@@ -934,7 +920,7 @@ class InlineTrans(Transformation):
                 self,
                 node: Call,
                 **kwargs
-            ):
+            ) -> None:
         '''
         Checks that the supplied node is a valid target for inlining.
 
@@ -1024,7 +1010,7 @@ class InlineTrans(Transformation):
 
         if not routine.children or isinstance(routine.children[0], Return):
             # An empty routine is fine.
-            return (routine, range(len(routine.symbol_table.argument_list)))
+            return
 
         if node.is_elemental:
             raise TransformationError(
@@ -1061,9 +1047,10 @@ class InlineTrans(Transformation):
             # to allow CodeBlocks to be included.
             raise TransformationError(
                 f"Routine '{name}' contains one or more CodeBlocks and "
-                f"therefore cannot be inlined. (If you are confident that "
-                f"the code may safely be inlined despite this then use "
-                "`options={'force': True}` to override.)")
+                f"therefore cannot be inlined. (If you are confident that the "
+                f"code may safely be inlined despite this then use the "
+                f"`permit_codeblocks=True` argument to InlineTrans.apply() "
+                f"to override.)")
 
         # At the moment, we can't inline a routine that allocates memory that
         # is local to it as we don't support adding any deallocates (that the
@@ -1107,10 +1094,9 @@ class InlineTrans(Transformation):
                             f"because it contains a Symbol '{sym.name}' with "
                             f"an UnknownInterface: "
                             f"'{sym.datatype.declaration}'. You may be able "
-                            "to work around this limitation "
-                            "by adding the name of the module containing this "
-                            "Symbol to RESOLVE_IMPORTS in the transformation "
-                            "script.")
+                            f"to work around this limitation by adding the "
+                            f"name of the module containing this Symbol to "
+                            f"RESOLVE_IMPORTS in the transformation script.")
                     # Check that there are no static variables in the routine
                     # (because we don't know whether the routine is called from
                     # other places).
