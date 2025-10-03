@@ -39,7 +39,7 @@
 from __future__ import annotations
 from enum import Enum
 
-from psyclone.psyir.nodes import Node, Statement
+from psyclone.psyir.nodes import Statement
 
 
 class GlobalReduction(Statement):
@@ -47,6 +47,9 @@ class GlobalReduction(Statement):
     Generic global reduction operation.
 
     :param reduction:
+
+    :raises TypeError:
+
     '''
     # Textual description of the node.
     _children_valid_format = "[DataNode]"
@@ -63,5 +66,7 @@ class GlobalReduction(Statement):
         SUM = 5
 
     def __init__(self,
-                 reduction: Reduction
-                 *kwargs):
+                 reduction: Reduction,
+                 **kwargs):
+        if not isinstance(reduction, GlobalReduction.Reduction):
+            raise TypeError("huh")
