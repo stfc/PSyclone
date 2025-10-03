@@ -179,14 +179,16 @@ class InlineTrans(Transformation):
         if not routine:
             # No target Routine has been provided so we search for one with
             # a matching signature.
-            (routine, arg_match_list) = node.get_callee(
+            (orig_routine, arg_match_list) = node.get_callee(
                 use_first_callee_and_no_arg_check=(
                     use_first_callee_and_no_arg_check))
         else:
             # Target Routine supplied to this transformation directly.
-            arg_match_list = node.get_argument_map(routine)
+            orig_routine = routine
+            arg_match_list = node.get_argument_map(orig_routine)
 
-        if not routine.children or isinstance(routine.children[0], Return):
+        if not orig_routine.children or isinstance(orig_routine.children[0],
+                                                   Return):
             # Called routine is empty so just remove the call.
             node.detach()
             return
