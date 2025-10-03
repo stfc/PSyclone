@@ -56,7 +56,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.tools import ReadWriteInfo
 
 
-class BaseDriverCreator:
+class DriverCreator:
     '''This class provides the functionality common to all driver creations.
     The driver is created as follows:
 
@@ -71,7 +71,7 @@ class BaseDriverCreator:
        rank attached).
     4. A copy of the kernel that is being instrumented is created, so that
        it can be modified without affecting the actual code creation if
-       PSyclone..
+       PSyclone.
     5. The method `verify_and_cleanup_psyir` is called with the copied kernel
        as parameter. The base implementation checks that no structure accesses
        are in the code (which are not supported - the structures used by the
@@ -144,13 +144,13 @@ class BaseDriverCreator:
             # In case of a non-allocatable array (e.g. a constant
             # size array from a module), call the ReadVariable
             # function that does not require an allocatable field
-            BaseDriverCreator.add_call(program, read_var+"NonAlloc",
-                                       [name_lit, Reference(sym)])
+            DriverCreator.add_call(program, read_var+"NonAlloc",
+                                   [name_lit, Reference(sym)])
         else:
             # In case of an allocatable array, call the ReadVariable
             # function that will also allocate this array.
-            BaseDriverCreator.add_call(program, read_var,
-                                       [name_lit, Reference(sym)])
+            DriverCreator.add_call(program, read_var,
+                                   [name_lit, Reference(sym)])
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -174,19 +174,19 @@ class BaseDriverCreator:
                                         interface=ImportInterface(module))
             program.symbol_table.add(compare_sym)
 
-        BaseDriverCreator.add_call(program, "compare_init",
-                                   [Literal(f"{len(output_symbols)}",
-                                            INTEGER_TYPE)])
+        DriverCreator.add_call(program, "compare_init",
+                               [Literal(f"{len(output_symbols)}",
+                                        INTEGER_TYPE)])
 
         # TODO #2083: check if this can be combined with psyad result
         # comparison.
         for (sym_computed, sym_read) in output_symbols:
             lit_name = Literal(sym_computed.name, CHARACTER_TYPE)
-            BaseDriverCreator.add_call(program, "compare",
-                                       [lit_name, Reference(sym_computed),
-                                        Reference(sym_read)])
+            DriverCreator.add_call(program, "compare",
+                                   [lit_name, Reference(sym_computed),
+                                    Reference(sym_read)])
 
-        BaseDriverCreator.add_call(program, "compare_summary", [])
+        DriverCreator.add_call(program, "compare_summary", [])
 
     @staticmethod
     def _create_output_var_code(
@@ -250,7 +250,7 @@ class BaseDriverCreator:
         else:
             post_tag = f"{name}{postfix}"
         name_lit = Literal(post_tag, CHARACTER_TYPE)
-        BaseDriverCreator.add_read_call(program, name_lit, post_sym, read_var)
+        DriverCreator.add_read_call(program, name_lit, post_sym, read_var)
 
         return (sym, post_sym)
 

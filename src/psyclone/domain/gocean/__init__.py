@@ -38,5 +38,8 @@
 
 from psyclone.domain.gocean.gocean_constants import GOceanConstants
 from psyclone.domain.gocean.go_symbol_table import GOSymbolTable
+from psyclone.domain.gocean.gocean_driver_creator import GOceanDriverCreator
 
-__all__ = ['GOceanConstants', 'GOSymbolTable']
+__all__ = ['GOceanConstants',
+           'GOceanDriverCreator',
+           'GOSymbolTable']
