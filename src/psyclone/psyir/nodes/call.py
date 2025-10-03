@@ -55,7 +55,6 @@ from psyclone.psyir.symbols import (
     DataSymbol,
     DataType,
     DataTypeSymbol,
-    DefaultModuleInterface,
     GenericInterfaceSymbol,
     RoutineSymbol,
     Symbol,
