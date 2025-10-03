@@ -55,7 +55,7 @@ by the command:
                     [--backend {disable-validation,disable-indentation}]
                     [-o OUTPUT_FILE] [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE] [-okern OUTPUT_KERNEL_PATH] [-d DIRECTORY] [-dm] [-nodm]
                     [--kernel-renaming {multiple,single}] [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}]
-                    [--log-file LOG_FILE] [--keep-comments] [--keep-directives]
+                    [--log-file LOG_FILE] [--keep-comments] [--keep-directives] [--free-form | --fixed-form]
                     filename
 
     Transform a file using the PSyclone source-to-source Fortran compiler
@@ -108,6 +108,10 @@ by the command:
      --keep-comments       keeps comments from the original code (defaults to False).
                            Directives are not kept with this option (use --keep-directives).
      --keep-directives     keeps directives from the original code (defaults to False).
+     --free-form           forces PSyclone to parse this file as free format
+                           (default is to look at the input file extension).
+     --fixed-form          forces PSyclone to parse this file as fixed format
+                           (default is to look at the input file extension).
 
 Basic Use
 ---------
@@ -237,6 +241,29 @@ line-length limiter will simply remove all indentation on any such lines.
 Finally, if all else fails, the code-generation part of PSyclone (the
 "backend") can be instructed not to use any indentation at all. See the
 :ref:`backend-options` section.
+
+
+.. _fortran_source_format:
+
+Fortran Format Option
+---------------------
+
+PSyclone supports both free and fixed format source input. By default,
+PSyclone follows the gfortran specification for file extensions:
+
+    - Free format extensions: .f90, .f95, .f03, .f08, .F90, .F95, .F03, .F08
+    - Fixed format extensions: .f, .for, .fpp, .ftn, .F, .FOR, .FPP, .FTN
+
+PSyclone also recognises the following extensions as free format to support
+current uses cases: .x90, .xu90
+
+PSyclone also provides the ``--free-form`` and ``-fixed-form`` to override the
+default behaviour, and will use the specified option over the file extension.
+
+If the file extension is not one of the ones listed above, and neither of the
+``--free-form`` or ``--fixed-form`` flags is used then PSyclone defaults to
+assuming the input source is free form Fortran.
+
 
 .. _backend-options:
 
