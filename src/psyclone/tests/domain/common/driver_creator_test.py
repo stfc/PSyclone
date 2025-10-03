@@ -39,8 +39,8 @@
 
 import pytest
 
-from psyclone.domain.common import BaseDriverCreator
-from psyclone.domain.lfric import LFRicExtractDriverCreator
+from psyclone.domain.common import DriverCreator
+from psyclone.domain.lfric import LFRicDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.psyir.nodes import (Assignment, Literal, Routine,
                                   StructureReference)
@@ -56,7 +56,7 @@ def test_basic_driver_add_call(fortran_writer):
     program = Routine.create("routine", is_program=True)
     program.symbol_table.find_or_create_tag("test")
     with pytest.raises(TypeError) as err:
-        BaseDriverCreator.add_call(program, "test", [])
+        DriverCreator.add_call(program, "test", [])
     assert ("Error creating call to 'test' - existing symbol is of type "
             "'Symbol', not a 'RoutineSymbol'" in str(err.value))
 
@@ -64,9 +64,9 @@ def test_basic_driver_add_call(fortran_writer):
     del program.symbol_table.symbols_dict['test']
     del program.symbol_table.tags_dict['test']
 
-    BaseDriverCreator.add_call(program, "my_sub", [])
-    BaseDriverCreator.add_call(program, "my_sub_2",
-                               [Literal("1", INTEGER_TYPE)])
+    DriverCreator.add_call(program, "my_sub", [])
+    DriverCreator.add_call(program, "my_sub_2",
+                           [Literal("1", INTEGER_TYPE)])
     out = fortran_writer(program)
     assert "call my_sub()" in out
     assert "call my_sub_2(1)" in out
@@ -83,7 +83,7 @@ def test_lfric_driver_add_result_tests(fortran_writer):
         "a1_orig", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
     # This will add one test for the variable a1 with the
     # correct values a1_orig.
-    BaseDriverCreator.add_result_tests(program, [(a1, a1_orig)])
+    DriverCreator.add_result_tests(program, [(a1, a1_orig)])
     out = fortran_writer(program)
     expected = """  call compare_init(1)
   call compare('a1', a1, a1_orig)
@@ -251,7 +251,7 @@ def test_lfric_driver_import_modules():
     # and add them to the extraction driver
     program.children.extend([node.copy() for node in sched.children])
 
-    driver_creator = LFRicExtractDriverCreator()
+    driver_creator = LFRicDriverCreator()
 
     # Initially we should only have no symbol other than the routine:
     assert ['routine'] == [sym.name for sym in program.symbol_table.symbols]
