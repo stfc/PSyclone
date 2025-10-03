@@ -3236,11 +3236,10 @@ class IntrinsicCall(Call):
         if (len(self.arguments) > (self.intrinsic.required_args.max_count +
                                    len(optional_names))):
             raise ValueError(
-                f"Found too many arguments when canonicalising the "
-                f"'{self.intrinsic.name}' IntrinsicCall. Requires at most "
-                f"{self.intrinsic.required_args.max_count +
-                  len(optional_names)}"
-                f" arguments but found {len(self.arguments)}."
+                f"""Found too many arguments when canonicalising the \
+'{self.intrinsic.name}' IntrinsicCall. Requires at most \
+{self.intrinsic.required_args.max_count + len(optional_names)} \
+arguments but found {len(self.arguments)}."""
             )
 
         # Find which intrinsic call interface we are canonicalising with.
