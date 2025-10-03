@@ -2260,6 +2260,16 @@ def test_validate_array_reshape(fortran_reader):
             "be found:" in str(err.value))
     assert ("Rank mismatch of call argument 'a(:,:)' (rank 2) and routine "
             "argument 'x' (rank 1)" in str(err.value))
+    # Check that _validate_inline_of_call_and_routine_argument_pairs() also
+    # catches this error. (Necessary in case type-checking has been disabled
+    # in the call to get_callee().)
+    sub_s = psyir.walk(Routine)[1]
+    with pytest.raises(TransformationError) as err:
+        inline_trans._validate_inline_of_call_and_routine_argument_pairs(
+            call, call.arguments[0],
+            sub_s, sub_s.symbol_table.lookup("x"))
+    assert ("actual argument 'a(:,:)' has rank 2 but the corresponding formal "
+            "argument, 'x', has rank 1" in str(err.value))
 
 
 def test_validate_array_arg_expression(fortran_reader):

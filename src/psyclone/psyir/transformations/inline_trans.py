@@ -1186,7 +1186,7 @@ class InlineTrans(Transformation):
     def _validate_inline_of_call_and_routine_argument_pairs(
         self,
         call_node: Call,
-        call_arg: DataSymbol,
+        call_arg: DataNode,
         routine_node: Routine,
         routine_arg: DataSymbol
     ):
