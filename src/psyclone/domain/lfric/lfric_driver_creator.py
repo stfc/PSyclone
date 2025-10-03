@@ -44,7 +44,7 @@ the output data contained in the input file.
 from typing import Optional
 
 from psyclone.configuration import Config
-from psyclone.domain.common import BaseDriverCreator
+from psyclone.domain.common import DriverCreator
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import Call, Node, StructureReference
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol,
@@ -52,7 +52,7 @@ from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol,
                                     SymbolTable)
 
 
-class LFRicExtractDriverCreator(BaseDriverCreator):
+class LFRicDriverCreator(DriverCreator):
     '''This class provides the functionality to create a driver that
     reads in extracted data produced by using the PSyData kernel-extraction
     functionality.

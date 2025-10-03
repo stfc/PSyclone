@@ -84,7 +84,7 @@ def create_psyir_tree():
     routine_symbol = RoutineSymbol("my_sub")
 
     # Array using precision defined by another symbol
-    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, real_kind)
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(real_kind))
     array = symbol_table.new_symbol(root_name="a", symbol_type=DataSymbol,
                                     datatype=ArrayType(scalar_type, [10]))
 

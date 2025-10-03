@@ -43,7 +43,7 @@ from pathlib import Path
 
 import pytest
 
-from psyclone.domain.common import ExtractDriverCreator
+from psyclone.domain.gocean import GOceanDriverCreator
 from psyclone.domain.gocean.transformations import (GOceanExtractTrans,
                                                     GOConstLoopBoundsTrans)
 from psyclone.parse import ModuleManager
@@ -384,7 +384,7 @@ def test_errors_add_call():
     psy_data_mod = ContainerSymbol("psy_data_mod")
     program_symbol_table.add(psy_data_mod)
 
-    edc = ExtractDriverCreator()
+    edc = GOceanDriverCreator()
 
     # Then try to add a call to 'psy_data_mod':
     with pytest.raises(TypeError) as err:
@@ -487,7 +487,7 @@ def test_driver_creation_import_modules(fortran_reader):
               end program test_prog'''
     psyir = fortran_reader.psyir_from_source(code)
     program = psyir.children[0]   # psyir is a FileContainer, take the program
-    edc = ExtractDriverCreator()
+    edc = GOceanDriverCreator()
     # Delete all symbols in the symbol table so we can check if the right
     # symbols are added:
     program.scope._symbol_table = SymbolTable()

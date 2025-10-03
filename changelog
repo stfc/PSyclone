@@ -1,4 +1,19 @@
-   97) PR #3160 for #3159 and #3140. Fix declarations with self-references.a
+   101) PR #3118 towards #3049. Adds the --fixed-form and --free-form flags
+   to the psyclone command. Also automatically determine Fortran format
+   from file extension if they are not supplied.
+
+Release 3.2.0 1st of October 2025
+
+   100) PR #3166 for #3120. Add GitHub release workflow and prepare for
+   release 3.2.
+
+   99) PR #3161 for #3155. Optimise InlineTrans to only to a copy of the
+   target routine instead of the whole Container.
+
+   98) PR #3110 for #3087. Add support for declaration kind expressions by
+   representing them with a PSyIR tree.
+
+   97) PR #3160 for #3159 and #3140. Fix declarations with self-references.
 
    96) PR #3153 for #3151. Fix some case-related naming comparison issues.
 
@@ -8,10 +23,10 @@
    94) PR #3095 for #2916. Dynamically propagate pure and elemental
    attributes to GenericInterefaceSymbols.
 
-   93) PR #3147 for #3138. Fixes reference_accesses() for Calls.   
+   93) PR #3147 for #3138. Fixes reference_accesses() for Calls.
 
    92) PR #3133 for #3132. Give specific paths to pytest compilation (
-   to prevent using the unpredictable '.' path) 
+   to prevent using the unpredictable '.' path).
 
    91) PR #3137 for #3096. Add command-flag and config option to disable
    all backend indentations.
@@ -23,7 +38,7 @@
    IAttr constructor (which represents intrinsic calls).
 
    88) PR #3094 for #2851 and #3082. Improves the DA so that PSyclone
-   does not generate unnecessary firstprivate clauses on parallel regions.   
+   does not generate unnecessary firstprivate clauses on parallel regions.
 
    87) PR #3127 for #3126. Disable python module index in latex version
    of docs.

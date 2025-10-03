@@ -2009,7 +2009,7 @@ def test_real_to_int_x_precision(monkeypatch, tmpdir, kind_name):
     arg = first_invoke.schedule.children[0].loop_body[0].args[0]
     # Set 'f2_data' to another 'i_<prec>'
     sym_kern = table.lookup_with_tag(f"{arg.name}:data")
-    monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,
+    monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision.symbol,
                         "_name", f"{kind_name}")
 
     # Test limited code generation (no equivalent field type)
@@ -2079,7 +2079,7 @@ def test_real_to_real_x_lowering(monkeypatch, tmpdir, kind_name):
     arg = first_invoke.schedule.children[0].loop_body[0].args[0]
     # Set 'f2_data' to another 'r_<prec>'
     sym_kern = table.lookup_with_tag(f"{arg.name}:data")
-    monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,
+    monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision.symbol,
                         "_name", f"{kind_name}")
 
     # Test limited code generation (no equivalent field type)

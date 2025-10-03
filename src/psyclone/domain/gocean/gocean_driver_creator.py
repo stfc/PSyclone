@@ -42,12 +42,12 @@ the output data contained in the input file.
 
 from typing import Optional
 
-from psyclone.domain.common import BaseDriverCreator
+from psyclone.domain.common import DriverCreator
 from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE, REAL8_TYPE,
                                     ScalarType, SymbolTable)
 
 
-class ExtractDriverCreator(BaseDriverCreator):
+class GOceanDriverCreator(DriverCreator):
     '''This class provides the functionality to create a driver that
     reads in extracted data produced by using the PSyData kernel-extraction
     functionality.

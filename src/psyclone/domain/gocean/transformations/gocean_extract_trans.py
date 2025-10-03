@@ -41,7 +41,7 @@
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyir.symbols import REAL8_TYPE, INTEGER_TYPE
-from psyclone.domain.common import ExtractDriverCreator
+from psyclone.domain.gocean import GOceanDriverCreator
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
@@ -156,6 +156,6 @@ class GOceanExtractTrans(ExtractTrans):
         new_node = nodes[0].ancestor(ExtractNode)
         if my_options.get("create_driver", False):
             region_name = my_options.get("region_name", None)
-            new_node._driver_creator = ExtractDriverCreator(INTEGER_TYPE,
-                                                            REAL8_TYPE,
-                                                            region_name)
+            new_node._driver_creator = GOceanDriverCreator(INTEGER_TYPE,
+                                                           REAL8_TYPE,
+                                                           region_name)

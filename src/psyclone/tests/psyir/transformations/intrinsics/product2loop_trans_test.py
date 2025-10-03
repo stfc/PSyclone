@@ -67,7 +67,7 @@ def test_loop_body():
 @pytest.mark.parametrize("name,precision,one", [
     (ScalarType.Intrinsic.REAL, ScalarType.Precision.UNDEFINED, "1.0"),
     (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.UNDEFINED, "1"),
-    (ScalarType.Intrinsic.REAL, DataSymbol("r_def", INTEGER_TYPE),
+    (ScalarType.Intrinsic.REAL, Reference(DataSymbol("r_def", INTEGER_TYPE)),
      "1.0_r_def")])
 def test_init_var(name, precision, one):
     '''Test that the _init_var method works as expected. Test with real,

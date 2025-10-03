@@ -45,7 +45,7 @@ Once you have psyclone installed, this script may be run by doing:
 '''
 from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
     StructureReference, ArrayOfStructuresReference, Assignment, \
-    IntrinsicCall, Range
+    IntrinsicCall, Range, Reference
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
     ImportInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
@@ -60,7 +60,7 @@ REAL_KIND = CONTAINER_SYMBOL_TABLE.new_symbol(
         is_constant=True, initial_value=8)
 
 # Shorthand for a scalar type with REAL_KIND precision
-SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
+SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, Reference(REAL_KIND))
 
 # Derived-type definition in container
 GRID_TYPE = StructureType.create([
