@@ -39,6 +39,7 @@ PSy-layer routine.
 
 '''
 import abc
+import warnings
 
 from psyclone.core import SymbolicMaths
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
@@ -49,8 +50,10 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (ContainerSymbol,
                                     ImportInterface, RoutineSymbol)
 from psyclone.psyir.transformations import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
     '''Base class to transform (lower) an AlgorithmInvokeCall into a
     standard Call to a generated PSy-layer routine. Requires the
@@ -65,7 +68,7 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
     transformation.
 
     '''
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''Validate the node argument.
 
         :param node: a PSyIR node capturing an invoke call.
@@ -79,6 +82,9 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         :raises InternalError: if no corresponding 'invoke' symbol is present.
 
         '''
+        if not options:
+            self.validate_options(**kwargs)
+
         if not isinstance(node, AlgorithmInvokeCall):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied call "
@@ -192,7 +198,7 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
                 # so can not be removed.
                 pass
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         ''' Apply the transformation to the supplied AlgorithmInvokeCall.
         The supplied node will be replaced with a Call node with appropriate
         arguments. If there are no more invoke calls in the scope of the symbol
@@ -205,6 +211,9 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         :type options: Optional[Dict[str, Any]]
 
         '''
+        if options:
+            # TODO 2668 - options dict is deprecated.
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
         self.validate(node, options=options)
         node.create_psylayer_symbol_root_names()
         arguments = self.get_arguments(node, options=options)

@@ -40,6 +40,8 @@
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
 import pytest
+import warnings
+
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -1348,3 +1350,26 @@ def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     ctr_sym = container.symbol_table.lookup("my_mod")
     (isym,) = container.symbol_table.symbols_imported_from(ctr_sym)
     assert isym.interface.orig_name == "my_sub"
+
+
+# TODO 2668 Remove test.
+def test_module_inline_deprecation_warning():
+    '''Tests that the transformation gives the expected deprecation warning
+    when an options dict is provided.
+    '''
+    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric",
+                             name="invoke_0", dist_mem=False)
+    kern_call = invoke.schedule.walk(CodedKern)[0]
+    inline_trans = KernelModuleInlineTrans()
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to be triggered.
+        warnings.simplefilter("always")
+        inline_trans.apply(kern_call, options={"a": "test"})
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in str(w[0].message))

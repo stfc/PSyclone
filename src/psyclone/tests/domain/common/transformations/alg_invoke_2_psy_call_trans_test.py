@@ -39,6 +39,7 @@ transformation.
 
 '''
 import pytest
+import warnings
 
 from psyclone.errors import InternalError
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
@@ -616,3 +617,33 @@ def test_ai2psycall_keep_comments():
     invoke = psyir.children[0][0]
     assert invoke.preceding_comment == "preceding comment"
     assert invoke.inline_comment == "inline comment"
+
+
+# TODO 2668 Delete this test.
+def test_ai2psycall_deprecation_warning():
+    '''Check that the apply method gives the expected deprecation warning when
+    provided an options array'''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : field_type\n"
+        "  integer :: i,j\n"
+        "  type(field_type) :: field1, field2(10)\n"
+        "  call invoke(kern1(field1, field1, field2(i), field2( j )))\n"
+        "end subroutine alg1\n")
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    AlgTrans().apply(psyir)
+    invoke = psyir.children[0][0]
+    trans = GOceanAlgInvoke2PSyCallTrans()
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        trans.apply(invoke, options={"myoption": True})
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in str(w[0].message))
