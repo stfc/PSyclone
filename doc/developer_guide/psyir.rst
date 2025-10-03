@@ -594,6 +594,16 @@ available PSyIR `IntrinsicCall` match those of the `Fortran 2018 standard
 In addition to Fortran Intrinsics, special Fortran statements such as:
 `ALLOCATE`, `DEALLOCATE` and `NULLIFY` are also PSyIR IntrinsicCalls.
 
+``IntrinsicCall`` nodes have a canonicalisation function, that is used
+within PSyclone during their creation (via the ``IntrinsicCall.create``
+function). This attempts to match the Intrinsic and input arguments to
+one of the interfaces for the intrinsic (as some intrinsics have multiple
+possible argument interfaces). If the canonicalisation is successful, PSyclone
+will convert all of the arguments to be named arguments, and reorder arguments
+to match the specification from the Fortran standard. If canonicalisation
+fails, then PSyclone will not create an ``IntrinsicCall`` corresponding to
+the input. This canonicalisation is required to guarantee correct behaviour
+when computing reference_accesses or the return type of an Intrinsic.
 
 IntrinsicCalls, like Calls, have properties to inform if the call is to a
 pure, elemental, inquiry (does not touch the first argument data) function

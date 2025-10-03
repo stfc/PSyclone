@@ -278,12 +278,12 @@ def test_kernels_around_where_construct(fortran_reader, fortran_writer):
     assert isinstance(schedule[0], ACCKernelsDirective)
     assert isinstance(schedule[0].dir_body[0], Loop)
     assert ("  !$acc kernels\n"
-            "  do widx2 = 1, SIZE(a(:,:), dim=2), 1\n"
-            "    do widx1 = 1, SIZE(a(:,:), dim=1), 1\n"
-            "      if (a(LBOUND(a, dim=1) + widx1 - 1,"
-            "LBOUND(a, dim=2) + widx2 - 1) < flag) then\n"
-            "        b(LBOUND(b, dim=1) + widx1 - 1,"
-            "LBOUND(b, dim=2) + widx2 - 1) = 0.0\n"
+            "  do widx2 = 1, SIZE(array=a(:,:), dim=2), 1\n"
+            "    do widx1 = 1, SIZE(array=a(:,:), dim=1), 1\n"
+            "      if (a(LBOUND(array=a, dim=1) + widx1 - 1,"
+            "LBOUND(array=a, dim=2) + widx2 - 1) < flag) then\n"
+            "        b(LBOUND(array=b, dim=1) + widx1 - 1,"
+            "LBOUND(array=b, dim=2) + widx2 - 1) = 0.0\n"
             "      end if\n"
             "    enddo\n"
             "  enddo\n"
@@ -303,14 +303,15 @@ def test_kernels_around_where_stmt(fortran_reader, fortran_writer):
     schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     acc_trans.apply([schedule[1]])
+    print(fortran_writer(psyir))
     assert ("  a(:,:) = 1.0\n"
             "  !$acc kernels\n"
-            "  do widx2 = 1, SIZE(a(:,:), dim=2), 1\n"
-            "    do widx1 = 1, SIZE(a(:,:), dim=1), 1\n"
-            "      if (a(LBOUND(a, dim=1) + widx1 - 1,"
-            "LBOUND(a, dim=2) + widx2 - 1) < flag) then\n"
-            "        b(LBOUND(b, dim=1) + widx1 - 1,"
-            "LBOUND(b, dim=2) + widx2 - 1) = 0.0\n"
+            "  do widx2 = 1, SIZE(array=a(:,:), dim=2), 1\n"
+            "    do widx1 = 1, SIZE(array=a(:,:), dim=1), 1\n"
+            "      if (a(LBOUND(array=a, dim=1) + widx1 - 1,"
+            "LBOUND(array=a, dim=2) + widx2 - 1) < flag) then\n"
+            "        b(LBOUND(array=b, dim=1) + widx1 - 1,"
+            "LBOUND(array=b, dim=2) + widx2 - 1) = 0.0\n"
             "      end if\n"
             "    enddo\n"
             "  enddo\n"
@@ -471,11 +472,12 @@ end
     with pytest.raises(TransformationError) as err:
         acc_trans.validate(sub.children[1], options={"allow_string": True})
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
-            " region but found 'assumed_size_char(:LEN(explicit_size_char)) = "
+            " region but found 'assumed_size_char(:LEN(string="
+            "explicit_size_char)) = "
             in str(err.value))
     with pytest.raises(TransformationError) as err:
         acc_trans.validate(sub.children[2], options={"allow_string": True})
-    assert ("Cannot include 'ACHAR(9)' in an OpenACC region because "
+    assert ("Cannot include 'ACHAR(i=9)' in an OpenACC region because "
             "it is not available on GPU" in str(err.value))
     # Check that the character assignment is excluded by default.
     with pytest.raises(TransformationError) as err:
