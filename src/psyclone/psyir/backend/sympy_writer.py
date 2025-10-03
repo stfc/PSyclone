@@ -54,8 +54,7 @@ from psyclone.psyir.nodes import (
     DataNode, IntrinsicCall, Literal, Node,
     Range, Reference, StructureReference)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, RoutineSymbol, ScalarType, Symbol,
-    SymbolError, SymbolTable, UnresolvedType)
+    ArrayType, RoutineSymbol, ScalarType, SymbolError, SymbolTable)
 
 
 class SymPyWriter(FortranWriter):
