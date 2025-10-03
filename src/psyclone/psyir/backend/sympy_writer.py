@@ -45,7 +45,7 @@ import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.core import (Signature, AccessSequence,
-                           VariablesAccessMap)
+                           VariablesAccessMap, AccessType)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
@@ -54,8 +54,7 @@ from psyclone.psyir.nodes import (
     DataNode, IntrinsicCall, Literal, Node,
     Range, Reference, StructureReference)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, RoutineSymbol, ScalarType, Symbol,
-    SymbolError, SymbolTable, UnresolvedType)
+    ArrayType, RoutineSymbol, ScalarType, SymbolError, SymbolTable)
 
 
 class SymPyWriter(FortranWriter):
@@ -304,35 +303,6 @@ class SymPyWriter(FortranWriter):
             max_dims.append(max(dims[i] for dims in num_dims_for_access))
         return max_dims
 
-    @staticmethod
-    def _specialise_array_symbol(sym: Symbol, sva: AccessSequence):
-        '''
-        If we can be confident that the supplied Symbol should be of ArrayType
-        due to the way it is accessed then we specialise it in place.
-
-        :param sym: the Symbol to specialise.
-        :param sva: information on the ways in which the Symbol is accessed.
-
-        '''
-        if all(acs.has_indices() for acs in sva):
-            return
-        if not sym or isinstance(sym, (DataSymbol, RoutineSymbol)):
-            return
-        # Find an access that has indices.
-        for acs in sva:
-            if not acs.has_indices():
-                continue
-            ndims = None
-            for indices in acs.component_indices:
-                if indices:
-                    ndims = len(indices)
-            if ndims is not None:
-                sym.specialise(
-                    DataSymbol,
-                    datatype=ArrayType(UnresolvedType(),
-                                       [ArrayType.Extent.DEFERRED]*ndims))
-            return
-
     # -------------------------------------------------------------------------
     def _create_type_map(self, list_of_expressions: Iterable[Node],
                          identical_variables: Optional[dict[str, str]] = None,
@@ -425,7 +395,13 @@ class SymPyWriter(FortranWriter):
                 if isinstance(sva[0].node, Reference):
                     orig_sym = sva[0].node.symbol
 
-            is_fn_call = isinstance(orig_sym, RoutineSymbol)
+            is_fn_call = (
+                isinstance(orig_sym, RoutineSymbol) or
+                # Calls to generic symbols give an UNKNOWN type as they can
+                # actually be miscategorised array READS, but here we will
+                # consider all them as functions.
+                any(x.access_type in [AccessType.CALL, AccessType.UNKNOWN]
+                    for x in sva))
 
             if (sva.has_indices() or
                     (orig_sym and (orig_sym.is_array or is_fn_call))):
@@ -444,9 +420,6 @@ class SymPyWriter(FortranWriter):
                     self._sympy_type_map[unique_sym.name] = \
                         self._create_sympy_array_function(sig.var_name,
                                                           is_call=is_fn_call)
-                    # To avoid confusion in sympy_reader, we specialise any
-                    # Symbol that we are now confident is an array.
-                    self._specialise_array_symbol(orig_sym, sva)
             else:
                 # A scalar access.
                 if sig.is_structure:
