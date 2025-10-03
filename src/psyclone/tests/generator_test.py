@@ -2020,3 +2020,16 @@ def test_generate_unresolved_container_gocean(tmpdir):
     assert ("alg.f90' must be named in a use statement (found "
             "['kind_params_mod', 'grid_mod', 'field_mod', 'module_mod'])."
             in str(info.value))
+
+
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_ignore_pattern():
+    '''Checks that we can pass ignore patterns to the module manager.
+    '''
+    alg = os.path.join(get_base_path("lfric"), "1_single_invoke.f90")
+    main(["-api", "lfric", alg,
+          "--modman-file-ignore", "abc1",
+          "--modman-file-ignore", "abc2"])
+
+    mod_man = ModuleManager.get()
+    assert mod_man._ignore_files == set(["abc1", "abc2"])
