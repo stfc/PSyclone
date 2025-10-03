@@ -195,32 +195,27 @@ class InlineTrans(Transformation):
 
         # Ensure we don't modify the original Routine by working with a
         # copy of it.
-        routine: Routine = orig_routine.copy()
+        routine = orig_routine.copy()
         routine_table = routine.symbol_table
 
-        if not use_first_callee_and_no_arg_check:
-            # Next, we remove all optional arguments which are not used.
+        # Next, we remove all optional arguments which are not used.
 
-            # Step 1)
-            # - Build lookup dictionary for all optional arguments:
-            # - For all `PRESENT(...)`:
-            #   - Lookup variable in dictionary
-            #   - Replace with `True` or `False`, depending on whether
-            #     it's provided or not.
-            self._optional_arg_resolve_present_intrinsics(
-                routine, arg_match_list
-            )
+        # Step 1)
+        # - Build lookup dictionary for all optional arguments:
+        # - For all `PRESENT(...)`:
+        #   - Lookup variable in dictionary
+        #   - Replace with `True` or `False`, depending on whether
+        #     it's provided or not.
+        self._optional_arg_resolve_present_intrinsics(
+            routine, arg_match_list
+        )
 
-            # Step 2)
-            # - For all If-Statements, handle constant conditions:
-            #   - `True`: Replace If-Block with If-Body
-            #   - `False`: Replace If-Block with Else-Body. If it doesn't exist
-            #     just delete the if statement.
-            self._optional_arg_eliminate_ifblock_if_const_condition(routine)
-
-        else:
-            arg_match_list = list(
-                i for i in range(len(routine_table.argument_list)))
+        # Step 2)
+        # - For all If-Statements, handle constant conditions:
+        #   - `True`: Replace If-Block with If-Body
+        #   - `False`: Replace If-Block with Else-Body. If it doesn't exist
+        #     just delete the if statement.
+        self._optional_arg_eliminate_ifblock_if_const_condition(routine)
 
         # Construct lists of the nodes that will be inserted and all of the
         # References that they contain.

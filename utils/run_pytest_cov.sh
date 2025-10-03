@@ -26,8 +26,8 @@ COV_REPORT="xml:cov.xml"
 OPTS=" --cov-report term"
 
 if [[ -e cov.xml ]]; then
-	echo "Removing previous reporting file 'cov.xml'"
-	rm -rf cov.xml
+	echo "Backing up previous reporting file 'cov.xml' to 'cov.xml.backup'"
+	mv -f cov.xml{,.backup}
 fi
 
 echo "Running 'pytest --cov $PSYCLONE_MODULE --cov-report $COV_REPORT -n $(nproc) $SRC_DIR'"

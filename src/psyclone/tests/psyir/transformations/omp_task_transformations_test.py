@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import Call, CodeBlock, Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import OMPParallelTrans, \
     OMPSingleTrans
-from psyclone.psyir.transformations import OMPTaskTrans
+from psyclone.psyir.transformations import InlineTrans, OMPTaskTrans
 from psyclone.tests.utilities import get_invoke
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -187,7 +187,7 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     assert len(my_test.walk(Call, Kern)) == 0
 
 
-def test_omptask_inline_kernels():
+def test_omptask_inline_kernels(monkeypatch):
     '''Test the _inline_kernels functionality up to inlining of Call nodes.'''
     _, invoke = get_invoke("single_invoke.f90", "gocean",
                            dist_mem=False, idx=0)
@@ -204,6 +204,20 @@ def test_omptask_inline_kernels():
         " argument 'cu_fld%data' (UnresolvedType) and routine argument 'cu' "
         "(Array" in str(err.value)
     )
+    # If we monkeypatch the validate(), get_callee() and
+    # _check_argument_type_matches methods then it should succeed.
+    monkeypatch.setattr(InlineTrans, "validate",
+                        lambda _1, _2, routine,
+                        use_first_callee_and_no_arg_check,
+                        permit_codeblocks, permit_unsupported_type_args: None)
+    call = schedule.children[0].loop_body[0].loop_body[0]
+    callee = call.get_callees()[0]
+    monkeypatch.setattr(call, "get_callee",
+                        lambda use_first_callee_and_no_arg_check: (callee, []))
+    monkeypatch.setattr(call, "_check_argument_type_matches",
+                        lambda call_arg, routine_arg: None)
+    taskt._inline_kernels(schedule.children[0])
+    assert not schedule.walk(Kern)
 
 
 # This test relies on inline functionality not yet supported
