@@ -304,35 +304,6 @@ class SymPyWriter(FortranWriter):
             max_dims.append(max(dims[i] for dims in num_dims_for_access))
         return max_dims
 
-    @staticmethod
-    def _specialise_array_symbol(sym: Symbol, sva: AccessSequence):
-        '''
-        If we can be confident that the supplied Symbol should be of ArrayType
-        due to the way it is accessed then we specialise it in place.
-
-        :param sym: the Symbol to specialise.
-        :param sva: information on the ways in which the Symbol is accessed.
-
-        '''
-        if all(acs.has_indices() for acs in sva):
-            return
-        if not sym or isinstance(sym, (DataSymbol, RoutineSymbol)):
-            return
-        # Find an access that has indices.
-        for acs in sva:
-            if not acs.has_indices():
-                continue
-            ndims = None
-            for indices in acs.component_indices:
-                if indices:
-                    ndims = len(indices)
-            if ndims is not None:
-                sym.specialise(
-                    DataSymbol,
-                    datatype=ArrayType(UnresolvedType(),
-                                       [ArrayType.Extent.DEFERRED]*ndims))
-            return
-
     # -------------------------------------------------------------------------
     def _create_type_map(self, list_of_expressions: Iterable[Node],
                          identical_variables: Optional[dict[str, str]] = None,
@@ -450,9 +421,6 @@ class SymPyWriter(FortranWriter):
                     self._sympy_type_map[unique_sym.name] = \
                         self._create_sympy_array_function(sig.var_name,
                                                           is_call=is_fn_call)
-                    # To avoid confusion in sympy_reader, we specialise any
-                    # Symbol that we are now confident is an array.
-                    self._specialise_array_symbol(orig_sym, sva)
             else:
                 # A scalar access.
                 if sig.is_structure:
