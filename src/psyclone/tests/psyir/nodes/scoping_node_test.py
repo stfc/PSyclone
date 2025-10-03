@@ -294,7 +294,7 @@ def test_scoping_node_reference_accesses():
     vam = sched.reference_accesses()
     assert not vam.all_signatures
     # Add another Symbol that references the first one in its precision.
-    new_type = ScalarType(ScalarType.Intrinsic.REAL, prsym)
+    new_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(prsym))
     _ = table.new_symbol("var1", symbol_type=DataSymbol, datatype=new_type)
     vam = sched.reference_accesses()
     assert vam.all_signatures == [Signature("r_def")]
@@ -302,7 +302,7 @@ def test_scoping_node_reference_accesses():
     # Add a Symbol with initialisation.
     idef = table.new_symbol("i_def", symbol_type=DataSymbol,
                             datatype=INTEGER_TYPE)
-    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
     _ = table.new_symbol("var2", symbol_type=DataSymbol,
                          datatype=INTEGER_TYPE,
                          is_constant=True,
@@ -324,8 +324,8 @@ def test_reference_accesses_struct():
                             datatype=INTEGER_TYPE)
     rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
                             datatype=INTEGER_TYPE)
-    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
-    real_type = ScalarType(ScalarType.Intrinsic.INTEGER, rdef)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
+    real_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(rdef))
     stype = StructureType.create([
         ("iflag", int_type, Symbol.Visibility.PRIVATE, None),
         ("rmask", real_type, Symbol.Visibility.PUBLIC,
@@ -349,8 +349,8 @@ def test_reference_accesses_array():
                             datatype=INTEGER_TYPE)
     rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
                             datatype=INTEGER_TYPE)
-    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
-    real_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
+    real_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef))
     var2 = table.new_symbol("var2", symbol_type=DataSymbol,
                             datatype=INTEGER_TYPE, is_constant=True,
                             initial_value=Literal("100", int_type))
@@ -375,7 +375,7 @@ def test_reference_accesses_unknown_type():
                             datatype=INTEGER_TYPE)
     big_sym = table.new_symbol("big", symbol_type=DataSymbol,
                                datatype=INTEGER_TYPE)
-    real_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
+    real_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef))
     ptype = ArrayType(real_type, [Reference(big_sym)])
     utype = UnsupportedFortranType(
         "real(r_def), dimension(big), target :: array",

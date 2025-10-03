@@ -193,10 +193,7 @@ class InlineTrans(Transformation):
 
         # Ensure we don't modify the original Routine by working with a
         # copy of it.
-        container: Container = routine.ancestor(Container).copy()
-        routine: Routine = container.find_routine_psyir(
-            routine.name, allow_private=True
-        )
+        routine: Routine = orig_routine.copy()
         routine_table = routine.symbol_table
 
         if not use_first_callee_and_no_arg_check:
@@ -227,8 +224,8 @@ class InlineTrans(Transformation):
         # References that they contain.
         new_stmts = []
         refs = []
-        for child in routine.children:
-            new_stmts.append(child.copy())
+        for child in routine.pop_all_children():
+            new_stmts.append(child)
             refs.extend(new_stmts[-1].walk(Reference))
 
         # Shallow copy the symbols from the routine into the table at the

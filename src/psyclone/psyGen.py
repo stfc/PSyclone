@@ -287,9 +287,8 @@ class PSy():
 
         # Use the PSyIR Fortran backend to generate Fortran code of the
         # supplied PSyIR tree.
-        config = Config.get()
         fortran_writer = FortranWriter(
-            check_global_constraints=config.backend_checks_enabled,
+            check_global_constraints=Config.get().backend_checks_enabled,
             disable_copy=True)  # We already made the copy manually above
         result = fortran_writer(new_container)
 
@@ -1098,12 +1097,12 @@ class Kern(Statement):
         var_data_type = var_arg.intrinsic_type
         if var_data_type == "real":
             data_type = ScalarType(ScalarType.Intrinsic.REAL,
-                                   DataSymbol(var_arg.precision,
-                                              UnresolvedType()))
+                                   Reference(DataSymbol(var_arg.precision,
+                                                        UnresolvedType())))
         elif var_data_type == "integer":
             data_type = ScalarType(ScalarType.Intrinsic.INTEGER,
-                                   DataSymbol(var_arg.precision,
-                                              UnresolvedType()))
+                                   Reference(DataSymbol(var_arg.precision,
+                                                        UnresolvedType())))
         else:
             raise GenerationError(
                 f"Kern.zero_reduction_variable() should be either a 'real' or "
