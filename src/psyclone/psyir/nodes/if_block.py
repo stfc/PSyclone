@@ -38,6 +38,8 @@
 
 ''' This module contains the IfBlock node implementation.'''
 
+from __future__ import annotations
+
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
@@ -99,8 +101,6 @@ class IfBlock(Statement):
 
         :raises InternalError: If the IfBlock node does not have the correct
             number of children.
-        :raises InternalError: If the conditional expression is known to be of
-            the wrong type.
 
         '''
         if len(self.children) < 2:
@@ -108,14 +108,7 @@ class IfBlock(Statement):
                 f"IfBlock malformed or incomplete. It should have at least 2 "
                 f"children, but found {len(self.children)}.")
 
-        cond = self._children[0]
-        if isinstance(cond, Literal) and (cond.datatype.intrinsic
-                                          is not ScalarType.Intrinsic.BOOLEAN):
-            raise InternalError(
-                f"IfBlock malformed - the conditional expression must be a "
-                f"boolean but found '{cond.datatype}'")
-
-        return cond
+        return self._children[0]
 
     @property
     def if_body(self):
@@ -147,24 +140,23 @@ class IfBlock(Statement):
         return None
 
     @staticmethod
-    def create(if_condition, if_body, else_body=None):
+    def create(if_condition, if_body, else_body=None) -> IfBlock:
         '''Create an IfBlock instance given valid instances of an
         if_condition, an if_body and an optional else_body.
 
-        :param if_condition: the PSyIR node containing the if \
+        :param if_condition: the PSyIR node containing the if
             condition of the if block.
         :type if_condition: :py:class:`psyclone.psyir.nodes.Node`
-        :param if_body: the PSyIR nodes representing the if body of \
+        :param if_body: the PSyIR nodes representing the if body of
             the if block.
         :type if_body: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param else_body: PSyIR nodes representing the else body of the \
+        :param else_body: PSyIR nodes representing the else body of the
             if block or None if there is no else body (defaults to None).
         :type else_body: Optional[List[:py:class:`psyclone.psyir.nodes.Node`]]
 
         :returns: an IfBlock instance.
-        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
 
-        :raises GenerationError: if the arguments to the create method \
+        :raises GenerationError: if the arguments to the create method
             are not of the expected type.
 
         '''
@@ -176,6 +168,13 @@ class IfBlock(Statement):
             raise GenerationError(
                 f"else_body argument in create method of IfBlock class should "
                 f"be a list but found '{type(else_body).__name__}'.")
+        if (isinstance(if_condition, Literal) and
+            (if_condition.datatype.intrinsic is
+             not ScalarType.Intrinsic.BOOLEAN)):
+            raise GenerationError(
+                f"IfBlock.create - if the conditional expression is a Literal "
+                f"then it must be a boolean but found "
+                f"'{if_condition.datatype}'")
 
         if_stmt = IfBlock()
         if_schedule = Schedule(parent=if_stmt, children=if_body)

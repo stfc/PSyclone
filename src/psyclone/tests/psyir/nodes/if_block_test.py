@@ -109,14 +109,6 @@ def test_ifblock_properties():
     assert ("IfBlock malformed or incomplete. It should have "
             "at least 2 children, but found 0." in str(err.value))
 
-    # Condition must be a boolean if it is a Literal.
-    ifblock.addchild(Literal("0.0", REAL_SINGLE_TYPE))
-    ifblock.addchild(Schedule())
-    with pytest.raises(InternalError) as err:
-        _ = ifblock.condition
-    assert ("IfBlock malformed - the conditional expression must be a "
-            "boolean but found 'Scalar<REAL" in str(err.value))
-
     ifblock = IfBlock()
     ref1 = Reference(DataSymbol('condition1', BOOLEAN_TYPE),
                      parent=ifblock)
@@ -218,6 +210,12 @@ def test_ifblock_create_invalid():
         _ = IfBlock.create("True", if_body)
     assert ("Item 'str' can't be child 0 of 'If'. The valid format is: "
             "'DataNode, Schedule [, Schedule]'.") in str(excinfo.value)
+
+    # Condition must be a boolean if it is a Literal.
+    with pytest.raises(GenerationError) as err:
+        _ = IfBlock.create(Literal("0.0", REAL_SINGLE_TYPE), if_body)
+    assert ("IfBlock.create - if the conditional expression is a Literal then "
+            "it must be a boolean but found 'Scalar<REAL" in str(err.value))
 
     # One or more if body not a Node.
     if_body_err = [Assignment.create(
