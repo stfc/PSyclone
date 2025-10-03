@@ -834,7 +834,7 @@ class Call(Statement, DataNode):
         including argument checks.
 
         .. warning::
-            If `use_first_callee_and_no_arg_check is set to True, the very
+            If `use_first_callee_and_no_arg_check` is set to True, the very
             first implementation of a Routine with a matching name will be
             returned. In this case, the arguments of the Call and the Routine
             might not match.
