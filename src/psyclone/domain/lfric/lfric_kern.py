@@ -932,6 +932,8 @@ class LFRicKern(CodedKern):
         # 2: precision. An LFRic kernel is only permitted to have a precision
         #    specified by a recognised type parameter or a no. of bytes.
         actual_precision = kern_code_arg.datatype.precision
+        if isinstance(actual_precision, Reference):
+            actual_precision = actual_precision.symbol
         api_config = Config.get().api_conf("lfric")
         if isinstance(actual_precision, DataSymbol):
             # Convert precision into number of bytes to support

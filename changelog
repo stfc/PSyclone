@@ -1,4 +1,13 @@
-   97) PR #3160 for #3159 and #3140. Fix declarations with self-references.a
+   100) PR #3166 for #3120. Add GitHub release workflow and prepare for
+   release 3.2.
+
+   99) PR #3161 for #3155. Optimise InlineTrans to only to a copy of the
+   target routine instead of the whole Container.
+
+   98) PR #3110 for #3087. Add support for declaration kind expressions by
+   representing them with a PSyIR tree.
+
+   97) PR #3160 for #3159 and #3140. Fix declarations with self-references.
 
    96) PR #3153 for #3151. Fix some case-related naming comparison issues.
 
