@@ -261,7 +261,7 @@ PSyclone also provides the ``--free-form`` and ``-fixed-form`` to override the
 default behaviour, and will use the specified option over the file extension.
 
 If the file extension is not one of the ones listed above, and neither of the
-``free-form`` or ``--fixed-form`` flags is used then PSyclone defaults to
+``--free-form`` or ``--fixed-form`` flags is used then PSyclone defaults to
 assuming the input source is free form Fortran.
 
 
