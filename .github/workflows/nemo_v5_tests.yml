@@ -478,7 +478,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=/archive/mmi43-nxn02/NEMOv5
+        export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_ACC_KERNELS_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
