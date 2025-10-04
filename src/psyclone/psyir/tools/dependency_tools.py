@@ -40,7 +40,9 @@
     dependency analysis.'''
 
 from enum import IntEnum
+from typing import Any, Iterable
 
+import itertools
 import sympy
 
 from psyclone.configuration import Config
@@ -53,6 +55,14 @@ from psyclone.psyir.nodes import Loop, Node, Range
 
 
 # pylint: disable=too-many-lines
+
+def flatten(iterable: Iterable) -> list[Any]:
+    '''
+    :param iterable: a nested list or tuple.
+    :returns: a flattened list version of the given iterable.
+    '''
+    return list(itertools.chain.from_iterable(iterable))
+
 
 class DTCode(IntEnum):
     '''A simple enum to store the various info, warning and error
@@ -267,11 +277,35 @@ class DependencyTools():
         :rtype: List[Tuple[Set[str], List[int]]]
 
         '''
+        def get_subscripts_of(
+                component_indices, set_of_vars: set[str]
+        ) -> list[set[str]]:
+            '''This function returns a flat list of which variable from the
+            given set of variables is used in each subscript. For example, the
+            access `a(i+i2)%b(j*j+k,k)%c(l,5)` would have the component_indices
+            `[[i+i2], [j*j+k,k], [l,5]]`. If the set of variables is
+            `(i,j,k)`, then `get_subscripts_of` would return
+            `[{i},{j,k},{k},{l},{}]`.
+
+            :param set_of_vars: set with name of all variables.
+
+            :return: a list of sets with all variables used in the
+                corresponding array subscripts as strings.
+
+            '''
+            indices = []
+            for component in component_indices:
+                for idx in component:
+                    index_vars = idx.reference_accesses()
+                    unique_vars = set(str(sig) for sig in index_vars.keys())
+                    unique_vars = unique_vars.intersection(set_of_vars)
+                    indices.append(unique_vars)
+            return indices
         # Get the (string) name of all variables used in each subscript
         # of the two accesses. E.g. `a(i,j+k)` --> [ {"i"}, {"j","k"}]
         set_of_loop_vars = set(loop_variables)
-        indices_1 = comp_ind1.get_subscripts_of(set_of_loop_vars)
-        indices_2 = comp_ind2.get_subscripts_of(set_of_loop_vars)
+        indices_1 = get_subscripts_of(comp_ind1, set_of_loop_vars)
+        indices_2 = get_subscripts_of(comp_ind2, set_of_loop_vars)
         # This list stores the partition information, which
         # is a pair consisting of:
         # - a set of all loop variables used in the subscript of
@@ -281,15 +315,14 @@ class DependencyTools():
         # Example: `a(i,j)` and `a(i,k)` -->
         #          [ ({"i"}, [(0,0)]), ({"j","k"}, [(0,1)])]
         partition_infos = []
-        for i, indx in enumerate(comp_ind1.iterate()):
+        for i, _ in enumerate(flatten(comp_ind1)):
             # This can happen if there is a mixture of accesses to an array
             # with and without indices, e.g.: a(i) = a*a
             # In this case we don't add this to the partition, which will
             # result in an empty partition (which in turns will disable
             # parallelisation).
             if i < len(indices_2):
-                partition_infos.append((indices_1[i].union(indices_2[i]),
-                                        [indx]))
+                partition_infos.append((indices_1[i].union(indices_2[i]), [i]))
 
         # Check each loop variable to find subscripts in which they are used:
         for loop_var in loop_variables:
@@ -539,13 +572,17 @@ class DependencyTools():
         :type: bool
 
         '''
+        # Flatten the component indices to match the partition indices
+        flatten_write = flatten(write_access.component_indices())
+        flatten_other = flatten(other_access.component_indices())
+
         # If we find one subscript that is independent, the loop can be
         # parallelised. E.g. `a(i, index(i)) = a(i, 5)`. The fact that
         # the first subscript is i, means that each different iteration
         # will access a different column, even if index(i) is 5.
         for ind in subscripts:
-            index_written = write_access.component_indices[ind]
-            index_other = other_access.component_indices[ind]
+            index_written = flatten_write[ind]
+            index_other = flatten_other[ind]
             distance = DependencyTools._get_dependency_distance(var_name,
                                                                 index_written,
                                                                 index_other)
@@ -588,11 +625,15 @@ class DependencyTools():
         # 1) subscript 0: only variable i is used.
         # 2) subscript 1+2: uses the variables j and k
         # 3) subscript 3: only uses l
-        partitions = self._partition(write_access.component_indices,
-                                     other_access.component_indices,
+        partitions = self._partition(write_access.component_indices(),
+                                     other_access.component_indices(),
                                      loop_variables)
         # Get the name of the loop variable that is to be parallelised:
         loop_var = loop_variables[0]
+
+        # Flatten the component indices to match the partition indices
+        flatten_write = flatten(write_access.component_indices())
+        flatten_other = flatten(other_access.component_indices())
 
         # Analyse each subscript partition individually. If we find even
         # one partition that guarantees that the accesses cannot interfere
@@ -605,8 +646,8 @@ class DependencyTools():
                 # There is only one subscript involved in this test.
                 # Get its index of its component_index:
                 subscript = subscripts[0]
-                index_write = write_access.component_indices[subscript]
-                index_other = other_access.component_indices[subscript]
+                index_write = flatten_write[subscript]
+                index_other = flatten_other[subscript]
                 if len(set_of_vars) == 0:
                     # No loop variable used, constant access (which might
                     # still be using unknown non-loop variables).
@@ -715,39 +756,8 @@ class DependencyTools():
                             DTCode.ERROR_WRITE_WRITE_RACE,
                             [var_info.var_name])
                     else:
-                        # Circular dependency:
-                        # pylint: disable-next=import-outside-toplevel
-                        from psyclone.gocean1p0 import GOKern
-
-                        # If the node is a GOKern, the node.debug_string()
-                        # only contains '< kern call: NAME >', so no
-                        # information about the variable and its indices is
-                        # available. For GOKerns, 'reference_accesses' adds
-                        # artificial accesses to the component indices
-                        # depending on the declared stencil. Use these indices
-                        # and the signature to add additional info to the
-                        # error message that indicates which access exactly is
-                        # causing the problem:
-
-                        if isinstance(write_access.node, GOKern):
-                            comp_ind = write_access.component_indices
-                            write_str = var_info.signature.to_language(
-                                component_indices=comp_ind)
-                            write_info = (f"The write access to '{write_str}'"
-                                          " in")
-                        else:
-                            write_info = "The write access to"
-
                         # Get 'read' or 'write' etc
                         access_type = str(other_access.access_type).lower()
-                        if isinstance(other_access.node, GOKern):
-                            comp_ind = other_access.component_indices
-                            write_str = var_info.signature.to_language(
-                                component_indices=comp_ind)
-                            other_info = (f"{access_type} access to "
-                                          f"'{write_str}' in")
-                        else:
-                            other_info = f"{access_type} access to"
 
                         # We need to use default parameters for wnode and
                         # onode, since otherwise the value of a variable might
@@ -759,9 +769,9 @@ class DependencyTools():
                         self._add_message(LazyString(
                             lambda wnode=write_access.node,
                             onode=other_access.node:
-                                (f"{write_info} "
+                                (f"The write access to "
                                  f"'{wnode.debug_string().strip()}' and the "
-                                 f"{other_info} "
+                                 f"{access_type} access to "
                                  f"'{onode.debug_string().strip()}' "
                                  f"are dependent and cannot be "
                                  f"parallelised.")),
@@ -1051,12 +1061,12 @@ class DependencyTools():
         # Compare all accesses with the first one. If the loop variable
         # is used in a different subscript, raise an error. We test this
         # by computing the partition of the indices:
-        comp_1 = all_accesses[0].component_indices
+        comp_1 = all_accesses[0].component_indices()
         # Note that we compare an access with itself, this will
         # help us detecting if an array is accessed without using
         # the loop variable (which would indicate a kind of reduction):
         for other_access in all_accesses:
-            comp_other = other_access.component_indices
+            comp_other = other_access.component_indices()
             partitions = self._partition(comp_1, comp_other,
                                          [loop_var_name1])
             for (set_of_vars, index) in partitions:
@@ -1086,8 +1096,13 @@ class DependencyTools():
                                   DTCode.ERROR_DIFFERENT_INDEX_LOCATIONS,
                                   [var_info1.signature[0]])
                 return False
-            first_index = all_accesses[0].component_indices[index[0]]
-            other_index = other_access.component_indices[index[0]]
+
+            # Flatten the component indices to match the partition indices
+            flatten_access = flatten(all_accesses[0].component_indices())
+            flatten_other = flatten(other_access.component_indices())
+
+            first_index = flatten_access[index[0]]
+            other_index = flatten_other[index[0]]
             if not SymbolicMaths.equal(
                     first_index, other_index,
                     identical_variables={loop_var_name1: loop_variable2.name}):

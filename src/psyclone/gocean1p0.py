@@ -69,8 +69,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Literal, Schedule, KernelSchedule, StructureReference, IntrinsicCall,
     Reference, Call, Assignment, ACCEnterDataDirective, ACCParallelDirective,
-    ACCKernelsDirective, Container, ACCUpdateDirective, Routine,
-    BinaryOperation)
+    ACCKernelsDirective, Container, ACCUpdateDirective, Routine)
 from psyclone.psyir.symbols import (
     ImportInterface, INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol,
     ScalarType, UnresolvedType, DataTypeSymbol, UnresolvedInterface,
@@ -411,6 +410,11 @@ class GOLoop(PSyLoop):
         :rtype: bool
 
         '''
+        # By definition a GOLoop with one GOKern is loop-independent
+        if len(self.children) == 4 and len(self.loop_body.children) == 1:
+            if isinstance(self.loop_body.children[0], GOKern):
+                return True
+
         if not dep_tools:
             dtools = DependencyTools()
         else:
@@ -949,36 +953,6 @@ class GOKern(CodedKern):
         # invoked by an application are using compatible index offsets.
         self._index_offset = call.ktype.index_offset
 
-    @staticmethod
-    def _create_psyir_for_access(symbol, var_value, depth):
-        '''This function creates the PSyIR of an index-expression:
-        - if `var_value` is negative, it returns 'symbol-depth'.
-        - if `var_value` is positive, it returns 'symbol+depth`
-        - otherwise it just returns a Reference to `symbol`.
-        This is used to create artificial stencil accesses for GOKernels.
-
-        :param symbol: the symbol to use.
-        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param int var_value: value of the variable, which determines the \
-            direction (adding or subtracting depth).
-        :param int depth: the depth of the access (>0).
-
-        :returns: the index expression for an access in the given direction.
-        :rtype: union[:py:class:`psyclone.psyir.nodes.Reference`,
-                      :py:class:`psyclone.psyir.nodes.BinaryOperation`]
-
-        '''
-        if var_value == 0:
-            return Reference(symbol)
-        if var_value > 0:
-            operator = BinaryOperation.Operator.ADD
-        else:
-            operator = BinaryOperation.Operator.SUB
-
-        return BinaryOperation.create(operator,
-                                      Reference(symbol),
-                                      Literal(str(depth), INTEGER_TYPE))
-
     def _record_stencil_accesses(self, signature, arg, var_accesses):
         '''This function adds accesses to a field depending on the
         meta-data declaration for this argument (i.e. accounting for
@@ -994,25 +968,13 @@ class GOKern(CodedKern):
             :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        # TODO #2530: if we parse the actual kernel code, it might not
-        # be required anymore to add these artificial accesses, instead
-        # the actual kernel accesses could be added.
-        sym_tab = self.ancestor(GOInvokeSchedule).symbol_table
-        symbol_i = sym_tab.lookup_with_tag("contiguous_kidx")
-        symbol_j = sym_tab.lookup_with_tag("noncontiguous_kidx")
         # Query each possible stencil direction and add corresponding
         # variable accesses. Note that if (i,j) itself is accessed, the
         # depth will be 1, so one access to (i,j) is then added.
         for j in [-1, 0, 1]:
             for i in [-1, 0, 1]:
                 depth = arg.stencil.depth(i, j)
-                for current_depth in range(1, depth+1):
-                    # Create PSyIR expressions for the required
-                    # i+/- and j+/- expressions
-                    i_expr = GOKern._create_psyir_for_access(symbol_i, i,
-                                                             current_depth)
-                    j_expr = GOKern._create_psyir_for_access(symbol_j, j,
-                                                             current_depth)
+                for _ in range(1, depth+1):
                     # Even if a GOKern argument is declared to be written, it
                     # can only ever write to (i,j), so any other references
                     # must be read:
@@ -1021,8 +983,7 @@ class GOKern(CodedKern):
                     else:
                         acc = AccessType.READ
 
-                    var_accesses.add_access(signature, acc, self,
-                                            [i_expr, j_expr])
+                    var_accesses.add_access(signature, acc, self)
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''
@@ -1057,15 +1018,7 @@ class GOKern(CodedKern):
                     self._record_stencil_accesses(signature, arg,
                                                   var_accesses)
                 else:
-                    # In case of an array for now add an arbitrary array
-                    # reference to (i,j) so it is properly recognised as
-                    # an array access.
-                    sym_tab = self.ancestor(GOInvokeSchedule).symbol_table
-                    symbol_i = sym_tab.lookup_with_tag("contiguous_kidx")
-                    symbol_j = sym_tab.lookup_with_tag("noncontiguous_kidx")
-                    var_accesses.add_access(signature, arg.access,
-                                            self, [Reference(symbol_i),
-                                                   Reference(symbol_j)])
+                    var_accesses.add_access(signature, arg.access, self)
         var_accesses.update(super().reference_accesses())
         return var_accesses
 

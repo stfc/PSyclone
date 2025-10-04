@@ -588,4 +588,4 @@ def test_cw_directive_with_clause(fortran_reader):
     }
   }
 }
-''' in cwriter(schedule.children[0])
+''' == cwriter(schedule.children[0])

@@ -499,8 +499,7 @@ class LFRicMeshProperties(LFRicCollection):
                     adj_face = adj_face_sym.name
                     if var_accesses:
                         var_accesses.add_access(Signature(adj_face),
-                                                AccessType.READ, self._kernel,
-                                                [":", cell_ref])
+                                                AccessType.READ, self._kernel)
 
                 if not stub:
                     adj_face = self.symtab.find_or_create_tag(
@@ -517,12 +516,8 @@ class LFRicMeshProperties(LFRicCollection):
                 arg_list.append(adj_face)
 
                 if var_accesses and not kern_call_arg_list:
-                    # TODO #1320 Replace [1]
-                    # The [1] just indicates that this variable is accessed
-                    # as a rank 1 array. #1320 will improve this.
                     var_accesses.add_access(Signature(adj_face),
-                                            AccessType.READ, self._kernel,
-                                            [1])
+                                            AccessType.READ, self._kernel)
             else:
                 raise InternalError(
                     f"kern_args: found unsupported mesh property '{prop}' "
