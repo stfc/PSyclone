@@ -226,9 +226,9 @@ def test_single_node_ompparalleldo_gocean1p0():
     etrans.apply(schedule.children[1])
 
     code = str(psy.gen)
-    output = """
+    expected = """
     CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-    """"invoke_0-compute_cv_code-r0", 9, 5)
+    """"invoke_0-compute_cv_code-r0", 7, 3)
     CALL extract_psy_data % PreDeclareVariable("cv_fld_data", cv_fld_data)
     CALL extract_psy_data % PreDeclareVariable("cv_fld_internal_xstart", """ \
                                              """cv_fld_internal_xstart)
@@ -238,13 +238,9 @@ def test_single_node_ompparalleldo_gocean1p0():
                                              """cv_fld_internal_ystart)
     CALL extract_psy_data % PreDeclareVariable("cv_fld_internal_ystop", """ \
                                              """cv_fld_internal_ystop)
-    CALL extract_psy_data % PreDeclareVariable("i", i)
-    CALL extract_psy_data % PreDeclareVariable("j", j)
     CALL extract_psy_data % PreDeclareVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % PreDeclareVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreDeclareVariable("cv_fld_data_post", cv_fld_data)
-    CALL extract_psy_data % PreDeclareVariable("i_post", i)
-    CALL extract_psy_data % PreDeclareVariable("j_post", j)
     CALL extract_psy_data % PreDeclareVariable("p_fld_data_post", p_fld_data)
     CALL extract_psy_data % PreDeclareVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PreEndDeclaration
@@ -257,8 +253,6 @@ def test_single_node_ompparalleldo_gocean1p0():
                                           """cv_fld_internal_ystart)
     CALL extract_psy_data % ProvideVariable("cv_fld_internal_ystop", """ \
                                           """cv_fld_internal_ystop)
-    CALL extract_psy_data % ProvideVariable("i", i)
-    CALL extract_psy_data % ProvideVariable("j", j)
     CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % ProvideVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreEnd
@@ -271,10 +265,9 @@ def test_single_node_ompparalleldo_gocean1p0():
     !$omp end parallel do
     CALL extract_psy_data % PostStart
     CALL extract_psy_data % ProvideVariable("cv_fld_data_post", cv_fld_data)
-    CALL extract_psy_data % ProvideVariable("i_post", i)
-    CALL extract_psy_data % ProvideVariable("j_post", j)
     """
-    assert output in code
+    for line in expected.splitlines():
+        assert line in code, line
 
     # Currently the following fields are also compared, even if DSL info tells
     # they are only read. If we take advantage of this information, these
@@ -319,24 +312,18 @@ def test_single_node_ompparalleldo_gocean1p0_const_loop():
     code = str(psy.gen)
     output = """
     CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-    """"invoke_0-compute_cv_code-r0", 7, 5)
+    """"invoke_0-compute_cv_code-r0", 5, 3)
     CALL extract_psy_data % PreDeclareVariable("cv_fld_data", cv_fld_data)
-    CALL extract_psy_data % PreDeclareVariable("i", i)
     CALL extract_psy_data % PreDeclareVariable("istop", istop)
-    CALL extract_psy_data % PreDeclareVariable("j", j)
     CALL extract_psy_data % PreDeclareVariable("jstop", jstop)
     CALL extract_psy_data % PreDeclareVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % PreDeclareVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreDeclareVariable("cv_fld_data_post", cv_fld_data)
-    CALL extract_psy_data % PreDeclareVariable("i_post", i)
-    CALL extract_psy_data % PreDeclareVariable("j_post", j)
     CALL extract_psy_data % PreDeclareVariable("p_fld_data_post", p_fld_data)
     CALL extract_psy_data % PreDeclareVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("cv_fld_data", cv_fld_data)
-    CALL extract_psy_data % ProvideVariable("i", i)
     CALL extract_psy_data % ProvideVariable("istop", istop)
-    CALL extract_psy_data % ProvideVariable("j", j)
     CALL extract_psy_data % ProvideVariable("jstop", jstop)
     CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % ProvideVariable("v_fld_data", v_fld_data)
@@ -350,10 +337,9 @@ def test_single_node_ompparalleldo_gocean1p0_const_loop():
     !$omp end parallel do
     CALL extract_psy_data % PostStart
     CALL extract_psy_data % ProvideVariable("cv_fld_data_post", cv_fld_data)
-    CALL extract_psy_data % ProvideVariable("i_post", i)
-    CALL extract_psy_data % ProvideVariable("j_post", j)
     """
-    assert output in code
+    for line in output.splitlines():
+        assert line in code, line
 
     # Currently the following fields are also compared, even if DSL info tells
     # they are only read. If we take advantage of this information, these
@@ -401,29 +387,23 @@ def test_node_list_ompparallel_gocean1p0():
     code = str(psy.gen)
     output = """
     CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-    """"invoke_0-r0", 9, 7)
+    """"invoke_0-r0", 7, 5)
     CALL extract_psy_data % PreDeclareVariable("cu_fld_data", cu_fld_data)
     CALL extract_psy_data % PreDeclareVariable("cv_fld_data", cv_fld_data)
-    CALL extract_psy_data % PreDeclareVariable("i", i)
     CALL extract_psy_data % PreDeclareVariable("istop", istop)
-    CALL extract_psy_data % PreDeclareVariable("j", j)
     CALL extract_psy_data % PreDeclareVariable("jstop", jstop)
     CALL extract_psy_data % PreDeclareVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % PreDeclareVariable("u_fld_data", u_fld_data)
     CALL extract_psy_data % PreDeclareVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreDeclareVariable("cu_fld_data_post", cu_fld_data)
     CALL extract_psy_data % PreDeclareVariable("cv_fld_data_post", cv_fld_data)
-    CALL extract_psy_data % PreDeclareVariable("i_post", i)
-    CALL extract_psy_data % PreDeclareVariable("j_post", j)
     CALL extract_psy_data % PreDeclareVariable("p_fld_data_post", p_fld_data)
     CALL extract_psy_data % PreDeclareVariable("u_fld_data_post", u_fld_data)
     CALL extract_psy_data % PreDeclareVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("cu_fld_data", cu_fld_data)
     CALL extract_psy_data % ProvideVariable("cv_fld_data", cv_fld_data)
-    CALL extract_psy_data % ProvideVariable("i", i)
     CALL extract_psy_data % ProvideVariable("istop", istop)
-    CALL extract_psy_data % ProvideVariable("j", j)
     CALL extract_psy_data % ProvideVariable("jstop", jstop)
     CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
     CALL extract_psy_data % ProvideVariable("u_fld_data", u_fld_data)
@@ -448,10 +428,9 @@ def test_node_list_ompparallel_gocean1p0():
     CALL extract_psy_data % PostStart
     CALL extract_psy_data % ProvideVariable("cu_fld_data_post", cu_fld_data)
     CALL extract_psy_data % ProvideVariable("cv_fld_data_post", cv_fld_data)
-    CALL extract_psy_data % ProvideVariable("i_post", i)
-    CALL extract_psy_data % ProvideVariable("j_post", j)
     """
-    assert output in code
+    for line in output.splitlines():
+        assert line in code, line
 
     # Currently the following fields are also compared, even if DSL info tells
     # they are only read. If we take advantage of this information, these
@@ -504,9 +483,8 @@ def test_driver_generation_flag(create_driver):
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
 def test_driver_loop_variables():
-    '''Test that loop variables are not stored. ATM this test
-    fails because of #641.
-
+    '''Test that loop variables are not stored, and also not
+    read in the driver.
     '''
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("driver_test.f90",
@@ -515,7 +493,19 @@ def test_driver_loop_variables():
 
     etrans.apply(schedule.children[0], {'create_driver': True})
     # We are only interested in the driver, so ignore results.
-    str(psy.gen)
+    code = str(psy.gen)
+    unexpected_code = [
+        'PreDeclareVariable("i", i)',
+        'PreDeclareVariable("j", j)',
+        'PreDeclareVariable("i_post", i)',
+        'PreDeclareVariable("j_post", j)',
+        'ProvideVariable("i", i)',
+        'ProvideVariable("j", j)',
+        'ProvideVariable("i_post", i)',
+        'ProvideVariable("j_post", j)',
+    ]
+    for line in unexpected_code:
+        assert line not in code, line
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
@@ -526,15 +516,16 @@ def test_driver_loop_variables():
     with open(driver, "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
+    # Loop variables are not be stored, so should not be read:
     # Since atm types are not handled, scalars are actually considered
     # to be arrays. Once this is fixed, none of those lines should be
     # in the code anymore (j_post should be declared as scalar):
-    unexpected_lines = ['  integer :: j_post', 'j = 0']
+    unexpected_code = ["j_post", "i_post", "ReadVariable('j', j)",
+                       "ReadVariable('i', i)", "compare('i', i, i_post)",
+                       "compare('j', j, j_post)"]
 
-    for line in unexpected_lines:
-        if line in driver_code:
-            pytest.xfail("#641 Loop variables are stored.")
-    assert False, "X-failing test working: #641 Loop variables."
+    for line in unexpected_code:
+        assert line not in driver_code
 
 
 # -----------------------------------------------------------------------------
