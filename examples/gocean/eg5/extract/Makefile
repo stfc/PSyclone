@@ -130,9 +130,9 @@ F90FLAGS += -I$(INF_INC) -I$(EXTRACT_DIR)
 # the processing of the jinja files (which must be inlined into the driver).
 alg.f90 psy.f90: $(EXTRACT_DIR)/$(LIB_NAME) test.x90 extract_transform.py
 	$(PSYCLONE) -nodm -api "gocean" -s ./extract_transform.py \
-	     --modman-file-ignore $(ignore_file)                  \
+		--modman-file-ignore $(ignore_file)                  \
 		-d . -d $(INF_INC) -d $(EXTRACT_DIR)                  \
-	-opsy psy.f90 -oalg alg.f90 test.x90
+		-opsy psy.f90 -oalg alg.f90 test.x90
 
 $(NAME): $(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
 	$(F90) $(F90FLAGS) $(KERNELS) alg.o psy.o -o $(NAME) \
