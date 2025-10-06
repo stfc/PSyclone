@@ -197,7 +197,7 @@ class ExtractNode(PSyDataNode):
         ctu.get_non_local_read_write_info(copy_dsl_tree.children,
                                           read_write_info)
 
-        # TODO #3024: We could be more data efficint by better selecting
+        # TODO #3024: We could be more data efficient by better selecting
         # which don't need to be copied in (because the extraction region
         # will only write to them)
         options = {'pre_var_list': read_write_info.all_used_vars_list,

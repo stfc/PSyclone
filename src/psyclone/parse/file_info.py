@@ -38,10 +38,11 @@
 
 '''
 
-import hashlib
 import copy
+import hashlib
 import os
 import pickle
+from typing import Optional
 
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
@@ -97,8 +98,8 @@ class FileInfo:
     """
     def __init__(self,
                  filepath: str,
-                 cache_active: bool = False,
-                 cache_path: str = None
+                 cache_active: Optional[bool] = False,
+                 cache_path: Optional[str] = None
                  ):
 
         # Full path to file
