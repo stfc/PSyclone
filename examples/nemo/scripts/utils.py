@@ -58,7 +58,7 @@ NEMO_MODULES_TO_IMPORT = [
     "obs_fbm", "flo_oce", "sbc_ice", "wet_dry", "ldfslp", "zdfiwm", "zdfmxl",
     "bdy_oce", "zdf_oce", "zdfdrg", "ldftra", "crs", "sbcapr", "tideini",
     "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
-    "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc"
+    "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc", "abl"
 ]
 
 # Files that PSyclone could process but would reduce the performance.

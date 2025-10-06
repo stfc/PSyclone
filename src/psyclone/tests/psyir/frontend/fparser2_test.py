@@ -1771,6 +1771,55 @@ def test_process_use_stmts_resolving_external_imports(
     assert isinstance(stmt_rhs.children[1], Call)
 
 
+def test_process_resolving_modules_give_correct_types(
+        parser, tmpdir, monkeypatch):
+    ''' Test that if the Fparser2Reader if provided with a list of
+    modules_to_import this are used to resolve external symbol information
+    by the frontend.'''
+
+    # Write a first module into a tmp file
+    other1 = str(tmpdir.join("other.f90"))
+    with open(other1, "w", encoding='utf-8') as my_file:
+        my_file.write('''
+    module other
+        implicit none
+        integer, dimension(10) :: supported_array
+        integer, dimension(10), target :: unsupported_array
+    contains
+        pure elemental function pure_func(i)
+            integer :: pure_func
+            integer, intent(in) :: i
+            pure_func = 3
+        end function
+    end module
+    ''')
+    # Add the path to the include_path and set up a frontend instance
+    # witth the module_to_resolve names
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
+    processor = Fparser2Reader(resolve_modules=["other"])
+    reader = FortranStringReader('''
+    module test
+        use other
+    contains
+        subroutine test_function()
+            integer :: a
+            a = supported_array(3)
+            a = unsupported_array(3)
+            a = pure_func(3)
+        end subroutine
+    end module
+    ''')
+    parse_tree = parser(reader)
+    module = parse_tree.children[0]
+    psyir = processor._module_handler(module, None)
+    assigns = psyir.walk(Assignment)
+    assert isinstance(assigns[0].rhs, ArrayReference)
+    assert isinstance(assigns[1].rhs, ArrayReference)
+    assert isinstance(assigns[2].rhs, Call)
+    assert assigns[2].rhs.is_elemental
+    assert assigns[2].rhs.is_pure
+
+
 def test_intrinsic_use_stmt(parser):
     ''' Tests that intrinsic value is set correctly for an intrinsic module
     use statement.'''
