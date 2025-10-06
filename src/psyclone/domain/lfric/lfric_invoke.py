@@ -41,6 +41,7 @@
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
+from psyclone.domain.common.psylayer.global_reduction import GlobalReduction
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.psyGen import Invoke
@@ -84,16 +85,17 @@ class LFRicInvoke(Invoke):
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.lfric import (LFRicFunctionSpaces, LFRicGlobalSum,
-                                    LFRicLMAOperators,
+        from psyclone.lfric import (LFRicFunctionSpaces, LFRicLMAOperators,
                                     LFRicReferenceElement,
                                     LFRicCMAOperators, LFRicBasisFunctions,
                                     LFRicMeshes, LFRicBoundaryConditions,
                                     LFRicProxies, LFRicMeshProperties)
         from psyclone.domain.lfric import (
             LFRicCellIterators, LFRicHaloDepths, LFRicLoopBounds,
-            LFRicRunTimeChecks,
-            LFRicScalarArgs, LFRicFields, LFRicDofmaps, LFRicStencils)
+            LFRicRunTimeChecks, LFRicScalarArgs, LFRicFields, LFRicDofmaps,
+            LFRicStencils)
+        from psyclone.domain.lfric.lfric_global_reduction import (
+            LFRicGlobalReduction)
 
         self.scalar_args = LFRicScalarArgs(self)
 
@@ -185,7 +187,9 @@ class LFRicInvoke(Invoke):
                         arg_types=const.VALID_SCALAR_NAMES,
                         arg_accesses=AccessType.get_valid_reduction_modes(),
                         unique=True):
-                    global_sum = LFRicGlobalSum(scalar, parent=loop.parent)
+                    global_sum = LFRicGlobalReduction(
+                        GlobalReduction.Reduction.SUM,
+                        scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
         # Add the halo depth(s) for any kernel(s) that operate in the halos

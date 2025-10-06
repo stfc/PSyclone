@@ -52,7 +52,7 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicKernMetadata, LFRicLoop)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.lfric import (
-    LFRicACCEnterDataDirective, LFRicBoundaryConditions, LFRicGlobalSum,
+    LFRicACCEnterDataDirective, LFRicBoundaryConditions
     LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloReadAccess,
     KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
@@ -2939,71 +2939,6 @@ def test_haloexchange_correct_parent():
     schedule = psy.invokes.invoke_list[0].schedule
     for child in schedule.children:
         assert child.parent == schedule
-
-
-def test_lfricglobalsum_unsupported_argument():
-    ''' Check that an instance of the LFRicGlobalSum class raises an
-    exception for an unsupported argument type. '''
-    # Get an instance of a non-scalar argument
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.6.1_single_invoke_1_int_scalar.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[4]
-    kernel = loop.loop_body[0]
-    argument = kernel.arguments.args[0]
-    with pytest.raises(InternalError) as err:
-        _ = LFRicGlobalSum(argument)
-    assert ("LFRicGlobalSum.init(): A global sum argument should be a scalar "
-            "but found argument of type 'gh_field'." in str(err.value))
-
-
-def test_lfricglobalsum_unsupported_scalar():
-    ''' Check that an instance of the LFRicGlobalSum class raises an
-    exception if an unsupported scalar type is provided when distributed
-    memory is enabled (dm=True).
-
-    '''
-    # Get an instance of an integer scalar
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.6.1_single_invoke_1_int_scalar.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[4]
-    kernel = loop.loop_body[0]
-    argument = kernel.arguments.args[1]
-    with pytest.raises(GenerationError) as err:
-        _ = LFRicGlobalSum(argument)
-    assert ("LFRicGlobalSum currently only supports real scalars, but "
-            "argument 'iflag' in Kernel 'testkern_one_int_scalar_code' "
-            "has 'integer' intrinsic type." in str(err.value))
-
-
-def test_lfricglobalsum_nodm_error():
-    ''' Check that an instance of the LFRicGlobalSum class raises an
-    exception if it is instantiated with no distributed memory enabled
-    (dm=False).
-
-    '''
-    # Get an instance of a real scalar
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.9_single_invoke_2_real_scalars.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
-    kernel = loop.loop_body[0]
-    argument = kernel.arguments.args[0]
-    with pytest.raises(GenerationError) as err:
-        _ = LFRicGlobalSum(argument)
-    assert ("It makes no sense to create an LFRicGlobalSum object when "
-            "distributed memory is not enabled (dm=False)."
-            in str(err.value))
 
 
 def test_no_updated_args():

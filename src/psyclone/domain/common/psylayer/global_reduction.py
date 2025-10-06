@@ -70,3 +70,4 @@ class GlobalReduction(Statement):
                  **kwargs):
         if not isinstance(reduction, GlobalReduction.Reduction):
             raise TypeError("huh")
+        super.__init__(kwargs)
