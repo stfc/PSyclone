@@ -303,7 +303,6 @@ def test_kernels_around_where_stmt(fortran_reader, fortran_writer):
     schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     acc_trans.apply([schedule[1]])
-    print(fortran_writer(psyir))
     assert ("  a(:,:) = 1.0\n"
             "  !$acc kernels\n"
             "  do widx2 = 1, SIZE(array=a(:,:), dim=2), 1\n"

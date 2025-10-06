@@ -496,7 +496,6 @@ def test_where_containing_sum_no_dim(fortran_reader, fortran_writer):
     routine = psyir.walk(Routine)[0]
     assert isinstance(routine[0], Loop)
     output = fortran_writer(psyir)
-    print(output)
     assert ("SUM(array=a_i_last_couple) / picefr(LBOUND(array=picefr, dim=1) "
             "+ widx1 - 1,LBOUND(array=picefr, dim=2) + widx2 - 1)" in output)
 
