@@ -52,7 +52,7 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicKernMetadata, LFRicLoop)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.lfric import (
-    LFRicACCEnterDataDirective, LFRicBoundaryConditions
+    LFRicACCEnterDataDirective, LFRicBoundaryConditions,
     LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloReadAccess,
     KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError

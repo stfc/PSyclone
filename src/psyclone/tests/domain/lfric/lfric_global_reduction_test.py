@@ -5,7 +5,6 @@ import pytest
 from psyclone.domain.common.psylayer.global_reduction import GlobalReduction
 from psyclone.domain.lfric.lfric_global_reduction import LFRicGlobalReduction
 from psyclone.errors import GenerationError, InternalError
-from psyclone.parse.algorithm import Arg, parse
 from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = Path(os.path.dirname(os.path.abspath(__file__)))
