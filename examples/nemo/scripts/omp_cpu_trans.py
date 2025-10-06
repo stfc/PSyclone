@@ -62,7 +62,11 @@ NEMOV4 = os.environ.get('NEMOV4', False)
 CPU_REDUCTIONS = os.environ.get('CPU_REDUCTIONS', False)
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = []
+FILES_TO_SKIP = [
+    # TODO #3012: On NEMOv4, this file is given to the compiler without
+    # preprocessing, we skip it to avoid losing the preprocessor directives.
+    'par_kind.F90',
+]
 
 if PROFILING_ENABLED:
     # Fails with profiling enabled. issue #2723
