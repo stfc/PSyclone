@@ -2775,7 +2775,7 @@ class IntrinsicCall(Call):
                 # NEMO overrides this function and doesn't support named
                 # arguments, PSyclone specifically doesn't canonicalise
                 # the argument names.
-                arg_names=(("",""),)),
+                arg_names=(("", ""),)),
             optional_args={},
             return_type=None,
             reference_accesses=None
