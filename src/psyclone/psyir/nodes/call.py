@@ -37,7 +37,7 @@
 ''' This module contains the Call node implementation.'''
 
 from collections.abc import Iterable
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap
@@ -377,6 +377,18 @@ class Call(Statement, DataNode):
         if len(self._children) >= 2:
             return tuple(self.children[1:])
         return ()
+
+    def argument_by_name(self, name: str) -> Union[DataNode, None]:
+        '''
+        :param name: The name of the argument to lookup.
+
+        :returns: The argument specified with the input name, or None if its
+                  not present.
+        '''
+        arg_names = self.argument_names
+        if name not in arg_names:
+            return None
+        return self.arguments[arg_names.index(name)]
 
     @property
     def is_elemental(self):

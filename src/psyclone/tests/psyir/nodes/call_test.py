@@ -368,6 +368,17 @@ def test_call_replacenamedarg():
     assert call._argument_names[1][0] == id(op2)
 
 
+def test_call_argument_by_name():
+    '''Test the argument_by_name method.'''
+    op1 = Literal("1", INTEGER_TYPE)
+    op2 = Literal("2", INTEGER_TYPE)
+    op3 = Literal("3", INTEGER_TYPE)
+    call = Call.create(RoutineSymbol("hello"), [op1, ("a", op2), ("b", op3)])
+    assert call.argument_by_name("z") is None
+    assert call.argument_by_name("a") is op2
+    assert call.argument_by_name("b") is op3
+
+
 def test_call_reference_accesses():
     '''Test the reference_accesses() method.'''
     rsym = RoutineSymbol("trillian")
