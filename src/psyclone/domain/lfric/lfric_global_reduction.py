@@ -1,3 +1,44 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+
+'''This module contains the LFRicGlobalReduction implementation.'''
+
 from psyclone.configuration import Config
 from psyclone.domain.common.psylayer.global_reduction import GlobalReduction
 from psyclone.errors import GenerationError, InternalError
@@ -11,39 +52,43 @@ from psyclone.psyir.symbols import (
 
 class LFRicGlobalReduction(GlobalReduction):
     '''
-    LFRic specific global sum class which can be added to and
+    LFRic specific global-reduction class which can be added to and
     manipulated in a schedule.
 
-    :param scalar: the kernel argument for which to perform a global sum.
-    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
+    :param operation: the type of global reduction to perform.
+    :param operand: the kernel argument for which to perform a global
+                    reduction.
+    :type operand: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param parent: the parent node of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :raises GenerationError: if distributed memory is not enabled.
     :raises InternalError: if the supplied argument is not a scalar.
-    :raises GenerationError: if the scalar is not of "real" intrinsic type.
+    :raises GenerationError: if the operand is not of "real" intrinsic type.
 
     '''
-    def __init__(self, operation, scalar, parent=None):
+    def __init__(self, operation, operand, parent=None):
         # Check that distributed memory is enabled
         if not Config.get().distributed_memory:
             raise GenerationError(
-                "It makes no sense to create an LFRicGlobalSum object when "
-                "distributed memory is not enabled (dm=False).")
+                "It makes no sense to create an LFRicGlobalReduction object "
+                f"when distributed memory is not enabled (dm=False).")
         # Check that the global sum argument is indeed a scalar
-        if not scalar.is_scalar:
+        if not operand.is_scalar:
             raise InternalError(
-                f"LFRicGlobalSum.init(): A global sum argument should be a "
-                f"scalar but found argument of type '{scalar.argument_type}'.")
+                f"LFRicGlobalReduction.init(): A global reduction argument "
+                f"should be a scalar but found argument of type "
+                f"'{operand.argument_type}'.")
         # Check scalar intrinsic types that this class supports (only
         # "real" for now)
-        if scalar.intrinsic_type != "real":
+        if operand.intrinsic_type != "real":
             raise GenerationError(
-                f"LFRicGlobalSum currently only supports real scalars, but "
-                f"argument '{scalar.name}' in Kernel '{scalar.call.name}' has "
-                f"'{scalar.intrinsic_type}' intrinsic type.")
+                f"LFRicGlobalReduction currently only supports real scalars, "
+                f"but argument '{operand.name}' in Kernel "
+                f"'{operand.call.name}' has '{operand.intrinsic_type}' "
+                f"intrinsic type.")
         # Initialise the parent class
-        super().__init__(operation, scalar, parent=parent)
+        super().__init__(operation, operand, parent=parent)
 
     def lower_to_language_level(self):
         '''
