@@ -1366,7 +1366,7 @@ class GOKernelArgument(KernelArgument):
                 go_wp = symtab.find_or_create_tag(
                     "go_wp", symbol_type=DataSymbol, datatype=UnresolvedType(),
                     is_constant=True, interface=ImportInterface(csym))
-                return ScalarType(ScalarType.Intrinsic.REAL, go_wp)
+                return ScalarType(ScalarType.Intrinsic.REAL, Reference(go_wp))
             if self.space.lower() == "go_i_scalar":
                 return INTEGER_TYPE
             raise InternalError(f"GOcean expects scalar arguments to be of "
