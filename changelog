@@ -1,3 +1,6 @@
+   3) PR #3067 for #2525. Updates to InlineTrans to support optional
+   arguments
+
    2) PR #3131 for #2049. Refactor and rename DriverCreator classes.
 
    1) PR #3118 towards #3049. Adds the --fixed-form and --free-form flags
