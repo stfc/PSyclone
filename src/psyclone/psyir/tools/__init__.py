@@ -38,6 +38,7 @@
 '''
 
 from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
+from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
 from psyclone.psyir.tools.dependency_tools import DTCode, DependencyTools
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
