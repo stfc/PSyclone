@@ -62,7 +62,7 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (lfric_builtins, LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.lfric import LFRicGlobalSum, LFRicKernelArguments
+from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
@@ -70,7 +70,7 @@ from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.psyGen import (TransInfo, PSyFactory,
                              InlinedKern, object_index, HaloExchange, Invoke,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
-                             GlobalSum, InvokeSchedule)
+                             InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
                                   colored, Schedule)
@@ -1003,48 +1003,6 @@ def test_haloexchange_unknown_halo_depth():
     a halo depth'''
     halo_exchange = HaloExchange(None)
     assert halo_exchange._halo_depth is None
-
-
-def test_globalsum_node_str():
-    '''test the node_str method in the GlobalSum class. The simplest way
-    to do this is to use an LFRic builtin example which contains a
-    scalar and then call node_str() on that.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    gsum = None
-    for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, LFRicGlobalSum):
-            gsum = child
-            break
-    assert gsum
-    output = gsum.node_str()
-    expected_output = (colored("GlobalSum", GlobalSum._colour) +
-                       "[scalar='asum']")
-    assert expected_output in output
-
-
-def test_globalsum_children_validation():
-    '''Test that children added to GlobalSum are validated. A GlobalSum node
-    does not accept any children.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    gsum = None
-    for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, LFRicGlobalSum):
-            gsum = child
-            break
-    with pytest.raises(GenerationError) as excinfo:
-        gsum.addchild(Literal("2", INTEGER_TYPE))
-    assert ("Item 'Literal' can't be child 0 of 'GlobalSum'. GlobalSum is a"
-            " LeafNode and doesn't accept children.") in str(excinfo.value)
 
 
 def test_args_filter():

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,16 @@ from enum import Enum
 from psyclone.psyir.nodes import Statement
 
 
+class ReductionOp(Enum):
+    '''
+    '''
+    MIN = 1
+    MAX = 2
+    MINVAL = 3
+    MAXVAL = 4
+    SUM = 5
+
+
 class GlobalReduction(Statement):
     '''
     Generic global reduction operation.
@@ -56,18 +66,9 @@ class GlobalReduction(Statement):
     _text_name = "GlobalReduction"
     _colour = "cyan"
 
-    class Reduction(Enum):
-        '''
-        '''
-        MIN = 1
-        MAX = 2
-        MINVAL = 3
-        MAXVAL = 4
-        SUM = 5
-
     def __init__(self,
-                 reduction: Reduction,
+                 reduction: ReductionOp,
                  **kwargs):
-        if not isinstance(reduction, GlobalReduction.Reduction):
+        if not isinstance(reduction, ReductionOp):
             raise TypeError("huh")
-        super.__init__(kwargs)
+        super().__init__(kwargs)

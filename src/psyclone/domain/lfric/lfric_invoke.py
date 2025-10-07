@@ -41,7 +41,7 @@
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.common.psylayer.global_reduction import GlobalReduction
+from psyclone.domain.common.psylayer.global_reduction import ReductionOp
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.psyGen import Invoke
@@ -188,7 +188,7 @@ class LFRicInvoke(Invoke):
                         arg_accesses=AccessType.get_valid_reduction_modes(),
                         unique=True):
                     global_sum = LFRicGlobalReduction(
-                        GlobalReduction.Reduction.SUM,
+                        ReductionOp.SUM,
                         scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
