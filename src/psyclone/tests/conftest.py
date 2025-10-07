@@ -98,6 +98,9 @@ def setup_psyclone_config():
     independent of a potential psyclone config file installed by
     the user.
     '''
+    # Ensure any Config object that has already been loaded is wiped.
+    Config._instance = None
+
     config_file = Config.get_repository_config_file()
 
     # In case that PSyclone is installed and tested (e.g. GitHub Actions),
