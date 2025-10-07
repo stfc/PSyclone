@@ -1,3 +1,6 @@
+
+'''Module containing pytest tests for the LFRicGlobalReduction class.'''
+
 import os
 from pathlib import Path
 import pytest

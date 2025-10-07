@@ -60,9 +60,11 @@ class GlobalReduction(Statement):
     '''
     Generic global reduction operation.
 
-    :param reduction:
+    :param reduction: the type of reduction to perform.
+    :param operand: the operand of the reduction operation.
 
-    :raises TypeError:
+    :raises TypeError: if the supplied reduction is not an instance of
+                       ReductionOp.
 
     '''
     # Textual description of the node.
@@ -75,7 +77,10 @@ class GlobalReduction(Statement):
                  operand: Any,
                  **kwargs):
         if not isinstance(reduction, ReductionOp):
-            raise TypeError("huh")
+            raise TypeError(
+                f"The 'reduction' argument to GlobalReduction must be an "
+                f"instance of ReductionOp but got "
+                f"'{type(reduction).__name__}'")
         self._operation = reduction
         # Ideally, 'operand' would be a child of this node but it's typically
         # a KernelArgument, not a PSyIR Node.
@@ -90,12 +95,18 @@ class GlobalReduction(Statement):
         super().__init__(kwargs)
 
     @property
-    def operand(self):
+    def operand(self) -> Any:
         '''
         :returns: the operand of this global reduction.
-        :rtype: Any
         '''
         return self._operand
+
+    @property
+    def operation(self) -> ReductionOp:
+        '''
+        :returns: the type of reduction that is performed.
+        '''
+        return self._operation
 
     @property
     def dag_name(self):
@@ -128,5 +139,5 @@ class GlobalReduction(Statement):
         '''
         '''
         var_accesses = VariablesAccessMap()
-        var_accesses.update(self._operand.reference_accesses())
+        var_accesses.add_access()  # TODO
         return var_accesses

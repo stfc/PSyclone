@@ -49,11 +49,24 @@ from psyclone.psyir.nodes import colored, Literal, Reference
 from psyclone.psyir.symbols import INTEGER_TYPE, Symbol
 
 
-def test_globalsum_node_str():
-    '''test the node_str method in the GlobalSum class. The simplest way
-    to do this is to use an LFRic builtin example which contains a
-    scalar and then call node_str() on that.
+def test_globalreduction_init():
+    '''
+    Test the constructor of GlobalReduction.
+    '''
+    gred = GlobalReduction(ReductionOp.SUM,
+                           operand=Reference(Symbol("a")))
+    assert gred.operand.name == "a"
+    assert gred.operation == ReductionOp.SUM
 
+    with pytest.raises(TypeError) as err:
+        _ = GlobalReduction("SUM", operand=Reference(Symbol("a")))
+    assert ("The 'reduction' argument to GlobalReduction must be an instance "
+            "of ReductionOp but got 'str'" in str(err.value))
+
+
+def test_globalreduction_node_str():
+    '''
+    Test the node_str method in the GlobalReduction class.
     '''
     gred = GlobalReduction(ReductionOp.SUM,
                            operand=Reference(Symbol("a")))
@@ -64,8 +77,8 @@ def test_globalsum_node_str():
 
 
 def test_globalsum_children_validation():
-    '''Test that children added to GlobalSum are validated. A GlobalSum node
-    does not accept any children.
+    '''Test that children added to GlobalReduction are validated. A
+    GlobalReduction node does not accept any children.
 
     '''
     gsum = GlobalReduction(ReductionOp.SUM,
