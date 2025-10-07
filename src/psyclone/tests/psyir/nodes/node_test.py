@@ -764,15 +764,13 @@ def test_dag_names():
     idx = aref.children[0].detach()
     assert idx.dag_name == "Literal_0"
 
-    # GlobalSum and BuiltIn also have specialised dag_names
+    # BuiltIn has a specialised dag_name
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="lfric")
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    global_sum = schedule.children[2]
-    assert global_sum.dag_name == "globalreduction(asum)_2"
     builtin = schedule.children[1].loop_body[0]
     assert builtin.dag_name == "builtin_sum_x_12"
 

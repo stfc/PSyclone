@@ -41,13 +41,14 @@ import copy
 from enum import Enum
 from typing import Any
 
-from psyclone.core import AccessType, VariablesAccessMap
+from psyclone.core import AccessType
 from psyclone.psyGen import KernelArgument
 from psyclone.psyir.nodes import Statement
 
 
 class ReductionOp(Enum):
     '''
+    Enumeration of the supported global reduction operations.
     '''
     MIN = 1
     MAX = 2
@@ -109,17 +110,19 @@ class GlobalReduction(Statement):
         return self._operation
 
     @property
-    def dag_name(self):
+    def dag_name(self) -> str:
         '''
         :returns: the name to use in the DAG for this node.
-        :rtype: str
         '''
-        return f"globalreduction({self._operand.name})_{self.position}"
+        return (f"globalreduction({self._operation.name},{self._operand.name})"
+                f"_{self.position}")
 
     @property
-    def args(self):
-        ''' Return the list of arguments associated with this node. Override
-        the base method and simply return our argument.'''
+    def args(self) -> list[Any]:
+        '''
+        :returns: the arguments associated with this node. Override
+                  the base method and simply return the operand.
+        '''
         return [self._operand]
 
     def node_str(self, colour: bool = True) -> str:
@@ -134,10 +137,3 @@ class GlobalReduction(Statement):
         '''
         return (f"{self.coloured_name(colour)}[{self._operation.name}, "
                 f"operand='{self._operand.name}']")
-
-    def ARPDBG_reference_accesses(self):
-        '''
-        '''
-        var_accesses = VariablesAccessMap()
-        var_accesses.add_access()  # TODO
-        return var_accesses

@@ -42,11 +42,14 @@ Module containing pytest tests for the GlobalReduction class.
 
 import pytest
 
+from psyclone.core import AccessType
 from psyclone.domain.common.psylayer.global_reduction import (
     GlobalReduction, ReductionOp)
 from psyclone.errors import GenerationError
+from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import colored, Literal, Reference
 from psyclone.psyir.symbols import INTEGER_TYPE, Symbol
+from psyclone.tests.utilities import get_invoke
 
 
 def test_globalreduction_init():
@@ -57,11 +60,33 @@ def test_globalreduction_init():
                            operand=Reference(Symbol("a")))
     assert gred.operand.name == "a"
     assert gred.operation == ReductionOp.SUM
+    assert gred.args == [gred.operand]
 
     with pytest.raises(TypeError) as err:
         _ = GlobalReduction("SUM", operand=Reference(Symbol("a")))
     assert ("The 'reduction' argument to GlobalReduction must be an instance "
             "of ReductionOp but got 'str'" in str(err.value))
+
+    # Construct with a KernelArgument. These are not easy to make so we create
+    # PSyIR for a PSyKAl invoke first.
+    _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
+                           api="lfric", dist_mem=True, idx=0)
+    schedule = invoke.schedule
+    kernels = schedule.walk(Kern)
+    # Get hold of a KernelArgument object
+    karg = kernels[1].args[0]
+    gred = GlobalReduction(ReductionOp.SUM, operand=karg)
+    assert gred.operand.access == AccessType.READWRITE
+    assert gred.operand.call == gred
+
+
+def test_globalreduction_dag_name():
+    '''
+    Test the dag_name property.
+    '''
+    gred = GlobalReduction(ReductionOp.SUM,
+                           operand=Reference(Symbol("a")))
+    assert gred.dag_name == "globalreduction(SUM,a)_0"
 
 
 def test_globalreduction_node_str():
