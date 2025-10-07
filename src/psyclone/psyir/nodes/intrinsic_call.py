@@ -1310,7 +1310,9 @@ class IntrinsicCall(Call):
                 min_count=1,
                 max_count=1,
                 types=DataNode,
-                arg_names=(("i",),)),
+                # FLOAT is a language extension, and not all compilers
+                # (e.g. nvfortran) can handle a keyword argument.
+                arg_names=(("",),)),
             optional_args={},
             return_type=None,
             reference_accesses=None,
