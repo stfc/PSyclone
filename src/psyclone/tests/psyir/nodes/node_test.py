@@ -772,7 +772,7 @@ def test_dag_names():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     global_sum = schedule.children[2]
-    assert global_sum.dag_name == "globalsum(asum)_2"
+    assert global_sum.dag_name == "globalreduction(asum)_2"
     builtin = schedule.children[1].loop_body[0]
     assert builtin.dag_name == "builtin_sum_x_12"
 

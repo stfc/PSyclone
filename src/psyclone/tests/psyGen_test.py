@@ -1351,7 +1351,7 @@ def test_argument_find_argument():
     schedule = invoke.schedule
     # a) globalsum arg depends on kern arg
     kern_asum_arg = schedule.children[3].loop_body[0].arguments.args[1]
-    glob_sum_arg = schedule.children[2].scalar
+    glob_sum_arg = schedule.children[2].operand
     result = kern_asum_arg._find_argument(schedule.children)
     assert result == glob_sum_arg
     # b) kern arg depends on globalsum arg
@@ -1391,21 +1391,6 @@ def test_argument_find_read_arguments():
     for idx in range(3):
         loop = schedule.children[idx]
         assert result[idx] == loop.loop_body[0].arguments.args[3]
-
-
-def test_globalsum_arg():
-    ''' Check that the globalsum argument is defined as gh_readwrite and
-    points to the GlobalSum node '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    glob_sum = schedule.children[2]
-    glob_sum_arg = glob_sum.scalar
-    assert glob_sum_arg.access == AccessType.READWRITE
-    assert glob_sum_arg.call == glob_sum
 
 
 def test_haloexchange_arg():
@@ -1505,7 +1490,7 @@ def test_argument_forward_dependence(monkeypatch, annexed):
     schedule = invoke.schedule
     prev_arg = schedule.children[0].loop_body[0].arguments.args[1]
     sum_arg = schedule.children[1].loop_body[0].arguments.args[0]
-    global_sum_arg = schedule.children[2].scalar
+    global_sum_arg = schedule.children[2].operand
     next_arg = schedule.children[3].loop_body[0].arguments.args[1]
     # a) prev kern arg depends on sum
     result = prev_arg.forward_dependence()
@@ -1572,7 +1557,7 @@ def test_argument_backward_dependence(monkeypatch, annexed):
     schedule = invoke.schedule
     prev_arg = schedule.children[0].loop_body[0].arguments.args[1]
     sum_arg = schedule.children[1].loop_body[0].arguments.args[0]
-    global_sum_arg = schedule.children[2].scalar
+    global_sum_arg = schedule.children[2].operand
     next_arg = schedule.children[3].loop_body[0].arguments.args[1]
     # a) next kern arg depends on global sum arg
     result = next_arg.backward_dependence()
@@ -1661,20 +1646,6 @@ def test_haloexchange_args():
     for haloexchange in schedule.children[:2]:
         assert len(haloexchange.args) == 1
         assert haloexchange.args[0] == haloexchange.field
-
-
-def test_globalsum_args():
-    '''Test that the globalsum class args method returns the appropriate
-    argument '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    global_sum = schedule.children[2]
-    assert len(global_sum.args) == 1
-    assert global_sum.args[0] == global_sum.scalar
 
 
 def test_call_forward_dependence():

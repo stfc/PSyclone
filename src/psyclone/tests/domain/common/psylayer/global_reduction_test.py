@@ -1,9 +1,53 @@
-from psyclone.domain.common.psylayer.global_reduction import (
-    GlobalReduction, ReductionOp)
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: I. Kavcic, L. Turner, O. Brunt and J. G. Wallwork, Met Office
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
 '''
 Module containing pytest tests for the GlobalReduction class.
 '''
+
+import pytest
+
+from psyclone.domain.common.psylayer.global_reduction import (
+    GlobalReduction, ReductionOp)
+from psyclone.errors import GenerationError
+from psyclone.psyir.nodes import colored, Literal, Reference
+from psyclone.psyir.symbols import INTEGER_TYPE, Symbol
+
 
 def test_globalsum_node_str():
     '''test the node_str method in the GlobalSum class. The simplest way
@@ -12,10 +56,10 @@ def test_globalsum_node_str():
 
     '''
     gred = GlobalReduction(ReductionOp.SUM,
-                           scalar="a")
+                           operand=Reference(Symbol("a")))
     output = str(gred)
-    expected_output = (colored("GlobalSum", GlobalSum._colour) +
-                       "[scalar='asum']")
+    expected_output = (colored("GlobalReduction", GlobalReduction._colour) +
+                       "[SUM, operand='a']")
     assert expected_output in output
 
 
@@ -24,18 +68,10 @@ def test_globalsum_children_validation():
     does not accept any children.
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    gsum = None
-    for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, LFRicGlobalSum):
-            gsum = child
-            break
+    gsum = GlobalReduction(ReductionOp.SUM,
+                           operand=Reference(Symbol("a")))
     with pytest.raises(GenerationError) as excinfo:
         gsum.addchild(Literal("2", INTEGER_TYPE))
-    assert ("Item 'Literal' can't be child 0 of 'GlobalSum'. GlobalSum is a"
-            " LeafNode and doesn't accept children.") in str(excinfo.value)
-
-
+    assert ("Item 'Literal' can't be child 0 of 'GlobalReduction'. "
+            "GlobalReduction is a LeafNode and doesn't accept children."
+            in str(excinfo.value))

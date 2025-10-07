@@ -37,8 +37,12 @@
 ''' This module contains the GlobalReduction node implementation.'''
 
 from __future__ import annotations
+import copy
 from enum import Enum
+from typing import Any
 
+from psyclone.core import AccessType, VariablesAccessMap
+from psyclone.psyGen import KernelArgument
 from psyclone.psyir.nodes import Statement
 
 
@@ -62,13 +66,67 @@ class GlobalReduction(Statement):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[DataNode]"
+    _children_valid_format = "<LeafNode>"
     _text_name = "GlobalReduction"
     _colour = "cyan"
 
     def __init__(self,
                  reduction: ReductionOp,
+                 operand: Any,
                  **kwargs):
         if not isinstance(reduction, ReductionOp):
             raise TypeError("huh")
+        self._operation = reduction
+        # Ideally, 'operand' would be a child of this node but it's typically
+        # a KernelArgument, not a PSyIR Node.
+        # TODO Without this `copy`, the tests for the old-style DA fail.
+        self._operand = copy.copy(operand)
+        if isinstance(operand, KernelArgument):
+            # Add old-style dependency information
+            # Here "readwrite" denotes how the class GlobalSum
+            # accesses/updates a scalar
+            self._operand.access = AccessType.READWRITE
+            self._operand.call = self
         super().__init__(kwargs)
+
+    @property
+    def operand(self):
+        '''
+        :returns: the operand of this global reduction.
+        :rtype: Any
+        '''
+        return self._operand
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        return f"globalreduction({self._operand.name})_{self.position}"
+
+    @property
+    def args(self):
+        ''' Return the list of arguments associated with this node. Override
+        the base method and simply return our argument.'''
+        return [self._operand]
+
+    def node_str(self, colour: bool = True) -> str:
+        '''
+        Returns a text description of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+
+        '''
+        return (f"{self.coloured_name(colour)}[{self._operation.name}, "
+                f"operand='{self._operand.name}']")
+
+    def ARPDBG_reference_accesses(self):
+        '''
+        '''
+        var_accesses = VariablesAccessMap()
+        var_accesses.update(self._operand.reference_accesses())
+        return var_accesses

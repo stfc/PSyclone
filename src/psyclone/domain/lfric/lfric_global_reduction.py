@@ -42,9 +42,8 @@ class LFRicGlobalReduction(GlobalReduction):
                 f"LFRicGlobalSum currently only supports real scalars, but "
                 f"argument '{scalar.name}' in Kernel '{scalar.call.name}' has "
                 f"'{scalar.intrinsic_type}' intrinsic type.")
-        self._scalar = scalar
         # Initialise the parent class
-        super().__init__(operation, parent=parent)
+        super().__init__(operation, scalar, parent=parent)
 
     def lower_to_language_level(self):
         '''
@@ -53,9 +52,9 @@ class LFRicGlobalReduction(GlobalReduction):
         '''
 
         # Get the name strings to use
-        name = self._scalar.name
-        type_name = self._scalar.data_type
-        mod_name = self._scalar.module_name
+        name = self._operand.name
+        type_name = self._operand.data_type
+        mod_name = self._operand.module_name
 
         # Get the symbols from the given names
         symtab = self.ancestor(InvokeSchedule).symbol_table
