@@ -61,7 +61,7 @@ def example_psyir(create_expression):
     '''Utility function that creates a PSyIR tree containing a SIGN
     intrinsic and returns it.
 
-    :param function create_expression: function used to create the \
+    :param function create_expression: function used to create the
         content of the first argument of the SIGN intrinsic.
 
     :returns: PSyIR SIGN intrinsic instance.
@@ -107,7 +107,7 @@ def test_correct(func, output, tmpdir):
         f"  real, intent(inout) :: arg\n"
         f"  real, intent(inout) :: arg_1\n"
         f"  real :: psyir_tmp\n\n"
-        f"  psyir_tmp = SIGN(a={output}, b=arg_1)\n\n"
+        f"  psyir_tmp = SIGN({output}, arg_1)\n\n"
         f"end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
     trans.apply(intr_call, root.symbol_table)
@@ -161,7 +161,7 @@ def test_correct_expr(tmpdir):
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp = 1.0 + SIGN(a=arg * 3.14, b=arg_1) + 2.0\n\n"
+        "  psyir_tmp = 1.0 + SIGN(arg * 3.14, arg_1) + 2.0\n\n"
         "end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
     trans.apply(intr_call, root.symbol_table)
@@ -215,7 +215,7 @@ def test_correct_2sign(tmpdir, fortran_writer):
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp = SIGN(a=1.0, b=1.0) + SIGN(a=arg * 3.14, b=arg_1)\n\n"
+        "  psyir_tmp = SIGN(1.0, 1.0) + SIGN(arg * 3.14, arg_1)\n\n"
         "end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
     trans.apply(intr_call, root.symbol_table)
@@ -271,7 +271,7 @@ def test_sign_with_integer_arg(fortran_reader, fortran_writer, tmpdir):
     program test_prog
       integer, parameter :: idef = kind(1)
       integer(idef) :: my_arg, other_arg
-      my_arg = SIGN(a=my_arg, b=other_arg)
+      my_arg = SIGN(my_arg, other_arg)
     end program test_prog'''
     psyir = fortran_reader.psyir_from_source(code)
     trans = Sign2CodeTrans()
@@ -308,8 +308,8 @@ def test_sign_of_unknown_type(fortran_reader):
                  if call.intrinsic.name == "SIGN"]
     with pytest.raises(TransformationError) as err:
         trans.validate(sgn_calls[0])
-    assert ("Sign2CodeTrans cannot be applied to 'SIGN(a=MAX(ABS(a=ztmp1), "
-            "1.e-6_wp), b=ztmp1) because the type of the argument"
+    assert ("Sign2CodeTrans cannot be applied to 'SIGN(MAX(ABS(a=ztmp1), "
+            "1.e-6_wp), ztmp1) because the type of the argument"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
         trans.validate(sgn_calls[1])
