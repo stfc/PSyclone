@@ -72,7 +72,7 @@ class LFRicGlobalReduction(GlobalReduction):
         if not Config.get().distributed_memory:
             raise GenerationError(
                 "It makes no sense to create an LFRicGlobalReduction object "
-                f"when distributed memory is not enabled (dm=False).")
+                "when distributed memory is not enabled (dm=False).")
         # Check that the global sum argument is indeed a scalar
         if not operand.is_scalar:
             raise InternalError(
