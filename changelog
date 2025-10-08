@@ -1,3 +1,9 @@
+   4) PR #3170 for #3156 and #3167. Remove redundant barrier at the end
+   of parallel regions, and an unused DUC private attribute.
+
+   3) PR #3067 for #2525. Updates to InlineTrans to support optional
+   arguments
+
    2) PR #3131 for #2049. Refactor and rename DriverCreator classes.
 
    1) PR #3118 towards #3049. Adds the --fixed-form and --free-form flags
