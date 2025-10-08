@@ -235,6 +235,11 @@ class Config:
         # The Fortran standard that fparser should use
         self._fortran_standard = None
 
+        # By default, the PSyIR backends output argument names on (most)
+        # IntrinsicCalls. These two options enable control of tha behaviour.
+        self._sign_intrinsic_kwargs = False
+        self._intrinsic_kwargs = True
+
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
         '''Loads a configuration file.
@@ -770,6 +775,43 @@ class Config:
             :py:class:`psyclone.domain.gocean.GOceanConstants`
         '''
         return self.api_conf().get_constants()
+
+    @property
+    def intrinsic_kwargs(self) -> bool:
+        '''
+        :returns: whether the output of intrinsic named arguments is
+                  enabled for required intrinsic arguments.
+        '''
+        return self._intrinsic_kwargs
+
+    @intrinsic_kwargs.setter
+    def intrinsic_kwargs(self, output_kwargs: bool) -> None:
+        '''
+        Setter for whether the backend should output required argument names
+        on IntrinsicCalls.
+
+        :param output_kwargs: whether to output required argument names.
+        '''
+        self._intrinsic_kwargs = output_kwargs
+
+    @property
+    def sign_intrinsic_kwargs(self) -> bool:
+        '''
+        :returns: whether the output of the sign intrinsic should have
+                  named arguments.
+        '''
+        return self._sign_intrinsic_kwargs
+
+    @sign_intrinsic_kwargs.setter
+    def sign_intrinsic_kwargs(self, output_kwargs: bool) -> None:
+        '''
+        Setter for whether the backend should output argument names on the
+        SIGN IntrinsicCall.
+
+        :param output_kwargs: whether to output argument names on SIGN
+                              intrinsics.
+        '''
+        self._sign_intrinsic_kwargs = output_kwargs
 
 
 # =============================================================================

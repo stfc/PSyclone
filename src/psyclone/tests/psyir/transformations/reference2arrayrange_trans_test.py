@@ -165,7 +165,7 @@ def test_intrinsics(fortran_reader, fortran_writer):
     '''
     code = CODE.replace("a = b", "b = dot_product(a, a(:))")
     result = apply_trans(fortran_reader, fortran_writer, code)
-    assert "b = DOT_PRODUCT(a, a(:))" in result
+    assert "b = DOT_PRODUCT(vector_a=a, vector_b=a(:))" in result
 
 
 def test_call(fortran_reader, fortran_writer):
@@ -261,8 +261,8 @@ def test_validate_query(fortran_reader):
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
             assert (f"supplied node is passed as an argument to a Call to a "
-                    f"non-elemental routine ({text}(a, 1)) and should not be "
-                    f"transformed." in str(info.value))
+                    f"non-elemental routine ({text}(array=a, dim=1)) and "
+                    f"should not be transformed." in str(info.value))
 
     # Check the references to 'b' in the hidden lbound and ubound
     # intrinsics within 'b(:)' do not get modified.

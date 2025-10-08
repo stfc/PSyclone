@@ -819,3 +819,15 @@ def test_fortran_standard(tmpdir):
     assert ("PSyclone configuration error: Invalid Fortran standard 'invalid' "
             "specified in config file. Must be one of['f2003', 'f2008']"
             in str(err.value))
+
+
+def test_intrinsic_settings():
+    '''Test the getter and setter methods for intrinsic output control
+    in the config.'''
+    assert Config.get().intrinsic_kwargs is True
+    Config.get().intrinsic_kwargs = False
+    assert Config.get().intrinsic_kwargs is False
+
+    assert Config.get().sign_intrinsic_kwargs is False
+    Config.get().sign_intrinsic_kwargs = True
+    assert Config.get().sign_intrinsic_kwargs is True

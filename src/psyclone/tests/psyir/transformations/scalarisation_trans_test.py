@@ -625,7 +625,7 @@ def test_scalarisation_trans_apply(fortran_reader, fortran_writer, tmpdir):
 
   do i = 1, 100, 1
     arr_scalar = i
-    arr_scalar = EXP(arr_scalar)
+    arr_scalar = EXP(x=arr_scalar)
     k = i
     b(i) = arr_scalar * 3
     c(k) = i
@@ -648,7 +648,7 @@ def test_scalarisation_trans_apply(fortran_reader, fortran_writer, tmpdir):
 
          do i = 1, 100
             arr(i) = i
-            arr(i) = exp(arr(i))
+            arr(i) = exp(x=arr(i))
             k = i
             b(i) = arr(i) * 3
             c(k) = i
@@ -677,7 +677,7 @@ def test_scalarisation_trans_apply(fortran_reader, fortran_writer, tmpdir):
 
   do i = 1, 100, 1
     arr_scalar = i
-    arr_scalar = EXP(arr_scalar)
+    arr_scalar = EXP(x=arr_scalar)
     k = i
     b(i) = arr_scalar * 3
     c(k) = i
@@ -703,7 +703,7 @@ def test_scalarisation_trans_apply_routinesymbol(fortran_reader,
         integer :: i
         integer, allocatable, dimension(:,:,:) :: k
         do i= 1, 100
-            allocate(k(MAXVAL(j(1:3)),1,1))
+            allocate(k(MAXVAL(array=j(1:3)),1,1))
             deallocate(k)
         end do
     end subroutine test'''
@@ -716,7 +716,7 @@ def test_scalarisation_trans_apply_routinesymbol(fortran_reader,
   integer, allocatable, dimension(:,:,:) :: k
 
   do i = 1, 100, 1
-    ALLOCATE(k(1:MAXVAL(j(:)),1:1,1:1))
+    ALLOCATE(k(1:MAXVAL(array=j(:)),1:1,1:1))
     DEALLOCATE(k)
   enddo
 

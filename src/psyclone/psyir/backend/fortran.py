@@ -40,6 +40,7 @@
 from a PSyIR tree. '''
 
 # pylint: disable=too-many-lines
+from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
@@ -1767,6 +1768,16 @@ class FortranWriter(LanguageWriter):
         :returns: the equivalent Fortran code.
 
         '''
+        # If its an IntrinsicCall then check the config to determine how
+        # we're outputting the result.
+        if isinstance(node, IntrinsicCall):
+            if not Config.get().intrinsic_kwargs:
+                # Remove argument names from required arguments.
+                node.remove_required_argument_names()
+            elif (node.intrinsic == IntrinsicCall.Intrinsic.SIGN and
+                  not Config.get().sign_intrinsic_kwargs):
+                # Remove argument names from Sign.
+                node.remove_required_argument_names()
         args = self._gen_arguments(node)
         if isinstance(node, IntrinsicCall) and node.routine.name not in [
                 "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS", "RANDOM_NUMBER",
