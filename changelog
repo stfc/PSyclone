@@ -1,3 +1,6 @@
+   4) PR #3170 for #3156 and #3167. Remove redundant barrier at the end
+   of parallel regions, and an unused DUC private attribute.
+
    3) PR #3067 for #2525. Updates to InlineTrans to support optional
    arguments
 
