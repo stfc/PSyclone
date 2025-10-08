@@ -1748,7 +1748,7 @@ class IntrinsicCall(Call):
                 min_count=2,
                 max_count=2,
                 types=DataNode,
-                arg_names=(("i", "shift"))),
+                arg_names=(("i", "shift"),)),
             optional_args={"size": DataNode},
             return_type=None,
             reference_accesses=None,
@@ -3248,6 +3248,34 @@ class IntrinsicCall(Call):
                 f"using named arguments in the Fortran source."
             )
         return potential_interfaces[0]
+
+    def remove_required_argument_names(self) -> None:
+        '''Remove the argument names from required arguments on this
+        IntrinsicCall if possible.'''
+        # First we need to ensure this is a canoncalised IntrinsicCall
+        try:
+            self.canonicalise()
+        except (ValueError, NotImplementedError):
+            # If this can't be canonicalised then don't change anything.
+            return
+
+        # Find all of the required argument names available on this
+        # intrinsic.
+        all_required_names = [
+            name for tupl in self.intrinsic.required_args.arg_names for
+            name in tupl
+        ]
+        new_arg_names = []
+        for i, name in enumerate(self.argument_names):
+            if name in all_required_names:
+                new_arg_names.append(
+                    (self._argument_names[i][0], None)
+                )
+            else:
+                new_arg_names.append(
+                    (self._argument_names[i][0], name)
+                )
+        self._argument_names = new_arg_names
 
     def canonicalise(self):
         '''Canonicalise an IntrinsicCall in the PSyIR. Upon successful

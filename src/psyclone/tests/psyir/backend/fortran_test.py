@@ -42,6 +42,7 @@
 
 from collections import OrderedDict
 import pytest
+from psyclone.configuration import Config
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import (
         gen_intent,  FortranWriter, precedence
@@ -1841,6 +1842,43 @@ def test_fw_call_node(fortran_writer):
     result = fortran_writer(schedule)
     expected = "  call my_sub(a * b, MAX(a, b))\n"
     assert expected in result
+
+
+def test_fw_intrinsic_output_control(fortran_writer):
+    '''Test the config controls the output of IntrinsicCall nodes correctly.
+    '''
+    args = [Reference(DataSymbol("arg1", REAL_TYPE)),
+            Reference(DataSymbol("arg2", REAL_TYPE))]
+    call = IntrinsicCall.create(IntrinsicCall.Intrinsic.ISHFT,
+                                args)
+    result = fortran_writer(call)
+    assert "ISHFT(i=arg1, shift=arg2)" in result
+
+    # Turn off the output of required arguments
+    Config.get().intrinsic_kwargs = False
+    result = fortran_writer(call)
+    assert "ISHFT(arg1, arg2)" in result
+
+    # Check that optional arguments are still output.
+    args = [Reference(DataSymbol("arg1", REAL_TYPE)),
+            Reference(DataSymbol("arg2", REAL_TYPE)),
+            Reference(DataSymbol("arg3", REAL_TYPE))]
+    call = IntrinsicCall.create(IntrinsicCall.Intrinsic.ISHFTC,
+                                args)
+    result = fortran_writer(call)
+    assert "ISHFTC(arg1, arg2, size=arg3)" in result
+
+    # Test the sign only option control.
+    Config.get().intrinsic_kwargs = True
+    args = [Reference(DataSymbol("arg1", REAL_TYPE)),
+            Reference(DataSymbol("arg2", REAL_TYPE))]
+    call = IntrinsicCall.create(IntrinsicCall.Intrinsic.SIGN, args)
+    result = fortran_writer(call)
+    assert "SIGN(arg1, arg2)" in result
+
+    Config.get().sign_intrinsic_kwargs = True
+    result = fortran_writer(call)
+    assert "SIGN(a=arg1, b=arg2)" in result
 
 
 def test_fw_call_node_namedargs(fortran_writer):

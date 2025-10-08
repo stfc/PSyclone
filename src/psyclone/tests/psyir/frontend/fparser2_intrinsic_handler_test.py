@@ -193,7 +193,7 @@ end subroutine
      ('x = min(a, b, c)', IntrinsicCall.Intrinsic.MIN,
       [None, None, None]),
      ('x = sign(a, b)', IntrinsicCall.Intrinsic.SIGN,
-      [None, None]),
+      ["a", "b"]),
      ('x = sqrt(a)', IntrinsicCall.Intrinsic.SQRT,
       ["x"]),
      ('x = aimag(a)', IntrinsicCall.Intrinsic.AIMAG,

@@ -574,6 +574,28 @@ def main(arguments):
              "(default is to look at the input file extension)."
     )
 
+    intrinsic_output_group = parser.add_argument_group(
+            "Fortran Intrinsic output control",
+            "These settings control how PSyclone outputs Fortran Intrinsics. "
+            "The default behaviour is to output named arguments for all "
+            "intrinsics' arguments other than SIGN, which will not have "
+            "keyword arguments to support NEMO behaviour."
+    )
+    intrinsic_output_group.add_argument(
+        "--disable-intrinsic-required-args", default=argparse.SUPPRESS,
+        action="store_true",
+        help="Disables output code containing argument names for an "
+             "intrinsic's required arguments, i.e. SUM(arr, mask=maskarr) "
+             "instead of (SUMarray=arr, mask=maskarr). This overrides any "
+             "other options specified for intrinsic output control."
+    )
+    intrinsic_output_group.add_argument(
+        "--enable-sign-intrinsic-argnames", default=argparse.SUPPRESS,
+        action="store_true",
+        help="Enables adding argument names to the SIGN intrinsic's "
+             "arguments."
+    )
+
     args = parser.parse_args(arguments)
 
     # Set the logging system up.
@@ -625,6 +647,19 @@ def main(arguments):
         # as API in the config object as well.
         api = args.psykal_dsl
     Config.get().api = api
+
+    # Record any intrinsic output format settings.
+    if "disable_intrinsic_required_args" in args:
+        Config.get().intrinsic_kwargs = False
+    if "enable_sign_intrinsic_argnames" in args:
+        if not Config.get().intrinsic_kwargs:
+            logger.info(
+                "Both the disable-intrinsic-required-args and the "
+                "enable-sign-intrinsic-argnames were specified. The "
+                "disable-intrinsic-required-args overrides other controls "
+                "so sign intrinsics won't have output argument names."
+            )
+        Config.get().sign_intrinsic_kwargs = True
 
     # Record any profiling options.
     if args.profile:
