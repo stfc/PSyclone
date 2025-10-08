@@ -41,6 +41,7 @@ from pathlib import Path
 from psyclone.generator import main
 
 FORTRAN_EXTENSIONS = ('.f90', '.f', '.F90', '.F')
+PWD = str(Path.cwd())
 
 
 def compiler_wrapper(arguments):
@@ -123,7 +124,13 @@ def compiler_wrapper(arguments):
             stem = Path(argument).stem
             suffix = Path(argument).suffix
             output = f"{stem}.psycloned{suffix}"
-            psyclone_args = psyclone_options + ['-o', output, argument]
+            # Always add an include to the current directory, because even if
+            # it is the default, psyclone removes it when adding another -I.
+            # Also, having the absolute path instead of '.' is convinient to
+            # copy/paste the resulting command when debugging
+            psyclone_args = psyclone_options + [
+                '-I', PWD, '-o', output, argument
+            ]
             print("psyclone " + ' '.join(psyclone_args))
             main(psyclone_args)
 
