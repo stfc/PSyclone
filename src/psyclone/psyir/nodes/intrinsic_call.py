@@ -2771,11 +2771,7 @@ class IntrinsicCall(Call):
                 min_count=2,
                 max_count=2,
                 types=DataNode,
-                # TODO #2102 SIGN has two arguments, a and b, however since
-                # NEMO overrides this function and doesn't support named
-                # arguments, PSyclone specifically doesn't canonicalise
-                # the argument names.
-                arg_names=(("", ""),)),
+                arg_names=(("a", "b"),)),
             optional_args={},
             return_type=None,
             reference_accesses=None
