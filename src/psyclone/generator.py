@@ -586,7 +586,7 @@ def main(arguments):
         action="store_true",
         help="Disables output code containing argument names for an "
              "intrinsic's required arguments, i.e. SUM(arr, mask=maskarr) "
-             "instead of (SUMarray=arr, mask=maskarr). This overrides any "
+             "instead of SUM(array=arr, mask=maskarr). This overrides any "
              "other options specified for intrinsic output control."
     )
     intrinsic_output_group.add_argument(
