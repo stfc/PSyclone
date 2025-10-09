@@ -39,7 +39,6 @@ Algorithm PSyIR.
 
 '''
 import pytest
-import warnings
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.transformations import TransformationError
@@ -564,37 +563,3 @@ def test_apply_keep_comments():
     invoke = subroutine[0]
     assert invoke.preceding_comment == "preceding comment"
     assert invoke.inline_comment == "inline comment"
-
-
-# TODO #2668 Delete test
-def test_apply_deprecation_warning():
-    '''Test that the deprecation warning is thrown when provided an options
-    dict.'''
-    code = (
-        "subroutine alg()\n"
-        "  use kern_mod, only: kern\n"
-        "  use field_mod, only: r2d_field\n"
-        "  type(r2d_field) :: field\n"
-        " ! preceding comment\n"
-        "  call invoke(kern(field)) !inline comment\n"
-        "end subroutine alg\n")
-
-    fortran_reader = FortranReader(ignore_comments=False)
-    psyir = fortran_reader.psyir_from_source(code)
-    subroutine = psyir.children[0]
-    assert len(subroutine[0].arguments) == 1
-    assert isinstance(subroutine[0].arguments[0], ArrayReference)
-
-    invoke_trans = RaisePSyIR2AlgTrans()
-    with warnings.catch_warnings(record=True) as w:
-        # Cause all warnings to be triggered.
-        warnings.simplefilter("always")
-        invoke_trans.apply(subroutine[0], 1, options={"a": "test"})
-        assert len(w) == 1
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
-                "Transformation.apply and Transformation.validate are now "
-                "deprecated. Please use "
-                "the individual arguments, or unpack the options with "
-                "**options. See the Transformations section of the "
-                "User guide for more details" in str(w[0].message))
