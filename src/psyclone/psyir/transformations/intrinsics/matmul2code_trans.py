@@ -514,3 +514,6 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                             Literal("1", INTEGER_TYPE), [iloop])
         # Replace the original assignment with the new loop.
         assignment.replace_with(jloop)
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["Matmul2CodeTrans"] 

@@ -172,3 +172,6 @@ class Abs2CodeTrans(Intrinsic2CodeTrans):
         # if [if_condition] then [then_body] else [else_body]
         if_stmt = IfBlock.create(if_condition, then_body, else_body)
         assignment.parent.children.insert(assignment.position, if_stmt)
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["Abs2CodeTrans"]

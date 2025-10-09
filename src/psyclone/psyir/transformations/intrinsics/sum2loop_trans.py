@@ -196,3 +196,6 @@ class Sum2LoopTrans(ArrayReductionBaseTrans):
 
         '''
         super().apply(node, options=options, **kwargs)
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["Sum2LoopTrans"] 

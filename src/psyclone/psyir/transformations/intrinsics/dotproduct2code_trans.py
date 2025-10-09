@@ -284,3 +284,6 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
         # Add the initialisation and loop nodes into the PSyIR tree
         assignment.parent.children.insert(assignment.position, assign)
         assignment.parent.children.insert(assignment.position, iloop)
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["DotProduct2CodeTrans"] 

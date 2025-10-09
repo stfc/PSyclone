@@ -409,3 +409,6 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         :type reference: :py:class:`psyclone.psyir.node.Reference`
 
         '''
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["ArrayReductionBaseTrans"]

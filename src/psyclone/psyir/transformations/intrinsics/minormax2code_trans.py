@@ -179,3 +179,6 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans, ABC):
             # if [if_condition] then [then_body]
             if_stmt = IfBlock.create(if_condition, then_body)
             assignment.parent.children.insert(assignment.position, if_stmt)
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["MinOrMax2CodeTrans"]

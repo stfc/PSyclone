@@ -86,3 +86,6 @@ class Max2CodeTrans(MinOrMax2CodeTrans):
         :type options: Optional[Dict[str, Any]]
         '''
         super().apply(node, options=options, **kwargs)
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["Max2CodeTrans"] 
