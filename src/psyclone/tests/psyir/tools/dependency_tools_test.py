@@ -276,6 +276,7 @@ def test_partition(lhs, rhs, partition, fortran_reader):
         # Note that the variables are stores as sets, so order does
         # not matter:
         assert correct[0] == part_info[0]
+        # assert correct[1] == set(part_info[1])
 
 
 # -----------------------------------------------------------------------------
@@ -737,7 +738,7 @@ def test_gocean_parallel():
     '''Check that PSyclones gives useful error messages for a GOKern.'''
 
     # TODO #2531: this kernel should not be accepted in the first place.
-    _, invoke = get_invoke("test31_stencil_not_parallel.f90",
+    psy, invoke = get_invoke("test31_stencil_not_parallel.f90",
                            api="gocean", idx=0, dist_mem=False)
 
     loop = invoke.schedule.children[0]

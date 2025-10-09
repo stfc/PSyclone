@@ -253,7 +253,11 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _partition(comp_ind1, comp_ind2, loop_variables):
+    def _partition(
+        comp_ind1: tuple[tuple[Node]],
+        comp_ind2: tuple[tuple[Node]],
+        loop_variables: list[str]
+    ) -> list[tuple[set[str], list[int]]]:
         '''This method partitions the subscripts of the component indices
         into sets of minimal coupled groups. For example:
         `a(i)` and `a(i+3)` results in one partition with the variable `i`,
@@ -265,26 +269,22 @@ class DependencyTools():
         variables used, and the list of subscript indices.
 
         :param comp_ind1: component_indices of the first array access.
-        :type comp_ind1:
-            :py:class:`psyclone.core.component_indices.ComponentIndices`
         :param comp_ind2: component_indices of the first array access.
-        :type comp_ind2:
-            :py:class:`psyclone.core.component_indices.ComponentIndices`
         :param loop_variables: list with name of all loop variables.
-        :type loop_variables: List[str]
 
         :return: partition information.
-        :rtype: List[Tuple[Set[str], List[int]]]
 
         '''
         def get_subscripts_of(
                 component_indices, set_of_vars: set[str]
         ) -> list[set[str]]:
-            '''This function returns a flat list of which variable from the
-            given set of variables is used in each subscript. For example, the
-            access `a(i+i2)%b(j*j+k,k)%c(l,5)` would have the component_indices
-            `[[i+i2], [j*j+k,k], [l,5]]`. If the set of variables is
-            `(i,j,k)`, then `get_subscripts_of` would return
+            '''This function returns a flat list of sets, one for each index
+            expression within the access. Each set holds the intersection of
+            the set of variables used in that index expression with the input
+            set of variables.
+            For example, the access `a(i+i2)%b(j*j+k,k)%c(l,5)` would have the
+            component_indices `[[i+i2], [j*j+k,k], [l,5]]`. If the set of
+            variables is `(i,j,k)`, then `get_subscripts_of` would return
             `[{i},{j,k},{k},{l},{}]`.
 
             :param set_of_vars: set with name of all variables.

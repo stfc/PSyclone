@@ -411,7 +411,7 @@ class GOLoop(PSyLoop):
 
         '''
         # By definition a GOLoop with one GOKern is loop-independent
-        if len(self.children) == 4 and len(self.loop_body.children) == 1:
+        if len(self.loop_body.children) == 1:
             if isinstance(self.loop_body.children[0], GOKern):
                 return True
 
@@ -962,28 +962,24 @@ class GOKern(CodedKern):
         :type signature: :py:class:`psyclone.core.Signature`
         :param arg:  the meta-data information for this argument.
         :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
-        :param var_accesses: VariablesAccessMap instance that stores the\
+        :param var_accesses: VariablesAccessMap instance that stores the
             information about the field accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # Query each possible stencil direction and add corresponding
         # variable accesses. Note that if (i,j) itself is accessed, the
-        # depth will be 1, so one access to (i,j) is then added.
+        # depth will be 1, so one access using the arg.access is added
         for j in [-1, 0, 1]:
             for i in [-1, 0, 1]:
-                depth = arg.stencil.depth(i, j)
-                for _ in range(1, depth+1):
-                    # Even if a GOKern argument is declared to be written, it
-                    # can only ever write to (i,j), so any other references
-                    # must be read:
-                    if i == 0 and j == 0:
-                        acc = arg.access
-                    else:
-                        acc = AccessType.READ
-
-                    var_accesses.add_access(signature, acc, self)
+                if i == 0 and j == 0:
+                    # This is not necessarely a stencil, and the access
+                    # pattern is given by the argument metadata
+                    var_accesses.add_access(signature, arg.access, self)
+                elif arg.stencil.depth(i, j) > 0:
+                    # This is a stencil access, so mark the READ accesses
+                    # to account for reading other indices of the field
+                    var_accesses.add_access(signature, AccessType.READ, self)
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''

@@ -551,10 +551,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
     def component_indices(self) -> tuple[tuple[Node]]:
         '''
-        :returns: a tuple of each indexed compoment in the accessor with
-            a tuple of each index expression in that compoment. For example,
-            for a scalar it returns `(())`, for `a%b` it returns ((),()) - two
-            components with 0 indicies in each, and for `a(i)%b(j,k+1)` it
+        :returns: a tuple of tuples of index expressions; one for every
+            component in the accessor. For example, for a scalar it
+            returns `(())`, for `a%b` it returns ((),()) - two components
+            with 0 indices in each, and for `a(i)%b(j,k+1)` it
             returns `((i,),(j,k+1))`.
         '''
         return (self.indices,)

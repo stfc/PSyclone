@@ -95,8 +95,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
                 f"fuse loops that are over different grid-point types: "
                 f"{node1.field_space} and {node2.field_space}")
 
-        super(GOceanLoopFuseTrans, self).validate(node1, node2,
-                                                  options=options)
+        super().validate(node1, node2, options=options)
 
 
 # For automatic documentation generation

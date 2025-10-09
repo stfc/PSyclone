@@ -316,12 +316,25 @@ def test_independent_iterations(monkeypatch):
     '''Test the independent_iterations method of GOLoop.'''
     schedule = GOInvokeSchedule.create('name')
     goloop = GOLoop(loop_type="inner", parent=schedule)
-    assert goloop.independent_iterations()
+
+    # We can not check if an incomplete loop has independent iterations
+    # because this depends on its body, and for a DSL loop in particular
+    # on the kernel calls that it contains
+    with pytest.raises(InternalError) as err:
+        goloop.independent_iterations()
+    assert (
+        "Loop is incomplete. It should have exactly 4 children, but found"
+        " loop with 0 children" in str(err.value))
+
+    # Add dummy children
+    goloop.addchild(Literal("1", INTEGER_TYPE))
+    goloop.addchild(Literal("1", INTEGER_TYPE))
+    goloop.addchild(Literal("1", INTEGER_TYPE))
+    goloop.addchild(Schedule())
 
     # Test that we can supply our own instance of DependencyTools. We do this
     # by monkeypatching the can_loop_be_parallelised() method so that it adds
     # a message.
-
     def fake1(deptools, _2, test_all_variables=False,
               signatures_to_ignore=None):
         # pylint: disable=unused-argument
@@ -336,7 +349,6 @@ def test_independent_iterations(monkeypatch):
     # Test when the DA raises an exception (typically because of missing
     # variables in the PSyIR - TODO #845) that this is handled by the
     # independent_iterations method.
-
     def fake2(_1, _2, test_all_variables=False, signatures_to_ignore=None):
         # pylint: disable=unused-argument
         raise InternalError("This is just a test")

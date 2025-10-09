@@ -56,7 +56,6 @@ class AccessInfo():
 
     :param access: the access type.
     :param node: Node in PSyIR in which the access happens.
-    :param component_indices: indices used in the access, defaults to None.
 
     '''
     def __init__(
@@ -83,13 +82,12 @@ class AccessInfo():
                                 "which does not have 'READ' access.")
         self._access_type = AccessType.WRITE
 
-    @property
     def component_indices(self) -> tuple[tuple[Node]]:
         '''
-        :returns: a tuple of each indexed compoment in the accessor with
-            a tuple of each index expression in that compoment. For example,
-            for a scalar it returns `(())`, for `a%b` it returns ((),()) - two
-            components with 0 indicies in each, and for `a(i)%b(j,k+1)` it
+        :returns: a tuple of tuples of index expressions; one for every
+            component in the accessor. For example, for a scalar it
+            returns `(())`, for `a%b` it returns ((),()) - two components
+            with 0 indices in each, and for `a(i)%b(j,k+1)` it
             returns `((i,),(j,k+1))`.
         '''
         # Only Reference has component_indices, for everything else we assume
@@ -97,8 +95,8 @@ class AccessInfo():
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Reference
         if not isinstance(self._node, Reference):
-            return lambda: tuple(tuple())
-        return self._node.component_indices
+            return tuple(tuple())
+        return self._node.component_indices()
 
     def has_indices(self) -> bool:
         '''
@@ -297,8 +295,6 @@ class AccessSequence(list):
 
         :param access_type: the type of access (READ, WRITE, ....)
         :param node: Node in PSyIR in which the access happens.
-        :param component_indices: indices used for each component of the \
-            access.
         '''
         self.append(AccessInfo(access_type, node))
 

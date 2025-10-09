@@ -161,8 +161,8 @@ def test_gok_access_info_scalar_and_property():
             "p_fld%grid%subdomain%internal%xstop: READ, "
             "p_fld%grid%tmask: READ")
 
-    # Check that the derived type using tmask has the corresponding component
-    # indices specified. No indices for p_fld and grid:
+    # Kernel calls have the whole field provided, so no indices are given
+    # at this level.
     tmask = vam[Signature("p_fld%grid%tmask")]
     comp_ind = tmask[0].component_indices()
     assert not comp_ind

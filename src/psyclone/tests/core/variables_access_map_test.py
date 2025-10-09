@@ -186,9 +186,8 @@ def test_derived_type_scalar(fortran_reader):
                           ("a(k)%b(j)%c", (("k",), ("j",), ())),
                           ("a(k)%b(j)%c(i)", (("k",), ("j",), ("i",)))
                           ])
-def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
-    '''This function tests the handling of derived array types.
-    '''
+def test_derived_type_array(array, indices, fortran_reader):
+    '''This function tests the handling of derived array types.'''
     code = f'''module test
         contains
         subroutine tmp()
@@ -208,12 +207,14 @@ def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
     assert "j: READ" in str(vai1)
     assert "k: READ" in str(vai1)
 
-    # Verify that the index expression is correct. First replace its
-    # strings with references to that symbol
+    # The elements in the paratrized indices are string names, but
+    # component_indices returns Reference nodes, so to make it easy
+    # to compare, we first convert each Reference to only its name
     sig = Signature(("a", "b", "c"))
     access = vai1[sig][0]
     component_names = tuple(tuple(node.name for node in idx) for idx in
                             access.component_indices())
+    # Then we can do a simple == to compare all elements of both tuples
     assert component_names == indices
 
 
