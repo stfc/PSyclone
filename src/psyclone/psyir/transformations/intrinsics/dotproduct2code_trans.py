@@ -285,5 +285,6 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
         assignment.parent.children.insert(assignment.position, assign)
         assignment.parent.children.insert(assignment.position, iloop)
 
+
 # For AutoAPI auto-documentation generation.
-__all__ = ["DotProduct2CodeTrans"] 
+__all__ = ["DotProduct2CodeTrans"]

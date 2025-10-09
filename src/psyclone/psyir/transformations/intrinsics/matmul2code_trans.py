@@ -515,5 +515,6 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         # Replace the original assignment with the new loop.
         assignment.replace_with(jloop)
 
+
 # For AutoAPI auto-documentation generation.
-__all__ = ["Matmul2CodeTrans"] 
+__all__ = ["Matmul2CodeTrans"]

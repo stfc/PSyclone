@@ -186,5 +186,6 @@ class Maxval2LoopTrans(ArrayReductionBaseTrans):
         '''
         super().apply(node, options=options, **kwargs)
 
+
 # For AutoAPI auto-documentation generation.
-__all__ = ["Maxval2LoopTrans"] 
+__all__ = ["Maxval2LoopTrans"]

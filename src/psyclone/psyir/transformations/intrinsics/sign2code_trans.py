@@ -192,5 +192,6 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
         if_stmt = IfBlock.create(if_condition, then_body)
         assignment.parent.children.insert(assignment.position, if_stmt)
 
+
 # For AutoAPI auto-documentation generation.
-__all__ = ["Sign2CodeTrans"] 
+__all__ = ["Sign2CodeTrans"]

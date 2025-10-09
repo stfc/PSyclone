@@ -90,5 +90,6 @@ class Min2CodeTrans(MinOrMax2CodeTrans):
         '''
         super().apply(node, options=options, **kwargs)
 
+
 # For AutoAPI auto-documentation generation.
-__all__ = ["Min2CodeTrans"] 
+__all__ = ["Min2CodeTrans"]

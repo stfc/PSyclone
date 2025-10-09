@@ -143,5 +143,6 @@ class Intrinsic2CodeTrans(Transformation, metaclass=abc.ABCMeta):
         :type options: dict[str, Any]
         '''
 
+
 # For AutoAPI auto-documentation generation.
 __all__ = ["Intrinsic2CodeTrans"]
