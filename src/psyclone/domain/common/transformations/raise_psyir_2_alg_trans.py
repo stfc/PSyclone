@@ -41,7 +41,6 @@ which uses specialised classes.
 # pylint: disable=protected-access
 
 from fparser.two.Fortran2003 import Structure_Constructor
-import warnings
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
@@ -241,10 +240,6 @@ class RaisePSyIR2AlgTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        if options:
-            # TODO 2668 - options dict is deprecated.
-            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
-
         self.validate(node, index=index, options=options, **kwargs)
 
         call_name = None

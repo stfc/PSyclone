@@ -39,7 +39,6 @@ PSy-layer routine.
 
 '''
 import abc
-import warnings
 
 from psyclone.core import SymbolicMaths
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
@@ -211,9 +210,6 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        if options:
-            # TODO 2668 - options dict is deprecated.
-            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
         self.validate(node, options=options)
         node.create_psylayer_symbol_root_names()
         arguments = self.get_arguments(node, options=options)
