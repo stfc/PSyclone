@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing tests for the MinOrMax2Code utility
 transformation. This transformation is designed to be configured to
@@ -40,6 +41,7 @@ directly.
 
 '''
 import pytest
+import warnings
 
 from psyclone.psyir.nodes import Reference, BinaryOperation, \
     Assignment, Literal, KernelSchedule, IntrinsicCall
@@ -324,3 +326,27 @@ def test_invalid():
     assert (
         "Error in MinOrMax2CodeTrans transformation. The supplied node must "
         "be an 'IntrinsicCall', but found 'NoneType'." in str(excinfo.value))
+
+
+# TODO #2668 delete this test
+def test_minormax_deprecation_warning():
+    '''Test that the MinOrMax2CodeTrans transformation throws the
+    deprecation warning when provided an options dict.
+    '''
+    intr_call = example_psyir_binary(lambda arg: arg)
+    trans = MinOrMax2CodeTrans()
+    # Configure this transformation to use MIN
+    trans._intrinsic = IntrinsicCall.Intrinsic.MIN
+    trans._compare_operator = BinaryOperation.Operator.LT
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to be triggered.
+        warnings.simplefilter("always")
+        trans.apply(intr_call, options={"a": "test"})
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in str(w[0].message))

@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR MINVAL intrinsic to
 an equivalent PSyIR loop structure. This could be useful if the MINVAL
@@ -43,8 +44,10 @@ better than the intrinsic.
 from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
     import ArrayReductionBaseTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class Minval2LoopTrans(ArrayReductionBaseTrans):
     '''Provides a transformation from a PSyIR MINVAL IntrinsicCall node to
     an equivalent PSyIR loop structure that is suitable for running in
@@ -168,3 +171,19 @@ class Minval2LoopTrans(ArrayReductionBaseTrans):
         '''
         return IntrinsicCall.create(
             IntrinsicCall.Intrinsic.HUGE, [reference.copy()])
+
+    def apply(self, node, options=None, **kwargs):
+        '''
+        Apply the Minval2LoopTrans to the input node.
+
+        :param node: the MINVAL intrinsic to transform.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :param options: options for the transformation.
+        :type options: Optional[Dict[str, Any]]
+
+        '''
+        super().apply(node, options=options, **kwargs)
+
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["Minval2LoopTrans"]
