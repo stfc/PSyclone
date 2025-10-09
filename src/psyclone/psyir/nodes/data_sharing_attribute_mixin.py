@@ -135,6 +135,10 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                 continue
             symbol = accesses[0].node.scope.symbol_table.lookup(
                 name, otherwise=None)
+            if symbol is None:
+                # The signature does not match any symbol! This is probably a
+                # structure, we will consider them shared
+                continue
 
             # A parallel loop variable is always private
             if (isinstance(self.dir_body[0], Loop) and
@@ -216,13 +220,6 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                     # Otherwise, the assignment to this variable is inside a
                     # loop (and it will be repeated for each iteration), so
                     # we declare it as [first]private or need_sync
-
-                    # TODO #2094: var_name only captures the top-level
-                    # component in the derived type accessor. If the attributes
-                    # only apply to a sub-component, this won't be captured
-                    # appropriately.
-                    name = signature.var_name
-                    symbol = access.node.scope.symbol_table.lookup(name)
 
                     # If it has been read before we have to check if ...
                     if has_been_read:

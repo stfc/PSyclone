@@ -684,15 +684,16 @@ def test_infer_sharing_attributes_with_codeblocks(
     '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
+            use other, only: mystruct
             integer :: i, j, scalar1 = 1, scalar2 = 2
             real, dimension(10) :: array, array2
             write(*,*) scalar1, scalar2
             do j = 1, 10
                do i = 1, size(array, 1)
-                   write(*,*) scalar2
+                   write(*,*) scalar2, mystruct(i)%field2
                    if (.true.) then
                        scalar1 = 1
-                       write(*,*) scalar1
+                       write(*,*) scalar1, mystruct(i)%field1
                    end if
                    scalar2 = scalar1 + 1
                    write(*,*) scalar1, scalar2
