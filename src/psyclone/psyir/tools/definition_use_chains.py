@@ -143,7 +143,6 @@ class DefinitionUseChain:
 
         # The output map, mapping between nodes and the reach of that node.
         self._reaches = []
-        self._writes = []
 
     @property
     def uses(self):
