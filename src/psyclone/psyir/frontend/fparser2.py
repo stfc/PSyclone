@@ -4847,7 +4847,7 @@ class Fparser2Reader():
                 # This is actually a whole-array access
                 base_indices = []
                 for idx in range(len(base_sym.datatype.shape)):
-                    # For safety, just construct a range using l/ubound
+                    # For each dimension, construct a range using l/ubound
                     # intrinsics.
                     lbound = IntrinsicCall.create(
                         IntrinsicCall.Intrinsic.LBOUND,

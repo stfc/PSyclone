@@ -392,9 +392,10 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     a derived type. '''
     processor = Fparser2Reader()
     reader = FortranStringReader(
-        "subroutine my_sub()\n"
+        "subroutine my_sub(vars2d)\n"
         "  use some_mod, only: my_type\n"
         "  type(my_type) :: var, vars(3)\n"
+        "  type(my_type) :: vars2d(:,:)\n"
         "  var%flag = 0\n"
         "  var%region%start = 1\n"
         "  var%region%subgrid(3)%stop = 1\n"
@@ -403,6 +404,8 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
         "  vars(1)%region%subgrid(3)%data(:) = 1.0\n"
         "  vars(1)%region%subgrid(:)%data(1) = 1.0\n"
         "  vars(:)%region%subgrid(3)%xstop = 1.0\n"
+        # Whole-array access to 'vars'
+        "  vars2d%region%subgrid(3)%xstop = 1.0\n"
         "end subroutine my_sub\n")
     fparser2spec = f2008_parser(reader)
     sched = processor.generate_psyir(fparser2spec)
@@ -492,6 +495,7 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     assert amem.member.member.member.name == "data"
     assert isinstance(amem.member.member.member, ArrayMember)
     # vars(:)%region%subgrid(3)%xstop
+    # vars%region%subgrid(3)%xstrop
     assign = assignments[7]
     amem = assign.lhs
     lbound = amem.children[1].children[0]
@@ -499,6 +503,22 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     assert lbound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
     assert isinstance(lbound.arguments[0], Reference)
     assert lbound.arguments[0].symbol.name == "vars"
+    # vars2d%region%subgrid(3)%xstrop
+    assign = assignments[8]
+    amem = assign.lhs
+    assert len(amem.indices) == 2
+    for idx in amem.indices:
+        assert isinstance(idx, Range)
+        lbound = idx.start
+        assert isinstance(lbound, IntrinsicCall)
+        assert lbound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
+        assert isinstance(lbound.arguments[0], Reference)
+        assert lbound.arguments[0].symbol.name == "vars2d"
+        ubound = idx.stop
+        assert isinstance(ubound, IntrinsicCall)
+        assert ubound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
+        assert isinstance(ubound.arguments[0], Reference)
+        assert ubound.arguments[0].symbol.name == "vars2d"
 
 
 def test_array_of_derived_type_ref(f2008_parser):
