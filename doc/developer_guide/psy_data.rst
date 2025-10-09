@@ -1066,8 +1066,9 @@ the wrapper depends on (e.g. NetCDF).
     and link time for now, since the kernel contains metadata. Issue
     #2049 tracks a solution for this.
 
-The following changes are applied by the ``ExtractionDriverCreator``
-in order to generate stand-alone code for GOcean:
+The following changes are applied by the ``GOceanDriverCreator`` and
+the base class ``DriverCreator`` in order to generate stand-alone
+code for GOcean:
 
 1. The `dl_esm_inf` field type is replaced with 2d Fortran arrays.
    The structure name used is 'flattened', i.e. each ``%`` is replaced
@@ -1175,7 +1176,7 @@ the wrapper depends on (e.g. NetCDF).
 
 The driver creation process is explained in the Python sources:
 
-.. autoclass:: psyclone.domain.lfric.LFRicExtractDriverCreator
+.. autoclass:: psyclone.domain.lfric.LFRicDriverCreator
     :no-index:
     :members:
 
