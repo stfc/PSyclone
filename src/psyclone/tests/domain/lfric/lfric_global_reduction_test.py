@@ -39,8 +39,6 @@
 
 '''Module containing pytest tests for the LFRicGlobalReduction class.'''
 
-import os
-from pathlib import Path
 import pytest
 
 from psyclone.core import AccessType
@@ -48,9 +46,6 @@ from psyclone.domain.common.psylayer.global_reduction import ReductionOp
 from psyclone.domain.lfric.lfric_global_reduction import LFRicGlobalReduction
 from psyclone.errors import GenerationError, InternalError
 from psyclone.tests.utilities import get_invoke
-
-BASE_PATH = Path(os.path.dirname(os.path.abspath(__file__)))
-BASE_PATH = BASE_PATH / ".." / ".." / "test_files" / "lfric"
 
 TEST_API = "lfric"
 
