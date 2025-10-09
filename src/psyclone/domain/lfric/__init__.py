@@ -53,8 +53,8 @@ from psyclone.domain.lfric.kern_call_invoke_arg_list import \
     KernCallInvokeArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
 from psyclone.domain.lfric.lfric_cell_iterators import LFRicCellIterators
-from psyclone.domain.lfric.lfric_extract_driver_creator import \
-    LFRicExtractDriverCreator
+from psyclone.domain.lfric.lfric_driver_creator import \
+    LFRicDriverCreator
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
@@ -91,7 +91,7 @@ __all__ = [
     'LFRicCollection',
     'LFRicConstants',
     'LFRicDofmaps',
-    'LFRicExtractDriverCreator',
+    'LFRicDriverCreator',
     'LFRicFields',
     'LFRicHaloDepths',
     'LFRicInvoke',
