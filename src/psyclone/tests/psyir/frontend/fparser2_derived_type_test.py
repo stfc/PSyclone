@@ -495,7 +495,6 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     assert amem.member.member.member.name == "data"
     assert isinstance(amem.member.member.member, ArrayMember)
     # vars(:)%region%subgrid(3)%xstop
-    # vars%region%subgrid(3)%xstrop
     assign = assignments[7]
     amem = assign.lhs
     lbound = amem.children[1].children[0]
@@ -503,7 +502,7 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     assert lbound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
     assert isinstance(lbound.arguments[0], Reference)
     assert lbound.arguments[0].symbol.name == "vars"
-    # vars2d%region%subgrid(3)%xstrop
+    # vars2d%region%subgrid(3)%xstop
     assign = assignments[8]
     amem = assign.lhs
     assert len(amem.indices) == 2
