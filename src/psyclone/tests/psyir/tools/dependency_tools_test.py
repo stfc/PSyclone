@@ -276,6 +276,9 @@ def test_partition(lhs, rhs, partition, fortran_reader):
         # Note that the variables are stores as sets, so order does
         # not matter:
         assert correct[0] == part_info[0]
+        # Then check that the partition indices are the same as well.
+        # The partition function returns the indices as lists, so
+        # convert them to sets to get an order independent comparison:
         assert correct[1] == set(part_info[1])
 
 
