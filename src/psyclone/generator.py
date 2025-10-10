@@ -658,6 +658,8 @@ def main(arguments):
         logger.warning("keep_directives requires keep_comments so "
                        "PSyclone enabled keep_comments.")
         args.keep_comments = True
+    Config.get().frontend_keep_comments = args.keep_comments
+    Config.get().frontend_keep_directives = args.keep_directives
 
     # If free_form or fixed_form is set in the arguments then it overrides
     # default behaviour.
@@ -855,6 +857,8 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         trans_recipe, files_to_skip, resolve_mods = load_script(recipe_file)
     else:
         trans_recipe, files_to_skip, resolve_mods = (None, [], False)
+
+    Config.get().frontend_resolve_containers = resolve_mods
 
     _, filename = os.path.split(input_file)
     if filename not in files_to_skip:

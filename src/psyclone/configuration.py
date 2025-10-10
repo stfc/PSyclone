@@ -49,6 +49,7 @@ from collections import namedtuple
 import os
 import re
 import sys
+from typing import Union
 import psyclone
 
 from psyclone.errors import PSycloneError, InternalError
@@ -234,6 +235,10 @@ class Config:
 
         # The Fortran standard that fparser should use
         self._fortran_standard = None
+
+        self._fortran_free_format = None
+        self._fortran_keep_comments = False
+        self._fortran_keep_directives = False
 
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
@@ -757,6 +762,51 @@ class Config:
         ''':returns: The Fortran standard to be used by fparser.
         '''
         return self._fortran_standard
+
+    @property
+    def frontend_keep_comments(self) -> bool:
+        '''
+        '''
+        return self._frontend_keep_comments
+
+    @frontend_keep_comments.setter
+    def frontend_keep_comments(self, value: bool) -> None:
+        '''
+        '''
+        if not isinstance(value, bool):
+            raise TypeError("oh")
+        self._frontend_keep_comments = value
+
+    @property
+    def frontend_keep_directives(self) -> bool:
+        '''
+        '''
+        return self._frontend_keep_directives
+
+    @frontend_keep_directives.setter
+    def frontend_keep_directives(self, value: bool) -> None:
+        '''
+        '''
+        if not isinstance(value, bool):
+            raise TypeError("oh")
+        self._frontend_keep_directives = value
+
+    @property
+    def frontend_resolve_containers(self) -> Union[bool, list[str]]:
+        '''
+        '''
+        return self._frontend_resolve_containers
+
+    @frontend_resolve_containers.setter
+    def frontend_resolve_containers(self, value: Union[bool, list[str]]):
+        '''
+        '''
+        if isinstance(value, list):
+            if not all(isinstance(val, str) for val in value):
+                raise ValueError("")
+        elif not isinstance(value, bool):
+          raise TypeError("ohh")  
+        self._frontend_resolve_containers = value
 
     def get_default_keys(self):
         '''Returns all keys from the default section.

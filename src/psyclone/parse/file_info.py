@@ -40,6 +40,7 @@
 
 import copy
 import hashlib
+import logging
 import os
 import pickle
 from typing import Optional
@@ -456,9 +457,9 @@ class FileInfo:
                 "Failed to create fparser tree (previous attempt failed)"
             )
 
-        if verbose:
-            # TODO #11: Use logging for this
-            print(f"- Source file '{self._filename}': " f"Running fparser")
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"- Source file '{self._filename}': Running fparser")
 
         try:
             source_code = self.get_source_code()
@@ -471,12 +472,10 @@ class FileInfo:
 
         if self._cache_data_load is not None:
             if self._cache_data_load._fparser_tree is not None:
-                if verbose:
-                    # TODO #11: Use logging for this
-                    print(
-                        f"  - Using cache of fparser tree with hashsum"
-                        f" {self._cache_data_load._source_code_hash_sum}"
-                    )
+                logger.info(
+                    f"  - Using cache of fparser tree with hashsum"
+                    f" {self._cache_data_load._source_code_hash_sum}"
+                )
 
                 # Use cached version
                 self._fparser_tree = self._cache_data_load._fparser_tree
@@ -485,7 +484,8 @@ class FileInfo:
         try:
             config = Config.get()
             reader = FortranStringReader(
-                source_code, include_dirs=config.include_paths
+                source_code, include_dirs=config.include_paths,
+                ignore_comments=(not config.frontend_keep_comments)
             )
             parser = ParserFactory().create(std=config.fortran_standard)
             self._fparser_tree = parser(reader)
@@ -545,9 +545,13 @@ class FileInfo:
                 save_to_cache_if_cache_active=True
             )
 
-        # We generate PSyIR from the fparser tree
+        # We generate PSyIR from the fparser tree using the same options as
+        # were provided to the PSyclone invocation.
         _, filename = os.path.split(self.filename)
-        processor = self._processor = Fparser2Reader()
+        config = Config.get()
+        processor = self._processor = Fparser2Reader(
+            ignore_directives=(not config.frontend_keep_directives),
+            resolve_modules=config.frontend_resolve_containers)
         self._psyir_node = processor.generate_psyir(fparse_tree, filename)
 
         # TODO #2786: Uncomment if psyir nodes are serializable
