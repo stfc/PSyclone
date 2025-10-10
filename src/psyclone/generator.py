@@ -858,8 +858,6 @@ def code_transformation_mode(input_file, recipe_file, output_file,
     else:
         trans_recipe, files_to_skip, resolve_mods = (None, [], False)
 
-    Config.get().frontend_resolve_containers = resolve_mods
-
     _, filename = os.path.split(input_file)
     if filename not in files_to_skip:
         # If line_length "all" is provided, check the input source

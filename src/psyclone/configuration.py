@@ -49,7 +49,6 @@ from collections import namedtuple
 import os
 import re
 import sys
-from typing import Union
 import psyclone
 
 from psyclone.errors import PSycloneError, InternalError
@@ -765,30 +764,49 @@ class Config:
 
     @property
     def frontend_keep_comments(self) -> bool:
-        '''
+        ''':returns: whether the frontend should retain comments when
+                     processing existing code.
         '''
         return self._frontend_keep_comments
 
     @frontend_keep_comments.setter
     def frontend_keep_comments(self, value: bool) -> None:
         '''
+        Setter for whether or not the frontend should retain comments when
+        processing existing code.
+
+        :param value: the new value for this setting.
+
+        :raises TypeError: if value is not a bool.
+
         '''
         if not isinstance(value, bool):
-            raise TypeError("oh")
+            raise TypeError(f"frontend_keep_comments must be a bool but got "
+                            f"'{type(value).__name__}'")
         self._frontend_keep_comments = value
 
     @property
     def frontend_keep_directives(self) -> bool:
         '''
+        :returns: whether the frontend should retain directives when processing
+                  existing code.
         '''
         return self._frontend_keep_directives
 
     @frontend_keep_directives.setter
     def frontend_keep_directives(self, value: bool) -> None:
         '''
+        Setter for whether or not the frontend should retain directives when
+        processing existing code.
+
+        :param value: the new value for this setting.
+
+        :raises TypeError: if value is not a bool.
+
         '''
         if not isinstance(value, bool):
-            raise TypeError("oh")
+            raise TypeError(f"frontend_keep_directives must be a bool but got "
+                            f"{type(value).__name__}'")
         self._frontend_keep_directives = value
 
     def get_default_keys(self):
