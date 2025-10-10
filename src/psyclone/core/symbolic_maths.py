@@ -39,8 +39,10 @@
 functions.'''
 
 from enum import Enum
-from sympy import (Complexes, ConditionSet, core, EmptySet, expand, FiniteSet,
-                   ImageSet, simplify, solvers, Union)
+from sympy import (Complexes, ConditionSet, core, EmptySet, expand,
+                   FiniteSet, ImageSet, simplify, simplify_logic, solvers,
+                   Union)
+from sympy.logic.boolalg import Boolean
 
 
 class SymbolicMaths:
@@ -385,8 +387,8 @@ class SymbolicMaths:
     def expand(expr):
         '''Expand a PSyIR expression. This is done by converting the PSyIR
         expression to a sympy expression, applying the expansion
-        operation and then converting the resultant output back into
-        PSyIR.
+        operation (or `simplify_logic` in the case of a Boolean expression)
+        and then converting the resultant output back into PSyIR.
 
         Currently does not work if the PSyIR expression contains Range
         nodes, see issue #1655.
@@ -407,8 +409,13 @@ class SymbolicMaths:
         # Convert the PSyIR expression to a sympy expression
         sympy_writer = SymPyWriter()
         sympy_expression = sympy_writer(expr)
-        # Expand the expression
-        result = expand(sympy_expression)
+
+        # Expand the expression (unless it is a Boolean in which case we have
+        # to use simplify_logic).
+        if isinstance(sympy_expression, Boolean):
+            result = simplify_logic(sympy_expression)
+        else:
+            result = expand(sympy_expression)
 
         # Find the required symbol table in the original PSyIR
         symbol_table = expr.scope.symbol_table
