@@ -40,7 +40,8 @@ functions.'''
 
 from enum import Enum
 from sympy import (Complexes, ConditionSet, core, EmptySet, expand,
-                   FiniteSet, ImageSet, simplify, simplify_logic, solvers, Union)
+                   FiniteSet, ImageSet, simplify, simplify_logic, solvers,
+                   Union)
 from sympy.logic.boolalg import Boolean
 
 
