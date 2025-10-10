@@ -232,7 +232,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                             need_sync.add(symbol)
                         break
 
-                    # If the write is not guaranteed (because it is insice a
+                    # If the write is not guaranteed (because it is inside a
                     # conditional), make it firstprivate to keep the original
                     # value when the branch is never taken. Unless this never
                     # had a value before the loop (as some compilers don't

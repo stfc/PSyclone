@@ -704,6 +704,9 @@ def test_infer_sharing_attributes_with_codeblocks(
     omplooptrans = OMPLoopTrans()
     omplooptrans.omp_directive = "paralleldo"
     loop = psyir.walk(Loop)[0]
+    # Make sure that the write statements inside the loop are CodeBlocks,
+    # otherwise we need a new test example
+    assert loop.has_descendant(nodes.CodeBlock)
     loop.explicitly_private_symbols.add(
             loop.scope.symbol_table.lookup("scalar2"))
     omplooptrans.apply(loop, node_type_check=False, force=True)
