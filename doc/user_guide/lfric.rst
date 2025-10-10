@@ -879,7 +879,8 @@ types.
 Rules specific to General-Purpose Kernels without CMA Operators
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-1) General-purpose kernels with ``operates_on = CELL_COLUMN`` accept
+1) General-purpose kernels with ``operates_on = CELL_COLUMN`` or
+   ``OWNED_CELL_COLUMN`` accept
    arguments of any of the following types: field, field vector, LMA
    operator, scalar (``real``, ``integer`` or ``logical``).
 
@@ -1005,7 +1006,7 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 Rules for all User-Supplied Kernels that Operate on DoFs (DoF Kernels)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Kernels that have ``operates_on = DOF`` and
+Kernels that have ``operates_on = DOF`` (or ``OWNED_DOF``) and
 :ref:`LFRic Built-ins<lfric-built-ins>` overlap significantly in their
 scope, and the conventions that DoF Kernels must follow are influenced
 by those for built-ins as a result. This includes :ref:`metadata arguments
@@ -1336,9 +1337,8 @@ user-defined Kernels are summarised here. All argument types
 ``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this
 is specified in metadata using ``GH_READ``. At least one kernel
 argument must be listed as being modified. When data is *modified*
-in a user-supplied Kernel (i.e. a Kernel that operates on a
-``CELL_COLUMN``, see :ref:`iteration space metadata
-<lfric-operates-on>`) then the permitted access
+in a user-supplied Kernel that operates on cell columns (see
+:ref:`iteration space metadata <lfric-operates-on>`) then the permitted access
 modes depend upon the argument type and the function space it is on:
 
 .. tabularcolumns:: |l|l|l|
@@ -1365,9 +1365,9 @@ modes depend upon the argument type and the function space it is on:
 
 Note that scalar arguments to user-defined Kernels must be read-only.
 Only :ref:`Built-ins <lfric-built-ins>` are permitted to modify scalar
-arguments. In practice this means that the only allowed access for the scalars
-in user-defined Kernels is ``GH_READ`` (see the allowed accesses for arguments
-in Built-ins in the :ref:`section below <lfric-built-ins-dtype-access>`).
+arguments. In practice this means that the only allowed access for scalar
+arguments in user-defined Kernels is ``GH_READ`` (see the allowed accesses for
+arguments in Built-ins in the :ref:`section below <lfric-built-ins-dtype-access>`).
 
 Note also that a ``GH_FIELD`` argument that has ``GH_WRITE`` or
 ``GH_READWRITE`` as its access pattern must typically (see below) be
@@ -1955,21 +1955,38 @@ is supplied with the specified data for each field/operator argument.
 The possible values for ``OPERATES_ON`` and their interpretation are
 summarised in the following table:
 
-============================== =======================================================
-operates_on                    Data passed for each field/operator argument
-============================== =======================================================
-``cell_column``                Single column of cells from the owned region (except
-                               when performing an INC operation on continuous fields
-			       when it will include one level of halo cells).
-``halo_cell_column``           Single column of cells exclusively from halo region.
-``owned_and_halo_cell_column`` Single column of cells but iteration space will include
-                               both owned and halo regions.
-``dof``                        Single DoF .
-``domain``                     All columns of cells in the (sub-)domain.
-============================== =======================================================
+============================== ============================================ ==========================================
+operates_on                    Data passed for each field/operator argument Iteration space
+============================== ============================================ ==========================================
+``cell_column``                Single column of cells.                      Defaults to columns from the owned region
+                                                                            unless the kernel performs an INC
+									    operation on continuous fields when it
+									    will include one level of halo cells.
+									    The iteration space may be extended into
+									    the halo in order to perform redundant
+									    computation.
+``owned_cell_column``          Single column of cells.                      Restricted to owned columns (i.e. excludes
+                                                                            halo columns).
+``halo_cell_column``           Single column of cells.                      Columns exclusively from the halo region
+                                                                            (to a specified depth).
+``owned_and_halo_cell_column`` Single column of cells.                      Iteration space will include both owned
+                                                                            and halo columns (to a specified depth).
+``dof``                        Single DoF.                                  Defaults to owned DoFs but may be extended
+                                                                            to annexed and halo DoFs.
+``owned_dof``                  Single DoF.                                  Restricted to owned DoFs only.
+``domain``                     All columns of cells in the (sub-)domain.    None.
+============================== ============================================ ==========================================
 
-(For a description of the concepts of 'owned' and 'halo' cells please see the
-:ref:`lfric-developers`.)
+(For a description of the concepts of 'owned' and 'halo' cells and 'annexed' DoFs
+please see the :ref:`lfric-developers`.)
+
+The ``owned_cell_column`` and ``owned_dof`` values of ``OPERATES_ON`` are intended for
+use only with special cases where the kernel concerned cannot be used to perform
+redundant computation (e.g. when filling a field with pseudo-random numbers without
+regard to cell location). Processing an application that makes use of such a kernel
+requires that the ``COMPUTE_ANNEXED_DOFS`` configuration option (see
+:ref:`lfric-annexed_dofs`) be set to ``False`` as PSyclone can no longer guarantee that
+annexed DoFs are always clean between different ``invoke`` calls.
 
 procedure
 #########
@@ -3241,6 +3258,9 @@ pseudo-random numbers in the interval ``0 <= x < 1``::
 
 where ``RAND()`` is some function that returns a new pseudo-random number
 each time it is called.
+
+Due to its simplistic implementation, this kernel does *not* support
+redundant computation and hence has ``OPERATES_ON=owned_dof``.
 
 .. warning:: This Built-in is implemented using the Fortran ``random_number``
 	     intrinsic. Therefore no guarantee is made as to the quality of

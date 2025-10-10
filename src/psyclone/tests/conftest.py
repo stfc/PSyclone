@@ -55,9 +55,13 @@ from psyclone.tests.utilities import Compile
 
 
 # fixtures defined here are available to all tests
-@pytest.fixture(scope="module", params=[False, True])
-def annexed(request):
-    ''' Return the content of params in turn '''
+@pytest.fixture(scope="function", params=[False, True])
+def annexed(request, monkeypatch):
+    ''' Monkeypatches the compute_annexed_dofs member of the LFRic config
+    object and then returns that value. '''
+    config = Config.get()
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", request.param)
     return request.param
 
 

@@ -362,14 +362,14 @@ class Parser():
         builtin object respectively which contains the required
         information.
 
-        :param argument: Parse tree of an invoke argument. This \
+        :param argument: Parse tree of an invoke argument. This
             should contain a kernel name and associated arguments.
-        :type argument: :py:class:`fparser.two.Fortran2003.Part_Ref` or \
+        :type argument: :py:class:`fparser.two.Fortran2003.Part_Ref` |
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :returns: A builtin or coded kernel call object which contains \
+        :returns: A builtin or coded kernel call object which contains
             relevant information about the Kernel.
-        :rtype: :py:class:`psyclone.parse.algorithm.KernelCall` or \
+        :rtype: :py:class:`psyclone.parse.algorithm.KernelCall` |
             :py:class:`psyclone.parse.algorithm.BuiltInCall`
 
         '''
@@ -383,6 +383,7 @@ class Parser():
             # This is a coded kernel
             kernel_call = self.create_coded_kernel_call(
                 kernel_name, args)
+
         return kernel_call
 
     def create_builtin_kernel_call(self, kernel_name, args):
