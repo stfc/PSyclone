@@ -791,23 +791,6 @@ class Config:
             raise TypeError("oh")
         self._frontend_keep_directives = value
 
-    @property
-    def frontend_resolve_containers(self) -> Union[bool, list[str]]:
-        '''
-        '''
-        return self._frontend_resolve_containers
-
-    @frontend_resolve_containers.setter
-    def frontend_resolve_containers(self, value: Union[bool, list[str]]):
-        '''
-        '''
-        if isinstance(value, list):
-            if not all(isinstance(val, str) for val in value):
-                raise ValueError("")
-        elif not isinstance(value, bool):
-          raise TypeError("ohh")  
-        self._frontend_resolve_containers = value
-
     def get_default_keys(self):
         '''Returns all keys from the default section.
         :returns list: List of all keys of the default section as strings.
