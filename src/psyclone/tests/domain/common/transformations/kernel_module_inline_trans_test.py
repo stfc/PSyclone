@@ -44,6 +44,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import CodedKern, Kern
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
@@ -1348,3 +1349,54 @@ def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     ctr_sym = container.symbol_table.lookup("my_mod")
     (isym,) = container.symbol_table.symbols_imported_from(ctr_sym)
     assert isym.interface.orig_name == "my_sub"
+
+
+def test_mod_inline_shared_wildcard_import(monkeypatch, fortran_reader):
+    '''
+    Check that resolved, imported symbols keep their status when module-
+    inlining a routine that accesses them.
+    '''
+    make_external_module(monkeypatch, fortran_reader, "ice_params",
+                         '''\
+    module ice_params
+      real, parameter :: eps20 = 1.023
+    end module ice_params''')
+    # Create the module containing the subroutine definition that accesses
+    # eps20.
+    make_external_module(monkeypatch, fortran_reader, "my_mod",
+                         '''\
+    module my_mod
+      use ice_params
+      use not_found
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = eps20
+      end subroutine my_sub
+    end module my_mod
+    ''')
+    code = '''\
+    module this_mod
+      use ice_params
+      use my_mod
+    contains
+      subroutine do_it()
+        real, dimension(10) :: a
+        a(:) = eps20
+        call my_sub(a)
+      end subroutine do_it
+    end module this_mod'''
+    # Create our own FortranReader that will resolve imports from the two
+    # modules as it encounters them.
+    reader = FortranReader(resolve_modules=["ice_params", "my_mod"])
+    psyir = reader.psyir_from_source(code)
+    container = psyir.children[0]
+    calls = container.walk(Call)
+    intrans = KernelModuleInlineTrans()
+    intrans.apply(calls[-1])
+    # Check that eps20 has the correct interface in the inlined Routine.
+    inlined = container.find_routine_psyir("my_sub", allow_private=True)
+    eps_sym = inlined.symbol_table.lookup("eps20")
+    assert not eps_sym.is_unresolved
+    assert eps_sym.is_import
+    assert eps_sym.interface.container_symbol.name == "ice_params"

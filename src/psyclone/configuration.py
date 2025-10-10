@@ -235,6 +235,10 @@ class Config:
         # The Fortran standard that fparser should use
         self._fortran_standard = None
 
+        self._fortran_free_format = None
+        self._fortran_keep_comments = False
+        self._fortran_keep_directives = False
+
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
         '''Loads a configuration file.
@@ -757,6 +761,53 @@ class Config:
         ''':returns: The Fortran standard to be used by fparser.
         '''
         return self._fortran_standard
+
+    @property
+    def frontend_keep_comments(self) -> bool:
+        ''':returns: whether the frontend should retain comments when
+                     processing existing code.
+        '''
+        return self._frontend_keep_comments
+
+    @frontend_keep_comments.setter
+    def frontend_keep_comments(self, value: bool) -> None:
+        '''
+        Setter for whether or not the frontend should retain comments when
+        processing existing code.
+
+        :param value: the new value for this setting.
+
+        :raises TypeError: if value is not a bool.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(f"frontend_keep_comments must be a bool but got "
+                            f"'{type(value).__name__}'")
+        self._frontend_keep_comments = value
+
+    @property
+    def frontend_keep_directives(self) -> bool:
+        '''
+        :returns: whether the frontend should retain directives when processing
+                  existing code.
+        '''
+        return self._frontend_keep_directives
+
+    @frontend_keep_directives.setter
+    def frontend_keep_directives(self, value: bool) -> None:
+        '''
+        Setter for whether or not the frontend should retain directives when
+        processing existing code.
+
+        :param value: the new value for this setting.
+
+        :raises TypeError: if value is not a bool.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(f"frontend_keep_directives must be a bool but got "
+                            f"{type(value).__name__}'")
+        self._frontend_keep_directives = value
 
     def get_default_keys(self):
         '''Returns all keys from the default section.

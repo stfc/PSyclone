@@ -40,6 +40,7 @@
 
 import copy
 import hashlib
+import logging
 import os
 import pickle
 from typing import Optional
@@ -207,7 +208,7 @@ class FileInfo:
         '''
         return self._filename
 
-    def get_source_code(self, verbose: bool = False) -> str:
+    def get_source_code(self) -> str:
         '''Returns the source code of the file. The first time, it
         will be read from the file, but the data is then cached.
 
@@ -216,20 +217,14 @@ class FileInfo:
         Fortran source and the only way such characters can appear is if they
         are in comments.
 
-        :param verbose: If `True`, produce some verbose output
-
         :returns: the contents of the file (utf-8 encoding).
 
         '''
         if self._source_code:
             return self._source_code
 
-        if verbose:
-            # TODO #11: Use logging for this
-            print(
-                f"- Source file '{self._filename}': "
-                f"Loading source code"
-            )
+        logger = logging.getLogger(__name__)
+        logger.info(f"- Source file '{self._filename}': Loading source code")
 
         try:
             # Specifying errors='ignore' simply skips any characters that
@@ -244,12 +239,7 @@ class FileInfo:
                 f"FileInfo: No such file or directory '{self._filename}'."
             ) from err
 
-        if verbose:
-            # TODO #11: Use logging for this
-            print(
-                f"- Source file '{self._filename}': "
-                f"Loading source code"
-            )
+        logger.info(f"- Source file '{self._filename}': Loading source code")
 
         if self._cache_active:
             # Update the hash sum
@@ -260,7 +250,6 @@ class FileInfo:
 
     def _cache_load(
         self,
-        verbose: bool = False,
         indent: str = ""
     ) -> _CacheFileInfo:
         """Load fparser parse tree from the cache file if possible.
@@ -270,7 +259,6 @@ class FileInfo:
         The checksum is based solely on a hashsum of the source code itself,
         see code below.
 
-        :param verbose: Produce some verbose output
         """
 
         if not self._cache_active:
@@ -284,6 +272,8 @@ class FileInfo:
         if self._cache_data_load is not None:
             return self._cache_data_load
 
+        logger = logging.getLogger(__name__)
+
         # Load cache file.
         # Warning: There could be race conditions, e.g., in parallel builds.
         # In the worst case some content is read which is incomplete or
@@ -291,19 +281,13 @@ class FileInfo:
         # unpickling or a non-matching checksum which is both caught below.
         try:
             filehandler = open(self._get_cache_filepath(), "rb")
-            if verbose:
-                # TODO #11: Use logging for this
-                print(
-                    f"{indent}- Using cache file "
-                    f"'{self._get_cache_filepath()}'"
-                )
+            logger.info(
+                f"{indent}- Using cache file "
+                f"'{self._get_cache_filepath()}'")
         except FileNotFoundError:
-            if verbose:
-                # TODO #11: Use logging for this
-                print(
-                    f"{indent}- No cache file "
-                    f"'{self._get_cache_filepath()}' found"
-                )
+            logger.info(
+                f"{indent}- No cache file "
+                f"'{self._get_cache_filepath()}' found")
             return None
 
         # Unpack cache file
@@ -317,30 +301,22 @@ class FileInfo:
 
         # Verify checksums
         if cache._source_code_hash_sum != self._source_code_hash_sum:
-            if verbose:
-                # TODO #11: Use logging for this
-                print(
-                    f"  - Cache hashsum mismatch: "
-                    f"source {self._source_code_hash_sum} "
-                    f"vs. cache {cache._source_code_hash_sum}"
-                )
+            logger.info(
+                f"  - Cache hashsum mismatch: "
+                f"source {self._source_code_hash_sum} "
+                f"vs. cache {cache._source_code_hash_sum}")
             return None
 
         self._cache_data_load = cache
 
-    def _cache_save(
-        self,
-        verbose: bool = False,
-    ) -> None:
+    def _cache_save(self) -> None:
         """Save the following elements to a cache file:
         - hash sum of code
         - fparser tree
         - in future work, potentially also psyir nodes too
           (requires TODO #2786).
 
-        :param verbose: Produce some verbose output
         """
-
         if not self._cache_active:
             return None
 
@@ -388,6 +364,8 @@ class FileInfo:
         if not cache_updated:
             return None
 
+        logger = logging.getLogger(__name__)
+
         # Open cache file
         try:
             # Atomically attempt to open the new kernel file (in case
@@ -410,9 +388,7 @@ class FileInfo:
 
             filehandler = os.fdopen(fd, "wb")
         except Exception as err:
-            if verbose:
-                # TODO #11: Use logging for this
-                print("  - Unable to write to cache file: " + str(err))
+            logger.warning("  - Unable to write to cache file: " + str(err))
             return None
 
         # Dump to cache file
@@ -421,18 +397,16 @@ class FileInfo:
         except Exception as err:
             # Invalidate cache
             self._cache_data_save = None
-            print("Error while storing cache data - ignoring: " + str(err))
+            logger.warning("Error while storing cache data - ignoring: " +
+                           str(err))
             return None
 
-        if verbose:
-            print(
-                f"  - Cache file updated with "
-                f"hashsum '{self._cache_data_save._source_code_hash_sum}"
-            )
+        logger.info(
+            f"  - Cache file updated with "
+            f"hashsum '{self._cache_data_save._source_code_hash_sum}")
 
     def get_fparser_tree(
                 self,
-                verbose: bool = False,
                 save_to_cache_if_cache_active: bool = True
             ) -> Fortran2003.Program:
         """Returns the fparser Fortran2003.Program representation of the
@@ -440,7 +414,6 @@ class FileInfo:
 
         :param save_to_cache_if_cache_active: Cache is updated if fparser was
             not loaded from cache.
-        :param verbose: Produce some verbose output
 
         :returns: fparser representation.
 
@@ -456,9 +429,9 @@ class FileInfo:
                 "Failed to create fparser tree (previous attempt failed)"
             )
 
-        if verbose:
-            # TODO #11: Use logging for this
-            print(f"- Source file '{self._filename}': " f"Running fparser")
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"- Source file '{self._filename}': Running fparser")
 
         try:
             source_code = self.get_source_code()
@@ -467,16 +440,14 @@ class FileInfo:
                 f"File '{self._filename}' not found:\n{str(err)}")
 
         # Check for cache
-        self._cache_load(verbose=verbose)
+        self._cache_load()
 
         if self._cache_data_load is not None:
             if self._cache_data_load._fparser_tree is not None:
-                if verbose:
-                    # TODO #11: Use logging for this
-                    print(
-                        f"  - Using cache of fparser tree with hashsum"
-                        f" {self._cache_data_load._source_code_hash_sum}"
-                    )
+                logger.info(
+                    f"  - Using cache of fparser tree with hashsum"
+                    f" {self._cache_data_load._source_code_hash_sum}"
+                )
 
                 # Use cached version
                 self._fparser_tree = self._cache_data_load._fparser_tree
@@ -485,7 +456,8 @@ class FileInfo:
         try:
             config = Config.get()
             reader = FortranStringReader(
-                source_code, include_dirs=config.include_paths
+                source_code, include_dirs=config.include_paths,
+                ignore_comments=(not config.frontend_keep_comments)
             )
             parser = ParserFactory().create(std=config.fortran_standard)
             self._fparser_tree = parser(reader)
@@ -499,20 +471,18 @@ class FileInfo:
         # We directly call the cache saving routine here in case that the
         # fparser tree will be modified later on.
         if save_to_cache_if_cache_active:
-            self._cache_save(verbose=verbose)
+            self._cache_save()
 
         return self._fparser_tree
 
     def get_psyir(
             self,
-            verbose: bool = False,
             indent: str = ""
     ) -> FileContainer:
         """Returns the psyclone FileContainer of the file.
 
-        :param verbose: Produce some verbose output
         :param indent: String used for indentation of each line
-            for verbose output.
+            for logging output.
 
         :returns: PSyIR file container node.
 
@@ -520,37 +490,37 @@ class FileInfo:
         if self._psyir_node is not None:
             return self._psyir_node
 
+        logger = logging.getLogger(__name__)
+
         # Check for cache
-        self._cache_load(verbose=verbose, indent=indent)
+        self._cache_load(indent=indent)
 
         if self._cache_data_load is not None:
             if self._cache_data_load._psyir_node is not None:
                 # Use cached version
-                if verbose:
-                    # TODO #11: Use logging for this
-                    print(f"{indent}- Using cache of PSyIR")
+                logger.info(f"{indent}- Using cache of PSyIR")
 
                 self._psyir_node = self._cache_data_load._psyir_node
                 return self._psyir_node
 
-        if verbose:
-            # TODO #11: Use logging for this
-            print(f"{indent}- Running psyir for '{self._filename}'")
+        logger.info(f"{indent}- Generating PSyIR for '{self._filename}'")
 
         # First, we get the fparser tree
         fparse_tree = self.get_fparser_tree(
-                verbose=verbose,
                 # TODO #2786: If this TODO is resolved, set this to False
                 # and uncomment the self._cache_save below.
                 save_to_cache_if_cache_active=True
             )
 
-        # We generate PSyIR from the fparser tree
+        # We generate PSyIR from the fparser tree using the same options as
+        # were provided to the PSyclone invocation.
         _, filename = os.path.split(self.filename)
-        processor = self._processor = Fparser2Reader()
+        config = Config.get()
+        processor = self._processor = Fparser2Reader(
+            ignore_directives=(not config.frontend_keep_directives))
         self._psyir_node = processor.generate_psyir(fparse_tree, filename)
 
         # TODO #2786: Uncomment if psyir nodes are serializable
-        # self._cache_save(verbose=verbose)
+        # self._cache_save()
 
         return self._psyir_node

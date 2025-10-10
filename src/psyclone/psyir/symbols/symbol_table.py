@@ -1901,9 +1901,10 @@ class SymbolTable():
             except Exception:
                 external_container = None
 
+            logger = logging.getLogger(__name__)
+
             if not external_container:
                 message = f"Module '{c_symbol.name}' not found"
-                logger = logging.getLogger(__name__)
                 logger.warning(message)
                 continue
 
@@ -1911,6 +1912,15 @@ class SymbolTable():
                 c_symbol,
                 external_container,
                 symbol_target=symbol_target)
+
+            if self.node and hasattr(self.node, "name"):
+                txt = f" into '{self.node.name}'"
+            else:
+                txt = ""
+            message = (
+                f"Imported symbols {[sym.name for sym in imported_symbols]} "
+                f"from module '{c_symbol.name}'{txt}")
+            logger.info(message)
 
             for isym in imported_symbols:
                 # Determine if there is an Unresolved Symbol in a descendant
