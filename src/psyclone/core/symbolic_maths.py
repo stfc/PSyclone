@@ -387,8 +387,8 @@ class SymbolicMaths:
     def expand(expr):
         '''Expand a PSyIR expression. This is done by converting the PSyIR
         expression to a sympy expression, applying the expansion
-        operation and then converting the resultant output back into
-        PSyIR.
+        operation (or `simplify_logic` in the case of a Boolean expression)
+        and then converting the resultant output back into PSyIR.
 
         Currently does not work if the PSyIR expression contains Range
         nodes, see issue #1655.
