@@ -676,6 +676,48 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
     assert "scalar2" in [x.name for x in fpvars]
 
 
+def test_infer_sharing_attributes_with_codeblocks(
+        fortran_reader, fortran_writer):
+    ''' Tests the infer_sharing_attributes() method when some of the loops have
+    Codeblocks inside it. We check that the infer_sharing attribute analysis
+    succeed by assuming worst case.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            use other, only: mystruct
+            integer :: i, j, scalar1 = 1, scalar2 = 2
+            real, dimension(10) :: array, array2
+            write(*,*) scalar1, scalar2
+            do j = 1, 10
+               do i = 1, size(array, 1)
+                   write(*,*) scalar2, mystruct(i)%field2
+                   if (.true.) then
+                       scalar1 = 1
+                       write(*,*) scalar1, mystruct(i)%field1
+                   end if
+                   scalar2 = scalar1 + 1
+                   write(*,*) scalar1, scalar2
+               enddo
+            enddo
+            write(*,*) scalar1, scalar2
+        end subroutine''')
+    omplooptrans = OMPLoopTrans()
+    omplooptrans.omp_directive = "paralleldo"
+    loop = psyir.walk(Loop)[0]
+    # Make sure that the write statements inside the loop are CodeBlocks,
+    # otherwise we need a new test example
+    assert loop.has_descendant(nodes.CodeBlock)
+    loop.explicitly_private_symbols.add(
+            loop.scope.symbol_table.lookup("scalar2"))
+    omplooptrans.apply(loop, node_type_check=False, force=True)
+
+    # Here we mostly check that the infer_sharing attributes doesn't fall
+    # over with CodeBlocks. This will often still be defensively firstprivate
+    # as we condiser all codeblock accesses as READWRITE.
+    output = fortran_writer(psyir)
+    assert "firstprivate(scalar1,scalar2)" in output
+
+
 def test_infer_sharing_attributes(fortran_reader):
     ''' Tests for the infer_sharing_attributes() method of OpenMP directives
     with generic code inside the directive body.

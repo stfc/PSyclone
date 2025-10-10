@@ -374,7 +374,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         '''
         if not options:
             self.validate_options(
-                    verbose=verbose, collapse=collapse,
+                    verbose=verbose, collapse=collapse, force=force,
                     ignore_dependencies_for=ignore_dependencies_for,
                     privatise_arrays=privatise_arrays,
                     sequential=sequential, nowait=nowait,
@@ -401,7 +401,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             reduction_ops = options.get("reduction_ops", [])
 
         self.validate(node, options=options, verbose=verbose,
-                      collapse=collapse,
+                      collapse=collapse, force=force,
                       ignore_dependencies_for=ignore_dependencies_for,
                       privatise_arrays=privatise_arrays,
                       sequential=sequential, nowait=nowait,
