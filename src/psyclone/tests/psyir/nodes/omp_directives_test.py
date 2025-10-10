@@ -706,7 +706,7 @@ def test_infer_sharing_attributes_with_codeblocks(
     loop = psyir.walk(Loop)[0]
     loop.explicitly_private_symbols.add(
             loop.scope.symbol_table.lookup("scalar2"))
-    omplooptrans.apply(loop, {'node-type-check': False, 'force': True})
+    omplooptrans.apply(loop, node_type_check=False, force=True)
 
     # Here we mostly check that the infer_sharing attributes doesn't fall
     # over with CodeBlocks. This will often still be defensively firstprivate
