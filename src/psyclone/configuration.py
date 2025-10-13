@@ -785,8 +785,8 @@ class Config:
 
         '''
         if not isinstance(value, bool):
-            raise TypeError(f"frontend_keep_comments must be a bool but got "
-                            f"'{type(value).__name__}'")
+            raise TypeError(f"Config.frontend_keep_comments must be a bool "
+                            f"but got '{type(value).__name__}'")
         self._frontend_keep_comments = value
 
     @property
@@ -801,7 +801,8 @@ class Config:
     def frontend_keep_directives(self, value: bool) -> None:
         '''
         Setter for whether or not the frontend should retain directives when
-        processing existing code.
+        processing existing code. If set to True then comments are also
+        retained.
 
         :param value: the new value for this setting.
 
@@ -809,9 +810,11 @@ class Config:
 
         '''
         if not isinstance(value, bool):
-            raise TypeError(f"frontend_keep_directives must be a bool but got "
-                            f"{type(value).__name__}'")
+            raise TypeError(f"Config.frontend_keep_directives must be a bool "
+                            f"but got '{type(value).__name__}'")
         self._frontend_keep_directives = value
+        if value:
+            self._frontend_keep_comments = True
 
     def get_default_keys(self):
         '''Returns all keys from the default section.
