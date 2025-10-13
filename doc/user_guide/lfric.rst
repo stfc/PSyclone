@@ -51,7 +51,7 @@ allow PSyclone to generate the PSy layer. These algorithm and kernel
 APIs are discussed separately in the following sections.
 
 The LFRic API supports the Met Office's finite element (hereafter FEM)
-based GungHo dynamical core.
+based 'GungHo' dynamical core.
 This dynamical core with atmospheric physics parameterisation
 schemes is a part of the Met Office LFRic modelling system :footcite:t:`lfric-2019`,
 currently being developed in preparation for exascale computing in the 2020s.
@@ -63,6 +63,13 @@ The code is BSD-licensed, however browsing the `LFRic wiki
 requires login access to MOSRS. For more technical details on the
 implementation of LFRic, please see the `LFRic documentation
 <https://code.metoffice.gov.uk/trac/lfric/attachment/wiki/LFRicDocumentationPapers/lfric_documentation.pdf>`_.
+
+.. note::
+   The following sections assume that the reader is familiar
+   with various concepts relating to the LFRic mesh and how it is decomposed
+   for distributed-memory parallel computing. For a detailed description of
+   these things, please see the :ref:`LFRic <lfric-developers>` section of the
+   Developer Guide.
 
 .. _lfric-api-algorithm:
 
@@ -308,9 +315,9 @@ Halo Depth
 ++++++++++
 
 If a Kernel is written such that it *must* iterate into the halo (has an
-``OPERATES_ON`` of ``HALO_CELL_COLUMN`` or ``OWNED_AND_HALO_CELL_COLUMN``)
-then the halo depth must be passed as a final, ``integer`` argument to the
-Kernel.
+:ref:`OPERATES_ON <lfric-operates-on>` of ``HALO_CELL_COLUMN`` or
+``OWNED_AND_HALO_CELL_COLUMN``) then the halo depth must be passed as a
+final, ``integer`` argument to the Kernel.
 
 .. _lfric-alg-stencil:
 
@@ -879,10 +886,11 @@ types.
 Rules specific to General-Purpose Kernels without CMA Operators
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-1) General-purpose kernels with ``operates_on = CELL_COLUMN`` or
-   ``OWNED_CELL_COLUMN`` accept
-   arguments of any of the following types: field, field vector, LMA
-   operator, scalar (``real``, ``integer`` or ``logical``).
+1) General-purpose kernels that :ref:`operate on <lfric-operates-on>`
+   any kind of ``CELL_COLUMN``
+   accept arguments of any of the following types: field,
+   field vector, LMA operator, scalar (``real``, ``integer`` or
+   ``logical``).
 
 2) A Kernel is permitted to write to more than one
    quantity (field or operator) and these quantities may be on the
@@ -1006,12 +1014,13 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 Rules for all User-Supplied Kernels that Operate on DoFs (DoF Kernels)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Kernels that have ``operates_on = DOF`` (or ``OWNED_DOF``) and
-:ref:`LFRic Built-ins<lfric-built-ins>` overlap significantly in their
-scope, and the conventions that DoF Kernels must follow are influenced
-by those for built-ins as a result. This includes :ref:`metadata arguments
-<lfric-api-built-ins-metadata>` and :ref:`valid data types
-and access modes<lfric-built-ins-dtype-access>`. Naming conventions for DoF
+Kernels that have an :ref:`operates_on <lfric-operates-on>` of ``DOF``
+(or ``OWNED_DOF``) and :ref:`LFRic Built-ins<lfric-built-ins>` overlap
+significantly in their scope, and the conventions that DoF Kernels
+must follow are influenced by those for built-ins as a result. This
+includes :ref:`metadata arguments <lfric-api-built-ins-metadata>` and
+:ref:`valid data types and access
+modes<lfric-built-ins-dtype-access>`. Naming conventions for DoF
 Kernels should follow those for General-Purpose Kernels.
 
 The list of rules for DoF Kernels is as follows:
@@ -3259,8 +3268,11 @@ pseudo-random numbers in the interval ``0 <= x < 1``::
 where ``RAND()`` is some function that returns a new pseudo-random number
 each time it is called.
 
-Due to its simplistic implementation, this kernel does *not* support
-redundant computation and hence has ``OPERATES_ON=owned_dof``.
+Due to different parallel elements using independent random-number generator
+streams, this built-in has ``OPERATES_ON=owned_dof``. This will prevent
+optimisations such as redundant computation (including the global
+``COMPUTE_ANNEXED_DOFS`` option).
+
 
 .. warning:: This Built-in is implemented using the Fortran ``random_number``
 	     intrinsic. Therefore no guarantee is made as to the quality of
