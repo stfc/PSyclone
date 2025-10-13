@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR DOT_PRODUCT operator
 to PSyIR code. This could be useful if the DOT_PRODUCT operator is not
@@ -51,8 +52,10 @@ from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
     Intrinsic2CodeTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class DotProduct2CodeTrans(Intrinsic2CodeTrans):
     '''Provides a transformation from a PSyIR DOT_PRODUCT Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
@@ -110,7 +113,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.DOT_PRODUCT
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''Perform checks to ensure that it is valid to apply the
         DotProduct2CodeTran transformation to the supplied node.
 
@@ -135,7 +138,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
             notation but it is not for the full range of the dimension.
 
         '''
-        super().validate(node, options)
+        super().validate(node, options, **kwargs)
 
         # Both arguments should be references (or array references)
         for arg in node.children:
@@ -198,7 +201,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
                     f"type {arg.symbol.datatype.intrinsic.name} in "
                     f"{node.debug_string()}.")
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the DOT_PRODUCT intrinsic conversion transformation to the
         specified node. This node must be a DOT_PRODUCT
         BinaryOperation.  If the transformation is successful then an
@@ -211,7 +214,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
         :type options: dict of str:str or None
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         assignment = node.ancestor(Assignment)
         vector1 = node.arguments[0]
@@ -281,3 +284,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
         # Add the initialisation and loop nodes into the PSyIR tree
         assignment.parent.children.insert(assignment.position, assign)
         assignment.parent.children.insert(assignment.position, iloop)
+
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["DotProduct2CodeTrans"]
