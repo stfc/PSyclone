@@ -126,7 +126,7 @@ def compiler_wrapper(arguments):
             output = f"{stem}.psycloned{suffix}"
             # Always add an include to the current directory, because even if
             # it is the default, psyclone removes it when adding another -I.
-            # Also, having the absolute path instead of '.' is convinient to
+            # Also, having the absolute path instead of '.' is convenient to
             # copy/paste the resulting command when debugging
             psyclone_args = psyclone_options + [
                 '-I', PWD, '-o', output, argument

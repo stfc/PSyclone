@@ -390,7 +390,7 @@ def _refine_symbols_with_usage_location(
                 if not any(isinstance(subchild, Fortran2003.Subscript_Triplet)
                            for subchild in child.items):
                     continue
-                # The same considereation applies if this is an derived type
+                # The same consideration applies if this is a derived type
                 # accessor: a%b(:)
                 if isinstance(part_ref.parent, Fortran2003.Data_Ref):
                     continue

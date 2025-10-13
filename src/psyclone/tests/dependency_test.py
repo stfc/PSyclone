@@ -86,7 +86,7 @@ def test_assignment(fortran_reader):
     assert isinstance(array_assignment, Assignment)
     var_accesses = array_assignment.reference_accesses()
     # We don't know if 'f' is a function or an array (CALLED or READ), so
-    # it is catergorised as UNKNOWN. It's arguments take the worst case
+    # it is catergorised as UNKNOWN. Its arguments take the worst case
     # scenario of being READWRITE (in case it was a function).
     assert (str(var_accesses) ==
             "d: READ, e: READ, i: READ, j: READ, f: UNKNOWN, x: READWRITE, "

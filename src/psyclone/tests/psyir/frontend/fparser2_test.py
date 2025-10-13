@@ -1773,8 +1773,8 @@ def test_process_use_stmts_resolving_external_imports(
 
 def test_process_resolving_modules_give_correct_types(
         parser, tmpdir, monkeypatch):
-    ''' Test that if the Fparser2Reader if provided with a list of
-    modules_to_import this are used to resolve external symbol information
+    ''' Test that if the Fparser2Reader is provided with a list of
+    modules_to_import these are used to resolve external symbol information
     by the frontend.'''
 
     # Write a first module into a tmp file

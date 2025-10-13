@@ -92,8 +92,8 @@ PARALLELISATION_ISSUES = [
 ]
 
 PRIVATISATION_ISSUES = [
-    "ldftra.f90",  # Wrong runtime results
-    "zdftke.f90",
+    "ldftra.f90",  # TODO #3188: Gives wrong output results
+    "zdftke.f90",  # TODO #3188: Gives wrong output results
 ]
 
 
