@@ -1987,7 +1987,7 @@ operates_on                    Data passed for each field/operator argument Iter
 ============================== ============================================ ==========================================
 
 (For a description of the concepts of 'owned' and 'halo' cells and 'annexed' DoFs
-please see the :ref:`lfric-developers`.)
+please see the :ref:`LFRic section <lfric-developers>` of the Developer Guide.)
 
 The ``owned_cell_column`` and ``owned_dof`` values of ``OPERATES_ON`` are intended for
 use only with special cases where the kernel concerned cannot be used to perform
