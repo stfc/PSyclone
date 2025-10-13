@@ -235,9 +235,8 @@ class Config:
         # The Fortran standard that fparser should use
         self._fortran_standard = None
 
-        self._fortran_free_format = None
-        self._fortran_keep_comments = False
-        self._fortran_keep_directives = False
+        self._frontend_keep_comments = False
+        self._frontend_keep_directives = False
 
     # -------------------------------------------------------------------------
     def load(self, config_file=None):

@@ -429,7 +429,7 @@ def test_mod_manager_add_files_and_more() -> None:
 
     dummy = mod_man.all_file_infos
     assert dummy is not None
-    mod_man.load_all_module_infos(verbose=True)
+    mod_man.load_all_module_infos()
 
     # Only one module loaded
     assert len(mod_man._modules) == 1
@@ -441,9 +441,7 @@ def test_mod_manager_add_files_and_more() -> None:
     # was already processed
     with pytest.raises(KeyError) as einfo:
         mod_man.load_all_module_infos(
-                error_if_module_already_processed=True,
-                verbose=True
-            )
+                error_if_module_already_processed=True)
 
     assert "Module 'a_mod' already processed" in str(einfo.value)
 
@@ -463,20 +461,15 @@ def test_mod_manager_load_all_module_trigger_error_module_read_twice() -> None:
     mod_man.add_files("d1/a_mod.f90")
 
     # Load all module infos
-    mod_man.load_all_module_infos(
-            verbose=True
-        )
+    mod_man.load_all_module_infos()
 
     # Doing this a 2nd time should not raise any error
-    mod_man.load_all_module_infos(
-            verbose=True
-        )
+    mod_man.load_all_module_infos()
 
     # This should raise an error that a module has been already processed
     with pytest.raises(KeyError) as einfo:
         mod_man.load_all_module_infos(
-                error_if_module_already_processed=True,
-                verbose=True
+                error_if_module_already_processed=True
             )
 
     assert "Module 'a_mod' already processed" in str(einfo.value)
@@ -494,13 +487,10 @@ def test_mod_manager_load_all_module_trigger_error_file_read_twice() -> None:
         f_out.write("\n")   # Just an empty file
 
     mod_man.add_files("t_mod.f90")
-    mod_man.load_all_module_infos(verbose=True)
+    mod_man.load_all_module_infos()
 
     # Should raise an error that the file was already processed
     with pytest.raises(KeyError) as einfo:
-        mod_man.load_all_module_infos(
-                error_if_file_already_processed=True,
-                verbose=True
-            )
+        mod_man.load_all_module_infos(error_if_file_already_processed=True)
 
     assert "File 't_mod.f90' already processed" in str(einfo.value)

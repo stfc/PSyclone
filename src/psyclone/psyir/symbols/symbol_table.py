@@ -791,11 +791,13 @@ class SymbolTable():
                     # that too.
                     if csym.wildcard_import:
                         outer_sym.wildcard_import = True
-            # We must update all references to this ContainerSymbol
-            # so that they point to the one in scope in this table instead.
+            # We must update all Symbols imported from this ContainerSymbol
+            # within this table so that they point to the one in scope in
+            # this table instead.
             imported_syms = other_table.symbols_imported_from(csym)
             for isym in imported_syms:
-                other_sym = self.lookup(isym.name, otherwise=None)
+                other_sym = self.lookup(isym.name, scope_limit=self.node,
+                                        otherwise=None)
                 if other_sym:
                     # We have a potential clash with a symbol imported
                     # into the other table.

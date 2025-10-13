@@ -39,6 +39,7 @@ which module is contained in which file (including full location). '''
 
 import copy
 from difflib import SequenceMatcher
+import logging
 from typing import cast, Iterable, Optional, OrderedDict, Union
 import os
 import re
@@ -308,76 +309,69 @@ class ModuleManager:
                 cache_path=self._cache_path,
             )
 
-    def load_all_source_files(self, verbose: bool = False) -> None:
+    def load_all_source_files(self) -> None:
         """Routine to load the source of all files previously added
         to the module manager
 
-        :param verbose: If `True`, print verbose information
         """
 
         fileinfo: FileInfo
         for fileinfo in self._filepath_to_file_info.values():
-            fileinfo.get_source_code(verbose=verbose)
+            fileinfo.get_source_code()
 
-    def create_all_fparser_trees(self, verbose: bool = False) -> None:
+    def create_all_fparser_trees(self) -> None:
         """
         Routine to load the fparser tree of all files added
         to the module manager
 
-        :param verbose: If `True`, print verbose information
         """
 
         fileinfo: FileInfo
         for fileinfo in self._filepath_to_file_info.values():
-            fileinfo.get_fparser_tree(verbose=verbose)
+            fileinfo.get_fparser_tree()
 
-    def create_all_psyir_nodes(self, verbose: bool = False) -> None:
+    def create_all_psyir_nodes(self) -> None:
         """
         Routine to create the psyir nodes of all files added
         to the module manager
 
-        :param verbose: If `True`, print verbose information
         """
 
         fileinfo: FileInfo
         for fileinfo in self._filepath_to_file_info.values():
-            fileinfo.get_psyir(verbose=verbose)
+            fileinfo.get_psyir()
 
     def load_all_module_infos(
             self,
             error_if_file_already_processed: bool = False,
             error_if_module_already_processed: bool = False,
-            verbose: bool = False,
             indent: str = ""
     ):
         """Load the module info using psyir nodes for all FileInfo objects
         in the ModuleManager.
 
-        :param verbose: If `True`, print verbose information
         :param error_if_file_already_processed: If `True`, raise an error
                 if a file was already processed.
         :param error_if_module_already_processed: If `True`, raise an error
                 if a module was already processed.
         :param indent: Prefix used as indentation for each line of
-            verbose output.
+            logger output.
 
         :raises KeyError: If module was already processed if
             error_if_file_already_processed is `True`
+
         """
+        logger = logging.getLogger(__name__)
 
         # iterate over all file infos and load psyir
         file_info: FileInfo
         for file_info in self._filepath_to_file_info.values():
 
-            if verbose:
-                print(
-                    f"{indent}- Loading module information for "
-                    f"file '{file_info.filename}"
-                )
+            logger.info(
+                f"{indent}- Loading module information for "
+                f"file '{file_info.filename}")
 
-            psyir_node: Node = file_info.get_psyir(
-                verbose=verbose, indent=indent + "  "
-            )
+            psyir_node: Node = file_info.get_psyir(indent=indent + "  ")
 
             # Collect all module infos in this list
             module_info_in_file: list[ModuleInfo] = []
@@ -400,7 +394,7 @@ class ModuleManager:
                         raise KeyError(
                             f"Module '{container_name}' already processed"
                         )
-                    print(
+                    logger.info(
                         indent+f"Module '{container_name}' already"
                         " processed"
                     )
@@ -418,7 +412,7 @@ class ModuleManager:
             if filepath in self._filepath_to_module_info.keys():
                 if error_if_file_already_processed:
                     raise KeyError(f"File '{filepath}' already processed")
-                print(indent+f"File '{filepath}' already processed")
+                logger.info(indent+f"File '{filepath}' already processed")
 
                 continue
 
