@@ -182,60 +182,65 @@ class Config:
             raise ConfigurationError("Only one instance of "
                                      "Config can be created")
 
-        # This dictionary stores the API-specific config instances
-        # for each API specified in a config file.
+        #: This dictionary stores the API-specific config instances
+        #: for each API specified in a config file.
         self._api_conf = {}
 
-        # This will store the ConfigParser instance for the specified
-        # config file.
+        #: This will store the ConfigParser instance for the specified
+        #: config file.
         self._config = None
 
-        # The name (including path) of the config file read.
+        #: The name (including path) of the config file read.
         self._config_file = None
 
-        # The API selected by the user
+        #: The API selected by the user
         self._api = ""
 
-        # True if distributed memory code should be created.
+        #: True if distributed memory code should be created.
         self._distributed_mem = None
 
-        # True if reproducible reductions should be used.
+        #: True if reproducible reductions should be used.
         self._reproducible_reductions = None
 
-        # Padding size (number of array elements) to be used when
-        # reproducible reductions are created.
+        #: Padding size (number of array elements) to be used when
+        #: reproducible reductions are created.
         self._reprod_pad_size = None
 
-        # Where to write transformed kernels - set at runtime.
+        #: Where to write transformed kernels - set at runtime.
         self._kernel_output_dir = None
 
-        # The naming scheme to use for transformed kernels.
+        #: The naming scheme to use for transformed kernels.
         self._kernel_naming = None
 
-        # The list of directories to search for Fortran include files.
+        #: The list of directories to search for Fortran include files.
         self._include_paths = []
 
-        # The root name to use when creating internal PSyIR names.
+        #: The root name to use when creating internal PSyIR names.
         self._psyir_root_name = None
 
-        # Number of OpenCL devices per node
+        #: Number of OpenCL devices per node
         self._ocl_devices_per_node = 1
 
-        # By default, a PSyIR backend performs validation checks as it
-        # traverses the tree. Setting this option to False disables those
-        # checks which can be useful in the case of unimplemented features.
+        #: By default, a PSyIR backend performs validation checks as it
+        #: traverses the tree. Setting this option to False disables those
+        #: checks which can be useful in the case of unimplemented features.
         self._backend_checks_enabled = True
 
-        # By default, the PSyIR backends output indented code. Although the
-        # line-length limiter can ensure that the output code remains standards
-        # compliant, occasionally there are circumstances when the only
-        # solution is to remove all indentation.
+        #: By default, the PSyIR backends output indented code. Although the
+        #: line-length limiter can ensure that the output code remains
+        #: standards compliant, occasionally there are circumstances when the
+        #: only solution is to remove all indentation.
         self._backend_indentation_disabled = False
 
-        # The Fortran standard that fparser should use
+        #: The Fortran standard that fparser should use
         self._fortran_standard = None
 
+        #: Whether or not the frontend should preserve comments in existing
+        #: code.
         self._frontend_keep_comments = False
+
+        #: Whether or not the frontend should preserve directives in existing
+        #: code.
         self._frontend_keep_directives = False
 
     # -------------------------------------------------------------------------
