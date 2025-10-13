@@ -768,8 +768,9 @@ class Config:
 
     @property
     def frontend_keep_comments(self) -> bool:
-        ''':returns: whether the frontend should retain comments when
-                     processing existing code.
+        '''
+        :returns: whether the frontend should retain comments when
+                  processing existing code.
         '''
         return self._frontend_keep_comments
 
