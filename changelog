@@ -1,4 +1,4 @@
-   6) PR #3174 towards #2668. Add kwargs to more transformations.
+   6) PR #3174 and #3176 towards #2668. Add kwargs to more transformations.
 
    5) PR #3186 for #3185. Small fix to SymbolicMaths.expand for Boolean
    expressions
