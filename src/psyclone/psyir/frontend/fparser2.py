@@ -385,20 +385,22 @@ def _refine_symbols_with_usage_location(
     # a(i,:,k) -> 'a' must be a DataSymbol, for now of UnresolvedType because
     # we don't have enough information to know the shape of the ArrayType
     for part_ref in walk(execution_part, Fortran2003.Part_Ref):
+        if isinstance(part_ref.parent, Fortran2003.Data_Ref):
+            # If it's part of an accessor "a%b(:)", we don't continue, as 'b'
+            # is not something that we have a symbol and can specialise in
+            # this location.
+            continue
         for child in part_ref.items:
             if isinstance(child, Fortran2003.Section_Subscript_List):
-                if not any(isinstance(subchild, Fortran2003.Subscript_Triplet)
-                           for subchild in child.items):
-                    continue
-                # The same consideration applies if this is a derived type
-                # accessor: a%b(:)
-                if isinstance(part_ref.parent, Fortran2003.Data_Ref):
-                    continue
-                name = part_ref.items[0].string.lower()
-                _find_or_create_unresolved_symbol(
-                    location, name,
-                    symbol_type=DataSymbol,
-                    datatype=UnresolvedType())
+                # If any of the direct children of the parenthesis expression
+                # is a triplet "<lb>:<up>:<step>" we know its a DataSymbol.
+                if any(isinstance(subchild, Fortran2003.Subscript_Triplet)
+                       for subchild in child.items):
+                    name = part_ref.items[0].string.lower()
+                    _find_or_create_unresolved_symbol(
+                        location, name,
+                        symbol_type=DataSymbol,
+                        datatype=UnresolvedType())
 
 
 def _find_or_create_psyclone_internal_cmp(node):
