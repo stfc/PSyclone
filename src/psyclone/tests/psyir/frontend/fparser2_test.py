@@ -1793,10 +1793,6 @@ def test_process_resolving_modules_give_correct_types(
         end function
     end module
     ''')
-    # Add the path to the include_path and set up a frontend instance
-    # witth the module_to_resolve names
-    monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
-    processor = Fparser2Reader(resolve_modules=["other"])
     reader = FortranStringReader('''
     module test
         use other
@@ -1811,6 +1807,22 @@ def test_process_resolving_modules_give_correct_types(
     ''')
     parse_tree = parser(reader)
     module = parse_tree.children[0]
+
+    # By default this will all be parsed as Calls with unknown
+    # is_lememental/is_pre attributes
+    processor = Fparser2Reader()
+    psyir = processor._module_handler(module, None)
+    assigns = psyir.walk(Assignment)
+    assert isinstance(assigns[0].rhs, Call)
+    assert isinstance(assigns[1].rhs, Call)
+    assert isinstance(assigns[2].rhs, Call)
+    assert assigns[2].rhs.is_elemental is None
+    assert assigns[2].rhs.is_pure is None
+
+    # If we populate the module_to_resolve and add the include_path
+    # then we know if they are arrays and pure/elemental
+    processor = Fparser2Reader(resolve_modules=["other"])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
     psyir = processor._module_handler(module, None)
     assigns = psyir.walk(Assignment)
     assert isinstance(assigns[0].rhs, ArrayReference)

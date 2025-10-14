@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified S. Siso, STFC Daresbury Lab
 
 '''Performs pytest tests on the parsing of Part_Ref in the fparser2
    PSyIR front-end.
@@ -44,14 +45,15 @@ from fparser.two.Fortran2003 import Execution_Part
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import KernelSchedule, Routine, Call, ArrayReference
-from psyclone.psyir.symbols import DataSymbol, ScalarType, INTEGER_TYPE, \
-    RoutineSymbol, ArrayType
+from psyclone.psyir.symbols import (
+    DataSymbol, ScalarType, INTEGER_TYPE, RoutineSymbol, ArrayType, Symbol,
+    UnresolvedType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_handling_part_ref():
-    '''Test that fparser2 Part_Ref is converted to the expected PSyIR
-    tree structure.
+def test_handling_part_ref_with_symbol_type():
+    '''Test that fparser2 Part_Ref is converted to an ArrayReference if
+    the referenced symbol is DataSymbol kind.
 
     '''
     reader = FortranStringReader("x(2)=1")
@@ -71,13 +73,6 @@ def test_handling_part_ref():
     assert new_node.name == "x"
     assert len(new_node.children) == 1  # Array dimensions
 
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_handling_part_ref_expression():
-    '''Test that fparser2 Part_Ref is converted to the expected PSyIR
-    tree structure when there is a complex expression.
-
-    '''
     # Parse a complex array expression
     reader = FortranStringReader("x(i+3,j-4,(z*5)+1)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0]
@@ -97,6 +92,48 @@ def test_handling_part_ref_expression():
     assert isinstance(new_node, ArrayReference)
     assert new_node.name == "x"
     assert len(new_node.children) == 3  # Array dimensions
+
+
+def test_handling_part_ref_without_symbol_type(fortran_reader):
+    '''Test that fparser2 Part_Ref is converted to a Call if the reference
+    symbol if of unknown kind. Unless it is found on a specific location that
+    we can infer it can only be an array (these rules are implemented in the
+    _refine_symbols_with_usage_location method).
+
+    '''
+    code = (
+        """
+        module test_mod
+           use other
+        contains
+          subroutine test
+             ! On the lhs of the assignment is an array
+             array1(i + unknown(i)) = 3 + 2 + unknown(i)
+
+             ! If it has any triplet construct is an array
+             tmp =  array2(i,i:j,j) + unknown(array3(:))
+
+             ! If it is used as a part_ref and as a regular ref
+             tmp = array4 * array4(3)
+          end subroutine
+        end module
+    """)
+    psyir = fortran_reader.psyir_from_source(code)
+    st = psyir.children[0].children[0].symbol_table
+
+    # 'unknown' hasn't match any rule, so we don't know what type of symbol
+    # it is, and therefore its part_ref are parsed as Calls
+    # pylint: disable=unidiomatic-typecheck
+    assert type(st.lookup("unknown")) is Symbol
+    assert all(call.symbol.name in ("unknown", "LBOUND", "UBOUND")
+               for call in psyir.walk(Call))
+
+    # 'array*' are DataSymbols of UnresolvedType, and therefore ArrayReference
+    for name in ["array1", "array2", "array3", "array4"]:
+        assert isinstance(st.lookup(name), DataSymbol)
+        assert isinstance(st.lookup(name).datatype, UnresolvedType)
+    assert all(ref.name.startswith("array")
+               for ref in psyir.walk(ArrayReference))
 
 
 def test_handling_part_ref_function(fortran_reader):
