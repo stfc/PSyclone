@@ -40,7 +40,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap
@@ -373,13 +373,13 @@ class Call(Statement, DataNode):
         return var_accesses
 
     @property
-    def symbol(self):
+    def symbol(self) -> Optional[Symbol]:
         '''
         :returns: the routine symbol that this call calls.
-        :rtype: Optional[py:class:`psyclone.psyir.symbol.Symbol`]
         '''
         if self.routine and self.routine.symbol:
             return self.routine.symbol
+        # In case of incomplete Calls (wihtout mandatory children), return None
         return None
 
     @property
@@ -403,29 +403,28 @@ class Call(Statement, DataNode):
         return ()
 
     @property
-    def is_elemental(self):
+    def is_elemental(self) -> Optional[bool]:
         '''
         :returns: whether the routine being called is elemental (provided with
             an input array it will apply the operation individually to each of
             the array elements and return an array with the results). If this
             information is not known then it returns None.
-        :rtype: NoneType | bool
         '''
-        if (self.symbol and isinstance(self.symbol, RoutineSymbol)):
+        if self.symbol and isinstance(self.symbol, RoutineSymbol):
             return self.symbol.is_elemental
+        # In case of incomplete Calls (wihtout mandatory children), return None
         return None
 
     @property
-    def is_pure(self):
+    def is_pure(self) -> Optional[bool]:
         '''
         :returns: whether the routine being called is pure (guaranteed to
             return the same result when provided with the same argument
             values).  If this information is not known then it returns None.
-        :rtype: NoneType | bool
         '''
-        if (self.routine and self.routine.symbol and
-                isinstance(self.routine.symbol, RoutineSymbol)):
-            return self.routine.symbol.is_pure
+        if self.symbol and isinstance(self.symbol, RoutineSymbol):
+            return self.symbol.is_pure
+        # In case of incomplete Calls (wihtout mandatory children), return None
         return None
 
     def is_available_on_device(self, device_string: str = "") -> bool:
