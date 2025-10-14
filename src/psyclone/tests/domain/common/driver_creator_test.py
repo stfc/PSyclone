@@ -55,11 +55,11 @@ def test_lfric_driver_valid_unit_name():
     and no ":" in name.'''
 
     long_name = "A"*100
-    new_name = BaseDriverCreator._make_valid_unit_name(long_name)
+    new_name = DriverCreator._make_valid_unit_name(long_name)
     assert new_name == "A"*63
 
     special_characters = "aaa-bbb"
-    new_name = BaseDriverCreator._make_valid_unit_name(special_characters)
+    new_name = DriverCreator._make_valid_unit_name(special_characters)
     assert new_name == "aaabbb"
 
 
