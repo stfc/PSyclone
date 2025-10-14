@@ -1,3 +1,8 @@
+   6) PR #3174 and #3176 towards #2668. Add kwargs to more transformations.
+
+   5) PR #3186 for #3185. Small fix to SymbolicMaths.expand for Boolean
+   expressions
+
    4) PR #3170 for #3156 and #3167. Remove redundant barrier at the end
    of parallel regions, and an unused DUC private attribute.
 
