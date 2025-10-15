@@ -94,6 +94,7 @@ class FortranReader():
                 " only have an effect if ignore_comments is also set to False."
             )
         self._ignore_comments = ignore_comments
+        self._ignore_directives = ignore_directives
         self._processor = Fparser2Reader(ignore_directives,
                                          last_comments_as_codeblocks,
                                          resolve_modules)
@@ -132,7 +133,8 @@ class FortranReader():
         SYMBOL_TABLES.clear()
         string_reader = FortranStringReader(
             source_code, include_dirs=Config.get().include_paths,
-            ignore_comments=self._ignore_comments)
+            ignore_comments=self._ignore_comments,
+            process_directives=not self._ignore_directives)
         # Set reader to free format.
         string_reader.set_format(FortranFormat(self._free_form, False))
 
@@ -258,9 +260,12 @@ class FortranReader():
 
         # Using the FortranFileReader instead of manually open the file allows
         # fparser to keep the filename information in the tree
-        reader = FortranFileReader(file_path,
-                                   include_dirs=Config.get().include_paths,
-                                   ignore_comments=self._ignore_comments)
+        reader = FortranFileReader(
+            file_path,
+            include_dirs=Config.get().include_paths,
+            ignore_comments=self._ignore_comments,
+            process_directives=not self._ignore_directives
+        )
         reader.set_format(FortranFormat(self._free_form, False))
         try:
             parse_tree = self._parser(reader)
@@ -272,6 +277,7 @@ class FortranReader():
         _, filename = os.path.split(file_path)
 
         psyir = self._processor.generate_psyir(parse_tree, filename)
+        print(psyir.view())
         return psyir
 
 
