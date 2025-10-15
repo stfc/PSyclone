@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
 # Modified: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR SIGN intrinsic to
 PSyIR code. This could be useful if the SIGN intrinsic is not supported
@@ -40,14 +41,18 @@ by the back-end or if the performance of the inline code is better
 than the intrinsic.
 
 '''
+import warnings
+
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
 from psyclone.psyir.transformations import Abs2CodeTrans
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference, Literal, IfBlock, IntrinsicCall)
 from psyclone.psyir.symbols import DataSymbol
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class Sign2CodeTrans(Intrinsic2CodeTrans):
     '''Provides a transformation from a PSyIR SIGN intrinsic node to
     equivalent code in a PSyIR tree. Validity checks are also
@@ -74,7 +79,7 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.SIGN
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Check that it is safe to apply the transformation to the supplied node.
 
@@ -84,10 +89,10 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
         :type options: dict[str, Any]
 
         '''
-        super().validate(node, options=options)
+        super().validate(node, options=options, **kwargs)
         super()._validate_scalar_arg(node)
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the SIGN intrinsic conversion transformation to the specified
         node. This node must be a SIGN IntrinsicCall. The SIGN
         IntrinsicCall is converted to equivalent inline code. This
@@ -129,7 +134,12 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
 
         '''
         # pylint: disable=too-many-locals
-        self.validate(node, options)
+
+        # TODO 2668: options are now deprecated:
+        if options:
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+
+        self.validate(node, options, **kwargs)
 
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
@@ -157,7 +167,7 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
 
         # Replace the ABS intrinsic with inline code.
         abs_trans = Abs2CodeTrans()
-        abs_trans.apply(rhs, symbol_table)
+        abs_trans.apply(rhs)
 
         # tmp_var=B
         lhs = Reference(tmp_var_symbol)
@@ -181,3 +191,7 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
         # if [if_condition] then [then_body]
         if_stmt = IfBlock.create(if_condition, then_body)
         assignment.parent.children.insert(assignment.position, if_stmt)
+
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["Sign2CodeTrans"]
