@@ -778,19 +778,29 @@ class SymPyWriter(FortranWriter):
             # been re-named, and we can use it as is.
             name = node.name
 
-        if not node.symbol.is_array:
-            # This reference is not an array, just return the name
-            return name
+        if name in self.type_map:
+            sympy_representation = self.type_map[name]
+            if isinstance(sympy_representation,
+                          (sympy.Function,
+                           sympy.core.function.UndefinedFunction)):
+                # This is represented by a sympy.Function, since this is just a
+                # Reference, it must be an array expression without
+                # parentheses. For consistency, we still treat it as a Sympy
+                # function call and therefore add the triple array indices to
+                # represent `lower:upper:1` for each dimension:
+                if node.symbol.is_array:
+                    shape = node.symbol.shape
+                else:
+                    # If we don't know the dimension we make it look like a
+                    # function call without argumetns, this will make it not
+                    # fall over, but still be distinct to any array access to
+                    # a particular item
+                    shape = []
+                result = [f"{self.no_bounds},{self.no_bounds},1"]*len(shape)
 
-        # Now this must be an array expression without parentheses. For
-        # consistency, we still treat it as a Sympy function call and therefore
-        # add the triple array indices to represent `lower:upper:1` for each
-        # dimension:
-        shape = node.symbol.shape
-        result = [f"{self.no_bounds},{self.no_bounds},1"]*len(shape)
-
-        return (f"{name}{self.array_parenthesis[0]}"
-                f"{','.join(result)}{self.array_parenthesis[1]}")
+                return (f"{name}{self.array_parenthesis[0]}"
+                        f"{','.join(result)}{self.array_parenthesis[1]}")
+        return name
 
     # ------------------------------------------------------------------------
     def binaryoperation_node(self, node: BinaryOperation) -> str:
