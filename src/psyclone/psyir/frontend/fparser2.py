@@ -44,7 +44,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 import os
 import sys
-from typing import Iterable, Optional, Tuple
+from typing import Iterable, Optional, Union
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
@@ -5866,7 +5866,7 @@ class Fparser2Reader():
     def _directive_handler(
         self, node: Fortran2003.Directive, parent: Node
     ) -> CodeBlock:
-        ''' 
+        '''
         Process a directive and add it to the tree. The current behaviour
         places the directive into a CodeBlock.
 
