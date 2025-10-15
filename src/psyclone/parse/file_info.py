@@ -224,7 +224,7 @@ class FileInfo:
             return self._source_code
 
         logger = logging.getLogger(__name__)
-        logger.info(f"- Source file '{self._filename}': Loading source code")
+        logger.info(f"Source file '{self._filename}': loading source code")
 
         try:
             # Specifying errors='ignore' simply skips any characters that
@@ -239,7 +239,7 @@ class FileInfo:
                 f"FileInfo: No such file or directory '{self._filename}'."
             ) from err
 
-        logger.info(f"- Source file '{self._filename}': Loading source code")
+        logger.info(f"Source file '{self._filename}': loaded OK")
 
         if self._cache_active:
             # Update the hash sum
@@ -248,10 +248,7 @@ class FileInfo:
 
         return self._source_code
 
-    def _cache_load(
-        self,
-        indent: str = ""
-    ) -> _CacheFileInfo:
+    def _cache_load(self) -> _CacheFileInfo:
         """Load fparser parse tree from the cache file if possible.
 
         This also checks for matching checksums after loading the data
@@ -282,27 +279,24 @@ class FileInfo:
         try:
             filehandler = open(self._get_cache_filepath(), "rb")
             logger.info(
-                f"{indent}- Using cache file "
-                f"'{self._get_cache_filepath()}'")
+                f"Using cache file '{self._get_cache_filepath()}'")
         except FileNotFoundError:
             logger.info(
-                f"{indent}- No cache file "
-                f"'{self._get_cache_filepath()}' found")
+                f"No cache file '{self._get_cache_filepath()}' found")
             return None
 
         # Unpack cache file
         try:
             cache: _CacheFileInfo = pickle.load(filehandler)
         except Exception as ex:
-            print(f"{indent}  - Error while reading cache file -"
-                  f" ignoring: {str(ex)}"
-                  )
+            logger.warn(
+                f"Error while reading cache file - ignoring: {str(ex)}")
             return None
 
         # Verify checksums
         if cache._source_code_hash_sum != self._source_code_hash_sum:
             logger.info(
-                f"  - Cache hashsum mismatch: "
+                f"Cache hashsum mismatch: "
                 f"source {self._source_code_hash_sum} "
                 f"vs. cache {cache._source_code_hash_sum}")
             return None
@@ -388,7 +382,7 @@ class FileInfo:
 
             filehandler = os.fdopen(fd, "wb")
         except Exception as err:
-            logger.warning("  - Unable to write to cache file: " + str(err))
+            logger.warning("Unable to write to cache file: " + str(err))
             return None
 
         # Dump to cache file
@@ -402,8 +396,8 @@ class FileInfo:
             return None
 
         logger.info(
-            f"  - Cache file updated with "
-            f"hashsum '{self._cache_data_save._source_code_hash_sum}")
+            f"Cache file updated with hashsum "
+            f"{self._cache_data_save._source_code_hash_sum}")
 
     def get_fparser_tree(
                 self,
@@ -431,7 +425,7 @@ class FileInfo:
 
         logger = logging.getLogger(__name__)
 
-        logger.info(f"- Source file '{self._filename}': Running fparser")
+        logger.info(f"Source file '{self._filename}': Running fparser")
 
         try:
             source_code = self.get_source_code()
@@ -445,7 +439,7 @@ class FileInfo:
         if self._cache_data_load is not None:
             if self._cache_data_load._fparser_tree is not None:
                 logger.info(
-                    f"  - Using cache of fparser tree with hashsum"
+                    f"Using cache of fparser tree with hashsum"
                     f" {self._cache_data_load._source_code_hash_sum}"
                 )
 
@@ -475,17 +469,9 @@ class FileInfo:
 
         return self._fparser_tree
 
-    def get_psyir(
-            self,
-            indent: str = ""
-    ) -> FileContainer:
-        """Returns the psyclone FileContainer of the file.
-
-        :param indent: String used for indentation of each line
-            for logging output.
-
-        :returns: PSyIR file container node.
-
+    def get_psyir(self) -> FileContainer:
+        """
+        :returns: the psyclone FileContainer of the file.
         """
         if self._psyir_node is not None:
             return self._psyir_node
@@ -493,17 +479,17 @@ class FileInfo:
         logger = logging.getLogger(__name__)
 
         # Check for cache
-        self._cache_load(indent=indent)
+        self._cache_load()
 
         if self._cache_data_load is not None:
             if self._cache_data_load._psyir_node is not None:
                 # Use cached version
-                logger.info(f"{indent}- Using cache of PSyIR")
+                logger.info("Using cache of PSyIR")
 
                 self._psyir_node = self._cache_data_load._psyir_node
                 return self._psyir_node
 
-        logger.info(f"{indent}- Generating PSyIR for '{self._filename}'")
+        logger.info(f"Generating PSyIR for '{self._filename}'")
 
         # First, we get the fparser tree
         fparse_tree = self.get_fparser_tree(
