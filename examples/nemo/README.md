@@ -34,6 +34,7 @@ POSSIBILITY OF SUCH DAMAGE.
 Author A. R. Porter, STFC Daresbury Lab
 Modified by R. W. Ford, STFC Daresbury Lab
 Modified by J. Henrichs, Bureau of Meteorology
+Modified by S. Siso, STFC Daresbury Lab
 
 -->
 
@@ -54,63 +55,7 @@ Contains:
 
 ## Scripts
 
-Contains the scripts used to process the NEMO code base and to add profiling
-instrumentation (https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html)
-and OpenACC or OpenMP directives:
-
-1. `process_nemo.py` is a driver script that allows the user to specify
-   which files to process with PSyclone, the transformation script to use
-   and where to put the outputs:
-
-       $ ./process_nemo.py -h
-       usage: process_nemo.py [-h] [-o OUT_DIR] [-s SCRIPT_FILE] [-x]
-                              input_file [input_file ...]
-
-       Process the specified NEMO source files using PSyclone
-
-       positional arguments:
-         input_file      One or more NEMO pre-processed source files
-
-       optional arguments:
-         -h, --help      show this help message and exit
-         -o OUT_DIR      Destination directory for processed source files
-         -s SCRIPT_FILE  PSyclone transformation script
-         -x              exit immediately if PSyclone fails
-         -p              add profiling instrumentation to the PROFILE_ONLY file
-                         list. Note that files processed by the SCRIPT_FILE may
-                         be introducing profiling instrumentation as part of
-                         that script.
-
-   In addition to the command-line flags, the script itself contains two
-   variables that may be used to control its behaviour:
-
-   - `EXCLUDED_FILES`: list of filenames that PSyclone will not attempt to process.
-   - `PROFILE_ONLY`: list of filenames to add profiling instrumentation but
-      do not attempt to further process by PSyclone.
-
-   Finally, the precise invocation to use when running PSyclone may be
-   specified by setting the `PSYCLONE` environment variable. If this is not set
-   then `psyclone` must be in the user's PATH.
-
-2. PSyclone transformation scripts:
-   - `kernels_trans.py` adds OpenACC kernel directives and places fine-grained
-     profiling instrumentation around any regions that haven't had OpenACC
-     added.
-   - `omp_cpu_trans.py` adds OpenMP directives for CPU threading parallelism.
-   - `omp_gpu_trans.py` adds OpenMP offloading directives for GPU acceleration.
-
-These scripts are a *work in progress* and are being developed to work on the
-MO_GO8 configuration of NEMO supplied by the Met Office. This configuration is
-based on version 4.0.2 of NEMO and is compiled using:
-
-    ./makenemo -n MO_GO8_GPU -r SPITZ12 -m linux_nvfortran_gpu \
-        del_key "key_iomput key_mpp_mpi" add_key "key_nosignedzero"
-
-(where you will need an `arch/arch-linux_nvfortran_gpu.fcm` FCM configuration
-file specifying how to use the NVIDIA compiler).
-
-If you are applying PSyclone to any other version or configuration of NEMO then
-these scripts should serve as a useful starting point.
+Contains the scripts used to process the NEMO codebase.
 
 ## Example 1
 
