@@ -1545,11 +1545,14 @@ class CodedKern(Kern):
             return self._fp2_ast
         # Use the fparser1 AST to generate Fortran source
         fortran = self._module_code.tofortran()
+
         # Create an fparser2 Fortran parser
         std = Config.get().fortran_standard
         my_parser = parser.ParserFactory().create(std=std)
         # Parse that Fortran using our parser
-        reader = FortranStringReader(fortran)
+        reader = FortranStringReader(
+            fortran,
+            ignore_comments=(not Config.get().frontend_keep_comments))
         self._fp2_ast = my_parser(reader)
         return self._fp2_ast
 

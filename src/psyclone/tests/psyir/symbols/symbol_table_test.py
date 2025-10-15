@@ -1762,6 +1762,11 @@ def test_append_argument():
     assert sym_table.argument_list[-2] is arg1
     assert arg2 in sym_table.argument_datasymbols
 
+    # Attempting to append an argument that is already present does nothing.
+    sym_table.append_argument(arg1)
+    assert sym_table.argument_list[-1] is arg2
+    assert sym_table.argument_list[-2] is arg1
+
     with pytest.raises(TypeError) as err:
         sym_table.append_argument("Not a symbol")
     assert ("Expected a DataSymbol for the argument to insert but found "
@@ -2942,7 +2947,8 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
     assert not isinstance(b_1, symbols.DataSymbol)
 
     # Resolve only 'not_used3' from wildcard imports
-    subroutine.symbol_table.resolve_imports(
+    with caplog.at_level(logging.INFO):
+        subroutine.symbol_table.resolve_imports(
             symbol_target=symbols.Symbol('not_used3'))
     not_used3 = subroutine.symbol_table.lookup('not_used3')
     assert isinstance(not_used3, symbols.DataSymbol)
@@ -2950,6 +2956,8 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
     # This still does not resolve the other symbols in the same module
     assert not isinstance(b_1, symbols.DataSymbol)
     assert not isinstance(b_2, symbols.DataSymbol)
+    assert ("Imported symbols ['not_used3'] from module 'b_mod' into 'test'"
+            in caplog.text)
 
     # Resolve only b_2 symbol info
     subroutine.symbol_table.resolve_imports(

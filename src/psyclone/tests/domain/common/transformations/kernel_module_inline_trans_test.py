@@ -39,6 +39,7 @@
 
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
+from pathlib import Path
 import pytest
 import warnings
 
@@ -46,6 +47,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import CodedKern, Kern
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
@@ -426,6 +428,7 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
                      " nested scopes")
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     ''' Test that we can succesfully inline a basic kernel subroutine
     routine into the PSy layer module using a transformation '''
@@ -1077,22 +1080,32 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
+@pytest.mark.parametrize("keep_comments, keep_directives",
+                         [(False, False), (True, False), (True, True)])
 def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
-                                 monkeypatch):
+                                 monkeypatch, keep_comments, keep_directives):
     '''
     Test that the transformation works when the Call is within a Program (i.e.
-    without an enclosing module).
+    without an enclosing module). We also test that the keep-comments and
+    keep-directives options set in the Config object are respected.
 
     '''
-    # Create the module containing the subroutine definition and add it to the
-    # ModuleManager.
-    make_external_module(monkeypatch, fortran_reader, "my_mod",
-                         '''\
+    Config.get().frontend_keep_comments = keep_comments
+    Config.get().frontend_keep_directives = keep_directives
+    # Create the module containing the subroutine definition and make sure
+    # PSyclone can find it.
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    filename = Path(tmpdir) / "my_mod.f90"
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''\
     module my_mod
     contains
       subroutine my_sub(arg)
         real, dimension(10), intent(inout) :: arg
+        ! This is an important loop
+        !$acc kernels
         arg(1:10) = 1.0
+        !$acc end kernels
       end subroutine my_sub
     end module my_mod
     ''')
@@ -1114,10 +1127,15 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
     assert len(prog_psyir.children) == 2
     assert set(child.name for child in prog_psyir.children) == {"my_sub",
                                                                 "my_prog"}
+    output = fortran_writer(prog_psyir)
+
+    assert "use my_mod" not in output
+    assert (("an important loop" in output) ==
+            (keep_comments or keep_directives))
+    assert ("!$acc kernels" in output) == keep_directives
+
     # Now that we've 'privatised' the target of the call, the code can be
     # compiled standalone.
-    output = fortran_writer(prog_psyir)
-    assert "use my_mod" not in output
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -1350,6 +1368,57 @@ def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     ctr_sym = container.symbol_table.lookup("my_mod")
     (isym,) = container.symbol_table.symbols_imported_from(ctr_sym)
     assert isym.interface.orig_name == "my_sub"
+
+
+def test_mod_inline_shared_wildcard_import(monkeypatch, fortran_reader):
+    '''
+    Check that resolved, imported symbols keep their status when module-
+    inlining a routine that accesses them.
+    '''
+    make_external_module(monkeypatch, fortran_reader, "ice_params",
+                         '''\
+    module ice_params
+      real, parameter :: eps20 = 1.023
+    end module ice_params''')
+    # Create the module containing the subroutine definition that accesses
+    # eps20.
+    make_external_module(monkeypatch, fortran_reader, "my_mod",
+                         '''\
+    module my_mod
+      use ice_params
+      use not_found
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = eps20
+      end subroutine my_sub
+    end module my_mod
+    ''')
+    code = '''\
+    module this_mod
+      use ice_params
+      use my_mod
+    contains
+      subroutine do_it()
+        real, dimension(10) :: a
+        a(:) = eps20
+        call my_sub(a)
+      end subroutine do_it
+    end module this_mod'''
+    # Create our own FortranReader that will resolve imports from the two
+    # modules as it encounters them.
+    reader = FortranReader(resolve_modules=["ice_params", "my_mod"])
+    psyir = reader.psyir_from_source(code)
+    container = psyir.children[0]
+    calls = container.walk(Call)
+    intrans = KernelModuleInlineTrans()
+    intrans.apply(calls[-1])
+    # Check that eps20 has the correct interface in the inlined Routine.
+    inlined = container.find_routine_psyir("my_sub", allow_private=True)
+    eps_sym = inlined.symbol_table.lookup("eps20")
+    assert not eps_sym.is_unresolved
+    assert eps_sym.is_import
+    assert eps_sym.interface.container_symbol.name == "ice_params"
 
 
 # TODO 2668 Remove test.
