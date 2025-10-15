@@ -33,12 +33,14 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing common functionality to transformation from a
 PSyIR array-reduction intrinsic to PSyIR code.
 
 '''
 from abc import ABC, abstractmethod
+import warnings
 
 from psyclone.psyir.nodes import (
     Assignment, Reference, ArrayReference, IfBlock, IntrinsicCall, Node,
@@ -49,8 +51,10 @@ from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ArrayReductionBaseTrans(Transformation, ABC):
     '''An abstract parent class providing common functionality to
     array-reduction intrinsic transformations which translate the
@@ -90,7 +94,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
                 "to equivalent PSyIR code.")
 
     # pylint: disable=too-many-branches
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''Check that the input node is valid before applying the
         transformation.
 
@@ -113,6 +117,10 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             an assignment.
 
         '''
+
+        if not options:
+            self.validate_options(**kwargs)
+
         if not isinstance(node, IntrinsicCall):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "
@@ -181,7 +189,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
                         f"resolved or is unsupported.")
 
     # pylint: disable=too-many-locals
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the array-reduction intrinsic conversion transformation to
         the specified node. This node must be one of these intrinsic
         operations which is converted to an equivalent loop structure.
@@ -192,7 +200,11 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        # TODO 2668: options are now deprecated:
+        if options:
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+
+        self.validate(node, options, **kwargs)
 
         orig_lhs = node.ancestor(Assignment).lhs.copy()
         orig_rhs = node.ancestor(Assignment).rhs.copy()
@@ -394,3 +406,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         :type reference: :py:class:`psyclone.psyir.node.Reference`
 
         '''
+
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["ArrayReductionBaseTrans"]
