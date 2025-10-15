@@ -366,7 +366,7 @@ class ModuleManager:
 
             logger.info(
                 f"Loading module information for "
-                f"file '{file_info.filename}")
+                f"file '{file_info.filename}'")
 
             psyir_node: Node = file_info.get_psyir()
 
