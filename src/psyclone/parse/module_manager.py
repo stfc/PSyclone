@@ -345,7 +345,6 @@ class ModuleManager:
             self,
             error_if_file_already_processed: bool = False,
             error_if_module_already_processed: bool = False,
-            indent: str = ""
     ):
         """Load the module info using psyir nodes for all FileInfo objects
         in the ModuleManager.
@@ -354,8 +353,6 @@ class ModuleManager:
                 if a file was already processed.
         :param error_if_module_already_processed: If `True`, raise an error
                 if a module was already processed.
-        :param indent: Prefix used as indentation for each line of
-            logger output.
 
         :raises KeyError: If module was already processed if
             error_if_file_already_processed is `True`
@@ -368,10 +365,10 @@ class ModuleManager:
         for file_info in self._filepath_to_file_info.values():
 
             logger.info(
-                f"{indent}- Loading module information for "
+                f"Loading module information for "
                 f"file '{file_info.filename}")
 
-            psyir_node: Node = file_info.get_psyir(indent=indent + "  ")
+            psyir_node: Node = file_info.get_psyir()
 
             # Collect all module infos in this list
             module_info_in_file: list[ModuleInfo] = []
@@ -395,8 +392,7 @@ class ModuleManager:
                             f"Module '{container_name}' already processed"
                         )
                     logger.info(
-                        indent+f"Module '{container_name}' already"
-                        " processed"
+                        f"Module '{container_name}' already processed"
                     )
                     continue
 
@@ -412,7 +408,7 @@ class ModuleManager:
             if filepath in self._filepath_to_module_info.keys():
                 if error_if_file_already_processed:
                     raise KeyError(f"File '{filepath}' already processed")
-                logger.info(indent+f"File '{filepath}' already processed")
+                logger.info(f"File '{filepath}' already processed")
 
                 continue
 
