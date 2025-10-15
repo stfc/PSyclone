@@ -46,7 +46,7 @@ ChildrenList - a custom implementation of list.
 from __future__ import annotations
 import copy
 import graphviz
-from typing import Union
+from typing import Union, Set
 
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import GenerationError, InternalError
@@ -1533,6 +1533,15 @@ class Node():
         for child in self.children[:]:
             child.lower_to_language_level()
         return self
+
+    def get_all_accessed_symbols(self) -> Set["Symbol"]:
+        '''
+        :returns: a set of all the symbols accessed inside this Symbol.
+        '''
+        symbols = set()
+        for child in self._children:
+            symbols.update(child.get_all_accessed_symbols())
+        return symbols
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''

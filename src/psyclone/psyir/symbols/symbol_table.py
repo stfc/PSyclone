@@ -1208,14 +1208,10 @@ class SymbolTable():
                 pass
 
         # Check for any references to it.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core import Signature, VariablesAccessMap
-        vam = VariablesAccessMap()
-        if self.node:
-            vam.update(self.node.reference_accesses())
-        vam.update(self.reference_accesses())
-        sig = Signature(symbol.name)
-        if sig not in vam:
+        symbols = self.node.get_all_accessed_symbols()
+        symbols.update(self.get_all_accessed_symbols())
+        if symbol not in symbols:
+            # It is safe to delete it
             return
 
         # TODO #2424 - ideally AccessSequence.AccessInfo or
@@ -2030,22 +2026,17 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> Set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this object, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this SymbolTable,
+            including the symbols that are not in this scope, but are used
+            in declarations of the symbols in this scope.
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core import VariablesAccessMap
-        vam = VariablesAccessMap()
+        symbols = set()
         for sym in self.symbols:
             if not sym.is_import:
-                vam.update(sym.reference_accesses())
-        return vam
+                symbols.update(sym.get_all_accessed_symbols())
+        return symbols
 
     def wildcard_imports(self, scope_limit=None) -> List[ContainerSymbol]:
         '''

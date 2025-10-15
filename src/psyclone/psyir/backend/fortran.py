@@ -881,7 +881,6 @@ class FortranWriter(LanguageWriter):
         for symbol in local_constants:
             lname = symbol.name.lower()
             decln_inputs[lname] = set()
-            vmap = symbol.reference_accesses()
             read_write_info = ReadWriteInfo()
             self._call_tree_utils.get_input_parameters(read_write_info,
                                                        [symbol.initial_value])
@@ -901,11 +900,11 @@ class FortranWriter(LanguageWriter):
             # Remove any 'inputs' that are not local since these do not affect
             # the ordering of local declarations. Also make sure that we avoid
             # circular deps where a Symbol depends upon itself.
-            for sig in vmap.all_signatures:
-                signame = sig.var_name.lower()
-                if (symbol_table.lookup(signame) in local_constants and
-                        lname != signame):
-                    decln_inputs[lname].add(signame)
+            for dependent_symbol in symbol.get_all_accessed_symbols():
+                if dependent_symbol is not symbol:
+                    if dependent_symbol in local_constants:
+                        decln_inputs[lname].add(
+                            Signature(dependent_symbol.name))
         # We now iterate over the declarations, declaring those that have their
         # inputs satisfied. Creating a declaration for a given symbol removes
         # that symbol as a dependence from any outstanding declarations and
