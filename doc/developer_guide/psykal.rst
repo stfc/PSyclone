@@ -387,7 +387,7 @@ is shown below using the LFRic API as an illustration.
 The InvokeSchedule can currently contain nodes of type: **Loop**,
 **Kernel**, **Built-in** (see the :ref:`psykal-built-ins` section),
 **Directive** (of various types), **HaloExchange**, or
-**GlobalSum** (the latter two are only used if distributed memory is
+**GlobalReduction** (the latter two are only used if distributed memory is
 supported and is switched on; see the :ref:`psykal_usage`
 section). The order of the tree (depth first) indicates the order of
 the associated Fortran code.
