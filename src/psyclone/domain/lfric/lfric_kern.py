@@ -821,7 +821,10 @@ class LFRicKern(CodedKern):
         # Otherwise, get the PSyIR Kernel Schedule(s) from the original
         # parse tree.
         if not routines:
-            orig_psyir = Fparser2Reader().generate_psyir(self.ast)
+            config = Config.get()
+            freader = Fparser2Reader(
+                ignore_directives=(not config.frontend_keep_directives))
+            orig_psyir = freader.generate_psyir(self.ast)
             for container in orig_psyir.walk(Container):
                 names = container.resolve_routine(self.name)
                 routines = []

@@ -39,6 +39,7 @@
 
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
+from pathlib import Path
 import pytest
 import warnings
 
@@ -427,6 +428,7 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
                      " nested scopes")
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     ''' Test that we can succesfully inline a basic kernel subroutine
     routine into the PSy layer module using a transformation '''
@@ -1078,22 +1080,32 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
+@pytest.mark.parametrize("keep_comments, keep_directives",
+                         [(False, False), (True, False), (True, True)])
 def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
-                                 monkeypatch):
+                                 monkeypatch, keep_comments, keep_directives):
     '''
     Test that the transformation works when the Call is within a Program (i.e.
-    without an enclosing module).
+    without an enclosing module). We also test that the keep-comments and
+    keep-directives options set in the Config object are respected.
 
     '''
-    # Create the module containing the subroutine definition and add it to the
-    # ModuleManager.
-    make_external_module(monkeypatch, fortran_reader, "my_mod",
-                         '''\
+    Config.get().frontend_keep_comments = keep_comments
+    Config.get().frontend_keep_directives = keep_directives
+    # Create the module containing the subroutine definition and make sure
+    # PSyclone can find it.
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    filename = Path(tmpdir) / "my_mod.f90"
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''\
     module my_mod
     contains
       subroutine my_sub(arg)
         real, dimension(10), intent(inout) :: arg
+        ! This is an important loop
+        !$acc kernels
         arg(1:10) = 1.0
+        !$acc end kernels
       end subroutine my_sub
     end module my_mod
     ''')
@@ -1115,10 +1127,15 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
     assert len(prog_psyir.children) == 2
     assert set(child.name for child in prog_psyir.children) == {"my_sub",
                                                                 "my_prog"}
+    output = fortran_writer(prog_psyir)
+
+    assert "use my_mod" not in output
+    assert (("an important loop" in output) ==
+            (keep_comments or keep_directives))
+    assert ("!$acc kernels" in output) == keep_directives
+
     # Now that we've 'privatised' the target of the call, the code can be
     # compiled standalone.
-    output = fortran_writer(prog_psyir)
-    assert "use my_mod" not in output
     assert Compile(tmpdir).string_compiles(output)
 
 

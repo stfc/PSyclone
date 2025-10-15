@@ -109,6 +109,8 @@ contains
     real(go_wp), intent(out), dimension(:,:) :: cv
     real(go_wp), intent(in),  dimension(:,:) :: p, v
 
+    ! A comment for testing purposes
+
     CV(I,J) = .5d0*(P(I,J+1)+P(I,J))*V(I,J)
 
   end subroutine compute_cv_code
