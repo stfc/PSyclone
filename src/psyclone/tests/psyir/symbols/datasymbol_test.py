@@ -577,9 +577,9 @@ def test_datasymbol_replace_symbols_using():
     assert sym4.datatype.precision.symbol is new_kind
 
 
-def test_datasymbol_reference_accesses():
+def test_datasymbol_get_all_accessed_symbols():
     '''
-    Test that the reference_accesses() specialisation for this class checks
+    Test that the get_all_accessed_symbols() specialisation for this class checks
     the initialisation expression.
 
     '''
@@ -587,8 +587,8 @@ def test_datasymbol_reference_accesses():
     int_kind_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(kind))
     sym3 = DataSymbol("c", REAL_SINGLE_TYPE,
                       initial_value=Literal("1", int_kind_type))
-    vai3 = sym3.reference_accesses()
-    assert vai3.all_signatures == [Signature("i_def")]
+    dependent_symbols = sym3.get_all_accessed_symbols()
+    assert kind in dependent_symbols
 
 
 def test_datasymbol_get_bounds():
