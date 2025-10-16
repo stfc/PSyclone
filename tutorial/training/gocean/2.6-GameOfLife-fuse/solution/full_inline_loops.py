@@ -56,7 +56,7 @@ class GOceanInlineTrans(InlineTrans):
     OF GOCEAN KERNELS!!!!! USE AT YOUR OWN RISK.
     '''
 
-    def validate(self, node, options=None):
+    def validate(self, node: Call, **kwargs) -> None:
         '''ATM we can't use inlining with GOcean, since we get the error:
             "the type of the actual argument 'neighbours' corresponding to an"
             "array formal argument ('neighbours') is unknown."
@@ -69,8 +69,7 @@ class GOceanInlineTrans(InlineTrans):
 
         '''
         try:
-            super().validate(node, options)
-
+            super().validate(node, **kwargs)
         except TransformationError as err:
             if ("cannot be inlined because the type of the actual argument"
                     in str(err.value) and "corresponding to an array formal "
@@ -173,7 +172,7 @@ def trans(psyir):
     psyir.lower_to_language_level()
     for call in psyir.walk(Call):
         kmit.apply(call)
-        inline.apply(call)
+        inline.apply(call, use_first_callee_and_no_arg_check=True)
 
     # Now try to replace fields (that are locally used in the algorithm
     # layer) with scalars
