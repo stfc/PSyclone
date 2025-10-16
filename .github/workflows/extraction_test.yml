@@ -50,7 +50,7 @@ jobs:
     env:
       LFRIC_APPS_REV: 7536
       LFRIC_CORE_REV: 52054
-      PYTHON_VERSION: 3.13
+      PYTHON_VERSION: 3.14
 
     steps:
     - uses: actions/checkout@v3
@@ -81,6 +81,8 @@ jobs:
         git clone -b psyclone_ci_branch --recurse-submodules https://github.com/MetOffice/lfric-baf.git
         # First install Fab:
         pushd lfric-baf/fab
+        # Patch for concurrency issues with Python 3.14
+        sed -i "s|_analyser.run)|_analyser.run, no_multiprocessing=True)|" source/fab/steps/*.py
         pip install .
         popd
 
