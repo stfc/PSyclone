@@ -39,10 +39,12 @@
 import abc
 from typing import Set, Tuple
 
-from psyclone.core import AccessType
+from psyclone.core.access_type import AccessType
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.while_loop import WhileLoop
+from psyclone.psyir.nodes.omp_clauses import OMPReductionClause
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, Symbol
 
 
@@ -105,10 +107,23 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         fprivate = set()
         need_sync = set()
 
+        # Collate reduction variables
+        # TODO #2446 Ensure this behaves correctly for OpenACC when
+        # OpenACC reductions are supported.
+        red_vars = []
+        for clause in self.children:
+            if isinstance(clause, OMPReductionClause):
+                for ref in clause.children:
+                    red_vars.append(ref.name)
+
         # Determine variables that must be private, firstprivate or need_sync
         var_accesses = self.reference_accesses()
         for signature in var_accesses.all_signatures:
             if not var_accesses[signature].has_data_access():
+                continue
+            # Skip those that are TYPE_INFO accesses.
+            if any(x.access_type == AccessType.TYPE_INFO
+                    for x in var_accesses[signature]):
                 continue
             accesses = var_accesses[signature]
             # TODO #2094: var_name only captures the top-level
@@ -116,8 +131,20 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             # only apply to a sub-component, this won't be captured
             # appropriately.
             name = signature.var_name
+            if name in red_vars:
+                continue
             symbol = accesses[0].node.scope.symbol_table.lookup(
                 name, otherwise=None)
+            if symbol is None:
+                # The signature does not match any symbol! This is probably a
+                # structure, we will consider them shared
+                continue
+
+            # A parallel loop variable is always private
+            if (isinstance(self.dir_body[0], Loop) and
+                    self.dir_body[0].variable is symbol):
+                private.add(symbol)
+                continue
 
             # If it is manually marked as a local symbol, add it to private or
             # firstprivate set
@@ -125,19 +152,25 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                     isinstance(self.dir_body[0], Loop) and
                     symbol in self.dir_body[0].explicitly_private_symbols):
                 visited = set()
-                if (
-                    # The loop variable is always private
-                    self.dir_body[0].variable is not symbol and
-                    # For anything else, if it uses a value coming from before
-                    # the loop scope, make it firstprivate
-                    any(access.node.enters_scope(self, visited_nodes=visited)
-                        for access in accesses)):
-                    fprivate.add(symbol)
+                for access in accesses:
+                    if not isinstance(access.node, Reference):
+                        # Nodes that are not References do not have
+                        # 'enters_scope', so the analysis below can't be
+                        # done and we defensively use 'firstprivate'
+                        # TODO #3124: Remove this special-case
+                        fprivate.add(symbol)
+                        break
+                    if access.node.enters_scope(self, visited):
+                        # If it uses a value coming from before the loop
+                        # scope, make it 'firstprivate'
+                        fprivate.add(symbol)
+                        break
                 else:
+                    # Everything else can be just 'private'
                     private.add(symbol)
                 continue
 
-            # All arrays not explicitly marked as threadprivate are shared
+            # All arrays not explicitly marked as explicitly_private are shared
             if any(accs.has_indices() for accs in accesses):
                 continue
 
@@ -161,12 +194,13 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
 
             has_been_read = False
             last_read_position = 0
+            visited_nodes = set()  # To avoid enters_scope repetitions
             for access in accesses:
-                if access.access_type == AccessType.READ:
+                if access.is_any_read():
                     has_been_read = True
                     last_read_position = access.node.abs_position
 
-                if access.access_type == AccessType.WRITE:
+                if access.is_any_write():
                     # Check if the write access is outside a loop. In this case
                     # it will be marked as shared. This is done because it is
                     # likely to be re-used later. e.g:
@@ -179,19 +213,13 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                         limit=self,
                         include_self=True)
                     if not loop_ancestor:
-                        # If we find it at least once outside a loop we keep it
-                        # as shared
+                        # If we find it at least one WRITE outside a loop we
+                        # keep it as shared
                         break
 
                     # Otherwise, the assignment to this variable is inside a
                     # loop (and it will be repeated for each iteration), so
-                    # we declare it as private or need_sync
-                    name = signature.var_name
-                    # TODO #2094: var_name only captures the top-level
-                    # component in the derived type accessor. If the attributes
-                    # only apply to a sub-component, this won't be captured
-                    # appropriately.
-                    symbol = access.node.scope.symbol_table.lookup(name)
+                    # we declare it as [first]private or need_sync
 
                     # If it has been read before we have to check if ...
                     if has_been_read:
@@ -204,23 +232,31 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                             need_sync.add(symbol)
                         break
 
-                    # If the write is not guaranteed, we make it firstprivate
-                    # so that in the case that the write doesn't happen we keep
-                    # the original value
+                    # If the write is not guaranteed (because it is inside a
+                    # conditional), make it firstprivate to keep the original
+                    # value when the branch is never taken. Unless this never
+                    # had a value before the loop (as some compilers don't
+                    # like uninitialised firstprivates)
                     conditional_write = access.node.ancestor(
                         IfBlock,
                         limit=loop_ancestor,
                         include_self=True)
                     if conditional_write:
-                        # If it's used before the loop, make it firstprivate
-                        visited = set()
-                        if any(access.node.enters_scope(
-                                                self, visited_nodes=visited)
-                               for access in accesses):
-                            fprivate.add(symbol)
-                            break
-                    # Otherwise it is just private
-                    private.add(symbol)
+                        # Check if it gets a value from before the loop
+                        for access in accesses:
+                            if not isinstance(access.node, Reference):
+                                # Nodes that are not References do not have
+                                # 'enters_scope', so the analysis below can't
+                                # be done and we defensively use 'firstprivate'
+                                # TODO #3124: Remove this special-case
+                                fprivate.add(symbol)
+                                break
+                            if access.node.enters_scope(self, visited_nodes):
+                                fprivate.add(symbol)
+                                break
+                    # Otherwise it is just 'private'
+                    if symbol not in fprivate:
+                        private.add(symbol)
                     break
 
         return private, fprivate, need_sync

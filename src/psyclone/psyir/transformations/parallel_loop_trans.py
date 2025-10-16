@@ -35,6 +35,7 @@
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
+#          M. Naylor, University of Cambridge, UK
 
 ''' This module provides the ParallelLoopTrans transformation.'''
 
@@ -48,9 +49,12 @@ from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import (
-        Call, Loop, Reference, Routine
+        Call, Loop, Reference, Routine,
+        BinaryOperation, IntrinsicCall
 )
-from psyclone.psyir.tools import DependencyTools, DTCode
+from psyclone.psyir.tools import (
+        DependencyTools, DTCode, ReductionInferenceTool
+)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
@@ -138,29 +142,6 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         '''
         Perform validation checks before applying the transformation
 
-        :param node: the node we are checking.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool|int collapse: if it's a bool and is False
-            (default), it won't collapse. If it's a bool and is True, it will
-            collapse as much as possible. If it's an integer, it will attempt
-            to collapse until the specified number of loops (if they exist and
-            are safe to collapse them). The options 'ignore_dependencies_for'
-            and 'force' also affect the collapse applicability analysis.
-        :param bool force: whether to force parallelisation of the
-            target loop (i.e. ignore any dependence analysis).
-        :param list[str] ignore_dependencies_for: whether to ignore
-            some symbol names from the dependence analysis checks.
-        :param bool sequential: whether this is a sequential loop.
-        :param bool verbose: whether to report the reasons the
-            validate and collapse steps have failed.
-        :param bool nowait: whether to add a nowait clause and a
-            corresponding barrier (or equivalent) to enable asynchronous
-            execution.
-        :param bool privatise_arrays: whether to declare as private any
-            write after write dependency symbols.
-
         :raises TypeError: if 'collapse' is not an int or a bool.
         :raises TypeError: if 'ignore_dependencies_for' is not a list of str.
         :raises TransformationError: if the given loop iterates over a
@@ -191,6 +172,9 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 ignore_dependencies_for = []
             sequential = self.get_option("sequential", **kwargs)
             privatise_arrays = self.get_option("privatise_arrays", **kwargs)
+            reduction_ops = self.get_option("reduction_ops", **kwargs)
+            if reduction_ops is None:
+                reduction_ops = []
         else:
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
@@ -200,6 +184,24 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             )
             sequential = options.get("sequential", False)
             privatise_arrays = options.get("privatise_arrays", False)
+            reduction_ops = options.get("reduction_ops", [])
+
+        # Check type of reduction_ops (not handled by validate_options)
+        if not isinstance(reduction_ops, list):
+            raise TypeError(
+                    f"reduction_ops for ParallelLoopTrans.apply() should be "
+                    f"a list but found type {type(reduction_ops).__name__}")
+        for op in reduction_ops:
+            if not isinstance(op, (BinaryOperation.Operator,
+                                   IntrinsicCall.Intrinsic)):
+                raise TypeError(
+                        f"Elements of reduction_ops for "
+                        f"ParallelLoopTrans.apply() should have type "
+                        f"BinaryOperation.Operator or IntrinsicCall.Intrinsic "
+                        f"but found {type(op).__name__}")
+
+        # This method produces a list of inferred reduction clauses
+        self.inferred_reduction_clauses = []
 
         # Check we are not a sequential loop
         if (not sequential and isinstance(node, PSyLoop) and
@@ -283,6 +285,17 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                                 f"because it is not a plain local array or "
                                 f"it is used after the loop.")
                     continue
+                # See if the scalar in question allows parallelisation of
+                # the loop using reduction clauses.
+                if (reduction_ops and
+                        message.code == DTCode.WARN_SCALAR_REDUCTION):
+                    if (len(message.var_infos) == 1):
+                        (sig, access_info) = message.var_infos[0]
+                        red_tool = ReductionInferenceTool(reduction_ops)
+                        clause = red_tool.attempt_reduction(sig, access_info)
+                        if clause:
+                            self.inferred_reduction_clauses.append(clause)
+                            continue
                 errors.append(str(message))
 
             if errors:
@@ -310,7 +323,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
               collapse: Union[int, bool] = False, force: bool = False,
               ignore_dependencies_for: Union[None, List[str]] = None,
               privatise_arrays: bool = False, sequential: bool = False,
-              nowait: bool = False, **kwargs):
+              nowait: bool = False,
+              reduction_ops: List[Union[BinaryOperation.Operator,
+                                        IntrinsicCall.Intrinsic]] = None,
+              **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
@@ -351,14 +367,18 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             execution.
         :param bool privatise_arrays: whether to make the write after write
             dependency symbols declared as private.
+        :param reduction_ops: if non-empty, attempt parallelisation
+            of loops by inferring reduction clauses involving any of
+            the reduction operators in the list.
 
         '''
         if not options:
             self.validate_options(
-                    verbose=verbose, collapse=collapse,
+                    verbose=verbose, collapse=collapse, force=force,
                     ignore_dependencies_for=ignore_dependencies_for,
                     privatise_arrays=privatise_arrays,
-                    sequential=sequential, nowait=nowait, **kwargs
+                    sequential=sequential, nowait=nowait,
+                    reduction_ops=reduction_ops, **kwargs
             )
             # Rename the input options that are renamed in this apply method.
             # TODO 2668, rename options to be consistent.
@@ -367,6 +387,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 list_of_names = []
             else:
                 list_of_names = ignore_dependencies_for
+            if reduction_ops is None:
+                reduction_ops = []
         else:
             # TODO 2668 - options dict is deprecated.
             warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
@@ -376,15 +398,24 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             list_of_names = options.get("ignore_dependencies_for", [])
             privatise_arrays = options.get("privatise_arrays", False)
             nowait = options.get("nowait", False)
+            reduction_ops = options.get("reduction_ops", [])
 
         self.validate(node, options=options, verbose=verbose,
-                      collapse=collapse,
+                      collapse=collapse, force=force,
                       ignore_dependencies_for=ignore_dependencies_for,
                       privatise_arrays=privatise_arrays,
-                      sequential=sequential, nowait=nowait, **kwargs)
+                      sequential=sequential, nowait=nowait,
+                      reduction_ops=reduction_ops, **kwargs)
 
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()
+
+        # Add all reduction variables inferred by 'validate' to the list
+        # of signatures to ignore
+        if self.inferred_reduction_clauses:
+            for (op, ref) in self.inferred_reduction_clauses:
+                sig = ref.get_signature_and_indices()[0]
+                list_of_signatures.append(sig)
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location

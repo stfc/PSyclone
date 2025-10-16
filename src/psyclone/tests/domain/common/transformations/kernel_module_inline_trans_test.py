@@ -40,6 +40,8 @@
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
 import pytest
+import warnings
+
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -321,7 +323,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     assert rsym.visibility == Symbol.Visibility.PRIVATE
 
 
-def test_validate_local_routine(fortran_reader):
+def test_validate_already_existing_local_routine(fortran_reader):
     '''Test that validate rejects a call to a routine that is already present
     in the current Container.'''
     psyir = fortran_reader.psyir_from_source('''
@@ -342,9 +344,8 @@ def test_validate_local_routine(fortran_reader):
     inline_trans = KernelModuleInlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("routine 'do_something' cannot be module inlined into Container "
-            "'my_mod' because a *different* routine with that name already "
-            "exists and versioning" in str(err.value))
+    assert ("The target of 'call do_something(a)' is already module inlined."
+            in str(err.value))
 
 
 def test_validate_fail_to_get_psyir(fortran_reader, config_instance):
@@ -662,12 +663,14 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
         use external_mod1, only: r_def
-        use external_mod2, only: my_user_type
+        use external_mod2, only: kind_multiplier
+        use external_mod3, only: init_val
+        use external_mod4, only: my_user_type
         use not_needed
         implicit none
         contains
         subroutine code()
-            real(kind=r_def) :: a,b
+            real(kind=r_def*kind_multiplier) :: a,b = init_val
             type(my_user_type) :: x
             a = b + x%data
         end subroutine code
@@ -677,8 +680,12 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     routine = psyir.walk(Routine)[0]
     new_routines = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
+    # The code_to_inline will contain the needed module imports, but
+    # will ignore the non-used imports
     assert "use external_mod1, only : r_def" in result
-    assert "use external_mod2, only : my_user_type" in result
+    assert "use external_mod2, only : kind_multiplier" in result
+    assert "use external_mod3, only : init_val" in result
+    assert "use external_mod4, only : my_user_type" in result
     assert "use not_needed" not in result
 
     # Also, if they are literal precision expressions
@@ -700,6 +707,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : r_def" in result
     assert "use not_needed" not in result
+    assert "1.0_r_def" in result
 
     # Also, if they are routine names
     psyir = fortran_reader.psyir_from_source('''
@@ -1342,3 +1350,26 @@ def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     ctr_sym = container.symbol_table.lookup("my_mod")
     (isym,) = container.symbol_table.symbols_imported_from(ctr_sym)
     assert isym.interface.orig_name == "my_sub"
+
+
+# TODO 2668 Remove test.
+def test_module_inline_deprecation_warning():
+    '''Tests that the transformation gives the expected deprecation warning
+    when an options dict is provided.
+    '''
+    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric",
+                             name="invoke_0", dist_mem=False)
+    kern_call = invoke.schedule.walk(CodedKern)[0]
+    inline_trans = KernelModuleInlineTrans()
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to be triggered.
+        warnings.simplefilter("always")
+        inline_trans.apply(kern_call, options={"a": "test"})
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in str(w[0].message))

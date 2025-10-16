@@ -39,22 +39,56 @@
 previously dumped kernel input- and output-data.
 '''
 
-# TODO #706: Add compilation support
-
 from pathlib import Path
 
 import pytest
 
-from psyclone.domain.common import ExtractDriverCreator
+from psyclone.domain.gocean import GOceanDriverCreator
 from psyclone.domain.gocean.transformations import (GOceanExtractTrans,
                                                     GOConstLoopBoundsTrans)
+from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
 from psyclone.psyir.transformations import PSyDataTrans
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import (
+    Compile, get_base_path, get_infrastructure_path, get_invoke)
 
 # API names
 GOCEAN_API = "gocean"
+
+
+@pytest.fixture(scope='function', autouse=True)
+def init_module_manager():
+    ''' The tests in this module all assume that there is no pre-existing
+    ModuleManager object, so this fixture ensures that the module manager
+    instance is deleted before and after each test function. The latter
+    makes sure that any other test executed next will automatically reload
+    the default ModuleManager file.
+    '''
+
+    test_files_dir = get_base_path(GOCEAN_API)
+    infrastructure_path = Path(get_infrastructure_path(GOCEAN_API))
+    # Define the path to the ReadKernelData module (which contains functions
+    # to read extracted data from a file) relative to the infrastructure path:
+    psyclone_root = infrastructure_path.parents[3]
+    read_mod_path = (psyclone_root / "lib" / "extract" /
+                     "binary")
+    # Enforce loading of the default ModuleManager
+    ModuleManager._instance = None
+
+    module_manager = ModuleManager.get()
+    # Ignore the MPI implementation of parallel utils_mod,
+    # which means the parallel_utils_stub_mod will be found and used
+    module_manager.add_ignore_file("parallel_utils_mod")
+    module_manager.add_search_path(test_files_dir)
+    module_manager.add_search_path(str(infrastructure_path))
+    module_manager.add_search_path(str(read_mod_path))
+
+    # Now execute all tests
+    yield
+
+    # Enforce loading of the default ModuleManager
+    ModuleManager._instance = None
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -71,7 +105,7 @@ def clear_region_name_cache():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
-def test_driver_creation1():
+def test_driver_creation1() -> None:
     '''Test that driver is created correctly for all variable access
     modes (input, input-output, output). Do not specify a region name,
     so test that the driver (including its filename) use the proper
@@ -90,7 +124,7 @@ def test_driver_creation1():
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
-                  "kernel-compute_kernel_code-r0.f90")
+                  "kernel-compute_kernel_code-r0.F90")
     assert driver.is_file()
 
     with driver.open("r", encoding="utf-8") as driver_file:
@@ -104,7 +138,7 @@ def test_driver_creation1():
     # property dx. The grid property will be renamed to 'dx_1':
     expected = '''
   use read_kernel_data_mod, only : ReadKernelDataType
-  use kernel_driver_test, only : compute_kernel_code
+  use kernel_driver_test_mod, only : compute_kernel_code
   use compare_variables_mod, only : compare, compare_init, compare_summary
   integer :: out_fld_internal_ystart
   integer :: out_fld_internal_ystop
@@ -129,8 +163,8 @@ def test_driver_creation1():
   real*8, allocatable, dimension(:,:) :: out_fld_data_post
 
   call extract_psy_data%OpenReadModuleRegion('psy_extract_example_with_\
-various_variable_access_patterns', 'invoke_0_compute_kernel-compute_\
-kernel_code-r0')
+various_variable_access_patterns', &
+&'invoke_0_compute_kernel-compute_kernel_code-r0')
   call extract_psy_data%ReadVariable('dx_data', dx_data)
   call extract_psy_data%ReadVariable('in_fld_data', in_fld_data)
   call extract_psy_data%ReadVariable('in_fld_grid_dx', in_fld_grid_dx)
@@ -190,6 +224,11 @@ in_fld_grid_gphiu_post)
     for line in expected_lines:
         assert line in driver_code, line + "\n -- not in --\n" + driver_code
 
+    build = Compile(".")
+    build.compile_file("driver-psy_extract_example_with_various_"
+                       "variable_access_patterns-invoke_0_compute_"
+                       "kernel-compute_kernel_code-r0.F90")
+
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
@@ -211,7 +250,7 @@ def test_driver_creation2():
                               ("module_name", "local_name")})
 
     _ = psy.gen
-    driver = Path("driver-module_name-local_name.f90")
+    driver = Path("driver-module_name-local_name.F90")
     assert driver.is_file()
 
     with driver.open("r", encoding="utf-8") as driver_file:
@@ -276,6 +315,9 @@ in_fld_grid_gphiu_post)
     for line in expected_lines:
         assert line in driver_code, line + "\n -- not in --\n" + driver_code
 
+    build = Compile(".")
+    build.compile_file(str(driver))
+
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
@@ -319,7 +361,7 @@ def test_rename_suffix_if_name_clash():
     # Now we also need to check that the driver uses the new suffix,
     # i.e. both as key for ReadVariable, as well as for the variable
     # names.
-    driver = Path("driver-module_name-local_name.f90")
+    driver = Path("driver-module_name-local_name.F90")
     assert driver.is_file()
 
     with driver.open("r", encoding="utf-8") as driver_file:
@@ -335,6 +377,9 @@ out_fld_data_1_post)"""
     for line in expected.split("\n"):
         assert line in driver_code, line + "\n -- not in --\n" + driver_code
 
+    build = Compile(".")
+    build.compile_file(str(driver))
+
 
 # -----------------------------------------------------------------------------
 def test_errors_add_call():
@@ -349,7 +394,7 @@ def test_errors_add_call():
     psy_data_mod = ContainerSymbol("psy_data_mod")
     program_symbol_table.add(psy_data_mod)
 
-    edc = ExtractDriverCreator()
+    edc = GOceanDriverCreator()
 
     # Then try to add a call to 'psy_data_mod':
     with pytest.raises(TypeError) as err:
@@ -406,7 +451,7 @@ def test_driver_creation_same_symbol():
     out_fld%internal%xstart = out_fld_internal_xstart
     out_fld%internal%ystop = out_fld_internal_ystop
     out_fld%internal%ystart = out_fld_internal_ystart""" in code
-    driver = Path("driver-module_name-local_name.f90")
+    driver = Path("driver-module_name-local_name.F90")
     assert driver.is_file()
 
     with driver.open("r", encoding="utf-8") as driver_file:
@@ -434,6 +479,9 @@ in_fld_data, dx_data, in_fld_grid_dx, in_fld_grid_gphiu)
   enddo"""
     assert correct in driver_code
 
+    build = Compile(".")
+    build.compile_file(str(driver))
+
 
 # -----------------------------------------------------------------------------
 def test_driver_creation_import_modules(fortran_reader):
@@ -449,7 +497,7 @@ def test_driver_creation_import_modules(fortran_reader):
               end program test_prog'''
     psyir = fortran_reader.psyir_from_source(code)
     program = psyir.children[0]   # psyir is a FileContainer, take the program
-    edc = ExtractDriverCreator()
+    edc = GOceanDriverCreator()
     # Delete all symbols in the symbol table so we can check if the right
     # symbols are added:
     program.scope._symbol_table = SymbolTable()
