@@ -66,6 +66,11 @@ class FortranPrinter(Printer):
         is .NEQV.'''
         return f"({'.NEQV.' .join(self._print(i) for i in expr.args)})"
 
+    def _print_Equality(self, expr):
+        '''Called when converting an Eq expression, which in Fortran
+        is =='''
+        return f"({'==' .join(self._print(i) for i in expr.args)})"
+
     def _print_BooleanTrue(self, expr) -> str:
         '''Called when converting a SymPy value of True.'''
         return ".TRUE."

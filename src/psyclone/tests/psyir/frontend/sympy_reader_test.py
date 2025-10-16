@@ -88,6 +88,8 @@ def test_sympy_reader_constructor():
                                          (".TRUE. .and. .true.", ".true."),
                                          (".TRUE. .AND. .FALSE.",
                                           ".false."),
+                                         ("b(i) == 3 .and. c(i,i) == 5",
+                                          "b(i) == 3 .AND. c(i,i) == 5"),
                                          ])
 def test_sympy_psyir_from_expression(fortran_reader, fortran_writer,
                                      expressions):

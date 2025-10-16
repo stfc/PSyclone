@@ -43,6 +43,7 @@ import pytest
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -517,9 +518,11 @@ def test_sympy_writer_user_types(fortran_reader, fortran_writer,
                           ("a .or. b", "Or(a, b)"),
                           ("a .eqv. b", "Equivalent(a, b)"),
                           ("a .neqv. b", "Xor(a, b)"),
+                          ("a == b", "Eq(a, b)"),
                           ])
-def test_sympy_writer_logicals(fortran_reader, fortran_writer,
-                               fortran_expr, sympy_str):
+def test_sympy_writer_logicals(fortran_reader: FortranReader,
+                               fortran_expr: str,
+                               sympy_str: str):
     '''Test handling of user-defined types, e.g. conversion of
     ``a(i)%b(j)`` to ``a_b(i,i,1,j,j,1)``. Each Fortran expression
     ``fortran_expr`` is first converted to a string ``sympy_str`` to be
