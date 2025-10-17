@@ -1207,24 +1207,23 @@ class SymbolTable():
             except KeyError:
                 pass
 
-        # Error message
-
         # Check for any references to it.
         symbols = self.get_all_accessed_symbols()
-        location = "inside the symbol_table"
+        location = "the provided symbol_table"
         if self.node:
             symbols.update(self.node.get_all_accessed_symbols())
-            location = f"inside the '{self.node.name}'"
+            location = f"the '{self.node.name}' scope"
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols.generic_interface_symbol import (
             GenericInterfaceSymbol)
         for sym in symbols:
             if isinstance(sym, GenericInterfaceSymbol):
                 for rinfo in sym.routines:
-                    raise ValueError(
-                        f"Cannot remove RoutineSymbol '{symbol.name}' because "
-                        f"it is referenced inside the '{sym.name}' interface.")
                     if rinfo.symbol is symbol:
-                        raise ValueError(msg)
+                        raise ValueError(
+                            f"Cannot remove RoutineSymbol '{symbol.name}' "
+                            f"because it is referenced inside the "
+                            f"'{sym.name}' interface.")
         if symbol not in symbols:
             # It is safe to delete it
             return
@@ -1232,7 +1231,7 @@ class SymbolTable():
         print(symbols)
         raise ValueError(
             f"Cannot remove RoutineSymbol '{symbol.name}' because it is "
-            f"referenced inside the {location} scope")
+            f"referenced inside {location}")
 
         # TODO #2424 - ideally AccessSequence.AccessInfo or
         # Signature would store the actual Symbol that the access is to. In
