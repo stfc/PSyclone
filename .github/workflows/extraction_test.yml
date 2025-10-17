@@ -122,9 +122,8 @@ jobs:
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%gcc@14
         source .runner_venv/bin/activate
-        export LFRIC_DIR=/archive/psyclone-tests/latest-run/extraction/lfric_apps_${LFRIC_APPS_REV}
-        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export COMPILER_PROFILE=fast-debug
         export NUM_PROCS=6
         export MAX_PROC=$((NUM_PROCS-1))

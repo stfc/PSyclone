@@ -1408,7 +1408,10 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     assert ("Error, unexpected exception, please report to the authors:"
             in output)
     assert "Traceback (most recent call last):" in output
-    assert "TypeError: argument of type 'int' is not iterable" in output
+    # Python >= 3.14 uses "is not a container or iterable",
+    # so we split the assertion for cross-version support
+    assert "TypeError: argument of type 'int' is not " in output
+    assert "iterable" in output
 
 
 def test_main_fort_line_length_off(capsys):
