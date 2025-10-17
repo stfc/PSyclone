@@ -2433,7 +2433,8 @@ class Fparser2Reader():
         preceding_comments = []
         for node in nodes:
             if isinstance(node, Fortran2003.Implicit_Part):
-                for comment in walk(node, Fortran2003.Comment):
+                for comment in walk(node, (Fortran2003.Comment,
+                                           Fortran2003.Directive)):
                     self.process_comment(comment, preceding_comments)
             elif isinstance(node, Fortran2003.Derived_Type_Def):
                 sym = self._process_derived_type_decln(parent, node,
@@ -2461,7 +2462,8 @@ class Fparser2Reader():
         for node in nodes:
 
             if isinstance(node, Fortran2003.Implicit_Part):
-                for comment in walk(node, Fortran2003.Comment):
+                for comment in walk(node, (Fortran2003.Comment,
+                                           Fortran2003.Directive)):
                     self.process_comment(comment, preceding_comments)
                     continue
                 # Anything other than a PARAMETER statement or an
@@ -3019,7 +3021,9 @@ class Fparser2Reader():
             # there), so we have to examine the first statement within it. We
             # must allow for the case where the block is empty though.
             if (child.content and child.content[0] and
-                    (not isinstance(child.content[0], Fortran2003.Comment)) and
+                    (not isinstance(child.content[0],
+                                    (Fortran2003.Comment,
+                                     Fortran2003.Directive))) and
                     child.content[0].item and child.content[0].item.label):
                 raise NotImplementedError("Unsupported labelled statement")
         elif isinstance(child, StmtBase):
@@ -3437,6 +3441,10 @@ class Fparser2Reader():
         for child in node.content[:clause_indices[0]]:
             if isinstance(child, Fortran2003.Comment):
                 self.process_comment(child, preceding_comments)
+            if isinstance(child, Fortran2003.Directive):
+                direc = self._directive_handler(child, None)
+                parent.addchild(direc)
+
         # NOTE: The comments are added to the IfBlock node.
         # NOTE: Comments before the 'else[if]' statements are not handled.
 

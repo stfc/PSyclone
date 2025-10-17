@@ -85,6 +85,7 @@ def test_directive_in_decls():
     psyir = reader.psyir_from_source(code)
     routine = psyir.children[0]
     out = routine.debug_string()
+    print(out)
     assert """!$omp firstprivate
 integer, dimension(100) :: i  !dir$ aligned""" in out
 
@@ -106,3 +107,112 @@ def test_directive_at_end():
     assert routine.children[-1].debug_string() == "!$omp barrier\n"
 
 
+def test_directive_before_loop():
+    """Test that the FortranReader stores a directive before a loop as a
+    CodeBlock."""
+    code = """subroutine x
+    integer :: i, j
+    i = 1
+    !$omp target
+    do i = 1, 100
+        j = i
+    end do
+    end subroutine x"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    # The directive is a codeblock
+    assert isinstance(routine.children[1], CodeBlock)
+    assert routine.children[1].debug_string() == "!$omp target\n"
+
+
+def test_directive_before_if():
+    """Test that the FortranReader stores a directive before an if as a
+    CodeBlock."""
+    code = """subroutine x
+    integer :: i, j
+    i = 1
+    !$omp target
+    if(i == 1 )then
+      j = i
+    end if
+    end subroutine x"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    # The directive is a codeblock
+    assert isinstance(routine.children[1], CodeBlock)
+    assert routine.children[1].debug_string() == "!$omp target\n"
+
+
+def test_directive_before_else():
+    """Test that the FortranReader stores a directive before an else as a
+    CodeBlock."""
+    code = """subroutine x
+    integer :: i, j
+    i = 1
+    if( i == 1 )then
+      j = i
+      !$omp barrier
+    else
+      j = 2
+    end if
+    end subroutine x"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    ifblock = routine.children[1]
+    # The directive is a codeblock
+    assert isinstance(ifblock.if_body.children[1], CodeBlock)
+    assert ifblock.if_body.children[1].debug_string() == "!$omp barrier\n"
+
+
+def test_directive_before_module():
+    """Test that the FortranReader stores a directive before a module as a
+    CodeBlock."""
+    code = """!$mydir test
+    module mymod
+       integer :: i
+    end module mymod
+    """
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    # The directive is a codeblock
+    assert isinstance(psyir.children[0], CodeBlock)
+    assert psyir.children[0].debug_string() == "!$mydir test\n"
+
+
+def test_directive_before_while():
+    """Test that the FortranReader stores a directive before a while loop as a
+    CodeBlock."""
+    code = """subroutine x
+    integer :: i
+    !$omp barrier
+    do while(i < 1)
+        i = i + 1
+    end do
+    end subroutine x"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    # The directive is a codeblock
+    assert isinstance(routine.children[0], CodeBlock)
+    assert routine.children[0].debug_string() == "!$omp barrier\n"
+
+
+def test_directive_before_allocate():
+    """Test that the FortranReader stored a directive before an allocate as a
+    CodeBlock."""
+    code = """subroutine x
+    integer :: j
+    integer, dimension(:), allocatable :: i
+    j = 4
+    !dir$ aligned
+    allocate(i(1:j))
+    end subroutine"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    # The directive is a codeblock.
+    assert isinstance(routine.children[1], CodeBlock)
+    assert routine.children[1].debug_string() == "!dir$ aligned\n"
