@@ -43,7 +43,6 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
-from psyclone.core import Signature
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, Symbol, DataTypeSymbol, AutomaticInterface,
     ImportInterface, ArgumentInterface, StaticInterface, UnresolvedInterface,
@@ -579,8 +578,8 @@ def test_datasymbol_replace_symbols_using():
 
 def test_datasymbol_get_all_accessed_symbols():
     '''
-    Test that the get_all_accessed_symbols() specialisation for this class checks
-    the initialisation expression.
+    Test that the get_all_accessed_symbols() specialisation for this class
+    checks the initialisation expression.
 
     '''
     kind = DataSymbol("i_def", INTEGER_SINGLE_TYPE)

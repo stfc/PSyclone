@@ -44,12 +44,15 @@ ChildrenList - a custom implementation of list.
 
 '''
 from __future__ import annotations
+from typing import Union, Set, TYPE_CHECKING
 import copy
 import graphviz
-from typing import Union, Set
 
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import GenerationError, InternalError
+
+if TYPE_CHECKING:
+    from psyclone.psyir.symbols import Symbol
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not

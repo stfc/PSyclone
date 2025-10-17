@@ -40,7 +40,6 @@
 ''' Perform py.test tests on the psyclone.psyir.symbols.datatype module. '''
 
 import pytest
-from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     BinaryOperation, Container, KernelSchedule,

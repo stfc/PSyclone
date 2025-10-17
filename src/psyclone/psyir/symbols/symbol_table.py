@@ -1232,29 +1232,6 @@ class SymbolTable():
             f"Cannot remove RoutineSymbol '{symbol.name}' because it is "
             f"referenced inside {location}")
 
-        # TODO #2424 - ideally AccessSequence.AccessInfo or
-        # Signature would store the actual Symbol that the access is to. In
-        # the absence of that, we have to examine each access to determine
-        # the Symbol.
-        from psyclone.psyir.nodes.reference import Reference
-        from psyclone.psyir.symbols.generic_interface_symbol import (
-            GenericInterfaceSymbol)
-        try:
-            for access in vam[sig]:
-                if isinstance(access.node, GenericInterfaceSymbol):
-                    for rinfo in access.node.routines:
-                        if rinfo.symbol is symbol:
-                            raise ValueError()
-                else:
-                    for ref in access.node.walk(Reference):
-                        if ref.symbol is symbol:
-                            raise ValueError()
-        except ValueError:
-            # pylint: disable-next=raise-missing-from
-            raise ValueError(
-                f"Cannot remove RoutineSymbol '{symbol.name}' because it is "
-                f"referenced by {access.description}")
-
     def remove(self, symbol):
         '''
         Remove the supplied symbol from the Symbol Table. This has a high
