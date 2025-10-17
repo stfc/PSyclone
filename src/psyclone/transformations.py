@@ -1396,47 +1396,47 @@ class LFRicRedundantComputationTrans(LoopTrans):
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param int options["depth"]: the depth of the stencil if the value \
-                     is provided and None if not.
+        :param int options["depth"]: the depth of the stencil if the value
+                                     is provided and None if not.
 
-        :raises TransformationError: if the parent of the loop is a\
+        :raises TransformationError: if the parent of the loop is a
             :py:class:`psyclone.psyir.nodes.Directive`.
-        :raises TransformationError: if the parent of the loop is not a\
-            :py:class:`psyclone.psyir.nodes.Loop` or a\
+        :raises TransformationError: if the parent of the loop is not a
+            :py:class:`psyclone.psyir.nodes.Loop` or a
             :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
-        :raises TransformationError: if the parent of the loop is a\
-            :py:class:`psyclone.psyir.nodes.Loop` but the original loop does\
+        :raises TransformationError: if the parent of the loop is
+            :py:class:`psyclone.psyir.nodes.Loop` but the original loop does
             not iterate over 'cells_in_colour'.
-        :raises TransformationError: if the parent of the loop is a\
+        :raises TransformationError: if the parent of the loop is a
             :py:class:`psyclone.psyir.nodes.Loop` but the parent does not
             iterate over 'colours'.
-        :raises TransformationError: if the parent of the loop is a\
-            :py:class:`psyclone.psyir.nodes.Loop` but the parent's parent is\
+        :raises TransformationError: if the parent of the loop is a
+            :py:class:`psyclone.psyir.nodes.Loop` but the parent's parent is
             not a :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
-        :raises TransformationError: if this transformation is applied\
+        :raises TransformationError: if this transformation is applied
             when distributed memory is not switched on.
-        :raises TransformationError: if the loop does not iterate over\
+        :raises TransformationError: if the loop does not iterate over
             cells, dofs or colour.
         :raises TransformationError: if the loop contains a kernel that
-            operates on halo cells.
-        :raises TransformationError: if the transformation is setting the\
-            loop to the maximum halo depth but the loop already computes\
+            operates on halo cells or only on owned cells/dofs.
+        :raises TransformationError: if the transformation is setting the
+            loop to the maximum halo depth but the loop already computes
             to the maximum halo depth.
-        :raises TransformationError: if the transformation is setting the\
-            loop to the maximum halo depth but the loop contains a stencil\
-            access (as this would result in the field being accessed\
+        :raises TransformationError: if the transformation is setting the
+            loop to the maximum halo depth but the loop contains a stencil
+            access (as this would result in the field being accessed
             beyond the halo depth).
-        :raises TransformationError: if the supplied depth value is not an\
+        :raises TransformationError: if the supplied depth value is not an
             integer.
-        :raises TransformationError: if the supplied depth value is less\
+        :raises TransformationError: if the supplied depth value is less
             than 1.
-        :raises TransformationError: if the supplied depth value is not\
-            greater than 1 when a continuous loop is modified as this is\
+        :raises TransformationError: if the supplied depth value is not
+            greater than 1 when a continuous loop is modified as this is
             the minimum valid value.
-        :raises TransformationError: if the supplied depth value is not\
-            greater than the existing depth value, as we should not need\
+        :raises TransformationError: if the supplied depth value is not
+            greater than the existing depth value, as we should not need
             to undo existing transformations.
-        :raises TransformationError: if a depth value has been supplied\
+        :raises TransformationError: if a depth value has been supplied
             but the loop has already been set to the maximum halo depth.
 
         '''
@@ -1498,17 +1498,23 @@ class LFRicRedundantComputationTrans(LoopTrans):
                 f"method the loop type must be one of '' (cell-columns), 'dof'"
                 f" or 'cells_in_colour', but found '{node.loop_type}'")
 
+        const = LFRicConstants()
+
         for kern in node.kernels():
             if "halo" in kern.iterates_over:
                 raise TransformationError(
                     f"Cannot apply the {self.name} transformation to kernels "
                     f"that operate on halo cells but kernel '{kern.name}' "
                     f"operates on '{kern.iterates_over}'.")
+            if kern.iterates_over in const.NO_RC_ITERATION_SPACES:
+                raise TransformationError(
+                    f"Cannot apply the {self.name} transformation to kernel "
+                    f"'{kern.name}' because it does not support redundant "
+                    f"computation (it operates on '{kern.iterates_over}').")
 
         # We don't currently support the application of transformations to
         # loops containing inter-grid kernels
         check_intergrid(node)
-        const = LFRicConstants()
 
         if not options:
             options = {}

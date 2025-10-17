@@ -51,7 +51,7 @@ allow PSyclone to generate the PSy layer. These algorithm and kernel
 APIs are discussed separately in the following sections.
 
 The LFRic API supports the Met Office's finite element (hereafter FEM)
-based GungHo dynamical core.
+based 'GungHo' dynamical core.
 This dynamical core with atmospheric physics parameterisation
 schemes is a part of the Met Office LFRic modelling system :footcite:t:`lfric-2019`,
 currently being developed in preparation for exascale computing in the 2020s.
@@ -63,6 +63,13 @@ The code is BSD-licensed, however browsing the `LFRic wiki
 requires login access to MOSRS. For more technical details on the
 implementation of LFRic, please see the `LFRic documentation
 <https://code.metoffice.gov.uk/trac/lfric/attachment/wiki/LFRicDocumentationPapers/lfric_documentation.pdf>`_.
+
+.. note::
+   The following sections assume that the reader is familiar
+   with various concepts relating to the LFRic mesh and how it is decomposed
+   for distributed-memory parallel computing. For a detailed description of
+   these things, please see the :ref:`LFRic <lfric-developers>` section of the
+   Developer Guide.
 
 .. _lfric-api-algorithm:
 
@@ -308,9 +315,9 @@ Halo Depth
 ++++++++++
 
 If a Kernel is written such that it *must* iterate into the halo (has an
-``OPERATES_ON`` of ``HALO_CELL_COLUMN`` or ``OWNED_AND_HALO_CELL_COLUMN``)
-then the halo depth must be passed as a final, ``integer`` argument to the
-Kernel.
+:ref:`OPERATES_ON <lfric-operates-on>` of ``HALO_CELL_COLUMN`` or
+``OWNED_AND_HALO_CELL_COLUMN``) then the halo depth must be passed as a
+final, ``integer`` argument to the Kernel.
 
 .. _lfric-alg-stencil:
 
@@ -879,9 +886,11 @@ types.
 Rules specific to General-Purpose Kernels without CMA Operators
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-1) General-purpose kernels with ``operates_on = CELL_COLUMN`` accept
-   arguments of any of the following types: field, field vector, LMA
-   operator, scalar (``real``, ``integer`` or ``logical``).
+1) General-purpose kernels that :ref:`operate on <lfric-operates-on>`
+   any kind of ``CELL_COLUMN``
+   accept arguments of any of the following types: field,
+   field vector, LMA operator, scalar (``real``, ``integer`` or
+   ``logical``).
 
 2) A Kernel is permitted to write to more than one
    quantity (field or operator) and these quantities may be on the
@@ -1005,12 +1014,13 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 Rules for all User-Supplied Kernels that Operate on DoFs (DoF Kernels)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Kernels that have ``operates_on = DOF`` and
-:ref:`LFRic Built-ins<lfric-built-ins>` overlap significantly in their
-scope, and the conventions that DoF Kernels must follow are influenced
-by those for built-ins as a result. This includes :ref:`metadata arguments
-<lfric-api-built-ins-metadata>` and :ref:`valid data types
-and access modes<lfric-built-ins-dtype-access>`. Naming conventions for DoF
+Kernels that have an :ref:`operates_on <lfric-operates-on>` of ``DOF``
+(or ``OWNED_DOF``) and :ref:`LFRic Built-ins<lfric-built-ins>` overlap
+significantly in their scope, and the conventions that DoF Kernels
+must follow are influenced by those for built-ins as a result. This
+includes :ref:`metadata arguments <lfric-api-built-ins-metadata>` and
+:ref:`valid data types and access
+modes<lfric-built-ins-dtype-access>`. Naming conventions for DoF
 Kernels should follow those for General-Purpose Kernels.
 
 The list of rules for DoF Kernels is as follows:
@@ -1336,9 +1346,8 @@ user-defined Kernels are summarised here. All argument types
 ``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this
 is specified in metadata using ``GH_READ``. At least one kernel
 argument must be listed as being modified. When data is *modified*
-in a user-supplied Kernel (i.e. a Kernel that operates on a
-``CELL_COLUMN``, see :ref:`iteration space metadata
-<lfric-operates-on>`) then the permitted access
+in a user-supplied Kernel that operates on cell columns (see
+:ref:`iteration space metadata <lfric-operates-on>`) then the permitted access
 modes depend upon the argument type and the function space it is on:
 
 .. tabularcolumns:: |l|l|l|
@@ -1365,9 +1374,9 @@ modes depend upon the argument type and the function space it is on:
 
 Note that scalar arguments to user-defined Kernels must be read-only.
 Only :ref:`Built-ins <lfric-built-ins>` are permitted to modify scalar
-arguments. In practice this means that the only allowed access for the scalars
-in user-defined Kernels is ``GH_READ`` (see the allowed accesses for arguments
-in Built-ins in the :ref:`section below <lfric-built-ins-dtype-access>`).
+arguments. In practice this means that the only allowed access for scalar
+arguments in user-defined Kernels is ``GH_READ`` (see the allowed accesses for
+arguments in Built-ins in the :ref:`section below <lfric-built-ins-dtype-access>`).
 
 Note also that a ``GH_FIELD`` argument that has ``GH_WRITE`` or
 ``GH_READWRITE`` as its access pattern must typically (see below) be
@@ -1955,21 +1964,49 @@ is supplied with the specified data for each field/operator argument.
 The possible values for ``OPERATES_ON`` and their interpretation are
 summarised in the following table:
 
-============================== =======================================================
-operates_on                    Data passed for each field/operator argument
-============================== =======================================================
-``cell_column``                Single column of cells from the owned region (except
-                               when performing an INC operation on continuous fields
-			       when it will include one level of halo cells).
-``halo_cell_column``           Single column of cells exclusively from halo region.
-``owned_and_halo_cell_column`` Single column of cells but iteration space will include
-                               both owned and halo regions.
-``dof``                        Single DoF .
-``domain``                     All columns of cells in the (sub-)domain.
-============================== =======================================================
+.. tabularcolumns:: |p{4.5cm}|p{3.0cm}|p{6.5cm}|
 
-(For a description of the concepts of 'owned' and 'halo' cells please see the
-:ref:`lfric-developers`.)
++--------------------------------+--------------------------------------+--------------------------------------------+
+| operates_on                    | Data passed for each field/operator  | Iteration space                            |
+|                                | argument                             |                                            |
++================================+======================================+============================================+
+| ``cell_column``                | Single column of cells.              | Conceptually, all columns in the global    |
+|                                |                                      | mesh. For each MPI                         |
+|                                |                                      | process this will operate on all owned     |
+|                                |                                      | columns and may be extended into the halo  |
+|                                |                                      | to perform redundant computation.          |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``owned_cell_column``          | Single column of cells.              | Restricted to owned columns. Prevents      |
+|                                |                                      | extending into the halos to perform        |
+|                                |                                      | redundant computation.                     |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``halo_cell_column``           | Single column of cells.              | Restricted to columns from the halo region |
+|                                |                                      | (to a specified depth).                    |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``owned_and_halo_cell_column`` | Single column of cells.              | Iteration space must include both owned    |
+|                                |                                      | and halo columns (to a specified depth).   |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``dof``                        | Single DoF.                          | Defaults to owned DoFs but may be extended |
+|                                |                                      | to annexed and halo DoFs.                  |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``owned_dof``                  | Single DoF.                          | Restricted to owned DoFs only. Prevents    |
+|                                |                                      | extending into the halos to perform        |
+|                                |                                      | redundant computation.                     |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``domain``                     | All columns of cells in the (sub-)   | None.                                      |
+|                                | domain.                              |                                            |
++--------------------------------+--------------------------------------+--------------------------------------------+
+
+(For a description of the concepts of 'owned' and 'halo' cells and 'annexed' DoFs
+please see the :ref:`LFRic section <lfric-developers>` of the Developer Guide.)
+
+The ``owned_cell_column`` and ``owned_dof`` values of ``OPERATES_ON`` are intended for
+use only with special cases where the kernel concerned cannot be used to perform
+redundant computation (e.g. when filling a field with pseudo-random numbers without
+regard to cell location). Processing an application that makes use of such a kernel
+requires that the ``COMPUTE_ANNEXED_DOFS`` configuration option (see
+:ref:`lfric-annexed_dofs`) be set to ``False`` as PSyclone can no longer guarantee that
+annexed DoFs are always clean between different ``invoke`` calls.
 
 procedure
 #########
@@ -3241,6 +3278,12 @@ pseudo-random numbers in the interval ``0 <= x < 1``::
 
 where ``RAND()`` is some function that returns a new pseudo-random number
 each time it is called.
+
+Due to different parallel elements using independent random-number generator
+streams, this built-in has ``OPERATES_ON=owned_dof``. This will prevent
+optimisations such as redundant computation (including the global
+``COMPUTE_ANNEXED_DOFS`` option).
+
 
 .. warning:: This Built-in is implemented using the Fortran ``random_number``
 	     intrinsic. Therefore no guarantee is made as to the quality of
