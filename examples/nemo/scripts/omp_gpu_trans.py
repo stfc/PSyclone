@@ -42,7 +42,7 @@ from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
     NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import (
     OMPTargetTrans, OMPDeclareTargetTrans)
 from psyclone.transformations import (
@@ -77,6 +77,7 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 FILES_TO_SKIP = [
     "vremap.f90",  # TODO #2772
     "icefrm.f90",  # Has unsupportet implicit symbol declaration
+    "fldread.f90",  # TODO #2951: Bug in ArrayAssignment2LoopsTrans
 ]
 
 NEMOV5_EXCLUSIONS = []
@@ -109,19 +110,22 @@ OFFLOADING_ISSUES = [
     "trczdf.f90",
     "trcice_pisces.f90",
     "dtatsd.f90",
-    # Runtime Error: Illegal address during kernel execution with
-    # asynchronicity.
-    "fldread.f90",
     "trcatf.f90",
-    "zdfiwm.f90",
-    "zdfsh2.f90",
+    "stp2d.f90",
 ]
 
-if ASYNC_PARALLEL:
+ASYNC_ISSUES = [
     # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
     # (often invalid pointer dereference) in get_cstrgsurf
-    OFFLOADING_ISSUES.append("sbcclo.f90")
-    OFFLOADING_ISSUES.append("trcldf.f90")
+    "sbcclo.f90",
+    "trcldf.f90",
+    # Runtime Error: Illegal address during kernel execution with
+    # asynchronicity.
+    "zdfiwm.f90",
+    "zdfsh2.f90",
+    # Diverging results with asynchronicity
+    "traadv_fct.f90",
+]
 
 
 def trans(psyir):
@@ -154,6 +158,7 @@ def trans(psyir):
     omp_cpu_loop_trans.omp_directive = "paralleldo"
 
     disable_profiling_for = []
+    enable_async = ASYNC_PARALLEL and psyir.name not in ASYNC_ISSUES
 
     for subroutine in psyir.walk(Routine):
 
@@ -203,8 +208,7 @@ def trans(psyir):
         if (
             subroutine.name.lower().startswith("sign_")
             or subroutine.name.lower() == "solfrac"
-            # Important for performance but causes SIGNAL 11 in some cases
-            # or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
+            or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
         ):
             try:
                 OMPDeclareTargetTrans().apply(subroutine)
@@ -225,7 +229,7 @@ def trans(psyir):
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
                     privatise_arrays=False,
-                    asynchronous_parallelism=ASYNC_PARALLEL,
+                    asynchronous_parallelism=enable_async,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     enable_reductions=not REPRODUCIBLE
             )
@@ -237,7 +241,7 @@ def trans(psyir):
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
                     privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
-                    asynchronous_parallelism=ASYNC_PARALLEL,
+                    asynchronous_parallelism=enable_async,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     enable_reductions=not REPRODUCIBLE
             )
@@ -253,7 +257,7 @@ def trans(psyir):
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
                     privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
-                    asynchronous_parallelism=ASYNC_PARALLEL
+                    asynchronous_parallelism=enable_async
             )
 
     # Iterate again and add profiling hooks when needed

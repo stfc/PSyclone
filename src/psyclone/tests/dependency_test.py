@@ -85,9 +85,12 @@ def test_assignment(fortran_reader):
     array_assignment = schedule.children[1]
     assert isinstance(array_assignment, Assignment)
     var_accesses = array_assignment.reference_accesses()
+    # We don't know if 'f' is a function or an array (CALLED or READ), so
+    # it is catergorised as UNKNOWN. Its arguments take the worst case
+    # scenario of being READWRITE (in case it was a function).
     assert (str(var_accesses) ==
-            "d: READ, e: READ, i: READ, j: READ, f: READ, x: READ, "
-            "y: READ, c: WRITE")
+            "d: READ, e: READ, i: READ, j: READ, f: UNKNOWN, x: READWRITE, "
+            "y: READWRITE, c: WRITE")
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)

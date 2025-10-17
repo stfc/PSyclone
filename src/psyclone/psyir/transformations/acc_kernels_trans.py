@@ -105,7 +105,7 @@ class ACCKernelsTrans(RegionTrans):
             with an int or PSyIR expression.
         :type options["async_queue"]:
             Union[bool, :py:class:`psyclone.psyir.nodes.DataNode`]
-        :param bool options["allow_string"]: whether to allow the
+        :param bool options["allow_strings"]: whether to allow the
             transformation on assignments involving character types. Defaults
             to False.
         :param bool options["verbose"]: log the reason the validation failed,
@@ -216,7 +216,7 @@ class ACCKernelsTrans(RegionTrans):
             with an int or PSyIR expression.
         :type options["async_queue"]:
             Union[bool, :py:class:`psyclone.psyir.nodes.DataNode`]
-        :param bool options["allow_string"]: whether to allow the
+        :param bool options["allow_strings"]: whether to allow the
             transformation on assignments involving character types. Defaults
             to False.
         :param bool options["verbose"]: log the reason the validation failed,
@@ -231,7 +231,7 @@ class ACCKernelsTrans(RegionTrans):
         :raises TransformationError: if there are no Loops within the
             proposed region and options["disable_loop_check"] is not True.
         :raises TransformationError: if any assignments in the region contain a
-            character type child and options["allow_string"] is not True.
+            character type child and options["allow_strings"] is not True.
 
         '''
         if not options:
@@ -284,10 +284,10 @@ class ACCKernelsTrans(RegionTrans):
                         f"'{stmt.debug_string()}'")
             # Check there are no character assignments in the region as these
             # cause various problems with (at least) NVHPC <= 24.5
-            if not options.get("allow_string", False):
+            if not options.get("allow_strings", False):
                 message = (
                     f"{self.name} does not permit assignments involving "
-                    f"character variables by default (use the 'allow_string' "
+                    f"character variables by default (use the 'allow_strings' "
                     f"option to include them)")
                 for assign in node.walk(Assignment):
                     ArrayAssignment2LoopsTrans.validate_no_char(
