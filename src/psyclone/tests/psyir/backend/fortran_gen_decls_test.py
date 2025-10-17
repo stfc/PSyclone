@@ -84,7 +84,7 @@ def test_gen_param_decls_dependencies(fortran_writer):
     assert (result == "integer, parameter :: rlg = 8\n"
                       "integer, parameter :: wp = rlg\n"
                       "integer, parameter :: var = rlg + wp\n"
-                      "integer, parameter :: circle = HUGE(circle)\n")
+                      "integer, parameter :: circle = HUGE(x=circle)\n")
 
     # Check that an (invalid, obviously) circular dependency is handled.
     # Replace "rlg" with a new one that depends on "wp".

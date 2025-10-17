@@ -122,14 +122,14 @@ def test_riv_working(fortran_reader, fortran_writer):
             "(i + 1 + invariant)" in out_loop)
     assert "ic4 = i - 1 + 1 + invariant" in out_all
 
-    assert ("a(i * i + 3 * SIN(i)) = 5 + (i * i + 3 * SIN(i) + 1) * "
-            "(i * i + 3 * SIN(i))" in out_loop)
-    assert "ic5 = (i - 1) * (i - 1) + 3 * SIN(i - 1)" in out_all
-    assert ("a(i + 1 + invariant + (i * i + 3 * SIN(i))) = 6 + "
-            "(i + 1 + invariant + (i * i + 3 * SIN(i)) + 1) * "
-            "(i + 1 + invariant + (i * i + 3 * SIN(i)))" in out_loop)
+    assert ("a(i * i + 3 * SIN(x=i)) = 5 + (i * i + 3 * SIN(x=i) + 1) * "
+            "(i * i + 3 * SIN(x=i))" in out_loop)
+    assert "ic5 = (i - 1) * (i - 1) + 3 * SIN(x=i - 1)" in out_all
+    assert ("a(i + 1 + invariant + (i * i + 3 * SIN(x=i))) = 6 + "
+            "(i + 1 + invariant + (i * i + 3 * SIN(x=i)) + 1) * "
+            "(i + 1 + invariant + (i * i + 3 * SIN(x=i)))" in out_loop)
     assert ("ic6 = i - 1 + 1 + invariant + ((i - 1) * (i - 1) + "
-            "3 * SIN(i - 1))" in out_all)
+            "3 * SIN(x=i - 1))" in out_all)
     assert "a(13) = 7 + (13 + 1) * 13" in out_loop
     # Make sure the assignment to t1%a has been added outside of the loop:
     assert "t1%a = 13" in out_all
@@ -255,6 +255,6 @@ def test_riv_impure_function_calls(fortran_reader, fortran_writer):
     out = fortran_writer(loop)
 
     # ic1 has been replaced
-    assert "a(SIN(i)) = 1 + (SIN(i) + 1) * SIN(i)" in out
+    assert "a(SIN(x=i)) = 1 + (SIN(x=i) + 1) * SIN(x=i)" in out
     # ic2 has NOT been replaced
     assert "a(ic2) = 1 + (ic2 + 1) * ic2" in out

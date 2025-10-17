@@ -60,6 +60,7 @@ by the command:
                     [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--log-file LOG_FILE]
                     [--keep-comments] [--keep-directives] [-I INCLUDE] [-d DIRECTORY]
                     [--modman-file-ignore IGNORE_PATTERN] [--free-form | --fixed-form]
+                    [--disable-intrinsic-required-args] [--enable-sign-intrinsic-argnames]
                     filename
 
     Transform a file using the PSyclone source-to-source Fortran compiler
@@ -122,6 +123,19 @@ by the command:
                             arguments. These directories will be searchedrecursively.
       --modman-file-ignore IGNORE_PATTERN
                             Ignore files that contain the specified pattern.
+
+    Fortran Intrinsic output control:
+      These settings control how PSyclone outputs Fortran Intrinsics. The default behaviour
+      is to output named arguments for all intrinsics' arguments other than SIGN,
+      which will not have keyword arguments to support NEMO behaviour.
+    
+      --disable-intrinsic-required-args
+                            Disables output code containing argument names for an intrinsic's
+                            required arguments, i.e. SUM(arr, mask=maskarr) instead of
+                            SUM(array=arr, mask=maskarr). This overrides any other options specified
+                            for intrinsic output control.
+      --enable-sign-intrinsic-argnames
+                            Enables adding argument names to the SIGN intrinsic's arguments.
 
 Basic Use
 ---------
