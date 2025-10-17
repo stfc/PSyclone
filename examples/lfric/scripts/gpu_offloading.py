@@ -140,7 +140,8 @@ def trans(psyir):
         print(f"Transforming invoke '{subroutine.name}' ...")
 
         # Make setval_* compute redundantly to the level 1 halo if it
-        # is in its own loop
+        # is in its own loop and only if it has an iteration space that is
+        # *not* restricted to owned dofs.
         for loop in subroutine.loops():
             if loop.iteration_space == "dof":
                 if len(loop.kernels()) == 1:

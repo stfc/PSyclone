@@ -8,8 +8,7 @@
 
 '''
 PSyclone transformation script for the LFRic (Dynamo0p3) API to apply
-colouring, OpenMP and redundant computation to the level-1 halo for
-the initialisation built-ins generically.
+redundant computation and then extract all kernels.
 
 '''
 
@@ -23,8 +22,9 @@ SETVAL_BUILTINS = ["setval_c"]
 
 def trans(psy):
     '''
-    Applies PSyclone colouring, OpenMP and redundant computation
-    transformations.
+    Applies PSyclone redundant computation and then instruments all
+    kernel calls for extraction, including the creation of appropriate
+    drivers.
 
     '''
     extract = LFRicExtractTrans()
