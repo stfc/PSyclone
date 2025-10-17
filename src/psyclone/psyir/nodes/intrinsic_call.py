@@ -3256,7 +3256,6 @@ class IntrinsicCall(Call):
             # This intrinsic has no required arguments.
             return ()
 
-
     def canonicalise(self):
         '''Canonicalise an IntrinsicCall in the PSyIR. Upon successful
         canonicalisation, all arguments will become named arguments.
@@ -3387,7 +3386,6 @@ class IntrinsicCall(Call):
             self._argument_names[i] = (self._argument_names[i][0],
                                        optional_names[i - len(
                                            interface_arg_names)])
-
 
     @classmethod
     def create(cls, intrinsic, arguments=()):

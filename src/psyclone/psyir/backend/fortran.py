@@ -1763,7 +1763,7 @@ class FortranWriter(LanguageWriter):
         '''Translate the PSyIR IntrinsicCall node to Fortran.
 
         :param node: an IntrinsicCall PSyIR node.
-        
+
         :returns: the equivalent Fortran code.
 
         '''
@@ -1791,7 +1791,7 @@ class FortranWriter(LanguageWriter):
                         # more argument names, and fall back to the default
                         # behaviour from here.
                         correct_names = False
-                    # Otherwise, use the default behaviour. 
+                    # Otherwise, use the default behaviour.
                     args.append(
                          f"{node.argument_names[idx]}="
                          f"{self._visit(node.arguments[idx])}"
@@ -1817,7 +1817,6 @@ class FortranWriter(LanguageWriter):
 
         # Otherwise it is inside-expression function call
         return f"{self._visit(node.routine)}({args})"
-
 
     def call_node(self, node) -> str:
         '''Translate the PSyIR call node to Fortran.

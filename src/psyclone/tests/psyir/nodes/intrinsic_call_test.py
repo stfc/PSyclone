@@ -663,7 +663,7 @@ def test_intrinsic_canonicalisation_not_implemented_errors():
     # names.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATED)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
-    _= intrinsic.argument_names
+    _ = intrinsic.argument_names
     intrinsic._argument_names[0] = (intrinsic._argument_names[0][0], "array")
     with pytest.raises(NotImplementedError) as err:
         intrinsic.canonicalise()
