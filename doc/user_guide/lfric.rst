@@ -1964,27 +1964,38 @@ is supplied with the specified data for each field/operator argument.
 The possible values for ``OPERATES_ON`` and their interpretation are
 summarised in the following table:
 
-============================== ============================================ ==========================================
-operates_on                    Data passed for each field/operator argument Iteration space
-============================== ============================================ ==========================================
-``cell_column``                Single column of cells.                      Defaults to columns from the owned region
-                                                                            unless the kernel performs an INC
-									    operation on continuous fields when it
-									    will include one level of halo cells.
-									    The iteration space may be extended into
-									    the halo in order to perform redundant
-									    computation.
-``owned_cell_column``          Single column of cells.                      Restricted to owned columns (i.e. excludes
-                                                                            halo columns).
-``halo_cell_column``           Single column of cells.                      Columns exclusively from the halo region
-                                                                            (to a specified depth).
-``owned_and_halo_cell_column`` Single column of cells.                      Iteration space will include both owned
-                                                                            and halo columns (to a specified depth).
-``dof``                        Single DoF.                                  Defaults to owned DoFs but may be extended
-                                                                            to annexed and halo DoFs.
-``owned_dof``                  Single DoF.                                  Restricted to owned DoFs only.
-``domain``                     All columns of cells in the (sub-)domain.    None.
-============================== ============================================ ==========================================
+.. tabularcolumns:: |p{4.5cm}|p{3.0cm}|p{6.5cm}|
+
++--------------------------------+--------------------------------------+--------------------------------------------+
+| operates_on                    | Data passed for each field/operator  | Iteration space                            |
+|                                | argument                             |                                            |
++================================+======================================+============================================+
+| ``cell_column``                | Single column of cells.              | Conceptually, all columns in the global    |
+|                                |                                      | mesh. For each MPI                         |
+|                                |                                      | process this will operate on all owned     |
+|                                |                                      | columns and may be extended into the halo  |
+|                                |                                      | to perform redundant computation.          |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``owned_cell_column``          | Single column of cells.              | Restricted to owned columns. Prevents      |
+|                                |                                      | extending into the halos to perform        |
+|                                |                                      | redundant computation.                     |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``halo_cell_column``           | Single column of cells.              | Restricted to columns from the halo region |
+|                                |                                      | (to a specified depth).                    |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``owned_and_halo_cell_column`` | Single column of cells.              | Iteration space must include both owned    |
+|                                |                                      | and halo columns (to a specified depth).   |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``dof``                        | Single DoF.                          | Defaults to owned DoFs but may be extended |
+|                                |                                      | to annexed and halo DoFs.                  |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``owned_dof``                  | Single DoF.                          | Restricted to owned DoFs only. Prevents    |
+|                                |                                      | extending into the halos to perform        |
+|                                |                                      | redundant computation.                     |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``domain``                     | All columns of cells in the (sub-)   | None.                                      |
+|                                | domain.                              |                                            |
++--------------------------------+--------------------------------------+--------------------------------------------+
 
 (For a description of the concepts of 'owned' and 'halo' cells and 'annexed' DoFs
 please see the :ref:`LFRic section <lfric-developers>` of the Developer Guide.)
