@@ -1228,7 +1228,6 @@ class SymbolTable():
             # It is safe to delete it
             return
 
-        print(symbols)
         raise ValueError(
             f"Cannot remove RoutineSymbol '{symbol.name}' because it is "
             f"referenced inside {location}")
