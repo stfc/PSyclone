@@ -111,18 +111,21 @@ OFFLOADING_ISSUES = [
     "trcice_pisces.f90",
     "dtatsd.f90",
     "trcatf.f90",
+]
+
+ASYNC_ISSUES = [
+    # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
+    # (often invalid pointer dereference) in get_cstrgsurf
+    "sbcclo.f90",
+    "trcldf.f90",
     # Runtime Error: Illegal address during kernel execution with
     # asynchronicity.
     "zdfiwm.f90",
     "zdfsh2.f90",
     "stp2d.f90",
+    # Diverging results with asynchronicity
+    "traadv_fct.f90",
 ]
-
-if ASYNC_PARALLEL:
-    # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
-    # (often invalid pointer dereference) in get_cstrgsurf
-    OFFLOADING_ISSUES.append("sbcclo.f90")
-    OFFLOADING_ISSUES.append("trcldf.f90")
 
 
 def trans(psyir):
@@ -155,6 +158,7 @@ def trans(psyir):
     omp_cpu_loop_trans.omp_directive = "paralleldo"
 
     disable_profiling_for = []
+    enable_async = ASYNC_PARALLEL and psyir.name not in ASYNC_ISSUES
 
     for subroutine in psyir.walk(Routine):
 
@@ -225,7 +229,7 @@ def trans(psyir):
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
                     privatise_arrays=False,
-                    asynchronous_parallelism=ASYNC_PARALLEL,
+                    asynchronous_parallelism=enable_async,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     enable_reductions=not REPRODUCIBLE
             )
@@ -237,7 +241,7 @@ def trans(psyir):
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
                     privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
-                    asynchronous_parallelism=ASYNC_PARALLEL,
+                    asynchronous_parallelism=enable_async,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     enable_reductions=not REPRODUCIBLE
             )
@@ -253,7 +257,7 @@ def trans(psyir):
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
                     privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
-                    asynchronous_parallelism=ASYNC_PARALLEL
+                    asynchronous_parallelism=enable_async
             )
 
     # Iterate again and add profiling hooks when needed
