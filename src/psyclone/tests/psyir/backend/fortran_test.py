@@ -1852,10 +1852,11 @@ def test_fw_intrinsic_output_control(fortran_writer):
     call = IntrinsicCall.create(IntrinsicCall.Intrinsic.ISHFT,
                                 args)
     result = fortran_writer(call)
+    # Default behaviour is to include argument names.
     assert "ISHFT(i=arg1, shift=arg2)" in result
 
     # Turn off the output of required arguments
-    Config.get().intrinsic_kwargs = False
+    Config.get().backend_intrinsic_named_kwargs = False
     result = fortran_writer(call)
     assert "ISHFT(arg1, arg2)" in result
 
@@ -1867,18 +1868,6 @@ def test_fw_intrinsic_output_control(fortran_writer):
                                 args)
     result = fortran_writer(call)
     assert "ISHFTC(arg1, arg2, size=arg3)" in result
-
-    # Test the sign only option control.
-    Config.get().intrinsic_kwargs = True
-    args = [Reference(DataSymbol("arg1", REAL_TYPE)),
-            Reference(DataSymbol("arg2", REAL_TYPE))]
-    call = IntrinsicCall.create(IntrinsicCall.Intrinsic.SIGN, args)
-    result = fortran_writer(call)
-    assert "SIGN(arg1, arg2)" in result
-
-    Config.get().sign_intrinsic_kwargs = True
-    result = fortran_writer(call)
-    assert "SIGN(a=arg1, b=arg2)" in result
 
 
 def test_fw_call_node_namedargs(fortran_writer):

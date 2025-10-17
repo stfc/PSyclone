@@ -3179,109 +3179,87 @@ class IntrinsicCall(Call):
                                      interface that matches this
                                      IntrinsicCall.
         '''
-        # Pull out the list of optional argument names.
-        optional_names = list(self.intrinsic.optional_args.keys())
-        # Create a list of all the possible interface's argument lists.
-        potential_interfaces: List[Tuple[str]] = [
-                names for names in self.intrinsic.required_args.arg_names
-        ]
-        # Remove any of the interfaces that don't contain
-        # a named non-optional argument from the list of potential
-        # candidate interfaces.
-        for name in self.argument_names:
-            if not name:
-                continue
-            # Optional argument names are skipped over as they don't
-            # affect which interface is being used.
-            if name in optional_names:
-                continue
-            for arglist in potential_interfaces:
-                if name not in arglist:
-                    potential_interfaces.remove(arglist)
+        if len(self.intrinsic.required_args.arg_names) > 1:
+            # Pull out the list of optional argument names.
+            optional_names = list(self.intrinsic.optional_args.keys())
+            # Create a list of all the possible interface's argument lists.
+            potential_interfaces: List[Tuple[str]] = [
+                    names for names in self.intrinsic.required_args.arg_names
+            ]
+            # Remove any of the interfaces that don't contain
+            # a named non-optional argument from the list of potential
+            # candidate interfaces.
+            for name in self.argument_names:
+                if not name:
+                    continue
+                # Optional argument names are skipped over as they don't
+                # affect which interface is being used.
+                if name in optional_names:
+                    continue
+                for arglist in potential_interfaces:
+                    if name not in arglist:
+                        potential_interfaces.remove(arglist)
 
-        # Remove any of the interfaces that have too many or
-        # too few *total* arguments to be candidates.
-        for choice in potential_interfaces[:]:
-            min_args = len(choice)
-            max_args = min_args + len(optional_names)
-            if (len(self.arguments) < min_args or
-                    len(self.arguments) > max_args):
-                potential_interfaces.remove(choice)
-
-        # Remove any of the interfaces that have too many or
-        # too few *required* arguments to be candidates.
-        # At this point the total arguments must be valid for all
-        # remaining choices, and all named arguments must also be
-        # present.
-        for choice in potential_interfaces[:]:
-            required_args = len(choice)
-            # Check if the number of unnamed arguments is greater
-            # than the number of required arguments. If so then
-            # this choice is still acceptable (because optional
-            # arguments can also be positional).
-            num_positional_arguments = len(
-                    [x for x in self.argument_names if x is None]
-            )
-            if num_positional_arguments >= required_args:
-                continue
-            # Otherwise we need to check if all the
-            # required arguments are present as named arguments.
-            # This operation pulls all the argument names from the
-            # potential interface that are not already matched to a
-            # positional argument in this IntrinsicCall. These must
-            # be matched to named arguments in this IntrinsicCall, else
-            # this interface cannot be a candidate for canonicalisation.
-            remaining_required = choice[num_positional_arguments:]
-            for name in remaining_required:
-                if name not in self.argument_names:
+            # Remove any of the interfaces that have too many or
+            # too few *total* arguments to be candidates.
+            for choice in potential_interfaces[:]:
+                min_args = len(choice)
+                max_args = min_args + len(optional_names)
+                if (len(self.arguments) < min_args or
+                        len(self.arguments) > max_args):
                     potential_interfaces.remove(choice)
-                    break
 
-        # If we didn't reduce the number of potential interfacfes to a
-        # single interface then we can't canonicalise.
-        if (len(potential_interfaces) > 1 or
-                len(potential_interfaces) == 0):
-            raise NotImplementedError(
-                f"Cannot canonicalise '{self.intrinsic.name}' "
-                f"IntrinsicCall as PSyclone can't determine which "
-                f"argument set it should use. This can be resolved by "
-                f"using named arguments in the Fortran source."
-            )
-        return potential_interfaces[0]
-
-    def remove_required_argument_names(self) -> None:
-        '''Remove the argument names from required arguments on this
-        IntrinsicCall if possible.'''
-        # First we need to ensure this is a canoncalised IntrinsicCall
-        try:
-            self.canonicalise()
-        except (ValueError, NotImplementedError):
-            # If this can't be canonicalised then don't change anything.
-            return
-
-        # Find all of the required argument names available on this
-        # intrinsic.
-        all_required_names = [
-            name for tupl in self.intrinsic.required_args.arg_names for
-            name in tupl
-        ]
-        new_arg_names = []
-        for i, name in enumerate(self.argument_names):
-            if name in all_required_names:
-                new_arg_names.append(
-                    (self._argument_names[i][0], None)
+            # Remove any of the interfaces that have too many or
+            # too few *required* arguments to be candidates.
+            # At this point the total arguments must be valid for all
+            # remaining choices, and all named arguments must also be
+            # present.
+            for choice in potential_interfaces[:]:
+                required_args = len(choice)
+                # Check if the number of unnamed arguments is greater
+                # than the number of required arguments. If so then
+                # this choice is still acceptable (because optional
+                # arguments can also be positional).
+                num_positional_arguments = len(
+                        [x for x in self.argument_names if x is None]
                 )
-            else:
-                new_arg_names.append(
-                    (self._argument_names[i][0], name)
+                if num_positional_arguments >= required_args:
+                    continue
+                # Otherwise we need to check if all the
+                # required arguments are present as named arguments.
+                # This operation pulls all the argument names from the
+                # potential interface that are not already matched to a
+                # positional argument in this IntrinsicCall. These must
+                # be matched to named arguments in this IntrinsicCall, else
+                # this interface cannot be a candidate for canonicalisation.
+                remaining_required = choice[num_positional_arguments:]
+                for name in remaining_required:
+                    if name not in self.argument_names:
+                        potential_interfaces.remove(choice)
+                        break
+
+            # If we didn't reduce the number of potential interfacfes to a
+            # single interface then we can't canonicalise.
+            if (len(potential_interfaces) > 1 or
+                    len(potential_interfaces) == 0):
+                raise NotImplementedError(
+                    f"Cannot canonicalise '{self.intrinsic.name}' "
+                    f"IntrinsicCall as PSyclone can't determine which "
+                    f"argument set it should use. This can be resolved by "
+                    f"using named arguments in the Fortran source."
                 )
-        self._argument_names = new_arg_names
+            return potential_interfaces[0]
+        elif len(self.intrinsic.required_args.arg_names) == 1:
+            # This intrinsic only has a single possible interface.
+            return self.intrinsic.required_args.arg_names[0]
+        else:
+            # This intrinsic has no required arguments.
+            return ()
+
 
     def canonicalise(self):
         '''Canonicalise an IntrinsicCall in the PSyIR. Upon successful
-        canonicalisation, all arguments will become named arguments and
-        arguments may be reordered to match what is defined in the standard
-        for the argument ordering.
+        canonicalisation, all arguments will become named arguments.
 
         A small number of intrinsics (e.g. ALLOCATE) never have ambiguity
         and no argument limits, in which case no canonicalisation is done.
@@ -3354,14 +3332,7 @@ class IntrinsicCall(Call):
             )
 
         # Find which intrinsic call interface we are canonicalising with.
-        if len(self.intrinsic.required_args.arg_names) > 1:
-            interface_arg_names = self._find_matching_interface()
-        elif len(self.intrinsic.required_args.arg_names) == 1:
-            # This intrinsic only has a single possible interface.
-            interface_arg_names = self.intrinsic.required_args.arg_names[0]
-        else:
-            # This intrinsic has no required arguments.
-            interface_arg_names = ()
+        interface_arg_names = self._find_matching_interface()
 
         # Handle cases where None or "" is in the interface_arg_names,
         # as this implies context sensitive argument naming which PSyclone
@@ -3403,8 +3374,13 @@ class IntrinsicCall(Call):
                 # We found a required argument without a name.
                 # Update the argument_names tuple with the corresponding
                 # name from the matched interface.
-                self._argument_names[i] = (self._argument_names[i][0],
-                                           interface_arg_names[i])
+                # If the argument name is '' then it needs to be None.
+                if interface_arg_names[i]:
+                    self._argument_names[i] = (self._argument_names[i][0],
+                                               interface_arg_names[i])
+                else:
+                    self._argument_names[i] = (self._argument_names[i][0],
+                                               None)
                 continue
             # Otherwise we found an optional argument, which will always
             # be in order if unnamed.
@@ -3412,34 +3388,6 @@ class IntrinsicCall(Call):
                                        optional_names[i - len(
                                            interface_arg_names)])
 
-        # We have all arguments named now, we want to reorder them.
-        new_arg_names = []
-        new_args = []
-
-        for required in interface_arg_names:
-            # Skip over required argument names when they're either None or ''
-            # as these designate arguments PSyclone cannoot canonicalise to
-            # names.
-            if not required:
-                continue
-            index = self.argument_names.index(required)
-            new_arg_names.append(self._argument_names[index])
-            new_args.append(self.arguments[index])
-
-        for option in optional_names:
-            if option not in self.argument_names:
-                continue
-            index = self.argument_names.index(option)
-            new_arg_names.append(self._argument_names[index])
-            new_args.append(self.arguments[index])
-
-        # Replace the argument list with the canonicalised version.
-        if len(new_args) > 0:
-            for child in self.arguments:
-                child.detach()
-            for child in new_args:
-                self.addchild(child)
-        self._argument_names = new_arg_names
 
     @classmethod
     def create(cls, intrinsic, arguments=()):

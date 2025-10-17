@@ -822,12 +822,14 @@ def test_fortran_standard(tmpdir):
 
 
 def test_intrinsic_settings():
-    '''Test the getter and setter methods for intrinsic output control
-    in the config.'''
-    assert Config.get().intrinsic_kwargs is True
-    Config.get().intrinsic_kwargs = False
-    assert Config.get().intrinsic_kwargs is False
+    '''Test the getter and setter methods for controlling the output of
+    named arguments on intrinsics in the config.'''
+    assert Config.get().backend_intrinsic_named_kwargs is True
+    Config.get().backend_intrinsic_named_kwargs = False
+    assert Config.get().backend_intrinsic_named_kwargs is False
 
-    assert Config.get().sign_intrinsic_kwargs is False
-    Config.get().sign_intrinsic_kwargs = True
-    assert Config.get().sign_intrinsic_kwargs is True
+    with pytest.raises(TypeError) as err:
+        Config.get().backend_intrinsic_named_kwargs = 1
+
+    assert ("backend_intrinsic_named_kwargs must be a bool but found "
+            "'int'." in str(err.value))

@@ -586,14 +586,7 @@ def main(arguments):
         action="store_true",
         help="Disables output code containing argument names for an "
              "intrinsic's required arguments, i.e. SUM(arr, mask=maskarr) "
-             "instead of SUM(array=arr, mask=maskarr). This overrides any "
-             "other options specified for intrinsic output control."
-    )
-    intrinsic_output_group.add_argument(
-        "--enable-sign-intrinsic-argnames", default=argparse.SUPPRESS,
-        action="store_true",
-        help="Enables adding argument names to the SIGN intrinsic's "
-             "arguments."
+             "instead of SUM(array=arr, mask=maskarr)."
     )
 
     args = parser.parse_args(arguments)
@@ -650,16 +643,7 @@ def main(arguments):
 
     # Record any intrinsic output format settings.
     if "disable_intrinsic_required_args" in args:
-        Config.get().intrinsic_kwargs = False
-    if "enable_sign_intrinsic_argnames" in args:
-        if not Config.get().intrinsic_kwargs:
-            logger.info(
-                "Both the disable-intrinsic-required-args and the "
-                "enable-sign-intrinsic-argnames were specified. The "
-                "disable-intrinsic-required-args overrides other controls "
-                "so sign intrinsics won't have output argument names."
-            )
-        Config.get().sign_intrinsic_kwargs = True
+        Config.get().backend_intrinsic_named_kwargs = False
 
     # Record any profiling options.
     if args.profile:

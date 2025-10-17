@@ -1654,7 +1654,7 @@ def test_sign_X_and_its_int_version(fortran_writer):
     code = fortran_writer(kern)
     assert ("! Built-in: sign_X (sign of a real-valued field, applied to a "
             "scalar argument)\n"
-            "f2_data(df) = SIGN(a, f1_data(df))\n") in code
+            "f2_data(df) = SIGN(a=a, b=f1_data(df))\n") in code
 
     # Also with a literal
     kern = builtin_from_file("15.10.2_sign_X_builtin_set_by_value.f90")
@@ -1665,7 +1665,7 @@ def test_sign_X_and_its_int_version(fortran_writer):
     code = fortran_writer(kern)
     assert ("! Built-in: sign_X (sign of a real-valued field, applied to a "
             "scalar argument)\n"
-            "f2_data(df) = SIGN(-2.0_r_def, f1_data(df))\n" in code)
+            "f2_data(df) = SIGN(a=-2.0_r_def, b=f1_data(df))\n" in code)
 
     # The integer version has the datatype changed to integer in the metadata
     # and string representation

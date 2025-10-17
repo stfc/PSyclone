@@ -786,7 +786,7 @@ class SymPyWriter(FortranWriter):
             args = self._gen_arguments(node)
             return f"{self._nindent}{name}({args})"
         except KeyError:
-            return super().call_node(node)
+            return super().intrinsiccall_node(node)
 
     # -------------------------------------------------------------------------
     def reference_node(self, node: Reference) -> str:

@@ -2045,22 +2045,4 @@ def test_intrinsic_control_settings(tmpdir, caplog):
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     main([filename, "--disable-intrinsic-required-args"])
-    assert Config.get().intrinsic_kwargs is False
-
-    # Reset the config
-    Config.get().intrinsic_kwargs = True
-
-    main([filename, "--enable-sign-intrinsic-argnames"])
-    assert Config.get().sign_intrinsic_kwargs is True
-
-    # Test we get the expected log message with both options
-    caplog.clear()
-    with caplog.at_level(logging.INFO, "psyclone.generator"):
-        main([filename, "--disable-intrinsic-required-args",
-              "--enable-sign-intrinsic-argnames"])
-        assert caplog.records[0].levelname == "INFO"
-        assert ("Both the disable-intrinsic-required-args and the "
-                "enable-sign-intrinsic-argnames were specified. "
-                "The disable-intrinsic-required-args overrides other "
-                "controls so sign intrinsics won't have output argument "
-                "names." in caplog.text)
+    assert Config.get().backend_intrinsic_named_kwargs is False

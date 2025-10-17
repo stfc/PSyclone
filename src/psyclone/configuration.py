@@ -237,8 +237,7 @@ class Config:
 
         # By default, the PSyIR backends output argument names on (most)
         # IntrinsicCalls. These two options enable control of tha behaviour.
-        self._sign_intrinsic_kwargs = False
-        self._intrinsic_kwargs = True
+        self._backend_intrinsic_named_kwargs = True
 
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
@@ -777,41 +776,26 @@ class Config:
         return self.api_conf().get_constants()
 
     @property
-    def intrinsic_kwargs(self) -> bool:
+    def backend_intrinsic_named_kwargs(self) -> bool:
         '''
         :returns: whether the output of intrinsic named arguments is
                   enabled for required intrinsic arguments.
         '''
-        return self._intrinsic_kwargs
+        return self._backend_intrinsic_named_kwargs
 
-    @intrinsic_kwargs.setter
-    def intrinsic_kwargs(self, output_kwargs: bool) -> None:
+    @backend_intrinsic_named_kwargs.setter
+    def backend_intrinsic_named_kwargs(self, output_kwargs: bool) -> None:
         '''
         Setter for whether the backend should output required argument names
         on IntrinsicCalls.
 
         :param output_kwargs: whether to output required argument names.
         '''
-        self._intrinsic_kwargs = output_kwargs
+        if not isinstance(output_kwargs, bool):
+            raise TypeError(f"backend_intrinsic_named_kwargs must be a bool "
+                            f"but found '{type(output_kwargs).__name__}'.")
 
-    @property
-    def sign_intrinsic_kwargs(self) -> bool:
-        '''
-        :returns: whether the output of the sign intrinsic should have
-                  named arguments.
-        '''
-        return self._sign_intrinsic_kwargs
-
-    @sign_intrinsic_kwargs.setter
-    def sign_intrinsic_kwargs(self, output_kwargs: bool) -> None:
-        '''
-        Setter for whether the backend should output argument names on the
-        SIGN IntrinsicCall.
-
-        :param output_kwargs: whether to output argument names on SIGN
-                              intrinsics.
-        '''
-        self._sign_intrinsic_kwargs = output_kwargs
+        self._backend_intrinsic_named_kwargs = output_kwargs
 
 
 # =============================================================================

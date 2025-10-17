@@ -293,18 +293,18 @@ def test_intrinsiccall_minmaxsum_create(intrinsic_call):
     intrinsic = IntrinsicCall.create(
         intrinsic_call, [Reference(array), ("mask", Reference(mask)),
                          ("dim", Reference(dim))])
-    assert intrinsic.argument_names == ["array", "dim", "mask"]
-    assert intrinsic.children[2].symbol.name == "dim"
-    assert intrinsic.children[3].symbol.name == "mask"
+    assert intrinsic.argument_names == ["array", "mask", "dim"]
+    assert intrinsic.children[2].symbol.name == "mask"
+    assert intrinsic.children[3].symbol.name == "dim"
     # array and optional literal mask and optional literal dim
     intrinsic = IntrinsicCall.create(
         intrinsic_call, [
             Reference(array),
             ("mask", Literal("1", INTEGER_TYPE)),
             ("dim", Literal("false", BOOLEAN_TYPE))])
-    assert intrinsic.argument_names == ["array", "dim", "mask"]
-    assert intrinsic.children[2].value == "false"
-    assert intrinsic.children[3].value == "1"
+    assert intrinsic.argument_names == ["array", "mask", "dim"]
+    assert intrinsic.children[2].value == "1"
+    assert intrinsic.children[3].value == "false"
 
 
 @pytest.mark.parametrize("intrinsic_call", [
@@ -440,9 +440,9 @@ def test_create_positional_arguments_with_names():
                                 [("vector_b", bref.copy()),
                                  ("vector_a", aref.copy())])
     assert isinstance(intr, IntrinsicCall)
-    assert intr.arguments[0] == aref
-    assert intr.arguments[1] == bref
-    assert intr.argument_names == ["vector_a", "vector_b"]
+    assert intr.arguments[0] == bref
+    assert intr.arguments[1] == aref
+    assert intr.argument_names == ["vector_b", "vector_a"]
 
 
 @pytest.mark.parametrize("operator", ["lbound", "ubound", "size"])
@@ -582,7 +582,7 @@ end program test_prog
     assert ("if (verify(string=clname(ind1:ind2), set='0123456789', "
             "kind=kind(x=1)) == 0) then" in result)
     assert ("if (verify(string=clname(ind1:ind2), set='0123456789', "
-            "back=.true., kind=kind(x=1)) == 0) then" in result)
+            "kind=kind(x=1), back=.true.) == 0) then" in result)
 
 
 def test_intrinsic_canonicalisation_value_errors():
@@ -595,7 +595,7 @@ def test_intrinsic_canonicalisation_value_errors():
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     # Set up the argument_names array
-    intrinsic.argument_names
+    _ = intrinsic.argument_names
     intrinsic._argument_names[0] = (intrinsic._argument_names[0][0], "wrong")
     with pytest.raises(ValueError) as err:
         intrinsic.canonicalise()
@@ -626,7 +626,7 @@ def test_intrinsic_canonicalisation_value_errors():
 def test_intrinsic_canonicalisation_not_implemented_errors():
     '''
     Test the canonicalisation function of the IntrinsicCall class raises
-    ValueErrors for Intrinsic structures PSyclone can't handle.
+    NotImplementedErrors for Intrinsic structures PSyclone can't handle.
     '''
     # Test canonicalisation doesn't work when we have 2 arguments for SUM
     # with no naming, as it can't determine between the SUM variants.
@@ -648,7 +648,7 @@ def test_intrinsic_canonicalisation_not_implemented_errors():
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("b", INTEGER_TYPE)))
     # Set up the argument_names array and set the argument names
-    intrinsic.argument_names
+    _ = intrinsic.argument_names
     intrinsic._argument_names[0] = (intrinsic._argument_names[0][0], "n1")
     intrinsic._argument_names[1] = (intrinsic._argument_names[1][0], "n2")
     with pytest.raises(NotImplementedError) as err:
@@ -663,7 +663,7 @@ def test_intrinsic_canonicalisation_not_implemented_errors():
     # names.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATED)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
-    intrinsic.argument_names
+    _= intrinsic.argument_names
     intrinsic._argument_names[0] = (intrinsic._argument_names[0][0], "array")
     with pytest.raises(NotImplementedError) as err:
         intrinsic.canonicalise()
@@ -689,7 +689,7 @@ def test_canonicalisation():
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("b", INTEGER_TYPE)))
     # Set up the argument_names array and set the second ones name to be mask
-    intrinsic.argument_names
+    _ = intrinsic.argument_names
     intrinsic._argument_names[1] = (intrinsic._argument_names[1][0], "mask")
     intrinsic.canonicalise()
     assert intrinsic.argument_names == ["array", "mask"]
@@ -700,7 +700,7 @@ def test_canonicalisation():
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("b", INTEGER_TYPE)))
     # Set up the argument_names array and set the second ones name to be dim
-    intrinsic.argument_names
+    _ = intrinsic.argument_names
     intrinsic._argument_names[1] = (intrinsic._argument_names[1][0], "dim")
     intrinsic.canonicalise()
     assert intrinsic.argument_names[0] == "array"
@@ -715,15 +715,13 @@ def test_canonicalisation():
     intrinsic.addchild(b_arg)
     # Set up the argument_names array and set the first ones name to be mask
     # (optional) and the second to be array.
-    intrinsic.argument_names
+    _ = intrinsic.argument_names
     intrinsic._argument_names[0] = (intrinsic._argument_names[0][0], "mask")
     intrinsic._argument_names[1] = (intrinsic._argument_names[1][0], "array")
     intrinsic.canonicalise()
-    # Canonicalisation should have the names as array then mask, and have
-    # reversed the argument order to match the movement of the argument names.
-    assert intrinsic.argument_names == ["array", "mask"]
-    assert intrinsic.arguments[0] is b_arg
-    assert intrinsic.arguments[1] is a_arg
+    assert intrinsic.argument_names == ["mask", "array"]
+    assert intrinsic.arguments[0] is a_arg
+    assert intrinsic.arguments[1] is b_arg
 
     # Check we can canonicalise an intrinsic with only one argument set.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SIN)
@@ -744,10 +742,10 @@ def test_canonicalisation():
                                     "count_max")
     intrinsic._argument_names[2] = (intrinsic._argument_names[2][0], "count")
     intrinsic.canonicalise()
-    assert intrinsic.argument_names == ["count", "count_rate", "count_max"]
-    assert intrinsic.children[1].symbol.name == "c"
-    assert intrinsic.children[2].symbol.name == "a"
-    assert intrinsic.children[3].symbol.name == "b"
+    assert intrinsic.argument_names == ["count_rate", "count_max", "count"]
+    assert intrinsic.children[1].symbol.name == "a"
+    assert intrinsic.children[2].symbol.name == "b"
+    assert intrinsic.children[3].symbol.name == "c"
 
     # Test canonicliation for intrinsic when PSyclone can't
     # canonicalise the names of non-optional arguments.
@@ -774,24 +772,3 @@ def test_canonicalisation():
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.canonicalise()
     assert intrinsic.argument_names == [None]
-
-
-def test_remove_required_argument_names():
-    '''Test the remove required argument names works correctly.'''
-    # Check that optional names are added and the only ones kept.
-    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
-    intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
-    intrinsic.addchild(Reference(DataSymbol("b", INTEGER_TYPE)))
-    intrinsic.addchild(Reference(DataSymbol("c", INTEGER_TYPE)))
-    intrinsic.remove_required_argument_names()
-    assert intrinsic.argument_names == [None, None, "mask"]
-
-    # Check nothing happens if the intrinsic can't be canonicalised
-    intrinsic = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.MAX,
-        [("a1", Reference(DataSymbol("a", INTEGER_TYPE))),
-         ("a2", Reference(DataSymbol("b", INTEGER_TYPE))),
-         ("a3", Reference(DataSymbol("c", INTEGER_TYPE)))]
-    )
-    intrinsic.remove_required_argument_names()
-    assert intrinsic.argument_names == ["a1", "a2", "a3"]

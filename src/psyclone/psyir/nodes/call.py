@@ -392,10 +392,12 @@ class Call(Statement, DataNode):
         :returns: The argument specified with the input name, or None if its
                   not present.
         '''
-        arg_names = self.argument_names
-        if name not in arg_names:
+        arg_names = [arg.lower() if arg is not None else None
+                     for arg in self.argument_names]
+        lname = name.lower()
+        if lname not in arg_names:
             return None
-        return self.arguments[arg_names.index(name)]
+        return self.arguments[arg_names.index(lname)]
 
     @property
     def is_elemental(self):
