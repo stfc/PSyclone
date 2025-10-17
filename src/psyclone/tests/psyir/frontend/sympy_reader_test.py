@@ -37,7 +37,9 @@
 
 import pytest
 
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 
 
@@ -88,9 +90,12 @@ def test_sympy_reader_constructor():
                                          (".TRUE. .and. .true.", ".true."),
                                          (".TRUE. .AND. .FALSE.",
                                           ".false."),
+                                         ("b(i) == 3 .and. c(i,i) == 5",
+                                          "b(i) == 3 .AND. c(i,i) == 5"),
                                          ])
-def test_sympy_psyir_from_expression(fortran_reader, fortran_writer,
-                                     expressions):
+def test_sympy_psyir_from_expression(fortran_reader: FortranReader,
+                                     fortran_writer: FortranWriter,
+                                     expressions: tuple[str, str]):
     '''Test conversion from a SymPy expression back to PSyIR. We use the
     SymPyWriter to convert the Fortran string to a SymPy expression (we need
     a symbol table to convert from SymPy to PSyIR, which we get this way
