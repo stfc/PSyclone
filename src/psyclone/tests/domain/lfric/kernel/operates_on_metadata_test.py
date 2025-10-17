@@ -108,6 +108,7 @@ def test_setter_errors():
     with pytest.raises(ValueError) as info:
         operates_on_metadata.operates_on = "invalid"
     assert ("The 'OPERATES_ON' metadata should be a recognised value (one of "
-            "['cell_column', 'owned_cell_column', 'domain', 'dof', "
-            "'owned_dof', 'halo_cell_column', 'owned_and_halo_cell_column']) "
+            "['domain', 'dof', 'owned_dof', 'cell_column', "
+            "'owned_cell_column', 'halo_cell_column', "
+            "'owned_and_halo_cell_column']) "
             "but found 'invalid'." in str(info.value))

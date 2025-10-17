@@ -129,12 +129,12 @@ class LFRicBuiltInCallFactory():
         # Create the loop over the appropriate entity.
 
         if (call.ktype.iterates_over in
-                LFRicConstants().BUILTIN_ITERATION_SPACES):
+                LFRicConstants().DOF_ITERATION_SPACES):
             loop_type = "dof"
         else:
             raise InternalError(
                 f"An LFRic built-in must iterate over one of "
-                f"{LFRicConstants().BUILTIN_ITERATION_SPACES} but kernel "
+                f"{LFRicConstants().DOF_ITERATION_SPACES} but kernel "
                 f"'{call.func_name}' iterates over "
                 f"'{call.ktype.iterates_over}'")
         # Avoid circular import
@@ -301,10 +301,10 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         const = LFRicConstants()
         # Check that our assumption that we're looping over DoFs is valid
-        if self.iterates_over not in const.BUILTIN_ITERATION_SPACES:
+        if self.iterates_over not in const.DOF_ITERATION_SPACES:
             raise ParseError(
                 f"In the LFRic API built-in calls must operate on one of "
-                f"{const.BUILTIN_ITERATION_SPACES} but found "
+                f"{const.DOF_ITERATION_SPACES} but found "
                 f"'{self.iterates_over}' for {self}.")
         # Check write count, field arguments and spaces
         write_count = 0  # Only one argument must be written to

@@ -442,7 +442,7 @@ class LFRicArgDescriptor(Descriptor):
                            const.VALID_ANY_SPACE_NAMES)
 
         # Check accesses for kernels that operate on DoFs
-        if operates_on in ["dof", "owned_dof"]:
+        if operates_on in const.DOF_ITERATION_SPACES:
             if self._access_type not in field_disc_accesses:
                 raise ParseError(
                     f"In the LFRic API, allowed field accesses for a kernel "
@@ -451,8 +451,7 @@ class LFRicArgDescriptor(Descriptor):
                     f"'{self._function_space1.lower()}' in '{arg_type}'.")
         # Check accesses for kernels that operate on cell-columns or the
         # domain
-        elif operates_on in ["cell_column", "owned_cell_column", "domain",
-                             "halo_cell_column", "owned_and_halo_cell_column"]:
+        elif operates_on in ["domain"] + const.CELL_COLUMN_ITERATION_SPACES:
             # Fields on discontinuous function spaces
             if (self._function_space1.lower() in
                     const.VALID_DISCONTINUOUS_NAMES and
