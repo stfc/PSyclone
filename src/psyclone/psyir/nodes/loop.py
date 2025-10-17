@@ -294,8 +294,8 @@ class Loop(Statement):
         if len(self.children) < 4:
             raise InternalError(
                 f"Loop is incomplete. It should have exactly 4 "
-                f"children, but found loop with "
-                f"'{', '.join([str(child) for child in self.children])}'.")
+                f"children, but found loop with {len(self.children)} children:"
+                f" '{', '.join([str(child) for child in self.children])}'.")
 
     @property
     def start_expr(self):
