@@ -111,6 +111,7 @@ OFFLOADING_ISSUES = [
     "trcice_pisces.f90",
     "dtatsd.f90",
     "trcatf.f90",
+    "stp2d.f90",
 ]
 
 ASYNC_ISSUES = [
@@ -122,7 +123,6 @@ ASYNC_ISSUES = [
     # asynchronicity.
     "zdfiwm.f90",
     "zdfsh2.f90",
-    "stp2d.f90",
     # Diverging results with asynchronicity
     "traadv_fct.f90",
 ]
