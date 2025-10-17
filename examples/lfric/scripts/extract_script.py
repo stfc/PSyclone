@@ -1,9 +1,9 @@
 ##############################################################################
-# Copyright (c) 2025,  Met Office, on behalf of HMSO and Queen's Printer
-# For further details please refer to the file LICENCE.original which you
-# should have received as part of this distribution.
+# (c) Crown copyright 2025 Met Office. All rights reserved.
+# The file LICENCE, distributed with the LFRic code
+# (https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE),
+# contains details of the terms under which the code may be used.
 ##############################################################################
-
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''
