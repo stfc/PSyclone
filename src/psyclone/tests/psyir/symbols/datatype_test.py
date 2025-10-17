@@ -40,7 +40,6 @@
 ''' Perform py.test tests on the psyclone.psyir.symbols.datatype module. '''
 
 import pytest
-from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     BinaryOperation, Container, KernelSchedule,
@@ -319,15 +318,13 @@ def test_scalartype_replace_symbols():
     assert stype2.precision.symbol is rdef2
 
 
-def test_scalartype_reference_accesses():
-    '''Test for the ScalarType.reference_accesses() method.'''
+def test_scalartype_get_all_accessed_symbols():
+    '''Test for the ScalarType.get_all_accessed_symbols() method.'''
     rdef = DataSymbol("rdef", INTEGER_TYPE)
     stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
                         Reference(rdef))
-    vam = stype2.reference_accesses()
-    svaccess = vam[Signature("rdef")]
-    assert svaccess.has_data_access() is False
-    assert svaccess[0].node is stype2.precision
+    dependent_symbols = stype2.get_all_accessed_symbols()
+    assert rdef in dependent_symbols
 
 
 def test_scalartype_copy():
@@ -359,12 +356,11 @@ def test_scalartype_copy():
 
 def test_arraytype_extent():
     '''Test the ArrayType.Extent class. This is just an enum with a
-    copy() method and an empty reference_accesses() method. '''
+    copy() method and an empty get_all_accessed_symbols() method. '''
     xtent = ArrayType.Extent.ATTRIBUTE
     ytent = xtent.copy()
     assert isinstance(ytent, ArrayType.Extent)
-    vam = ytent.reference_accesses()
-    assert not vam.all_signatures
+    assert not ytent.get_all_accessed_symbols()
 
 
 def test_arraytype_arraybounds():
@@ -821,20 +817,20 @@ def test_arraytype_replace_symbols_using(table):
     assert etype.shape[0].upper.datatype.precision.symbol is newidef
 
 
-def test_arraytype_reference_accesses():
-    '''Tests for the ArrayType.reference_accesses() method.'''
+def test_arraytype_get_all_accessed_symbols():
+    '''Tests for the ArrayType.get_all_accessed_symbols() method.'''
 
     rdef = DataSymbol("rdef", INTEGER_TYPE)
     idef = DataSymbol("idef", INTEGER_TYPE)
+    ndim = DataSymbol("ndim", INTEGER_TYPE)
     etype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef)),
                       [Literal("10", ScalarType(ScalarType.Intrinsic.INTEGER,
                                Reference(idef))),
-                       Reference(DataSymbol("ndim", INTEGER_TYPE))])
-    vam = etype.reference_accesses()
-    all_names = [sig.var_name for sig in vam.all_signatures]
-    assert "rdef" in all_names
-    assert "idef" in all_names
-    assert "ndim" in all_names
+                       Reference(ndim)])
+    dependent_symbols = etype.get_all_accessed_symbols()
+    assert rdef in dependent_symbols
+    assert idef in dependent_symbols
+    assert ndim in dependent_symbols
 
 
 # UnsupportedFortranType tests
@@ -1050,23 +1046,23 @@ def test_unsupported_fortran_type_replace_symbols():
     assert stype2.partial_datatype.precision.symbol is newp
 
 
-def test_unsupported_fortran_type_reference_accesses():
+def test_unsupported_fortran_type_get_all_accessed_symbols():
     '''
-    Test the reference_accesses() method of UnsupportedFortranType.
+    Test the get_all_accessed_symbols() method of UnsupportedFortranType.
     '''
     decl = "type(some_type), dimension(nelem) :: var"
     stype = DataTypeSymbol("some_type", UnresolvedType())
     nelem = DataSymbol("nelem", INTEGER_TYPE)
     ptype = ArrayType(stype, [Reference(nelem)])
     utype = UnsupportedFortranType(decl, partial_datatype=ptype)
-    vam = utype.reference_accesses()
-    all_names = [sig.var_name for sig in vam.all_signatures]
-    assert "nelem" in all_names
-    assert "some_type" in all_names
+    dependent_symbols = utype.get_all_accessed_symbols()
+    assert nelem in dependent_symbols
+    assert stype in dependent_symbols
+
     decl2 = "type(some_type), pointer :: var"
     u2type = UnsupportedFortranType(decl2, partial_datatype=stype)
-    vai2 = u2type.reference_accesses()
-    assert "some_type" in [sig.var_name for sig in vai2.all_signatures]
+    dependent_symbols = u2type.get_all_accessed_symbols()
+    assert stype in dependent_symbols
 
 
 # StructureType tests
@@ -1228,18 +1224,19 @@ def test_structuretype_replace_symbols(table):
     assert stype.components["barry"].datatype is newtsymbol
 
 
-def test_structuretype_reference_accesses():
-    '''Tests for the reference_accesses() method of StructureType.'''
+def test_structuretype_get_all_accessed_symbols():
+    '''Tests for the get_all_accessed_symbols() method of StructureType.'''
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
-    atype = ArrayType(REAL_TYPE, [Reference(Symbol("ndim"))])
+    ndim = Symbol("ndim")
+    atype = ArrayType(REAL_TYPE, [Reference(ndim)])
     stype = StructureType.create([
         ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
         ("george", atype, Symbol.Visibility.PRIVATE,
          Literal("1.0", REAL_TYPE)),
         ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
-    vam = stype.reference_accesses()
-    assert Signature("my_type") in vam.all_signatures
-    assert Signature("ndim") in vam.all_signatures
+    dependent_symbols = stype.get_all_accessed_symbols()
+    assert tsymbol in dependent_symbols
+    assert ndim in dependent_symbols
 
 
 def test_structuretype_componenttype_eq():

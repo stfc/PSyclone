@@ -489,10 +489,9 @@ def test_symbol_replace_symbols_using(table):
     assert bsym.interface.container_symbol is cont2
 
 
-def test_symbol_reference_accesses():
-    '''Test that the reference_accesses() method of a Symbol does not add any
-    accesses.'''
+def test_symbol_get_all_accessed_symbols():
+    '''Test that the get_all_accessed_symbols() method of a Symbol does not add
+    any accesses.'''
     interf = DefaultModuleInterface()
     asym = Symbol("a", interface=interf)
-    vam = asym.reference_accesses()
-    assert not vam.all_signatures
+    assert not asym.get_all_accessed_symbols()

@@ -61,7 +61,7 @@ class VariablesAccessMap(dict):
         output_list = []
         for key, value in self.items():
             output_list.append(f"{key}: {value.str_access_summary()}")
-        return ", ".join(output_list)
+        return ", ".join(sorted(output_list))
 
     def add_access(self, signature, access_type, node, component_indices=None):
         '''Adds access information for the variable with the given signature.

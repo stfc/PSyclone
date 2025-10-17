@@ -40,6 +40,7 @@
 ''' Performs py.test tests on the Assignment PSyIR node. '''
 
 import pytest
+from psyclone.core import Signature
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
@@ -355,3 +356,23 @@ def test_pointer_assignment():
             in str(err.value))
     assignment1.is_pointer = False
     assert "Assignment[]" in str(assignment1)
+
+
+def test_reference_accesses(fortran_reader):
+    ''' Test the assignment.reference_accesses implementation
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''program test_prog
+             integer :: g(10)
+             g(1) = g + 1
+             g(g(1)) = 1
+           end program test_prog''')
+    assigns = psyir.walk(Assignment)
+    # Check that the lhs has been converted to a write
+    assigns[0].reference_accesses()[Signature('g')].is_written()
+
+    # This doen't work for nested references to the same symbol
+    with pytest.raises(NotImplementedError) as err:
+        assigns[1].reference_accesses()
+    assert ("The variable 'g' appears more than once on the left-hand side "
+            "of an assignment." in str(err.value))

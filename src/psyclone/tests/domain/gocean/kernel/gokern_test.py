@@ -189,9 +189,9 @@ def test_gok_access_info_scalar_and_property():
     vam = kern1.reference_accesses()
 
     # Check that we get the grid properties listed:
-    assert (str(vam) == "p_fld: READWRITE, "
+    assert (str(vam) ==
             "p_fld%grid%subdomain%internal%xstop: READ, "
-            "p_fld%grid%tmask: READ")
+            "p_fld%grid%tmask: READ, p_fld: READWRITE")
 
     # Check that the derived type using tmask has the corresponding component
     # indices specified. No indices for p_fld and grid:

@@ -43,7 +43,7 @@ import copy
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Set
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -93,19 +93,11 @@ class DataType(metaclass=abc.ABCMeta):
 
         '''
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> Set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this object, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this DataType.
         '''
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core import VariablesAccessMap
-        return VariablesAccessMap()
+        return set()
 
     @property
     def is_allocatable(self) -> Optional[bool]:
@@ -327,30 +319,19 @@ class UnsupportedFortranType(UnsupportedType):
             return self.partial_datatype.intrinsic
         return None
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> Set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this object, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this DataType.
         '''
-        access_info = super().reference_accesses()
+        symbols = super().get_all_accessed_symbols()
 
         if self.partial_datatype:
             if isinstance(self.partial_datatype, DataTypeSymbol):
-                # Avoid circular import
-                # pylint: disable=import-outside-toplevel
-                from psyclone.core.signature import Signature
-                from psyclone.core.access_type import AccessType
-                access_info.add_access(
-                    Signature(self.partial_datatype.name),
-                    AccessType.TYPE_INFO, self)
+                symbols.add(self.partial_datatype)
             else:
-                access_info.update(
-                    self.partial_datatype.reference_accesses())
-        return access_info
+                symbols.update(
+                    self.partial_datatype.get_all_accessed_symbols())
+        return symbols
 
     @property
     def is_allocatable(self) -> Optional[bool]:
@@ -527,34 +508,19 @@ class ScalarType(DataType):
         if isinstance(self.precision, DataNode):
             self._precision.replace_symbols_using(table_or_symbol)
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> Set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this object, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this DataType.
         '''
-        access_info = super().reference_accesses()
+        symbols = super().get_all_accessed_symbols()
 
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.core.access_type import AccessType
         from psyclone.psyir.nodes.datanode import DataNode
         if isinstance(self.precision, DataNode):
-            precision_ras = self.precision.reference_accesses()
-            # TODO #3060, use the helper function implemented in
-            # 3119.
-            # Change all the precision_ras to be of TYPE_INFO type,
-            # since this is a kind expression we know the symbols
-            # are not runtime-read
-            for sig in precision_ras:
-                for access in precision_ras[sig]:
-                    access._access_type = AccessType.TYPE_INFO
-            access_info.update(precision_ras)
+            symbols.update(self.precision.get_all_accessed_symbols())
 
-        return access_info
+        return symbols
 
     def copy(self):
         '''
@@ -618,18 +584,11 @@ class ArrayType(DataType):
             '''
             return copy.copy(self)
 
-        def reference_accesses(self):
+        def get_all_accessed_symbols(self) -> Set[Symbol]:
             '''
-            :returns: a map of all the symbol accessed inside this object, the
-                keys are Signatures (unique identifiers to a symbol and its
-                structure acccessors) and the values are
-                AccessSequence (a sequence of AccessTypes).
-            :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+            :returns: a set of all the symbols accessed inside this Extent.
             '''
-            # pylint: disable=import-outside-toplevel
-            from psyclone.core import VariablesAccessMap
-            return VariablesAccessMap()
+            return set()
 
     @dataclass(frozen=True)
     class ArrayBounds:
@@ -1094,44 +1053,26 @@ class ArrayType(DataType):
                 if isinstance(bnd, Node):
                     bnd.replace_symbols_using(table_or_symbol)
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> Set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this object, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this DataType.
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core.signature import Signature
-        from psyclone.core.access_type import AccessType
-        from psyclone.psyir.nodes.datanode import DataNode
-
-        access_info = super().reference_accesses()
+        symbols = super().get_all_accessed_symbols()
 
         if isinstance(self.intrinsic, Symbol):
-            access_info.add_access(
-                Signature(self.intrinsic.name),
-                AccessType.TYPE_INFO, self)
+            symbols.add(self.intrinsic)
 
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.datanode import DataNode
         if isinstance(self.precision, DataNode):
-            precision_ras = self.precision.reference_accesses()
-            # TODO #3060, use the helper function implemented in
-            # 3119.
-            # Change all the precision_ras to be of TYPE_INFO type,
-            # since this is a kind expression we know the symbols
-            # are not runtime-read
-            for sig in precision_ras:
-                for access in precision_ras[sig]:
-                    access._access_type = AccessType.TYPE_INFO
-            access_info.update(precision_ras)
+            symbols.update(self.precision.get_all_accessed_symbols())
 
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
-                access_info.update(dim.lower.reference_accesses())
-                access_info.update(dim.upper.reference_accesses())
-        return access_info
+                symbols.update(dim.lower.get_all_accessed_symbols())
+                symbols.update(dim.upper.get_all_accessed_symbols())
+
+        return symbols
 
 
 class StructureType(DataType):
@@ -1366,30 +1307,20 @@ class StructureType(DataType):
                      preceding_comment=component.preceding_comment,
                      inline_comment=component.inline_comment)
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> Set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this object, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this DataType.
         '''
-        access_info = super().reference_accesses()
+        symbols = super().get_all_accessed_symbols()
         for cmpt in self.components.values():
             if isinstance(cmpt.datatype, DataTypeSymbol):
-                # Avoid circular import
-                # pylint: disable=import-outside-toplevel
-                from psyclone.core.signature import Signature
-                from psyclone.core.access_type import AccessType
-                access_info.add_access(
-                    Signature(cmpt.datatype.name),
-                    AccessType.TYPE_INFO, self)
+                symbols.add(cmpt.datatype)
             else:
-                access_info.update(cmpt.datatype.reference_accesses())
+                symbols.update(cmpt.datatype.get_all_accessed_symbols())
             if cmpt.initial_value:
-                access_info.update(cmpt.initial_value.reference_accesses())
-        return access_info
+                symbols.update(
+                    cmpt.initial_value.get_all_accessed_symbols())
+        return symbols
 
 
 # Create common scalar datatypes
