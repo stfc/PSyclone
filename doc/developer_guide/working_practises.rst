@@ -493,13 +493,13 @@ computational cost (so that we 'fail fast'):
  3. All links within the Sphinx documentation (rst files) are checked (see
     note below);
 
- 4. All of the examples are tested (for Python versions 3.10 and 3.13)
+ 4. All of the examples are tested (for Python versions 3.9 and 3.14)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
     The ``transform`` target is run 2-way parallel (``-j 2``).
 
- 5. The full test suite is run for Python versions 3.10 and 3.13 but
+ 5. The full test suite is run for Python versions 3.9 and 3.14 but
     without the compilation checks. ``pytest`` is passed the ``-n auto`` flag
     so that it will run the tests in parallel on as many cores as are
     available (currently 2 on GHA instances).
