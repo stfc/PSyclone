@@ -530,3 +530,12 @@ some limitations:
 
 Note that using the ``keep-comments`` option alone means that any comments
 that PSyclone interprets as directives will be lost from the input.
+
+Overriding Fortran Intrinsics
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+PSyclone attempts to canonicalise Fortran Intrinsics, which involves adding
+argument names to each argument in the ``IntrinsicCall`` PSyIR node. This can
+cause problems with code that overrides Fortran intrinsics. To ensure correct
+behaviour of the output, the ``--disable-intrinsic-required-args`` option must
+be passed to PSyclone, else the resultant code may not run correctly.
