@@ -36,24 +36,10 @@
 """Performs pytest tests on the support for directives in the fparser2
 PSyIR front-end"""
 
-import pytest
-
-from fparser.two import Fortran2003
-
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Container,
-    Routine,
-    Assignment,
-    Loop,
-    IfBlock,
-    Call,
     CodeBlock,
 )
-from psyclone.psyir.commentable_mixin import CommentableMixin
-from psyclone.psyir.symbols import DataTypeSymbol, StructureType
-
-from psyclone.psyir.backend.fortran import FortranWriter
 
 
 def test_directive_after_decls():
@@ -85,7 +71,6 @@ def test_directive_in_decls():
     psyir = reader.psyir_from_source(code)
     routine = psyir.children[0]
     out = routine.debug_string()
-    print(out)
     assert """!$omp firstprivate
 integer, dimension(100) :: i  !dir$ aligned""" in out
 

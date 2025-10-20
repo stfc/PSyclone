@@ -277,7 +277,6 @@ class FortranReader():
         _, filename = os.path.split(file_path)
 
         psyir = self._processor.generate_psyir(parse_tree, filename)
-        print(psyir.view())
         return psyir
 
 
