@@ -89,6 +89,11 @@ def compiler_wrapper(arguments):
             'psyclonefc error: PSYCLONE_COMPILER environment variable not '
             'found! This environment variable must be set to the Fortran '
             'compiler to use.')
+    if fortran_compiler.endswith("psyclonefc"):
+        sys.exit(
+            'psyclonefc error: PSYCLONE_COMPILER environment variable must '
+            'not be set to psyclonefc. This environment variable must be set '
+            'to the Fortran compiler to use.')
     # Remove empty strings from the list (caused by the default empty envvar or
     # multi-spaces gaps)
     while "" in psyclone_options:

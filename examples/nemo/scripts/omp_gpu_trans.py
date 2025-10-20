@@ -125,6 +125,7 @@ ASYNC_ISSUES = [
     "zdfsh2.f90",
     # Diverging results with asynchronicity
     "traadv_fct.f90",
+    "bdy_oce.f90",
 ]
 
 
@@ -137,13 +138,17 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    # The two options below are useful for file-by-file exhaustive tests.
     # If the environemnt has ONLY_FILE defined, only process that one file and
-    # known-good files that need a "declare target" inside. This is useful for
-    # file-by-file exhaustive tests.
+    # known-good files that need a "declare target" inside.
     only_do_file = os.environ.get('ONLY_FILE', False)
-    if only_do_file and psyir.name not in (only_do_file,
-                                           "lib_fortran.f90",
-                                           "solfrac_mod.f90"):
+    only_do_files = (only_do_file, "lib_fortran.f90", "solfrac_mod.f90")
+    if only_do_file and psyir.name not in only_do_files:
+        return
+    # If the environemnt has ALL_BUT_FILE defined, process all files but
+    # the one named file.
+    all_but_file = os.environ.get('ALL_BUT_FILE', False)
+    if all_but_file and psyir.name == all_but_file:
         return
 
     omp_target_trans = OMPTargetTrans()
