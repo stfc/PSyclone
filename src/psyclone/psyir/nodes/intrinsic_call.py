@@ -3354,7 +3354,7 @@ class IntrinsicCall(Call):
                         f"as non-optional argument name '{name}' found "
                         f"but the Intrinsic has context-sensitive argument "
                         f"names which is unsupported by PSyclone. Supplied "
-                        f"intrinsic was '{self.debug_string().rstrip()}'."
+                        f"intrinsic was a '{self.intrinsic.name}'."
                     )
 
         # The following rules are defined by the Fortran standard.

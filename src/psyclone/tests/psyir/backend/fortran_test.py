@@ -2176,3 +2176,56 @@ def test_fw_schedule(fortran_reader, fortran_writer):
         schedule.addchild(child.copy().detach())
     result = fortran_writer(schedule)
     assert result == test_code
+
+
+def test_fw_intrinsiccall(fortran_reader, fortran_writer):
+    ''' Test that the FortranWriter correctly handles IntrinsicCall nodes,
+    and respects the config setting where possible.'''
+    # Test a piece of code where argument names are always required.
+    code = """subroutine foo()
+    real :: a, b, c
+    a = cshift(dim=1, shift=b, array=c)
+    end subroutine foo"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert "a = CSHIFT(dim=1, shift=b, array=c)" in output
+    # Disable argument names in the config, we should get the same output.
+    Config.get().backend_intrinsic_named_kwargs = False
+    output = fortran_writer(psyir)
+    assert "a = CSHIFT(dim=1, shift=b, array=c)" in output
+
+    # Test a piece of code where we can only remove the first argument name.
+    code = """subroutine foo()
+    real :: a, b, c
+    a = cshift(array=c, dim=1, shift=b)
+    end subroutine foo"""
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert "a = CSHIFT(c, dim=1, shift=b)" in output
+
+    # Test a piece of code where can remove all required argument names.
+    code = """subroutine foo()
+    real :: a, b, c
+    a = cshift(array=c, shift=b, dim=1)
+    end subroutine foo"""
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert "a = CSHIFT(c, b, dim=1)" in output
+    # Check the config is respected
+    Config.get().backend_intrinsic_named_kwargs = True
+    output = fortran_writer(psyir)
+    assert "a = CSHIFT(array=c, shift=b, dim=1)" in output
+
+    # Test if we have a non-canonicalisable intrinsic that it outputs
+    # all argument names (this is not a common use case, as most
+    # non canonicalisable intrinsics result in a code block, however
+    # its possible to obtain one during PSyIR creation).
+    Config.get().backend_intrinsic_named_kwargs = False
+
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATED)
+    IntrinsicCall._add_args(
+            intrinsic, [("scalar",
+                         Reference(DataSymbol("b", INTEGER_TYPE)))])
+    output = fortran_writer(intrinsic)
+    assert "ALLOCATED(scalar=b)" in output
