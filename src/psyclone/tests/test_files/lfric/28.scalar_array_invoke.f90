@@ -36,8 +36,8 @@
 program scalar_array_invoke
 
   ! Description: single function specified in an invoke call
-  use constants_mod,               only: i_def, r_def, l_def
-  use field_mod,                   only: field_type
+  use constants_mod,             only: i_def, r_def, l_def
+  use field_mod,                 only: field_type
   use testkern_scalar_array_mod, only: testkern_scalar_array_type
 
   implicit none
@@ -47,8 +47,16 @@ program scalar_array_invoke
   integer(i_def), dimension(2, 5, 10, 8) :: integer_array
   type(field_type)                       :: afield
 
-  call invoke(                                             &
-       testkern_scalar_array_type(real_array,logical_array,integer_array,afield) &
+  real_array = 666.0_r_def
+  logical_array = .false.
+  integer_array = -1
+
+  write(*,*) "Driver: shape(real_array) = ", shape(real_array)
+  write(*,*) "Driver: shape(logical_array) = ", shape(logical_array)
+  write(*,*) "Driver: shape(integer_array) = ", shape(integer_array)
+
+  call invoke(                                                                   &
+       testkern_scalar_array_type(afield,real_array,logical_array,integer_array) &
           )
 
 end program scalar_array_invoke

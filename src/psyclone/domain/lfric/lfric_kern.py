@@ -196,7 +196,8 @@ class LFRicKern(CodedKern):
             elif descriptor.argument_type.lower() == "gh_field":
                 pre = "field_"
             elif (descriptor.argument_type.lower() in
-                  const.VALID_SCALAR_NAMES):
+                  (const.VALID_SCALAR_NAMES +
+                   const.VALID_ARRAY_NAMES)):
                 if descriptor.data_type.lower() == "gh_real":
                     pre = "rscalar_"
                 elif descriptor.data_type.lower() == "gh_integer":
@@ -208,6 +209,9 @@ class LFRicKern(CodedKern):
                         f"Expected one of {const.VALID_SCALAR_DATA_TYPES} "
                         f"data types for a scalar argument but found "
                         f"'{descriptor.data_type}'.")
+                if (descriptor.argument_type.lower() in
+                    const.VALID_ARRAY_NAMES):
+                    pre += "array_"
             else:
                 raise GenerationError(
                     f"LFRicKern.load_meta() expected one of "

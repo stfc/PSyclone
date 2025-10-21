@@ -136,3 +136,40 @@ def test_stub_generate_with_scalar_sums_err():
         "A user-supplied LFRic kernel must not write/update a scalar "
         "argument but kernel 'simple_with_reduction_type' has a scalar "
         "argument with 'gh_sum' access." in str(err.value))
+
+def test_stub_generate_with_scalar_array():
+    ''' Check that the stub generate produces the expected output when
+    the kernel has ScalarArray arguments. '''
+    result = generate(
+        os.path.join(BASE_PATH, "testkern_scalar_array_mod.f90"),
+        api=TEST_API)
+
+# I don't think this is actually correct. It doesn't seem to be adding
+# the array dimensions (or arrays to hold that information). In fact
+# this looks suspiciously like a plain scalar entry
+    print(result)
+    expected = """\
+module testkern_scalar_array_mod
+  implicit none
+  public
+
+  contains
+  subroutine testkern_scalar_array_code(nlayers, field_1_w1, \
+rscalar_array_2, lscalar_array_3, iscalar_array_4, ndf_w1, \
+undf_w1, map_w1)
+    use constants_mod
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
+    integer(kind=i_def), intent(in) :: undf_w1
+    real(kind=r_def), intent(in) :: rscalar_array_2
+    integer(kind=i_def), intent(in) :: iscalar_array_4
+    logical(kind=l_def), intent(in) :: lscalar_array_3
+    real(kind=r_def), dimension(undf_w1), intent(inout) :: field_1_w1
+
+
+  end subroutine testkern_scalar_array_code
+
+end module testkern_scalar_array_mod
+"""
+    assert expected == result

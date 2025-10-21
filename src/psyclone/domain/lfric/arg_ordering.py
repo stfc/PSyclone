@@ -459,7 +459,7 @@ class ArgOrdering:
                 self.operator(arg, var_accesses=var_accesses)
             elif arg.argument_type == "gh_columnwise_operator":
                 self.cma_operator(arg, var_accesses=var_accesses)
-            elif arg.is_scalar:
+            elif arg.is_scalar or arg.is_scalar_array:
                 self.scalar(arg, var_accesses=var_accesses)
             else:
                 raise GenerationError(
@@ -776,17 +776,37 @@ class ArgOrdering:
                 f"{const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES} "
                 f"but got '{scalar_arg.argument_type}'")
 
-        if scalar_arg.is_literal:
-            # If we have a literal, do not add it to the variable access
-            # information. We do this by providing None as var access.
-            self.append(scalar_arg.name, None, mode=scalar_arg.access,
-                        metadata_posn=scalar_arg.metadata_index)
-            if scalar_arg.precision and var_accesses is not None:
-                var_accesses.add_access(Signature(scalar_arg.precision),
-                                        AccessType.TYPE_INFO, self._kern)
+        if scalar_arg.is_scalar_array:
+            # If it's a ScalarArray append the dimensions array
+            from psyclone.domain.lfric import LFRicTypes
+            const = LFRicConstants()
+            text = ('dims_' + scalar_arg.name)
+
+            dims_sym = self._symtab.find_or_create(
+                text, tag=text, symbol_type=DataSymbol,
+                datatype=ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    [scalar_arg._array_ndims]))
+            print(dims_sym)
+            print(dims_sym.name)
+            self.append_array_reference(array_name=dims_sym.name,
+                    indices=[":"],
+                    intrinsic_type=LFRicTypes("LFRicIntegerScalarDataType")(),
+                    tag=dims_sym.name, symbol=dims_sym)
+            self.append(dims_sym, var_accesses, mode=AccessType.READ)
         else:
-            self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
-                        metadata_posn=scalar_arg.metadata_index)
+            if scalar_arg.is_literal:
+                # If we have a literal, do not add it to the variable access
+                # information. We do this by providing None as var access.
+                self.append(scalar_arg.name, None, mode=scalar_arg.access,
+                            metadata_posn=scalar_arg.metadata_index)
+                if scalar_arg.precision and var_accesses is not None:
+                    var_accesses.add_access(Signature(scalar_arg.precision),
+                                            AccessType.TYPE_INFO, self._kern)
+            else:
+                self.append(scalar_arg.name, var_accesses,
+                            mode=scalar_arg.access,
+                            metadata_posn=scalar_arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
