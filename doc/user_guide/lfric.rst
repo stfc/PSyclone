@@ -1642,7 +1642,7 @@ to have stencil accesses, these two options are mutually exclusive.
 The metadata for each case is described in the following sections.
 
 Stencil Metadata
-________________
+""""""""""""""""
 
 
 Stencil metadata specifies that the corresponding field argument is accessed
@@ -1722,7 +1722,7 @@ be found in ``examples/lfric/eg5``.
 .. _lfric-intergrid-mdata:
 
 Inter-Grid Metadata
-___________________
+"""""""""""""""""""
 
 The alternative form of the optional fifth metadata argument for a
 field specifies which mesh the associated field is on.  This is
@@ -1754,7 +1754,7 @@ mesh must also be on the same function space.
 
 
 Number of Layers Metadata
--------------------------
+"""""""""""""""""""""""""
 
 If a particular field argument to a kernel has a number of vertical levels
 that is not the same as the extruded mesh then this must be specified using
@@ -1769,7 +1769,7 @@ at runtime (in the generated PSy layer).
 
 
 Multi-Data Metadata
--------------------
+"""""""""""""""""""
 
 A multi-data field is the same as a standard field apart from having multiple
 values associated with each DoF. This is indicated in the field metadata by
@@ -2115,7 +2115,12 @@ conventions, are:
       4) If the field entry stencil access is of type ``XORY1D`` then
          add an additional ``integer`` direction argument of kind
          ``i_def`` and with intent ``in``.
-
+      5) If the field is multi-data then the kernel must be passed the
+	 value of ``NDATA``: add an additional ``integer``, scalar
+	 argument of kind ``i_def`` and intent ``in``.
+      6) If the field has a custom number of vertical levels then pass this as
+	 an additional ``integer``, scalar argument of kind ``i_def`` and
+	 intent ``in``.
    3) If the current entry is a field vector then for each dimension
       of the vector, include a field array. The field array name is
       specified as
@@ -2141,21 +2146,26 @@ conventions, are:
       the data type and kind specifed in the metadata. The ScalarArray
       must be denoted with intent ``in`` to match its read-only nature.
 
-4) For each function space in the order they appear in the metadata arguments
-   (the ``to`` function space of an operator is considered to be before the
+4) DoF maps for function spaces are handled in the order they appear in the
+   metadata arguments (the ``to`` function space of an operator is considered
+   to be before the
    ``from`` function space of the same operator as it appears first in
-   lexicographic order)
+   lexicographic order). Note that if a field on a given function space has a
+   non-standard number of vertical levels, it requires that a dofmap be supplied
+   (because the number of vertical levels alters the *values* within the map). For
+   each required DoF map:
 
    1) Include the number of local degrees of freedom (i.e. number per-cell)
       for the function space. This is an ``integer`` of kind ``i_def`` and
       has intent ``in``. The name of this argument is
       ``"ndf_"<field_function_space>``.
+
    2) If there is a field on this space
 
       1) Include the unique number of degrees of freedom for the function
          space. This is an ``integer`` of kind ``i_def`` and has intent ``in``.
          The name of this argument is ``"undf_"<field_function_space>``.
-      2) Include the **dofmap** for this function space. This is an ``integer``
+      2) Include the **dofmap** itself. This is an ``integer``
          array of kind ``i_def`` with intent ``in``. It has one dimension
          sized by the local degrees of freedom for the function space.
 
