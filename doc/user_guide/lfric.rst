@@ -162,23 +162,29 @@ least rank (number of dimensions) one. Scalar arrays are identified with
 Field
 +++++
 
-LFRic API fields, identified with ``GH_FIELD`` metadata, represent
-FEM discretisations of various dynamical core prognostic and diagnostic
+LFRic API fields, identified with ``GH_FIELD`` metadata, represent FEM
+discretisations of various dynamical core prognostic and diagnostic
 variables. In FEM, variables are discretised by placing them into a
 function space (see :ref:`lfric-function-space`) from which they
 inherit a polynomial expansion via the basis functions of that space.
 Field values at points within a cell are evaluated as the sum of a set
-of basis functions multiplied by coefficients which are the data points.
-Points of evaluation are determined by a quadrature object
+of basis functions multiplied by coefficients which are the data
+points.  Points of evaluation are determined by a quadrature object
 (:ref:`lfric-quadrature`) and are independent of the function space
-the field is on. Placement of field data points, also called degrees of
-freedom (hereafter "DoFs"), is determined by the function space the field
-is on.
+the field is on. Placement of field data points, also called degrees
+of freedom (hereafter "DoFs"), is determined by the function space the
+field is on. An LFRic multi-data field can have more than one value
+associated with each data point.
+
 LFRic fields passed as arguments to any :ref:`LFRic kernel
 <lfric-kernel-valid-data-type>` can be of ``real`` or ``integer``
 primitive type. In the LFRic infrastructure, these fields are
 represented by instances of the ``field_type`` and ``integer_field_type``
 classes, respectively.
+
+Typically, a field will have the same number of vertical layers as the
+model mesh. However, this is not a requirement and the number of layers
+can be as few as one (a 2D field).
 
 .. _lfric-field-vector:
 
@@ -919,8 +925,8 @@ All three CMA-related kernel types must obey the following rules:
 1) Since a CMA operator only acts within a single column of data,
    stencil operations are not permitted.
 
-2) No vector quantities (e.g. ``GH_FIELD*3`` - see below) are
-   permitted as arguments.
+2) No vector quantities (e.g. ``GH_FIELD*3`` - see below) or
+   multi-data fields are permitted as arguments.
 
 3) The kernel must operate on cell-columns.
 
@@ -1718,7 +1724,6 @@ be found in ``examples/lfric/eg5``.
 Inter-Grid Metadata
 ___________________
 
-
 The alternative form of the optional fifth metadata argument for a
 field specifies which mesh the associated field is on.  This is
 required for inter-grid kernels which perform prolongation or
@@ -1746,6 +1751,36 @@ Note that an inter-grid kernel must have at least one field (or field-
 vector) argument on each mesh type. Fields that are on different
 meshes cannot be on the same function space while those on the same
 mesh must also be on the same function space.
+
+
+Number of Layers Metadata
+-------------------------
+
+If a particular field argument to a kernel has a number of vertical levels
+that is not the same as the extruded mesh then this must be specified using
+the ``NLEVELS`` option to GH_FIELD, e.g.::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLEVELS=1)
+
+The value specified for ``NLEVELS`` may be a literal if it is known at
+compile time. Alternatively, it may be given the special value
+``GH_RUNTIME`` which means that the number of levels is to be determined
+at runtime (in the generated PSy layer).
+
+
+Multi-Data Metadata
+-------------------
+
+A multi-data field is the same as a standard field apart from having multiple
+values associated with each DoF. This is indicated in the field metadata by
+the optional ``NDATA`` argument to GH_FIELD, e.g.::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W2, NDATA=4)
+
+The value specified for ``NDATA`` may be a literal if it is known at
+compile time. Alternatively, it may be given the special value
+``GH_RUNTIME`` which means that the number of data values at each DoF is to be
+determined at runtime (in the generated PSy layer).
 
 
 Column-wise Operators (CMA)
