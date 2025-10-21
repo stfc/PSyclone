@@ -40,49 +40,6 @@
 The PSyclone Intermediate Representation (PSyIR)
 ################################################
 
-The PSyclone Intermediate Representation (PSyIR) is a language-independent
-Intermediate Representation that PSyclone uses to represent the PSy (Parallel
-System) and the Kernel (serial units of work) layers of an application that
-can be constructed from scratch or produced from existing code using one of
-the PSyIR front-ends. Its design is optimised to represent high-performance
-parallel applications in an expressive, mutable and extensible way:
-
- - It is **expressive** because it is intended to be created and/or manipulated
-   by HPC software experts directly when optimizing or porting the code.
-
- - It is **mutable** because it is intended to be programmatically manipulated
-   (usually though PSyclone scripts) and maintain a coherent state (with
-   valid relationships, links to symbols, links to dependencies) after each
-   manipulation.
-
- - It is **extensible** because it is intended to be used as the core component
-   of domain-specific systems which include additional abstract concepts
-   or logic not captured in the generic representation.
-
-To achieve these design goals we use a Normalised Heterogeneous AST
-representation together with a Type System and a Symbol Table.
-By **heterogeneous** we mean that we distinguish between AST nodes using
-Python class inheritance system and each node has its particular (and
-semantically relevant) navigation and behaviour methods. For instance the
-``Assignment`` node has ``lhs`` and ``rhs`` properties to navigate to the
-left-hand-side and right-hand-side operators of the Assignment. It also
-means we can identify a node using its type with
-``isinstance(node, Assignment)``.
-Nevertheless, we maintain a **normalised** core of node relationships and
-functionality that allows us to build tree walkers, tree visitors and
-dependency analysis tools without the need to consider the implementation
-details of each individual sub-class.
-
-The common functionality that all nodes must have is defined in the
-PSyIR base class `Node`.
-See the list of all PSyIR common methods in the 
-:ref_guide:`Node reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.Node`.
-
-More information about the type system and symbols and how PSyIR
-can be transformed back to a particular language using the back-ends
-(Writers) is provided in the following sections of this guide.
-
-
 .. _newnodes-label:
 
 How to create new PSyIR Nodes

@@ -49,34 +49,56 @@
 The PSyIR
 ===============================================
 
-The PSyIR (PSyclone Intermediate Representation) is at the heart of PSyclone,
-representing both existing
-code and PSyKAl DSLs (at both the PSy- and kernel-layer levels). A PSyIR
-tree may be constructed from scratch (in Python) or by processing existing
-source code using a frontend. Transformations act on the PSyIR and
-ultimately the generated code is produced by one of the PSyIR's
-backends.
+The PSyclone Intermediate Representation (PSyIR) is a language-independent
+Intermediate Representation that PSyclone uses to represent Fortran code.
+It can be constructed from scratch or produced from existing code using
+the :ref:`<psyclone_command>`. It is designed to represent Fortran
+applications in an expressive, mutable and extensible way:
 
-PSyIR Nodes
-===========
+ - It is **expressive** because it is intended to be created and/or manipulated
+   by HPC software experts directly when optimizing or porting the code. It's
+   semantics are close the the language constructs and should be familiar with
+   programmers familiar with Fortran.
 
-The PSyIR consists of classes whose instances can be connected
-together to form a tree which represent computation in a
-syntax-independent way. These classes all inherit from the ``Node``
-baseclass and, as a result, PSyIR instances are often referred to
-collectively as 'PSyIR nodes'.
+ - It is **mutable** because it is intended to be programmatically manipulated
+   (usually though PSyclone scripts) while maintaining a coherent state (with
+   valid relationships, links to symbols, links to dependencies) after each
+   manipulation.
 
-At the present time PSyIR classes can be essentially split into two
-types: language-level nodes, which are nodes that the PSyIR backends
-support, and therefore they can be directly translated to code; and
-higher-level nodes, which are additional nodes that each domain can
-insert. These nodes must implement a `lower_to_language_level` method
-in order to be converted to their equivalent representation using only
+ - It is **extensible** because it is intended to be used as the core component
+   of domain-specific systems which include additional abstract concepts
+   or logic not captured in the generic representation.
+
+To achieve these design goals we use a Normalised Heterogeneous AST
+representation together with a Type System and a Symbol Table.
+By **heterogeneous** we mean that we distinguish between AST nodes using
+Python class inheritance system and each node has its particular (and
+semantically relevant) navigation and behaviour methods. For instance the
+``Assignment`` node has ``lhs`` and ``rhs`` properties to navigate to the
+left-hand-side and right-hand-side operators of the Assignment. It also
+means we can identify a node using its type with
+``isinstance(node, Assignment)``.
+Nevertheless, the nodes also have a **normalised** common core of methods and
+functionality such as tree walkers, tree visitors and dependency analysis tools
+that allow operating on nodes without the need to consider the implementation
+details of each individual sub-class.
+
+The common functionality that all nodes have is defined in the PSyIR base
+class `Node`. See the list of all PSyIR common methods in the
+:ref_guide:`Node reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.Node`.
+
+
+There are two types of PSyIR nodes: language-level nodes, which are nodes
+that the PSyIR frontend/backends support, and therefore they can be directly
+translated from/to code; and higher-level nodes, which are additional nodes that
+each DSL can insert. These domain-specific nodes must implement a `lower_to_language_level`
+method in order to be converted to their equivalent representation using only
 language-level nodes. This then permits code to be generated for them.
 
 The rest of this document describes only the language-level nodes, but as
 all nodes inherit from the same base classes, the methods described here
-are applicable to all PSyIR nodes.
+are applicable to all PSyIR nodes. And they can be mixed together in the same
+PSyIR tree.
 
 
 Available language-level nodes
@@ -116,7 +138,7 @@ Text Representation
 When developing a transformation script it is often necessary to examine
 the structure of the PSyIR. All nodes in the PSyIR have the ``view`` method
 that provides a text-representation of that node and all of its descendants.
-If the ``termcolor`` package is installed (see :ref:`getting-going`) then
+If the ``termcolor`` package is installed (see :ref:`getting-going-download`) then
 colour highlighting is used as part of the output string.
 For instance, part of the Schedule constructed for the second NEMO
 `example <https://github.com/stfc/PSyclone/blob/master/examples/nemo/eg2/
@@ -391,22 +413,18 @@ type (such as a Fortran subroutine).
 Symbols and Symbol Tables
 =========================
 
-Some PSyIR nodes have an associated Symbol Table
-(`psyclone.psyir.symbols.SymbolTable`) which keeps a record of the
-Symbols (`psyclone.psyir.symbols.Symbol`) specified and used within them.
-
-Symbol Tables can be nested (i.e. a node with an attached symbol table
-can be an ancestor or descendant of a node with an attached symbol
+Some PSyIR nodes (subclasses of ScopingNode) have an associated
+:ref_guide:`SymbolTable psyclone.psyir.symbols.html#psyclone.psyir.symbols.SymbolTable`.
+These can be nested (i.e. a node with an attached symbol table
+can be an ancestor or descendent of a node with an attached symbol
 table). If the same symbol name is used in a hierarchy of symbol tables
 then the symbol within the symbol table attached to the closest
 ancestor node is in scope. By default, symbol tables are aware of
 other symbol tables and will return information about relevant symbols
-from all symbol tables.
+from all ancestor symbol tables.
 
-The ``SymbolTable`` has the following interface:
-
-.. autoclass:: psyclone.psyir.symbols.SymbolTable
-    :no-index:
+(`psyclone.psyir.symbols.SymbolTable`) which keeps a record of the
+Symbols (`psyclone.psyir.symbols.Symbol`) specified and used within them.
 
 Where each element is a ``Symbol`` with an immutable name:
 
@@ -435,9 +453,6 @@ are:
 - .. autoclass:: psyclone.psyir.symbols.GenericInterfaceSymbol
     :no-index:
 
-See the reference guide for the full API documentation of the
-:ref_guide:`SymbolTable psyclone.psyir.symbols.html#psyclone.psyir.symbols.SymbolTable`
-and the :ref_guide:`Symbol types psyclone.psyir.symbols.html#module-psyclone.psyir.symbols`.
 
 Symbol Interfaces
 -----------------

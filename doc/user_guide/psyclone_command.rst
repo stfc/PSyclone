@@ -134,7 +134,11 @@ The simplest way to use ``psyclone`` is to provide a Fortran input source file:
 
 If the input file is valid Fortran, PSyclone will print the output Fortran
 (in this case the same unmodified code but with normalised syntax) to stdout.
-Otherwise it will print the errors detected while parsing the Fortran file.
+Otherwise, it will print the errors detected while parsing the Fortran file.
+Note that psyclone syntax errors for input Fortran are not always very readable,
+and in some cases with ambiguous syntax without parsing the dependencies it
+will assume that the provided code is valid, so we recommend that you first
+make sure that the input code is valid with a compiler (e.g. ``gfortran``).
 
 Usually we want to redirect the output to a file that we can later
 compile. We can do this with the `-o` flag:

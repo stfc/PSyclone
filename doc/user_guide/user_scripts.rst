@@ -129,7 +129,7 @@ GOcean, but in the future it will also affect the LFRic DSL).
    def trans_alg(psyir):
        # Modify algorithm psyir tree
 
-As with the ``trans``` function it is up to the script what it does with
+As with the ``trans`` function it is up to the script what it does with
 the algorithm PSyIR. Note that the ``trans_alg`` transformation is applied to
 the algorithm layer before the PSy-layer is generated so any changes
 applied to the algorithm layer will be reflected in the PSy-layer PSyIR tree

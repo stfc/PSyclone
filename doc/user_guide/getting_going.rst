@@ -92,7 +92,7 @@ please see the
 
   .. tab-item:: From Spack:
 
-    To install psyclone to your loaded Spack installation use:
+    To install psyclone with Spack use:
 
     .. code-block:: bash
 
@@ -114,6 +114,8 @@ please see the
        cd PSyclone-X.Y.Z
        pip install .
 
+Optionally you can also install `termcolor` and `graphviz` in your system to
+generate colorised tree views of dependency dags, respectively.
 
 .. _getting-going-install-loc:
 
@@ -246,7 +248,7 @@ command. To list the available options run: ``psyclone -h``, it should output::
 There is more detailed information about each flag in :ref:`psyclone_command` section,
 but the main parameters are the input source file that we aim to transform, and a transformation
 recipe that is provided with the ``-s`` flag.
-In addition to these, note that psyclone can be used in two distinct modes:
+Psyclone can be used in two distinct modes:
 the code-transformation mode (when no ``-api``/``--psykal-dsl`` flags are provided) or the
 PSyKAl DSL mode (when a ``-api``/``--psykal-dsl`` flag is provided). The following sections provide
 a brief introduction to each mode.
@@ -270,11 +272,11 @@ compile it. We can do this using the `-o` flag:
     psyclone input_file.f90 -o output.f90
 
 
-This should not transform the semantics of the code (only the syntax), and is
+This will not transform the semantics of the code (only the syntax), and is
 what we sometimes refer to as a "passthrough" run. This can be useful as an initial
 correctness test when applying PSyclone to a new code.
 
-However, PSyclone allows users to programmatically change the source code of the
+PSyclone allows users to programmatically change the source code of the
 processed file. This is achieved using transformation recipes which are python scripts
 with a `trans` function defined. For example:
 
@@ -329,27 +331,25 @@ To see more complete examples of PSyclone for code transformation, see the
 PSyclone for PSyKAl DSLs
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-As indicated above, the ``psyclone`` command can also be used to process PSyKAl
-DSLs (``--psykal-dsl`` flag). In this case the command takes as input the Fortran
-source file containing the algorithm specification (in terms
-of calls to ``invoke()``). It parses this, finds the necessary kernel
-source files and produces two Fortran files. The first contains the
-:ref:`middle, PSy-layer <PSy-layer>` and the second a re-write of the
+As indicated above, the ``psyclone`` command can also be used to process
+:ref:`PSyKAl DSLs <introduction_to_psykal>`
+(with the ``--psykal-dsl`` flag). In this case the command takes as input
+the Fortran source file containing the algorithm specification (which consist
+of calls to an special ``invoke()`` subroutine). PSyclone parses the algorithm,
+finds the necessary kernel files and produces two Fortran files: the first contains the
+:ref:`parallel-system middle-layer <PSy-layer>`, and the second a re-write of the
 :ref:`algorithm code <algorithm-layer>` to use that layer. These files
 are named according to the user-supplied arguments (options ``-opsy``
-and ``-oalg`` respectively). If those arguments are not supplied then the script
-writes the re-written Fortran Algorithm layer to the terminal. For details of the other
+and ``-oalg`` respectively). If those arguments are not supplied then psyclone
+outputs the Fortran to stdout. For details of the other
 command-line arguments please see the :ref:`psyclone_command` Section.
 
 Examples are provided in the ``examples/lfric`` and ``examples/gocean`` directories
-of the PSyclone repository. Alternatively, if you have installed PSyclone using
-``pip`` then they may be found in the ``share/psyclone`` directory under your
-PSyclone installation (see `which psyclone` for the location of the
-PSyclone installation).
-In this case you should copy the whole ``examples`` directory to some
-convenient location before attempting to carry out the following instructions.
+of the PSyclone repository or in the :ref:`getting-going-install-loc` (in this case
+you should copy the whole ``examples`` directory to some convenient location before
+attempting to carry out the following instructions).
 
-In this case we are going to use one of the LFRic examples:
+For example, to run one of LFRic examples you can use:
 
 .. code-block:: console
 
@@ -374,7 +374,7 @@ by the ``print_psyir_trans.py`` script in the second LFRic example:
     psyclone --psykal-dsl lfric -d ../code -s ./print_psyir_trans.py \
         -opsy psy.f90 -oalg alg.f90 ./multi_invoke_mod.x90
 
-Take a look at the ``print_psyir_trans.py`` script for more information. *Hint*;
+Take a look at the ``print_psyir_trans.py`` script for more information. *Hint*:
 you can insert a single line in that script in order to break into the Python
 interpreter during execution: ``import pdb; pdb.set_trace()``. This then enables
 interactive exploration of the PSyIR if you are interested.
