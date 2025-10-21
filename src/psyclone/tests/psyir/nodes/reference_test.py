@@ -40,15 +40,17 @@
 ''' Performs py.test tests on the Reference PSyIR node. '''
 
 import pytest
+import itertools
 
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, CodeBlock, colored,
-    KernelSchedule, Literal, Reference)
+    KernelSchedule, Literal, Reference, Loop)
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
                                     REAL_TYPE, ScalarType, Symbol, SymbolTable)
+from psyclone.psyir.transformations import ProfileTrans
 
 
 def test_reference_bad_init():
@@ -526,26 +528,26 @@ def test_reference_replace_symbols_using():
 
     '''
     wp = DataSymbol("wp", INTEGER_SINGLE_TYPE)
-    stype = ScalarType(ScalarType.Intrinsic.REAL, wp)
+    stype = ScalarType(ScalarType.Intrinsic.REAL, Reference(wp))
     asym = DataSymbol("asym", stype)
     ref = Reference(asym)
     table = SymbolTable()
     ref.replace_symbols_using(table)
     # Empty table so no change.
     assert ref.symbol is asym
-    assert ref.symbol.datatype.precision is wp
+    assert ref.symbol.datatype.precision.symbol is wp
     asym2 = asym.copy()
     table.add(asym2)
     ref.replace_symbols_using(table)
     assert ref.symbol is asym2
-    assert ref.symbol.datatype.precision is wp
+    assert ref.symbol.datatype.precision.symbol is wp
     # Check that the update does not recurse into the Symbol properties (as
     # that is handled by the SymbolTable).
     wp2 = wp.copy()
     table.add(wp2)
     ref.replace_symbols_using(table)
     assert ref.symbol is asym2
-    assert ref.symbol.datatype.precision is wp
+    assert ref.symbol.datatype.precision.symbol is wp
 
 
 def test_reference_is_read(fortran_reader):
@@ -598,3 +600,117 @@ def test_reference_is_write(fortran_reader):
     # a = b has a as write and b as not
     assert references[10].is_write
     assert not references[11].is_write
+
+
+def test_reference_enters_and_escapes_scope(fortran_reader):
+    ''' Test that the enters_scope and escapes_scope work as expected with
+    local and global symbols.
+    '''
+    code = """
+    subroutine my_subroutine()
+        use other
+        integer :: a, b, c, d
+
+        a = 0
+        call myfunc(b)
+        c = 0
+        do i=1, 10
+            a = b + c
+            call myfunc(d)
+        enddo
+        c = b + 1
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    # a value does not enter the scope (because we write it first in the scope)
+    a_ref = loop.loop_body[0].lhs
+    assert not a_ref.enters_scope(loop)
+    # b and c values enter the scope
+    b_ref = loop.loop_body[0].rhs.operands[0]
+    assert b_ref.enters_scope(loop)
+    c_ref = loop.loop_body[0].rhs.operands[1]
+    assert c_ref.enters_scope(loop)
+    # For 'd' we assume a readwrite access, but since it is a local we still
+    # know that the value does not enter the scope
+    d_ref = loop.loop_body[1].arguments[0]
+    assert not d_ref.enters_scope(loop)
+
+    # 'c' value does not leave the scope (because we write after the scope)
+    assert not c_ref.escapes_scope(loop)
+    # 'a' and 'd' value does not leave the scope (because we don't use them
+    # after the scope)
+    assert not a_ref.escapes_scope(loop)
+    assert not d_ref.escapes_scope(loop)
+    # 'b' value is used after the scope
+    assert b_ref.escapes_scope(loop)
+
+    # Do the same but with global instead of local symbols
+    code = """
+    subroutine my_subroutine()
+        use other
+
+        a = 0
+        call myfunc(b)
+        c = 0
+        do i=1, 10
+            a = b + c
+            call myfunc(d)
+        enddo
+        c = b + 1
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    # In this case for 'd' we cannot guarantee that it is not written somewhere
+    # else (e.g. inside myfunc) and the call assumed read uses the value
+    d_ref = loop.loop_body[1].arguments[0]
+    assert d_ref.enters_scope(loop)
+
+    # 'a' and 'd' we cannot guarantee that they are used somewhere not visible
+    # (e.g. after this subroutine) so they now escape the scope
+    a_ref = loop.loop_body[0].lhs
+    assert a_ref.escapes_scope(loop)
+    d_ref = loop.loop_body[1].arguments[0]
+    assert d_ref.escapes_scope(loop)
+
+
+def test_reference_enters_scope_multiple_conditional_source(fortran_reader):
+    ''' Test enters_scope with a conditional assignment inside the loop, but
+    all branches do assign to the variable of interest. '''
+    code = """
+    subroutine my_subroutine()
+      use other
+      INTEGER :: zice, jk, jj, ji, jpk, jpj, jpi
+
+      DO jk = 1, jpk
+         DO jj = 1, jpj
+            DO ji = 1, jpi
+               IF( tsn(ji,jj,jk) <= ztfreez(ji,jj) + 0.1d0 ) THEN; zice = 1.d0
+               ELSE                                              ; zice = 0.d0
+               ENDIF
+               zind(ji,jj,jk) = MAX (   &
+                   rnfmsk(ji,jj) * rnfmsk_z(jk),      &
+                   upsmsk(ji,jj)               ,      &
+                   zice                               &
+                   &                  ) * tmask(ji,jj,jk)
+                   zind(ji,jj,jk) = 1 - zind(ji,jj,jk)
+            END DO
+         END DO
+      END DO
+
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    zice_refs = [ref for ref in psyir.walk(Reference) if ref.name == "zice"]
+
+    # For all permutations fo zice_refs and loops it should say that zice does
+    # not enter the scope
+    for zice, loop in itertools.product(zice_refs, loops):
+        assert not zice.enters_scope(loop)
+
+    # Now repeat the test but enclosing the loops in a Profile region, so that
+    # we test the method is not getting confused with unrelated scoping regions
+    # enclosing the scope of interest.
+    p_trans = ProfileTrans()
+    p_trans.apply(loops[0])
+    for zice, loop in itertools.product(zice_refs, loops):
+        assert not zice.enters_scope(loop)

@@ -35,11 +35,13 @@
 #         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 #          J. Remy, Université Grenoble Alpes, Inria
+#          M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenMP PSyIR Directive nodes. '''
 
 import os
+import re
 import pytest
 import logging
 from psyclone.errors import UnresolvedDependencyError
@@ -59,7 +61,8 @@ from psyclone.psyir.nodes import (
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
     OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective,
-    StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective)
+    StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective,
+    AtomicDirectiveType)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
@@ -70,7 +73,7 @@ from psyclone.psyir.transformations.omp_taskloop_trans import OMPTaskloopTrans
 from psyclone.transformations import (
     LFRicOMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
-    OMPMasterTrans, OMPLoopTrans)
+    OMPMasterTrans, OMPLoopTrans, TransformationError)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")
@@ -673,6 +676,48 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
     assert "scalar2" in [x.name for x in fpvars]
 
 
+def test_infer_sharing_attributes_with_codeblocks(
+        fortran_reader, fortran_writer):
+    ''' Tests the infer_sharing_attributes() method when some of the loops have
+    Codeblocks inside it. We check that the infer_sharing attribute analysis
+    succeed by assuming worst case.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            use other, only: mystruct
+            integer :: i, j, scalar1 = 1, scalar2 = 2
+            real, dimension(10) :: array, array2
+            write(*,*) scalar1, scalar2
+            do j = 1, 10
+               do i = 1, size(array, 1)
+                   write(*,*) scalar2, mystruct(i)%field2
+                   if (.true.) then
+                       scalar1 = 1
+                       write(*,*) scalar1, mystruct(i)%field1
+                   end if
+                   scalar2 = scalar1 + 1
+                   write(*,*) scalar1, scalar2
+               enddo
+            enddo
+            write(*,*) scalar1, scalar2
+        end subroutine''')
+    omplooptrans = OMPLoopTrans()
+    omplooptrans.omp_directive = "paralleldo"
+    loop = psyir.walk(Loop)[0]
+    # Make sure that the write statements inside the loop are CodeBlocks,
+    # otherwise we need a new test example
+    assert loop.has_descendant(nodes.CodeBlock)
+    loop.explicitly_private_symbols.add(
+            loop.scope.symbol_table.lookup("scalar2"))
+    omplooptrans.apply(loop, node_type_check=False, force=True)
+
+    # Here we mostly check that the infer_sharing attributes doesn't fall
+    # over with CodeBlocks. This will often still be defensively firstprivate
+    # as we condiser all codeblock accesses as READWRITE.
+    output = fortran_writer(psyir)
+    assert "firstprivate(scalar1,scalar2)" in output
+
+
 def test_infer_sharing_attributes(fortran_reader):
     ''' Tests for the infer_sharing_attributes() method of OpenMP directives
     with generic code inside the directive body.
@@ -881,6 +926,29 @@ def test_infer_sharing_attributes(fortran_reader):
     assert len(sync) == 1
     assert list(sync)[0].name == 'k'
 
+    # Check that kinds on literals are ignored for data sharing clauses
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer, parameter :: ikind = 4
+            integer :: i, scalar1, scalar2
+            real, dimension(10) :: array
+            do i = 1, 10
+               array(i) = 1_ikind + INTEGER(i, ikind)
+            enddo
+        end subroutine''')
+    omplooptrans = OMPLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop)
+    omptrans = OMPParallelTrans()
+    routine = psyir.walk(Routine)[0]
+    omptrans.apply(routine.children)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
+    assert len(pvars) == 1
+    assert list(pvars)[0].name == 'i'
+    assert len(fpvars) == 0
+    assert len(sync) == 0
+
 
 def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
     ''' Tests for the infer_sharing_attributes() method of OpenMP directives
@@ -893,6 +961,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
             type(my_type) :: mt1, mt2
             real, dimension(10) :: array
             mt1%scalar1 = 3
+            mt2%scalar1 = 3
             do i = 1, 10
                if (i .eq. 4) then
                   mt2%field1%scalar1 = array(i)
@@ -903,9 +972,12 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
         end subroutine''')
     omptrans = OMPParallelTrans()
     routine = psyir.walk(Routine)[0]
-    omptrans.apply(routine.children)
+    omptrans.apply(routine.children[2])
     directive = psyir.walk(OMPParallelDirective)[0]
     pvars, fpvars, sync = directive.infer_sharing_attributes()
+    pytest.xfail("#2094: Currently we only support top-level derived types"
+                 "as OpenMP sharing attributes, but there are cases that "
+                 "more detail is necessary.")
     assert len(pvars) == 2
     assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
     assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar1'
@@ -921,6 +993,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
             integer :: i, scalar1
             type(my_type) :: mt1
             real, dimension(10) :: array
+            mt1%another_scalar = 3
             do i = 1, 10
                if (i .eq. 4) then
                   mt1%scalar1 = 3
@@ -930,7 +1003,7 @@ def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
         end subroutine''')
     omptrans = OMPParallelTrans()
     routine = psyir.walk(Routine)[0]
-    omptrans.apply(routine.children)
+    omptrans.apply(routine.children[1])
     directive = psyir.walk(OMPParallelDirective)[0]
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 1
@@ -1045,6 +1118,24 @@ def test_omp_parallel_validate_child():
             is True)
     assert OMPParallelDirective._validate_child(0, OMPDefaultClause()) is False
     assert OMPParallelDirective._validate_child(6, "test") is False
+
+
+def test_omp_do_validate_child():
+    ''' Test the validate_child method of OMPDoDirective'''
+    assert OMPDoDirective._validate_child(-1, None) is False
+    assert OMPDoDirective._validate_child(0, Schedule()) is True
+    rc = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    rc.addchild(Reference(Symbol("acc")))
+    assert OMPDoDirective._validate_child(1, rc) is True
+
+
+def test_omp_loop_validate_child():
+    ''' Test the validate_child method of OMPLoopDirective'''
+    assert OMPLoopDirective._validate_child(-1, None) is False
+    assert OMPLoopDirective._validate_child(0, Schedule()) is True
+    rc = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    rc.addchild(Reference(Symbol("acc")))
+    assert OMPLoopDirective._validate_child(1, rc) is True
 
 
 def test_omp_forward_dependence():
@@ -1637,8 +1728,6 @@ def test_omp_atomics_is_valid_atomic_statement(fortran_reader):
         integer :: i, j, val
 
         A(1,1) = A(1,1) ** 2  ! Operator is not supported
-        A(1,1) = A(2,1) * 2   ! The operands are different that the lhs
-        A(1,1) = A(1,1) / 2 + 3 - 5  ! A(1,1) is not a top-level operand
         A(:,1) = A(:,1) / 2      ! It is not a scalar expression
         A(1,1) = MOD(A(1,1), 3)  ! Intrinsic is not supported
         return
@@ -1690,11 +1779,35 @@ def test_omp_atomics_validate_global_constraints(fortran_reader, monkeypatch):
             "statement, but found: " in str(err.value))
 
 
+def test_omp_atomic_init_failure():
+    ''' Test the OMPAtomicDirective init routine fails when provided an
+    invalid directive_type.'''
+    with pytest.raises(TypeError) as excinfo:
+        _ = OMPAtomicDirective(directive_type=1)
+
+    assert ("OMPAtomicDirective expects an AtomicDirectiveType as the "
+            "directive_type but found 1." in str(excinfo.value))
+
+
 def test_omp_atomics_strings():
     ''' Test the OMPAtomicDirective begin and end strings '''
     atomic = OMPAtomicDirective()
-    assert atomic.begin_string() == "omp atomic"
+    assert atomic.begin_string() == "omp atomic update"
     assert atomic.end_string() == "omp end atomic"
+
+    atomic_read = OMPAtomicDirective(
+            directive_type=AtomicDirectiveType.READ
+    )
+    assert atomic_read.begin_string() == "omp atomic read"
+
+    atomic_write = OMPAtomicDirective(
+            directive_type=AtomicDirectiveType.WRITE
+    )
+    assert atomic_write.begin_string() == "omp atomic write"
+    atomic_capture = OMPAtomicDirective(
+            directive_type=AtomicDirectiveType.CAPTURE
+    )
+    assert atomic_capture.begin_string() == "omp atomic capture"
 
 
 def test_omp_simd_strings():
@@ -4651,3 +4764,588 @@ def test_omp_serial_check_dependency_valid_pairing():
     assert test_dir._check_dependency_pairing_valid(
                array_reference1, array_reference2, None, None
            )
+
+
+def test_add_reduction_clause_parallel_do(fortran_reader, fortran_writer):
+    ''' Test adding reduction clauses to OMPParallelDoDirective.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    loop = psyir.walk(Loop)[0]
+    loop_parent = loop.parent
+    loop_position = loop.position
+    do_directive = OMPParallelDoDirective(children=[loop.detach()])
+    loop_parent.addchild(do_directive, index=loop_position)
+    clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause.addchild(Reference(Symbol("acc")))
+    do_directive.addchild(clause)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_add_reduction_clause_do(fortran_reader, fortran_writer):
+    ''' Test adding reduction clauses to OMPDoDirective.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    loop = psyir.walk(Loop)[0]
+    OMPParallelTrans().apply(loop)
+    loop_parent = loop.parent
+    loop_position = loop.position
+    do_directive = OMPDoDirective(children=[loop.detach()])
+    loop_parent.addchild(do_directive, index=loop_position)
+    clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause.addchild(Reference(Symbol("acc")))
+    do_directive.addchild(clause)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_add_reduction_clause_loop(fortran_reader, fortran_writer):
+    ''' Test adding reduction clauses to OMPLoopDirective.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    loop = psyir.walk(Loop)[0]
+    OMPParallelTrans().apply(loop)
+    loop_parent = loop.parent
+    loop_position = loop.position
+    loop_directive = OMPLoopDirective(children=[loop.detach()])
+    loop_parent.addchild(loop_directive, index=loop_position)
+    clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause.addchild(Reference(Symbol("acc")))
+    loop_directive.addchild(clause)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_reduction_clause_eq(fortran_reader, fortran_writer):
+    ''' Test OMPParallelDoDirective equality with reduction clauses
+    '''
+    do_directive1 = OMPParallelDoDirective()
+    do_directive2 = OMPParallelDoDirective()
+    do_directive3 = OMPParallelDoDirective()
+
+    clause1 = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause1.addchild(Reference(Symbol("foo")))
+    do_directive1.addchild(clause1)
+
+    clause2 = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause2.addchild(Reference(Symbol("bar")))
+    do_directive2.addchild(clause2)
+
+    assert do_directive1 != do_directive2
+
+    clause3 = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.ADD)
+    clause3.addchild(Reference(Symbol("foo")))
+    do_directive3.addchild(clause3)
+
+    assert do_directive1 == do_directive3
+
+
+def test_add_reduction_clause_validation(fortran_reader, fortran_writer):
+    ''' Check that adding a reduction clause with a non-reduction clause
+        argument raises an error.
+    '''
+    do_directive = OMPDoDirective()
+    with pytest.raises(GenerationError) as err:
+        do_directive.addchild(OMPScheduleClause())
+    assert ("Item 'OMPScheduleClause' can't be child 1 of 'OMPDoDirective'"
+            in str(err.value))
+
+
+@pytest.mark.parametrize("op", ["*", "-", "*"])
+def test_reduction_arith_ops(op, fortran_reader, fortran_writer):
+    ''' Test that reduction loops involing arithmetic reduction operators are
+    parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source(f'''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc {op} arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert f"reduction({op}: acc)" in output
+
+
+@pytest.mark.parametrize("op", [".AND.", ".OR.", ".EQV.", ".NEQV."])
+def test_reduction_logical(op, fortran_reader, fortran_writer):
+    ''' Test that reduction loops involing logical reduction operators are
+    parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source(f'''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            logical :: acc = .false.
+
+            do i = 1, ubound(arr)
+                acc = acc {op} arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert f"reduction({op}: acc)" in output
+
+
+@pytest.mark.parametrize("op", ["MAX", "MIN", "IAND", "IOR", "IEOR"])
+def test_reduction_intrins(op, fortran_reader, fortran_writer):
+    ''' Test that reduction loops involing intrinsic reduction operators are
+    parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source(f'''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = {op}(acc, arr(i))
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert f"reduction({op}: acc)" in output
+
+
+def test_bracketed_reductions(fortran_reader, fortran_writer):
+    ''' Test that bracketed reductions are correctly detected.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = (arr(i) + i) + acc
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_multiple_reductions(fortran_reader, fortran_writer):
+    ''' Test that a loop containing multiple reductions is parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc
+            integer :: acc1 = 0
+            integer :: acc2 = 1
+
+            do i = 1, ubound(arr)
+                acc1 = acc1 + arr(i)
+                acc2 = acc2 * arr(i)
+            end do
+            acc = acc1 + acc2
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc1)" in output
+    assert "reduction(*: acc2)" in output
+
+
+def test_conditional_reduction(fortran_reader, fortran_writer):
+    ''' Test that a loop containing a reduction inside a conditional
+    is parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                if (arr(i) > 0) then
+                    acc = acc + arr(i)
+                end if
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_multiple_reduction_same_var(fortran_reader, fortran_writer):
+    ''' Test that a loop containing multiple reductions of the same
+    operator/variable pair is parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+                if (arr(i) > 0) then
+                    acc = acc + 1
+                end if
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_multiple_reduction_same_var_diff_op(fortran_reader, fortran_writer):
+    ''' Test that a loop containing multiple reductions of the same
+    variable, but involve different operators, is not parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+                if (arr(i) > 0) then
+                    acc = acc * 2
+                end if
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
+    assert ("Variable 'acc' is read first, which indicates a reduction"
+            in str(err.value))
+
+
+def test_nested_reductions(fortran_reader, fortran_writer):
+    ''' Tests that nested loops containing reductions can be collapsed.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:, :)
+            integer :: i, j
+            integer :: acc = 0
+
+            do j = 1, size(arr, 2)
+                do i = 1, size(arr, 1)
+                    acc = acc + arr(i, j)
+                end do
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, enable_reductions=True, collapse=2)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+    assert "collapse(2)" in output
+
+
+def test_non_reduction1(fortran_reader, fortran_writer):
+    ''' Test that a loop that looks like it contains a reduction (but
+    doesn't), is not parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sub(arr1, arr2) result (count)
+            integer, intent(in) :: arr1(:)
+            integer, intent(out) :: arr2(:)
+            integer :: i
+            integer :: count = 1
+
+            do i = 1, size(arr)
+                if (arr1(i) > 0) then
+                    count = count + 1
+                end if
+                arr2(i) = count
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
+    assert ("Variable 'count' is read first, which indicates a reduction"
+            in str(err.value))
+
+
+def test_non_reduction2(fortran_reader, fortran_writer):
+    ''' Test that x = x + x does not lead to a reduction clause.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sub(arr) result (count)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: count = 1
+
+            do i = 1, size(arr)
+                count = count + count
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
+    assert ("Variable 'count' is read first, which indicates a reduction"
+            in str(err.value))
+
+
+def test_non_reduction3(fortran_reader, fortran_writer):
+    ''' Test that x = x / 2 does not lead to a reduction clause.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sub(arr) result (count)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: count = 1
+
+            do i = 1, size(arr)
+                count = count / 2
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
+    assert ("Variable 'count' is read first, which indicates a reduction"
+            in str(err.value))
+
+
+@pytest.mark.parametrize("d", ["teamsdistributeparalleldo", "teamsloop"])
+def test_reduction_teams(d, fortran_reader, fortran_writer):
+    ''' Test that reduction loops with a teams directive are parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive=d)
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, options={"enable_reductions": True})
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+@pytest.mark.parametrize("d", ["do", "loop"])
+def test_reduction_do_loop(d, fortran_reader, fortran_writer):
+    ''' Test that reduction loops with a do/loop directive inside a parallel
+        region are parallelised.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive=d)
+    loop = psyir.walk(Loop)[0]
+    OMPParallelTrans().apply(loop)
+    omplooptrans.apply(loop, enable_reductions=True)
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_reduction_omp_parallel_loop_trans(fortran_reader, fortran_writer):
+    ''' Test that reduction loops are inferred in OMPParallelLoopTrans
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (acc)
+            integer, intent(in) :: arr(:)
+            integer :: i
+            integer :: acc = 0
+
+            do i = 1, ubound(arr)
+                acc = acc + arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, options={"enable_reductions": True})
+    output = fortran_writer(psyir)
+    assert "reduction(+: acc)" in output
+
+
+def test_reduction_struct_member(fortran_reader, fortran_writer):
+    ''' Test that reduction loops involving struct members are
+    not parallelised. This is not yet supported by OpenMP.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        function sum_arr(arr) result (struct)
+            use mod
+            integer, intent(in) :: arr(:)
+            integer :: i
+            type(struct_type) :: struct
+
+            struct%acc = 0
+            do i = 1, ubound(arr)
+                struct%acc = struct%acc + arr(i)
+            end do
+        end function''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, enable_reductions=True)
+    # TODO #2446 and #514: improve this error message in future
+    assert ("Variable 'struct%acc' is read first, which indicates a reduction"
+            in str(err.value))
+
+
+def test_reduction_private_clash(fortran_reader, fortran_writer):
+    '''Test that a variable does not occur in both a reduction clause
+       and a private clause.'''
+    psyir = fortran_reader.psyir_from_source('''
+        function or_arr(arr) result (acc)
+            logical, intent(in) :: arr(:)
+            integer :: i
+            logical :: acc = .false.
+
+            do i = 1, ubound(arr)
+                if (arr(i)) then
+                    acc = .true.
+                end if
+            end do
+        end function''')
+    loop = psyir.walk(Loop)[0]
+    loop_parent = loop.parent
+    loop_position = loop.position
+    do_directive = OMPParallelDoDirective(children=[loop.detach()])
+    loop_parent.addchild(do_directive, index=loop_position)
+    clause = OMPReductionClause(OMPReductionClause.ReductionClauseTypes.OR)
+    clause.addchild(Reference(Symbol("acc")))
+    do_directive.addchild(clause)
+    output = fortran_writer(psyir)
+    assert "reduction(.OR.: acc)" in output
+    private_search = re.search("private\\((.*?)\\)", output)
+    if private_search:
+        assert "acc" not in private_search.group(1)
+
+
+def test_firstprivate_with_uninitialised(fortran_reader, fortran_writer):
+    ''' Check that guaranteed uninitialised symbols are not put in
+    firstprivate clauses. '''
+    code = '''
+    module test
+        integer :: a
+    contains
+        subroutine my_subroutine(b, cond)
+            integer, intent(inout) :: b, cond
+            integer :: c = 1, d, i, result
+            integer :: not_initialised
+
+            d = 1
+
+            do i = 10, 10, 1
+                if(cond < 1) then
+                    a = 1
+                    b = 1
+                    c = 1
+                    d = 1
+                    not_initialised = 1
+                    result = a + b + c + d + not_initialised
+                endif
+            end do
+        end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelLoopTrans()
+    loops = psyir.walk(Loop)
+    ptrans.apply(loops[0])
+    output = fortran_writer(psyir)
+    assert "private(i,not_initialised)" in output
+    assert "firstprivate(a,b,c,d)" in output
+
+    # Check that complex initialised cases, such as Codeblocks and
+    # initialisations below the loop are caught as a firstprivate
+    code = '''
+    module test
+    contains
+        subroutine my_subroutine(cond)
+            integer, intent(inout) :: cond
+            integer :: a, b, i, j, result
+
+            read(*,*) b
+
+            do j = 1, 10
+                if (j .neq. 1) then
+                    do i = 10, 10, 1
+                        if(cond < 1) then
+                            a = 1
+                        endif
+                        result = a
+                    end do
+                endif
+                a = 1
+            end do
+            do i = 10, 10, 1
+                if(cond < 1) then
+                    b = 1
+                endif
+                result = b
+            end do
+        end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelLoopTrans()
+    loops = psyir.walk(Loop)
+    ptrans.apply(loops[1])
+    ptrans.apply(loops[2])
+    output = fortran_writer(psyir)
+    assert "firstprivate(a)" in output
+    assert "firstprivate(b)" in output

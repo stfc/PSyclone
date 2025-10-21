@@ -1544,14 +1544,18 @@ class SymbolTable():
         :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.datanode import DataNode
+        from psyclone.psyir.nodes.reference import Reference
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
         for sym in self.datasymbols:
             # Not all types have the 'precision' attribute (e.g.
             # UnresolvedType)
             if (hasattr(sym.datatype, "precision") and
-                    isinstance(sym.datatype.precision, DataSymbol)):
-                precision_symbols.add(sym.datatype.precision)
+                    isinstance(sym.datatype.precision, DataNode)):
+                for ref in sym.datatype.precision.walk(Reference):
+                    precision_symbols.add(ref.symbol)
         return list(precision_symbols)
 
     @property
@@ -1737,14 +1741,13 @@ class SymbolTable():
                 # This Symbol matches the name of a symbol at the import site.
                 local_sym = self.lookup(local_name)
                 interface = local_sym.interface
-                visibility = local_sym.visibility
 
                 # Found a match, update the interface if necessary or raise
                 # an error if it is an ambiguous match
                 if isinstance(interface, UnresolvedInterface):
                     # Now we know where the symbol is coming from
-                    interface = ImportInterface(csymbol,
-                                                orig_name=orig_name)
+                    local_sym.interface = ImportInterface(csymbol,
+                                                          orig_name=orig_name)
                 elif isinstance(interface, ImportInterface):
                     # If it is already an ImportInterface we don't need
                     # to update the interface information
@@ -1770,11 +1773,10 @@ class SymbolTable():
                         else:
                             local_sym.specialise(type(imported_sym))
 
-                    local_sym.copy_properties(imported_sym)
-                    # Restore the interface and visibility as these are
-                    # local (not imported) properties
-                    local_sym.interface = interface
-                    local_sym.visibility = visibility
+                    # Copy over the properties of the imported Symbol but don't
+                    # update the interface as this is a local property.
+                    local_sym.copy_properties(imported_sym,
+                                              exclude_interface=True)
             else:
                 # This table did not already contain a symbol with this
                 # name.
@@ -1911,7 +1913,7 @@ class SymbolTable():
                 symbol_target=symbol_target)
 
             for isym in imported_symbols:
-                # Determine if there is an Unresolved Symbol in a descendent
+                # Determine if there is an Unresolved Symbol in a descendant
                 # symbol table that matches the name of the symbol we are
                 # importing. If there is no intervening wildcard import then
                 # we must have now resolved that symbol so move it to this

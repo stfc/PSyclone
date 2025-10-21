@@ -35,6 +35,7 @@
 #         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified M. Naylor, University of Cambridge, UK
 
 '''
 API-agnostic tests for various transformation classes.
@@ -573,11 +574,11 @@ def test_omploop_trans_new_options(sample_psyir):
     # options.
     with pytest.raises(ValueError) as excinfo:
         omplooptrans.apply(tree.walk(Loop)[0], fakeoption1=1, fakeoption2=2)
-    print(excinfo.value)
     assert ("'OMPLoopTrans' received invalid options ['fakeoption1', "
             "'fakeoption2']. Valid options are '['node_type_check', "
             "'verbose', 'collapse', 'force', 'ignore_dependencies_for', "
-            "'privatise_arrays', 'sequential', 'nowait', 'reprod']."
+            "'privatise_arrays', 'sequential', 'nowait', 'reduction_ops', "
+            "'options', 'reprod', 'enable_reductions']."
             in str(excinfo.value))
 
     # Check we get the relevant error message when submitting multiple

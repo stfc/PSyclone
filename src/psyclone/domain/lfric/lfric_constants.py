@@ -56,7 +56,11 @@ class LFRicConstants():
     '''
     HAS_BEEN_INITIALISED = False
 
-    def __init__(self):
+    #: Dictionary allowing us to look-up the name of the Fortran modules
+    #: that store various utilities in LFRic.
+    UTILITIES_MOD_MAP: dict[str, dict[str, str]]
+
+    def __init__(self) -> None:
         # pylint: disable=too-many-statements
         if LFRicConstants.HAS_BEEN_INITIALISED:
             return
@@ -236,8 +240,8 @@ class LFRicConstants():
             # Iterate over the cells of a given colour and tile
             "cells_in_tile"]
 
-        # Valid LFRic iteration spaces for built-in kernels
-        LFRicConstants.BUILTIN_ITERATION_SPACES = ["dof"]
+        # Valid LFRic iteration spaces for kernels that operate on dofs
+        LFRicConstants.DOF_ITERATION_SPACES = ["dof", "owned_dof"]
 
         # The types of argument that are valid for built-in kernels in the
         # LFRic API
@@ -255,16 +259,26 @@ class LFRicConstants():
             "halo_cell_column",
             "owned_and_halo_cell_column"]
 
+        LFRicConstants.CELL_COLUMN_ITERATION_SPACES = (
+            ["cell_column", "owned_cell_column"] +
+            LFRicConstants.HALO_KERNEL_ITERATION_SPACES)
+
         # Valid LFRic iteration spaces for user-supplied kernels and
         # built-in kernels
-        LFRicConstants.USER_KERNEL_ITERATION_SPACES = [
-            "cell_column", "domain", "dof"
-            ] + LFRicConstants.HALO_KERNEL_ITERATION_SPACES
+        LFRicConstants.USER_KERNEL_ITERATION_SPACES = (
+            ["domain"] + LFRicConstants.DOF_ITERATION_SPACES +
+            LFRicConstants.CELL_COLUMN_ITERATION_SPACES)
 
+        # Now that user-supplied kernels can operate on dofs,
+        # VALID_ITERATION_SPACES is actually the same as
+        # USER_KERNEL_ITERATION_SPACES but we retain it for clarity.
         LFRicConstants.VALID_ITERATION_SPACES = \
-            list(OrderedDict.fromkeys(
-                LFRicConstants.USER_KERNEL_ITERATION_SPACES +
-                LFRicConstants.BUILTIN_ITERATION_SPACES))
+            LFRicConstants.USER_KERNEL_ITERATION_SPACES
+
+        # Those iteration spaces for which redundant computation is forbidden.
+        LFRicConstants.NO_RC_ITERATION_SPACES = [
+            "owned_cell_column",
+            "owned_dof"]
 
         # ---------- Function spaces (FS) -------------------------------------
         # Discontinuous FS
@@ -393,12 +407,6 @@ class LFRicConstants():
                            "proxy_type": "r_bl_field_proxy_type",
                            "intrinsic": "real",
                            "kind": "r_bl"},
-            # 'real'-valued field with data of kind 'r_phys'
-            "r_phys_field": {"module": "r_phys_field_mod",
-                             "type": "r_phys_field_type",
-                             "proxy_type": "r_phys_field_proxy_type",
-                             "intrinsic": "real",
-                             "kind": "r_phys"},
             # 'integer'-valued field with data of kind 'i_def'
             "integer_field": {"module": "integer_field_mod",
                               "type": "integer_field_type",
@@ -439,8 +447,7 @@ class LFRicConstants():
             "field_vector_type": "field_type",
             "r_solver_field_vector_type": "r_solver_field_type",
             "r_tran_field_vector_type": "r_tran_field_type",
-            "r_bl_field_vector_type": "r_bl_field_type",
-            "r_phys_field_vector_type": "r_phys_field_type"}
+            "r_bl_field_vector_type": "r_bl_field_type"}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.

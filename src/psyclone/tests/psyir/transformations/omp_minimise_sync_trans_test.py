@@ -39,10 +39,13 @@ import pytest
 from psyclone.psyir.nodes import (
         Loop, Routine, Node, OMPBarrierDirective,
         OMPTaskwaitDirective, OMPDoDirective,
-        OMPTargetDirective)
+        OMPTargetDirective, OMPParallelDirective)
 from psyclone.psyir.transformations import (
         OMPLoopTrans, OMPMinimiseSyncTrans,
         OMPTargetTrans, TransformationError
+)
+from psyclone.psyir.transformations.omp_minimise_sync_trans import (
+        _eliminate_final_parallel_barrier
 )
 from psyclone.transformations import OMPParallelTrans
 
@@ -200,6 +203,15 @@ def test_omp_remove_barrier_get_max_barrier_dependency():
     assert OMPMinimiseSyncTrans._get_max_barrier_dependency(barriers) == 3
 
 
+def test_eliminate_final_parallel_barrier(fortran_reader):
+    '''Tests the eliminate_final_parallel_barrier routine.'''
+    par = OMPParallelDirective()
+    bar = OMPBarrierDirective()
+    par.dir_body.addchild(bar)
+    _eliminate_final_parallel_barrier(par)
+    assert bar.parent is None
+
+
 def test_basic_barrier_removal(fortran_reader, fortran_writer):
     ''' Tests the basic barrier removal idea - 4 loops A, B, C, D.
     A => D and B=> C are the dependencies - we only need a barrier between
@@ -243,7 +255,7 @@ def test_basic_barrier_removal(fortran_reader, fortran_writer):
     rtrans = OMPMinimiseSyncTrans()
 
     rtrans.apply(routine)
-    assert len(psyir.walk(OMPBarrierDirective)) == 2
+    assert len(psyir.walk(OMPBarrierDirective)) == 1
     correct = """  !$omp do schedule(auto)
   do i = 1, 100, 1
     a(i) = i
@@ -265,7 +277,6 @@ def test_basic_barrier_removal(fortran_reader, fortran_writer):
     a(i) = a(i) + 1
   enddo
   !$omp end do nowait
-  !$omp barrier
   !$omp end parallel"""
     out = fortran_writer(psyir)
     assert correct in out

@@ -64,7 +64,7 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', REAL_DOUBLE_TYPE), DataSymbol)
     assert isinstance(DataSymbol('a', REAL4_TYPE), DataSymbol)
     kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
-    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, kind)
+    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind))
     assert isinstance(DataSymbol('a', real_kind_type),
                       DataSymbol)
     assert isinstance(DataSymbol('a', INTEGER_SINGLE_TYPE), DataSymbol)
@@ -482,18 +482,23 @@ def test_datasymbol_copy_properties():
     new_symbol = DataSymbol("other_name", INTEGER_SINGLE_TYPE,
                             initial_value=7)
 
-    symbol.copy_properties(new_symbol)
+    # Copy properties excluding the interface.
+    symbol.copy_properties(new_symbol, exclude_interface=True)
 
     assert symbol.name == "myname"
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
-    assert symbol.is_automatic
+    # Interface should be unchanged.
+    assert not symbol.is_automatic
     assert isinstance(symbol.initial_value, Literal)
     assert symbol.initial_value.value == "7"
     assert (symbol.initial_value.datatype.intrinsic ==
             symbol.datatype.intrinsic)
     assert (symbol.initial_value.datatype.precision ==
             symbol.datatype.precision)
+    # Repeat but this time include the interface.
+    symbol.copy_properties(new_symbol)
+    assert symbol.is_automatic
 
 
 def test_datasymbol_resolve_type(monkeypatch):
@@ -540,8 +545,8 @@ def test_datasymbol_replace_symbols_using():
     '''
     kind = DataSymbol("i_def", INTEGER_SINGLE_TYPE)
     rkind = DataSymbol("r_def", INTEGER_SINGLE_TYPE)
-    int_kind_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind)
-    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, rkind)
+    int_kind_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(kind))
+    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(rkind))
     istart = DataSymbol("start", INTEGER_SINGLE_TYPE)
     istop = DataSymbol("stop", INTEGER_SINGLE_TYPE)
     atype = ArrayType(real_kind_type, [(Reference(istart), Reference(istop)),
@@ -560,8 +565,8 @@ def test_datasymbol_replace_symbols_using():
     new_stop = istop.copy()
     table.add(new_stop)
     sym3.replace_symbols_using(table)
-    assert sym3.datatype.precision is new_rkind
-    assert sym3.initial_value.datatype.precision is new_kind
+    assert sym3.datatype.precision.symbol is new_rkind
+    assert sym3.initial_value.datatype.precision.symbol is new_kind
     for dim in sym3.datatype.shape[:-1]:
         assert dim.lower.symbol is new_start
         assert dim.upper.symbol is new_stop
@@ -569,7 +574,7 @@ def test_datasymbol_replace_symbols_using():
     atype2 = ArrayType(int_kind_type, [ArrayType.Extent.ATTRIBUTE])
     sym4 = DataSymbol("d", atype2)
     sym4.replace_symbols_using(table)
-    assert sym4.datatype.precision is new_kind
+    assert sym4.datatype.precision.symbol is new_kind
 
 
 def test_datasymbol_reference_accesses():
@@ -579,7 +584,7 @@ def test_datasymbol_reference_accesses():
 
     '''
     kind = DataSymbol("i_def", INTEGER_SINGLE_TYPE)
-    int_kind_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind)
+    int_kind_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(kind))
     sym3 = DataSymbol("c", REAL_SINGLE_TYPE,
                       initial_value=Literal("1", int_kind_type))
     vai3 = sym3.reference_accesses()

@@ -228,7 +228,7 @@ def test_get_callees_mixed_precision_match():
     kernels = sched.walk(LFRicKern, stop_type=LFRicKern)
     # 26.8 contains an invoke of five kernels, one each at the following
     # precisions.
-    kernel_precisions = ["r_def", "r_solver", "r_tran", "r_bl", "r_phys"]
+    kernel_precisions = ["r_def", "r_solver", "r_tran", "r_bl"]
     # Get the precision (in bytes) for each of these.
     precisions = [api_config.precision_map[name] for
                   name in kernel_precisions]
@@ -410,7 +410,7 @@ def test_validate_kernel_code_arg(monkeypatch):
         "following error was found: An argument to an LFRic kernel must have a"
         " precision defined by either a recognised LFRic type parameter (one "
         "of ['i_def', 'l_def', 'r_bl', 'r_def', 'r_double', 'r_ncdf', "
-        "'r_phys', 'r_quad', 'r_second', 'r_single', 'r_solver', 'r_tran', "
+        "'r_quad', 'r_second', 'r_single', 'r_solver', 'r_tran', "
         "'r_um']) or an integer number of bytes but argument "
         "'generic_int_scalar' to kernel 'dummy' has precision "
         "Precision.UNDEFINED" in str(info.value))
@@ -547,6 +547,19 @@ def test_undf_name():
     kern = sched.walk(LFRicKern)[0]
 
     assert kern.undf_name == "undf_w1"
+
+
+def test_kern_owned_cell_no_annexed(monkeypatch):
+    '''
+    Test that creating a kernel with OPERATES_ON=owned_cell_column raises
+    an error if COMPUTE_ANNEXED_DOFS is True.
+    '''
+    config = Config.get().api_conf("lfric")
+    monkeypatch.setattr(config, "_compute_annexed_dofs", True)
+    with pytest.raises(GenerationError) as err:
+        _ = get_invoke("1.4.5_owned_only_invoke.f90", api=TEST_API, idx=0)
+    assert ("Kernel 'testkern_owned_cell_code' cannot perform redundant "
+            "computation (has" in str(err.value))
 
 
 def test_argument_kinds():
