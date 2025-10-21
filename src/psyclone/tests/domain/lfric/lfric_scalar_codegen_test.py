@@ -615,7 +615,7 @@ def test_scalar_array(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
     generated_code = str(psy.gen)
-    expected = ("test to fail\n")
+    expected = "test to fail\n"
 
     print("Generated code - ")
     print(generated_code)
