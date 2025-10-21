@@ -193,9 +193,10 @@ class LFRicScalarArgs(LFRicCollection):
                     else:
                         raise InternalError(
                             f"Found an unsupported data type "
-                            f"'{arg.descriptor.data_type}' for the ScalarArray "
-                            f"argument '{arg.declaration_name}'. Supported types "
-                            f"are {const.VALID_SCALAR_DATA_TYPES}.")
+                            f"'{arg.descriptor.data_type}' for the "
+                            f"ScalarArray argument '{arg.declaration_name}'"
+                            f". Supported types are "
+                            f"{const.VALID_SCALAR_DATA_TYPES}.")
                 else:
                     if arg.descriptor.data_type == "gh_real":
                         self._real_scalars[intent].append(arg)
@@ -207,8 +208,9 @@ class LFRicScalarArgs(LFRicCollection):
                         raise InternalError(
                             f"Found an unsupported data type "
                             f"'{arg.descriptor.data_type}' for the scalar "
-                            f"argument '{arg.declaration_name}'. Supported types "
-                            f"are {const.VALID_SCALAR_DATA_TYPES}.")
+                            f"argument '{arg.declaration_name}'. "
+                            f"Supported types are "
+                            f"{const.VALID_SCALAR_DATA_TYPES}.")
 
         # Create declarations
         self._create_declarations()
