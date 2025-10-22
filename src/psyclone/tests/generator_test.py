@@ -1167,6 +1167,102 @@ def trans(psyir):
     assert "module newname\n" in new_code
 
 
+def test_code_transformation_free_form(tmpdir, capsys):
+    '''Test that the free-form option works for code transformation.'''
+    code = '''
+    subroutine test
+    integer :: n
+    n = 3 + 4
+    end subroutine'''
+    # Using a fixed format file extension to check the --free-form
+    # option is correctly overriding the default behaviour.
+    inputfile = str(tmpdir.join("free_form.f"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([inputfile, "--free-form"])
+    captured, _ = capsys.readouterr()
+    correct = """subroutine test()
+  integer :: n
+
+  n = 3 + 4
+
+end subroutine test"""
+    assert correct in captured
+
+
+def test_code_transformation_fixed_form(tmpdir, capsys, caplog):
+    ''' Test that the fixed-form option works for code transformation.'''
+    code = '''
+      subroutine test
+c     Comment here.
+      integer n
+
+      n = 3 +
+     &4
+      end subroutine'''
+    inputfile = str(tmpdir.join("fixed_form.f90"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([inputfile, "--fixed-form"])
+    captured, _ = capsys.readouterr()
+    correct = """subroutine test()
+  integer :: n
+
+  n = 3 + 4
+
+end subroutine test"""
+    assert correct in captured
+
+    with pytest.raises(SystemExit) as error:
+        main([inputfile])
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    assert error.value.code == 1
+    out, err = capsys.readouterr()
+    assert ("Failed to create PSyIR from file " in err)
+    assert ("File was treated as free form" in err)
+
+    # Check that if we use a fixed form file extension we get the expected
+    # behaviour.
+    code = '''
+      subroutine test
+c     Comment here.
+      integer n
+
+      n = 3 +
+     &4
+      end subroutine'''
+    inputfile = str(tmpdir.join("fixed_form.f"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([inputfile])
+    captured, _ = capsys.readouterr()
+    correct = """subroutine test()
+  integer :: n
+
+  n = 3 + 4
+
+end subroutine test"""
+    assert correct in captured
+
+    caplog.clear()
+    # Check an unknown file extension gives a log message and fails for a
+    # fixed form input.
+    with caplog.at_level(logging.INFO):
+        inputfile = str(tmpdir.join("fixed_form.1s2"))
+        with open(inputfile, "w", encoding='utf-8') as my_file:
+            my_file.write(code)
+        with pytest.raises(SystemExit) as error:
+            main([inputfile])
+        assert error.value.code == 1
+        out, err = capsys.readouterr()
+        assert ("Failed to create PSyIR from file " in err)
+        assert caplog.records[0].levelname == "INFO"
+        assert ("' doesn't end with a recognised "
+                "file extension. Assuming free form." in
+                caplog.record_tuples[0][2])
+
+
 @pytest.mark.parametrize("validate", [True, False])
 def test_code_transformation_backend_validation(validate: bool,
                                                 monkeypatch) -> None:
@@ -1312,7 +1408,10 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     assert ("Error, unexpected exception, please report to the authors:"
             in output)
     assert "Traceback (most recent call last):" in output
-    assert "TypeError: argument of type 'int' is not iterable" in output
+    # Python >= 3.14 uses "is not a container or iterable",
+    # so we split the assertion for cross-version support
+    assert "TypeError: argument of type 'int' is not " in output
+    assert "iterable" in output
 
 
 def test_main_fort_line_length_off(capsys):
@@ -1924,3 +2023,16 @@ def test_generate_unresolved_container_gocean(tmpdir):
     assert ("alg.f90' must be named in a use statement (found "
             "['kind_params_mod', 'grid_mod', 'field_mod', 'module_mod'])."
             in str(info.value))
+
+
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_ignore_pattern():
+    '''Checks that we can pass ignore patterns to the module manager.
+    '''
+    alg = os.path.join(get_base_path("lfric"), "1_single_invoke.f90")
+    main(["-api", "lfric", alg,
+          "--modman-file-ignore", "abc1",
+          "--modman-file-ignore", "abc2"])
+
+    mod_man = ModuleManager.get()
+    assert mod_man._ignore_files == set(["abc1", "abc2"])
