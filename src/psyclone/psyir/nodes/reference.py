@@ -193,6 +193,14 @@ class Reference(DataNode):
         '''
         return (Signature(self.name), [[]])
 
+    def get_all_accessed_symbols(self) -> Set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this Symbol.
+        '''
+        symbols = super().get_all_accessed_symbols()
+        symbols.add(self.symbol)
+        return symbols
+
     def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the

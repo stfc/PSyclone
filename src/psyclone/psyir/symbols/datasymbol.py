@@ -39,8 +39,11 @@
 ''' This module contains the DataSymbol and its interfaces.'''
 
 from __future__ import annotations
+from typing import Set
+
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.psyir.symbols.interfaces import StaticInterface
+from psyclone.psyir.symbols.symbol import Symbol
 
 
 class DataSymbol(TypedSymbol):
@@ -383,20 +386,14 @@ class DataSymbol(TypedSymbol):
                     continue
                 bnd.replace_symbols_using(table_or_symbol)
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> Set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this Symbol, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this Symbol.
         '''
-        access_info = super().reference_accesses()
-
+        symbols = super().get_all_accessed_symbols()
         if self.initial_value:
-            access_info.update(self.initial_value.reference_accesses())
-        return access_info
+            symbols.update(self.initial_value.get_all_accessed_symbols())
+        return symbols
 
     def get_bounds(self, idx: int):
         '''

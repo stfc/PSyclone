@@ -41,6 +41,7 @@
 '''
 
 from __future__ import annotations
+from typing import Set
 import abc
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
@@ -264,28 +265,18 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         else:
             self._datatype.replace_symbols_using(table_or_symbol)
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> Set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this object, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this DataType.
         '''
-        access_info = super().reference_accesses()
+        symbols = super().get_all_accessed_symbols()
 
         if self.is_import:
             # We ignore any dependencies associated with imported symbols.
-            return access_info
+            return symbols
 
         if isinstance(self.datatype, DataTypeSymbol):
-            # pylint: disable=import-outside-toplevel
-            from psyclone.core.signature import Signature
-            from psyclone.core.access_type import AccessType
-            access_info.add_access(
-                Signature(self.datatype.name),
-                AccessType.TYPE_INFO, self)
+            symbols.add(self.datatype)
         else:
-            access_info.update(self.datatype.reference_accesses())
-        return access_info
+            symbols.update(self.datatype.get_all_accessed_symbols())
+        return symbols
