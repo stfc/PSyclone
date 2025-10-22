@@ -45,7 +45,6 @@ from psyclone.core import VariablesAccessMap
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import ArrayType, DataSymbol
 
 
 class KernStubArgList(ArgOrdering):

@@ -210,7 +210,7 @@ class LFRicKern(CodedKern):
                         f"data types for a scalar argument but found "
                         f"'{descriptor.data_type}'.")
                 if (descriptor.argument_type.lower() in
-                    const.VALID_ARRAY_NAMES):
+                        const.VALID_ARRAY_NAMES):
                     pre += "array_"
             else:
                 raise GenerationError(

@@ -604,6 +604,7 @@ def test_three_scalars(tmpdir):
     assert expected in generated_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+
 def test_scalar_array(tmpdir):
     ''' Tests that we generate correct code when a kernel has all three
     types of valid scalar array argument: 'real', 'integer' and 'logical'.

@@ -789,10 +789,12 @@ class ArgOrdering:
                     [scalar_arg._array_ndims]))
             print(dims_sym)
             print(dims_sym.name)
+            arr_type = LFRicTypes("LFRicIntegerScalarDataType")()
             self.append_array_reference(array_name=dims_sym.name,
-                    indices=[":"],
-                    intrinsic_type=LFRicTypes("LFRicIntegerScalarDataType")(),
-                    tag=dims_sym.name, symbol=dims_sym)
+                                        indices=[":"],
+                                        intrinsic_type=arr_type,
+                                        tag=dims_sym.name,
+                                        symbol=dims_sym)
             self.append(dims_sym, var_accesses, mode=AccessType.READ)
         else:
             if scalar_arg.is_literal:

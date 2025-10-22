@@ -134,11 +134,11 @@ class LFRicScalarArgs(LFRicCollection):
             lscal = [arg.declaration_name for
                      arg in self._logical_scalars[intent]]
             rscalarr = [arg.declaration_name for
-                     arg in self._real_scalar_arrays[intent]]
+                        arg in self._real_scalar_arrays[intent]]
             iscalarr = [arg.declaration_name for
-                     arg in self._integer_scalar_arrays[intent]]
+                        arg in self._integer_scalar_arrays[intent]]
             lscalarr = [arg.declaration_name for
-                     arg in self._logical_scalar_arrays[intent]]
+                        arg in self._logical_scalar_arrays[intent]]
             # Add "real", "integer" and "logical" scalar lists for checks
             decl_scal = rscal + iscal + lscal + rscalarr + iscalarr + lscalarr
             # Check for unsupported intrinsic types
@@ -310,6 +310,7 @@ class LFRicScalarArgs(LFRicCollection):
                     symbol.interface = ArgumentInterface(
                                         INTENT_MAPPING[intent])
                     self.symtab.append_argument(symbol)
+
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate

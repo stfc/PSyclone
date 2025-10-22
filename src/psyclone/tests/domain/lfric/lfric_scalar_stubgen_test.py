@@ -137,6 +137,7 @@ def test_stub_generate_with_scalar_sums_err():
         "argument but kernel 'simple_with_reduction_type' has a scalar "
         "argument with 'gh_sum' access." in str(err.value))
 
+
 def test_stub_generate_with_scalar_array():
     ''' Check that the stub generate produces the expected output when
     the kernel has ScalarArray arguments. '''
