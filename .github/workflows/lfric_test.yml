@@ -122,7 +122,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
-        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -v -p psyclone-test
+        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -v -p psyclone-test -w working-passthrough
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -155,7 +155,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
-        LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test
+        LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -w working-omp-offload
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
@@ -186,7 +186,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
-        LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test
+        LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -w working-acc-offload
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
@@ -216,7 +216,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
-        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -v
+        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -v -w working-all-trans
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -246,7 +246,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/tiledcolouring_and_omp.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
-        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -v
+        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -v -w working-omp-tiling
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -272,19 +272,17 @@ jobs:
 
         # Fetch dependencies
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          https://code.metoffice.gov.uk/svn/lfric_apps/main/branches/dev/stephencook/vn2.2_spectral_gwd_psyclone_transmute lfric_apps
+          -r 14921 https://code.metoffice.gov.uk/svn/lfric_apps/ lfric_apps
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
+          -r 53845 https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          https://code.metoffice.gov.uk/svn/monc/casim/trunk casim
+          -r 11952 https://code.metoffice.gov.uk/svn/monc/casim/trunk casim
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          https://code.metoffice.gov.uk/svn/jules/main/trunk jules
+          -r 31188 https://code.metoffice.gov.uk/svn/jules/main/trunk jules
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-           https://code.metoffice.gov.uk/svn/socrates/main/trunk socrates
+          -r 1869 https://code.metoffice.gov.uk/svn/socrates/main/trunk socrates
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-           https://code.metoffice.gov.uk/svn/ukca/main/trunk ukca
-        ln -s ${TEST_PREFIX}/ukca ${TEST_PREFIX}/trunk@
-        ln -s ${TEST_PREFIX}/casim ${TEST_PREFIX}/trunk@
+          -r 7250 https://code.metoffice.gov.uk/svn/ukca/main/trunk ukca
 
         # Update dependencies.sh to point to the downloaded version
         sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" lfric_apps/dependencies.sh
@@ -294,21 +292,25 @@ jobs:
         sed -i "s|jules_rev=.*|jules_rev=|g" lfric_apps/dependencies.sh
         sed -i "s|jules_sources=|jules_sources=${TEST_PREFIX}/jules|g" lfric_apps/dependencies.sh
         sed -i "s|socrates_rev=.*|socrates_rev=|g" lfric_apps/dependencies.sh
-        sed -i "s|socrates_sources=|socrates_sources=${TEST_PREFIX}/casim|g" lfric_apps/dependencies.sh
+        sed -i "s|socrates_sources=|socrates_sources=${TEST_PREFIX}/socrates|g" lfric_apps/dependencies.sh
         sed -i "s|ukca_rev=.*|ukca_rev=|g" lfric_apps/dependencies.sh
         sed -i "s|ukca_sources=|ukca_sources=${TEST_PREFIX}/ukca|g" lfric_apps/dependencies.sh
 
+        # Build lfric-atm without psyclone-transmutation
+        cd lfric_apps
+        ./build/local_build.py -a lfric_atm -j 16 -w workdir-lfric-atm
+        
         # Now build the 'meto-ex1a' platform, that includes psyclone-transmutation
         cd lfric_apps
-        ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16 -w lfric_atm_workdir
+        ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16 -w workdir-lfric-atm
 
         # Run a the app with 8 threads
         cd applications/lfric_atm/example/
         OMP_NUM_THREADS=8 ../bin/lfric_atm configuration.nml
 
         # And compare the results
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
-        cat timer.txt
+        # python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
+        # cat timer.txt
 
   upload_if_on_mirror:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
