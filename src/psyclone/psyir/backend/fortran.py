@@ -892,7 +892,7 @@ class FortranWriter(LanguageWriter):
         # inputs satisfied. Creating a declaration for a given symbol removes
         # that symbol as a dependence from any outstanding declarations and
         # adds it to the 'declared' set.
-        declared = set()
+        declared: set[Symbol] = set()
         while local_constants:
             for symbol in local_constants[:]:
                 inputs = decln_inputs[symbol]

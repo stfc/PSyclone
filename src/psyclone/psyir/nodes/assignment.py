@@ -197,7 +197,7 @@ class Assignment(Statement):
             except InternalError as err:
                 # An internal error typically indicates that the same variable
                 # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
-                # supported in .
+                # supported in PSyclone.
                 raise NotImplementedError(
                     f"The variable '{self.lhs.name}' appears more than once on"
                     f" the left-hand side of an assignment.") from err

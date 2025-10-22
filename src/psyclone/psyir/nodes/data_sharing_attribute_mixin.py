@@ -252,6 +252,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             # and we found that loops with many codeblocks are slow to
             # process, so if we have more than a certain number of codeblocks
             # we skip the analysis and just return firstprivate for all symbols
+            # TODO #3183: If enters_scope gets faster we can get rid of this
             return True
 
         # Check if it gets a value from before the loop
