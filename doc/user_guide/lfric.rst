@@ -1758,14 +1758,18 @@ Number of Layers Metadata
 
 If a particular field argument to a kernel has a number of vertical levels
 that is not the same as the extruded mesh then this must be specified using
-the ``NLEVELS`` option to GH_FIELD, e.g.::
+the ``NLAYERS`` option to ``GH_FIELD``, e.g.::
 
-  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLEVELS=1)
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS=1)
 
-The value specified for ``NLEVELS`` may be a literal if it is known at
+The value specified for ``NLAYERS`` may be a literal if it is known at
 compile time. Alternatively, it may be given the special value
-``GH_RUNTIME`` which means that the number of levels is to be determined
-at runtime (in the generated PSy layer).
+``GH_RUNTIME`` which means that the number of levels is to be
+determined at runtime by querying the field object (in the generated
+PSy layer). If two different field arguments are on the same function
+space but both have ``NLAYERS=GH_RUNTIME`` then it is assumed that
+they may have *different* values of ``NLAYERS`` and hence a separate
+dofmap is passed to the kernel for each.
 
 
 Multi-Data Metadata
@@ -1779,8 +1783,9 @@ the optional ``NDATA`` argument to GH_FIELD, e.g.::
 
 The value specified for ``NDATA`` may be a literal if it is known at
 compile time. Alternatively, it may be given the special value
-``GH_RUNTIME`` which means that the number of data values at each DoF is to be
-determined at runtime (in the generated PSy layer).
+``GH_RUNTIME`` which means that the number of data values at each DoF
+is to be determined at runtime by querying the field object (in the
+generated PSy layer).
 
 
 Column-wise Operators (CMA)
@@ -2488,8 +2493,9 @@ dofmap for both the to- and from-function spaces of the CMA
 operator. Since it does not have any LMA operator arguments it does
 not require the ``ncell_3d`` and ``nlayers`` scalar arguments. (Since a
 column-wise operator is, by definition, assembled for a whole column,
-there is no loop over levels when applying it.)
-The full set of rules is then:
+there is no loop over levels when applying it.) Note that fields with
+non-standard ``nlayers`` or ``ndata > 1`` cannot be supplied as
+arguments to CMA kernels. The full set of rules is:
 
 1) Include the ``cell`` argument. ``cell`` is an ``integer`` of kind
    ``i_def`` and has intent ``in``.
