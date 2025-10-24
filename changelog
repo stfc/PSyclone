@@ -1,3 +1,9 @@
+   9) PR #2944 for #2909. Add OWNED_DOF and OWNED_CELL_COLUMN values in the
+   operates_on LFRic metadata.
+
+   8) PR #3190. Add python 3.14 in the CI and integration tests (except the
+   LFRic Extraction tests).
+ 
    7) PR #3181 for #3173. Adds protections for CodeBlocks in the
    DataSharingAttributeMixin.   
 
