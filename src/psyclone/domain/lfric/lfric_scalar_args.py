@@ -252,7 +252,7 @@ class LFRicScalarArgs(LFRicCollection):
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalar_arrays[intent]:
                 for arg in self._real_scalar_arrays[intent]:
-                    if arg._array_ndims > 1:
+                    if arg._array_ndims >= 1:
                         # Create the dimensions array symbol
                         dims_symbol_list = []
                         dims_name = ('dims_' + arg.name)
@@ -272,16 +272,11 @@ class LFRicScalarArgs(LFRicCollection):
                             # I'm unsure about the need for this. It was added
                             # to appease the dims_symbol_access but seems
                             # unneccessary
-                            kind_sym = self.symtab.find_or_create(
-                                "kind_sym",
-                                symbol_type=DataSymbol,
-                                datatype=UnresolvedType())
                             dims_symbol_access = self.symtab.find_or_create(
                                 dims_access_name,
                                 symbol_type=DataSymbol,
                                 datatype=ScalarType(
-                                    ScalarType.Intrinsic.INTEGER,
-                                    Reference(kind_sym)))
+                                    ScalarType.Intrinsic.INTEGER, 4))
                             dims_symbol_access.interface = AutomaticInterface()
                             dims_symbol_list.append(dims_symbol_access)
 
@@ -312,15 +307,44 @@ class LFRicScalarArgs(LFRicCollection):
         for intent in FORTRAN_INTENT_NAMES:
             if self._integer_scalar_arrays[intent]:
                 for arg in self._integer_scalar_arrays[intent]:
-                    symbol = self.symtab.find_or_create(
-                        arg.declaration_name,
-                        symbol_type=DataSymbol,
-                        datatype=ArrayType(
-                            LFRicTypes("LFRicIntegerScalarDataType")(),
-                            [arg._array_ndims]))
-                    symbol.interface = ArgumentInterface(
-                                        INTENT_MAPPING[intent])
-                    self.symtab.append_argument(symbol)
+                    if arg._array_ndims >= 1:
+                        # Create the dimensions array symbol
+                        dims_symbol_list = []
+                        dims_name = ('dims_' + arg.name)
+                        dims_symbol = self.symtab.find_or_create(
+                            dims_name,
+                            symbol_type=DataSymbol,
+                            datatype=ArrayType(
+                                LFRicTypes("LFRicIntegerScalarDataType")(),
+                                [arg._array_ndims]))
+                        dims_symbol.interface = ArgumentInterface(
+                                            INTENT_MAPPING[intent])
+                        self.symtab.append_argument(dims_symbol)
+                        for idx in range(1, arg._array_ndims + 1):
+                            # Create symbols to add as dimensions
+                            # to ScalarArray
+                            dims_access_name = dims_name + '(' + str(idx) + ')'
+                            # I'm unsure about the need for this. It was added
+                            # to appease the dims_symbol_access but seems
+                            # unneccessary
+                            dims_symbol_access = self.symtab.find_or_create(
+                                dims_access_name,
+                                symbol_type=DataSymbol,
+                                datatype=ScalarType(
+                                    ScalarType.Intrinsic.INTEGER, 4))
+                            dims_symbol_access.interface = AutomaticInterface()
+                            dims_symbol_list.append(dims_symbol_access)
+
+                        # Add the ScalarArray
+                        scalar_array_symbol = self.symtab.find_or_create(
+                            arg.name,
+                            symbol_type=DataSymbol,
+                            datatype=ArrayType(
+                                LFRicTypes("LFRicIntegerScalarDataType")(),
+                                [Reference(sym) for sym in dims_symbol_list]))
+                        scalar_array_symbol.interface = ArgumentInterface(
+                                            INTENT_MAPPING[intent])
+                        self.symtab.append_argument(scalar_array_symbol)
 
         # Logical scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
@@ -338,15 +362,44 @@ class LFRicScalarArgs(LFRicCollection):
         for intent in FORTRAN_INTENT_NAMES:
             if self._logical_scalar_arrays[intent]:
                 for arg in self._logical_scalar_arrays[intent]:
-                    symbol = self.symtab.find_or_create(
-                        arg.declaration_name,
-                        symbol_type=DataSymbol,
-                        datatype=ArrayType(
-                            LFRicTypes("LFRicLogicalScalarDataType")(),
-                            [arg._array_ndims]))
-                    symbol.interface = ArgumentInterface(
-                                        INTENT_MAPPING[intent])
-                    self.symtab.append_argument(symbol)
+                    if arg._array_ndims >= 1:
+                        # Create the dimensions array symbol
+                        dims_symbol_list = []
+                        dims_name = ('dims_' + arg.name)
+                        dims_symbol = self.symtab.find_or_create(
+                            dims_name,
+                            symbol_type=DataSymbol,
+                            datatype=ArrayType(
+                                LFRicTypes("LFRicIntegerScalarDataType")(),
+                                [arg._array_ndims]))
+                        dims_symbol.interface = ArgumentInterface(
+                                            INTENT_MAPPING[intent])
+                        self.symtab.append_argument(dims_symbol)
+                        for idx in range(1, arg._array_ndims + 1):
+                            # Create symbols to add as dimensions
+                            # to ScalarArray
+                            dims_access_name = dims_name + '(' + str(idx) + ')'
+                            # I'm unsure about the need for this. It was added
+                            # to appease the dims_symbol_access but seems
+                            # unneccessary
+                            dims_symbol_access = self.symtab.find_or_create(
+                                dims_access_name,
+                                symbol_type=DataSymbol,
+                                datatype=ScalarType(
+                                    ScalarType.Intrinsic.INTEGER, 4))
+                            dims_symbol_access.interface = AutomaticInterface()
+                            dims_symbol_list.append(dims_symbol_access)
+
+                        # Add the ScalarArray
+                        scalar_array_symbol = self.symtab.find_or_create(
+                            arg.name,
+                            symbol_type=DataSymbol,
+                            datatype=ArrayType(
+                                LFRicTypes("LFRicLogicalScalarDataType")(),
+                                [Reference(sym) for sym in dims_symbol_list]))
+                        scalar_array_symbol.interface = ArgumentInterface(
+                                            INTENT_MAPPING[intent])
+                        self.symtab.append_argument(scalar_array_symbol)
 
 
 # ---------- Documentation utils -------------------------------------------- #
