@@ -195,6 +195,9 @@ def test_scalartype_datasymbol_precision(intrinsic):
     assert scalar_type.precision.symbol is precision_symbol
     scalar_type2 = ScalarType(intrinsic, Reference(precision_symbol))
     assert scalar_type == scalar_type2
+    new_precision_sym = precision_symbol.copy()
+    scalar_type3 = ScalarType(intrinsic, Reference(new_precision_sym))
+    assert scalar_type == scalar_type3
 
 
 def test_scalartype_not_equal():

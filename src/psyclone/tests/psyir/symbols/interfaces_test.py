@@ -56,6 +56,7 @@ def test_symbolinterface():
     inter2 = inter1.copy()
     assert isinstance(inter2, SymbolInterface)
     assert inter2 is not inter1
+    assert inter2 == inter1
 
 
 def test_automatic_interface():

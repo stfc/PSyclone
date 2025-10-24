@@ -52,6 +52,13 @@ class SymbolInterface():
         '''
         return self.__class__()
 
+    def __eq__(self, other) -> bool:
+        '''
+        Unless overridden in a subclass, two interfaces are the same if they
+        are of the same type.
+        '''
+        return type(other) is type(self)
+
 
 class AutomaticInterface(SymbolInterface):
     ''' The symbol is declared without attributes. Its data will live
