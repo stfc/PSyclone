@@ -295,9 +295,8 @@ def test_validate_query(fortran_reader):
             "transformed" in str(info.value))
 
 
-def test_validate_structure(fortran_reader):
-    '''Test that a StructureReference raises an exception. This limitation
-    will be removed once issue #1858 is addressed.
+def test_apply_structure(fortran_reader):
+    '''Test that the transformation works with a StructureReference.
 
     '''
     code = (
@@ -305,19 +304,19 @@ def test_validate_structure(fortran_reader):
         "  type :: array_type\n"
         "      real, dimension(10) :: a\n"
         "      real, pointer :: ptr\n"
+        "      integer :: flag\n"
         "  end type\n"
         "  type(array_type) :: ref\n"
+        "  type(array_type), dimension(5) :: ref_list\n"
         "  real :: b\n\n"
+        "  ref_list%flag = 0\n"
         "  ref%a = b\n"
         "  ref%ptr => b\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Reference2ArrayRangeTrans()
     for assign in psyir.walk(Assignment):
-        with pytest.raises(TransformationError) as info:
-            trans.validate(assign.lhs)
-        assert ("The supplied node should be a Reference but found "
-                "'StructureReference'." in str(info.value))
+        trans.apply(assign.lhs)
 
 
 def test_validate_deallocate(fortran_reader):

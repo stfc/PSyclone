@@ -4843,25 +4843,8 @@ class Fparser2Reader():
             base_sym = _find_or_create_unresolved_symbol(
                 parent, top_ref.string.lower(),
                 symbol_type=DataSymbol, datatype=UnresolvedType())
-            if isinstance(base_sym.datatype, ArrayType):
-                # This is actually a whole-array access
-                base_indices = []
-                for idx in range(len(base_sym.datatype.shape)):
-                    # For each dimension, construct a range using l/ubound
-                    # intrinsics.
-                    lbound = IntrinsicCall.create(
-                        IntrinsicCall.Intrinsic.LBOUND,
-                        [Reference(base_sym),
-                         ("dim", Literal(str(idx+1), INTEGER_TYPE))])
-                    ubound = IntrinsicCall.create(
-                        IntrinsicCall.Intrinsic.UBOUND,
-                        [Reference(base_sym),
-                         ("dim", Literal(str(idx+1), INTEGER_TYPE))])
-                    base_indices.append(Range.create(lbound, ubound))
-                base_ref = ArrayOfStructuresReference
-            else:
-                base_indices = []
-                base_ref = StructureReference
+            base_indices = []
+            base_ref = StructureReference
         elif isinstance(top_ref, Fortran2003.Part_Ref):
             # Add the structure root reference to the symbol table if its
             # not already there.
