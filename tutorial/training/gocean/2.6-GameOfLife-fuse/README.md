@@ -311,9 +311,9 @@ and `die` with scalars. The field `neighbour` is in two different loops
 (see [Why are not All 4 Loops Fused?](#why-are-not-all-4-loops-fused)),
 and it can therefore not be replaced with a scalar.
 
-Just run `make test` (not just `make`, which will only compile the standard
-solution) in the solution directory. The last step will process the files
-and you can study the output.
+Just run `make full_inline` in the solution directory (or `make test`,
+which will run the fully inlined version last, so the created files will
+be around to be inspected).
 
 The main loops now look like this:
 
@@ -330,3 +330,8 @@ The main loops now look like this:
         current%data(i,j) = current%data(i,j) - die_scalar + born_scalar
       enddo
     enddo
+
+Notice how no writes to arrays are done anymore for `born` and `die`, which
+have been replaced with new scalar variables. Note that this can trigger
+compiler warnings about unused variables (since the input parameters
+`die` and `born` are indeed not used anymore).
