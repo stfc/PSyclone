@@ -527,11 +527,8 @@ def test_sympy_writer_user_types(fortran_reader, fortran_writer,
 def test_sympy_writer_logicals(fortran_reader: FortranReader,
                                fortran_expr: str,
                                sympy_str: str):
-    '''Test handling of user-defined types, e.g. conversion of
-    ``a(i)%b(j)`` to ``a_b(i,i,1,j,j,1)``. Each Fortran expression
-    ``fortran_expr`` is first converted to a string ``sympy_str`` to be
-    parsed by SymPy. The sympy expression is then converted back to PSyIR.
-    This string must be the same as the original ``fortran_expr``.
+    '''Test writing of logical expressions, i.e. that the Fortran
+    logical expressions are correctly converted to SymPy expressions.
 
     '''
     source = f'''program test_prog

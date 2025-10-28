@@ -48,7 +48,7 @@ def trans(psyir):
     '''PSyclone transformation script for the lfric API to apply
     redundant computation generically to all loops that iterate over
     dofs, with the exception of loops containing kernels with
-    reductions.
+    reductions and those that are restricted to owned dofs only.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
