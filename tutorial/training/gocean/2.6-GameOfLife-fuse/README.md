@@ -22,9 +22,9 @@ The GNU Fortran compiler on the other hand is not able to inline
 code from a different file, but it can inline successfully if the
 code is contained in the same file.
 
-At this stage PSyclone does not yet have full inlining capabilities
-(as in putting the whole kernel code inside the nested loops
-in the psy-layer). But it can move the code from the kernel files
+At this stage full inlining capabilities (as in putting the whole kernel
+code inside the nested loops in the psy-layer) are still
+work-in-progress. But it can move the code from the kernel files
 into the psy-layer files, which in turn will enable GNU Fortran
 to inline the kernel calls.
 
@@ -275,3 +275,58 @@ in the fourth loop, but the latter one has not been updated.
 Instead of fusing the first three loops, it is also possible to
 fuse the last three loops. Modify the `loop_fuse` script to
 fuse the last three loops, and measure the performance.
+
+
+## Full Inlining
+Full-inlining is not yet fully supported in the GOcean API. But
+it can be made to work by ignoring one error that is raised in
+the `validation`. It is out of scope of this tutorial, but the
+solution directory contains a more sophisticated script. It does:
+
+1. Fully inline all kernels by ignoring the validation error
+   currently raised when inlining GOcean kernels (danger territory
+   obviously),
+2. Analyse the algorithm layer to identify and store fields that
+   are not used outside of the algorithm layer. These fields are
+   therefore not required to store any results, and are considered
+   to be temporary variables.
+3. It fully fuses the last three loops.
+4. Using the list of temporary variables collected in step 2,
+   it will identify which of these arrays can be replaced with
+   scalar variables.
+
+The output when running the script is:
+
+    potential replacement born
+    potential replacement die
+    potential replacement neighbours
+    REPLACE born r2d_field: DataTypeSymbol Argument(Access.READWRITE) UnresolvedType
+    REPLACE die r2d_field: DataTypeSymbol Argument(Access.READWRITE) UnresolvedType
+    IN DIFFERENT LOOPS neighbours
+
+It identifies the three fields `born`, `die`, and `neighbours` as potential
+temporary variables (the other field, `current`, is used outside of the
+algorithm layer ... for printing out the results). Then it replaces `born`
+and `die` with scalars. The field `neighbour` is in two different loops
+(see [Why are not All 4 Loops Fused?](#why-are-not-all-4-loops-fused)),
+and it can therefore not be replaced with a scalar.
+
+Just run `make test` (not just `make`, which will only compile the standard
+solution) in the solution directory. The last step will process the files
+and you can study the output.
+
+The main loops now look like this:
+
+    do j = born%internal%ystart, born%internal%ystop, 1
+      do i = born%internal%xstart, born%internal%xstop, 1
+        born_scalar = 0.0
+        if (current%data(i,j) == 0.0 .AND. neighbours%data(i,j) == 3.00000000000000) then
+          born_scalar = 1.0
+        end if
+        die_scalar = 0.0
+        if (current%data(i,j) > 0.0 .AND. (neighbours%data(i,j) > 3.0 .OR. neighbours%data(i,j) < 2.0)) then
+          die_scalar = 1.0
+        end if
+        current%data(i,j) = current%data(i,j) - die_scalar + born_scalar
+      enddo
+    enddo
