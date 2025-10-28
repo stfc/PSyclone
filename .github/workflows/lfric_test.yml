@@ -272,7 +272,7 @@ jobs:
 
         # Fetch dependencies
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r 14921 https://code.metoffice.gov.uk/svn/lfric_apps/ lfric_apps
+          -r 14921 https://code.metoffice.gov.uk/svn/lfric_apps/main/trunk lfric_apps
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
           -r 53845 https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
