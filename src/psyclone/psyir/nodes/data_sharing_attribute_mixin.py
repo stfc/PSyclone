@@ -124,8 +124,8 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         for signature in var_accesses.all_signatures:
             if not var_accesses[signature].has_data_access():
                 continue
-            # Skip those that are TYPE_INFO accesses.
-            if any(x.access_type == AccessType.TYPE_INFO
+            # Skip those that are CONSTANT accesses.
+            if any(x.access_type == AccessType.CONSTANT
                     for x in var_accesses[signature]):
                 continue
             accesses = var_accesses[signature]

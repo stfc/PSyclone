@@ -185,7 +185,7 @@ class ScopingNode(Node):
         if self._symbol_table:
             for symbol in self._symbol_table.get_all_accessed_symbols():
                 var_accesses.add_access(
-                    Signature(symbol.name), AccessType.TYPE_INFO, self)
+                    Signature(symbol.name), AccessType.CONSTANT, self)
         var_accesses.update(super().reference_accesses())
         return var_accesses
 

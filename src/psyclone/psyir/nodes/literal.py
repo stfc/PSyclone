@@ -193,7 +193,7 @@ class Literal(DataNode):
             precision_symbols = self.datatype.get_all_accessed_symbols()
             for symbol in precision_symbols:
                 access_info.add_access(
-                    Signature(symbol.name), AccessType.TYPE_INFO, self)
+                    Signature(symbol.name), AccessType.CONSTANT, self)
         return access_info
 
     def replace_symbols_using(self, table_or_symbol):
