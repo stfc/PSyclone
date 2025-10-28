@@ -40,7 +40,6 @@
 '''
 
 from __future__ import annotations
-from typing import Set
 from enum import Enum
 from psyclone.errors import PSycloneError, InternalError
 from psyclone.psyir.symbols.interfaces import (
@@ -570,7 +569,7 @@ class Symbol(CommentableMixin):
             except KeyError:
                 pass
 
-    def get_all_accessed_symbols(self) -> Set["Symbol"]:
+    def get_all_accessed_symbols(self) -> set["Symbol"]:
         '''
         :returns: a set of all the symbols accessed inside this Symbol.
         '''

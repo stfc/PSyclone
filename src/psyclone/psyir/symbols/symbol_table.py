@@ -47,7 +47,7 @@ from collections.abc import Iterable
 import inspect
 import copy
 import logging
-from typing import Any, List, Optional, Set, Union
+from typing import Any, List, Optional, Union
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -1213,24 +1213,12 @@ class SymbolTable():
         if self.node:
             symbols.update(self.node.get_all_accessed_symbols())
             location = f"the '{self.node.name}' scope"
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.generic_interface_symbol import (
-            GenericInterfaceSymbol)
-        for sym in symbols:
-            if isinstance(sym, GenericInterfaceSymbol):
-                for rinfo in sym.routines:
-                    if rinfo.symbol is symbol:
-                        raise ValueError(
-                            f"Cannot remove RoutineSymbol '{symbol.name}' "
-                            f"because it is referenced inside the "
-                            f"'{sym.name}' interface.")
-        if symbol not in symbols:
-            # It is safe to delete it
-            return
 
-        raise ValueError(
-            f"Cannot remove RoutineSymbol '{symbol.name}' because it is "
-            f"referenced inside {location}")
+        # If it has any, it is not safe to delete
+        if symbol in symbols:
+            raise ValueError(
+                f"Cannot remove RoutineSymbol '{symbol.name}' because it is "
+                f"referenced inside {location}")
 
     def remove(self, symbol):
         '''
@@ -1661,7 +1649,7 @@ class SymbolTable():
     def _import_symbols_from(self, csymbol: ContainerSymbol,
                              container,
                              symbol_target: Optional[Symbol] = None
-                             ) -> Set[Symbol]:
+                             ) -> set[Symbol]:
         '''
         Imports symbols from the supplied Container into this table. If
         `target_symbol` is specified then only that symbol is imported.
@@ -2021,7 +2009,7 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def get_all_accessed_symbols(self) -> Set[Symbol]:
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
         :returns: a set of all the symbols accessed inside this SymbolTable,
             including the symbols that are not in this scope, but are used

@@ -39,7 +39,6 @@
 ''' This module contains the DataSymbol and its interfaces.'''
 
 from __future__ import annotations
-from typing import Set
 
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.psyir.symbols.interfaces import StaticInterface
@@ -386,7 +385,7 @@ class DataSymbol(TypedSymbol):
                     continue
                 bnd.replace_symbols_using(table_or_symbol)
 
-    def get_all_accessed_symbols(self) -> Set[Symbol]:
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
         :returns: a set of all the symbols accessed inside this Symbol.
         '''

@@ -39,7 +39,6 @@
 
 ''' This module contains the Loop node implementation.'''
 
-from typing import Set
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
@@ -487,12 +486,14 @@ class Loop(Statement):
         result += "End " + name
         return result
 
-    def get_all_accessed_symbols(self) -> Set[Symbol]:
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
-        :returns: a set of all the symbols accessed inside this Symbol.
+        :returns: a set of all the symbols accessed inside this Loop.
         '''
         symbols = super().get_all_accessed_symbols()
         if self.variable:
+            # TODO #3124: This is needed because the loop variable reference
+            # is not part of the tree
             symbols.add(self.variable)
         return symbols
 

@@ -71,9 +71,10 @@ class AccessType(Enum):
     #: The property/ies of a symbol is/are queried but the data it
     #: represents is not accessed (e.g. 'var' in SIZE(var, dim=1)).
     INQUIRY = 9
-    #: The symbol is used to access its type information (available at compile
-    #: time) - e.g. precision values such as 'wp' in 1.0_wp.
-    TYPE_INFO = 10
+    #: Access data that cannot be refedined during execution, therefore, it
+    #: is available at compile-time and can be used for type properties such
+    #: as kinds or dimensions.
+    CONSTANT = 10
 
     def __str__(self) -> str:
         '''Convert to a string representation, returning just the
@@ -154,7 +155,7 @@ class AccessType(Enum):
                   a symbol.
         :rtype: list[:py:class:`psyclone.core.AccessType`]
         '''
-        return [AccessType.CALL, AccessType.TYPE_INFO, AccessType.INQUIRY]
+        return [AccessType.CALL, AccessType.CONSTANT, AccessType.INQUIRY]
 
 
 # ---------- Documentation utils -------------------------------------------- #

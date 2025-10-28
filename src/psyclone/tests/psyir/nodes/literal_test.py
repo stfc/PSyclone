@@ -274,3 +274,11 @@ def test_literal_replace_symbols_using():
     table.add(idef2)
     lit.replace_symbols_using(table)
     assert lit.datatype.precision.symbol is idef2
+
+
+def test_get_all_accessed_symbols():
+    '''Test the get_all_accessed_symbols() method of Literal.'''
+    idef = DataSymbol("idef", INTEGER_SINGLE_TYPE)
+    stype = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
+    lit = Literal("1", stype)
+    assert idef in lit.get_all_accessed_symbols()

@@ -366,8 +366,8 @@ def test_variables_access_map_domain_loop():
     vam = invoke.schedule.reference_accesses()
     assert str(vam) == (
         "a: READ, b: READ, f1_data: READWRITE, f2_data: READWRITE, field_type:"
-        " TYPE_INFO, i_def: TYPE_INFO, map_w3: READ, ncell_2d_no_halos: READ, "
-        "ndf_w3: READ, nlayers_f1: READ, nlayers_f2: READ, r_def: TYPE_INFO, "
+        " CONSTANT, i_def: CONSTANT, map_w3: READ, ncell_2d_no_halos: READ, "
+        "ndf_w3: READ, nlayers_f1: READ, nlayers_f2: READ, r_def: CONSTANT, "
         "undf_w3: READ")
 
 
@@ -388,11 +388,11 @@ def test_lfric_access_map():
     assert (
         "basis_w1_qr: READ, basis_w3_qr: READ, cell: WRITE+READ, "
         "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1_data: INC, "
-        "f2_data: READ, field_type: TYPE_INFO, i_def: TYPE_INFO, m1_data: "
+        "f2_data: READ, field_type: CONSTANT, i_def: CONSTANT, m1_data: "
         "READ, m2_data: READ, map_w1: READ, map_w2: READ, map_w3: READ, "
         "ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, nlayers_f1: READ, "
-        "np_xy_qr: READ, np_z_qr: READ, quadrature_xyoz_type: TYPE_INFO, "
-        "r_def: TYPE_INFO, undf_w1: READ, undf_w2: READ, undf_w3: READ, "
+        "np_xy_qr: READ, np_z_qr: READ, quadrature_xyoz_type: CONSTANT, "
+        "r_def: CONSTANT, undf_w1: READ, undf_w2: READ, undf_w3: READ, "
         "uninitialised_loop0_start: READ, uninitialised_loop0_stop: READ, "
         "weights_xy_qr: READ, weights_z_qr: READ"
         == str(vam))

@@ -43,7 +43,7 @@ import copy
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Union, Set
+from typing import Any, Optional, Union
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -93,7 +93,7 @@ class DataType(metaclass=abc.ABCMeta):
 
         '''
 
-    def get_all_accessed_symbols(self) -> Set[Symbol]:
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
         :returns: a set of all the symbols accessed inside this DataType.
         '''
@@ -319,7 +319,7 @@ class UnsupportedFortranType(UnsupportedType):
             return self.partial_datatype.intrinsic
         return None
 
-    def get_all_accessed_symbols(self) -> Set[Symbol]:
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
         :returns: a set of all the symbols accessed inside this DataType.
         '''
@@ -508,7 +508,7 @@ class ScalarType(DataType):
         if isinstance(self.precision, DataNode):
             self._precision.replace_symbols_using(table_or_symbol)
 
-    def get_all_accessed_symbols(self) -> Set[Symbol]:
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
         :returns: a set of all the symbols accessed inside this DataType.
         '''
@@ -584,7 +584,7 @@ class ArrayType(DataType):
             '''
             return copy.copy(self)
 
-        def get_all_accessed_symbols(self) -> Set[Symbol]:
+        def get_all_accessed_symbols(self) -> set[Symbol]:
             '''
             :returns: a set of all the symbols accessed inside this Extent.
             '''
@@ -1053,7 +1053,7 @@ class ArrayType(DataType):
                 if isinstance(bnd, Node):
                     bnd.replace_symbols_using(table_or_symbol)
 
-    def get_all_accessed_symbols(self) -> Set[Symbol]:
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
         :returns: a set of all the symbols accessed inside this DataType.
         '''
@@ -1307,7 +1307,7 @@ class StructureType(DataType):
                      preceding_comment=component.preceding_comment,
                      inline_comment=component.inline_comment)
 
-    def get_all_accessed_symbols(self) -> Set[Symbol]:
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
         :returns: a set of all the symbols accessed inside this DataType.
         '''

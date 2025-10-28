@@ -44,7 +44,7 @@ ChildrenList - a custom implementation of list.
 
 '''
 from __future__ import annotations
-from typing import Union, Set, TYPE_CHECKING
+from typing import Union, TYPE_CHECKING
 import copy
 import graphviz
 
@@ -1537,9 +1537,9 @@ class Node():
             child.lower_to_language_level()
         return self
 
-    def get_all_accessed_symbols(self) -> Set["Symbol"]:
+    def get_all_accessed_symbols(self) -> set["Symbol"]:
         '''
-        :returns: a set of all the symbols accessed inside this Symbol.
+        :returns: a set of all the symbols accessed inside this Node.
         '''
         symbols = set()
         for child in self._children:

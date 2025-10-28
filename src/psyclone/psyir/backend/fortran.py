@@ -908,7 +908,7 @@ class FortranWriter(LanguageWriter):
                 # declared and none had their dependencies satisfied.
                 raise VisitorError(
                     f"Unable to satisfy dependencies for the declarations of "
-                    f"{[sym.name for sym in local_constants]} ")
+                    f"{[sym.name for sym in local_constants]}")
         return declarations
 
     def gen_decls(self, symbol_table, is_module_scope=False):
