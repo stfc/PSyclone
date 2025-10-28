@@ -38,7 +38,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Union, Set
+from typing import Union
 
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.datatypes import DataType, UnresolvedType
@@ -327,9 +327,9 @@ class GenericInterfaceSymbol(RoutineSymbol):
             new_routines.append((new_rt, routine.from_container))
         self.routines = new_routines
 
-    def get_all_accessed_symbols(self) -> Set[Symbol]:
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
-        :returns: a set of all the symbols accessed inside this DataType.
+        :returns: a set of all the symbols accessed inside this interface.
         '''
         symbols = super().get_all_accessed_symbols()
 

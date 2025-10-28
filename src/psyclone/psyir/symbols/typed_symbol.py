@@ -41,7 +41,6 @@
 '''
 
 from __future__ import annotations
-from typing import Set
 import abc
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
@@ -265,7 +264,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         else:
             self._datatype.replace_symbols_using(table_or_symbol)
 
-    def get_all_accessed_symbols(self) -> Set[Symbol]:
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
         :returns: a set of all the symbols accessed inside this DataType.
         '''

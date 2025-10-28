@@ -39,7 +39,7 @@
 import abc
 from typing import Set, Tuple
 
-from psyclone.core.access_type import AccessType
+from psyclone.core import AccessType, AccessSequence
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
@@ -240,8 +240,13 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
 
         return private, fprivate, need_sync
 
-    def _should_it_be_fprivate(self, accesses, num_of_codeblocks) -> bool:
+    def _should_it_be_fprivate(
+        self, accesses: AccessSequence, num_of_codeblocks: int
+    ) -> bool:
         '''
+        :param accesses: the sequence of accesses to the analysed variable.
+        :param num_of_codeblocs: number of codeblocks in the analysed regrion.
+
         :returns: whether the variable represented by the provided accesses
         should be firstprivate (because there is the possibility that one of
         the accesses gets the value that the symbol had before the loop).

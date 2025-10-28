@@ -38,7 +38,6 @@
 ''' This module contains the DataTypeSymbol. '''
 
 from __future__ import annotations
-from typing import Set
 
 from psyclone.psyir.symbols.symbol import Symbol
 
@@ -133,7 +132,7 @@ class DataTypeSymbol(Symbol):
         super().copy_properties(symbol_in, exclude_interface=exclude_interface)
         self._datatype = symbol_in.datatype
 
-    def get_all_accessed_symbols(self) -> Set[Symbol]:
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
         :returns: a set of all the symbols accessed inside this Symbol.
         '''

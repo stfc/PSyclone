@@ -40,7 +40,6 @@
 ''' This module contains the Literal node implementation.'''
 
 import re
-from typing import Set
 
 from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes.datanode import DataNode
@@ -172,9 +171,9 @@ class Literal(DataNode):
         return (f"{self.coloured_name(colour)}"
                 f"[value:'{self._value}', {self.datatype}]")
 
-    def get_all_accessed_symbols(self) -> Set[Symbol]:
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
-        :returns: a set of all the symbols accessed inside this Symbol.
+        :returns: a set of all the symbols accessed inside this Literal.
         '''
         symbols = super().get_all_accessed_symbols()
         if isinstance(self.datatype.precision, DataNode):
