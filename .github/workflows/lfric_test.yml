@@ -57,9 +57,13 @@ jobs:
     outputs:
       lfric_dist_mem: ${{ steps.lfric_dist_mem.outputs.time }}
       lfric_omp_offload: ${{ steps.lfric_omp_offload.outputs.time }}
+      lfric_omp_offload_build: ${{ steps.lfric_omp_offload.outputs.build_time }}
       lfric_acc_offload: ${{ steps.lfric_acc_offload.outputs.time }}
       lfric_all_trans: ${{ steps.lfric_all_trans.outputs.time }}
       lfric_colour_tiling: ${{ steps.lfric_colour_tiling.outputs.time }}
+      lfric_omp_offload: ${{ steps.lfric_omp_offload.outputs.build_time }}
+      lfric_atm: ${{ steps.lfric_atm.outputs.time }}
+      lfric_atm_build: ${{ steps.lfric_atm.outputs.build_time }}
 
     steps:
     - uses: actions/checkout@v3
@@ -155,7 +159,9 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
+        export BUILD_START="${SECONDS}"
         LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -w working-omp-offload
+        export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
@@ -166,6 +172,7 @@ jobs:
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
+        echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
     - name: LFRic GungHo with OpenACC offload
@@ -296,21 +303,19 @@ jobs:
         sed -i "s|ukca_rev=.*|ukca_rev=|g" lfric_apps/dependencies.sh
         sed -i "s|ukca_sources=|ukca_sources=${TEST_PREFIX}/ukca|g" lfric_apps/dependencies.sh
 
-        # Build lfric-atm without psyclone-transmutation
+        # Build the 'meto-ex1a' platform, that includes psyclone-transmutation
         cd lfric_apps
-        ./build/local_build.py -a lfric_atm -j 16 -w workdir-lfric-atm
-        
-        # Now build the 'meto-ex1a' platform, that includes psyclone-transmutation
-        cd lfric_apps
-        ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16 -w workdir-lfric-atm
+        export BUILD_START="${SECONDS}"
+        ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16 -w workdir-lfric-atm-transmuted
+        export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
         # Run a the app with 8 threads
         cd applications/lfric_atm/example/
-        OMP_NUM_THREADS=8 ../bin/lfric_atm configuration.nml
+        OMP_NUM_THREADS=4 mpirun -n 6 ../bin/lfric_atm configuration.nml
 
         # And compare the results
-        # python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
-        # cat timer.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
+        cat timer.txt
 
   upload_if_on_mirror:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
@@ -347,6 +352,12 @@ jobs:
                 '"${COMMON_FIELDS}"'
               },
               {
+                ci_test: "LFRic OpenMP offloading build time",
+                compiler:"nvhpc@'"$NVHPC_VERSION"'",
+                elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_omp_offload_build}}"',
+                '"${COMMON_FIELDS}"'
+              },
+              {
                 ci_test: "LFRic OpenACC",
                 compiler:"nvhpc@'"$NVHPC_VERSION"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_acc_offload}}"',
@@ -363,4 +374,17 @@ jobs:
                 compiler:"gfortran@'"$GCC_VERSION"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"',
                 '"${COMMON_FIELDS}"'
-              }])'
+              },
+              {
+                ci_test: "LFRic_atm",
+                compiler:"gfortran@'"$GCC_VERSION"'",
+                elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_atm}}"',
+                '"${COMMON_FIELDS}"'
+              },
+              {
+                ci_test: "LFRic_atm build time",
+                compiler:"gfortran@'"$GCC_VERSION"'",
+                elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_atm_build}}"',
+                '"${COMMON_FIELDS}"'
+              }
+              ])'
