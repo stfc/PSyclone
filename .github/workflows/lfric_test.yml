@@ -119,7 +119,9 @@ jobs:
         spack load lfric-build-environment%gcc@${GCC_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone_no_annexed.cfg
+        # The no annexed flag fails in LFRic because some kernels lie in their metadata
+        # export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone_no_annexed.cfg
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
         # Ensure no transformations are applied by supplying an empty
