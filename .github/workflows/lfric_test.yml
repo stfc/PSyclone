@@ -61,7 +61,6 @@ jobs:
       lfric_acc_offload: ${{ steps.lfric_acc_offload.outputs.time }}
       lfric_all_trans: ${{ steps.lfric_all_trans.outputs.time }}
       lfric_colour_tiling: ${{ steps.lfric_colour_tiling.outputs.time }}
-      lfric_omp_offload: ${{ steps.lfric_omp_offload.outputs.build_time }}
       lfric_atm: ${{ steps.lfric_atm.outputs.time }}
       lfric_atm_build: ${{ steps.lfric_atm.outputs.build_time }}
 
@@ -316,6 +315,9 @@ jobs:
         # And compare the results
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
         cat timer.txt
+        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
+        echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
 
   upload_if_on_mirror:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
