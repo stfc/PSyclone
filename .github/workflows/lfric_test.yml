@@ -42,8 +42,8 @@ on:
   push
 
 env:
-  LFRIC_APPS_REV: 10798
-  LFRIC_CORE_REV: 52772
+  LFRIC_APPS_REV: 14921
+  LFRIC_CORE_REV: 53845
   PYTHON_VERSION: 3.14
   GCC_VERSION: 14
   NVHPC_VERSION: 25.1
@@ -95,8 +95,12 @@ jobs:
         rm -rf lfric_apps lfric_core
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
           -r ${LFRIC_APPS_REV} https://code.metoffice.gov.uk/svn/lfric_apps/main/trunk/ lfric_apps
+        # Disable XIOS in the gungho_model example configuration
+        cd lfric_apps/applications/gungho_model/example
+        sed -i "s|use_xios_io=.*|use_xios_io=.false.|g" configuration.nml
         # We need to patch lfric_core to resolve issues with the nvfortran compiler
         # see https://code.metoffice.gov.uk/trac/lfric/ticket/4621
+        cd /archive/psyclone-tests/latest-run
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
           -r ${LFRIC_CORE_REV} https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
         sed -i "s|lfric_core_rev=$LFRIC_CORE_REV|lfric_core_rev=|g" lfric_apps/dependencies.sh
@@ -129,12 +133,11 @@ jobs:
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         # Number of OMP threads have to be set even when psyclone does not inject OpenMP
         # because some psykal-lite routines have it.
         export OMP_NUM_THREADS=1
-        mpirun -n 12 ../bin/gungho_model configuration_c16_10it.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        mpirun -n 12 ../bin/gungho_model configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
@@ -163,11 +166,10 @@ jobs:
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=12
         export CUDA_VISIBLE_DEVICES=1
-        mpirun -n 1 ../bin/gungho_model configuration_c16_10it.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        mpirun -n 1 ../bin/gungho_model configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
@@ -195,11 +197,10 @@ jobs:
         LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -w working-acc-offload
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=12
         export CUDA_VISIBLE_DEVICES=1
-        mpirun -n 1 ../bin/gungho_model configuration_c16_10it.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        mpirun -n 1 ../bin/gungho_model configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
@@ -226,10 +227,9 @@ jobs:
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=2
-        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        mpirun -n 6 ../bin/gungho_model configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
@@ -256,10 +256,9 @@ jobs:
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=2
-        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        mpirun -n 6 ../bin/gungho_model configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
@@ -271,46 +270,17 @@ jobs:
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%gcc@${GCC_VERSION}
         source .runner_venv/bin/activate
-        export TEST_PREFIX=/archive/psyclone-tests/latest-run/lfric_atm
-        rm -rf ${TEST_PREFIX}
-        mkdir ${TEST_PREFIX}
-        cd ${TEST_PREFIX}
-
-        # Fetch dependencies
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r 14921 https://code.metoffice.gov.uk/svn/lfric_apps/main/trunk lfric_apps
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r 53845 https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r 11952 https://code.metoffice.gov.uk/svn/monc/casim/trunk casim
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r 31188 https://code.metoffice.gov.uk/svn/jules/main/trunk jules
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r 1869 https://code.metoffice.gov.uk/svn/socrates/main/trunk socrates
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r 7250 https://code.metoffice.gov.uk/svn/ukca/main/trunk ukca
-
-        # Update dependencies.sh to point to the downloaded version
-        sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" lfric_apps/dependencies.sh
-        sed -i "s|lfric_core_sources=|lfric_core_sources=${TEST_PREFIX}/lfric_core|g" lfric_apps/dependencies.sh
-        sed -i "s|casim_rev=.*|casim_rev=|g" lfric_apps/dependencies.sh
-        sed -i "s|casim_sources=|casim_sources=${TEST_PREFIX}/casim|g" lfric_apps/dependencies.sh
-        sed -i "s|jules_rev=.*|jules_rev=|g" lfric_apps/dependencies.sh
-        sed -i "s|jules_sources=|jules_sources=${TEST_PREFIX}/jules|g" lfric_apps/dependencies.sh
-        sed -i "s|socrates_rev=.*|socrates_rev=|g" lfric_apps/dependencies.sh
-        sed -i "s|socrates_sources=|socrates_sources=${TEST_PREFIX}/socrates|g" lfric_apps/dependencies.sh
-        sed -i "s|ukca_rev=.*|ukca_rev=|g" lfric_apps/dependencies.sh
-        sed -i "s|ukca_sources=|ukca_sources=${TEST_PREFIX}/ukca|g" lfric_apps/dependencies.sh
+        export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
+        cd ${LFRIC_DIR}
 
         # Build the 'meto-ex1a' platform, that includes psyclone-transmutation
-        cd lfric_apps
         export BUILD_START="${SECONDS}"
         ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16 -w workdir-lfric-atm-transmuted
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
-        # Run a the app with 8 threads
+        # Run a the app with 8 threads and no MPI (there is a bug not related to psyclone with MPI)
         cd applications/lfric_atm/example/
-        OMP_NUM_THREADS=4 mpirun -n 6 ../bin/lfric_atm configuration.nml
+        OMP_NUM_THREADS=8 mpirun -n 1 ../bin/lfric_atm configuration.nml
 
         # And compare the results
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
