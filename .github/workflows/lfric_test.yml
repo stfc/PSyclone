@@ -242,7 +242,7 @@ jobs:
         cd ${LFRIC_DIR}
         # Use patched LFRic core
         sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=$PWD/lfric_core|g" dependencies.sh
+        sed -i "s|lfric_core_sources=.*|lfric_core_sources=/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
@@ -278,7 +278,7 @@ jobs:
         cd ${LFRIC_DIR}
         # Use patched LFRic core
         sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=$PWD/lfric_core|g" dependencies.sh
+        sed -i "s|lfric_core_sources=.*|lfric_core_sources=/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
