@@ -223,7 +223,7 @@ jobs:
         # And compare the results
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
         cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        export VAR_TIME=$(grep "lfric_atm" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
         echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
 
