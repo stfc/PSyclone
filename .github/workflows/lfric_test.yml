@@ -295,7 +295,7 @@ jobs:
         ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16 -w workdir-lfric-atm-transmuted
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
-        # Run a the app with 8 threads and no MPI (there is a bug not related to psyclone with MPI)
+        # Run the app with 8 threads and no MPI (there is a bug not related to psyclone with MPI)
         cd applications/lfric_atm/example/
         OMP_NUM_THREADS=8 mpirun -n 1 ../bin/lfric_atm configuration.nml
 
