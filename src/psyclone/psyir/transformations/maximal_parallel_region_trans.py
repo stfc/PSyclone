@@ -132,8 +132,9 @@ class MaximalParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
             if prev_position+1 != child.position:
                 raise TransformationError(
                     f"Children are not consecutive children of one parent: "
-                    f"child '{child}' has position {child.position}, but "
-                    f"previous child had position {prev_position}.")
+                    f"child '{child.debug_string().rstrip()}' has position "
+                    f"{child.position}, but previous child had position "
+                    f"{prev_position}.")
             prev_position = child.position
 
     def apply(self, nodes: Union[Node, Schedule, List[Node]], **kwargs):
