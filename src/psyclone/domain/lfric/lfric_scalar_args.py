@@ -49,10 +49,7 @@ from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants, LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import FORTRAN_INTENT_NAMES
-from psyclone.psyir.nodes import Reference
-from psyclone.psyir.symbols import (DataSymbol, ArgumentInterface,
-                                    AutomaticInterface, ArrayType,
-                                    ScalarType, UnresolvedType)
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 
 # pylint: disable=too-many-lines
 # pylint: disable=too-many-locals
@@ -79,17 +76,11 @@ class LFRicScalarArgs(LFRicCollection):
         self._real_scalars = {}
         self._integer_scalars = {}
         self._logical_scalars = {}
-        self._real_scalar_arrays = {}
-        self._integer_scalar_arrays = {}
-        self._logical_scalar_arrays = {}
         for intent in FORTRAN_INTENT_NAMES:
             self._scalar_args[intent] = []
             self._real_scalars[intent] = []
             self._integer_scalars[intent] = []
             self._logical_scalars[intent] = []
-            self._real_scalar_arrays[intent] = []
-            self._integer_scalar_arrays[intent] = []
-            self._logical_scalar_arrays[intent] = []
 
     def invoke_declarations(self):
         '''
@@ -118,15 +109,6 @@ class LFRicScalarArgs(LFRicCollection):
         self._logical_scalars = self._invoke.unique_declns_by_intent(
             const.VALID_SCALAR_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_logical"])
-        self._real_scalar_arrays = self._invoke.unique_declns_by_intent(
-            const.VALID_ARRAY_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
-        self._integer_scalar_arrays = self._invoke.unique_declns_by_intent(
-            const.VALID_ARRAY_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
-        self._logical_scalar_arrays = self._invoke.unique_declns_by_intent(
-            const.VALID_ARRAY_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_logical"])
 
         for intent in FORTRAN_INTENT_NAMES:
             scal = [arg.declaration_name for arg in self._scalar_args[intent]]
@@ -136,14 +118,10 @@ class LFRicScalarArgs(LFRicCollection):
                      arg in self._integer_scalars[intent]]
             lscal = [arg.declaration_name for
                      arg in self._logical_scalars[intent]]
-            rscalarr = [arg.declaration_name for
-                        arg in self._real_scalar_arrays[intent]]
-            iscalarr = [arg.declaration_name for
-                        arg in self._integer_scalar_arrays[intent]]
-            lscalarr = [arg.declaration_name for
-                        arg in self._logical_scalar_arrays[intent]]
+
             # Add "real", "integer" and "logical" scalar lists for checks
-            decl_scal = rscal + iscal + lscal + rscalarr + iscalarr + lscalarr
+            decl_scal = rscal + iscal + lscal
+
             # Check for unsupported intrinsic types
             scal_inv = sorted(set(scal) - set(decl_scal))
             if scal_inv:
@@ -186,34 +164,19 @@ class LFRicScalarArgs(LFRicCollection):
         for intent in FORTRAN_INTENT_NAMES:
             for arg in self._scalar_args[intent]:
                 # Distinguish whether they are ScalarArrays
-                if arg.is_scalar_array:
-                    if arg.descriptor.data_type == "gh_real":
-                        self._real_scalar_arrays[intent].append(arg)
-                    elif arg.descriptor.data_type == "gh_integer":
-                        self._integer_scalar_arrays[intent].append(arg)
-                    elif arg.descriptor.data_type == "gh_logical":
-                        self._logical_scalar_arrays[intent].append(arg)
-                    else:
-                        raise InternalError(
-                            f"Found an unsupported data type "
-                            f"'{arg.descriptor.data_type}' for the "
-                            f"ScalarArray argument '{arg.declaration_name}'"
-                            f". Supported types are "
-                            f"{const.VALID_SCALAR_DATA_TYPES}.")
+                if arg.descriptor.data_type == "gh_real":
+                    self._real_scalars[intent].append(arg)
+                elif arg.descriptor.data_type == "gh_integer":
+                    self._integer_scalars[intent].append(arg)
+                elif arg.descriptor.data_type == "gh_logical":
+                    self._logical_scalars[intent].append(arg)
                 else:
-                    if arg.descriptor.data_type == "gh_real":
-                        self._real_scalars[intent].append(arg)
-                    elif arg.descriptor.data_type == "gh_integer":
-                        self._integer_scalars[intent].append(arg)
-                    elif arg.descriptor.data_type == "gh_logical":
-                        self._logical_scalars[intent].append(arg)
-                    else:
-                        raise InternalError(
-                            f"Found an unsupported data type "
-                            f"'{arg.descriptor.data_type}' for the scalar "
-                            f"argument '{arg.declaration_name}'. "
-                            f"Supported types are "
-                            f"{const.VALID_SCALAR_DATA_TYPES}.")
+                    raise InternalError(
+                        f"Found an unsupported data type "
+                        f"'{arg.descriptor.data_type}' for the scalar "
+                        f"argument '{arg.declaration_name}'. "
+                        f"Supported types are "
+                        f"{const.VALID_SCALAR_DATA_TYPES}.")
 
         # Create declarations
         self._create_declarations()
@@ -248,49 +211,6 @@ class LFRicScalarArgs(LFRicCollection):
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(symbol)
 
-        # Real ScalarArray arguments
-        for intent in FORTRAN_INTENT_NAMES:
-            if self._real_scalar_arrays[intent]:
-                for arg in self._real_scalar_arrays[intent]:
-                    if arg._array_ndims >= 1:
-                        # Create the dimensions array symbol
-                        dims_symbol_list = []
-                        dims_name = ('dims_' + arg.name)
-                        dims_symbol = self.symtab.find_or_create(
-                            dims_name,
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
-                                LFRicTypes("LFRicIntegerScalarDataType")(),
-                                [arg._array_ndims]))
-                        dims_symbol.interface = ArgumentInterface(
-                                            INTENT_MAPPING[intent])
-                        self.symtab.append_argument(dims_symbol)
-                        for idx in range(1, arg._array_ndims + 1):
-                            # Create symbols to add as dimensions
-                            # to ScalarArray
-                            dims_access_name = dims_name + '(' + str(idx) + ')'
-                            # I'm unsure about the need for this. It was added
-                            # to appease the dims_symbol_access but seems
-                            # unneccessary
-                            dims_symbol_access = self.symtab.find_or_create(
-                                dims_access_name,
-                                symbol_type=DataSymbol,
-                                datatype=ScalarType(
-                                    ScalarType.Intrinsic.INTEGER, 4))
-                            dims_symbol_access.interface = AutomaticInterface()
-                            dims_symbol_list.append(dims_symbol_access)
-
-                        # Add the ScalarArray
-                        scalar_array_symbol = self.symtab.find_or_create(
-                            arg.name,
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
-                                LFRicTypes("LFRicRealScalarDataType")(),
-                                [Reference(sym) for sym in dims_symbol_list]))
-                        scalar_array_symbol.interface = ArgumentInterface(
-                                            INTENT_MAPPING[intent])
-                        self.symtab.append_argument(scalar_array_symbol)
-
         # Integer scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._integer_scalars[intent]:
@@ -303,49 +223,6 @@ class LFRicScalarArgs(LFRicCollection):
                                         INTENT_MAPPING[intent])
                     self.symtab.append_argument(symbol)
 
-        # Integer ScalarArray arguments
-        for intent in FORTRAN_INTENT_NAMES:
-            if self._integer_scalar_arrays[intent]:
-                for arg in self._integer_scalar_arrays[intent]:
-                    if arg._array_ndims >= 1:
-                        # Create the dimensions array symbol
-                        dims_symbol_list = []
-                        dims_name = ('dims_' + arg.name)
-                        dims_symbol = self.symtab.find_or_create(
-                            dims_name,
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
-                                LFRicTypes("LFRicIntegerScalarDataType")(),
-                                [arg._array_ndims]))
-                        dims_symbol.interface = ArgumentInterface(
-                                            INTENT_MAPPING[intent])
-                        self.symtab.append_argument(dims_symbol)
-                        for idx in range(1, arg._array_ndims + 1):
-                            # Create symbols to add as dimensions
-                            # to ScalarArray
-                            dims_access_name = dims_name + '(' + str(idx) + ')'
-                            # I'm unsure about the need for this. It was added
-                            # to appease the dims_symbol_access but seems
-                            # unneccessary
-                            dims_symbol_access = self.symtab.find_or_create(
-                                dims_access_name,
-                                symbol_type=DataSymbol,
-                                datatype=ScalarType(
-                                    ScalarType.Intrinsic.INTEGER, 4))
-                            dims_symbol_access.interface = AutomaticInterface()
-                            dims_symbol_list.append(dims_symbol_access)
-
-                        # Add the ScalarArray
-                        scalar_array_symbol = self.symtab.find_or_create(
-                            arg.name,
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
-                                LFRicTypes("LFRicIntegerScalarDataType")(),
-                                [Reference(sym) for sym in dims_symbol_list]))
-                        scalar_array_symbol.interface = ArgumentInterface(
-                                            INTENT_MAPPING[intent])
-                        self.symtab.append_argument(scalar_array_symbol)
-
         # Logical scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._logical_scalars[intent]:
@@ -357,49 +234,6 @@ class LFRicScalarArgs(LFRicCollection):
                     symbol.interface = ArgumentInterface(
                                         INTENT_MAPPING[intent])
                     self.symtab.append_argument(symbol)
-
-        # Logical ScalarArray arguments
-        for intent in FORTRAN_INTENT_NAMES:
-            if self._logical_scalar_arrays[intent]:
-                for arg in self._logical_scalar_arrays[intent]:
-                    if arg._array_ndims >= 1:
-                        # Create the dimensions array symbol
-                        dims_symbol_list = []
-                        dims_name = ('dims_' + arg.name)
-                        dims_symbol = self.symtab.find_or_create(
-                            dims_name,
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
-                                LFRicTypes("LFRicIntegerScalarDataType")(),
-                                [arg._array_ndims]))
-                        dims_symbol.interface = ArgumentInterface(
-                                            INTENT_MAPPING[intent])
-                        self.symtab.append_argument(dims_symbol)
-                        for idx in range(1, arg._array_ndims + 1):
-                            # Create symbols to add as dimensions
-                            # to ScalarArray
-                            dims_access_name = dims_name + '(' + str(idx) + ')'
-                            # I'm unsure about the need for this. It was added
-                            # to appease the dims_symbol_access but seems
-                            # unneccessary
-                            dims_symbol_access = self.symtab.find_or_create(
-                                dims_access_name,
-                                symbol_type=DataSymbol,
-                                datatype=ScalarType(
-                                    ScalarType.Intrinsic.INTEGER, 4))
-                            dims_symbol_access.interface = AutomaticInterface()
-                            dims_symbol_list.append(dims_symbol_access)
-
-                        # Add the ScalarArray
-                        scalar_array_symbol = self.symtab.find_or_create(
-                            arg.name,
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
-                                LFRicTypes("LFRicLogicalScalarDataType")(),
-                                [Reference(sym) for sym in dims_symbol_list]))
-                        scalar_array_symbol.interface = ArgumentInterface(
-                                            INTENT_MAPPING[intent])
-                        self.symtab.append_argument(scalar_array_symbol)
 
 
 # ---------- Documentation utils -------------------------------------------- #
