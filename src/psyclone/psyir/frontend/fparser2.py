@@ -42,6 +42,7 @@
 
 from collections import OrderedDict
 from dataclasses import dataclass, field
+import re
 import os
 import sys
 from typing import Iterable, Optional, Union
@@ -5858,10 +5859,22 @@ class Fparser2Reader():
         :type preceding_comments: List[:py:class:`fparser.two.utils.Comment`]
 
         '''
+        _directive_formats = [
+            r"\!\$[a-z]",  # Generic directive
+            r"c\$[a-z]",  # Generic directive
+            r"\*\$[a-z]",  # Generic directive
+            r"\!dir\$",  # flang, ifx, ifort directives.
+            r"cdir\$",  # flang, ifx, ifort fixed format directive.
+            r"\!gcc\$",  # GCC compiler directive
+        ]
         if len(comment.tostr()) == 0:
             return
-        if self._ignore_directives and comment.tostr().startswith("!$"):
-            return
+        if self._ignore_directives:
+            comment_str = comment.tostr().lower()
+            directive = False
+            for dir_form in _directive_formats:
+                if re.match(dir_form, comment_str):
+                    return
         if self._last_psyir_parsed_and_span is not None:
             last_psyir, last_span = self._last_psyir_parsed_and_span
             if (last_span[1] is not None

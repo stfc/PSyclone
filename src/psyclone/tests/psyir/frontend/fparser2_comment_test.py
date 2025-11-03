@@ -604,3 +604,33 @@ def test_lost_program_comments():
             "inline here")
     assignment = psyir.walk(Assignment)[0]
     assert assignment.preceding_comment == "Comment here"
+
+
+@pytest.mark.parametrize("directive", ["$omp target",
+                                       "$acc kernels",
+                                       "dir$ vector",
+                                       "DIR$ VECTOR"])
+def test_directives_not_comments(directive):
+    """Test that the FortranReader doesn't keep directives when only
+    comments are requested."""
+    code = f"""module A
+  implicit none
+  integer, public :: a
+  public
+
+  contains
+  subroutine test()
+
+    !$ a = 0 +     &
+    !$&  0
+    !{directive}
+    a = 1
+    a = 2
+    a = 3
+
+  end subroutine test
+
+end module A"""
+    reader = FortranReader(ignore_comments=False)
+    psyir = reader.psyir_from_source(code)
+    assert directive not in psyir.debug_string()

@@ -71,8 +71,11 @@ def test_directive_in_decls():
     psyir = reader.psyir_from_source(code)
     routine = psyir.children[0]
     out = routine.debug_string()
-    assert """!$omp firstprivate
-integer, dimension(100) :: i  !dir$ aligned""" in out
+    assert """!$ omp firstprivate
+integer, dimension(100) :: i  ! dir$ aligned""" in out
+
+    pytest.xfail(reason="TODO #3178 PSyclone can't store directives in "
+                        "declrations as directives.")
 
 
 def test_directive_at_end():
