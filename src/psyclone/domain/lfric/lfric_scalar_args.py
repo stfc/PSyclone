@@ -98,7 +98,7 @@ class LFRicScalarArgs(LFRicCollection):
         # Create dictionary of all scalar arguments for checks
         const = LFRicConstants()
         self._scalar_args = self._invoke.unique_declns_by_intent(
-            const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES)
+            const.VALID_SCALAR_NAMES)
         # Filter scalar arguments by intent and intrinsic type
         self._real_scalars = self._invoke.unique_declns_by_intent(
             const.VALID_SCALAR_NAMES,
@@ -118,10 +118,8 @@ class LFRicScalarArgs(LFRicCollection):
                      arg in self._integer_scalars[intent]]
             lscal = [arg.declaration_name for
                      arg in self._logical_scalars[intent]]
-
             # Add "real", "integer" and "logical" scalar lists for checks
             decl_scal = rscal + iscal + lscal
-
             # Check for unsupported intrinsic types
             scal_inv = sorted(set(scal) - set(decl_scal))
             if scal_inv:
@@ -163,7 +161,6 @@ class LFRicScalarArgs(LFRicCollection):
         # Filter scalar arguments by intent and data type
         for intent in FORTRAN_INTENT_NAMES:
             for arg in self._scalar_args[intent]:
-                # Distinguish whether they are ScalarArrays
                 if arg.descriptor.data_type == "gh_real":
                     self._real_scalars[intent].append(arg)
                 elif arg.descriptor.data_type == "gh_integer":
