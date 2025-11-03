@@ -392,7 +392,7 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     a derived type. '''
     processor = Fparser2Reader()
     reader = FortranStringReader(
-        "subroutine my_sub(vars2d)\n"
+        "subroutine my_sub()\n"
         "  use some_mod, only: my_type\n"
         "  type(my_type) :: var, vars(3)\n"
         "  type(my_type) :: vars2d(:,:)\n"
