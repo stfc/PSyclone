@@ -1,3 +1,6 @@
+   11) PR #3201 for #3200. Fix for comparing datatypes with equivalent
+   interfaces.
+
    10) PR #3191 for #3189. Ensures that Fortran '==' is converted into
    Sympy Eq(...).   
 
