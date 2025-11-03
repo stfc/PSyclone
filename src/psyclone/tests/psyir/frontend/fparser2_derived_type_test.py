@@ -503,21 +503,11 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     assert isinstance(lbound.arguments[0], Reference)
     assert lbound.arguments[0].symbol.name == "vars"
     # vars2d%region%subgrid(3)%xstop
+    # This is treated as a StructureReference by the frontend as there's no
+    # indexing into the vars2d array.
     assign = assignments[8]
     amem = assign.lhs
-    assert len(amem.indices) == 2
-    for idx in amem.indices:
-        assert isinstance(idx, Range)
-        lbound = idx.start
-        assert isinstance(lbound, IntrinsicCall)
-        assert lbound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
-        assert isinstance(lbound.arguments[0], Reference)
-        assert lbound.arguments[0].symbol.name == "vars2d"
-        ubound = idx.stop
-        assert isinstance(ubound, IntrinsicCall)
-        assert ubound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
-        assert isinstance(ubound.arguments[0], Reference)
-        assert ubound.arguments[0].symbol.name == "vars2d"
+    assert isinstance(amem, StructureReference)
 
 
 def test_array_of_derived_type_ref(f2008_parser):

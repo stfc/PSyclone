@@ -43,11 +43,9 @@
 '''
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import (
-    ArrayOfStructuresReference, ArrayReference, Assignment, Call,
-    IntrinsicCall, Literal, Range, Reference, StructureReference)
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType, DataSymbol, Symbol
+from psyclone.psyir.nodes import (ArrayReference, Assignment, Call,
+                                  IntrinsicCall, Literal, Range, Reference)
+from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType, Symbol
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
@@ -128,17 +126,20 @@ class Reference2ArrayRangeTrans(Transformation):
         step = Literal("1", INTEGER_TYPE)
         return (lower_bound, upper_bound, step)
 
-    def validate(self, node: Reference, **kwargs) -> None:
+    def validate(self, node, **kwargs):
         '''Check that the node is a Reference node and that the symbol it
         references is an array.
 
         :param node: a Reference node.
+        :type node: :py:class:`psyclone.psyir.nodes.Reference`
         :param allow_call_arguments: by default, any references that may be
             arguments to non-elemental routines are not transformed. However,
             this transformation is sometimes used in other transformations
             where this restriction does not apply.
 
-        :raises TransformationError: if the node is not a Reference.
+        :raises TransformationError: if the node is not a Reference
+            node or the Reference node not does not reference an array
+            symbol.
         :raises TransformationError: if the Reference node is (or may be)
             passed as an argument to a call that is not elemental and
             `allow_call_arguments` is False.
@@ -150,14 +151,14 @@ class Reference2ArrayRangeTrans(Transformation):
                                                **kwargs)
         # TODO issue #1858. Add support for structures containing arrays.
         # pylint: disable=unidiomatic-typecheck
-        if not isinstance(node, Reference):  # type(node) is Reference:
+        if not type(node) is Reference:
             raise TransformationError(
                 f"The supplied node should be a Reference but found "
                 f"'{type(node).__name__}'.")
-        #if not node.symbol.is_array:
-        #    raise TransformationError(
-        #        f"The supplied node should be a Reference to a symbol "
-        #        f"that is an array, but '{node.symbol.name}' is not.")
+        if not node.symbol.is_array:
+            raise TransformationError(
+                f"The supplied node should be a Reference to a symbol "
+                f"that is an array, but '{node.symbol.name}' is not.")
         if not allow_call_arguments and (isinstance(node.parent, Call) and
                                          not node.parent.is_elemental):
             raise TransformationError(LazyString(
@@ -181,16 +182,14 @@ class Reference2ArrayRangeTrans(Transformation):
                 f" inside pointer assignments, but found '{node.name}' in"
                 f" {assignment.debug_string()}")
 
-    def apply(self,
-              node: Reference,
-              allow_call_arguments: bool = False,
-              **kwargs):
+    def apply(self, node, allow_call_arguments: bool = False, **kwargs):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified
         node. The node must be a Reference to an array. The Reference
         is replaced by an ArrayReference with appropriate explicit
         range nodes (termed colon notation in Fortran).
 
         :param node: a Reference node.
+        :type node: :py:class:`psyclone.psyir.nodes.Reference`
         :param allow_call_arguments: by default, any references that may be
             arguments to non-elemental routines are not transformed. However,
             this transformation is sometimes used in other transformations
@@ -200,58 +199,10 @@ class Reference2ArrayRangeTrans(Transformation):
         self.validate(node, allow_call_arguments=allow_call_arguments)
 
         symbol = node.symbol
-        import pdb; pdb.set_trace()
-
-        if not isinstance(symbol, DataSymbol):
-            # We don't have any type information for the referenced Symbol
-            # so we do nothing.
-            return
-
-        if isinstance(node, ArrayMixin):
-            return
-
-        sig, member_indices = node.get_signature_and_indices()
-        
-        if symbol.is_array:
-            # The base Symbol is an array so get its shape.
-            indices = []
-            for idx, _ in enumerate(symbol.shape):
-                lbound, ubound = symbol.get_bounds(idx)
-                indices.append(Range.create(lbound, ubound,
-                                            Literal("1", INTEGER_TYPE)))
-            if isinstance(node, StructureReference):
-                # This was a StructureReference so now it becomes an
-                # ArrayOfStructuresReference.
-                array_ref = ArrayOfStructuresReference.create(
-                    symbol, indices, list(zip(sig[1:], member_indices[1:])))
-            else:
-                array_ref = ArrayReference.create(symbol, indices)
-            node.replace_with(array_ref)
-            return
-        
-        if len(sig) == 1:
-            # It's not a structure access and it's not an array so there's
-            # nothing to do.
-            return
-
-        # We have a structure access and we know the base of it is not to an
-        # array.
-        datatype = node.datatype
-        if not isinstance(datatype, ArrayType):
-            # Either we don't know the datatype or it doesn't correspond to
-            # an array so we leave it unchanged.
-            return
-
-        # We have a structure access that has a shape. We need to work out
-        # which member of the access gives rise to the shape.
-        for idx, _ in enumerate(datatype.shape):
-            import pdb; pdb.set_trace()
-            print(idx)
-
-        if 0:  # elif type(node) is StructureReference:
-            mem_list = []
-            if indices[0]:
-                array_ref = ArrayOfStructuresReference.create(
-                    symbol, indices, members=zip(sig, indices))
-
+        indices = []
+        for idx, _ in enumerate(symbol.shape):
+            lbound, ubound = symbol.get_bounds(idx)
+            indices.append(Range.create(lbound, ubound,
+                                        Literal("1", INTEGER_TYPE)))
+        array_ref = ArrayReference.create(symbol, indices)
         node.replace_with(array_ref)

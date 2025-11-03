@@ -4838,7 +4838,7 @@ class Fparser2Reader():
             member_nodes = []
 
         if isinstance(top_ref, Fortran2003.Name):
-            # Add the structure root reference to the symbol table if it's
+            # Add the structure root reference to the symbol table if its
             # not already there.
             base_sym = _find_or_create_unresolved_symbol(
                 parent, top_ref.string.lower(),
