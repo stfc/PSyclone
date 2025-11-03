@@ -156,7 +156,7 @@ class LFRicScalarArgs(LFRicCollection):
         super().stub_declarations()
         # Extract all scalar arguments
         for arg in self.kernel_calls[0].arguments.args:
-            if arg.is_scalar or arg.is_scalar_array:
+            if arg.is_scalar:
                 self._scalar_args[arg.intent].append(arg)
 
         const = LFRicConstants()
