@@ -36,6 +36,8 @@
 """Performs pytest tests on the support for directives in the fparser2
 PSyIR front-end"""
 
+import pytest
+
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     CodeBlock,
@@ -71,8 +73,9 @@ def test_directive_in_decls():
     psyir = reader.psyir_from_source(code)
     routine = psyir.children[0]
     out = routine.debug_string()
-    assert """!$ omp firstprivate
-integer, dimension(100) :: i  ! dir$ aligned""" in out
+    print(out)
+    assert """  ! $omp firstprivate
+  integer, dimension(100) :: i ! dir$ aligned""" in out
 
     pytest.xfail(reason="TODO #3178 PSyclone can't store directives in "
                         "declrations as directives.")

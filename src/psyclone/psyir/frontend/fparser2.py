@@ -5871,7 +5871,6 @@ class Fparser2Reader():
             return
         if self._ignore_directives:
             comment_str = comment.tostr().lower()
-            directive = False
             for dir_form in _directive_formats:
                 if re.match(dir_form, comment_str):
                     return
