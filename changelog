@@ -1,3 +1,6 @@
+   10) PR #3191 for #3189. Ensures that Fortran '==' is converted into
+   Sympy Eq(...).   
+
    9) PR #2944 for #2909. Add OWNED_DOF and OWNED_CELL_COLUMN values in the
    operates_on LFRic metadata.
 
