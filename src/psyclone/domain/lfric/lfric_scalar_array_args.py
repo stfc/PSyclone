@@ -40,14 +40,14 @@ an Invoke or a Kernel stub.
 '''
 
 # Imports
-from collections import OrderedDict, Counter
+from collections import Counter
 
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants, LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import FORTRAN_INTENT_NAMES
-from psyclone.psyir.nodes import Reference, Literal, ArrayReference
-from psyclone.psyir.symbols import (DataSymbol, ArrayType, ScalarType,
+from psyclone.psyir.nodes import Literal, ArrayReference
+from psyclone.psyir.symbols import (DataSymbol, ArrayType,
                                     INTEGER_TYPE, ArgumentInterface)
 
 # pylint: disable=too-many-lines
@@ -110,7 +110,8 @@ class LFRicScalarArrayArgs(LFRicCollection):
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_logical"])
 
         for intent in FORTRAN_INTENT_NAMES:
-            scal = [arg.declaration_name for arg in self._scalar_array_args[intent]]
+            scal = [arg.declaration_name
+                    for arg in self._scalar_array_args[intent]]
             rscalarr = [arg.declaration_name for
                         arg in self._real_scalar_arrays[intent]]
             iscalarr = [arg.declaration_name for
@@ -192,15 +193,18 @@ class LFRicScalarArrayArgs(LFRicCollection):
                         dims_array_symbol = self.symtab.find_or_create(
                             "dims_" + arg.name,
                             symbol_type=DataSymbol,
-                            datatype=ArrayType(INTEGER_TYPE,
+                            datatype=ArrayType(
+                                INTEGER_TYPE,
                                 [1]*arg._array_ndims))
                         dims_array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(dims_array_symbol)
 
-                        dim_symbol = [ArrayReference.create(dims_array_symbol,
-                               [Literal(str(idx),INTEGER_TYPE) 
-                                    for idx in range(1,arg._array_ndims+1)])]
+                        dim_symbol = [ArrayReference.create(
+                                        dims_array_symbol,
+                                        [Literal(str(idx), INTEGER_TYPE)
+                                            for idx in
+                                            range(1, arg._array_ndims+1)])]
 
                         array_symbol = self.symtab.find_or_create(
                             arg.name,
@@ -220,15 +224,18 @@ class LFRicScalarArrayArgs(LFRicCollection):
                         dims_array_symbol = self.symtab.find_or_create(
                             "dims_" + arg.name,
                             symbol_type=DataSymbol,
-                            datatype=ArrayType(INTEGER_TYPE,
+                            datatype=ArrayType(
+                                INTEGER_TYPE,
                                 [1]*arg._array_ndims))
                         dims_array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(dims_array_symbol)
 
-                        dim_symbol = [ArrayReference.create(dims_array_symbol,
-                               [Literal(str(idx),INTEGER_TYPE) 
-                                    for idx in range(1,arg._array_ndims+1)])]
+                        dim_symbol = [ArrayReference.create(
+                                        dims_array_symbol,
+                                        [Literal(str(idx), INTEGER_TYPE)
+                                            for idx in
+                                            range(1, arg._array_ndims+1)])]
 
                         array_symbol = self.symtab.find_or_create(
                             arg.name,
@@ -249,15 +256,18 @@ class LFRicScalarArrayArgs(LFRicCollection):
                         dims_array_symbol = self.symtab.find_or_create(
                             "dims_" + arg.name,
                             symbol_type=DataSymbol,
-                            datatype=ArrayType(INTEGER_TYPE,
+                            datatype=ArrayType(
+                                INTEGER_TYPE,
                                 [1]*arg._array_ndims))
                         dims_array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(dims_array_symbol)
 
-                        dim_symbol = [ArrayReference.create(dims_array_symbol,
-                               [Literal(str(idx),INTEGER_TYPE) 
-                                    for idx in range(1,arg._array_ndims+1)])]
+                        dim_symbol = [ArrayReference.create(
+                                        dims_array_symbol,
+                                        [Literal(str(idx), INTEGER_TYPE)
+                                            for idx in
+                                            range(1, arg._array_ndims+1)])]
 
                         array_symbol = self.symtab.find_or_create(
                             arg.name,
@@ -268,6 +278,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
+
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
