@@ -2942,7 +2942,6 @@ class Fparser2Reader():
                     # Add the comments to nodes that support it and reset the
                     # list of comments
                     if isinstance(psy_child, CommentableMixin):
-                        print("Adding comments to tree", preceding_comments)
                         self._add_comments_to_tree(parent, preceding_comments,
                                                    psy_child)
                         preceding_comments = []
