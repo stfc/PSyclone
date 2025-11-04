@@ -255,6 +255,45 @@ class KernCallArgList(ArgOrdering):
             sym = self._symtab.lookup(scalar_arg.name)
             self.psyir_append(Reference(sym))
 
+        # if scalar_arg.is_scalar_array:
+        #     # Create the dimensions array symbol
+        #     # dims_symbol_list = []
+        #     dims_name = ('dims_' + scalar_arg.name)
+        #     dims_symbol = self.symtab.find_or_create(
+        #         dims_name,
+        #         symbol_type=DataSymbol,
+        #         datatype=ArrayType(
+        #             LFRicTypes("LFRicIntegerScalarDataType")(),
+        #             [scalar_arg._array_ndims]))
+        #     dims_symbol.interface = ArgumentInterface(
+        #                         INTENT_MAPPING[intent])
+        #     self.symtab.append_argument(dims_symbol)
+
+        #     arr_symbol = self.symtab.find_or_create(
+        #         scalar_arg.name,
+        #         symbol_type=DataSymbol,
+        #         datatype=ArrayType(
+        #             LFRicTypes("LFRicIntegerScalarDataType")(),
+        #             [scalar_arg._array_ndims]))
+        #     arr_symbol.interface = ArgumentInterface(
+        #                         INTENT_MAPPING[intent])
+        #     self.symtab.append_argument(arr_symbol)
+
+            # for idx in range(1, scalar_arg._array_ndims + 1):
+            #     # Create symbols to add as dimensions
+            #     # to ScalarArray
+            #     dims_access_name = dims_name + '(' + str(idx) + ')'
+            #     # I'm unsure about the need for this. It was added
+            #     # to appease the dims_symbol_access but seems
+            #     # unneccessary
+            #     dims_symbol_access = self.symtab.find_or_create(
+            #         dims_access_name,
+            #         symbol_type=DataSymbol,
+            #         datatype=ScalarType(
+            #             ScalarType.Intrinsic.INTEGER, 4))
+            #     dims_symbol_access.interface = AutomaticInterface()
+            #     dims_symbol_list.append(dims_symbol_access)
+
     # TODO uncomment this method when ensuring we only pass ncell3d once
     # to any given kernel.
     # def mesh_ncell3d(self):

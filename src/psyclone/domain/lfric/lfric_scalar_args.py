@@ -111,7 +111,8 @@ class LFRicScalarArgs(LFRicCollection):
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_logical"])
 
         for intent in FORTRAN_INTENT_NAMES:
-            scal = [arg.declaration_name for arg in self._scalar_args[intent]]
+            scal = [arg.declaration_name for
+                    arg in self._scalar_args[intent]]
             rscal = [arg.declaration_name for
                      arg in self._real_scalars[intent]]
             iscal = [arg.declaration_name for
@@ -154,7 +155,7 @@ class LFRicScalarArgs(LFRicCollection):
         super().stub_declarations()
         # Extract all scalar arguments
         for arg in self.kernel_calls[0].arguments.args:
-            if arg.is_scalar and not arg.is_scalar_array:
+            if arg.is_scalar:
                 self._scalar_args[arg.intent].append(arg)
 
         const = LFRicConstants()

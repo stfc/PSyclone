@@ -195,7 +195,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                             symbol_type=DataSymbol,
                             datatype=ArrayType(
                                 INTEGER_TYPE,
-                                [1]*arg._array_ndims))
+                                [arg._array_ndims]))
                         dims_array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(dims_array_symbol)

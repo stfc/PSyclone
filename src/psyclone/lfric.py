@@ -1484,7 +1484,7 @@ class LFRicProxies(LFRicCollection):
         init_cursor = cursor
         for arg in self._invoke.psy_unique_vars:
             # We don't have proxies for scalars
-            if arg.is_scalar:
+            if arg.is_scalar or arg.is_scalar_array:
                 continue
 
             const = LFRicConstants()
@@ -1938,7 +1938,7 @@ class LFRicMeshes():
         # kernels in this invoke.
         self._first_var = None
         for var in unique_psy_vars:
-            if not var.is_scalar:
+            if not (var.is_scalar or var.is_scalar_array):
                 self._first_var = var
                 break
 
@@ -6157,8 +6157,7 @@ class LFRicKernelArgument(KernelArgument):
         :rtype: bool
         '''
         const = LFRicConstants()
-        return self._argument_type in (const.VALID_SCALAR_NAMES +
-                                       const.VALID_ARRAY_NAMES)
+        return self._argument_type in const.VALID_SCALAR_NAMES
 
     @property
     def is_scalar_array(self):
@@ -6281,7 +6280,7 @@ class LFRicKernelArgument(KernelArgument):
         # TODO: this needs altering to consider ScalarArrays
         # Currently, this is adding a ScalarArray as a normal
         # scalar variable
-        if self.is_scalar or self.is_scalar_array:
+        if self.is_scalar and not self.is_scalar_array:
             try:
                 scalar_sym = symbol_table.lookup(self.name)
             except KeyError:
@@ -6536,7 +6535,7 @@ class LFRicKernelArgument(KernelArgument):
                         symbol_type=ContainerSymbol)
                         ))
 
-        if self.is_scalar:
+        if self.is_scalar or self.is_scalar_array:
             # Find or create the DataType for the appropriate scalar type.
             if self.intrinsic_type == "real":
                 prim_type = ScalarType.Intrinsic.REAL
