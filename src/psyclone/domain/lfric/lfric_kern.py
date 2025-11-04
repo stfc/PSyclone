@@ -783,10 +783,11 @@ class LFRicKern(CodedKern):
             LFRicLMAOperators, LFRicMeshProperties, LFRicBasisFunctions,
             LFRicReferenceElement)
         for entities in [LFRicCellIterators, LFRicDofmaps, LFRicFunctionSpaces,
-                         LFRicCMAOperators, LFRicScalarArgs, LFRicScalarArrayArgs,
-                         LFRicFields, LFRicLMAOperators, LFRicStencils,
-                         LFRicBasisFunctions, LFRicBoundaryConditions,
-                         LFRicReferenceElement, LFRicMeshProperties]:
+                         LFRicCMAOperators, LFRicScalarArgs,
+                         LFRicScalarArrayArgs, LFRicFields, LFRicLMAOperators,
+                         LFRicStencils, LFRicBasisFunctions,
+                         LFRicBoundaryConditions, LFRicReferenceElement,
+                         LFRicMeshProperties]:
             entities(self).stub_declarations()
 
         # TODO #2874: The declarations above are not in order, we need to use
