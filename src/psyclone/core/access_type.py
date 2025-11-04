@@ -71,7 +71,7 @@ class AccessType(Enum):
     #: The property/ies of a symbol is/are queried but the data it
     #: represents is not accessed (e.g. 'var' in SIZE(var, dim=1)).
     INQUIRY = 9
-    #: Access data that cannot be refedined during execution, therefore, it
+    #: Access data that cannot be redefined during execution, therefore, it
     #: is available at compile-time and can be used for type properties such
     #: as kinds or dimensions.
     CONSTANT = 10

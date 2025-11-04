@@ -115,7 +115,8 @@ jobs:
         spack load lfric-build-environment%gcc@${GCC_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        # The no-annex-dof configuration fails in LFRic because some kernels lie in their metadata
+        # TODO #3206: The no-annex-dof configuration fails in LFRic because some kernels lie in
+        # their metadata
         # export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone_no_annexed.cfg
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
@@ -156,7 +157,7 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use patched LFRic core
+        # Use the patched LFRic core to support nvfortran
         sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" dependencies.sh
         sed -i "s|lfric_core_sources=.*|lfric_core_sources=/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
@@ -192,7 +193,7 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use patched LFRic core
+        # Use the patched LFRic core to support nvfortran
         sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" dependencies.sh
         sed -i "s|lfric_core_sources=.*|lfric_core_sources=/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
@@ -295,7 +296,8 @@ jobs:
         ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16 -w workdir-lfric-atm-transmuted
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
-        # Run the app with 8 threads and no MPI (there is a bug not related to psyclone with MPI)
+        # Run the app with 8 threads and no MPI
+        # (with MPI it currently fails to initialise the mesh - even with no psyclone)
         cd applications/lfric_atm/example/
         OMP_NUM_THREADS=8 mpirun -n 1 ../bin/lfric_atm configuration.nml
 
