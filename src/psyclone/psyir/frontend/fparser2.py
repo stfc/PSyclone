@@ -2895,29 +2895,6 @@ class Fparser2Reader():
         :type preceding_comments: list[:py:class:`fparser.two.utils.Base`]
         :param psy_child: The current PSyIR node being constructed.
         '''
-        _directive_formats = [
-            r"\!\$[a-z]",  # Generic directive
-            r"c\$[a-z]",  # Generic directive
-            r"\*\$[a-z]",  # Generic directive
-            r"\!dir\$",  # flang, ifx, ifort directives.
-            r"cdir\$",  # flang, ifx, ifort fixed format directive.
-            r"\!gcc\$",  # GCC compiler directive
-        ]
-        for comment in preceding_comments[:]:
-            # If the comment is a directive and we
-            # keep_directives then create a CodeBlock for
-            # the directive.
-
-            if not self._ignore_directives:
-                comment_str = comment.tostr().lower()
-                is_directive = False
-                for dir_form in _directive_formats:
-                    if re.match(dir_form, comment_str):
-                        is_directive = True
-                # Attach any comments that came before this directive to this
-                # CodeBlock node.
-                if is_directive:
-                    preceding_comments.remove(comment)
         # Leftover comments are added to the provided PSyIR node.
         psy_child.preceding_comment += self._comments_list_to_string(
             preceding_comments
@@ -2965,6 +2942,7 @@ class Fparser2Reader():
                     # Add the comments to nodes that support it and reset the
                     # list of comments
                     if isinstance(psy_child, CommentableMixin):
+                        print("Adding comments to tree", preceding_comments)
                         self._add_comments_to_tree(parent, preceding_comments,
                                                    psy_child)
                         preceding_comments = []
