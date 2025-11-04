@@ -776,17 +776,17 @@ class LFRicKern(CodedKern):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import (
-            LFRicCellIterators, LFRicScalarArgs, LFRicFields,
-            LFRicDofmaps, LFRicStencils)
+            LFRicCellIterators, LFRicScalarArgs, LFRicScalarArrayArgs,
+            LFRicFields, LFRicDofmaps, LFRicStencils)
         from psyclone.lfric import (
             LFRicFunctionSpaces, LFRicCMAOperators, LFRicBoundaryConditions,
             LFRicLMAOperators, LFRicMeshProperties, LFRicBasisFunctions,
             LFRicReferenceElement)
         for entities in [LFRicCellIterators, LFRicDofmaps, LFRicFunctionSpaces,
-                         LFRicCMAOperators, LFRicScalarArgs, LFRicFields,
-                         LFRicLMAOperators, LFRicStencils, LFRicBasisFunctions,
-                         LFRicBoundaryConditions, LFRicReferenceElement,
-                         LFRicMeshProperties]:
+                         LFRicCMAOperators, LFRicScalarArgs, LFRicScalarArrayArgs,
+                         LFRicFields, LFRicLMAOperators, LFRicStencils,
+                         LFRicBasisFunctions, LFRicBoundaryConditions,
+                         LFRicReferenceElement, LFRicMeshProperties]:
             entities(self).stub_declarations()
 
         # TODO #2874: The declarations above are not in order, we need to use
