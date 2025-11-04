@@ -1,3 +1,9 @@
+   12) PR #3182 for #2772. Add support for creating StructureReferences
+   with symbols of array datatype (representing a whole array access).
+
+   11) PR #3201 for #3200. Fix for comparing datatypes with equivalent
+   interfaces.
+
    10) PR #3191 for #3189. Ensures that Fortran '==' is converted into
    Sympy Eq(...).   
 

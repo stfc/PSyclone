@@ -112,6 +112,11 @@ def test_struc_ref_create():
     assert isinstance(dref.children[0].children[1], nodes.Literal)
     check_links(dref, dref.children)
     check_links(dref.children[0], dref.children[0].children)
+    # Reference to (the whole of) an array of structures.
+    grid_list = symbols.DataSymbol("grid_list",
+                                   symbols.ArrayType(grid_type_symbol, [3]))
+    listref = nodes.StructureReference.create(grid_list, ["nx"])
+    assert isinstance(listref, nodes.StructureReference)
 
 
 def test_struc_ref_create_errors():
@@ -132,6 +137,13 @@ def test_struc_ref_create_errors():
     assert ("A StructureReference must refer to a symbol that is (or could be)"
             " a structure, however symbol 'fake' has type 'Scalar"
             in str(err.value))
+    with pytest.raises(TypeError) as err:
+        _ = nodes.StructureReference.create(
+            symbols.DataSymbol(
+                "fake", symbols.ArrayType(symbols.INTEGER_TYPE, [3])), [])
+    assert ("to an array must refer to a symbol of ArrayType with an intrinsic"
+            " type that is (or could be) a structure. However, the intrinsic "
+            "type of array 'fake' is Intrinsic.INTEGER" in str(err.value))
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("grid", symbols.UnresolvedType()), 1)
