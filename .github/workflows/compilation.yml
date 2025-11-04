@@ -156,5 +156,5 @@ jobs:
     - name: Test reasonable psycloning times for complex files
       run: |
         . .runner_venv/bin/activate
-        # Fail if it takes more than 20s
-        timeout -s INT 20s psyclone /archive/psyclone-tests/latest-run/slow_files/ukca_aero_ctl.F90
+        # Fail if it takes more than 15s
+        timeout -s INT 15s psyclone /archive/psyclone-tests/latest-run/slow_files/ukca_aero_ctl.F90
