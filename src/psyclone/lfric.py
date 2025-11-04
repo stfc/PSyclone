@@ -5900,7 +5900,7 @@ class LFRicKernelArgument(KernelArgument):
                 alg_datatype = None
 
         # TODO: Check this is correct after is_scalar is fixed
-        if self.is_scalar:
+        if self.is_scalar or self.is_scalar_array:
             self._init_scalar_properties(alg_datatype, alg_precision,
                                          check)
         elif self.is_field:
