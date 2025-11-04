@@ -161,7 +161,7 @@ def test_directive_before_else():
 def test_directive_before_module():
     """Test that the FortranReader stores a directive before a module as a
     CodeBlock."""
-    code = """!$mydir test
+    code = """!dir$ test
     module mymod
        integer :: i
     end module mymod
@@ -170,7 +170,7 @@ def test_directive_before_module():
     psyir = reader.psyir_from_source(code)
     # The directive is a codeblock
     assert isinstance(psyir.children[0], CodeBlock)
-    assert psyir.children[0].debug_string() == "!$mydir test\n"
+    assert psyir.children[0].debug_string() == "!dir$ test\n"
 
 
 def test_directive_before_while():
