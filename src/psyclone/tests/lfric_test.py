@@ -188,9 +188,9 @@ def test_ad_invalid_iteration_space():
     arg_type = field_descriptor._arg_type
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours", 0)
-    assert ("Expected operates_on in the kernel metadata to be one of "
-            "['cell_column', 'domain', 'dof', 'halo_cell_column', "
-            "'owned_and_halo_cell_column'] but got "
+    assert ("Expected operates_on in the kernel metadata to be one of ["
+            "'domain', 'dof', 'owned_dof', 'cell_column', 'owned_cell_column',"
+            " 'halo_cell_column', 'owned_and_halo_cell_column'] but got "
             "'colours'." in str(excinfo.value))
 
 
@@ -321,10 +321,10 @@ def test_kernel_call_invalid_iteration_space():
     with pytest.raises(GenerationError) as excinfo:
         kernel.validate_global_constraints()
     assert ("The LFRic API supports calls to user-supplied kernels that "
-            "operate on one of ['cell_column', 'domain', 'dof', "
-            "'halo_cell_column', 'owned_and_halo_cell_column'], but "
-            "kernel 'testkern_dofs_code' operates on 'vampires'."
-            in str(excinfo.value))
+            "operate on one of ['domain', 'dof', 'owned_dof', 'cell_column', "
+            "'owned_cell_column', 'halo_cell_column', "
+            "'owned_and_halo_cell_column'], but kernel 'testkern_dofs_code' "
+            "operates on 'vampires'." in str(excinfo.value))
 
 
 def test_any_space_1(tmpdir):
@@ -838,9 +838,6 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
     produced.
 
     '''
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
                            api=TEST_API)
@@ -2507,16 +2504,13 @@ def test_halo_exchange(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_halo_exchange_inc(monkeypatch, annexed):
+def test_halo_exchange_inc(annexed):
     '''test that appropriate halo exchange calls are added if we have a
     gh_inc operation and that the loop bounds included computation in
     the l1 halo. Test when annexed is False and True as a different
     number of halo exchanges are produced.
 
     '''
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
                            api=TEST_API)
@@ -2602,16 +2596,12 @@ def test_halo_exchange_different_spaces(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_halo_exchange_vectors_1(monkeypatch, annexed, tmpdir):
+def test_halo_exchange_vectors_1(annexed, tmpdir):
     ''' Test that halo exchange produces correct code for vector fields
     including a field with a gh_inc access. Test when annexed = False
     and True as halo exchanges are only produced when annexed = False.
 
     '''
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
-
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4.1_halo_vector.f90"),
                            api=TEST_API)
@@ -2634,16 +2624,13 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed, tmpdir):
         assert expected in result
 
 
-def test_halo_exchange_vectors(monkeypatch, annexed):
+def test_halo_exchange_vectors(annexed):
     '''Test that halo exchange produces correct code for vector
     fields. Test both a field with a stencil and a field with
     gh_inc. Test when annexed = False and True as a different number
     of halo exchanges are produced.
 
     '''
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)
@@ -2693,7 +2680,7 @@ def test_halo_exchange_depths(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
+def test_halo_exchange_depths_gh_inc(tmpdir, annexed):
     ''' Test that halo exchange includes the correct halo depth when we
     have a gh_inc as this increases the required depth by 1 (as
     redundant computation is performed in the l1 halo). Test when
@@ -2701,10 +2688,6 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
     are produced.
 
     '''
-
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.6_halo_depth_2.f90"),
                            api=TEST_API)
@@ -3546,8 +3529,7 @@ def test_halo_req_no_read_deps(monkeypatch):
             "dependence for a halo exchange" in str(excinfo.value))
 
 
-def test_no_halo_exchange_annex_dofs(tmpdir, monkeypatch,
-                                     annexed):
+def test_no_halo_exchange_annex_dofs(tmpdir, annexed):
     ''' If a kernel writes to a discontinuous field and also reads from a
     continuous field then that fields annexed dofs are read (but not
     the rest of its level1 halo). If the previous modification of this
@@ -3563,8 +3545,6 @@ def test_no_halo_exchange_annex_dofs(tmpdir, monkeypatch,
     fewer halo exchange call generated.
 
     '''
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.7.1_halo_annexed.f90"),
                            api=TEST_API)
