@@ -78,7 +78,7 @@ $(PSYDATA_STANDALONE_LIB): $(INF_LIB) $(PSY_OBJS)
 	ar rs $@ $(INF_OBJS_FULL_PATH) $(PSY_OBJS)
 
 # Trigger recompilation if the infrastructure lib is changed
-$(OBJS): $(INF_LIB)
+$(PSY_OBJS): $(INF_LIB)
 
 # Create infrastructure library
 $(INF_LIB):
