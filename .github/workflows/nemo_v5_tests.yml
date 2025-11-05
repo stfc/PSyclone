@@ -254,6 +254,7 @@ jobs:
         # Run reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         # We can compare all digits for this build
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
@@ -270,6 +271,8 @@ jobs:
         # Run non-reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        export NV_ACC_POOL_THRESHOLD=75
+        export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
@@ -337,6 +340,7 @@ jobs:
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
         ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA2/* .
         # Uses both, threading and offloading
+        export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
@@ -378,6 +382,7 @@ jobs:
         # Run reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         # We can compare all digits for this build
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
@@ -389,6 +394,8 @@ jobs:
         unset ENABLE_PROFILING
         export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
         rm -rf tests/${TEST_DIR}
+        export NV_ACC_POOL_THRESHOLD=75
+        export CUDA_VISIBLE_DEVICES=1
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
           -j ${NUM_PARALLEL} -v 1
         # Run non-reproducible test
@@ -427,6 +434,7 @@ jobs:
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
         ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA2/* .
         # Uses both, threading and offloading
+        export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)

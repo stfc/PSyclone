@@ -486,6 +486,17 @@ class Loop(Statement):
         result += "End " + name
         return result
 
+    def get_all_accessed_symbols(self) -> set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this Loop.
+        '''
+        symbols = super().get_all_accessed_symbols()
+        if self.variable:
+            # TODO #3124: This is needed because the loop variable reference
+            # is not part of the tree
+            symbols.add(self.variable)
+        return symbols
+
     def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
