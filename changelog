@@ -1,3 +1,5 @@
+   13) PR #3204 towards #3203. Fix make calls using netcdf target.
+
    12) PR #3182 for #2772. Add support for creating StructureReferences
    with symbols of array datatype (representing a whole array access).
 
