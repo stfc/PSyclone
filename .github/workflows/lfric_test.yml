@@ -42,8 +42,8 @@ on:
   push
 
 env:
-  LFRIC_APPS_REV: 10798
-  LFRIC_CORE_REV: 52772
+  LFRIC_APPS_REV: 14921
+  LFRIC_CORE_REV: 53845
   PYTHON_VERSION: 3.14
   GCC_VERSION: 14
   NVHPC_VERSION: 25.1
@@ -57,9 +57,12 @@ jobs:
     outputs:
       lfric_dist_mem: ${{ steps.lfric_dist_mem.outputs.time }}
       lfric_omp_offload: ${{ steps.lfric_omp_offload.outputs.time }}
+      lfric_omp_offload_build: ${{ steps.lfric_omp_offload.outputs.build_time }}
       lfric_acc_offload: ${{ steps.lfric_acc_offload.outputs.time }}
       lfric_all_trans: ${{ steps.lfric_all_trans.outputs.time }}
       lfric_colour_tiling: ${{ steps.lfric_colour_tiling.outputs.time }}
+      lfric_atm: ${{ steps.lfric_atm.outputs.time }}
+      lfric_atm_build: ${{ steps.lfric_atm.outputs.build_time }}
 
     steps:
     - uses: actions/checkout@v3
@@ -92,18 +95,18 @@ jobs:
         rm -rf lfric_apps lfric_core
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
           -r ${LFRIC_APPS_REV} https://code.metoffice.gov.uk/svn/lfric_apps/main/trunk/ lfric_apps
+        # Disable XIOS in the gungho_model example configuration
+        cd lfric_apps/applications/gungho_model/example
+        sed -i "s|use_xios_io=.*|use_xios_io=.false.|g" configuration.nml
         # We need to patch lfric_core to resolve issues with the nvfortran compiler
         # see https://code.metoffice.gov.uk/trac/lfric/ticket/4621
+        cd /archive/psyclone-tests/latest-run
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
           -r ${LFRIC_CORE_REV} https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
-        sed -i "s|lfric_core_rev=$LFRIC_CORE_REV|lfric_core_rev=|g" lfric_apps/dependencies.sh
-        sed -i "s|lfric_core_sources=|lfric_core_sources=$PWD/lfric_core|g" lfric_apps/dependencies.sh
         cd lfric_core
         svn patch ${GITHUB_WORKSPACE}/examples/lfric/scripts/KGOs/nvidia_lfric_core.patch
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
-    # COMPUTE_ANNEXED_DOFS is set to false for this test by using the
-    # appropriate cfg file.
     - name: LFRic passthrough (with DistributedMemory)
       id: lfric_dist_mem
       run: |
@@ -112,9 +115,15 @@ jobs:
         spack load lfric-build-environment%gcc@${GCC_VERSION}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone_no_annexed.cfg
+        # TODO #3206: The no-annex-dof configuration fails in LFRic because some kernels lie in
+        # their metadata
+        # export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone_no_annexed.cfg
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
+        # Use un-patched LFRic core
+        sed -i "s|lfric_core_rev=.*|lfric_core_rev=${LFRIC_CORE_REV}|g" dependencies.sh
+        sed -i "s|lfric_core_sources=.*|lfric_core_sources=|g" dependencies.sh
         # Ensure no transformations are applied by supplying an empty
         # transformation script.
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
@@ -122,16 +131,15 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
-        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -v -p psyclone-test
+        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -v -p psyclone-test -w working-passthrough
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         # Number of OMP threads have to be set even when psyclone does not inject OpenMP
         # because some psykal-lite routines have it.
         export OMP_NUM_THREADS=1
-        mpirun -n 12 ../bin/gungho_model configuration_c16_10it.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        mpirun -n 12 ../bin/gungho_model configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
@@ -149,22 +157,28 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
+        # Use the patched LFRic core to support nvfortran
+        sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" dependencies.sh
+        sed -i "s|lfric_core_sources=.*|lfric_core_sources=/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
-        LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test
+        export BUILD_START="${SECONDS}"
+        LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -w working-omp-offload
+        export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=12
-        mpirun -n 1 ../bin/gungho_model configuration_c16_10it.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        export CUDA_VISIBLE_DEVICES=1
+        mpirun -n 1 ../bin/gungho_model configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
+        echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
     - name: LFRic GungHo with OpenACC offload
@@ -179,19 +193,22 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
+        # Use the patched LFRic core to support nvfortran
+        sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" dependencies.sh
+        sed -i "s|lfric_core_sources=.*|lfric_core_sources=/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
-        LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test
+        LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -w working-acc-offload
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=12
-        mpirun -n 1 ../bin/gungho_model configuration_c16_10it.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        export CUDA_VISIBLE_DEVICES=1
+        mpirun -n 1 ../bin/gungho_model configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
@@ -208,20 +225,22 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
+        # Use un-patched LFRic core
+        sed -i "s|lfric_core_rev=.*|lfric_core_rev=${LFRIC_CORE_REV}|g" dependencies.sh
+        sed -i "s|lfric_core_sources=.*|lfric_core_sources=|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
-        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -v
+        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -v -w working-all-trans
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=2
-        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        mpirun -n 6 ../bin/gungho_model configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
@@ -238,23 +257,56 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
+        # Use un-patched LFRic core
+        sed -i "s|lfric_core_rev=.*|lfric_core_rev=${LFRIC_CORE_REV}|g" dependencies.sh
+        sed -i "s|lfric_core_sources=.*|lfric_core_sources=|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/tiledcolouring_and_omp.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
-        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -v
+        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -v -w working-omp-tiling
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
         export OMP_NUM_THREADS=2
-        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
+        mpirun -n 6 ../bin/gungho_model configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
+
+    - name: LFRic Atm PSyclone transmutation
+      id: lfric_atm
+      run: |
+        # Set up environment
+        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment%gcc@${GCC_VERSION}
+        source .runner_venv/bin/activate
+        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
+        export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
+        cd ${LFRIC_DIR}
+        # Use un-patched LFRic core
+        sed -i "s|lfric_core_rev=.*|lfric_core_rev=${LFRIC_CORE_REV}|g" dependencies.sh
+        sed -i "s|lfric_core_sources=.*|lfric_core_sources=|g" dependencies.sh
+
+        # Build the 'meto-ex1a' platform, that includes psyclone-transmutation
+        export BUILD_START="${SECONDS}"
+        ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16 -w workdir-lfric-atm-transmuted
+        export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
+
+        # Run the app with 8 threads and no MPI
+        # (with MPI it currently fails to initialise the mesh - even with no psyclone)
+        cd applications/lfric_atm/example/
+        OMP_NUM_THREADS=8 mpirun -n 1 ../bin/lfric_atm configuration.nml
+
+        # And compare the results
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
+        cat timer.txt
+        export VAR_TIME=$(grep "lfric_atm" timer.txt | cut -d'|' -f5)
+        echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
+        echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
 
   upload_if_on_mirror:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
@@ -291,6 +343,12 @@ jobs:
                 '"${COMMON_FIELDS}"'
               },
               {
+                ci_test: "LFRic OpenMP offloading build time",
+                compiler:"nvhpc@'"$NVHPC_VERSION"'",
+                elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_omp_offload_build}}"',
+                '"${COMMON_FIELDS}"'
+              },
+              {
                 ci_test: "LFRic OpenACC",
                 compiler:"nvhpc@'"$NVHPC_VERSION"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_acc_offload}}"',
@@ -307,4 +365,17 @@ jobs:
                 compiler:"gfortran@'"$GCC_VERSION"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"',
                 '"${COMMON_FIELDS}"'
-              }])'
+              },
+              {
+                ci_test: "LFRic_atm",
+                compiler:"gfortran@'"$GCC_VERSION"'",
+                elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_atm}}"',
+                '"${COMMON_FIELDS}"'
+              },
+              {
+                ci_test: "LFRic_atm build time",
+                compiler:"gfortran@'"$GCC_VERSION"'",
+                elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_atm_build}}"',
+                '"${COMMON_FIELDS}"'
+              }
+              ])'

@@ -132,18 +132,13 @@ class DataTypeSymbol(Symbol):
         super().copy_properties(symbol_in, exclude_interface=exclude_interface)
         self._datatype = symbol_in.datatype
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this Symbol, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this Symbol.
         '''
-        access_info = super().reference_accesses()
-        access_info.update(self.datatype.reference_accesses())
-        return access_info
+        symbols = super().get_all_accessed_symbols()
+        symbols.update(self.datatype.get_all_accessed_symbols())
+        return symbols
 
     def replace_symbols_using(self, table_or_symbol):
         '''

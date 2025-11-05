@@ -2006,3 +2006,25 @@ def test_has_descendant(fortran_reader):
     # Accepts tuples and checks self
     routine = psyir.walk(Routine)[0]
     assert routine.has_descendant((KernelSchedule, Routine))
+
+
+def test_get_all_accessed_symbols(fortran_reader):
+    ''' Test the get_all_accessed_symbols method of the Node class.'''
+
+    code = '''subroutine test_sub()
+    integer :: i, j, k, l
+    k = 12
+    do i = 1, 128
+      do j = 2, 256
+        k = k + 32
+      end do
+    end do
+    l = k
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    symbol_names = [s.name for s in psyir.get_all_accessed_symbols()]
+    assert "i" in symbol_names
+    assert "j" in symbol_names
+    assert "k" in symbol_names
+    assert "l" in symbol_names
