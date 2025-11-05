@@ -74,6 +74,7 @@ from psyclone.transformations import (
     LFRicOMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPLoopTrans, TransformationError)
+from pysmt.exceptions import NoSolverAvailableError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")
@@ -5349,3 +5350,43 @@ def test_firstprivate_with_uninitialised(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     assert "firstprivate(a)" in output
     assert "firstprivate(b)" in output
+
+
+def test_array_analysis_option(fortran_reader, fortran_writer):
+    '''Test that a tiled loop can be parallelised when using the SMT-based
+    array index analysis.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+      subroutine my_matmul(a, b, c)
+        integer, dimension(:,:), intent(in) :: a
+        integer, dimension(:,:), intent(in) :: b
+        integer, dimension(:,:), intent(out) :: c
+        integer :: x, y, k, k_out_var, x_out_var, y_out_var, a1_n, a2_n, b1_n
+
+        a2_n = SIZE(a, 2)
+        b1_n = SIZE(b, 1)
+        a1_n = SIZE(a, 1)
+
+        c(:,:) = 0
+        do y_out_var = 1, a2_n, 8
+          do x_out_var = 1, b1_n, 8
+            do k_out_var = 1, a1_n, 8
+              do y = y_out_var, MIN(y_out_var + (8 - 1), a2_n), 1
+                do x = x_out_var, MIN(x_out_var + (8 - 1), b1_n), 1
+                  do k = k_out_var, MIN(k_out_var + (8 - 1), a1_n), 1
+                    c(x,y) = c(x,y) + a(k,y) * b(x,k)
+                  enddo
+                enddo
+              enddo
+            enddo
+          enddo
+        enddo
+      end subroutine my_matmul''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    try:
+        omplooptrans.apply(loop, collapse=True, use_smt_array_anal=True)
+        output = fortran_writer(psyir)
+        assert "collapse(2)" in output
+    except NoSolverAvailableError:
+        pass
