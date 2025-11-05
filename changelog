@@ -1,3 +1,6 @@
+   14) PR #3194 towards #3183. Adds a new get_all_accessed_symbols
+   method to Node to reduce the cost of certain transformations.
+ 
    13) PR #3204 towards #3203. Fix make calls using netcdf target.
 
    12) PR #3182 for #2772. Add support for creating StructureReferences
