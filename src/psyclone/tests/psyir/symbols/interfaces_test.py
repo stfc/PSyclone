@@ -49,13 +49,18 @@ from psyclone.psyir.symbols import ContainerSymbol
 
 
 def test_symbolinterface():
-    '''Test we can create a SymbolInterface instance and make a copy of it.
+    '''Test we can create a SymbolInterface instance, make copies and comapre
+    them.
 
     '''
     inter1 = SymbolInterface()
     inter2 = inter1.copy()
     assert isinstance(inter2, SymbolInterface)
     assert inter2 is not inter1
+    assert inter2 == inter1
+
+    # They are not equal if it is a different interface subclass
+    assert AutomaticInterface() != DefaultModuleInterface()
 
 
 def test_automatic_interface():

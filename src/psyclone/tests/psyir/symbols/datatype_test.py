@@ -180,7 +180,7 @@ def test_scalartype_int_precision(intrinsic, precision):
 def test_scalartype_datasymbol_precision(intrinsic):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType intrinsics and the precision specified by another
-    symbol.  Also test that two such types are equal.
+    symbol. Also test that two such types are equal.
 
     '''
     # Create an r_def precision symbol with a constant value of 8
@@ -197,7 +197,7 @@ def test_scalartype_datasymbol_precision(intrinsic):
     assert scalar_type == scalar_type2
 
 
-def test_scalartype_not_equal():
+def test_scalartype_equal():
     '''
     Check that ScalarType instances with different precision or intrinsic type
     are recognised as being different. Also check that an ArrayType is !=
@@ -211,6 +211,12 @@ def test_scalartype_not_equal():
                                   initial_value=8)
     # Set the precision of our ScalarType to be the precision symbol
     scalar_type = ScalarType(intrinsic, Reference(precision_symbol))
+
+    # Equivalent precision symbol and intrinsic type will be equal
+    scalar_type2 = ScalarType(intrinsic, Reference(precision_symbol.copy()))
+    assert scalar_type == scalar_type2
+
+    # Every other difference will make it not equal:
     # Same precision symbol but different intrinsic type
     scalar_type2 = ScalarType(ScalarType.Intrinsic.REAL,
                               Reference(precision_symbol))
