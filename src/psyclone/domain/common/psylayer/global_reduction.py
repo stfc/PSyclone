@@ -38,7 +38,6 @@
 
 from __future__ import annotations
 import copy
-from enum import Enum
 from typing import Any
 
 from psyclone.configuration import Config

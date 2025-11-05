@@ -1,4 +1,3 @@
-from psyclone.configuration import Config
 from psyclone.domain.common.psylayer.global_sum import GlobalSum
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule
