@@ -121,8 +121,8 @@ dl_timer:
 # The LFRic timer can be used for gocean as well - the wrapper provides
 # a standalone library that contains all dependencies and can therefore be
 # used with any program.
-lfric: 
-	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/lfric"         \
+lfric_timer:
+	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/lfric_timer"         \
 	        WRAPPER_NAME="psy_lfric_timer_standalone"  \
 	        lfric_lib $(NAME).lfric
 

@@ -44,7 +44,7 @@ F90FLAGS ?= -g
 # Path to the LFRic infrastructure library. It defaults to the pared-down
 # version of the LFRic infrastructure distributed with PSyclone.
 # Overwrite for a different infrastructure version.
-LFRIC_INF_DIR ?= ./../../../src/psyclone/tests/test_files/lfric/infrastructure
+LFRIC_INF_DIR ?= ./../../../external/lfric_infrastructure/src
 # -----------------------------------------------------------------------------
 
 INF_INC = $(LFRIC_INF_DIR)
@@ -59,7 +59,7 @@ PSYDATA_STANDALONE_LIB = lib$(PSYDATA_STANDALONE_LIB_NAME).a
 
 PSY_OBJS = profile_psy_data_mod.o
 INF_OBJS = utilities/timer_mod.o utilities/log_mod.o scalar/scalar_mod.o \
-	       utilities/mpi_mod.o io/io_utility_mod.o
+	       utilities/lfric_mpi_mod.o io/io_utility_mod.o
 INF_OBJS_FULL_PATH = $(patsubst %,$(LFRIC_INF_DIR)/%,$(INF_OBJS))
 
 .phony: default clean allclean

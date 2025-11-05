@@ -40,7 +40,7 @@ The location of the LFRic infrastructure library is specified using the
 environment variable ``LFRIC_INF_DIR``. It defaults to the relative path
 to location of the pared-down LFRic infrastructure located in a clone of
 PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
+``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
 This is not available in the PSyclone [installation](
 ./../../README.md#installation) so the exact path
 **must be specified** during the compilation process, e.g.

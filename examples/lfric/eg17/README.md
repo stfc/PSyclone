@@ -5,7 +5,7 @@
 This directory contains some standalone, runnable examples of LFRic code.
 They are based on a subset of the LFRic infrastructure library
 included in
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
+``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
 Significant refactoring was required in order to only include a
 small number of infrastructure files from the original LFRic source files.
 In many case unnecessary dependencies were just removed. Some examples:

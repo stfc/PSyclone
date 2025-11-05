@@ -54,8 +54,8 @@ module read_only_verify_psy_data_mod
                                               real32, real64, &
                                               stderr => Error_Unit
     {% for prec in ALL_PREC %}
-    use field_r{{prec}}_mod, only : field_r{{prec}}_type,      &
-                              field_r{{prec}}_proxy_type
+    use field_real{{prec}}_mod, only : field_real{{prec}}_type,      &
+                                  field_real{{prec}}_proxy_type
     {% endfor %}
     use integer_field_mod, only  : integer_field_type
     use read_only_base_mod, only : ReadOnlyBaseType, is_enabled
@@ -126,7 +126,7 @@ contains
 
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                                   :: name
-        type(field_r{{prec}}_type), intent(in)                           :: value
+        type(field_real{{prec}}_type), intent(in)                           :: value
 
         this%next_var_index = this%next_var_index + 1
 
@@ -148,8 +148,8 @@ contains
 
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                                   :: name
-        type(field_r{{prec}}_type), intent(in)                           :: value
-        type(field_r{{prec}}_proxy_type)                                 :: value_proxy
+        type(field_real{{prec}}_type), intent(in)                           :: value
+        type(field_real{{prec}}_proxy_type)                                 :: value_proxy
         integer(kind=int64):: cksum
 
         if (.not. is_enabled) return
@@ -189,7 +189,7 @@ contains
 
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                                   :: name
-        type(field_r{{prec}}_type), dimension(:), intent(in)             :: value
+        type(field_real{{prec}}_type), dimension(:), intent(in)             :: value
 
         this%next_var_index = this%next_var_index + size(value, 1)
 
@@ -210,9 +210,9 @@ contains
 
         class(read_only_verify_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                                   :: name
-        type(field_r{{prec}}_type), dimension(:), intent(in)             :: value
+        type(field_real{{prec}}_type), dimension(:), intent(in)             :: value
 
-        type(field_r{{prec}}_proxy_type) :: value_proxy
+        type(field_real{{prec}}_proxy_type) :: value_proxy
         integer :: i
         ! Enough for a 6 digit number plus '()'
         character(8) :: index_string

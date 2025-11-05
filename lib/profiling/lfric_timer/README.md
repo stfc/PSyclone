@@ -46,9 +46,9 @@ This will pick up the module file for the LFRic timer from the specified
 directory. As can be seen from the above command, the location of the LFRic
 infrastructure code is specified using the environment variable
 ``LFRIC_INF_DIR``. For demonstration purposes, it defaults to the relative
-path to location of the pared-down LFRic infrastructure located in a clone
+path to location of the LFRic infrastructure located in a clone
 of PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
+``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
 This is not available in the PSyclone [installation](
 ./../../README.md#installation) so the exact path
 **must be specified** during the compilation process.
@@ -65,7 +65,7 @@ repository and specify the exact path during the compilation process.
 For instance,
 
 ```shell
-LFRIC_INF_DIR=<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure make \
+LFRIC_INF_DIR=<PSYCLONEHOME>/external/lfric_infrastructure/src make \
 	libpsy_lfric_timer_standalone.a
 ```
 

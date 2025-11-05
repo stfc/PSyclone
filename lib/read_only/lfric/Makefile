@@ -49,10 +49,10 @@
 # Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?=
-# Path to the LFRic infrastructure library. It defaults to the pared-down
+# Path to the LFRic infrastructure library. It defaults to the included
 # version of the LFRic infrastructure distributed with PSyclone.
 # Overwrite for a different infrastructure version.
-LFRIC_INF_DIR ?= ./../../../src/psyclone/tests/test_files/lfric/infrastructure
+LFRIC_INF_DIR ?= ./../../../external/lfric_infrastructure/src
 # Paths to the PSyclone wrapper libraries and required templates. They default
 # to the relative paths to the top-level 'lib' and 'lib/read_only'
 # directories. Overwrite for a custom location.
@@ -116,7 +116,7 @@ $(INF_LIB):
 	$(MAKE) -C $(LFRIC_INF_DIR)
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.* read_only_base.*
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.* read_only.f90 read_only_base.*
 
 allclean: clean
 	$(MAKE) -C $(LFRIC_INF_DIR) allclean
