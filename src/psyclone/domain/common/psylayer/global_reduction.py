@@ -48,6 +48,7 @@ from psyclone.psyGen import KernelArgument
 from psyclone.psyir.nodes import Statement
 
 
+# TODO make this virtual
 class GlobalReduction(Statement):
     '''
     Generic global reduction operation.
@@ -80,6 +81,10 @@ class GlobalReduction(Statement):
             self._operand.access = AccessType.READWRITE
             self._operand.call = self
         super().__init__(kwargs)
+
+    def initialise_reduction_variable(self, parent):
+        '''
+        '''
 
     @property
     def operand(self) -> Any:
