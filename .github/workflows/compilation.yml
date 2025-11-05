@@ -105,6 +105,7 @@ jobs:
       run: |
         . .runner_venv/bin/activate
         module load gcc/${GFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         make -C lib allclean
         make -C lib all
         # There is an additional test:
@@ -113,6 +114,7 @@ jobs:
       run: |
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         make -C lib allclean
         F90=nvfortran make -C lib all
         # There is an additional test:
