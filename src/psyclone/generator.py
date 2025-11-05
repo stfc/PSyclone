@@ -52,7 +52,7 @@ import sys
 import traceback
 import importlib
 import shutil
-from typing import Union, Callable, List, Tuple
+from typing import Union, Callable, List, Tuple, Iterable
 import logging
 
 from fparser.api import get_reader
@@ -73,7 +73,7 @@ from psyclone.domain.lfric.transformations import (
     LFRicAlgTrans, RaisePSyIR2LFRicKernTrans, LFRicAlgInvoke2PSyCallTrans)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
-from psyclone.parse import ModuleManager
+from psyclone.parse import ModuleManager, FileInfo
 from psyclone.parse.algorithm import parse
 from psyclone.parse.kernel import get_kernel_filepath
 from psyclone.parse.utils import ParseError, parse_fp2
@@ -164,6 +164,8 @@ def load_script(
 
     if hasattr(recipe_module, "RESOLVE_IMPORTS"):
         imports_to_resolve = recipe_module.RESOLVE_IMPORTS
+        if isinstance(imports_to_resolve, Iterable):
+            FileInfo.RESOLVE_IMPORTS_OF_INDIRECT_IMPORTS = imports_to_resolve
     else:
         imports_to_resolve = []
 
@@ -601,10 +603,9 @@ def main(arguments):
                   "specify the output destination of each psykal layer.")
             sys.exit(1)
 
-    # This has to be before the Config.get, because otherwise that creates a
-    # ModuleManager Singleton without caching
-    mod_manager = ModuleManager.get(cache_active=args.enable_cache)
-    # Set the ignore patterns:
+    # Set ModuleManager properties from flags
+    mod_manager = ModuleManager.get()
+    mod_manager.cache_active = args.enable_cache
     for pattern in args.modman_file_ignore:
         mod_manager.add_ignore_file(pattern)
 

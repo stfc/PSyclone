@@ -74,42 +74,19 @@ class ModuleManager:
             cache_path: Optional[str] = None):
         '''Static function that if necessary creates and returns the singleton
         ModuleManager instance.
-
-        :param use_caching: If `True`, a file-based caching of the fparser
-            tree will be used. This can significantly accelerate obtaining
-            a PSyIR from a source file.
-            For parallel builds, parallel race conditions to the cache file
-            can happen, but this shouldn't lead to wrong results. However,
-            that's untested so far.
-
-        :param cache_path: If set, the cache file will be stored in the given
-            path (directory) using a hashsum of the source code to create
-            a unique cache file name. If `None`, a cache file will be created
-            in the same directory as the source file with a new
-            file ending `.psycache`.
-
         '''
         if not ModuleManager._instance:
-            ModuleManager._instance = ModuleManager(cache_active, cache_path)
+            ModuleManager._instance = ModuleManager()
 
         return ModuleManager._instance
 
     # ------------------------------------------------------------------------
-    def __init__(
-            self,
-            cache_active: Optional[bool] = None,
-            cache_path: Optional[str] = None
-    ):
+    def __init__(self):
         """
         Set up the module manager. Module manager is actually a singleton
         and should not be created directly. Use `ModuleManager.get()`
         instead.
 
-        :param cache_active: Whether to use (`True`) or
-            disable (`False`) caching
-        :param cache_path: Path to the cache directory. If `None`, the
-            cache file will be created in the same directory as the source
-            file with a new file ending `.psycache`.
         """
 
         if ModuleManager._instance is not None:
@@ -117,11 +94,13 @@ class ModuleManager:
                                 "to get the singleton instance.")
 
         # Disable caching by default
-        self._cache_active = (
-            cache_active if cache_active is not None else False)
+        self._cache_active = False
 
         # Path to cache
-        self._cache_path: Optional[str] = cache_path
+        self._cache_path: Optional[str] = None
+
+        # Whether to resolve imports while inspecting another import
+        self._resolve_indirect_imports = False
 
         self._visited_files: dict[str, FileInfo] = {}
 
@@ -158,6 +137,37 @@ class ModuleManager:
         # to match e.g. "module procedure :: some_sub".
         self._module_pattern = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
                                           flags=re.IGNORECASE | re.MULTILINE)
+
+    @property
+    def cache_active(self) -> bool:
+        '''
+        :returns: whether the parsed files will be cached.
+        '''
+        return self._cache_active
+
+    @cache_active.setter
+    def cache_active(self, value: bool):
+        '''
+        :param value: specify whether the parsed files will be cached.
+        '''
+        self._cache_active = value
+
+    @property
+    def cache_path(self) -> Optional[str]:
+        '''
+        :returns: the path where the cache file will be stored, if it is None
+            the file will be created in the same directory as the source file.
+        '''
+        return self._cache_path
+
+    @cache_path.setter
+    def cache_path(self, value: Optional[str]):
+        '''
+        :param value: specify the path where the cache file will be stored, if
+            None the file will be created in the same directory as the source
+            file.
+        '''
+        self._cache_path = value
 
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
@@ -219,7 +229,8 @@ class ModuleManager:
                     FileInfo(
                             full_path,
                             cache_active=self._cache_active,
-                            cache_path=self._cache_path
+                            cache_path=self._cache_path,
+                            resolve_imports=False
                         )
                 new_files.append(self._visited_files[full_path])
         return new_files
