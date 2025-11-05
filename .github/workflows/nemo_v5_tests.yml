@@ -119,8 +119,7 @@ jobs:
         mpirun -np 4 ./nemo
         tail run.stat
         # This was produced with gfortran, so we can do an exact diff
-        # TODO #3112: Fix differences with baseline result
-        # diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
 
     - name: NEMO 5.0 nvidia passthrough
       # Only bother doing passthrough if this is a re-run of a previous test.
