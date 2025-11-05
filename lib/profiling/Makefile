@@ -45,6 +45,9 @@ F90FLAGS ?= -g
 # since they require external libraries to be available.
 ALL_LIBS = lfric_timer simple_timing template
 
+# For convenience, define a list with all libraries (which will a)
+FULL_ALL_LIBS = $(ALL_LIBS) dl_timer drhook nvidia tau vernier
+
 .PHONY: default all $(ALL_LIBS) clean allclean \
 	dl_timer drhook nvidia tau vernier
 
@@ -54,17 +57,12 @@ all: $(ALL_LIBS)
 
 # Invoke make in the corresponding subdirectory, and also support
 # the wrapper that need additional software to be installed
-$(ALL_LIBS) dl_timer drhook nvidia tau vernier:
+$(FULL_ALL_LIBS):
 		$(MAKE) -C $@
 
+# We clean all libraries, even the ones not compiled by default
 clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) allclean; )
+	$(foreach lib, $(FULL_ALL_LIBS), $(MAKE) -C $(lib) clean; )
 
-allclean: clean
-	# These libs are not cleaned by 'clean' (since they
-	# depend on external libraries)
-	$(MAKE) -C dl_timer clean
-	$(MAKE) -C drhook clean
-	$(MAKE) -C nvidia clean
-	$(MAKE) -C tau clean
-	$(MAKE) -C vernier clean
+allclean:
+	$(foreach lib, $(FULL_ALL_LIBS), $(MAKE) -C $(lib) allclean; )

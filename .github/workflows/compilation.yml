@@ -104,14 +104,18 @@ jobs:
     - name: Libraries compilation - gfortran
       run: |
         . .runner_venv/bin/activate
-        make -C lib/extract clean
         module load gcc/${GFORTRAN_VERSION}
+        make -C lib allclean
+        make -C lib all
+        # There is an additional test:
         make -C lib/extract test
     - name: Libraries compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
-        make -C lib/extract clean
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        make -C lib allclean
+        F90=nvfortran make -C lib all
+        # There is an additional test:
         F90=nvfortran make -C lib/extract test
     - name: Examples with compilation - gfortran
       run: |
