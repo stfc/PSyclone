@@ -1763,13 +1763,17 @@ the ``NLAYERS`` option to ``GH_FIELD``, e.g.::
   arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS=1)
 
 The value specified for ``NLAYERS`` may be a literal if it is known at
-compile time. Alternatively, it may be given the special value
-``GH_RUNTIME`` which means that the number of levels is to be
+compile time. Alternatively, it may be given a named value (one of
+``GH_NLAYERSM1`` TODO) or the special value
+``GH_RUNTIME``. A named value means that the number of levels is to be
 determined at runtime by querying the field object (in the generated
 PSy layer). If two different field arguments are on the same function
 space but both have ``NLAYERS=GH_RUNTIME`` then it is assumed that
 they may have *different* values of ``NLAYERS`` and hence a separate
-dofmap is passed to the kernel for each.
+dofmap is passed to the kernel for each. However, if two or more field
+arguments are on the same function space and have the same, named number
+of layers which is not ``GH_RUNTIME`` then only one dofmap is passed to
+the kernel for those arguments.
 
 
 Multi-Data Metadata
@@ -2155,10 +2159,10 @@ conventions, are:
    metadata arguments (the ``to`` function space of an operator is considered
    to be before the
    ``from`` function space of the same operator as it appears first in
-   lexicographic order). Note that if a field on a given function space has a
-   non-standard number of vertical levels, it requires that a dofmap be supplied
-   (because the number of vertical levels alters the *values* within the map). For
-   each required DoF map:
+   lexicographic order). Note that if two fields on a given function space have
+   differing numbers of vertical layers, then each requires that a
+   dofmap be supplied (because the number of vertical layers alters the
+   *values* within the map). For each required DoF map:
 
    1) Include the number of local degrees of freedom (i.e. number per-cell)
       for the function space. This is an ``integer`` of kind ``i_def`` and
