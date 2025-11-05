@@ -569,15 +569,8 @@ class Symbol(CommentableMixin):
             except KeyError:
                 pass
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> set["Symbol"]:
         '''
-        :returns: a map of all the symbol accessed inside this Symbol, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this Symbol.
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core import VariablesAccessMap
-        return VariablesAccessMap()
+        return set()

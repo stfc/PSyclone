@@ -745,3 +745,21 @@ def test_reference_enters_scope_multiple_conditional_source(fortran_reader):
     p_trans.apply(loops[0])
     for zice, loop in itertools.product(zice_refs, loops):
         assert not zice.enters_scope(loop)
+
+
+def test_get_all_accessed_symbols(fortran_reader):
+    ''' Test the get_all_accessed_symbols method of the Reference class.'''
+
+    code = '''subroutine test_sub()
+    use other
+
+    k = a(:, j)%b(i)
+    end subroutine'''
+
+    assign = fortran_reader.psyir_from_source(code).walk(Assignment)[0]
+    symbol_names = [s.name for s in assign.get_all_accessed_symbols()]
+    assert "k" in symbol_names
+    assert "a" in symbol_names
+    assert "j" in symbol_names
+    assert "i" in symbol_names
+    assert "b" not in symbol_names

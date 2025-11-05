@@ -45,6 +45,7 @@ import os
 import sys
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.psyir.nodes import (
     Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
 from psyclone.psyir.transformations import (
@@ -140,7 +141,8 @@ def trans(psyir):
         print(f"Transforming invoke '{subroutine.name}' ...")
 
         # Make setval_* compute redundantly to the level 1 halo if it
-        # is in its own loop
+        # is in its own loop and only if it has an iteration space that is
+        # *not* restricted to owned dofs.
         for loop in subroutine.loops():
             if loop.iteration_space == "dof":
                 if len(loop.kernels()) == 1:
@@ -165,37 +167,39 @@ def trans(psyir):
                         const.VALID_DISCONTINUOUS_NAMES):
                     ctrans.apply(loop)
 
-        # Module-inline the Kernels inside the loops over cells and then mark
-        # them as GPU-enabled.
+        # Module-inline the Kernels inside the loops and then mark them as
+        # GPU-enabled.
         # (The latter step won't be necessary if/when we fully inline them.)
         for loop in subroutine.loops():
-            if loop.iteration_space.endswith("cell_column"):
-                if offload:
-                    for kern in loop.kernels():
-                        # Attempt to module-inline the kernel.
-                        try:
-                            mod_inline_trans.apply(kern)
-                            print(f"Module-inlined kernel '{kern.name}'")
-                        except TransformationError as err:
-                            failed_inline.add(kern.name.lower())
-                            print(f"Failed to module-inline kernel "
-                                  f"'{kern.name}' due to:\n{err.value}")
-                        try:
-                            # Ensure any MATMULs within the kernel are
-                            # replaced.
-                            for routine in kern.get_callees():
-                                _replace_matmuls(routine)
-                            # Finally, annotate the kernel routine for GPU.
-                            gpu_annotation_trans.apply(kern)
-                            print(f"Annotated kernel '{kern.name}'")
-                        except TransformationError as err:
-                            failed_to_offload.add(kern.name.lower())
-                            print(f"Failed to annotate '{kern.name}' with "
-                                  f"GPU-enabled directive due to:\n"
-                                  f"{err.value}")
-                        # For annotated/inlined kernels we could attempt to
-                        # provide compile-time dimensions for temporary arrays
-                        # and convert to code any unsupported intrinsics.
+            if offload:
+                for kern in loop.kernels():
+                    if isinstance(kern, LFRicBuiltIn):
+                        # BuiltIns are replaced with inlined code when lowering
+                        continue
+                    # Attempt to module-inline the kernel.
+                    try:
+                        mod_inline_trans.apply(kern)
+                        print(f"Module-inlined kernel '{kern.name}'")
+                    except TransformationError as err:
+                        failed_inline.add(kern.name.lower())
+                        print(f"Failed to module-inline kernel "
+                              f"'{kern.name}' due to:\n{err.value}")
+                    try:
+                        # Ensure any MATMULs within the kernel are
+                        # replaced.
+                        for routine in kern.get_callees():
+                            _replace_matmuls(routine)
+                        # Finally, annotate the kernel routine for GPU.
+                        gpu_annotation_trans.apply(kern)
+                        print(f"Annotated kernel '{kern.name}'")
+                    except TransformationError as err:
+                        failed_to_offload.add(kern.name.lower())
+                        print(f"Failed to annotate '{kern.name}' with "
+                              f"GPU-enabled directive due to:\n"
+                              f"{err.value}")
+                    # For annotated/inlined kernels we could attempt to
+                    # provide compile-time dimensions for temporary arrays
+                    # and convert to code any unsupported intrinsics.
 
         # Add GPU offloading to loops unless they are over colours or are null.
         for loop in subroutine.walk(Loop):

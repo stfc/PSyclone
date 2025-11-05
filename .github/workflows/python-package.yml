@@ -63,7 +63,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: '3.14'
     - run: sudo apt-get install -y graphviz doxygen
     - run: python -m pip install --upgrade pip
     - run: pip install .[doc]
@@ -77,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.13']
+        python-version: ['3.9', '3.14']
     steps:
     - uses: actions/checkout@v4
       with:

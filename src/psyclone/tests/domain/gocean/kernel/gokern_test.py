@@ -157,9 +157,9 @@ def test_gok_access_info_scalar_and_property():
     vam = kern1.reference_accesses()
 
     # Check that we get the grid properties listed:
-    assert (str(vam) == "p_fld: READWRITE, "
+    assert (str(vam) ==
             "p_fld%grid%subdomain%internal%xstop: READ, "
-            "p_fld%grid%tmask: READ")
+            "p_fld%grid%tmask: READ, p_fld: READWRITE")
 
     # Kernel calls have the whole field provided, so no indices are given
     # at this level.

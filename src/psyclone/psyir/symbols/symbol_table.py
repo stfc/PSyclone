@@ -47,7 +47,7 @@ from collections.abc import Iterable
 import inspect
 import copy
 import logging
-from typing import Any, List, Optional, Set, Union
+from typing import Any, List, Optional, Union
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -1208,38 +1208,17 @@ class SymbolTable():
                 pass
 
         # Check for any references to it.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core import Signature, VariablesAccessMap
-        vam = VariablesAccessMap()
+        symbols = self.get_all_accessed_symbols()
+        location = "the provided symbol_table"
         if self.node:
-            vam.update(self.node.reference_accesses())
-        vam.update(self.reference_accesses())
-        sig = Signature(symbol.name)
-        if sig not in vam:
-            return
+            symbols.update(self.node.get_all_accessed_symbols())
+            location = f"the '{self.node.name}' scope"
 
-        # TODO #2424 - ideally AccessSequence.AccessInfo or
-        # Signature would store the actual Symbol that the access is to. In
-        # the absence of that, we have to examine each access to determine
-        # the Symbol.
-        from psyclone.psyir.nodes.reference import Reference
-        from psyclone.psyir.symbols.generic_interface_symbol import (
-            GenericInterfaceSymbol)
-        try:
-            for access in vam[sig]:
-                if isinstance(access.node, GenericInterfaceSymbol):
-                    for rinfo in access.node.routines:
-                        if rinfo.symbol is symbol:
-                            raise ValueError()
-                else:
-                    for ref in access.node.walk(Reference):
-                        if ref.symbol is symbol:
-                            raise ValueError()
-        except ValueError:
-            # pylint: disable-next=raise-missing-from
+        # If it has any, it is not safe to delete
+        if symbol in symbols:
             raise ValueError(
                 f"Cannot remove RoutineSymbol '{symbol.name}' because it is "
-                f"referenced by {access.description}")
+                f"referenced inside {location}")
 
     def remove(self, symbol):
         '''
@@ -1670,7 +1649,7 @@ class SymbolTable():
     def _import_symbols_from(self, csymbol: ContainerSymbol,
                              container,
                              symbol_target: Optional[Symbol] = None
-                             ) -> Set[Symbol]:
+                             ) -> set[Symbol]:
         '''
         Imports symbols from the supplied Container into this table. If
         `target_symbol` is specified then only that symbol is imported.
@@ -2030,22 +2009,17 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this object, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this SymbolTable,
+            including the symbols that are not in this scope, but are used
+            in declarations of the symbols in this scope.
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core import VariablesAccessMap
-        vam = VariablesAccessMap()
+        symbols = set()
         for sym in self.symbols:
             if not sym.is_import:
-                vam.update(sym.reference_accesses())
-        return vam
+                symbols.update(sym.get_all_accessed_symbols())
+        return symbols
 
     def wildcard_imports(self, scope_limit=None) -> List[ContainerSymbol]:
         '''
