@@ -37,13 +37,12 @@
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-'''Module containing pytest tests for the LFRicGlobalReduction class.'''
+'''Module containing pytest tests for the LFRicGlobalSum class.'''
 
 import pytest
 
 from psyclone.core import AccessType
-from psyclone.domain.common.psylayer.global_reduction import ReductionOp
-from psyclone.domain.lfric.lfric_global_reduction import LFRicGlobalReduction
+from psyclone.domain.lfric.lfric_global_sum import LFRicGlobalSum
 from psyclone.errors import GenerationError, InternalError
 from psyclone.tests.utilities import get_invoke
 
@@ -61,8 +60,8 @@ def test_lfricglobalreduction_unsupported_argument():
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[0]
     with pytest.raises(InternalError) as err:
-        _ = LFRicGlobalReduction(ReductionOp.SUM, argument)
-    assert ("LFRicGlobalReduction.init(): A global reduction argument should "
+        _ = LFRicGlobalSum(argument)
+    assert ("LFRicGlobalSum.init(): A global reduction argument should "
             "be a scalar but found argument of type 'gh_field'."
             in str(err.value))
 
@@ -81,8 +80,8 @@ def test_lfricglobalreduction_unsupported_scalar():
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[1]
     with pytest.raises(GenerationError) as err:
-        _ = LFRicGlobalReduction(ReductionOp.SUM, argument)
-    assert ("LFRicGlobalReduction currently only supports real scalars, but "
+        _ = LFRicGlobalSum(argument)
+    assert ("LFRicGlobalSum currently only supports real scalars, but "
             "argument 'iflag' in Kernel 'testkern_one_int_scalar_code' "
             "has 'integer' intrinsic type." in str(err.value))
 
@@ -101,8 +100,8 @@ def test_lfricglobalreduction_nodm_error():
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[0]
     with pytest.raises(GenerationError) as err:
-        _ = LFRicGlobalReduction(ReductionOp.SUM, argument)
-    assert ("It makes no sense to create an LFRicGlobalReduction object when "
+        _ = LFRicGlobalSum(argument)
+    assert ("It makes no sense to create a GlobalReduction object when "
             "distributed memory is not enabled (dm=False)."
             in str(err.value))
 

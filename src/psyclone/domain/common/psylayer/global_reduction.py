@@ -41,31 +41,18 @@ import copy
 from enum import Enum
 from typing import Any
 
+from psyclone.configuration import Config
 from psyclone.core import AccessType
+from psyclone.errors import GenerationError
 from psyclone.psyGen import KernelArgument
 from psyclone.psyir.nodes import Statement
-
-
-class ReductionOp(Enum):
-    '''
-    Enumeration of the supported global reduction operations.
-    '''
-    MIN = 1
-    MAX = 2
-    MINVAL = 3
-    MAXVAL = 4
-    SUM = 5
 
 
 class GlobalReduction(Statement):
     '''
     Generic global reduction operation.
 
-    :param reduction: the type of reduction to perform.
     :param operand: the operand of the reduction operation.
-
-    :raises TypeError: if the supplied reduction is not an instance of
-                       ReductionOp.
 
     '''
     # Textual description of the node.
@@ -74,15 +61,14 @@ class GlobalReduction(Statement):
     _colour = "cyan"
 
     def __init__(self,
-                 reduction: ReductionOp,
                  operand: Any,
                  **kwargs):
-        if not isinstance(reduction, ReductionOp):
-            raise TypeError(
-                f"The 'reduction' argument to GlobalReduction must be an "
-                f"instance of ReductionOp but got "
-                f"'{type(reduction).__name__}'")
-        self._operation = reduction
+        # Check that distributed memory is enabled
+        if not Config.get().distributed_memory:
+            raise GenerationError(
+                "It makes no sense to create a GlobalReduction object "
+                "when distributed memory is not enabled (dm=False).")
+
         # Ideally, 'operand' would be a child of this node but it's typically
         # a KernelArgument, not a PSyIR Node.
         # TODO Without this `copy`, the tests for the old-style DA fail.
@@ -103,18 +89,11 @@ class GlobalReduction(Statement):
         return self._operand
 
     @property
-    def operation(self) -> ReductionOp:
-        '''
-        :returns: the type of reduction that is performed.
-        '''
-        return self._operation
-
-    @property
     def dag_name(self) -> str:
         '''
         :returns: the name to use in the DAG for this node.
         '''
-        return (f"globalreduction({self._operation.name},{self._operand.name})"
+        return (f"globalreduction({self._operand.name})"
                 f"_{self.position}")
 
     @property
@@ -135,5 +114,6 @@ class GlobalReduction(Statement):
         :returns: description of this node, possibly coloured.
 
         '''
-        return (f"{self.coloured_name(colour)}[{self._operation.name}, "
+        # TODO move this to sub-classes (e.g. GlobalSum)
+        return (f"{self.coloured_name(colour)}["
                 f"operand='{self._operand.name}']")

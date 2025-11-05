@@ -44,7 +44,7 @@ import pytest
 
 from psyclone.core import AccessType
 from psyclone.domain.common.psylayer.global_reduction import (
-    GlobalReduction, ReductionOp)
+    GlobalReduction)
 from psyclone.errors import GenerationError
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import colored, Literal, Reference
@@ -56,16 +56,9 @@ def test_globalreduction_init():
     '''
     Test the constructor of GlobalReduction.
     '''
-    gred = GlobalReduction(ReductionOp.SUM,
-                           operand=Reference(Symbol("a")))
+    gred = GlobalReduction(operand=Reference(Symbol("a")))
     assert gred.operand.name == "a"
-    assert gred.operation == ReductionOp.SUM
     assert gred.args == [gred.operand]
-
-    with pytest.raises(TypeError) as err:
-        _ = GlobalReduction("SUM", operand=Reference(Symbol("a")))
-    assert ("The 'reduction' argument to GlobalReduction must be an instance "
-            "of ReductionOp but got 'str'" in str(err.value))
 
     # Construct with a KernelArgument. These are not easy to make so we create
     # PSyIR for a PSyKAl invoke first.
@@ -75,7 +68,7 @@ def test_globalreduction_init():
     kernels = schedule.walk(Kern)
     # Get hold of a KernelArgument object
     karg = kernels[1].args[0]
-    gred = GlobalReduction(ReductionOp.SUM, operand=karg)
+    gred = GlobalReduction(operand=karg)
     assert gred.operand.access == AccessType.READWRITE
     assert gred.operand.call == gred
 
@@ -84,20 +77,18 @@ def test_globalreduction_dag_name():
     '''
     Test the dag_name property.
     '''
-    gred = GlobalReduction(ReductionOp.SUM,
-                           operand=Reference(Symbol("a")))
-    assert gred.dag_name == "globalreduction(SUM,a)_0"
+    gred = GlobalReduction(operand=Reference(Symbol("a")))
+    assert gred.dag_name == "globalreduction(a)_0"
 
 
 def test_globalreduction_node_str():
     '''
     Test the node_str method in the GlobalReduction class.
     '''
-    gred = GlobalReduction(ReductionOp.SUM,
-                           operand=Reference(Symbol("a")))
+    gred = GlobalReduction(operand=Reference(Symbol("a")))
     output = str(gred)
     expected_output = (colored("GlobalReduction", GlobalReduction._colour) +
-                       "[SUM, operand='a']")
+                       "[operand='a']")
     assert expected_output in output
 
 
@@ -106,8 +97,7 @@ def test_globalsum_children_validation():
     GlobalReduction node does not accept any children.
 
     '''
-    gsum = GlobalReduction(ReductionOp.SUM,
-                           operand=Reference(Symbol("a")))
+    gsum = GlobalReduction(operand=Reference(Symbol("a")))
     with pytest.raises(GenerationError) as excinfo:
         gsum.addchild(Literal("2", INTEGER_TYPE))
     assert ("Item 'Literal' can't be child 0 of 'GlobalReduction'. "
