@@ -82,7 +82,7 @@ def trans(psyir):
     for subroutine in psyir.walk(InvokeSchedule):
         if ENABLE_REDUNDANT_COMPUTATION:
             # Make setval_* compute redundantly to the level 1 halo if it
-            # is in its own loop
+            # is in its own loop and is not restricted to owned dofs only.
             for loop in subroutine.loops():
                 if loop.iteration_space == "dof":
                     if len(loop.kernels()) == 1:

@@ -110,7 +110,9 @@ class SymPyWriter(FortranWriter):
         {BinaryOperation.Operator.AND: "And({lhs}, {rhs})",
          BinaryOperation.Operator.OR: "Or({lhs}, {rhs})",
          BinaryOperation.Operator.EQV: "Equivalent({lhs}, {rhs})",
-         BinaryOperation.Operator.NEQV: "Xor({lhs}, {rhs})"}
+         BinaryOperation.Operator.NEQV: "Xor({lhs}, {rhs})",
+         BinaryOperation.Operator.EQ: "Eq({lhs}, {rhs})"
+         }
 
     def __init__(self):
         super().__init__()
