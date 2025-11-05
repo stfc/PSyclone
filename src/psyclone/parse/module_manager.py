@@ -169,6 +169,22 @@ class ModuleManager:
         '''
         self._cache_path = value
 
+    @property
+    def resolve_indirect_imports(self) -> Union[bool, Iterable[str]]:
+        '''
+        :returns: whether indirect imports will be imported (if found). This
+            can be a list of filenames for a per-file granularity.
+        '''
+        return self._resolve_indirect_imports
+
+    @resolve_indirect_imports.setter
+    def resolve_indirect_imports(self, value: Union[bool, Iterable[str]]):
+        '''
+        :param value: specify whether indirect imports will be imported (if
+            found). This can be a list of filenames for a per-file granularity.
+        '''
+        self._resolve_indirect_imports = value
+
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
         '''If the directory is not already contained in the search path,
@@ -230,7 +246,7 @@ class ModuleManager:
                             full_path,
                             cache_active=self._cache_active,
                             cache_path=self._cache_path,
-                            resolve_imports=False
+                            resolve_imports=self._resolve_indirect_imports
                         )
                 new_files.append(self._visited_files[full_path])
         return new_files

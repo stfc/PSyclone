@@ -73,7 +73,7 @@ from psyclone.domain.lfric.transformations import (
     LFRicAlgTrans, RaisePSyIR2LFRicKernTrans, LFRicAlgInvoke2PSyCallTrans)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
-from psyclone.parse import ModuleManager, FileInfo
+from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.parse.kernel import get_kernel_filepath
 from psyclone.parse.utils import ParseError, parse_fp2
@@ -164,8 +164,12 @@ def load_script(
 
     if hasattr(recipe_module, "RESOLVE_IMPORTS"):
         imports_to_resolve = recipe_module.RESOLVE_IMPORTS
+        # If the imports_to_resolve has the list of files format, we will
+        # expand the search in indirect imports. We still don't expand the
+        # imports_to_resolve=True to indirect imports for performance
+        # reasons.
         if isinstance(imports_to_resolve, Iterable):
-            FileInfo.RESOLVE_IMPORTS_OF_INDIRECT_IMPORTS = imports_to_resolve
+            ModuleManager.get().resolve_indirect_imports = imports_to_resolve
     else:
         imports_to_resolve = []
 
