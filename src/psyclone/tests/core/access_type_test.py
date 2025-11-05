@@ -52,7 +52,7 @@ def test_str():
     assert str(AccessType.SUM) == "SUM"
     assert str(AccessType.CALL) == "CALL"
     assert str(AccessType.INQUIRY) == "INQUIRY"
-    assert str(AccessType.TYPE_INFO) == "TYPE_INFO"
+    assert str(AccessType.CONSTANT) == "CONSTANT"
     assert str(AccessType.UNKNOWN) == "UNKNOWN"
 
 
@@ -70,7 +70,7 @@ def test_api_specific_name():
     assert AccessType.SUM.api_specific_name() == "gh_sum"
     assert AccessType.CALL.api_specific_name() == "call"
     assert AccessType.INQUIRY.api_specific_name() == "inquiry"
-    assert AccessType.TYPE_INFO.api_specific_name() == "type_info"
+    assert AccessType.CONSTANT.api_specific_name() == "constant"
     assert AccessType.UNKNOWN.api_specific_name() == "unknown"
     assert AccessType.get_valid_reduction_modes() == [AccessType.SUM]
     assert AccessType.get_valid_reduction_names() == ["gh_sum"]
@@ -98,7 +98,7 @@ def test_from_string():
     assert AccessType.from_string("readinc") == AccessType.READINC
     assert AccessType.from_string("sum") == AccessType.SUM
     assert AccessType.from_string("unknown") == AccessType.UNKNOWN
-    assert AccessType.from_string("type_info") == AccessType.TYPE_INFO
+    assert AccessType.from_string("constant") == AccessType.CONSTANT
 
     with pytest.raises(ValueError) as err:
         AccessType.from_string("invalid")
