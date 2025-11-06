@@ -1091,9 +1091,7 @@ class GOKern(CodedKern):
             return self._schedules
 
         # Construct the PSyIR of the Fortran parse tree.
-        config = Config.get()
-        astp = Fparser2Reader(
-            ignore_directives=(not config.frontend_keep_directives))
+        astp = Fparser2Reader()
         psyir = astp.generate_psyir(self.ast)
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.gocean.transformations import (

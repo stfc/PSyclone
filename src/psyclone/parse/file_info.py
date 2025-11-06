@@ -450,9 +450,7 @@ class FileInfo:
         try:
             config = Config.get()
             reader = FortranStringReader(
-                source_code, include_dirs=config.include_paths,
-                ignore_comments=(not config.frontend_keep_comments)
-            )
+                source_code, include_dirs=config.include_paths)
             parser = ParserFactory().create(std=config.fortran_standard)
             self._fparser_tree = parser(reader)
 
@@ -501,9 +499,7 @@ class FileInfo:
         # We generate PSyIR from the fparser tree using the same options as
         # were provided to the PSyclone invocation.
         _, filename = os.path.split(self.filename)
-        config = Config.get()
-        processor = self._processor = Fparser2Reader(
-            ignore_directives=(not config.frontend_keep_directives))
+        processor = self._processor = Fparser2Reader()
         self._psyir_node = processor.generate_psyir(fparse_tree, filename)
 
         # TODO #2786: Uncomment if psyir nodes are serializable

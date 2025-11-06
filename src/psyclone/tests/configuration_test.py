@@ -819,33 +819,3 @@ def test_fortran_standard(tmpdir):
     assert ("PSyclone configuration error: Invalid Fortran standard 'invalid' "
             "specified in config file. Must be one of['f2003', 'f2008']"
             in str(err.value))
-
-
-def test_keep_comments_directives():
-    '''
-    Test the setters and getters for the frontend_keep_comments/directives
-    options.
-
-    '''
-    config = Config.get()
-    with pytest.raises(TypeError) as err:
-        config.frontend_keep_comments = "no"
-    assert ("Config.frontend_keep_comments must be a bool but got 'str'"
-            in str(err.value))
-    config.frontend_keep_comments = True
-    assert config.frontend_keep_comments is True
-    config.frontend_keep_comments = False
-    assert config.frontend_keep_comments is False
-
-    with pytest.raises(TypeError) as err:
-        config.frontend_keep_directives = "no"
-    assert ("Config.frontend_keep_directives must be a bool but got 'str'"
-            in str(err.value))
-    # Setting keep_directives also sets keep_comments.
-    config.frontend_keep_directives = True
-    assert config.frontend_keep_directives is True
-    assert config.frontend_keep_comments is True
-    # Unsetting it leaves keep_comments unchanged.
-    config.frontend_keep_directives = False
-    assert config.frontend_keep_directives is False
-    assert config.frontend_keep_comments is True

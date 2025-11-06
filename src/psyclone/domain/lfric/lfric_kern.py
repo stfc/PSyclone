@@ -255,24 +255,31 @@ class LFRicKern(CodedKern):
                 self._eval_shapes = kmetadata.eval_shapes[:]
                 break
 
-    def _setup(self, ktype, module_name, args, parent, check=True):
+    def _setup(self,
+               ktype,
+               module_name: str,
+               args: List[Arg],
+               parent,
+               check: bool = True):
         # pylint: disable=too-many-arguments
         # pylint: disable=too-many-branches, too-many-locals
         '''Internal setup of kernel information.
 
-        :param ktype: object holding information on the parsed metadata for \
-                      this kernel.
+        :param ktype: information on the parsed metadata for this kernel.
         :type ktype: :py:class:`psyclone.domain.lfric.LFRicKernMetadata`
-        :param str module_name: the name of the Fortran module that contains \
-                                the source of this Kernel.
-        :param args: list of Arg objects produced by the parser for the \
+        :param module_name: name of the Fortran module containing this Kernel.
+        :param args: the Arg objects produced by the parser for the
                      arguments of this kernel call.
-        :type args: List[:py:class:`psyclone.parse.algorithm.Arg`]
-        :param parent: the parent of this kernel call in the generated \
-                       AST (will be a loop object).
+        :param parent: the parent loop of this kernel call in the PSyIR.
         :type parent: :py:class:`psyclone.domain.lfric.LFRicLoop`
-        :param bool check: whether to check for consistency between the \
+        :param check: whether to check for consistency between the
             kernel metadata and the algorithm layer. Defaults to True.
+
+        :raises NotImplementedError: if this is an InterGrid kernel but is not
+            part of an InvokeSchedule.
+        :raises InternalError: if an unrecognised evaluator-shape is found.
+        :raises GenerationError: if COMPUTE_ANNEXED_DOFS is True and the kernel
+            does not support redundant computation.
 
         '''
         # Import here to avoid circular dependency
@@ -339,6 +346,18 @@ class LFRicKern(CodedKern):
                     self._halo_depth.symbol.specialise(
                         DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+
+        # Check that compute-annexed-dofs is False if the kernel must operate
+        # only on owned entities.
+        api_conf = Config.get().api_conf()
+        if (api_conf.compute_annexed_dofs and
+                ktype.iterates_over in
+                api_conf.get_constants().NO_RC_ITERATION_SPACES):
+            raise GenerationError(
+                f"Kernel '{self.name}' cannot perform redundant computation "
+                f"(has OPERATES_ON={ktype.iterates_over}) but the 'COMPUTE_"
+                f"ANNEXED_DOFS' configuration option is set to True.")
+
         # If there are any quadrature rule(s), what are the names of the
         # corresponding algorithm arguments? Can't use set() here because
         # we need to preserve the ordering specified in the metadata.
@@ -717,9 +736,10 @@ class LFRicKern(CodedKern):
         const = LFRicConstants()
         supported_operates_on = const.USER_KERNEL_ITERATION_SPACES[:]
         # TODO #925 Add support for 'domain' kernels
-        # TODO #1351 Add support for 'dof' kernels
+        # TODO #1351 Add support for 'dof' (and 'owned_dof') kernels
         supported_operates_on.remove("domain")
         supported_operates_on.remove("dof")
+        supported_operates_on.remove("owned_dof")
 
         # Check operates-on (iteration space) before generating code
         if self.iterates_over not in supported_operates_on:
@@ -821,10 +841,7 @@ class LFRicKern(CodedKern):
         # Otherwise, get the PSyIR Kernel Schedule(s) from the original
         # parse tree.
         if not routines:
-            config = Config.get()
-            freader = Fparser2Reader(
-                ignore_directives=(not config.frontend_keep_directives))
-            orig_psyir = freader.generate_psyir(self.ast)
+            orig_psyir = Fparser2Reader().generate_psyir(self.ast)
             for container in orig_psyir.walk(Container):
                 names = container.resolve_routine(self.name)
                 routines = []
