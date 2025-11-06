@@ -39,6 +39,7 @@ all invokes.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.psyir.transformations import InlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.gocean1p0 import GOKern
 from psyclone.psyGen import InvokeSchedule
@@ -53,7 +54,8 @@ def trans(psyir):
 
     '''
     fuse = GOceanLoopFuseTrans()
-    inline = KernelModuleInlineTrans()
+    modinline = KernelModuleInlineTrans()
+    inline = InlineTrans()
 
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
@@ -61,7 +63,9 @@ def trans(psyir):
     print(schedule.view())
     # Inline all kernels to help gfortran with inlining.
     for kern in schedule.walk(GOKern):
-        inline.apply(kern)
+        modinline.apply(kern)
+        call = kern.lower_to_language_level()
+        inline.apply(call, use_first_callee_and_no_arg_check=True)
 
     # This schedule has four loops, corresponding to
     # count_neighbours, compute_born, compute_die, combine kernels

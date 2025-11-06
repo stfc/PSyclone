@@ -38,9 +38,7 @@ function via the -s option. It adds OpenMP offload directives
 to all kernels.
 '''
 
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.gocean1p0 import GOKern
-from psyclone.psyir.nodes import Directive, Loop, Routine
+from psyclone.psyir.nodes import Directive, Loop, Routine, Call
 from psyclone.psyir.transformations import TransformationError, OMPTargetTrans
 from psyclone.transformations import OMPLoopTrans
 from psyclone.psyir.transformations import OMPDeclareTargetTrans
@@ -58,16 +56,11 @@ def trans(psyir):
     '''
 
     declare_target = OMPDeclareTargetTrans()
-    inline = KernelModuleInlineTrans()
 
     # Use existing fuse script to fuse all loops
     fuse_trans(psyir)
 
-    # Module inline all kernels (so they can be modified)
-    # Then add an OpenMP routine statement to each of them:
-    inline = KernelModuleInlineTrans()
-    for kern in psyir.walk(GOKern):
-        inline.apply(kern)
+    for kern in psyir.walk(Call):
         # Put a ``declare target`` directive inside each kernel
         try:
             declare_target.apply(kern)
@@ -84,6 +77,5 @@ def trans(psyir):
     for subroutine in psyir.walk(Routine):
         for loop in subroutine.walk(Loop):
             if loop.loop_type == "outer":
-                loop_offloading.apply(
-                    loop, options={"independent": True})
+                loop_offloading.apply(loop)
                 target_trans.apply(loop.ancestor(Directive))

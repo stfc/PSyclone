@@ -74,7 +74,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     ImportInterface, INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol,
     ScalarType, UnresolvedType, DataTypeSymbol, UnresolvedInterface,
-    BOOLEAN_TYPE, REAL_TYPE)
+    BOOLEAN_TYPE, REAL_TYPE, StructureType, ArrayType, Symbol)
 from psyclone.psyir.tools import DependencyTools
 
 
@@ -1351,11 +1351,31 @@ class GOKernelArgument(KernelArgument):
         symtab = scope.symbol_table
         # All GOcean fields are r2d_field
         if self.argument_type == "field":
+            # Ideally we want to resolve the algorithm layer modules, but in
+            # the meantime, we can declare a representative type
+            public = Symbol.Visibility.PUBLIC
+            region_type = StructureType()
+            region_type.add("nx", datatype=INTEGER_TYPE, visibility=public)
+            region_type.add("ny", datatype=INTEGER_TYPE, visibility=public)
+            region_type.add("xstart", datatype=INTEGER_TYPE, visibility=public)
+            region_type.add("ystart", datatype=INTEGER_TYPE, visibility=public)
+            region_type.add("xstop", datatype=INTEGER_TYPE, visibility=public)
+            region_type.add("ystop", datatype=INTEGER_TYPE, visibility=public)
+            r2d_field_type = StructureType()
+            r2d_field_type.add(
+                "data",
+                datatype=ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
+                                               ArrayType.Extent.DEFERRED]),
+                visibility=public)
+            r2d_field_type.add(
+                "internal", datatype=region_type, visibility=public)
+            r2d_field_type.add(
+                "whole", datatype=region_type, visibility=public)
             # r2d_field can have UnresolvedType and UnresolvedInterface because
             # it is an unnamed import from a module.
             type_symbol = symtab.find_or_create_tag(
                 "r2d_field", symbol_type=DataTypeSymbol,
-                datatype=UnresolvedType(), interface=UnresolvedInterface())
+                datatype=r2d_field_type, interface=UnresolvedInterface())
             return type_symbol
 
         # Gocean scalars can be REAL or INTEGER
