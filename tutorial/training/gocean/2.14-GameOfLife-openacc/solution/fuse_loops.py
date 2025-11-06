@@ -59,7 +59,7 @@ def trans(psyir):
     for kern in psyir.kernels():
         modinline.apply(kern)
         call = kern.lower_to_language_level()
-        inline.apply(call, use_first_callee_and_no_arg_check=True)
+        inline.apply(call)
 
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]

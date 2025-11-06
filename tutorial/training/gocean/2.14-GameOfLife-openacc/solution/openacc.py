@@ -71,4 +71,3 @@ def trans(psyir):
 
         # Put all of the loops in a single parallel region
         ptrans.apply(schedule)
-

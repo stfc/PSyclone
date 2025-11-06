@@ -172,7 +172,7 @@ def trans(psyir):
     psyir.lower_to_language_level()
     for call in psyir.walk(Call):
         kmit.apply(call)
-        inline.apply(call, use_first_callee_and_no_arg_check=True)
+        inline.apply(call)
 
     # Now try to replace fields (that are locally used in the algorithm
     # layer) with scalars

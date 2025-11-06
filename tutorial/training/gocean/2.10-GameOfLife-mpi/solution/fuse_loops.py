@@ -65,7 +65,7 @@ def trans(psyir):
     for kern in schedule.walk(GOKern):
         modinline.apply(kern)
         call = kern.lower_to_language_level()
-        inline.apply(call, use_first_callee_and_no_arg_check=True)
+        inline.apply(call)
 
     # This schedule has four loops, corresponding to
     # count_neighbours, compute_born, compute_die, combine kernels

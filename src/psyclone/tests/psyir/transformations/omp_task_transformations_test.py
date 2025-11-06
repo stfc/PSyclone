@@ -194,28 +194,15 @@ def test_omptask_inline_kernels(monkeypatch):
     taskt = OMPTaskTrans()
     schedule = invoke.schedule
 
-    # Currently the InlineTrans validation will reject the GOcean kernel call
-    # because it can't determine the type of `fld%data` being passed in.
-    with pytest.raises(TransformationError) as err:
-        taskt._inline_kernels(schedule.children[0])
-
-    assert (
-        "CallMatchingArgumentsNotFound: Argument type mismatch of call"
-        " argument 'cu_fld%data' (UnresolvedType) and routine argument 'cu' "
-        "(Array" in str(err.value)
-    )
-    # If we monkeypatch the validate(), get_callee() and
-    # _check_argument_type_matches methods then it should succeed.
+    # If we monkeypatch the validate() and aget_callee() it should succeed.
     monkeypatch.setattr(InlineTrans, "validate",
                         lambda _1, _2, routine,
                         use_first_callee_and_no_arg_check,
                         permit_codeblocks, permit_unsupported_type_args: None)
     call = schedule.children[0].loop_body[0].loop_body[0]
     callee = call.get_callees()[0]
-    monkeypatch.setattr(call, "get_callee",
+    monkeypatch.setattr(Call, "get_callees",
                         lambda use_first_callee_and_no_arg_check: (callee, []))
-    monkeypatch.setattr(call, "_check_argument_type_matches",
-                        lambda call_arg, routine_arg: None)
     taskt._inline_kernels(schedule.children[0])
     assert not schedule.walk(Kern)
 
