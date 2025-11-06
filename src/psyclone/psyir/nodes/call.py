@@ -385,6 +385,20 @@ class Call(Statement, DataNode):
             return tuple(self.children[1:])
         return ()
 
+    def argument_by_name(self, name: str) -> Union[DataNode, None]:
+        '''
+        :param name: The name of the argument to lookup.
+
+        :returns: The argument specified with the input name, or None if its
+                  not present.
+        '''
+        arg_names = [arg.lower() if arg is not None else None
+                     for arg in self.argument_names]
+        lname = name.lower()
+        if lname not in arg_names:
+            return None
+        return self.arguments[arg_names.index(lname)]
+
     @property
     def is_elemental(self):
         '''

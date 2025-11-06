@@ -50,16 +50,17 @@ by the command:
 
 .. parsed-literal::
 
+
   > psyclone -h
     usage: psyclone [-h] [-v] [-c CONFIG] [-s SCRIPT] [--enable-cache] [-l {off,all,output}]
                     [-p {invokes,routines,kernels}]
-                    [--backend {disable-validation,disable-indentation}] [-o OUTPUT_FILE]
-                    [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE]
+                    [-o OUTPUT_FILE] [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE]
                     [-okern OUTPUT_KERNEL_PATH] [-dm] [-nodm]
                     [--kernel-renaming {multiple,single}]
                     [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--log-file LOG_FILE]
                     [--keep-comments] [--keep-directives] [-I INCLUDE] [-d DIRECTORY]
                     [--modman-file-ignore IGNORE_PATTERN] [--free-form | --fixed-form]
+                    [--backend {disable-validation,disable-indentation}] [--disable-intrinsic-required-args]
                     filename
 
     Transform a file using the PSyclone source-to-source Fortran compiler
@@ -83,11 +84,6 @@ by the command:
                             to apply line-length limit to output Fortran only.
       -p {invokes,routines,kernels}, --profile {invokes,routines,kernels}
                             add profiling hooks for 'kernels', 'invokes' or 'routines'
-      --backend {disable-validation,disable-indentation}
-                            options to control the PSyIR backend used for code generation. Use
-                            'disable-validation' to disable the validation checks that are
-                            performed by default. Use 'disable-indentation' to turn off all
-                            indentation in the generated code.
       -o OUTPUT_FILE        (code-transformation mode) output file
       -api DSL, --psykal-dsl DSL
                             whether to use a PSyKAl DSL (one of ['lfric', 'gocean'])
@@ -122,6 +118,17 @@ by the command:
                             arguments. These directories will be searchedrecursively.
       --modman-file-ignore IGNORE_PATTERN
                             Ignore files that contain the specified pattern.
+
+    Fortran backend control options.:
+        These settings control how PSyclone outputs Fortran.
+
+        --backend {disable-validation,disable-indentation}
+                        options to control the PSyIR backend used for code generation.
+                        Use 'disable-validation' to disable the validation checks that are performed by
+                        default. Use 'disable-indentation' to turn off all indentation in the generated code.
+        --disable-intrinsic-required-args
+                        Disables output code containing argument names for an intrinsic's required arguments,
+                        i.e. SUM(arr, mask=maskarr) instead of SUM(array=arr, mask=maskarr).
 
 Basic Use
 ---------
@@ -523,3 +530,12 @@ some limitations:
 
 Note that using the ``keep-comments`` option alone means that any comments
 that PSyclone interprets as directives will be lost from the input.
+
+Overriding Fortran Intrinsics
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+PSyclone attempts to canonicalise Fortran Intrinsics, which involves adding
+argument names to each argument in the ``IntrinsicCall`` PSyIR node. This can
+cause problems with code that overrides Fortran intrinsics. To ensure correct
+behaviour of the output, the ``--disable-intrinsic-required-args`` option must
+be passed to PSyclone, else the resultant code may not run correctly.

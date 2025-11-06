@@ -2036,3 +2036,16 @@ def test_ignore_pattern():
 
     mod_man = ModuleManager.get()
     assert mod_man._ignore_files == set(["abc1", "abc2"])
+
+
+def test_intrinsic_control_settings(tmpdir, caplog):
+    '''Checks that the intrinsic output control settings update the config
+    correctly'''
+    # Create dummy piece of code.
+    code = """program test
+    end program"""
+    filename = str(tmpdir.join("test.f90"))
+    with open(filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([filename, "--disable-intrinsic-required-args"])
+    assert Config.get().backend_intrinsic_named_kwargs is False

@@ -487,13 +487,6 @@ def main(arguments):
     parser.add_argument(
         '-p', '--profile', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="add profiling hooks for 'kernels', 'invokes' or 'routines'")
-    parser.add_argument(
-        '--backend', dest='backend', action="append",
-        choices=['disable-validation', 'disable-indentation'],
-        help=("options to control the PSyIR backend used for code generation. "
-              "Use 'disable-validation' to disable the validation checks that "
-              "are performed by default. Use 'disable-indentation' to turn off"
-              " all indentation in the generated code."))
 
     # Code-transformation mode flags
     parser.add_argument('-o', metavar='OUTPUT_FILE',
@@ -574,6 +567,25 @@ def main(arguments):
              "(default is to look at the input file extension)."
     )
 
+    backend_group = parser.add_argument_group(
+            "Fortran backend control options.",
+            "These settings control how PSyclone outputs Fortran. "
+    )
+    backend_group.add_argument(
+        '--backend', dest='backend', action="append",
+        choices=['disable-validation', 'disable-indentation'],
+        help=("options to control the PSyIR backend used for code generation. "
+              "Use 'disable-validation' to disable the validation checks that "
+              "are performed by default. Use 'disable-indentation' to turn off"
+              " all indentation in the generated code."))
+    backend_group.add_argument(
+        "--disable-intrinsic-required-args", default=argparse.SUPPRESS,
+        action="store_true",
+        help="Disables output code containing argument names for an "
+             "intrinsic's required arguments, i.e. SUM(arr, mask=maskarr) "
+             "instead of SUM(array=arr, mask=maskarr)."
+    )
+
     args = parser.parse_args(arguments)
 
     # Set the logging system up.
@@ -625,6 +637,10 @@ def main(arguments):
         # as API in the config object as well.
         api = args.psykal_dsl
     Config.get().api = api
+
+    # Record any intrinsic output format settings.
+    if "disable_intrinsic_required_args" in args:
+        Config.get().backend_intrinsic_named_kwargs = False
 
     # Record any profiling options.
     if args.profile:

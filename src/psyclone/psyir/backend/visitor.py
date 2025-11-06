@@ -262,7 +262,6 @@ class PSyIRVisitor():
         # Check global constraints for this node (if validation enabled).
         if self._validate_nodes:
             node.validate_global_constraints()
-
         # Make a list of the node's ancestor classes (including
         # itself) in method resolution order (mro), apart from the
         # base "object" class.
@@ -275,7 +274,6 @@ class PSyIRVisitor():
         for method_name in possible_method_names:
             try:
                 node_result = getattr(self, method_name)(node)
-
                 # We can only proceed to add comments if the Visitor
                 # returned a string, otherwise we just return
                 if not isinstance(node_result, str):
