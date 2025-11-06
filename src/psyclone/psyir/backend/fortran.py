@@ -41,7 +41,6 @@ from a PSyIR tree. '''
 
 # pylint: disable=too-many-lines
 from psyclone.configuration import Config
-from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -50,7 +49,7 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.nodes import (
     BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
     Literal, Node, OMPDependClause, OMPReductionClause, Operation, Range,
-    Reference, Routine, Schedule, UnaryOperation)
+    Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
@@ -865,10 +864,10 @@ class FortranWriter(LanguageWriter):
                               interdependencies between parameter declarations.
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.read_write_info import ReadWriteInfo
         declarations = ""
         local_constants = []
+
+        # First add the local constants
         for sym in symbol_table.datasymbols:
             if sym.is_import or sym.is_unresolved:
                 continue  # Skip, these don't need declarations
@@ -876,49 +875,31 @@ class FortranWriter(LanguageWriter):
                 local_constants.append(sym)
 
         # There may be dependencies between these constants so setup a dict
-        # holding a set of the required inputs (lowered symbol names) for
-        # each one.
+        # holding a set of all their dependencies. The checks have to be done
+        # with case-insensitive name comparisons because the dependent symbols
+        # are not always created in the same scope.
+        local_lowered_names = [sym.name.lower() for sym in local_constants]
         decln_inputs = {}
         for symbol in local_constants:
-            lname = symbol.name.lower()
-            decln_inputs[lname] = set()
-            vmap = symbol.reference_accesses()
-            read_write_info = ReadWriteInfo()
-            self._call_tree_utils.get_input_parameters(read_write_info,
-                                                       [symbol.initial_value])
-            # The dependence analysis tools do not include symbols used to
-            # define precision so check for those here.
-            for lit in symbol.initial_value.walk(Literal):
-                if isinstance(lit.datatype.precision, DataNode):
-                    for ref in lit.datatype.precision.walk(Reference):
-                        read_write_info.add_read(
-                            Signature(ref.symbol.name))
-            # If the precision of the Symbol being declared is itself defined
-            # by a Symbol then include that as an 'input'.
-            if isinstance(symbol.datatype.precision, DataNode):
-                for ref in symbol.datatype.precision.walk(Reference):
-                    read_write_info.add_read(
-                        Signature(ref.symbol.name))
-            # Remove any 'inputs' that are not local since these do not affect
-            # the ordering of local declarations. Also make sure that we avoid
-            # circular deps where a Symbol depends upon itself.
-            for sig in vmap.all_signatures:
-                signame = sig.var_name.lower()
-                if (symbol_table.lookup(signame) in local_constants and
-                        lname != signame):
-                    decln_inputs[lname].add(signame)
+            dependencies = symbol.get_all_accessed_symbols()
+            dependencies = {sym for sym in dependencies
+                            # Discard self-dependencies: e.g. "a :: HUGE(a)"
+                            if sym.name.lower() != symbol.name.lower() and
+                            # Discard dependencies that are not local
+                            sym.name.lower() in local_lowered_names}
+            decln_inputs[symbol] = dependencies
+
         # We now iterate over the declarations, declaring those that have their
         # inputs satisfied. Creating a declaration for a given symbol removes
         # that symbol as a dependence from any outstanding declarations and
-        # adds its (lowered) name to the 'declared' set.
-        declared: set[str] = set()
+        # adds it to the 'declared' set.
+        declared: set[Symbol] = set()
         while local_constants:
             for symbol in local_constants[:]:
-                lname = symbol.name.lower()
-                inputs = decln_inputs[lname]
+                inputs = decln_inputs[symbol]
                 if inputs.issubset(declared):
                     # All inputs are satisfied so this declaration can be added
-                    declared.add(lname)
+                    declared.add(symbol)
                     local_constants.remove(symbol)
                     declarations += self.gen_vardecl(
                         symbol, include_visibility=is_module_scope)

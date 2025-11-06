@@ -49,7 +49,7 @@ from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import IntrinsicSymbol
+from psyclone.psyir.symbols import IntrinsicSymbol, Symbol
 
 # pylint: disable=too-many-branches
 
@@ -3480,6 +3480,15 @@ class IntrinsicCall(Call):
             raise
 
         return call
+
+    def get_all_accessed_symbols(self) -> set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this IntrinsicCall.
+        '''
+        symbols = set()
+        for child in self.arguments:
+            symbols.update(child.get_all_accessed_symbols())
+        return symbols
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''

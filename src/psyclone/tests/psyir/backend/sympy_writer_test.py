@@ -43,6 +43,7 @@ import pytest
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -258,7 +259,7 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize(
-    "expr, positive, sym_map",
+    "expr, positive, expected_sym_map",
     [("a%x", False, {"a_x": Symbol("a%x")}),
      ("a%x", True, {"a_x": Symbol("a%x", **{"positive": True})}),
      ("a%x(i)", False, {"a_x": Function("a_x"), "i": Symbol("i")}),
@@ -271,11 +272,15 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
                             "b_c": Function("b_c"),
                             "i": Symbol("i", **{"positive": True})}),
      ])
-def test_sym_writer_symbol_types(fortran_reader, expr, positive, sym_map):
+def test_sym_writer_symbol_types(fortran_reader: FortranReader,
+                                 expr: str,
+                                 positive: bool,
+                                 expected_sym_map: dict[str, Symbol]):
     '''Tests that arrays are detected as SymPy functions, and scalars
     as SymPy symbols. The 'expr' parameter contains the expression to parse,
     'positive' is whether or not to flag symbols as positive definite and
-    'sym_map' is the expected mapping of names to SymPy functions or symbols.
+    'expected_sym_map' is the expected mapping of names to SymPy functions
+    or symbols.
 
     '''
     # A dummy program to easily create the PSyIR for the
@@ -288,12 +293,12 @@ def test_sym_writer_symbol_types(fortran_reader, expr, positive, sym_map):
                 end program test_prog '''
 
     psyir = fortran_reader.psyir_from_source(source)
-    expr = psyir.children[0].children[0].rhs
+    expr_psyir = psyir.children[0].children[0].rhs
     sympy_writer = SymPyWriter()
-    _ = sympy_writer(expr, all_variables_positive=positive)
-    assert len(sympy_writer.type_map) == len(sym_map)
-    for key in sympy_writer.type_map.keys():
-        assert sympy_writer.type_map[key] == sym_map[key]
+    _ = sympy_writer(expr_psyir, all_variables_positive=positive)
+    assert len(sympy_writer.type_map) == len(expected_sym_map)
+    for key, sym_map in sympy_writer.type_map.items():
+        assert sym_map == expected_sym_map[key]
 
 
 @pytest.mark.parametrize("expr, sym_map",
@@ -545,14 +550,13 @@ def test_sympy_writer_user_types(fortran_reader, fortran_writer,
                           ("a .or. b", "Or(a, b)"),
                           ("a .eqv. b", "Equivalent(a, b)"),
                           ("a .neqv. b", "Xor(a, b)"),
+                          ("a == b", "Eq(a, b)"),
                           ])
-def test_sympy_writer_logicals(fortran_reader, fortran_writer,
-                               fortran_expr, sympy_str):
-    '''Test handling of user-defined types, e.g. conversion of
-    ``a(i)%b(j)`` to ``a_b(i,i,1,j,j,1)``. Each Fortran expression
-    ``fortran_expr`` is first converted to a string ``sympy_str`` to be
-    parsed by SymPy. The sympy expression is then converted back to PSyIR.
-    This string must be the same as the original ``fortran_expr``.
+def test_sympy_writer_logicals(fortran_reader: FortranReader,
+                               fortran_expr: str,
+                               sympy_str: str):
+    '''Test writing of logical expressions, i.e. that the Fortran
+    logical expressions are correctly converted to SymPy expressions.
 
     '''
     source = f'''program test_prog
