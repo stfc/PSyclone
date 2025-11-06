@@ -1079,15 +1079,15 @@ def trans(psyir):
 
 @pytest.mark.parametrize(
          "idx, value, output", [
-          # ("0", "False", "result = a + b + c"),
+          ("0", "False", "result = a + b + c"),
           # Indirect import is not resolved
-          # ("1", "True", "result = 1 + 1 + c"),
-          # ("2", "[\"module1\"]", "result = 1 + b + c"),
-          # ("3", "[\"module2\"]", "result = a + 1 + c"),
+          ("1", "True", "result = 1 + 1 + c"),
+          ("2", "[\"module1\"]", "result = 1 + b + c"),
+          ("3", "[\"module2\"]", "result = a + 1 + c"),
           # Indirect import resolved by name
           ("4", "[\"module1\",\"module3\"]", "result = 1 + b + 1"),
           # Now change both with case insensitive names
-          # ("5", "[\"mOdule1\",\"moduLe2\"]", "result = 1 + 1 + c")
+          ("5", "[\"mOdule1\",\"moduLe2\"]", "result = 1 + 1 + c")
           ])
 def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
                                              idx, value, output):

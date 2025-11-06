@@ -164,10 +164,10 @@ def load_script(
 
     if hasattr(recipe_module, "RESOLVE_IMPORTS"):
         imports_to_resolve = recipe_module.RESOLVE_IMPORTS
-        # If the imports_to_resolve has the list of files format, we will
-        # expand the search in indirect imports. We still don't expand the
-        # imports_to_resolve=True to indirect imports for performance
-        # reasons.
+        # If the imports_to_resolve has the list of explicit filenames, respect
+        # these while resolving the imports.
+        # TODO #1540: We still don't transfer the imports_to_resolve=True to
+        # the ModuleManager for performance reasons (but we could).
         if isinstance(imports_to_resolve, Iterable):
             ModuleManager.get().resolve_indirect_imports = imports_to_resolve
     else:
