@@ -149,7 +149,12 @@ class ModuleManager:
     def cache_active(self, value: bool):
         '''
         :param value: specify whether the parsed files will be cached.
+
+        :raises TypeError: if the provided value is not a bool.
         '''
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"'cache_active' must be a bool, but found {type(value)}")
         self._cache_active = value
 
     @property
@@ -166,7 +171,12 @@ class ModuleManager:
         :param value: specify the path where the cache file will be stored, if
             None the file will be created in the same directory as the source
             file.
+
+        :raises TypeError: if the provided value is not a str.
         '''
+        if value is not None and not isinstance(value, str):
+            raise TypeError(
+                f"'cache_path' must be a str, but found {type(value)}")
         self._cache_path = value
 
     @property
@@ -182,7 +192,19 @@ class ModuleManager:
         '''
         :param value: specify whether indirect imports will be imported (if
             found). This can be a list of filenames for a per-file granularity.
+
+        :raises TypeError: if the provided value is not bool or Iterable[str].
         '''
+        if not isinstance(value, (Iterable, bool)):
+            raise TypeError(
+                f"'resolve_indirect_imports' must be a boolean or an Iterable,"
+                f" but found {type(value)}")
+        if isinstance(value, Iterable):
+            for x in value:
+                if not isinstance(x, str):
+                    raise TypeError(
+                        f"'resolve_indirect_imports' must be a Iterable of str"
+                        f", but found an item of {type(x)}")
         self._resolve_indirect_imports = value
 
     # ------------------------------------------------------------------------
