@@ -2430,7 +2430,6 @@ class IntrinsicCall(Call):
                 max_count=1,
                 types=DataNode,
                 arg_names=(("x",),)),
-            required_args=ArgDesc(1, 1, (DataNode)),
             optional_args={},
             return_type=_get_first_argument_type,
             reference_accesses=None,

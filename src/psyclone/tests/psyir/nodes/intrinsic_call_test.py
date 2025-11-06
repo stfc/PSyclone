@@ -1296,8 +1296,8 @@ def test_reduce_return_type(fortran_reader):
     integer, dimension(100) :: z
     integer :: y
     y = REDUCE(x, test)
-    z = REDUCE(x, test, 2)
-    y = REDUCE(z, test, 2)
+    z = REDUCE(x, test, dim=2)
+    y = REDUCE(z, test, dim=2)
     end subroutine test
     """
     psyir = fortran_reader.psyir_from_source(code)
