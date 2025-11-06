@@ -658,8 +658,6 @@ def main(arguments):
         logger.warning("keep_directives requires keep_comments so "
                        "PSyclone enabled keep_comments.")
         args.keep_comments = True
-    Config.get().frontend_keep_comments = args.keep_comments
-    Config.get().frontend_keep_directives = args.keep_directives
 
     # If free_form or fixed_form is set in the arguments then it overrides
     # default behaviour.
