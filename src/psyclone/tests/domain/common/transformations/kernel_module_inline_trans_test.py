@@ -39,9 +39,8 @@
 
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
-from pathlib import Path
-import pytest
 import warnings
+import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
