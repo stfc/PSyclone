@@ -240,8 +240,8 @@ class LFRicConstants():
             # Iterate over the cells of a given colour and tile
             "cells_in_tile"]
 
-        # Valid LFRic iteration spaces for built-in kernels
-        LFRicConstants.BUILTIN_ITERATION_SPACES = ["dof"]
+        # Valid LFRic iteration spaces for kernels that operate on dofs
+        LFRicConstants.DOF_ITERATION_SPACES = ["dof", "owned_dof"]
 
         # The types of argument that are valid for built-in kernels in the
         # LFRic API
@@ -259,16 +259,26 @@ class LFRicConstants():
             "halo_cell_column",
             "owned_and_halo_cell_column"]
 
+        LFRicConstants.CELL_COLUMN_ITERATION_SPACES = (
+            ["cell_column", "owned_cell_column"] +
+            LFRicConstants.HALO_KERNEL_ITERATION_SPACES)
+
         # Valid LFRic iteration spaces for user-supplied kernels and
         # built-in kernels
-        LFRicConstants.USER_KERNEL_ITERATION_SPACES = [
-            "cell_column", "domain", "dof"
-            ] + LFRicConstants.HALO_KERNEL_ITERATION_SPACES
+        LFRicConstants.USER_KERNEL_ITERATION_SPACES = (
+            ["domain"] + LFRicConstants.DOF_ITERATION_SPACES +
+            LFRicConstants.CELL_COLUMN_ITERATION_SPACES)
 
+        # Now that user-supplied kernels can operate on dofs,
+        # VALID_ITERATION_SPACES is actually the same as
+        # USER_KERNEL_ITERATION_SPACES but we retain it for clarity.
         LFRicConstants.VALID_ITERATION_SPACES = \
-            list(OrderedDict.fromkeys(
-                LFRicConstants.USER_KERNEL_ITERATION_SPACES +
-                LFRicConstants.BUILTIN_ITERATION_SPACES))
+            LFRicConstants.USER_KERNEL_ITERATION_SPACES
+
+        # Those iteration spaces for which redundant computation is forbidden.
+        LFRicConstants.NO_RC_ITERATION_SPACES = [
+            "owned_cell_column",
+            "owned_dof"]
 
         # ---------- Function spaces (FS) -------------------------------------
         # Discontinuous FS

@@ -535,8 +535,8 @@ end module my_mod
     assert isinstance(my_sub, symbols.RoutineSymbol)
     with pytest.raises(ValueError) as err:
         table.remove(my_sub)
-    assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced by "
-            "'call my_sub()" in str(err.value))
+    assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced "
+            "inside the 'my_mod' scope" in str(err.value))
 
     # Add the routine symbol into the filecontainer then we should be able
     # to remove it from the module - this validates the
@@ -574,9 +574,8 @@ end module my_mod
     assert isinstance(my_sub, symbols.RoutineSymbol)
     with pytest.raises(ValueError) as err:
         table.remove(my_sub)
-    assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced by "
-            "the definition of Symbol 'whatever: GenericInterfaceSymbol"
-            in str(err))
+    assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced "
+            "inside the 'my_mod' scope" in str(err.value))
 
 
 def test_remove_containersymbols():

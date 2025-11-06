@@ -357,4 +357,5 @@ def test_stringify_annotation():
         # For second parameter temp2
         if "temp2" == k:
             anno = stringify_annotation(v.annotation)
-            assert "typing.Union[bool, int]" == anno
+            # Python >= 3.14 uses the second format
+            assert "typing.Union[bool, int]" == anno or "bool | int" == anno

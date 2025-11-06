@@ -380,7 +380,7 @@ end module my_mod'''
     # Validation should now pass.
     rtrans.validate(routine)
 
-    # TYPE_INFO imports should be ok
+    # CONSTANT imports should be ok
     code = '''module my_mod
     use other_mod, only: wp
 contains
