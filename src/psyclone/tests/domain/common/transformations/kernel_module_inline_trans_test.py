@@ -1387,6 +1387,14 @@ def test_mod_inline_shared_wildcard_import(monkeypatch, fortran_reader):
     contains
       subroutine do_it()
         real, dimension(10) :: a
+        ! When finding the routine to inline, the frontend does *not* chase the
+        ! imports and therefore eps20 is Unresolved. However, since it must be
+        ! coming from one of the wildcard imports, those wildcard imports are
+        ! moved down into the routine scope. This is watertight for module
+        ! inlining.
+        ! However, if we subsequently want to inline the routine then this
+        ! becomes a problem that could be resolved by adding a flag to try to
+        ! resolve all symbols.
         a(:) = eps20
         call my_sub(a)
       end subroutine do_it
@@ -1399,6 +1407,10 @@ def test_mod_inline_shared_wildcard_import(monkeypatch, fortran_reader):
     calls = container.walk(Call)
     intrans = KernelModuleInlineTrans()
     intrans.apply(calls[-1])
+    # In copying the routine into the Container of the call site, the
+    # ImportInterface for `eps20` will be replaced with UnresolvedInterface
+    # because the target ContainerSymbol is not within the local scope of
+    # the routine.
     # Check that eps20 has the correct interface in the inlined Routine.
     inlined = container.find_routine_psyir("my_sub", allow_private=True)
     eps_sym = inlined.symbol_table.lookup("eps20")

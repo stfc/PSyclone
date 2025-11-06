@@ -575,9 +575,14 @@ class KernelModuleInlineTrans(Transformation):
                     newsym = container.symbol_table.lookup(code_to_inline.name)
                     newsym.visibility = Symbol.Visibility.PRIVATE
 
+            # code_to_inline has now been copied into the target Container.
+            # It may still contain unresolved symbols (because the routine
+            # has wildcard imports). We cannot safely resolve them here
+            # in case the a different symbol with the same name is imported
+            # from a different Container.
             # Update any unresolved Symbols in the routine in case they are
             # resolved in the Container scope.
-            code_to_inline.symbol_table.resolve_imports()
+            #code_to_inline.symbol_table.resolve_imports()
 
             # All Calls to a routine of the same name in the same scope as the
             # target node must refer to the same Symbol.
