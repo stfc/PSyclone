@@ -37,18 +37,9 @@
 '''This module provides a class to determine whether or not distinct iterations
 of a given loop can generate conflicting array accesses (if not, the loop can
 potentially be parallelised).  It formulates the problem as a set of SMT
-constraints over array indices which are then are passed to a third-party
-solver via pySMT. We currently mandate use of the Z3 solver as it has a useful
-timeout option, missing in other solvers.'''
+constraints over array indices which are then are passed to the Z3 solver.'''
 
-# PySMT imports
-import pysmt.shortcuts as smt
-import pysmt.fnode as smt_fnode
-import pysmt.typing as smt_types
-import pysmt.logics as smt_logics
-from pysmt.exceptions import SolverReturnedUnknownResultError
-
-# PSyclone imports
+import z3
 from psyclone.psyir.nodes import Loop, DataNode, Literal, Assignment, \
     Reference, UnaryOperation, BinaryOperation, IntrinsicCall, \
     Routine, Node, IfBlock, Schedule, ArrayReference, Range, WhileLoop
@@ -140,19 +131,23 @@ from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
 # access pair and determine whether or not the loop is conflict free.
 
 class ArrayIndexAnalysis:
-    # Fortran integer width in bits
-    int_width = 32
-
-    def __init__(self, smt_timeout_ms=5000):
+    def __init__(self,
+                 int_width : int = 32,
+                 use_bv : int = True,
+                 smt_timeout_ms : int = 5000):
         # Set SMT solver timeout in milliseconds
         self.smt_timeout = smt_timeout_ms
+        # Fortran integer width in bits
+        self.int_width = int_width
+        # Use fixed-width bit vectors or arbirary precision integers?
+        self.use_bv = use_bv
 
     # Class representing an array access
     class ArrayAccess:
         def __init__(self,
-                     cond:       smt_fnode.FNode,
+                     cond:       z3.BoolRef,
                      is_write:   bool,
-                     indices:    list[smt_fnode.FNode],
+                     indices:    list[z3.ExprRef],
                      psyir_node: Node):
             # The condition at the location of the access
             self.cond = cond
@@ -190,16 +185,37 @@ class ArrayIndexAnalysis:
     def restore_subst(self):
         self.subst = self.subst_stack.pop()
 
+    # Create an fresh SMT integer variable
+    def fresh_integer_var(self) -> z3.ExprRef:
+        if self.use_bv:
+            return z3.FreshConst(z3.BitVecSort(self.int_width))
+        else:
+            return z3.FreshInt()
+
+    # Create an integer SMT variable with the given name
+    def integer_var(self, var) -> z3.ExprRef:
+        if self.use_bv:
+            return z3.BitVec(var, self.int_width)
+        else:
+            return z3.Int(var)
+
+    # Create an SMT integer value
+    def integer_val(self, val : int) -> z3.ExprRef:
+        if self.use_bv:
+            return z3.BitVecVal(val, self.int_width)
+        else:
+            return z3.IntVal(val)
+
     # Clear knowledge of 'var' by mapping it to a fresh, unconstrained symbol
     def kill_integer_var(self, var: str):
-        fresh_sym = smt.FreshSymbol(typename=smt_types.BVType(self.int_width))
-        smt_var = smt.Symbol(var, typename=smt_types.BVType(self.int_width))
+        fresh_sym = self.fresh_integer_var()
+        smt_var = self.integer_var(var)
         self.subst[smt_var] = fresh_sym
 
     # Clear knowledge of 'var' by mapping it to a fresh, unconstrained symbol
     def kill_logical_var(self, var: str):
-        fresh_sym = smt.FreshSymbol(typename=smt_types.BOOL)
-        smt_var = smt.Symbol(var, typename=smt_types.BOOL)
+        fresh_sym = z3.FreshBool()
+        smt_var = z3.Bool(var)
         self.subst[smt_var] = fresh_sym
 
     # Kill all scalar integer/logical variables written inside 'node'
@@ -216,73 +232,66 @@ class ArrayIndexAnalysis:
                     self.kill_logical_var(sig.var_name)
 
     # Add the SMT constraint to the constraint set
-    def add_constraint(self, smt_expr: smt_fnode.FNode):
+    def add_constraint(self, smt_expr: z3.BoolRef):
         self.constraints.append(smt_expr)
 
     # Add an integer assignment constraint to the constraint set
-    def add_integer_assignment(self, var: str, smt_expr: smt_fnode.FNode):
+    def add_integer_assignment(self, var: str, smt_expr: z3.ExprRef):
         # Create a fresh symbol
-        fresh_sym = smt.FreshSymbol(typename=smt_types.BVType(self.int_width))
+        fresh_sym = self.fresh_integer_var()
         # Assert equality between this symbol and the given SMT expression
-        self.add_constraint(smt.Equals(fresh_sym, smt_expr))
+        self.add_constraint(fresh_sym == smt_expr)
         # Update the substitution
-        smt_var = smt.Symbol(var, typename=smt_types.BVType(self.int_width))
+        smt_var = self.integer_var(var)
         self.subst[smt_var] = fresh_sym
 
     # Add a logical assignment constraint to the constraint set
-    def add_logical_assignment(self, var: str, smt_expr: smt_fnode.FNode):
+    def add_logical_assignment(self, var: str, smt_expr: z3.BoolRef):
         # Create a fresh symbol
-        fresh_sym = smt.FreshSymbol(typename=smt_types.BOOL)
+        fresh_sym = z3.FreshBool()
         # Assert equality between this symbol and the given SMT expression
-        self.add_constraint(smt.Iff(fresh_sym, smt_expr))
+        self.add_constraint(fresh_sym == smt_expr)
         # Update the substitution
-        smt_var = smt.Symbol(var, typename=smt_types.BOOL)
+        smt_var = z3.Bool(var)
         self.subst[smt_var] = fresh_sym
 
     # Translate integer expresison to SMT, and apply current substitution
-    def translate_integer_expr_with_subst(self, expr: smt_fnode.FNode):
-        smt_expr = translate_integer_expr(expr, self.int_width)
-        return smt_expr.substitute(self.subst)
+    def translate_integer_expr_with_subst(self, expr: z3.ExprRef):
+        smt_expr = translate_integer_expr(expr, self.int_width, self.use_bv)
+        subst_pairs = list(self.subst.items())
+        return z3.substitute(smt_expr, *subst_pairs)
 
     # Translate logical expresison to SMT, and apply current substitution
-    def translate_logical_expr_with_subst(self, expr: smt_fnode.FNode):
-        smt_expr = translate_logical_expr(expr, self.int_width)
-        return smt_expr.substitute(self.subst)
+    def translate_logical_expr_with_subst(self, expr: z3.BoolRef):
+        smt_expr = translate_logical_expr(expr, self.int_width, self.use_bv)
+        subst_pairs = list(self.subst.items())
+        return z3.substitute(smt_expr, *subst_pairs)
 
     # Constrain a loop variable to given start/stop/step
     def constrain_loop_var(self,
-                           var:   smt_fnode.FNode,
+                           var:   z3.ExprRef,
                            start: DataNode,
                            stop:  DataNode,
                            step:  DataNode):
-        zero = smt.SBV(0, self.int_width)
+        zero = self.integer_val(0)
         var_begin = self.translate_integer_expr_with_subst(start)
         var_end = self.translate_integer_expr_with_subst(stop)
         if step is None:
             step = Literal("1", INTEGER_TYPE)  # pragma: no cover
         var_step = self.translate_integer_expr_with_subst(step)
-        self.add_constraint(smt.And(
-          # (var - var_begin) % var_step == 0
-          smt.Equals(smt.BVSRem(smt.BVSub(var, var_begin), var_step), zero),
-          # var_step > 0 ==> var >= var_begin
-          smt.Implies(smt.BVSGT(var_step, zero),
-                      smt.BVSGE(var, var_begin)),
-          # var_step < 0 ==> var <= var_begin
-          smt.Implies(smt.BVSLT(var_step, zero),
-                      smt.BVSLE(var, var_begin)),
-          # var_step > 0 ==> var <= var_end
-          smt.Implies(smt.BVSGT(var_step, zero),
-                      smt.BVSLE(var, var_end)),
-          # var_step < 0 ==> var >= var_end
-          smt.Implies(smt.BVSLT(var_step, zero),
-                      smt.BVSGE(var, var_end))))
+        self.add_constraint(z3.And(
+          ((var - var_begin) % var_step) == zero,
+          z3.Implies(var_step > zero, var >= var_begin),
+          z3.Implies(var_step < zero, var <= var_begin),
+          z3.Implies(var_step > zero, var <= var_end),
+          z3.Implies(var_step < zero, var >= var_end)))
 
     # Add an array access to the current access dict
     def add_array_access(self,
                          array_name: str,
                          is_write:   bool,
-                         cond:       smt_fnode.FNode,
-                         indices:    list[smt_fnode.FNode],
+                         cond:       z3.BoolRef,
+                         indices:    list[z3.ExprRef],
                          psyir_node: Node):
         access = ArrayIndexAnalysis.ArrayAccess(
                    cond, is_write, indices, psyir_node)
@@ -291,7 +300,7 @@ class ArrayIndexAnalysis:
         self.access_dict[array_name].append(access)
 
     # Add all array accesses in the given node to the current access dict
-    def add_all_array_accesses(self, node: Node, cond: smt_fnode.FNode):
+    def add_all_array_accesses(self, node: Node, cond: z3.BoolRef):
         var_accesses = node.reference_accesses()
         for sig, access_seq in var_accesses.items():
             for access_info in access_seq:
@@ -302,9 +311,7 @@ class ArrayIndexAnalysis:
                         indices = []
                         for index in access_info.node.indices:
                             if isinstance(index, Range):
-                                var = smt.FreshSymbol(
-                                        typename=smt_types.BVType(
-                                          self.int_width))
+                                var = self.fresh_integer_var()
                                 self.constrain_loop_var(
                                   var, index.start, index.stop, index.step)
                                 indices.append(var)
@@ -322,8 +329,7 @@ class ArrayIndexAnalysis:
                           isinstance(access_info.node.datatype, ArrayType)):
                         indices = []
                         for index in access_info.node.datatype.shape:
-                            var = smt.FreshSymbol(
-                              typename=smt_types.BVType(self.int_width))
+                            var = self.fresh_integer_var()
                             indices.append(var)
                         self.add_array_access(
                             sig.var_name, access_info.is_any_write(),
@@ -335,7 +341,7 @@ class ArrayIndexAnalysis:
         self.access_dict = {}
 
     # Check if the given loop has a conflict
-    def is_loop_conflict_free(self, loop: Loop) -> tuple[Node, Node]:
+    def is_loop_conflict_free(self, loop: Loop) -> bool:
         # Type checking
         if not isinstance(loop, Loop):
             raise TypeError("ArrayIndexAnalysis: Loop argument expected")
@@ -351,11 +357,10 @@ class ArrayIndexAnalysis:
         # Start with an empty constraint set and substitution
         self.init_analysis()
         self.loop_to_parallelise = loop
-        smt.reset_env()
 
         # Step through body of the enclosing routine, statement by statement
         for stmt in routine.children:
-            self.step(stmt, smt.TRUE())
+            self.step(stmt, z3.BoolVal(True))
 
         # Check that we have found and analysed the loop to parallelise
         if not (self.finished and len(self.saved_access_dicts) == 2):
@@ -377,26 +382,26 @@ class ArrayIndexAnalysis:
                         indices_equal = []
                         for (i_idx, j_idx) in zip(i_access.indices,
                                                   j_access.indices):
-                            indices_equal.append(smt.Equals(i_idx, j_idx))
-                        conflicts.append(smt.And(
+                            indices_equal.append(i_idx == j_idx)
+                        conflicts.append(z3.And(
                           *indices_equal,
                           i_access.cond,
                           j_access.cond))
 
         # Invoke Z3 solver with a timeout
-        solver = smt.Solver(name='z3',
-                            logic=smt_logics.QF_BV,
-                            generate_models=False,
-                            incremental=False,
-                            solver_options={'timeout': self.smt_timeout})
-        try:
-            return not solver.is_sat(smt.And(*self.constraints,
-                                             smt.Or(conflicts)))
-        except SolverReturnedUnknownResultError:  # pragma: no cover
-            return None                           # pragma: no cover
+        solver = z3.Solver()
+        solver.set("timeout", self.smt_timeout)
+        solver.add(z3.And(*self.constraints, z3.Or(*conflicts)))
+        result = solver.check()
+        if result == z3.unknown:
+          return None  # pragma: no cover
+        elif result == z3.sat:
+          return False
+        else:
+          return True
 
     # Analyse a single statement
-    def step(self, stmt: Node, cond: smt_fnode.FNode):
+    def step(self, stmt: Node, cond: z3.BoolRef):
         # Has analysis finished?
         if self.finished:
             return
@@ -432,13 +437,13 @@ class ArrayIndexAnalysis:
             # Recursively step into 'then'
             if stmt.if_body:
                 self.save_subst()
-                self.step(stmt.if_body, smt.And(cond, smt_condition))
+                self.step(stmt.if_body, z3.And(cond, smt_condition))
                 self.restore_subst()
             # Recursively step into 'else'
             if stmt.else_body:
                 self.save_subst()
                 self.step(stmt.else_body,
-                          smt.And(cond, smt.Not(smt_condition)))
+                          z3.And(cond, z3.Not(smt_condition)))
                 self.restore_subst()
             # Kill vars written by each branch
             if stmt.if_body:
@@ -457,23 +462,18 @@ class ArrayIndexAnalysis:
             if stmt is self.loop_to_parallelise:
                 self.in_loop_to_parallelise = True
                 # Consider two arbitary but distinct iterations
-                i_var = smt.FreshSymbol(
-                          typename=smt_types.BVType(self.int_width))
-                j_var = smt.FreshSymbol(
-                          typename=smt_types.BVType(self.int_width))
-                self.add_constraint(smt.NotEquals(i_var, j_var))
+                i_var = self.fresh_integer_var()
+                j_var = self.fresh_integer_var()
+                self.add_constraint(i_var != j_var)
                 iteration_vars = [i_var, j_var]
             else:
                 # Consider a single, arbitrary iteration
-                i_var = smt.FreshSymbol(
-                          typename=smt_types.BVType(self.int_width))
+                i_var = self.fresh_integer_var()
                 iteration_vars = [i_var]
             # Analyse loop body for each iteration variable separately
             for var in iteration_vars:
                 self.save_subst()
-                smt_loop_var = smt.Symbol(
-                    stmt.variable.name,
-                    typename=smt_types.BVType(self.int_width))
+                smt_loop_var = self.integer_var(stmt.variable.name)
                 self.subst[smt_loop_var] = var
                 # Introduce constraints on loop variable
                 self.constrain_loop_var(
@@ -500,7 +500,7 @@ class ArrayIndexAnalysis:
             stmt.condition)
           # Recursively step into loop body
           self.save_subst()
-          self.step(stmt.loop_body, smt.And(cond, smt_condition))
+          self.step(stmt.loop_body, z3.And(cond, smt_condition))
           self.restore_subst()
           return
 
@@ -514,29 +514,34 @@ class ArrayIndexAnalysis:
 
 
 # Translate a scalar integer Fortran expression to SMT
-def translate_integer_expr(expr_root: Node, int_width: int):
-    # SMT type to represent Fortran integers
-    bv_int_t = smt_types.BVType(int_width)
-
+def translate_integer_expr(expr_root: Node,
+                           int_width: int,
+                           use_bv: bool) -> z3.ExprRef:
     def trans(expr: Node):
         # Check that type is a scalar integer of unspecified precision
         type_ok = _is_scalar_integer(expr.datatype)
 
         # Literal
         if isinstance(expr, Literal) and type_ok:
-            return smt.SBV(int(expr.value), int_width)
+            if use_bv:
+                return z3.BitVecVal(int(expr.value), int_width)
+            else:
+                return z3.IntVal(int(expr.value))
 
         # Reference
         if (isinstance(expr, Reference)
                 and not isinstance(expr, ArrayReference)
                 and type_ok):
-            return smt.Symbol(expr.name, typename=bv_int_t)
+            if use_bv:
+                return z3.BitVec(expr.name, int_width)
+            else:
+                return z3.Int(expr.name)
 
         # UnaryOperation
         if isinstance(expr, UnaryOperation):
             arg_smt = trans(expr.operand)
             if expr.operator == UnaryOperation.Operator.MINUS:
-                return smt.BVNeg(arg_smt)
+                return -arg_smt
             if expr.operator == UnaryOperation.Operator.PLUS:
                 return arg_smt
 
@@ -547,23 +552,20 @@ def translate_integer_expr(expr_root: Node, int_width: int):
             right_smt = trans(right)
 
             if expr.operator == BinaryOperation.Operator.ADD:
-                return smt.BVAdd(left_smt, right_smt)
+                return left_smt + right_smt
             if expr.operator == BinaryOperation.Operator.SUB:
-                return smt.BVSub(left_smt, right_smt)
+                return left_smt - right_smt
             if expr.operator == BinaryOperation.Operator.MUL:
-                return smt.BVMul(left_smt, right_smt)
+                return left_smt * right_smt
             if expr.operator == BinaryOperation.Operator.DIV:
-                return smt.BVSDiv(left_smt, right_smt)
+                return left_smt / right_smt
 
         # IntrinsicCall
         if isinstance(expr, IntrinsicCall):
             # Unary operators
             if expr.intrinsic == IntrinsicCall.Intrinsic.ABS:
-                zero = smt.BVZero(int_width)
                 smt_arg = trans(expr.children[1])
-                return smt.Ite(smt.BVSLT(smt_arg, zero),
-                               smt.BVNeg(smt_arg),
-                               smt_arg)
+                return z3.Abs(smt_arg)
 
             # Binary operators
             if expr.intrinsic in [IntrinsicCall.Intrinsic.SHIFTL,
@@ -576,21 +578,48 @@ def translate_integer_expr(expr_root: Node, int_width: int):
                 left_smt = trans(expr.children[1])
                 right_smt = trans(expr.children[2])
 
-                if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTL:
-                    return smt.BVLShl(left_smt, right_smt)
-                if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTR:
-                    return smt.BVLShr(left_smt, right_smt)
-                if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTA:
-                    return smt.BVAShr(left_smt, right_smt)
-                if expr.intrinsic == IntrinsicCall.Intrinsic.IAND:
-                    return smt.BVAnd(left_smt, right_smt)
-                if expr.intrinsic == IntrinsicCall.Intrinsic.IOR:
-                    return smt.BVOr(left_smt, right_smt)
-                if expr.intrinsic == IntrinsicCall.Intrinsic.IEOR:
-                    return smt.BVXor(left_smt, right_smt)
-                # TODO: does BVSRem match the semantics of Fortran MOD?
                 if expr.intrinsic == IntrinsicCall.Intrinsic.MOD:
-                    return smt.BVSRem(left_smt, right_smt)
+                    return left_smt % right_smt
+
+                if use_bv:
+                    if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTL:
+                        return left_smt << right_smt
+                    if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTR:
+                        return z3.LShR(left_smt, right_smt)
+                    if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTA:
+                        return left_smt >> right_smt
+                    if expr.intrinsic == IntrinsicCall.Intrinsic.IAND:
+                        return left_smt & right_smt
+                    if expr.intrinsic == IntrinsicCall.Intrinsic.IOR:
+                        return left_smt | right_smt
+                    if expr.intrinsic == IntrinsicCall.Intrinsic.IEOR:
+                        return left_smt ^ right_smt
+                else:
+                    if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTL:
+                        return z3.BV2Int(z3.Int2BV(left_smt, int_width) <<
+                                         z3.Int2BV(right_smt, int_width),
+                                         is_signed = True)
+                    if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTR:
+                        return z3.BV2Int(z3.LShR(
+                                 z3.Int2BV(left_smt, int_width),
+                                 z3.Int2BV(right_smt, int_width)),
+                                 is_signed = True)
+                    if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTA:
+                        return z3.BV2Int(z3.Int2BV(left_smt, int_width) >>
+                                         z3.Int2BV(right_smt, int_width),
+                                         is_signed = True)
+                    if expr.intrinsic == IntrinsicCall.Intrinsic.IAND:
+                        return z3.BV2Int(z3.Int2BV(left_smt, int_width) &
+                                         z3.Int2BV(right_smt, int_width),
+                                         is_signed = True)
+                    if expr.intrinsic == IntrinsicCall.Intrinsic.IOR:
+                        return z3.BV2Int(z3.Int2BV(left_smt, int_width) |
+                                         z3.Int2BV(right_smt, int_width),
+                                         is_signed = True)
+                    if expr.intrinsic == IntrinsicCall.Intrinsic.IEOR:
+                        return z3.BV2Int(z3.Int2BV(left_smt, int_width) ^
+                                         z3.Int2BV(right_smt, int_width),
+                                         is_signed = True)
 
             # N-ary operators
             if expr.intrinsic in [IntrinsicCall.Intrinsic.MIN,
@@ -599,21 +628,24 @@ def translate_integer_expr(expr_root: Node, int_width: int):
                 reduced = smt_args[0]
                 for arg in smt_args[1:]:
                     if expr.intrinsic == IntrinsicCall.Intrinsic.MIN:
-                        reduced = smt.Ite(smt.BVSLT(reduced, arg),
-                                          reduced, arg)
+                        reduced = z3.If(reduced < arg, reduced, arg)
                     elif expr.intrinsic == IntrinsicCall.Intrinsic.MAX:
-                        reduced = smt.Ite(smt.BVSLT(reduced, arg),
-                                          arg, reduced)
+                        reduced = z3.If(reduced < arg, arg, reduced)
                 return reduced
 
         # Fall through: return a fresh, unconstrained symbol
-        return smt.FreshSymbol(typename=bv_int_t)
+        if use_bv:
+            return z3.FreshConst(z3.BitVecSort(int_width))
+        else:
+            return z3.FreshInt()
 
     return trans(expr_root)
 
 
 # Translate a scalar logical Fortran expression to SMT
-def translate_logical_expr(expr_root: Node, int_width: int):
+def translate_logical_expr(expr_root: Node,
+                           int_width: int,
+                           use_bv: bool) -> z3.BoolRef:
     def trans(expr: Node):
         # Check that type is a scalar logical
         type_ok = _is_scalar_logical(expr.datatype)
@@ -621,21 +653,21 @@ def translate_logical_expr(expr_root: Node, int_width: int):
         # Literal
         if isinstance(expr, Literal) and type_ok:
             if expr.value == "true":
-                return smt.TRUE()
+                return z3.BoolVal(True)
             if expr.value == "false":
-                return smt.FALSE()
+                return z3.BoolVal(False)
 
         # Reference
         if (isinstance(expr, Reference)
                 and not isinstance(expr, ArrayReference)
                 and type_ok):
-            return smt.Symbol(expr.name, typename=smt_types.BOOL)
+            return z3.Bool(expr.name)
 
         # UnaryOperation
         if isinstance(expr, UnaryOperation):
             arg_smt = trans(expr.operand)
             if expr.operator == UnaryOperation.Operator.NOT:
-                return smt.Not(arg_smt)
+                return z3.Not(arg_smt)
 
         # BinaryOperation
         if isinstance(expr, BinaryOperation):
@@ -649,13 +681,13 @@ def translate_logical_expr(expr_root: Node, int_width: int):
                 right_smt = trans(right)
 
                 if expr.operator == BinaryOperation.Operator.AND:
-                    return smt.And(left_smt, right_smt)
+                    return z3.And(left_smt, right_smt)
                 if expr.operator == BinaryOperation.Operator.OR:
-                    return smt.Or(left_smt, right_smt)
+                    return z3.Or(left_smt, right_smt)
                 if expr.operator == BinaryOperation.Operator.EQV:
-                    return smt.Iff(left_smt, right_smt)
+                    return left_smt == right_smt
                 if expr.operator == BinaryOperation.Operator.NEQV:
-                    return smt.Not(smt.Iff(left_smt, right_smt))
+                    return left_smt != right_smt
 
             # Operands are numbers
             if expr.operator in [BinaryOperation.Operator.EQ,
@@ -665,24 +697,24 @@ def translate_logical_expr(expr_root: Node, int_width: int):
                                  BinaryOperation.Operator.GE,
                                  BinaryOperation.Operator.LE]:
                 (left, right) = expr.operands
-                left_smt = translate_integer_expr(left, int_width)
-                right_smt = translate_integer_expr(right, int_width)
+                left_smt = translate_integer_expr(left, int_width, use_bv)
+                right_smt = translate_integer_expr(right, int_width, use_bv)
 
                 if expr.operator == BinaryOperation.Operator.EQ:
-                    return smt.Equals(left_smt, right_smt)
+                    return left_smt == right_smt
                 if expr.operator == BinaryOperation.Operator.NE:
-                    return smt.NotEquals(left_smt, right_smt)
+                    return left_smt != right_smt
                 if expr.operator == BinaryOperation.Operator.GT:
-                    return smt.BVSGT(left_smt, right_smt)
+                    return left_smt > right_smt
                 if expr.operator == BinaryOperation.Operator.LT:
-                    return smt.BVSLT(left_smt, right_smt)
+                    return left_smt < right_smt
                 if expr.operator == BinaryOperation.Operator.GE:
-                    return smt.BVSGE(left_smt, right_smt)
+                    return left_smt >= right_smt
                 if expr.operator == BinaryOperation.Operator.LE:
-                    return smt.BVSLE(left_smt, right_smt)
+                    return left_smt <= right_smt
 
         # Fall through: return a fresh, unconstrained symbol
-        return smt.FreshSymbol(typename=smt_types.BOOL)
+        return z3.FreshBool()
 
     return trans(expr_root)
 

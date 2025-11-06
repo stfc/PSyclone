@@ -40,8 +40,7 @@ from psyclone.psyir.nodes import (Loop, Assignment, Reference)
 from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.tools import ArrayIndexAnalysis
 from psyclone.psyir.tools.array_index_analysis import translate_logical_expr
-import pysmt.shortcuts as smt
-from pysmt.exceptions import NoSolverAvailableError
+import z3
 
 
 # -----------------------------------------------------------------------------
@@ -60,13 +59,10 @@ def test_reverse(fortran_reader, fortran_writer):
             arr(n+1-i) = tmp
           end do
         end subroutine''')
-    try:
-        results = []
-        for loop in psyir.walk(Loop):
-            results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
-        assert results == [True]
-    except NoSolverAvailableError:
-        pass
+    results = []
+    for loop in psyir.walk(Loop):
+        results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
+    assert results == [True]
 
 
 # -----------------------------------------------------------------------------
@@ -87,13 +83,10 @@ def test_odd_even_trans(fortran_reader, fortran_writer):
             end if
           end do
         end subroutine''')
-    try:
-        results = []
-        for loop in psyir.walk(Loop):
-            results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
-        assert results == [True]
-    except NoSolverAvailableError:
-        pass
+    results = []
+    for loop in psyir.walk(Loop):
+        results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
+    assert results == [True]
 
 
 # -----------------------------------------------------------------------------
@@ -126,13 +119,10 @@ def test_tiled_matmul(fortran_reader, fortran_writer):
             enddo
           enddo
         end subroutine my_matmul''')
-    try:
-        results = []
-        for loop in psyir.walk(Loop):
-            results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
-        assert results == [True, True, False, True, True, False]
-    except NoSolverAvailableError:
-        pass
+    results = []
+    for loop in psyir.walk(Loop):
+        results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
+    assert results == [True, True, False, True, True, False]
 
 
 # -----------------------------------------------------------------------------
@@ -155,13 +145,10 @@ def test_flatten1(fortran_reader, fortran_writer):
             end do
           end do
         end subroutine''')
-    try:
-        results = []
-        for loop in psyir.walk(Loop):
-            results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
-        assert results == [False, True]
-    except NoSolverAvailableError:
-        pass
+    results = []
+    for loop in psyir.walk(Loop):
+        results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
+    assert results == [False, True]
 
 
 # -----------------------------------------------------------------------------
@@ -179,17 +166,15 @@ def test_flatten2(fortran_reader, fortran_writer):
             arr(i) = mat(mod(i, ny), i/ny)
           end do
         end subroutine''')
-    try:
-        results = []
-        for loop in psyir.walk(Loop):
-            results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
-        assert results == [True]
-    except NoSolverAvailableError:
-        pass
+    results = []
+    for loop in psyir.walk(Loop):
+        results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
+    assert results == [True]
 
 
 # -----------------------------------------------------------------------------
-def test_translate_expr(fortran_reader, fortran_writer):
+@pytest.mark.parametrize("use_bv", [True, False])
+def test_translate_expr(use_bv, fortran_reader, fortran_writer):
     '''Test that Fortran expressions are being correctly translated to SMT.
     '''
     def test(expr):
@@ -199,12 +184,9 @@ def test_translate_expr(fortran_reader, fortran_writer):
                     x = {expr}
                   end subroutine''')
         for assign in psyir.walk(Assignment):
-            rhs_smt = translate_logical_expr(assign.rhs, 32)
-            try:
-                assert smt.is_sat(rhs_smt) is True
-            except NoSolverAvailableError:
-                pass
-        return
+            rhs_smt = translate_logical_expr(assign.rhs, 32, use_bv)
+            solver = z3.Solver()
+            assert solver.check(rhs_smt) == z3.sat
 
     test("+1 == 1")
     test("abs(-1) == 1")
@@ -240,14 +222,11 @@ def check_conflict_free(fortran_reader, loop_str, yesno):
                 logical :: ok
                 {loop_str}
               end subroutine''')
-    try:
-        results = []
-        for loop in psyir.walk(Loop):
-            analysis = ArrayIndexAnalysis()
-            results.append(analysis.is_loop_conflict_free(loop))
-        assert results == [yesno]
-    except NoSolverAvailableError:
-        pass
+    results = []
+    for loop in psyir.walk(Loop):
+        analysis = ArrayIndexAnalysis()
+        results.append(analysis.is_loop_conflict_free(loop))
+    assert results == [yesno]
 
 
 # -----------------------------------------------------------------------------

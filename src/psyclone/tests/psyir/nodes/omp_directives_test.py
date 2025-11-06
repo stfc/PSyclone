@@ -74,7 +74,6 @@ from psyclone.transformations import (
     LFRicOMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPLoopTrans, TransformationError)
-from pysmt.exceptions import NoSolverAvailableError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")
@@ -5384,9 +5383,6 @@ def test_array_analysis_option(fortran_reader, fortran_writer):
       end subroutine my_matmul''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    try:
-        omplooptrans.apply(loop, collapse=True, use_smt_array_anal=True)
-        output = fortran_writer(psyir)
-        assert "collapse(2)" in output
-    except NoSolverAvailableError:
-        pass
+    omplooptrans.apply(loop, collapse=True, use_smt_array_anal=True)
+    output = fortran_writer(psyir)
+    assert "collapse(2)" in output
