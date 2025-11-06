@@ -59,7 +59,8 @@ PSYDATA_STANDALONE_LIB = lib$(PSYDATA_STANDALONE_LIB_NAME).a
 
 PSY_OBJS = profile_psy_data_mod.o
 INF_OBJS = utilities/timer_mod.o utilities/log_mod.o scalar/scalar_mod.o \
-	       utilities/lfric_mpi_mod.o io/io_utility_mod.o
+	       utilities/lfric_mpi_mod.o io/io_utility_mod.o \
+	       utilities/traceback_mod.o
 INF_OBJS_FULL_PATH = $(patsubst %,$(LFRIC_INF_DIR)/%,$(INF_OBJS))
 
 .phony: default clean allclean
@@ -69,7 +70,7 @@ default: $(PSYDATA_LIB) $(PSYDATA_STANDALONE_LIB)
 # First target: this needs to be linked with the LFRic
 # infrastructure library.
 $(PSYDATA_LIB): $(INF_LIB) $(PSY_OBJS)
-	ar rs $@ $<
+	ar rs $@ $^
 
 # Second target: this library contains the required files
 # from the infrastructure library, and can be used by any

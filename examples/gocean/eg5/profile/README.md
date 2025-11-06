@@ -54,6 +54,7 @@ to find the various software packages:
 The location of the dl_esm_inf infrastructure library, it defaults to
 ``../../../../external/dl_esm_inf/finite_difference``,
 which is the version included in PSyclone.
+
 ### DL_TIMER_ROOT:
 The location of the apeg-dl_timer library. It defaults to
 ``../../../../../apeg-dl_timer``, i.e. it is assumed that apeg-dl_timer
@@ -61,16 +62,22 @@ is installed next to PSyclone.
 Note that until Issue #730 is complete, executing this example
 will fail as the labels produced by PSyclone are longer than
 permitted by the dl_timer library.
+
 ### DRHOOK_DIR:
 The location of DrHook. It defaults to
 ``../../../../../drhook``, i.e. it is assumed that DrHook is
 installed next to PSyclone.
+
 ### LFRIC_DIR
 The location of the LFRic infrastructure library. It defaults to
 ``../../../../external/lfric_infrastructure/src``,
 which is the small, stand-alone LFRic infrastructure library that
 is included in PSyclone. In spite of the dependence on LFRic, this
 profiling wrapper library can be used with with any application.
+Note that this variable is not directly used by this Makefile,
+but the lfric_timer wrapper library will use (and compile if
+required) the LFRic infrastructure version.
+
 ### VERNIER_DIR
 The location of the Vernier library. It defaults to
 ``../../../../../Vernier``, i.e. it is assumed that Vernier is
