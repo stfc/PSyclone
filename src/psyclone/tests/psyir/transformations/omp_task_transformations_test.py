@@ -194,7 +194,7 @@ def test_omptask_inline_kernels(monkeypatch):
     taskt = OMPTaskTrans()
     schedule = invoke.schedule
 
-    # If we monkeypatch the validate() and aget_callee() it should succeed.
+    # If we monkeypatch the validate() and get_callee() it should succeed.
     monkeypatch.setattr(InlineTrans, "validate",
                         lambda _1, _2, routine,
                         use_first_callee_and_no_arg_check,
