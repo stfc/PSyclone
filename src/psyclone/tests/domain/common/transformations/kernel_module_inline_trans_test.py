@@ -45,6 +45,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.parse import ModuleManager
 from psyclone.psyGen import CodedKern, Kern
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
@@ -1399,19 +1400,16 @@ def test_mod_inline_shared_wildcard_import(monkeypatch, fortran_reader):
         call my_sub(a)
       end subroutine do_it
     end module this_mod'''
-    # Create our own FortranReader that will resolve imports from the two
-    # modules as it encounters them.
-    reader = FortranReader(resolve_modules=["ice_params", "my_mod"])
-    psyir = reader.psyir_from_source(code)
+    # TODO #3211 - tell the ModuleManager to chase imports
+    ModuleManager.get().resolve_indirect_imports = ["ice_params", "my_mod"]
+    psyir = fortran_reader.psyir_from_source(code)
     container = psyir.children[0]
     calls = container.walk(Call)
     intrans = KernelModuleInlineTrans()
     intrans.apply(calls[-1])
-    # In copying the routine into the Container of the call site, the
-    # ImportInterface for `eps20` will be replaced with UnresolvedInterface
-    # because the target ContainerSymbol is not within the local scope of
-    # the routine.
     # Check that eps20 has the correct interface in the inlined Routine.
+    # The imports in the inlined routine should have been followed and
+    # hence 'eps20' resolved.
     inlined = container.find_routine_psyir("my_sub", allow_private=True)
     eps_sym = inlined.symbol_table.lookup("eps20")
     assert not eps_sym.is_unresolved
