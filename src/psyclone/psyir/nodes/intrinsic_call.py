@@ -3192,12 +3192,14 @@ class IntrinsicCall(Call):
             for name in self.argument_names:
                 if not name:
                     continue
+                # Need to check lower case.
+                lname = name.lower()
                 # Optional argument names are skipped over as they don't
                 # affect which interface is being used.
-                if name in optional_names:
+                if lname in optional_names:
                     continue
                 for arglist in potential_interfaces:
-                    if name not in arglist:
+                    if lname not in arglist:
                         potential_interfaces.remove(arglist)
 
             # Remove any of the interfaces that have too many or
@@ -3234,7 +3236,8 @@ class IntrinsicCall(Call):
                 # this interface cannot be a candidate for canonicalisation.
                 remaining_required = choice[num_positional_arguments:]
                 for name in remaining_required:
-                    if name not in self.argument_names:
+                    lname = name.lower()
+                    if lname not in self.argument_names:
                         potential_interfaces.remove(choice)
                         break
 
@@ -3353,8 +3356,7 @@ class IntrinsicCall(Call):
                         f"Cannot canonicalise '{self.intrinsic.name}' "
                         f"as non-optional argument name '{name}' found "
                         f"but the Intrinsic has context-sensitive argument "
-                        f"names which is unsupported by PSyclone. Supplied "
-                        f"intrinsic was a '{self.intrinsic.name}'."
+                        f"names which is unsupported by PSyclone."
                     )
 
         # The following rules are defined by the Fortran standard.

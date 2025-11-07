@@ -669,8 +669,7 @@ def test_intrinsic_canonicalisation_not_implemented_errors():
         intrinsic.canonicalise()
     assert ("Cannot canonicalise 'ALLOCATED' as non-optional argument name "
             "'array' found but the Intrinsic has context-sensitive argument "
-            "names which is unsupported by PSyclone. Supplied intrinsic was "
-            "a 'ALLOCATED'." in str(err.value))
+            "names which is unsupported by PSyclone." in str(err.value))
 
 
 def test_canonicalisation():

@@ -236,7 +236,7 @@ class Config:
         self._fortran_standard = None
 
         # By default, the PSyIR backends output argument names on (most)
-        # IntrinsicCalls. These two options enable control of tha behaviour.
+        # IntrinsicCalls. This option enables control of that behaviour.
         self._backend_intrinsic_named_kwargs = True
 
     # -------------------------------------------------------------------------

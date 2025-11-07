@@ -1799,7 +1799,7 @@ class FortranWriter(LanguageWriter):
         # Otherwise it is inside-expression function call
         return f"{self._visit(node.routine)}({args})"
 
-    def call_node(self, node) -> str:
+    def call_node(self, node: Call) -> str:
         '''Translate the PSyIR call node to Fortran.
 
         :param node: a Call PSyIR node.

@@ -1852,10 +1852,10 @@ def test_fw_intrinsic_output_control(fortran_writer):
     call = IntrinsicCall.create(IntrinsicCall.Intrinsic.ISHFT,
                                 args)
     result = fortran_writer(call)
-    # Default behaviour is to include argument names.
+    # Default behaviour is to include names of all arguments.
     assert "ISHFT(i=arg1, shift=arg2)" in result
 
-    # Turn off the output of required arguments
+    # Turn off the output of names of required arguments
     Config.get().backend_intrinsic_named_kwargs = False
     result = fortran_writer(call)
     assert "ISHFT(arg1, arg2)" in result
@@ -2207,7 +2207,7 @@ def test_fw_intrinsiccall(fortran_reader, fortran_writer):
     # Test a piece of code where can remove all required argument names.
     code = """subroutine foo()
     real :: a, b, c
-    a = cshift(array=c, shift=b, dim=1)
+    a = cshift(aRRay=c, SHIFT=b, dim=1)
     end subroutine foo"""
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
@@ -2227,5 +2227,10 @@ def test_fw_intrinsiccall(fortran_reader, fortran_writer):
     IntrinsicCall._add_args(
             intrinsic, [("scalar",
                          Reference(DataSymbol("b", INTEGER_TYPE)))])
+    # Ensure this cannot be canonicalised.
+    with pytest.raises(NotImplementedError) as err:
+        intrinsic.canonicalise()
+    assert ("Cannot canonicalise 'ALLOCATED' as non-optional argument name "
+            "'scalar' found" in str(err.value))
     output = fortran_writer(intrinsic)
     assert "ALLOCATED(scalar=b)" in output
