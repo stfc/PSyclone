@@ -60,6 +60,37 @@ def test_mod_manager_instance() -> None:
             "instance." in str(err.value))
 
 
+def test_mod_manager_properties():
+    ''' Test the ModuleManager getter and setter properties '''
+    mod_man = ModuleManager.get()
+
+    # Setter with wrong types
+    with pytest.raises(TypeError) as err:
+        mod_man.cache_active = 3
+    assert "'cache_active' must be a bool, but found" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        mod_man.cache_path = 3
+    assert "'cache_path' must be a str, but found" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        mod_man.resolve_indirect_imports = 3
+    assert ("'resolve_indirect_imports' must be a boolean or an Iterable, "
+            "but found" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        mod_man.resolve_indirect_imports = [3, 3]
+    assert ("'resolve_indirect_imports' must be a Iterable of str, but "
+            "found an item of" in str(err.value))
+
+    # Setters
+    mod_man.cache_active = True
+    mod_man.cache_path = "/tmp"
+    mod_man.resolve_indirect_imports = ["a", "b"]
+
+    # Getters
+    assert mod_man.cache_active
+    assert mod_man.cache_path == "/tmp"
+    assert mod_man.resolve_indirect_imports == ["a", "b"]
+
+
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
