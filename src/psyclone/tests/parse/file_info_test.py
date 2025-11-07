@@ -56,11 +56,24 @@ def test_file_info_constructor():
     properties are set correctly.
 
     """
+    # Test default values
     finfo: FileInfo = FileInfo("missing.txt")
     assert finfo._filename == "missing.txt"
     assert finfo._source_code is None
     assert finfo.filename == "missing.txt"
     assert finfo.basename == "missing"
+    assert not finfo._cache_active
+    assert finfo._cache_path is None
+    assert not finfo._resolve_imports
+
+    # Test with provided arguments
+    finfo: FileInfo = FileInfo("missing.txt",
+                               cache_active=True,
+                               cache_path="/tmp",
+                               resolve_imports=True)
+    assert finfo._cache_active
+    assert finfo._cache_path == "/tmp"
+    assert finfo._resolve_imports
 
 
 def test_file_info_missing_file():
