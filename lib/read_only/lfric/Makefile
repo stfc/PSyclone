@@ -60,7 +60,6 @@ PSYDATA_LIB_DIR ?= ./../..
 LIB_TMPLT_DIR ?= ./..
 # -----------------------------------------------------------------------------
 
-INF_INC = $(LFRIC_PATH)
 INF_LIB_NAME = lfric
 INF_LIB = $(LFRIC_PATH)/lib$(INF_LIB_NAME).a
 

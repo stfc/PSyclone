@@ -68,10 +68,10 @@ LFRic infrastructure located in a clone of PSyclone repository,
 ``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
 This is not available in the PSyclone [installation](
 ./../../../README.md#installation) so the exact path
-**must be specified** using the environment variable ``LFRIC_INF_DIR``, e.g.
+**must be specified** using the environment variable ``LFRIC_PATH``, e.g.
 
 ```shell
-F90=ifort F90FLAGS="-g -check bounds" LFRIC_INF_DIR=<path/to/LFRic/code> make
+F90=ifort F90FLAGS="-g -check bounds" LFRIC_PATH=<path/to/LFRic/code> make
 ```
 
 It is the responsibility of the user to make sure that the module files
@@ -105,7 +105,7 @@ parameters when compiling and linking. For instance:
 
 ```shell
 $(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/netcdf/lfric -l_kernel_data_netcdf \
-        -L$(LFRIC_INF_DIR) -llfric_netcdf $(LFRIC_SPECIFIC_LINKING_PARAMETERS) \
+        -L$(LFRIC_PATH) -llfric_netcdf $(LFRIC_SPECIFIC_LINKING_PARAMETERS) \
         $(nf-config --flibs)
 ```
 
