@@ -796,8 +796,7 @@ class SymbolTable():
             # scope in this table instead.
             imported_syms = other_table.symbols_imported_from(csym)
             for isym in imported_syms:
-                other_sym = self.lookup(isym.name, scope_limit=self.node,
-                                        otherwise=None)
+                other_sym = self.lookup(isym.name, otherwise=None)
                 if other_sym:
                     # We have a potential clash with a symbol imported
                     # into the other table.
