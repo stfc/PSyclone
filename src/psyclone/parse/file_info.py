@@ -95,7 +95,7 @@ class FileInfo:
         directory for all cached files.
         See _get_filepath_cache() for more information.
     :param resolve_imports: whether to resolve imports. It can be a list
-        of filenames to provide per-file granularity.
+        of module names to provide finer control.
 
     """
     def __init__(self,
