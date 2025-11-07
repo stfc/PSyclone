@@ -77,7 +77,7 @@ def test_mod_manager_properties():
             "but found" in str(err.value))
     with pytest.raises(TypeError) as err:
         mod_man.resolve_indirect_imports = [3, 3]
-    assert ("'resolve_indirect_imports' must be a Iterable of str, but "
+    assert ("'resolve_indirect_imports' must be an Iterable of str, but "
             "found an item of" in str(err.value))
 
     # Setters

@@ -100,8 +100,9 @@ class ModuleManager:
         # Path to cache
         self._cache_path: Optional[str] = None
 
-        # Whether to resolve imports while inspecting another import
-        self._resolve_indirect_imports = False
+        # Whether to resolve imports while inspecting another import.
+        # It can be a list of specific module names for finer control.
+        self._resolve_indirect_imports: Union[bool, Iterable[str]] = False
 
         self._visited_files: dict[str, FileInfo] = {}
 
@@ -184,7 +185,7 @@ class ModuleManager:
     def resolve_indirect_imports(self) -> Union[bool, Iterable[str]]:
         '''
         :returns: whether indirect imports will be imported (if found). This
-            can be a list of filenames for a per-file granularity.
+            can be a list of module names to provide finer control.
         '''
         return self._resolve_indirect_imports
 
@@ -192,7 +193,7 @@ class ModuleManager:
     def resolve_indirect_imports(self, value: Union[bool, Iterable[str]]):
         '''
         :param value: specify whether indirect imports will be imported (if
-            found). This can be a list of filenames for a per-file granularity.
+            found). This can be a list of module names for finer control.
 
         :raises TypeError: if the provided value is not bool or Iterable[str].
         '''
@@ -204,8 +205,8 @@ class ModuleManager:
             for x in value:
                 if not isinstance(x, str):
                     raise TypeError(
-                        f"'resolve_indirect_imports' must be a Iterable of str"
-                        f", but found an item of {type(x)}")
+                        f"'resolve_indirect_imports' must be an Iterable of "
+                        f"str, but found an item of {type(x)}")
         self._resolve_indirect_imports = value
 
     # ------------------------------------------------------------------------
