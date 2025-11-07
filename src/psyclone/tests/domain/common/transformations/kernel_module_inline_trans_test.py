@@ -1360,8 +1360,9 @@ def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
 
 def test_mod_inline_shared_wildcard_import(monkeypatch, tmpdir):
     '''
-    Check that resolved, imported symbols keep their status when module-
-    inlining a routine that accesses them.
+    Check that symbols are resolved correctly when module inlining, provided
+    the frontend is told to chase the imports.
+
     '''
     with open(Path(tmpdir, "ice_params.f90"), "w") as ffile:
         ffile.write('''\
@@ -1389,19 +1390,14 @@ def test_mod_inline_shared_wildcard_import(monkeypatch, tmpdir):
     contains
       subroutine do_it()
         real, dimension(10) :: a
-        ! When finding the routine to inline, the frontend does *not* chase the
-        ! imports and therefore eps20 is Unresolved. However, since it must be
-        ! coming from one of the wildcard imports, those wildcard imports are
-        ! moved down into the routine scope. This is watertight for module
-        ! inlining.
-        ! However, if we subsequently want to inline the routine then this
-        ! becomes a problem that could be resolved by adding a flag to try to
-        ! resolve all symbols.
+        ! When finding the routine to inline, the frontend will chase the
+        ! imports from "ice_params" and "my_mod" and therefore eps20
+        ! should be resolved.
         a(:) = eps20
         call my_sub(a)
       end subroutine do_it
     end module this_mod'''
-    # Tell the ModuleManager to chase imports
+    # Tell the ModuleManager to chase imports from specific modules.
     ModuleManager.get().resolve_indirect_imports = ["ice_params", "my_mod"]
     ModuleManager.get().add_search_path([tmpdir])
     reader = FortranReader(resolve_modules=["ice_params", "my_mod"])
