@@ -109,7 +109,7 @@ class IntrinsicCall(Call):
         Enum must have a different value, and without the name that would
         not be guaranteed.
 
-        All argument names (i.e. required_args.arg_names and 
+        All argument names (i.e. required_args.arg_names and
         optional_args) should be lower case.
 
         '''
