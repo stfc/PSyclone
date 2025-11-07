@@ -172,7 +172,7 @@ of `ModuleManager`.
 
 .. testcode ::
 
-    mod_manager = ModuleManager.get(cache_active=True)
+    ModuleManager.get().cache_active = True
 
 
 Most of the time in the PSyIR generation is currently spent in the
@@ -200,8 +200,9 @@ a path can be provided to the module manager.
 
 .. testcode ::
 
-    mod_manager = ModuleManager.get(cache_active=True,
-                     cache_path="/tmp/my_cache_path")
+    mod_manager = ModuleManager.get()
+    mod_manager.cache_active = True
+    mod_manager.cache_path = "/tmp/my_cache_path"
 
 A cache file name will then be created based on the hashsum of each
 source code file. The combination of the provided `cache_path` and
