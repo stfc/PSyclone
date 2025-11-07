@@ -40,6 +40,7 @@
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
 import warnings
+from pathlib import Path
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -1357,20 +1358,20 @@ def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     assert isym.interface.orig_name == "my_sub"
 
 
-def test_mod_inline_shared_wildcard_import(monkeypatch, fortran_reader):
+def test_mod_inline_shared_wildcard_import(monkeypatch, tmpdir):
     '''
     Check that resolved, imported symbols keep their status when module-
     inlining a routine that accesses them.
     '''
-    make_external_module(monkeypatch, fortran_reader, "ice_params",
-                         '''\
+    with open(Path(tmpdir, "ice_params.f90"), "w") as ffile:
+        ffile.write('''\
     module ice_params
       real, parameter :: eps20 = 1.023
     end module ice_params''')
     # Create the module containing the subroutine definition that accesses
     # eps20.
-    make_external_module(monkeypatch, fortran_reader, "my_mod",
-                         '''\
+    with open(Path(tmpdir, "my_mod.f90"), "w") as ffile:
+        ffile.write('''\
     module my_mod
       use ice_params
       use not_found
@@ -1400,9 +1401,11 @@ def test_mod_inline_shared_wildcard_import(monkeypatch, fortran_reader):
         call my_sub(a)
       end subroutine do_it
     end module this_mod'''
-    # TODO #3211 - tell the ModuleManager to chase imports
+    # Tell the ModuleManager to chase imports
     ModuleManager.get().resolve_indirect_imports = ["ice_params", "my_mod"]
-    psyir = fortran_reader.psyir_from_source(code)
+    ModuleManager.get().add_search_path([tmpdir])
+    reader = FortranReader(resolve_modules=["ice_params", "my_mod"])
+    psyir = reader.psyir_from_source(code)
     container = psyir.children[0]
     calls = container.walk(Call)
     intrans = KernelModuleInlineTrans()
