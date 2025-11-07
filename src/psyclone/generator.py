@@ -52,7 +52,7 @@ import sys
 import traceback
 import importlib
 import shutil
-from typing import Union, Callable, List, Tuple
+from typing import Union, Callable, List, Tuple, Iterable
 import logging
 
 from fparser.api import get_reader
@@ -164,6 +164,12 @@ def load_script(
 
     if hasattr(recipe_module, "RESOLVE_IMPORTS"):
         imports_to_resolve = recipe_module.RESOLVE_IMPORTS
+        # If the imports_to_resolve has the list of explicit filenames, respect
+        # these while resolving the imports.
+        # TODO #1540: We still don't transfer the imports_to_resolve=True to
+        # the ModuleManager for performance reasons (but we could).
+        if isinstance(imports_to_resolve, Iterable):
+            ModuleManager.get().resolve_indirect_imports = imports_to_resolve
     else:
         imports_to_resolve = []
 
@@ -613,10 +619,9 @@ def main(arguments):
                   "specify the output destination of each psykal layer.")
             sys.exit(1)
 
-    # This has to be before the Config.get, because otherwise that creates a
-    # ModuleManager Singleton without caching
-    mod_manager = ModuleManager.get(cache_active=args.enable_cache)
-    # Set the ignore patterns:
+    # Set ModuleManager properties from flags
+    mod_manager = ModuleManager.get()
+    mod_manager.cache_active = args.enable_cache
     for pattern in args.modman_file_ignore:
         mod_manager.add_ignore_file(pattern)
 
