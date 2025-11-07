@@ -123,6 +123,7 @@ def enhance_tree_information(schedule):
     :type schedule: :py:class:`psyclone.psyir.nodes.node`
 
     '''
+    return
     # These are all indirect wildcard imports that psyclone misses but are
     # necessary to offload performance-sensitive loops.
     are_integers = ('ntsj', 'ntsi', 'ntei', 'ntej', 'jpk', 'jpkm1', 'jpkglo',
