@@ -184,7 +184,8 @@ def test_translate_expr(use_bv, fortran_reader, fortran_writer):
                     x = {expr}
                   end subroutine''')
         for assign in psyir.walk(Assignment):
-            rhs_smt = translate_logical_expr(assign.rhs, 32, use_bv)
+            (rhs_smt, prohibit_overflow) = translate_logical_expr(
+                assign.rhs, 32, use_bv)
             solver = z3.Solver()
             assert solver.check(rhs_smt) == z3.sat
 

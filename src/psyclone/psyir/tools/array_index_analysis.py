@@ -130,17 +130,23 @@ from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
 # global constraint set, is unsatisfiable.  In this way, we can check every
 # access pair and determine whether or not the loop is conflict free.
 
+
 class ArrayIndexAnalysis:
-    def __init__(self,
-                 int_width : int = 32,
-                 use_bv : int = True,
-                 smt_timeout_ms : int = 5000):
-        # Set SMT solver timeout in milliseconds
-        self.smt_timeout = smt_timeout_ms
-        # Fortran integer width in bits
-        self.int_width = int_width
-        # Use fixed-width bit vectors or arbirary precision integers?
-        self.use_bv = use_bv
+    # Class representing analysis options
+    class Options:
+        def __init__(self,
+                     int_width: int = 32,
+                     use_bv: int = True,
+                     smt_timeout_ms: int = 5000,
+                     prohibit_overflow: bool = False):
+            # Set SMT solver timeout in milliseconds
+            self.smt_timeout = smt_timeout_ms
+            # Fortran integer width in bits
+            self.int_width = int_width
+            # Use fixed-width bit vectors or arbirary precision integers?
+            self.use_bv = use_bv
+            # Prohibit bit-vector overflow when solving constraints?
+            self.prohibit_overflow = prohibit_overflow
 
     # Class representing an array access
     class ArrayAccess:
@@ -155,8 +161,15 @@ class ArrayIndexAnalysis:
             self.is_write = is_write
             # SMT expressions representing the indices of the access
             self.indices = indices
-            # PSyIR Node for the access (useful for error reporting)
+            # PSyIR node for the access (useful for error reporting)
             self.psyir_node = psyir_node
+
+    # ArrayIndexAnalysis constructor
+    def __init__(self, options=Options()):
+        self.smt_timeout = options.smt_timeout
+        self.int_width = options.int_width
+        self.use_bv = options.use_bv
+        self.prohibit_overflow = options.prohibit_overflow
 
     # Initialise analysis
     def init_analysis(self):
@@ -200,7 +213,7 @@ class ArrayIndexAnalysis:
             return z3.Int(var)
 
     # Create an SMT integer value
-    def integer_val(self, val : int) -> z3.ExprRef:
+    def integer_val(self, val: int) -> z3.ExprRef:
         if self.use_bv:
             return z3.BitVecVal(val, self.int_width)
         else:
@@ -257,13 +270,28 @@ class ArrayIndexAnalysis:
 
     # Translate integer expresison to SMT, and apply current substitution
     def translate_integer_expr_with_subst(self, expr: z3.ExprRef):
-        smt_expr = translate_integer_expr(expr, self.int_width, self.use_bv)
+        (smt_expr, prohibit_overflow) = translate_integer_expr(
+            expr, self.int_width, self.use_bv)
         subst_pairs = list(self.subst.items())
+        if self.prohibit_overflow:
+            self.add_constraint(z3.substitute(prohibit_overflow, *subst_pairs))
         return z3.substitute(smt_expr, *subst_pairs)
 
     # Translate logical expresison to SMT, and apply current substitution
     def translate_logical_expr_with_subst(self, expr: z3.BoolRef):
-        smt_expr = translate_logical_expr(expr, self.int_width, self.use_bv)
+        (smt_expr, prohibit_overflow) = translate_logical_expr(
+            expr, self.int_width, self.use_bv)
+        subst_pairs = list(self.subst.items())
+        if self.prohibit_overflow:
+            self.add_constraint(z3.substitute(prohibit_overflow, *subst_pairs))
+        return z3.substitute(smt_expr, *subst_pairs)
+
+    # Translate conditional expresison to SMT, and apply current substitution
+    def translate_cond_expr_with_subst(self, expr: z3.BoolRef):
+        (smt_expr, prohibit_overflow) = translate_logical_expr(
+            expr, self.int_width, self.use_bv)
+        if self.prohibit_overflow:
+            smt_expr = z3.And(smt_expr, prohibit_overflow)
         subst_pairs = list(self.subst.items())
         return z3.substitute(smt_expr, *subst_pairs)
 
@@ -393,12 +421,12 @@ class ArrayIndexAnalysis:
         solver.set("timeout", self.smt_timeout)
         solver.add(z3.And(*self.constraints, z3.Or(*conflicts)))
         result = solver.check()
-        if result == z3.unknown:
-          return None  # pragma: no cover
+        if result == z3.unsat:
+            return True
         elif result == z3.sat:
-          return False
+            return False
         else:
-          return True
+            return None  # pragma: no cover
 
     # Analyse a single statement
     def step(self, stmt: Node, cond: z3.BoolRef):
@@ -432,8 +460,7 @@ class ArrayIndexAnalysis:
             if self.in_loop_to_parallelise:
                 self.add_all_array_accesses(stmt.condition, cond)
             # Translate condition to SMT
-            smt_condition = self.translate_logical_expr_with_subst(
-                              stmt.condition)
+            smt_condition = self.translate_cond_expr_with_subst(stmt.condition)
             # Recursively step into 'then'
             if stmt.if_body:
                 self.save_subst()
@@ -490,19 +517,19 @@ class ArrayIndexAnalysis:
 
         # WhileLoop
         if isinstance(stmt, WhileLoop):
-          # Kill variables written by loop body
-          self.kill_all_written_vars(stmt.loop_body)
-          # Add array accesses in condition
-          if self.in_loop_to_parallelise:
-              self.add_all_array_accesses(stmt.condition, cond)
-          # Translate condition to SMT
-          smt_condition = self.translate_logical_expr_with_subst(
-            stmt.condition)
-          # Recursively step into loop body
-          self.save_subst()
-          self.step(stmt.loop_body, z3.And(cond, smt_condition))
-          self.restore_subst()
-          return
+            # Kill variables written by loop body
+            self.kill_all_written_vars(stmt.loop_body)
+            # Add array accesses in condition
+            if self.in_loop_to_parallelise:
+                self.add_all_array_accesses(stmt.condition, cond)
+            # Translate condition to SMT
+            smt_condition = self.translate_cond_expr_with_subst(
+              stmt.condition)
+            # Recursively step into loop body
+            self.save_subst()
+            self.step(stmt.loop_body, z3.And(cond, smt_condition))
+            self.restore_subst()
+            return
 
         # Fall through
         if self.in_loop_to_parallelise:
@@ -513,11 +540,14 @@ class ArrayIndexAnalysis:
 # ===============================================
 
 
-# Translate a scalar integer Fortran expression to SMT
+# Translate a scalar integer Fortran expression to SMT. In addition,
+# return a constraint that prohibits bit vector overflow in the expression.
 def translate_integer_expr(expr_root: Node,
                            int_width: int,
-                           use_bv: bool) -> z3.ExprRef:
-    def trans(expr: Node):
+                           use_bv: bool) -> (z3.ExprRef, z3.BoolRef):
+    constraints = []
+
+    def trans(expr: Node) -> z3.ExprRef:
         # Check that type is a scalar integer of unspecified precision
         type_ok = _is_scalar_integer(expr.datatype)
 
@@ -541,6 +571,8 @@ def translate_integer_expr(expr_root: Node,
         if isinstance(expr, UnaryOperation):
             arg_smt = trans(expr.operand)
             if expr.operator == UnaryOperation.Operator.MINUS:
+                if use_bv:
+                    constraints.append(z3.BVSNegNoOverflow(arg_smt))
                 return -arg_smt
             if expr.operator == UnaryOperation.Operator.PLUS:
                 return arg_smt
@@ -552,12 +584,30 @@ def translate_integer_expr(expr_root: Node,
             right_smt = trans(right)
 
             if expr.operator == BinaryOperation.Operator.ADD:
+                if use_bv:
+                    constraints.append(z3.BVAddNoOverflow(
+                      left_smt, right_smt, True))
+                    constraints.append(z3.BVAddNoUnderflow(
+                      left_smt, right_smt))
                 return left_smt + right_smt
             if expr.operator == BinaryOperation.Operator.SUB:
+                if use_bv:
+                    constraints.append(z3.BVSubNoOverflow(
+                      left_smt, right_smt))
+                    constraints.append(z3.BVSubNoUnderflow(
+                      left_smt, right_smt, True))
                 return left_smt - right_smt
             if expr.operator == BinaryOperation.Operator.MUL:
+                if use_bv:
+                    constraints.append(z3.BVMulNoOverflow(
+                      left_smt, right_smt, True))
+                    constraints.append(z3.BVMulNoUnderflow(
+                      left_smt, right_smt))
                 return left_smt * right_smt
             if expr.operator == BinaryOperation.Operator.DIV:
+                if use_bv:
+                    constraints.append(z3.BVSDivNoOverflow(
+                      left_smt, right_smt))
                 return left_smt / right_smt
 
         # IntrinsicCall
@@ -565,6 +615,8 @@ def translate_integer_expr(expr_root: Node,
             # Unary operators
             if expr.intrinsic == IntrinsicCall.Intrinsic.ABS:
                 smt_arg = trans(expr.children[1])
+                if use_bv:
+                    constraints.append(z3.BVSNegNoOverflow(smt_arg))
                 return z3.Abs(smt_arg)
 
             # Binary operators
@@ -598,28 +650,28 @@ def translate_integer_expr(expr_root: Node,
                     if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTL:
                         return z3.BV2Int(z3.Int2BV(left_smt, int_width) <<
                                          z3.Int2BV(right_smt, int_width),
-                                         is_signed = True)
+                                         is_signed=True)
                     if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTR:
                         return z3.BV2Int(z3.LShR(
                                  z3.Int2BV(left_smt, int_width),
                                  z3.Int2BV(right_smt, int_width)),
-                                 is_signed = True)
+                                 is_signed=True)
                     if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTA:
                         return z3.BV2Int(z3.Int2BV(left_smt, int_width) >>
                                          z3.Int2BV(right_smt, int_width),
-                                         is_signed = True)
+                                         is_signed=True)
                     if expr.intrinsic == IntrinsicCall.Intrinsic.IAND:
                         return z3.BV2Int(z3.Int2BV(left_smt, int_width) &
                                          z3.Int2BV(right_smt, int_width),
-                                         is_signed = True)
+                                         is_signed=True)
                     if expr.intrinsic == IntrinsicCall.Intrinsic.IOR:
                         return z3.BV2Int(z3.Int2BV(left_smt, int_width) |
                                          z3.Int2BV(right_smt, int_width),
-                                         is_signed = True)
+                                         is_signed=True)
                     if expr.intrinsic == IntrinsicCall.Intrinsic.IEOR:
                         return z3.BV2Int(z3.Int2BV(left_smt, int_width) ^
                                          z3.Int2BV(right_smt, int_width),
-                                         is_signed = True)
+                                         is_signed=True)
 
             # N-ary operators
             if expr.intrinsic in [IntrinsicCall.Intrinsic.MIN,
@@ -639,13 +691,18 @@ def translate_integer_expr(expr_root: Node,
         else:
             return z3.FreshInt()
 
-    return trans(expr_root)
+    expr_root_smt = trans(expr_root)
+    return (expr_root_smt, z3.And(*constraints))
 
 
-# Translate a scalar logical Fortran expression to SMT
+# Translate a scalar logical Fortran expression to SMT. In addition,
+# return a constraint that prohibits bit vector overflow in the expression.
 def translate_logical_expr(expr_root: Node,
                            int_width: int,
-                           use_bv: bool) -> z3.BoolRef:
+                           use_bv: bool) -> (z3.BoolRef, z3.BoolRef):
+    # Constraints to prohibit bit-vector overflow
+    overflow = []
+
     def trans(expr: Node):
         # Check that type is a scalar logical
         type_ok = _is_scalar_logical(expr.datatype)
@@ -697,8 +754,12 @@ def translate_logical_expr(expr_root: Node,
                                  BinaryOperation.Operator.GE,
                                  BinaryOperation.Operator.LE]:
                 (left, right) = expr.operands
-                left_smt = translate_integer_expr(left, int_width, use_bv)
-                right_smt = translate_integer_expr(right, int_width, use_bv)
+                (left_smt, prohibit_overflow) = translate_integer_expr(
+                    left, int_width, use_bv)
+                overflow.append(prohibit_overflow)
+                (right_smt, prohibit_overflow) = translate_integer_expr(
+                    right, int_width, use_bv)
+                overflow.append(prohibit_overflow)
 
                 if expr.operator == BinaryOperation.Operator.EQ:
                     return left_smt == right_smt
@@ -716,7 +777,8 @@ def translate_logical_expr(expr_root: Node,
         # Fall through: return a fresh, unconstrained symbol
         return z3.FreshBool()
 
-    return trans(expr_root)
+    expr_root_smt = trans(expr_root)
+    return (expr_root_smt, z3.And(*overflow))
 
 # Helper functions
 # ================

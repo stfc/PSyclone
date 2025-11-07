@@ -177,9 +177,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 reduction_ops = []
             use_smt_array_anal = self.get_option(
               "use_smt_array_anal", **kwargs)
-            smt_timeout_ms = self.get_option("smt_timeout_ms", **kwargs)
-            smt_use_bv = self.get_option("smt_use_bv", **kwargs)
-            smt_int_width = self.get_option("smt_int_width", **kwargs)
+            smt_array_anal_options = self.get_option(
+              "smt_array_anal_options", **kwargs)
         else:
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
@@ -191,9 +190,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             privatise_arrays = options.get("privatise_arrays", False)
             reduction_ops = options.get("reduction_ops", [])
             use_smt_array_anal = options.get("use_smt_array_anal", False)
-            smt_timeout_ms = options.get("smt_timeout_ms", 5000)
-            smt_use_bv = options.get("smt_use_bv", True)
-            smt_int_width = options.get("smt_int_width", 32)
+            smt_array_anal_options = options.get(
+                "smt_array_anal_options", ArrayIndexAnalysis.Options())
 
         # Check type of reduction_ops (not handled by validate_options)
         if not isinstance(reduction_ops, list):
@@ -317,10 +315,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 if len(errors) > 0 and len(errors) == num_depedency_errors:
                     # Try using the ArrayIndexAnalysis to prove that the
                     # dependency errors are false
-                    arr_anal = ArrayIndexAnalysis(
-                                 smt_timeout_ms=smt_timeout_ms,
-                                 use_bv=smt_use_bv,
-                                 int_width=smt_int_width)
+                    arr_anal = ArrayIndexAnalysis(smt_array_anal_options)
                     if arr_anal.is_loop_conflict_free(node):
                         errors = []
 
@@ -353,9 +348,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
               reduction_ops: List[Union[BinaryOperation.Operator,
                                         IntrinsicCall.Intrinsic]] = None,
               use_smt_array_anal: bool = False,
-              smt_timeout_ms: int = 5000,
-              smt_use_bv: bool = True,
-              smt_int_width: int = 32,
+              smt_array_anal_options:
+                  ArrayIndexAnalysis.Options = ArrayIndexAnalysis.Options(),
               **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
@@ -402,11 +396,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             the reduction operators in the list.
         :param bool use_smt_array_anal: whether to use the SMT-based
             ArrayIndexAnalysis to discharge false dependency errors.
-        :param bool smt_timeout_ms: SMT solver timeout in milliseconds.
-        :param bool smt_use_bv: use bit vectors or arbitary precision integers
-            in the SMT solver?
-        :param bool smt_int_width: width of Fortran integers in bits for
-            the SMT solver.
+        :param bool smt_array_anal_options: options for the array index
+            analysis.
 
         '''
         if not options:
@@ -417,9 +408,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     sequential=sequential, nowait=nowait,
                     reduction_ops=reduction_ops,
                     use_smt_array_anal=use_smt_array_anal,
-                    smt_timeout_ms=smt_timeout_ms,
-                    smt_use_bv=smt_use_bv,
-                    smt_int_width=smt_int_width,
+                    smt_array_anal_options=smt_array_anal_options,
                     **kwargs
             )
             # Rename the input options that are renamed in this apply method.
@@ -442,9 +431,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             nowait = options.get("nowait", False)
             reduction_ops = options.get("reduction_ops", [])
             use_smt_array_anal = options.get("use_smt_array_anal", False)
-            smt_timeout_ms = options.get("smt_timeout_ms", 5000)
-            smt_timeout_ms = options.get("smt_use_bv", True)
-            smt_int_width = options.get("smt_int_width", 32)
+            smt_array_anal_options = options.get(
+                "smt_array_anal_options", ArrayIndexAnalysis.Options())
 
         self.validate(node, options=options, verbose=verbose,
                       collapse=collapse, force=force,
@@ -453,9 +441,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                       sequential=sequential, nowait=nowait,
                       reduction_ops=reduction_ops,
                       use_smt_array_anal=use_smt_array_anal,
-                      smt_timeout_ms=smt_timeout_ms,
-                      smt_use_bv=smt_use_bv,
-                      smt_int_width=smt_int_width,
+                      smt_array_anal_options=smt_array_anal_options,
                       **kwargs)
 
         list_of_signatures = [Signature(name) for name in list_of_names]
@@ -542,9 +528,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                               [msg.code == DTCode.ERROR_DEPENDENCY
                                for msg in msgs])
                             arr_anal = ArrayIndexAnalysis(
-                              smt_timeout_ms=smt_timeout_ms,
-                              use_bv=smt_use_bv,
-                              int_width=smt_int_width)
+                                         smt_array_anal_options)
                             discharge_errors = (
                               all_dep_errors and
                               arr_anal.is_loop_conflict_free(next_loop))

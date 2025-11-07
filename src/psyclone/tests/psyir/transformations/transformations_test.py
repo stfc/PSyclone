@@ -578,8 +578,8 @@ def test_omploop_trans_new_options(sample_psyir):
             "'fakeoption2']. Valid options are '['node_type_check', "
             "'verbose', 'collapse', 'force', 'ignore_dependencies_for', "
             "'privatise_arrays', 'sequential', 'nowait', 'reduction_ops', "
-            "'use_smt_array_anal', 'smt_timeout_ms', 'smt_use_bv', "
-            "'smt_int_width', 'options', 'reprod', 'enable_reductions']."
+            "'use_smt_array_anal', 'smt_array_anal_options', "
+            "'options', 'reprod', 'enable_reductions']."
             in str(excinfo.value))
 
     # Check we get the relevant error message when submitting multiple
