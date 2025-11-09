@@ -321,9 +321,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                                                            dry_run=True):
                             errors.append(
                                 f"The write-write dependency in '{var_name}'"
-                                f" cannot be solved by array privatisation "
-                                f"because it is not a plain local array or "
-                                f"it is used after the loop.")
+                                f" cannot be solved by automatic array "
+                                f"privatisation. Use 'loop.explictly_private"
+                                f"_sybmol.add(sybmol)' if you can guarantee "
+                                f"that it is private")
                     continue
                 # See if the scalar in question allows parallelisation of
                 # the loop using reduction clauses.
