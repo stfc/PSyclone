@@ -37,6 +37,8 @@
 ''' Process Nemo code with PSyclone but don't do any changes. This file is only
 needed to provide a FILES_TO_SKIP list. '''
 
+import os
+
 # A environment variable can inform if this is targeting NEMOv4, in which case
 # array privatisation is disabled.
 NEMOV4 = os.environ.get('NEMOV4', False)

@@ -97,6 +97,10 @@ def trans(psyir):
     if psyir.name.startswith("icethd"):
         return
 
+    # This file fails for gcc NEMOv5 BENCH
+    if not NEMOV4 and psyir.name == "icedyn_rhg_evp.f90":
+        return
+
     omp_parallel_trans = None
     omp_loop_trans = OMPLoopTrans(omp_schedule="static")
     omp_loop_trans.omp_directive = "paralleldo"
