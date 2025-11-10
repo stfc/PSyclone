@@ -40,7 +40,7 @@
 ''' This module contains the implementation of the abstract ArrayMixin. '''
 
 import abc
-from typing import Tuple
+from typing import Tuple, Optional
 
 from psyclone.core import SymbolicMaths
 from psyclone.errors import InternalError
@@ -496,12 +496,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 return False
         return True
 
-    def is_full_range(self, index: int = None) -> bool:
-        '''Returns True if the specified array index is a Range Node that
-        specifies all elements in this index. In the PSyIR this is
-        specified by using LBOUND(name,index) for the lower bound of
-        the range, UBOUND(name,index) for the upper bound of the range
-        and "1" for the range step.
+    def is_full_range(self, index: Optional[int] = None) -> bool:
+        ''' Returns whether the array access iterates over the whole
+        associated array. Can optionally be provided a single index
+        to check if it iterates over a whole dimension of the array.
 
         :param index: only check the given array index.
 
@@ -510,7 +508,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             False.
 
         '''
-        if index:
+        if index is not None:
             self._validate_index(index)
             indices_to_check = [index]
         else:
@@ -518,6 +516,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         for idx in indices_to_check:
             array_dimension = self.indices[idx]
+            # Check that it is a range going from the lower to the upper
+            # bound with step 1
             if isinstance(array_dimension, Range):
                 if self.is_lower_bound(idx) and self.is_upper_bound(idx):
                     step = array_dimension.children[2]
@@ -526,8 +526,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
                         and str(step.value) == "1"
                     ):
-                        return True
-        return False
+                        continue
+            return False
+        return True
 
     @property
     def indices(self) -> Tuple[Node]:

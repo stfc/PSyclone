@@ -676,20 +676,29 @@ def test_reference_enters_and_escapes_scope(fortran_reader):
     code = """
     subroutine my_subroutine()
         use other
+        integer, dimension(10) :: a, b, c
+
         do i=1, 10
             a(i) = 2
             b(i) = 3
+            c(i) = 3
         enddo
         a(1) = 1
         b(:) = 1
-        call mysub(a, b)
+        c = 1
+        call mysub(a, b, c)
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[0]
     a_ref = loop.loop_body[0].lhs
     b_ref = loop.loop_body[1].lhs
+    c_ref = loop.loop_body[1].lhs
+    # Some of the values of 'a' escape the scope, because the next write only
+    # covers one index
     assert a_ref.escapes_scope(loop)
-    assert b_ref.escapes_scope(loop)
+    # All values of b and c are overwriteen, so they do not escape the scope
+    assert not b_ref.escapes_scope(loop)
+    assert not c_ref.escapes_scope(loop)
 
 
 def test_reference_enters_scope_multiple_conditional_source(fortran_reader):

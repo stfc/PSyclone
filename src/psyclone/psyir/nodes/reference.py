@@ -300,14 +300,13 @@ class Reference(DataNode):
 
         # Check if this instance is in the provided scope
         if not self.is_descendant_of(scope):
-            # If the next_access is an array access we consider that it
-            # has escaped the escope, because even if it is a write, it
-            # can be to a subset of the indices. The rests will still
-            # need the previous values.
+            # If the next_access is an array access that does not cover
+            # the full range fo the array, we consider that it has escaped
+            # the escope because the rests indices sill have the scope values.
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes.array_mixin import ArrayMixin
             if isinstance(self, ArrayMixin):
-                return True
+                return not self.is_full_range()
             # If following the recursive calls through next_accesses()
             # it reaches a point outside the scope, return True (
             # it has escaped the scope), unless this is a write-only
