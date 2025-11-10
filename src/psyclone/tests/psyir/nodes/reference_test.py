@@ -672,6 +672,25 @@ def test_reference_enters_and_escapes_scope(fortran_reader):
     d_ref = loop.loop_body[1].arguments[0]
     assert d_ref.escapes_scope(loop)
 
+    # Check that a write to a single position of an array is not enough
+    code = """
+    subroutine my_subroutine()
+        use other
+        do i=1, 10
+            a(i) = 2
+            b(i) = 3
+        enddo
+        a(1) = 1
+        b(:) = 1
+        call mysub(a, b)
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    a_ref = loop.loop_body[0].lhs
+    b_ref = loop.loop_body[1].lhs
+    assert a_ref.escapes_scope(loop)
+    assert b_ref.escapes_scope(loop)
+
 
 def test_reference_enters_scope_multiple_conditional_source(fortran_reader):
     ''' Test enters_scope with a conditional assignment inside the loop, but

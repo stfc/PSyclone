@@ -496,31 +496,37 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 return False
         return True
 
-    def is_full_range(self, index):
+    def is_full_range(self, index: int = None) -> bool:
         '''Returns True if the specified array index is a Range Node that
         specifies all elements in this index. In the PSyIR this is
         specified by using LBOUND(name,index) for the lower bound of
         the range, UBOUND(name,index) for the upper bound of the range
         and "1" for the range step.
 
-        :param int index: the array index to check.
+        :param index: only check the given array index.
 
-        :returns: True if the access to this array index is a range \
-            that specifies all index elements. Otherwise returns \
+        :returns: True if the access to this array index is a range
+            that specifies all index elements. Otherwise returns
             False.
-        :rtype: bool
 
         '''
-        self._validate_index(index)
+        if index:
+            self._validate_index(index)
+            indices_to_check = [index]
+        else:
+            indices_to_check = range(len(self.indices))
 
-        array_dimension = self.indices[index]
-        if isinstance(array_dimension, Range):
-            if self.is_lower_bound(index) and self.is_upper_bound(index):
-                step = array_dimension.children[2]
-                if (isinstance(step, Literal) and
+        for idx in indices_to_check:
+            array_dimension = self.indices[idx]
+            if isinstance(array_dimension, Range):
+                if self.is_lower_bound(idx) and self.is_upper_bound(idx):
+                    step = array_dimension.children[2]
+                    if (
+                        isinstance(step, Literal) and
                         step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-                        and str(step.value) == "1"):
-                    return True
+                        and str(step.value) == "1"
+                    ):
+                        return True
         return False
 
     @property
