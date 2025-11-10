@@ -439,12 +439,14 @@ def test_array_is_full_range():
     my_range = Range.create(lbound.copy(), ubound.copy(), zero.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
+    assert not array_reference.is_full_range()
 
     # All is as it should be.
     # The full range is covered so return true.
     my_range = Range.create(lbound.copy(), ubound.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert array_reference.is_full_range(0)
+    assert array_reference.is_full_range()
 
 
 def test_array_indices():

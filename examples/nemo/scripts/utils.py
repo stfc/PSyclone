@@ -91,11 +91,6 @@ PARALLELISATION_ISSUES = [
     "traqsr.f90",
 ]
 
-PRIVATISATION_ISSUES = [
-    "ldftra.f90",  # TODO #3188: Gives wrong output results
-    "zdftke.f90",  # TODO #3188: Gives wrong output results
-]
-
 
 def _it_should_be(symbol, of_type, instance):
     ''' Make sure that symbol has the datatype as provided.
