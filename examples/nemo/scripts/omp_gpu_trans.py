@@ -260,7 +260,7 @@ def trans(psyir):
             insert_explicit_loop_parallelism(
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
-                    asynchronous_parallelism=enable_async
+                    asynchronous_parallelism=enable_async,
                     privatise_arrays=True,
             )
 
