@@ -207,7 +207,7 @@ def test_derived_type_array(array, indices, fortran_reader):
     assert "j: READ" in str(vai1)
     assert "k: READ" in str(vai1)
 
-    # The elements in the paratrized indices are string names, but
+    # The elements in the parameterised indices are string names, but
     # component_indices returns Reference nodes, so to make it easy
     # to compare, we first convert each Reference to only its name
     sig = Signature(("a", "b", "c"))

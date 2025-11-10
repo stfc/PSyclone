@@ -266,20 +266,21 @@ class DependencyTools():
         '''
         def get_subscripts_of(
                 component_indices, set_of_vars: set[str]
-        ) -> tuple[tuple[set[str]]]:
-            '''This function returns nested tuple of sets, one for each index
+        ) -> list[list[set[str]]]:
+            '''This function returns nested list of sets, one for each index
             expression within the access. Each set holds the intersection of
             the set of variables used in that index expression with the input
             set of variables.
             For example, the access `a(i+i2)%b(j*j+k,k)%c(l,5)` would have the
             component_indices `[[i+i2], [j*j+k,k], [l,5]]`. If the set of
             variables is `(i,j,k)`, then `get_subscripts_of` would return
-            `[{i},{j,k},{k},{l},{}]`.
+            `[[{i}],[{j,k},{k}],[{l},{}]`.
 
             :param set_of_vars: set with name of all variables.
 
-            :return: a list of sets with all variables used in the
-                corresponding array subscripts as strings.
+            :return: sets with all variables of the given set used in the
+                corresponding array subscripts for each index, inside each
+                index component.
 
             '''
             components = []
@@ -293,18 +294,18 @@ class DependencyTools():
                 components.append(indices)
             return components
         # Get the (string) name of all variables used in each subscript
-        # of the two accesses. E.g. `a(i,j+k)` --> [ {"i"}, {"j","k"}]
+        # of the two accesses. E.g. `a(i,j+k)` --> [[{"i"}, {"j","k"}]]
         set_of_loop_vars = set(loop_variables)
         indices_1 = get_subscripts_of(comp_ind1, set_of_loop_vars)
         indices_2 = get_subscripts_of(comp_ind2, set_of_loop_vars)
-        # This list stores the partition information, which
-        # is a pair consisting of:
+        # Compute the partition_info, this will be a nested list of
+        # subscripts (components, indices in each component), each with:
         # - a set of all loop variables used in the subscript of
         #   both accesses
-        # - list of all subscripts. Initially these lists contain
-        #   only one subscript, but they will be modified later
+        # - the pair of (component index, index inside the component) to
+        #   access the specific subscript
         # Example: `a(i,j)` and `a(i,k)` -->
-        #          [ ({"i"}, [(0,0)]), ({"j","k"}, [(0,1)])]
+        #          [[{"i"}, (0,0)], [{"j","k"}, (0,1)]]
         partition_infos = []
         for i1, idx_exprs in enumerate(comp_ind1):
             for i2, _ in enumerate(idx_exprs):
