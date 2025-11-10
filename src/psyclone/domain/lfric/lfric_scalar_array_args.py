@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors A. Pirrie, Met Office
+# Author A. Pirrie, Met Office
 
 '''
 This module contains the LFRicScalarArrayArgs class which handles the
@@ -194,8 +194,8 @@ class LFRicScalarArrayArgs(LFRicCollection):
                             "dims_" + arg.name,
                             symbol_type=DataSymbol,
                             datatype=ArrayType(
-                                INTEGER_TYPE,
-                                [arg._array_ndims]))
+                                LFRicTypes("LFRicIntegerScalarDataType")(),
+                                [arg._array_ndims]*arg._array_ndims))
                         dims_array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(dims_array_symbol)
@@ -225,7 +225,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                             "dims_" + arg.name,
                             symbol_type=DataSymbol,
                             datatype=ArrayType(
-                                INTEGER_TYPE,
+                                LFRicTypes("LFRicIntegerScalarDataType")(),
                                 [1]*arg._array_ndims))
                         dims_array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
@@ -257,7 +257,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                             "dims_" + arg.name,
                             symbol_type=DataSymbol,
                             datatype=ArrayType(
-                                INTEGER_TYPE,
+                                LFRicTypes("LFRicIntegerScalarDataType")(),
                                 [1]*arg._array_ndims))
                         dims_array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
