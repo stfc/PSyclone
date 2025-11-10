@@ -701,7 +701,7 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
 
 
 def test_paralooptrans_array_privatisation_complex_control_flow(
-        fortran_reader, fortran_writer):
+        fortran_reader):
     '''
     Check that the 'privatise_arrays' transformation option allows to ignore
     write-write dependencies by setting the associated variable as 'private'
@@ -764,6 +764,35 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
 
     # But it is fine when explicitly requesting the symbol to be private
     loop.explicitly_private_symbols.add(loop.scope.symbol_table.lookup("ztmp"))
+    trans.validate(loop, {"privatise_arrays": True})
+
+    # Check if the whole loop body is inside a conditional, this is needed
+    # because the privatisation validation will search for the node following
+    # the condition, and we have a special case is such node does not exist.
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer ji, jj, i
+          real :: var1(10,10)
+          real :: ztmp(10)
+          var1 = 1.0
+
+          do ji = 1, 10
+              if (i == 1) then
+                do jj = 1, 10
+                  ztmp(jj) = 3
+                end do
+                do jj = 1, 10
+                  var1(ji, jj) = ztmp(jj) * 2
+                end do
+              endif
+          end do
+        end subroutine my_sub''')
+    loop = psyir.walk(Loop, stop_type=Loop)[0]
+    trans = ParaTrans()
+
+    # In this case ztmp is written-first inside the loop (regardless of the
+    # conditional) and not used after the loop, so it will pass the
+    # privatisation validation
     trans.validate(loop, {"privatise_arrays": True})
 
 
