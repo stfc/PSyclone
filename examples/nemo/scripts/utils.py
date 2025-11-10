@@ -54,11 +54,11 @@ from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
-    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice", "sbc_oce",
+    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice", "sbc_oce", "trc",
     "obs_fbm", "flo_oce", "sbc_ice", "wet_dry", "ldfslp", "zdfiwm", "zdfmxl",
     "bdy_oce", "zdf_oce", "zdfdrg", "ldftra", "crs", "sbcapr", "tideini",
     "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
-    "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc", "abl"
+    "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc", "abl", "ice1d",
 ]
 
 # Files that PSyclone could process but would reduce the performance.
@@ -92,8 +92,8 @@ PARALLELISATION_ISSUES = [
 ]
 
 PRIVATISATION_ISSUES = [
-    "ldftra.f90",  # Wrong runtime results
-    "zdftke.f90",
+    "ldftra.f90",  # TODO #3188: Gives wrong output results
+    "zdftke.f90",  # TODO #3188: Gives wrong output results
 ]
 
 
@@ -123,6 +123,7 @@ def enhance_tree_information(schedule):
     :type schedule: :py:class:`psyclone.psyir.nodes.node`
 
     '''
+    return
     # These are all indirect wildcard imports that psyclone misses but are
     # necessary to offload performance-sensitive loops.
     are_integers = ('ntsj', 'ntsi', 'ntei', 'ntej', 'jpk', 'jpkm1', 'jpkglo',

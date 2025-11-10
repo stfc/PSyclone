@@ -381,24 +381,40 @@ def _refine_symbols_with_usage_location(
                 location, name,
                 symbol_type=DataSymbol,
                 datatype=UnresolvedType())
-    # References that have Subscript in direct children are DataSymbol, e.g.:
-    # a(i,:,k) -> 'a' must be a DataSymbol, for now of UnresolvedType because
-    # we don't have enough information to know the shape of the ArrayType
+    # Get a set of all names used directly as children of Expressions
+    direct_refnames_in_exprs = {
+        x.string.lower() for x in walk(execution_part, Fortran2003.Name)
+        if isinstance(x.parent, (Fortran2003.BinaryOpBase,
+                                 Fortran2003.UnaryOpBase))
+    }
+    # Traverse all part_ref, in fparser these are <name>(<list>) expressions,
+    # and specialise their names as DataSymbols if some of the following
+    # conditions is found:
     for part_ref in walk(execution_part, Fortran2003.Part_Ref):
+        name = part_ref.items[0].string.lower()
+        if isinstance(part_ref.parent, Fortran2003.Data_Ref):
+            # If it's part of an accessor "a%b(:)", we don't continue, as 'b'
+            # is not something that we have a symbol for and cannot specialise
+            continue
         for child in part_ref.items:
             if isinstance(child, Fortran2003.Section_Subscript_List):
-                if not any(isinstance(subchild, Fortran2003.Subscript_Triplet)
-                           for subchild in child.items):
-                    continue
-                # The same considereation applies if this is an derived type
-                # accessor: a%b(:)
-                if isinstance(part_ref.parent, Fortran2003.Data_Ref):
-                    continue
-                name = part_ref.items[0].string.lower()
-                _find_or_create_unresolved_symbol(
-                    location, name,
-                    symbol_type=DataSymbol,
-                    datatype=UnresolvedType())
+                # If any of its direct children is a triplet "<lb>:<up>:<step>"
+                # we know its a DataSymbol, for now of UnresolvedType, as we
+                # don't know enough to infer the whole shape.
+                if any(isinstance(subchild, Fortran2003.Subscript_Triplet)
+                       for subchild in child.items):
+                    _find_or_create_unresolved_symbol(
+                        location, name,
+                        symbol_type=DataSymbol,
+                        datatype=UnresolvedType())
+        if name in direct_refnames_in_exprs:
+            # If this any other expression has the same reference name without
+            # parenthesis, e.g.: a + a(3), we know a is an array and not a
+            # function call, as the later have mandatory parenthesis.
+            _find_or_create_unresolved_symbol(
+                location, name,
+                symbol_type=DataSymbol,
+                datatype=UnresolvedType())
 
 
 def _find_or_create_psyclone_internal_cmp(node):
@@ -5773,6 +5789,9 @@ class Fparser2Reader():
             # valid.
             pass
         else:
+            # We found an 'execution_part', before processing it we try
+            # to refine the symbol information
+            _refine_symbols_with_usage_location(routine, prog_exec)
             self.process_nodes(routine, lost_comments + prog_exec.content)
 
         return routine

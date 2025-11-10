@@ -1078,13 +1078,17 @@ def trans(psyir):
 
 
 @pytest.mark.parametrize(
-         "idx, value, output",
-         [("0", "False", "result = a + b"),
-          ("1", "True", "result = 1 + 1"),
-          ("2", "[\"module1\"]", "result = 1 + b"),
-          ("3", "[\"module2\"]", "result = a + 1"),
+         "idx, value, output", [
+          ("0", "False", "result = a + b + c"),
+          # Indirect import is not resolved
+          ("1", "True", "result = 1 + 1 + c"),
+          ("2", "[\"module1\"]", "result = 1 + b + c"),
+          ("3", "[\"module2\"]", "result = a + 1 + c"),
+          # Indirect import resolved by name
+          ("4", "[\"module1\",\"module3\"]", "result = 1 + b + 1"),
           # Now change both with case insensitive names
-          ("4", "[\"mOdule1\",\"moduLe2\"]", "result = 1 + 1")])
+          ("5", "[\"mOdule1\",\"moduLe2\"]", "result = 1 + 1 + c")
+          ])
 def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
                                              idx, value, output):
     ''' Test that applying recipes in the code-transformation mode follows the
@@ -1092,6 +1096,7 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
 
     module1 = '''
         module module1
+            use module3
             integer :: a
         end module module1
     '''
@@ -1100,6 +1105,11 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
             integer :: b
         end module module2
     '''
+    module3 = '''
+        module module3
+            integer :: c
+        end module module3
+    '''
     code = '''
         module test
             use module1
@@ -1107,7 +1117,7 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
             real :: result
         contains
             subroutine mytest()
-                result = a + b
+                result = a + b + c
             end subroutine mytest
         end module test
     '''
@@ -1127,6 +1137,7 @@ def trans(psyir):
     recipe_name = f"replace_integers_{idx}.py"
     for filename, content in [("module1.f90", module1),
                               ("module2.f90", module2),
+                              ("module3.f90", module3),
                               ("code.f90", code),
                               (recipe_name, recipe)]:
         with open(tmpdir.join(filename), "w", encoding='utf-8') as my_file:
@@ -1134,6 +1145,7 @@ def trans(psyir):
 
     # Execute the recipe (no -I needed as we have everything at the same place)
     monkeypatch.chdir(tmpdir)
+    ModuleManager._instance = None
     main(["code.f90", "-s", recipe_name])
     captured = capsys.readouterr()
 
@@ -1401,7 +1413,10 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     assert ("Error, unexpected exception, please report to the authors:"
             in output)
     assert "Traceback (most recent call last):" in output
-    assert "TypeError: argument of type 'int' is not iterable" in output
+    # Python >= 3.14 uses "is not a container or iterable",
+    # so we split the assertion for cross-version support
+    assert "TypeError: argument of type 'int' is not " in output
+    assert "iterable" in output
 
 
 def test_main_fort_line_length_off(capsys):

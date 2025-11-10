@@ -39,7 +39,7 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
-from typing import Optional, Set
+from typing import Optional
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 # We cannot import from 'nodes' directly due to circular import
@@ -193,6 +193,14 @@ class Reference(DataNode):
         '''
         return (Signature(self.name), [[]])
 
+    def get_all_accessed_symbols(self) -> set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this Reference.
+        '''
+        symbols = super().get_all_accessed_symbols()
+        symbols.add(self.symbol)
+        return symbols
+
     def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
@@ -250,7 +258,7 @@ class Reference(DataNode):
         return chain.find_forward_accesses()
 
     def escapes_scope(
-            self, scope: Node, visited_nodes: Optional[Set] = None
+            self, scope: Node, visited_nodes: Optional[set] = None
     ) -> bool:
         '''
         Whether the symbol lifetime continues after the given scope. For
@@ -312,7 +320,7 @@ class Reference(DataNode):
         return False
 
     def enters_scope(
-            self, scope: Node, visited_nodes: Optional[Set] = None
+            self, scope: Node, visited_nodes: Optional[set] = None
     ) -> bool:
         '''
         Whether the symbol lifetime starts before the given scope. For

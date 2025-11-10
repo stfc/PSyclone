@@ -39,7 +39,6 @@
 
 import pytest
 
-from psyclone.core import Signature
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols import (
     ArrayType, AutomaticInterface, DataSymbol, DataTypeSymbol,
@@ -106,10 +105,10 @@ def test_data_type_symbol_copy_properties():
             "'ScalarType'" in str(err.value))
 
 
-def test_dts_reference_accesses():
-    '''Test the reference_accesses() method.'''
+def test_dts_get_all_accessed_symbols():
+    '''Test the get_all_accessed_symbols() method.'''
     ndim = DataSymbol("ndim", INTEGER_TYPE)
     symbol = DataTypeSymbol("origin", ArrayType(REAL_SINGLE_TYPE,
                                                 [1, Reference(ndim)]))
-    vam = symbol.reference_accesses()
-    assert vam.all_signatures == [Signature("ndim")]
+    dependent_symbols = symbol.get_all_accessed_symbols()
+    assert ndim in dependent_symbols

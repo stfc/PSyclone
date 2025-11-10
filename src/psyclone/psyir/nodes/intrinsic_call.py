@@ -48,7 +48,7 @@ from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import IntrinsicSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import IntrinsicSymbol, INTEGER_TYPE, Symbol
 
 # pylint: disable=too-many-branches
 
@@ -2352,6 +2352,15 @@ class IntrinsicCall(Call):
 
         return call
 
+    def get_all_accessed_symbols(self) -> set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this IntrinsicCall.
+        '''
+        symbols = set()
+        for child in self.arguments:
+            symbols.update(child.get_all_accessed_symbols())
+        return symbols
+
     def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
@@ -2453,7 +2462,8 @@ NVFORTRAN_UNIFORM = (
     IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
     IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
     IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.MINVAL,
-    IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE
+    IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE,
+    IntrinsicCall.Intrinsic.CEILING,
 )
 # MATMUL can fail at link time depending on the precision of
 # its arguments.

@@ -89,6 +89,11 @@ def compiler_wrapper(arguments):
             'psyclonefc error: PSYCLONE_COMPILER environment variable not '
             'found! This environment variable must be set to the Fortran '
             'compiler to use.')
+    if fortran_compiler.endswith("psyclonefc"):
+        sys.exit(
+            'psyclonefc error: PSYCLONE_COMPILER environment variable must '
+            'not be set to psyclonefc. This environment variable must be set '
+            'to the Fortran compiler to use.')
     # Remove empty strings from the list (caused by the default empty envvar or
     # multi-spaces gaps)
     while "" in psyclone_options:
@@ -126,7 +131,7 @@ def compiler_wrapper(arguments):
             output = f"{stem}.psycloned{suffix}"
             # Always add an include to the current directory, because even if
             # it is the default, psyclone removes it when adding another -I.
-            # Also, having the absolute path instead of '.' is convinient to
+            # Also, having the absolute path instead of '.' is convenient to
             # copy/paste the resulting command when debugging
             psyclone_args = psyclone_options + [
                 '-I', PWD, '-o', output, argument

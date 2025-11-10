@@ -42,7 +42,7 @@ import copy
 import hashlib
 import os
 import pickle
-from typing import Optional
+from typing import Optional, Union, Iterable
 
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
@@ -94,12 +94,15 @@ class FileInfo:
         This allows using, e.g., `~/.cache/psyclone` as a cache
         directory for all cached files.
         See _get_filepath_cache() for more information.
+    :param resolve_imports: whether to resolve imports. It can be a list
+        of module names to provide finer control.
 
     """
     def __init__(self,
                  filepath: str,
                  cache_active: Optional[bool] = False,
-                 cache_path: Optional[str] = None
+                 cache_path: Optional[str] = None,
+                 resolve_imports: Union[bool, Iterable[str]] = False
                  ):
 
         # Full path to file
@@ -143,6 +146,10 @@ class FileInfo:
         # `fparser tree` was created in the meantime and a cache update
         # is requested.
         self._cache_data_save: _CacheFileInfo = None
+
+        # Whether to resolve imports. It can be a list of module names to
+        # provide finer control.
+        self._resolve_imports: Union[bool, Iterable[str]] = resolve_imports
 
     def _get_cache_filepath(self):
         """Return the filepath of the cache.
@@ -547,7 +554,9 @@ class FileInfo:
 
         # We generate PSyIR from the fparser tree
         _, filename = os.path.split(self.filename)
-        processor = self._processor = Fparser2Reader()
+        processor = Fparser2Reader(
+            resolve_modules=self._resolve_imports
+        )
         self._psyir_node = processor.generate_psyir(fparse_tree, filename)
 
         # TODO #2786: Uncomment if psyir nodes are serializable

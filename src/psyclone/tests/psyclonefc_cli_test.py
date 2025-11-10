@@ -40,13 +40,19 @@ import pytest
 from psyclone.psyclonefc_cli import compiler_wrapper
 
 
-def test_psyclonefc_errors():
+def test_psyclonefc_errors(monkeypatch):
     ''' Test the cli error exits. '''
     with pytest.raises(SystemExit) as err:
         compiler_wrapper([])
     assert ("psyclonefc error: PSYCLONE_COMPILER environment variable not "
             "found! This environment variable must be set to the Fortran "
             "compiler to use." in str(err.value))
+    monkeypatch.setattr(os, 'environ', {'PSYCLONE_COMPILER': 'psyclonefc'})
+    with pytest.raises(SystemExit) as err:
+        compiler_wrapper([])
+    assert ("PSYCLONE_COMPILER environment variable must not be set to "
+            "psyclonefc. This environment variable must be set to the "
+            "Fortran compiler to use." in str(err.value))
 
 
 def test_psyclonefc(monkeypatch, capsys):

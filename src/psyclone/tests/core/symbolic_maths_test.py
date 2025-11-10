@@ -478,11 +478,16 @@ def test_symbolic_math_use_range(fortran_reader, expressions):
      "a(i) * b(i, j) / d + a(i) * c(j) / d"),
     # 'a' is unresolved so we don't know from the first occurrence whether or
     # not it is a scalar.
-    # TODO #3175: Re-enable sympywriter support for mix array usage expressions
-    # ("a / a(i)", "a / a(i)"),
-    # ("norm_u(idx+iw2) * u_e(idx + (LBOUND(u_e,dim=1)-iw2v), df2)",
-    #  "norm_u(idx + iw2) * u_e(idx - iw2v + LBOUND(u_e, 1),df2)")
-])
+    ("a / a(i)", "a / a(i)"),
+    ("norm_u(idx+iw2) * u_e(idx + (LBOUND(u_e(),dim=1)-iw2v), df2)",
+     "norm_u(idx + iw2) * u_e(idx - iw2v + LBOUND(u_e(), 1), df2)"),
+    (".true. .and. .false.", ".false."),
+    ("zh_cum1(jk1) <= zh_cum0(jk0) .AND. zh_cum1(jk1) > zh_cum0(jk0 - 1)",
+     "zh_cum0(jk0) >= zh_cum1(jk1) .AND. zh_cum1(jk1) > zh_cum0(jk0 - 1)"),
+    ("zh_cum1(jk1) == zh_cum0(jk0) .AND. zh_cum1(jk1) == zh_cum0(jk0 - 1)",
+     "zh_cum0(jk0) == zh_cum1(jk1) .AND. zh_cum1(jk1) == zh_cum0(jk0 - 1)"),
+    ("i == i .and. c(i,i) == 5", "c(i, i) == 5"),
+    ])
 def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     '''Test the expand method works as expected.'''
     # A dummy program to easily create the PSyIR for the
