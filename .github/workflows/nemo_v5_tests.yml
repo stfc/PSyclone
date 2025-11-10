@@ -195,6 +195,7 @@ jobs:
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_OMP_THREADING_GCC
+        export REPRODUCIBLE=1
 
         # Set up FCM envvars to use psyclonefc and compile with OpenMP for CPU
         cd $NEMO_DIR
@@ -212,9 +213,7 @@ jobs:
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
-        tail run.stat
-        # TODO #3112: Fix differences with baseline result
-        # diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 

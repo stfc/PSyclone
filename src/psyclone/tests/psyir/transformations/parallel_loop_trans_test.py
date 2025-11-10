@@ -638,7 +638,19 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
     assert "ztmp(jj)\' causes a write-write race condition." in str(err.value)
     assert "ztmp2(jj)\' causes a write-write race condition." in str(err.value)
 
-    # Now enable array privatisation
+    # Automatic array privatisation will not work because there is a path to
+    # reach the ztmp2 as a read first (when the condition is not taken)
+    with pytest.raises(TransformationError) as err:
+        trans.apply(loop, {"privatise_arrays": True})
+    assert ("The write-write dependency in 'ztmp2' cannot be solved by "
+            "automatic array privatisation." in str(err.value))
+    # But the ztmp error is gone since it is privatisable
+    assert ("ztmp(jj)\' causes a write-write race condition."
+            not in str(err.value))
+
+    # It can still be parallelised by explictly marking the symbol as private
+    ztmp2 = loop.scope.symbol_table.lookup("ztmp2")
+    loop.explicitly_private_symbols.add(ztmp2)
     trans.apply(loop, {"privatise_arrays": True})
     assert ("!$omp parallel do default(shared) private(ji,jj,ztmp) "
             "firstprivate(ztmp2)" in fortran_writer(psyir))
@@ -675,14 +687,11 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
     assert ("ztmp_nonlocal(jj)\' causes a write-write race "
             not in str(err.value))
     assert ("The write-write dependency in 'ztmp_after' cannot be solved by "
-            "array privatisation because it is not a plain local array or it "
-            "is used after the loop" in str(err.value))
+            "automatic array privatisation." in str(err.value))
     assert ("The write-write dependency in 'ztmp_nonlocal' cannot be solved "
-            "by array privatisation because it is not a plain local array or "
-            "it is used after the loop" in str(err.value))
+            "by automatic array privatisation." in str(err.value))
     assert ("The write-write dependency in 'mystruct%array' cannot be solved "
-            "by array privatisation because it is not a plain local array or "
-            "it is used after the loop" in str(err.value))
+            "by automatic array privatisation." in str(err.value))
 
     # The privatise_arrays only accepts bools
     with pytest.raises(TypeError) as err:
@@ -692,7 +701,7 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
 
 
 def test_paralooptrans_array_privatisation_complex_control_flow(
-        fortran_reader, fortran_writer):
+        fortran_reader):
     '''
     Check that the 'privatise_arrays' transformation option allows to ignore
     write-write dependencies by setting the associated variable as 'private'
@@ -750,11 +759,40 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
 
     with pytest.raises(TransformationError) as err:
         trans.validate(loop, {"privatise_arrays": True})
-    assert ("write-write dependency in 'ztmp' cannot be solved by array "
-            "privatisation" in str(err.value))
+    assert ("write-write dependency in 'ztmp' cannot be solved by automatic "
+            "array privatisation" in str(err.value))
 
     # But it is fine when explicitly requesting the symbol to be private
     loop.explicitly_private_symbols.add(loop.scope.symbol_table.lookup("ztmp"))
+    trans.validate(loop, {"privatise_arrays": True})
+
+    # Check if the whole loop body is inside a conditional, this is needed
+    # because the privatisation validation will search for the node following
+    # the condition, and we have a special case is such node does not exist.
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer ji, jj, i
+          real :: var1(10,10)
+          real :: ztmp(10)
+          var1 = 1.0
+
+          do ji = 1, 10
+              if (i == 1) then
+                do jj = 1, 10
+                  ztmp(jj) = 3
+                end do
+                do jj = 1, 10
+                  var1(ji, jj) = ztmp(jj) * 2
+                end do
+              endif
+          end do
+        end subroutine my_sub''')
+    loop = psyir.walk(Loop, stop_type=Loop)[0]
+    trans = ParaTrans()
+
+    # In this case ztmp is written-first inside the loop (regardless of the
+    # conditional) and not used after the loop, so it will pass the
+    # privatisation validation
     trans.validate(loop, {"privatise_arrays": True})
 
 
