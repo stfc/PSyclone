@@ -786,7 +786,8 @@ class ArgOrdering:
                     var_accesses.add_access(Signature(scalar_arg.precision),
                                             AccessType.CONSTANT, self._kern)
             else:
-                self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
+                self.append(scalar_arg.name, var_accesses,
+                            mode=scalar_arg.access,
                             metadata_posn=scalar_arg.metadata_index)
         else:
             # It is a ScalarArray
