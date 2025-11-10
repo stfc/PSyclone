@@ -769,6 +769,8 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
     # Check if the whole loop body is inside a conditional, this is needed
     # because the privatisation validation will search for the node following
     # the condition, and we have a special case is such node does not exist.
+    # Also check that intrinsics such as l/ubound do not interfere with
+    # checking that the variable is write-first
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_sub()
           integer ji, jj, i
@@ -778,7 +780,7 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
 
           do ji = 1, 10
               if (i == 1) then
-                do jj = 1, 10
+                do jj = lbound(ztmp), ubound(ztmp)
                   ztmp(jj) = 3
                 end do
                 do jj = 1, 10
@@ -790,9 +792,9 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
     loop = psyir.walk(Loop, stop_type=Loop)[0]
     trans = ParaTrans()
 
-    # In this case ztmp is written-first inside the loop (regardless of the
-    # conditional) and not used after the loop, so it will pass the
-    # privatisation validation
+    # In this case ztmp is written-first (regardless of the conditional because
+    # there is no use aftet the condition) and not used after the loop, so it
+    # will pass the privatisation validation
     trans.validate(loop, {"privatise_arrays": True})
 
 
