@@ -1708,7 +1708,15 @@ def test_lfrickernelargument_idtp_scalar_array():
                                         "28.scalar_array_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    scalar_argument = psy.invokes.invoke_list[0].schedule.args[0]
+    scalar_argument = psy.invokes.invoke_list[0].schedule.args[1]
+    assert not scalar_argument.is_scalar
+    assert scalar_argument.is_scalar_array
+
+    scalar_argument = psy.invokes.invoke_list[0].schedule.args[2]
+    assert not scalar_argument.is_scalar
+    assert scalar_argument.is_scalar_array
+
+    scalar_argument = psy.invokes.invoke_list[0].schedule.args[3]
     assert not scalar_argument.is_scalar
     assert scalar_argument.is_scalar_array
 
