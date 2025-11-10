@@ -195,6 +195,7 @@ jobs:
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_OMP_THREADING_GCC
+        export REPRODUCIBLE=1
 
         # Set up FCM envvars to use psyclonefc and compile with OpenMP for CPU
         cd $NEMO_DIR
