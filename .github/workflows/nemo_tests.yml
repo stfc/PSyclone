@@ -106,6 +106,7 @@ jobs:
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${PREFIX}/UKMO-NEMOv4
+        export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
         cd $PSYCLONE_NEMO_DIR
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
