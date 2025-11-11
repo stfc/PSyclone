@@ -61,7 +61,7 @@ from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
     Call, CodeBlock, Directive, Literal, Loop, Node,
-    OMPDirective, OMPMasterDirective,
+    OMPDirective, OMPMasterDirective, Reference,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     Return, Schedule, OMPReductionClause,
     OMPSingleDirective, PSyDataNode, IntrinsicCall)
@@ -1187,9 +1187,16 @@ class ACCParallelTrans(ParallelRegionTrans):
             avoid using unsupported nodes inside a region.
         :param bool options["default_present"]: this flag controls if the
             inserted directive should include the default_present clause.
+        :param bool options["allow_strings"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
+        :param bool options["verbose"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
 
         '''
         node_list = self.get_node_list(node_list)
+        verbose = options.get("allow_strings", False)
         super().validate(node_list, options)
         if options is not None and "default_present" in options:
             if not isinstance(options["default_present"], bool):
@@ -1199,6 +1206,23 @@ class ACCParallelTrans(ParallelRegionTrans):
                 )
         device_string = options.get("device_string", "") if options else ""
         for node in node_list:
+            if not options.get("allow_strings", False):
+                # Check there are no character assignments in the region
+                for datanode in node.walk((Reference, Literal),
+                                          stop_type=Reference):
+                    dtype = datanode.datatype
+                    # Don't allow CHARACTERS on GPU
+                    if hasattr(dtype, "intrinsic"):
+                        if dtype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                            message = (
+                                f"OpenACC Parallel cannot enclose a region "
+                                f"that uses characters, but found: "
+                                f"{datanode.debug_string()}"
+                            )
+                            if verbose:
+                                node.preceding_comment = message
+                            raise TransformationError(message)
+
             for call in node.walk(Call):
                 if not call.is_available_on_device(device_string):
                     if isinstance(call, IntrinsicCall):
@@ -1231,6 +1255,9 @@ class ACCParallelTrans(ParallelRegionTrans):
             avoid using unsupported nodes inside a region.
         :param bool options["default_present"]: this flag controls if the
             inserted directive should include the default_present clause.
+        :param bool options["allow_strings"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
 
         '''
         if not options:

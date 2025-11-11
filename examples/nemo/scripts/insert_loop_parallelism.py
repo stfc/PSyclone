@@ -82,17 +82,18 @@ ASYNC_PARALLEL = os.environ.get('ASYNC_PARALLEL', False)
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = [
-    "icefrm.f90",  # Has unsupportet implicit symbol declaration
-    "icerst.f90"
-]
+FILES_TO_SKIP = []
 
 NEMOV5_EXCLUSIONS = [
+    # Fail in gcc NEMOv5 BENCH
     "dynhpg.f90",
     "dynspg_ts.f90",
     "sbcssm.f90",
     "tramle.f90",
     "trazdf.f90",
+    # Fail when enabling seaice
+    "icefrm.f90",  # Has unsupported implicit symbol declaration
+    "icerst.f90"
 ]
 
 NEMOV4_EXCLUSIONS = [
@@ -154,6 +155,7 @@ ASYNC_ISSUES = [
     "traadv_fct.f90",
     "bdy_oce.f90",
 ]
+
 
 def select_transformations():
     '''
@@ -260,6 +262,7 @@ def trans(psyir):
         # Skip initialisation subroutines
         if (subroutine.name.endswith('_alloc') or
                 subroutine.name.endswith('_init') or
+                subroutine.name.startswith('init_') or
                 subroutine.name.startswith('Agrif') or
                 subroutine.name.startswith('dia_') or
                 subroutine.name == 'dom_msk' or

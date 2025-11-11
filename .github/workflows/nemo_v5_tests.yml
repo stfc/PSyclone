@@ -56,7 +56,7 @@ jobs:
       bench_gfortran_omp_cpu: ${{ steps.bench_gfortran_omp_cpu.outputs.time }}
       bench_nvfortran_omp_offload: ${{ steps.bench_nvfortran_omp_offload.outputs.time }}
       bench_nvfortran_omp_offload_build: ${{ steps.bench_nvfortran_omp_offload.outputs.build_time }}
-      orca1_nvfortran_omp_offload: ${{ steps.orca1_nvfortran_omp_offload.outputs.time }}
+      orca1_nvfortran_acc_offload: ${{ steps.orca1_nvfortran_acc_offload.outputs.time }}
       orca2_nvfortran_omp_offload: ${{ steps.orca2_nvfortran_omp_offload.outputs.time }}
       bench_nvfortran_omp_offload_async: ${{ steps.bench_nvfortran_omp_offload_async.outputs.time }}
       orca2_nvfortran_omp_offload_async: ${{ steps.orca2_nvfortran_omp_offload_async.outputs.time }}
@@ -282,7 +282,7 @@ jobs:
         echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
 
     - name: NEMO 5.0 nvidia OpenMP for GPUs (UKMO ORCA1 - managed memory)
-      id: orca1_nvfortran_omp_offload
+      id: orca1_nvfortran_acc_offload
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -291,7 +291,7 @@ jobs:
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
-        export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC
+        export TEST_DIR=ORCA1_ACC_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
@@ -531,10 +531,10 @@ jobs:
               '"$COMMON_FIELDS"'
             },
             {
-              ci_test: "NEMOv5 OpenMP for GPU (ORCA1)",
+              ci_test: "NEMOv5 OpenACC for GPU (ORCA1)",
               nemo_version: "NEMO 5.0-RC MO patch",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
-              elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca1_nvfortran_omp_offload}}"',
+              elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca1_nvfortran_acc_offload}}"',
               '"$COMMON_FIELDS"'
             },
             {
