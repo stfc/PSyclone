@@ -207,3 +207,56 @@ def test_directive_before_allocate():
     # The directive is a codeblock.
     assert isinstance(routine.children[1], CodeBlock)
     assert routine.children[1].debug_string() == "!dir$ aligned\n"
+
+
+def test_multiple_directives():
+    """Test that we get the correct directives when we have multiple
+    directive regions (including their end directives)."""
+    code = """subroutine x
+    integer :: i
+    !$omp parallel
+    i = 1
+    !$omp end parallel
+    end subroutine x
+    """
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    cbs = routine.walk(CodeBlock)
+    assert len(cbs) == 2
+    assert cbs[0].debug_string() == "!$omp parallel\n"
+    assert cbs[1].debug_string() == "!$omp end parallel\n"
+    code = """subroutine x
+    integer :: i
+    !$omp parallel
+    i = 1
+    !$omp end parallel
+    !$omp parallel
+    i = 2 
+    !$omp end parallel
+    end subroutine x
+    """
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    cbs = routine.walk(CodeBlock)
+    assert len(cbs) == 4
+    assert cbs[0].debug_string() == "!$omp parallel\n"
+    assert cbs[1].debug_string() == "!$omp end parallel\n"
+    assert cbs[2].debug_string() == "!$omp parallel\n"
+    assert cbs[3].debug_string() == "!$omp end parallel\n"
+
+
+def test_inline_comment():
+    """Test that the FortranReaer doesn't create a CodeBlock for an inlined
+    comment that looks like a directive."""
+    code = """subroutine x
+    integer :: j
+    j = 4 !$omp atomic
+    end subroutine"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    print(routine.debug_string())
+    print(routine.walk(CodeBlock)[0].debug_string())
+    assert len(routine.walk(CodeBlock)) == 0

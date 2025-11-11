@@ -3371,7 +3371,6 @@ class Fparser2Reader():
                 # Add the directive before the loop.
                 loop.parent.addchild(directive)
                 continue
-                # TODO
             if isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
                 found_do_stmt = True
                 continue

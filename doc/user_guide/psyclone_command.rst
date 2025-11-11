@@ -525,5 +525,5 @@ some limitations:
      are kept, and the default output for comments will add a space after the
      ``!``.
 
-Note that using the ``keep-comments`` option alone means that any comments
-that PSyclone interprets as directives will be lost from the input.
+Note that using the ``--keep-comments`` option without the ``--keep-directives``
+option means that any comments that PSyclone interprets as directives will be excluded.

@@ -609,7 +609,8 @@ def test_lost_program_comments():
 @pytest.mark.parametrize("directive", ["$omp target",
                                        "$acc kernels",
                                        "dir$ vector",
-                                       "DIR$ VECTOR"])
+                                       "DIR$ VECTOR",
+                                       "$pos dir"])
 def test_directives_not_comments(directive):
     """Test that the FortranReader doesn't keep directives when only
     comments are requested."""
@@ -625,8 +626,6 @@ def test_directives_not_comments(directive):
     !$&  0
     !{directive}
     a = 1
-    a = 2
-    a = 3
 
   end subroutine test
 
