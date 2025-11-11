@@ -184,6 +184,7 @@ jobs:
         make clean
         export PARALLEL_DIRECTIVES="acc_offloading"
         export REPRODUCIBLE=1
+        export NEMOV4=1
         make -j ${NUM_PARALLEL} openacc_loops
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j ${NUM_PARALLEL} compile-openacc_loops
         export NV_ACC_POOL_THRESHOLD=75

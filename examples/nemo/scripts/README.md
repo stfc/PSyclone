@@ -128,7 +128,7 @@ export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
 export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
 ```
 
-In addition, `ASYNC_PARALLEL`, `ENABLE_INLINING`, `PROFILING`
+TODO: Mention `ASYNC_PARALLEL`, `ENABLE_INLINING`, `PROFILING`
 
 ## Compilation
 
