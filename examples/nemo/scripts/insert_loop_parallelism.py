@@ -228,6 +228,8 @@ def filter_files_by_name(name: str) -> bool:
     # if name.startswith("icethd"):
     if name.startswith("ice"):
         return True
+    if name.startswith("icb"):
+        return True
 
     # This file fails for gcc NEMOv5 BENCH
     if not NEMOV4 and name == "icedyn_rhg_evp.f90":

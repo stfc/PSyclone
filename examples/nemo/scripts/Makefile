@@ -61,18 +61,15 @@ psycloned-passthrough/%.f90: ${ROOT_SRC}%.f90 psycloned-passthrough
 	psyclone -s passthrough.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openmp_cpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_cpu
-	export PARALLEL_DIRECTIVES="cpu_threading"
 	psyclone -s insert_loop_parallelism.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openmp_gpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_gpu
-	export PARALLEL_DIRECTIVES="omp_offloading"
 	psyclone -s insert_loop_parallelism.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openacc_kernels/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_kernels
 	psyclone -s acc_kernels_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openacc_loops/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_loops
-	export PARALLEL_DIRECTIVES="acc_offloading"
 	psyclone -s insert_loop_parallelism.py -l output -I ${ROOT_SRC} -o $@ $<
 
 # Get the number of Makefile parallel jobs to pass it to the makenemo

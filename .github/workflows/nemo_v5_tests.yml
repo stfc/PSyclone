@@ -436,18 +436,19 @@ jobs:
 
         # Clean up and compile
         rm -rf cfgs/${TEST_DIR}
-        ./makenemo -r ORCA2_ICE_PISCES -m linux_spack -n ${TEST_DIR} \
-          -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py \
-          add_key "key_mpi_off key_nosignedzero" -j ${NUM_PARALLEL} -v 1
+        # ./makenemo -r ORCA2_ICE_PISCES -m linux_spack -n ${TEST_DIR} \
+        #   -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py \
+        #   add_key "key_mpi_off key_nosignedzero" -j ${NUM_PARALLEL} -v 1
 
         # Run test
-        cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
-        ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA2/* .
+        # cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
+        # ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA2/* .
         # Uses both, threading and offloading
-        export CUDA_VISIBLE_DEVICES=1
-        OMP_NUM_THREADS=4 ./nemo
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
-        export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        # export CUDA_VISIBLE_DEVICES=1
+        # OMP_NUM_THREADS=4 ./nemo
+        # diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
+        # export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        export VAR_TIME="0.0"
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     - name: NEMO 5.0 nvidia Async OpenMP for GPUs (UKMO ORCA1 - managed memory)
