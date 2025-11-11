@@ -133,7 +133,8 @@ jobs:
         make clean
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
-        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py -I ${MPI_HOME}/include --backend-omit-unneeded-intrinsic-arg-names"
+        export F90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py --backend-omit-unneeded-intrinsic-arg-names"
         export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
         make -j ${NUM_PARALLEL} openmp_gpu
         make -j ${NUM_PARALLEL} compile-openmp_gpu
