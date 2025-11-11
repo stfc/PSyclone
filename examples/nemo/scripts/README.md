@@ -185,9 +185,10 @@ and compares the results with the stores `run.stat`
 
 ## Tuning the generated implementation
 
-Since this is now a two-step process. There are two locations where you can modify
-files that will alter the output result. First is the input source code. For this
-we recommend using the built-in `makenemo` functionality
+Since this is now a two-step process, there are two locations where you can modify
+files that will alter the output result. First is manually modifying the original
+source code. For this we recommend using the built-in `makenemo` functionality
+that allow to point to a directory with patched source files:
 
 ```bash
 ./makenemo -e <directory> ...
