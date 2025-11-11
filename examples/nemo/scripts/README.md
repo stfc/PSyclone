@@ -130,7 +130,7 @@ export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
 
 TODO: Mention `ASYNC_PARALLEL`, `ENABLE_INLINING`, `PROFILING`
 
-## Compilation
+## Compiling and running the application
 
 Once the environment variables are set, use the `makenemo` command with
 the desired NEMO configuration and keys. For example:
@@ -140,9 +140,50 @@ the desired NEMO configuration and keys. For example:
 ```
 
 If everything worked you can see the generated files in the
-`<configuration>/BLD/tmp` directory.
+`<configuration>/BLD/tmp` directory. And you can run the binary from the
+EXP00 directory. For example, for a hybrid MPI+OMP offloading+OMP threading
+we can do:
 
-## Fixing issues and tuning the generated implementation
+```bash
+# Prepare problem
+ln -sf ${ORCA2_INPUTS}/ORCA2_ICE_v5.0.0/* cfgs/ORCA2_psycloned/EXP00/.
+cd cfgs/ORCA2_psycloned/EXP00
+# Reduce num of iterations and add timing/runstat
+sed -i "s/nn_itend.*/nn_itend = 10/" namelist_cfg
+sed -i "s/ln_icebergs.*/ln_icebergs = .false./" namelist_cfg
+sed -i "s/\&namctl.*/\&namctl\n ln_timing   = .true. \n sn_cfctl%l_runstat = .true.\n/" namelist_cfg
+# Run problem
+OMP_NUM_THREADS=4 CUDA_VISIBLE_DEVICES=1,2 mpirun -n 2 ./nemo
+```
+
+## Identifying the cause of issues
+
+A difficulty of working with code-transformation scripts is that it is possible
+to incorrect transform a file semantics while still creating valid Fortran.
+This means that the transformation will succeed and the generated code will
+compile, but the results will diverge. This gets more complicated with parallel
+programming because certain operations like reductions or atomics are not
+always reproducible. For NEMO we typically compare the generated `run.stat` field
+values. To do that we recommend:
+
+- Starting building NEMO without `psyclonefc` and conservative optimisation flags
+  and ru it serially. Then store the generated `run.stat`.
+- Then switch to using `psyclonefc` with the `PSYCLONE_OTPS="-s passthrough.py"`,
+  this will make all files pass through psyclone but without applying any
+  transformations. Check if the results still match.
+- Then build it with `PARALLEL_DIRECTIVES="" PSYCLONE_OTPS="-s insert_loop_parallelism.py"`
+  and check if the results still match
+- Then run it `REPRODUCIBLE=1 PARALLEL_DIRECTIVES="omp_threading" PSYCLONE_OTPS="-s insert_loop_parallelism.py"`
+  and see if the results still match.
+- Finally, run it with `REPRODUCIBLE=1 PARALLEL_DIRECTIVES="omp_offloading" PSYCLONE_OTPS="-s insert_loop_parallelism.py"`
+
+Orthogonally to finding which step is causing the divergence we may want to find
+which file/s are causing it. This folder also contains a `do_file_by_file.sh`
+script that build NEMO many times, each with only one file being transformed,
+and compares the results with the stores `run.stat`
+
+
+## Tuning the generated implementation
 
 Since this is now a two-step process. There are two locations where you can modify
 files that will alter the output result. First is the input source code. For this
@@ -164,23 +205,3 @@ already includes directives, you need to reference it with the `-e <path>`
 and in the FILES_TO_SKIP (otherwise Psyclone would ignore the given directives
 and try to insert its own). This is currently the optimal approach for `seaice`
 and `lbclnk.f90` GPU offloading.
-
-## Running the generated code
-
-Finally, once the NEMO `makenemo` build has succeeded, we can run NEMO from
-the configuration EXP00 directory. We include some known-good-outputs in the
-`KGO` directory, but be aware that these can be compiler/flags/system-sensitive:
-
-```bash
-# Prepare problem
-ln -sf ${ORCA2_INPUTS}/ORCA2_ICE_v5.0.0/* cfgs/ORCA2_psycloned/EXP00/.
-cd cfgs/ORCA2_ICE_PISCES_psycloned/EXP00
-# Reduce num of iterations and add timing/runstat
-sed -i "s/nn_itend.*/nn_itend = 10/" namelist_cfg
-sed -i "s/ln_icebergs.*/ln_icebergs = .false./" namelist_cfg
-sed -i "s/\&namctl.*/\&namctl\n ln_timing   = .true. \n sn_cfctl%l_runstat = .true.\n/" namelist_cfg
-
-# Run problem
-OMP_NUM_THREADS=4 CUDA_VISIBLE_DEVICES=1,2 mpirun -n 2 ./nemo
-diff ${PSYCLONE_NEMO_EXAMPLES_DIR}/KGOs/run.stat.orca_ice_pisces.nvhpc.10steps run.stat
-```
