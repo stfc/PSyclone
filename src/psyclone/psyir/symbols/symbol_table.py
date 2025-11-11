@@ -791,8 +791,9 @@ class SymbolTable():
                     # that too.
                     if csym.wildcard_import:
                         outer_sym.wildcard_import = True
-            # We must update all references to this ContainerSymbol
-            # so that they point to the one in scope in this table instead.
+            # We must update all Symbols within this table that are imported
+            # from this ContainerSymbol so that they now point to the one in
+            # scope in this table instead.
             imported_syms = other_table.symbols_imported_from(csym)
             for isym in imported_syms:
                 other_sym = self.lookup(isym.name, otherwise=None)
@@ -1880,16 +1881,25 @@ class SymbolTable():
             except Exception:
                 external_container = None
 
+            logger = logging.getLogger(__name__)
+
             if not external_container:
-                message = f"Module '{c_symbol.name}' not found"
-                logger = logging.getLogger(__name__)
-                logger.warning(message)
+                logger.warning("Module '%s' not found", c_symbol.name)
                 continue
 
             imported_symbols = self._import_symbols_from(
                 c_symbol,
                 external_container,
                 symbol_target=symbol_target)
+
+            if logger.isEnabledFor(logging.INFO):
+                txt: str = ""
+                if self.node and hasattr(self.node, "name"):
+                    txt = f" into '{self.node.name}'"
+                message = (f"Imported symbols "
+                           f"{[sym.name for sym in imported_symbols]} "
+                           f"from module '{c_symbol.name}'{txt}")
+                logger.info(message)
 
             for isym in imported_symbols:
                 # Determine if there is an Unresolved Symbol in a descendant

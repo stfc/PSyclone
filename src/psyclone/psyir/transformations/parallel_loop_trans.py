@@ -52,7 +52,6 @@ from psyclone.psyir.nodes import (
         Call, Loop, Reference, Routine, Assignment, IfBlock,
         BinaryOperation, IntrinsicCall
 )
-from psyclone.psyir.symbols import AutomaticInterface
 from psyclone.psyir.tools import (
         DependencyTools, DTCode, ReductionInferenceTool
 )
@@ -122,10 +121,6 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             # privatising these
             return False
 
-        # If it's not a local symbol, we cannot guarantee its lifetime
-        if not isinstance(sym.interface, AutomaticInterface):
-            return False
-
         if sym in loop.explicitly_private_symbols:
             return True
 
@@ -159,9 +154,9 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             if first_access.is_read:
                 return False
             # If it is inside a conditional, there may be more entry points for
-            # this symbol, so we look for the next 'fist_access'
+            # this symbol, so we look for the next 'first_access'
             inside_conditional = first_access.ancestor(IfBlock, limit=loop)
-            if first_access.ancestor(IfBlock, limit=loop):
+            if inside_conditional:
                 following = inside_conditional.following_node()
                 if not following:
                     break
@@ -323,8 +318,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                                 f"The write-write dependency in '{var_name}'"
                                 f" cannot be solved by automatic array "
                                 f"privatisation. Use 'loop.explictly_private"
-                                f"_sybmol.add(sybmol)' if you can guarantee "
-                                f"that it is private")
+                                f"_sybmols.add(sybmol)' if *YOU* can guarantee"
+                                f" that it is private.")
                     continue
                 # See if the scalar in question allows parallelisation of
                 # the loop using reduction clauses.

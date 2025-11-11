@@ -644,9 +644,10 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
         trans.apply(loop, {"privatise_arrays": True})
     assert ("The write-write dependency in 'ztmp2' cannot be solved by "
             "automatic array privatisation." in str(err.value))
-    # But the ztmp error is gone since it is privatisable
-    assert ("ztmp(jj)\' causes a write-write race condition."
-            not in str(err.value))
+    # But the 'ztmp' error is gone: both in the original format or in the
+    # privatisation attempted format
+    assert "ztmp(jj)" not in str(err.value)
+    assert "'ztmp'" not in str(err.value)
 
     # It can still be parallelised by explictly marking the symbol as private
     ztmp2 = loop.scope.symbol_table.lookup("ztmp2")
