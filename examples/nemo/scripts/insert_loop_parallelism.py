@@ -70,6 +70,10 @@ PROFILING_ENABLED = os.environ.get('ENABLE_PROFILING', False)
 # By default, we don't do module inlining as it's still under development.
 INLINING_ENABLED = os.environ.get('ENABLE_INLINING', False)
 
+# This environment variable informs if we're enabling asynchronous
+# parallelism.
+ASYNC_PARALLEL = os.environ.get('ASYNC_PARALLEL', False)
+
 # Whether to chase the imported modules to improve symbol information (it can
 # also be a list of module filenames to limit the chasing to only specific
 # modules). This has to be used in combination with '-I' command flag in order
@@ -135,6 +139,19 @@ if "acc_offloading" in PARALLEL_DIRECTIVES:
         "zdfsh2.f90",
     ]
 
+ASYNC_ISSUES = [
+    # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
+    # (often invalid pointer dereference) in get_cstrgsurf
+    "sbcclo.f90",
+    "trcldf.f90",
+    # Runtime Error: Illegal address during kernel execution with
+    # asynchronicity.
+    "zdfiwm.f90",
+    "zdfsh2.f90",
+    # Diverging results with asynchronicity
+    "traadv_fct.f90",
+    "bdy_oce.f90",
+]
 
 def select_transformations():
     '''
@@ -182,17 +199,18 @@ def select_transformations():
 def filter_files_by_name(name: str) -> bool:
     '''
     :returns: whether to transform a file with the given name. Contrary to
-        FILES_TO_SKIP, this will still run the files through psyclone, but
-        it is useful 
+        FILES_TO_SKIP, this will still run the files through psyclone.
     '''
     # The two options below are useful for file-by-file exhaustive tests.
     # If the environemnt has ONLY_FILE defined, only process that one file and
     # known-good files that need a "declare target" inside.
-    only_do_files = [os.environ.get('ONLY_FILE', False)]
-    if "offloading" in PARALLEL_DIRECTIVES:
-        only_do_files.extend(["lib_fortran.f90", "solfrac_mod.f90"])
-    if only_do_files and name not in only_do_files:
-        return True
+    only_file = os.environ.get('ONLY_FILE', False)
+    if only_file:
+        files_to_do = [only_file]
+        if "offloading" in PARALLEL_DIRECTIVES:
+            files_to_do.extend(["lib_fortran.f90", "solfrac_mod.f90"])
+        if name in files_to_do:
+            return True
     # If the environemnt has ALL_BUT_FILE defined, process all files but
     # the one named file.
     all_but_file = os.environ.get('ALL_BUT_FILE', False)
@@ -232,6 +250,7 @@ def trans(psyir):
      cpu_loop_trans) = select_transformations()
 
     disable_profiling_for = []
+    enable_async = ASYNC_PARALLEL and psyir.name not in ASYNC_ISSUES
 
     for subroutine in psyir.walk(Routine):
 
@@ -254,6 +273,7 @@ def trans(psyir):
                 # See issue #3022
                 loopify_array_intrinsics=psyir.name != "getincom.f90",
                 convert_range_loops=True,
+                increase_array_ranks=not NEMOV4,
                 hoist_expressions=True
         )
 
@@ -265,9 +285,9 @@ def trans(psyir):
         # annotate them with 'omp declare target'
         if (
             mark_for_gpu_trans and
-            subroutine.name.lower().startswith("sign_")
-            or subroutine.name.lower() == "solfrac"
-            or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
+            (subroutine.name.lower().startswith("sign_")
+             or subroutine.name.lower() == "solfrac"
+             or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop)))
         ):
             try:
                 mark_for_gpu_trans.apply(subroutine)
@@ -291,6 +311,7 @@ def trans(psyir):
                     privatise_arrays=not NEMOV4,
                     enable_reductions=not REPRODUCIBLE,
                     uniform_intrinsics_only=REPRODUCIBLE,
+                    asynchronous_parallelism=enable_async,
             )
         elif psyir.name not in PARALLELISATION_ISSUES and cpu_loop_trans:
             # These have issues offloading, but we can still do threading
@@ -300,6 +321,7 @@ def trans(psyir):
                     loop_directive_trans=cpu_loop_trans,
                     privatise_arrays=not NEMOV4,
                     enable_reductions=not REPRODUCIBLE,
+                    asynchronous_parallelism=enable_async,
             )
 
     # Iterate again and add profiling hooks when needed

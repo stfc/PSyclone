@@ -202,7 +202,8 @@ jobs:
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
-        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py"
+        export PARALLEL_DIRECTIVES="omp_threading"
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
         export FCFLAGS="-fdefault-real-8 -O2 -fcray-pointer -ffree-line-length-none -g -fopenmp"
 
         # Clean up and compile
