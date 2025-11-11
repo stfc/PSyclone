@@ -39,8 +39,7 @@ needed to provide a FILES_TO_SKIP list. '''
 
 import os
 
-# A environment variable can inform if this is targeting NEMOv4, in which case
-# array privatisation is disabled.
+# A environment variable can inform if this is targeting NEMOv4
 NEMOV4 = os.environ.get('NEMOV4', False)
 
 # List of all files that psyclone will skip processing
