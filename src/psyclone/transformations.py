@@ -1196,7 +1196,9 @@ class ACCParallelTrans(ParallelRegionTrans):
 
         '''
         node_list = self.get_node_list(node_list)
-        verbose = options.get("allow_strings", False)
+        verbose = options.get("allow_strings", False) if options else False
+        device_string = options.get("device_string", "") if options else ""
+        allow_strings = options.get("allow_strings", "") if options else False
         super().validate(node_list, options)
         if options is not None and "default_present" in options:
             if not isinstance(options["default_present"], bool):
@@ -1204,9 +1206,8 @@ class ACCParallelTrans(ParallelRegionTrans):
                     f"The provided 'default_present' option must be a "
                     f"boolean, but found '{options['default_present']}'."
                 )
-        device_string = options.get("device_string", "") if options else ""
         for node in node_list:
-            if not options.get("allow_strings", False):
+            if not allow_strings:
                 # Check there are no character assignments in the region
                 for datanode in node.walk((Reference, Literal),
                                           stop_type=Reference):
