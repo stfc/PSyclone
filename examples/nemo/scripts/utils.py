@@ -249,6 +249,8 @@ def normalise_loops(
     :param hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
     '''
+    filename = schedule.root.name
+
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
         # to files with statement functions because it will attempt to put the
@@ -283,7 +285,8 @@ def normalise_loops(
                 except TransformationError as err:
                     print(err.value)
 
-    if convert_range_loops:
+    # TODO #2951: fldread has a bug in ArrayAssignment2LoopsTrans
+    if convert_range_loops and schedule.root.name != "fldread.f90":
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):

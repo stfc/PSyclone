@@ -83,7 +83,8 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = [
-    "fldread.f90",
+    "icefrm.f90",  # Has unsupportet implicit symbol declaration
+    "icerst.f90"
 ]
 
 NEMOV5_EXCLUSIONS = [
@@ -128,6 +129,7 @@ OFFLOADING_ISSUES = [
     "trcice_pisces.f90",
     "dtatsd.f90",
     "trcatf.f90",
+    "stp2d.f90",
 ]
 
 if "acc_offloading" in PARALLEL_DIRECTIVES:
@@ -221,7 +223,8 @@ def filter_files_by_name(name: str) -> bool:
         return True
 
     # Parallelising this file currently causes a noticeable slowdown
-    if name.startswith("icethd"):
+    # if name.startswith("icethd"):
+    if name.startswith("ice"):
         return True
 
     # This file fails for gcc NEMOv5 BENCH

@@ -246,7 +246,8 @@ jobs:
         export REPRODUCIBLE=1
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
-        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py"
+        export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
         ./makenemo -r BENCH -m linux_spack_profile -n ${TEST_DIR} -j ${NUM_PARALLEL} -v 1
@@ -296,13 +297,14 @@ jobs:
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -acc -mp=gpu -gpu=mem:managed,math_uniform"
+        export PARALLEL_DIRECTIVES="acc_offloading"
         export REPRODUCIBLE=1
 
         # Clean up and compile
         rm -rf cfgs/${TEST_DIR}
-        ./makenemo -r GOSI10p0.0_like_eORCA1 -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          -j ${NUM_PARALLEL} -v 1
+        ./makenemo -r GOSI10p0.0_like_eORCA1 -m linux_spack -n ${TEST_DIR} \
+          -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py -j ${NUM_PARALLEL} -v 1
 
         # Run test
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
@@ -332,11 +334,13 @@ jobs:
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
         export REPRODUCIBLE=1
 
         # Clean up and compile
         rm -rf cfgs/${TEST_DIR}
-        ./makenemo -r ORCA2_ICE_PISCES -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
+        ./makenemo -r ORCA2_ICE_PISCES -m linux_spack -n ${TEST_DIR} \
+          -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py \
           add_key "key_mpi_off key_nosignedzero" -j ${NUM_PARALLEL} -v 1
 
         # Run test
@@ -375,12 +379,13 @@ jobs:
         export ENABLE_PROFILING=1
         # We compile with "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
         export REPRODUCIBLE=1
         export ASYNC_PARALLEL=1
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
-        ./makenemo -r BENCH -m linux_spack_profile -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          -j ${NUM_PARALLEL} -v 1
+        ./makenemo -r BENCH -m linux_spack_profile -n ${TEST_DIR} \
+          -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py -j ${NUM_PARALLEL} -v 1
 
         # Run reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -399,8 +404,8 @@ jobs:
         rm -rf tests/${TEST_DIR}
         export NV_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          -j ${NUM_PARALLEL} -v 1
+        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} \
+          -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py -j ${NUM_PARALLEL} -v 1
         # Run non-reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
@@ -424,13 +429,15 @@ jobs:
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         export REPRODUCIBLE=1
         export ASYNC_PARALLEL=1
 
         # Clean up and compile
         rm -rf cfgs/${TEST_DIR}
-        ./makenemo -r ORCA2_ICE_PISCES -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
+        ./makenemo -r ORCA2_ICE_PISCES -m linux_spack -n ${TEST_DIR} \
+          -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py \
           add_key "key_mpi_off key_nosignedzero" -j ${NUM_PARALLEL} -v 1
 
         # Run test
@@ -460,14 +467,15 @@ jobs:
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export PARALLEL_DIRECTIVES="omp_offloading"
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         export REPRODUCIBLE=1
         export ASYNC_PARALLEL=1
 
         # Clean up and compile
         rm -rf cfgs/${TEST_DIR}
-        ./makenemo -r GOSI10p0.0_like_eORCA1 -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          -j ${NUM_PARALLEL} -v 1
+        ./makenemo -r GOSI10p0.0_like_eORCA1 -m linux_spack -n ${TEST_DIR} \
+          -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py -j ${NUM_PARALLEL} -v 1
 
         # Run test
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
