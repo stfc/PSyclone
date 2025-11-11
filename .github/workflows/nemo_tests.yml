@@ -110,6 +110,9 @@ jobs:
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py -I ${MPI_HOME}/include --backend-omit-unneeded-intrinsic-arg-names"
         make -j ${NUM_PARALLEL} passthrough
         make -j ${NUM_PARALLEL} compile-passthrough
         make run-passthrough
@@ -128,6 +131,9 @@ jobs:
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         make clean
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py -I ${MPI_HOME}/include --backend-omit-unneeded-intrinsic-arg-names"
         export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
         make -j ${NUM_PARALLEL} openmp_gpu
         make -j ${NUM_PARALLEL} compile-openmp_gpu
@@ -152,6 +158,9 @@ jobs:
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         make clean
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/acc_kernels_trans.py -I ${MPI_HOME}/include --backend-omit-unneeded-intrinsic-arg-names"
         make -j ${NUM_PARALLEL} openacc_kernels
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j ${NUM_PARALLEL} compile-openacc_kernels
         export NV_ACC_POOL_THRESHOLD=75
@@ -179,6 +188,9 @@ jobs:
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         make clean
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/acc_loops_trans.py -I ${MPI_HOME}/include --backend-omit-unneeded-intrinsic-arg-names"
         make -j ${NUM_PARALLEL} openacc_loops
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j ${NUM_PARALLEL} compile-openacc_loops
         export NV_ACC_POOL_THRESHOLD=75
@@ -207,7 +219,7 @@ jobs:
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
-        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py -I ${MPI_HOME}/include"
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py -I ${MPI_HOME}/include --backend-omit-unneeded-intrinsic-arg-names"
         export FCFLAGS="-i4 -r8 -O2 -heap-arrays -fp-model=precise -g -qopenmp"
         export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
 
@@ -240,6 +252,9 @@ jobs:
         make clean
         export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
         export ASYNC_PARALLEL=1
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py -I ${MPI_HOME}/include --backend-omit-unneeded-intrinsic-arg-names"
         make -j ${NUM_PARALLEL} openmp_gpu
         make -j ${NUM_PARALLEL} compile-openmp_gpu
         export NV_ACC_POOL_THRESHOLD=75

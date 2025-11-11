@@ -578,14 +578,19 @@ def main(arguments):
             "These settings control how PSyclone outputs Fortran. "
     )
     backend_group.add_argument(
-        '--backend', dest='backend', action="append",
-        choices=['disable-validation', 'disable-indentation'],
-        help=("options to control the PSyIR backend used for code generation. "
-              "Use 'disable-validation' to disable the validation checks that "
-              "are performed by default. Use 'disable-indentation' to turn off"
-              " all indentation in the generated code."))
+        "--backend-disable-validation", default=argparse.SUPPRESS,
+        action="store_true",
+        help=("Disables validation checks that PSyclone backends perform by "
+              "default.")
+    )
     backend_group.add_argument(
-        "--disable-named-intrinsic-args", default=argparse.SUPPRESS,
+        "--backend-disable-indentation", default=argparse.SUPPRESS,
+        action="store_true",
+        help="Disables all indentation in the generated output code."
+    )
+    backend_group.add_argument(
+        "--backend-omit-unneeded-intrinsic-arg-names",
+        default=argparse.SUPPRESS,
         action="store_true",
         help="By default, the backend names any required arguments to "
              "intrinsic calls. This option disables this feature (in case "
@@ -646,7 +651,7 @@ def main(arguments):
     Config.get().api = api
 
     # Record any intrinsic output format settings.
-    if "disable_named_intrinsic_args" in args:
+    if "backend_omit_unneeded_intrinsic_arg_names" in args:
         # The backend won't attempt to add names to required
         # arguments to Fortran intrinsics.
         Config.get().backend_intrinsic_named_kwargs = False
@@ -658,13 +663,12 @@ def main(arguments):
         except ValueError as err:
             print(f"Invalid profiling option: {err}", file=sys.stderr)
             sys.exit(1)
-    if args.backend:
-        # A command-line flag overrides the setting in the Config file (if
-        # any).
-        if "disable-validation" in args.backend:
-            Config.get().backend_checks_enabled = False
-        if "disable-indentation" in args.backend:
-            Config.get().backend_indentation_disabled = True
+    # A command-line flag overrides the setting in the Config file (if
+    # any).
+    if "backend_disable_validation" in args:
+        Config.get().backend_checks_enabled = False
+    if "backend_disable_indentation" in args:
+        Config.get().backend_indentation_disabled = True
 
     # The Configuration manager checks that the supplied path(s) is/are
     # valid so protect with a try

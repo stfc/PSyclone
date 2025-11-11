@@ -139,6 +139,9 @@ jobs:
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/passthrough.py --backend-omit-unneeded-intrinsic-arg-names"
         export FCFLAGS="-i4 -Mr8 -O2 -nofma -Mnovect -g"
         
         # Clean up and compile
@@ -171,6 +174,9 @@ jobs:
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/passthrough.py --backend-omit-unneeded-intrinsic-arg-names"
         export FCFLAGS="-i4 -r8 -O2 -fp-model precise -fno-alias -g"
 
         # Clean up and compile
@@ -202,7 +208,7 @@ jobs:
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
-        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py"
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py --backend-omit-unneeded-intrinsic-arg-names"
         export FCFLAGS="-fdefault-real-8 -O2 -fcray-pointer -ffree-line-length-none -g -fopenmp"
 
         # Clean up and compile
@@ -247,7 +253,7 @@ jobs:
         export REPRODUCIBLE=1
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
-        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py"
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py --backend-omit-unneeded-intrinsic-arg-names"
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
         ./makenemo -r BENCH -m linux_spack_profile -n ${TEST_DIR} -j ${NUM_PARALLEL} -v 1
@@ -297,6 +303,8 @@ jobs:
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py --backend-omit-unneeded-intrinsic-arg-names"
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         export REPRODUCIBLE=1
 
@@ -332,6 +340,8 @@ jobs:
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py --backend-omit-unneeded-intrinsic-arg-names"
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         export REPRODUCIBLE=1
 
@@ -367,7 +377,8 @@ jobs:
         export PROFILING_DIR=${GITHUB_WORKSPACE}/lib/profiling/nvidia/
         cd $PROFILING_DIR
         make clean
-        F90=$MPIF90 make
+        export F90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py --backend-omit-unneeded-intrinsic-arg-names"
                 
         # First do a debug-build: set the environemnt variables to use flags and intrinsics
         # with numerically reproducible results and enable PROFILING hooks
