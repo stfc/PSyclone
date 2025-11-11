@@ -44,9 +44,10 @@ from utils import (
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
     NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine, Loop
-from psyclone.psyir.transformations import OMPTargetTrans
+from psyclone.psyir.transformations import (
+    OMPTargetTrans, OMPDeclareTargetTrans)
 from psyclone.transformations import (
-    OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
+    OMPLoopTrans, TransformationError)
 from psyclone.transformations import (
     ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans)
 
