@@ -59,6 +59,8 @@ NEMO_MODULES_TO_IMPORT = [
     "bdy_oce", "zdf_oce", "zdfdrg", "ldftra", "crs", "sbcapr", "tideini",
     "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
     "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc", "abl", "ice1d",
+    "sed", "p2zlim", "oce_trc", "p4zpoc", "tide_mod", "sbcwave", "isf_oce",
+    "step_oce", "bdyice",
 ]
 
 # Files that PSyclone could process but would reduce the performance.
@@ -418,7 +420,7 @@ def insert_explicit_loop_parallelism(
 
     '''
     nemo_v4 = os.environ.get('NEMOV4', False)
-    # These are both in "dynstg_ts.f90" and has a big performance impact
+    # These are both in "dynspg_ts.f90" and has a big performance impact
     if schedule.name in ("ts_wgt", "ts_rst"):
         return  # TODO #2937 WaW dependency incorrectly considered private
     # Add the parallel directives in each loop
