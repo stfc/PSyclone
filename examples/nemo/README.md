@@ -55,7 +55,8 @@ Contains:
 
 ## Scripts
 
-Contains the scripts used to process the NEMO codebase.
+Contains a collection of example scripts and the instructions to process the NEMO code. These
+are testend in our integration test against NEMOv4.0.2 and NEMOv5.0.
 
 ## Example 1
 
