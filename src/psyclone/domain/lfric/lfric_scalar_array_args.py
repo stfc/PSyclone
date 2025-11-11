@@ -195,23 +195,24 @@ class LFRicScalarArrayArgs(LFRicCollection):
                             symbol_type=DataSymbol,
                             datatype=ArrayType(
                                 LFRicTypes("LFRicIntegerScalarDataType")(),
-                                [arg._array_ndims]*arg._array_ndims))
+                                [arg._array_ndims]))
                         dims_array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(dims_array_symbol)
 
-                        dim_symbol = [ArrayReference.create(
-                                        dims_array_symbol,
-                                        [Literal(str(idx), INTEGER_TYPE)
-                                            for idx in
-                                            range(1, arg._array_ndims+1)])]
+                        # Create list of dims_array references
+                        sym_list = [ArrayReference.create(
+                            dims_array_symbol,
+                            [Literal(str(idx), INTEGER_TYPE)])
+                                for idx in range(1, arg._array_ndims + 1)]
 
+                        # Create ScalarArray reference
                         array_symbol = self.symtab.find_or_create(
-                            arg.name,
+                            arg.name + "temp",
                             symbol_type=DataSymbol,
                             datatype=ArrayType(
                                 LFRicTypes("LFRicRealScalarDataType")(),
-                                dim_symbol))
+                                sym_list))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
@@ -221,28 +222,30 @@ class LFRicScalarArrayArgs(LFRicCollection):
             if self._integer_scalar_arrays[intent]:
                 for arg in self._integer_scalar_arrays[intent]:
                     if arg._array_ndims >= 1:
+                        # Create the dimensions array symbol
                         dims_array_symbol = self.symtab.find_or_create(
                             "dims_" + arg.name,
                             symbol_type=DataSymbol,
                             datatype=ArrayType(
                                 LFRicTypes("LFRicIntegerScalarDataType")(),
-                                [1]*arg._array_ndims))
+                                [arg._array_ndims]))
                         dims_array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(dims_array_symbol)
 
-                        dim_symbol = [ArrayReference.create(
-                                        dims_array_symbol,
-                                        [Literal(str(idx), INTEGER_TYPE)
-                                            for idx in
-                                            range(1, arg._array_ndims+1)])]
+                        # Create list of dims_array references
+                        sym_list = [ArrayReference.create(
+                            dims_array_symbol,
+                            [Literal(str(idx), INTEGER_TYPE)])
+                                for idx in range(1, arg._array_ndims + 1)]
 
+                        # Create ScalarArray reference
                         array_symbol = self.symtab.find_or_create(
-                            arg.name,
+                            arg.name + "temp",
                             symbol_type=DataSymbol,
                             datatype=ArrayType(
                                 LFRicTypes("LFRicIntegerScalarDataType")(),
-                                dim_symbol))
+                                sym_list))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
@@ -258,23 +261,24 @@ class LFRicScalarArrayArgs(LFRicCollection):
                             symbol_type=DataSymbol,
                             datatype=ArrayType(
                                 LFRicTypes("LFRicIntegerScalarDataType")(),
-                                [1]*arg._array_ndims))
+                                [arg._array_ndims]))
                         dims_array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(dims_array_symbol)
 
-                        dim_symbol = [ArrayReference.create(
-                                        dims_array_symbol,
-                                        [Literal(str(idx), INTEGER_TYPE)
-                                            for idx in
-                                            range(1, arg._array_ndims+1)])]
+                        # Create list of dims_array references
+                        sym_list = [ArrayReference.create(
+                            dims_array_symbol,
+                            [Literal(str(idx), INTEGER_TYPE)])
+                                for idx in range(1, arg._array_ndims + 1)]
 
+                        # Create ScalarArray reference
                         array_symbol = self.symtab.find_or_create(
-                            arg.name,
+                            arg.name + "temp",
                             symbol_type=DataSymbol,
                             datatype=ArrayType(
                                 LFRicTypes("LFRicLogicalScalarDataType")(),
-                                dim_symbol))
+                                sym_list))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
