@@ -118,6 +118,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                         arg in self._integer_scalar_arrays[intent]]
             lscalarr = [arg.declaration_name for
                         arg in self._logical_scalar_arrays[intent]]
+            print(scal)
             # Add "real", "integer" and "logical" ScalarArray lists for checks
             decl_scal = rscalarr + iscalarr + lscalarr
             # Check for unsupported intrinsic types
@@ -153,6 +154,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
         '''
         super().stub_declarations()
         # Extract all scalar arguments
+        print(self.kernel_calls[0].arguments.args)
         for arg in self.kernel_calls[0].arguments.args:
             if arg.is_scalar_array:
                 self._scalar_array_args[arg.intent].append(arg)
@@ -161,6 +163,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
         # Filter scalar arguments by intent and data type
         for intent in FORTRAN_INTENT_NAMES:
             for arg in self._scalar_array_args[intent]:
+                print(arg)
                 # Distinguish whether they are ScalarArrays
                 if arg.descriptor.data_type == "gh_real":
                     self._real_scalar_arrays[intent].append(arg)
@@ -175,6 +178,11 @@ class LFRicScalarArrayArgs(LFRicCollection):
                         f"ScalarArray argument '{arg.declaration_name}'"
                         f". Supported types are "
                         f"{const.VALID_SCALAR_DATA_TYPES}.")
+            print(self._real_scalar_arrays[intent])
+            print(self._integer_scalar_arrays[intent])
+            print(self._logical_scalar_arrays[intent])
+        
+        print(self._scalar_array_args)
 
         # Create declarations
         self._create_declarations()
@@ -184,10 +192,24 @@ class LFRicScalarArrayArgs(LFRicCollection):
         Add declarations for the scalar arguments.
 
         '''
+        # print("symtab - ")
+        # print(self.symtab)
+        # print("symtab.tags_dict - ")
+        # print(self.symtab.tags_dict)
         # Real ScalarArray arguments
+
+
+        # It seems that the symbols are not being added in the stub
+        # declaration phase in the same way as they are in the invoke
+        # declaration. LFRicCollections seems to initialise differently
+        # for these two - could be to do with it.
+
+
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalar_arrays[intent]:
                 for arg in self._real_scalar_arrays[intent]:
+                    print(self.symtab)
+                    print(self.symtab.tags_dict)
                     if arg._array_ndims >= 1:
                         # Create the dimensions array symbol
                         dims_array_symbol = self.symtab.find_or_create(
@@ -199,28 +221,29 @@ class LFRicScalarArrayArgs(LFRicCollection):
                         dims_array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(dims_array_symbol)
-
+                        print(dims_array_symbol)
                         # Create list of dims_array references
                         sym_list = [ArrayReference.create(
                             dims_array_symbol,
                             [Literal(str(idx), INTEGER_TYPE)])
                                 for idx in range(1, arg._array_ndims + 1)]
-
-                        # Create ScalarArray reference
-                        array_symbol = self.symtab.find_or_create(
-                            arg.name + "temp",
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
+                        print(sym_list)
+                        # Find ScalarArray tag and convert it to an ArrayType
+                        array_symbol = self.symtab.lookup_with_tag(
+                            "AlgArgs_" + arg.name)
+                        array_symbol.datatype = ArrayType(
                                 LFRicTypes("LFRicRealScalarDataType")(),
-                                sym_list))
+                                sym_list)
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
+                        print(array_symbol)
 
         # Integer ScalarArray arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._integer_scalar_arrays[intent]:
                 for arg in self._integer_scalar_arrays[intent]:
+                    print(self.symtab)
                     if arg._array_ndims >= 1:
                         # Create the dimensions array symbol
                         dims_array_symbol = self.symtab.find_or_create(
@@ -232,28 +255,29 @@ class LFRicScalarArrayArgs(LFRicCollection):
                         dims_array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(dims_array_symbol)
-
+                        print(dims_array_symbol)
                         # Create list of dims_array references
                         sym_list = [ArrayReference.create(
                             dims_array_symbol,
                             [Literal(str(idx), INTEGER_TYPE)])
                                 for idx in range(1, arg._array_ndims + 1)]
-
-                        # Create ScalarArray reference
-                        array_symbol = self.symtab.find_or_create(
-                            arg.name + "temp",
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
+                        print(sym_list)
+                        # Find ScalarArray tag and convert it to an ArrayType
+                        array_symbol = self.symtab.lookup_with_tag(
+                            "AlgArgs_" + arg.name)
+                        array_symbol.datatype = ArrayType(
                                 LFRicTypes("LFRicIntegerScalarDataType")(),
-                                sym_list))
+                                sym_list)
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
+                        print(array_symbol)
 
         # Logical ScalarArray arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._logical_scalar_arrays[intent]:
                 for arg in self._logical_scalar_arrays[intent]:
+                    print(self.symtab)
                     if arg._array_ndims >= 1:
                         # Create the dimensions array symbol
                         dims_array_symbol = self.symtab.find_or_create(
@@ -272,16 +296,16 @@ class LFRicScalarArrayArgs(LFRicCollection):
                             [Literal(str(idx), INTEGER_TYPE)])
                                 for idx in range(1, arg._array_ndims + 1)]
 
-                        # Create ScalarArray reference
-                        array_symbol = self.symtab.find_or_create(
-                            arg.name + "temp",
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
+                        # Find ScalarArray tag and convert it to an ArrayType
+                        array_symbol = self.symtab.lookup_with_tag(
+                            "AlgArgs_" + arg.name)
+                        array_symbol.datatype = ArrayType(
                                 LFRicTypes("LFRicLogicalScalarDataType")(),
-                                sym_list))
+                                sym_list)
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
+                        print(array_symbol)
 
 
 # ---------- Documentation utils -------------------------------------------- #
