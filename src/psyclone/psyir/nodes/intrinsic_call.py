@@ -3391,6 +3391,8 @@ class IntrinsicCall(Call):
             self._argument_names[i] = (self._argument_names[i][0],
                                        optional_names[i - len(
                                            interface_arg_names)])
+        if self.intrinsic.name == "MAX":
+            print(self.argument_names)
 
     @classmethod
     def create(cls, intrinsic, arguments=()):

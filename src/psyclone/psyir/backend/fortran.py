@@ -1773,10 +1773,13 @@ class FortranWriter(LanguageWriter):
                         # behaviour from here.
                         correct_names = False
                     # Otherwise, use the default behaviour.
-                    args.append(
-                         f"{node.argument_names[idx]}="
-                         f"{self._visit(node.arguments[idx])}"
-                    )
+                    if node.argument_names[idx]:
+                        args.append(
+                             f"{node.argument_names[idx]}="
+                             f"{self._visit(node.arguments[idx])}"
+                        )
+                    else:
+                        args.append(f"{self._visit(node.arguments[idx])}")
                 args = ", ".join(args)
             except NotImplementedError:
                 # If the Intrinsic fails to canonicalise, or to match

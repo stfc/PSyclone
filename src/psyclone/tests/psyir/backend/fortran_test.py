@@ -1933,6 +1933,13 @@ def test_fw_intrinsic_call_node(fortran_writer):
     gen = fortran_writer(rcall)
     assert gen == "call RANDOM_NUMBER(harvest=var)\n"
 
+    # Test an intrinsic with no cap on arguments.
+    rcall = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                 [Reference(sym), Reference(sym),
+                                  Reference(sym), Reference(sym)])
+    gen = fortran_writer(rcall)
+    assert gen == "MAX(var, var, var, var)\n"
+
     for intrinsic_function in [IntrinsicCall.Intrinsic.MINVAL,
                                IntrinsicCall.Intrinsic.MAXVAL,
                                IntrinsicCall.Intrinsic.SUM]:
