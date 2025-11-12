@@ -4899,7 +4899,7 @@ class Fparser2Reader():
 
             call = IntrinsicCall(intrinsic, parent=parent)
             call = self._process_args(node, call, True)
-            call.canonicalise()
+            call.compute_argument_names()
             return call
         except KeyError as err:
             raise NotImplementedError(

@@ -1756,9 +1756,9 @@ class FortranWriter(LanguageWriter):
             try:
                 # Canonicalisation handles any error checking we might
                 # otherwise want to try. Most IntrinsicCalls should already
-                # be canonicalised, but we do it here to ensure that it is
-                # is possible.
-                node.canonicalise()
+                # have argument names added, but we do it here to ensure that
+                # it is is possible.
+                node.compute_argument_names()
                 intrinsic_interface = node._find_matching_interface()
                 args = []
                 correct_names = True
@@ -1782,8 +1782,8 @@ class FortranWriter(LanguageWriter):
                         args.append(f"{self._visit(node.arguments[idx])}")
                 args = ", ".join(args)
             except NotImplementedError:
-                # If the Intrinsic fails to canonicalise, or to match
-                # to an interface, then use the default behaviour.
+                # If the Intrinsic fails to have argument names added, or to
+                # match to an interface, then use the default behaviour.
                 args = self._gen_arguments(node)
         else:
             args = self._gen_arguments(node)

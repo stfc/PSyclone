@@ -2224,9 +2224,10 @@ def test_fw_intrinsiccall(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     assert "a = CSHIFT(array=c, shift=b, dim=1)" in output
 
-    # Test if we have a non-canonicalisable intrinsic that it outputs
+    # Test if we have an intrinsic that can't have argument names computed
+    # that it outputs
     # all argument names (this is not a common use case, as most
-    # non canonicalisable intrinsics result in a code block, however
+    # intrinsics like this result in a code block, however
     # its possible to obtain one during PSyIR creation).
     Config.get().backend_intrinsic_named_kwargs = False
 
@@ -2234,10 +2235,10 @@ def test_fw_intrinsiccall(fortran_reader, fortran_writer):
     IntrinsicCall._add_args(
             intrinsic, [("scalar",
                          Reference(DataSymbol("b", INTEGER_TYPE)))])
-    # Ensure this cannot be canonicalised.
+    # Ensure this cannot have argument names computed.
     with pytest.raises(NotImplementedError) as err:
-        intrinsic.canonicalise()
-    assert ("Cannot canonicalise 'ALLOCATED' as non-optional argument name "
-            "'scalar' found" in str(err.value))
+        intrinsic.compute_argument_names()
+    assert ("Cannot add argument names to 'ALLOCATED' as non-optional "
+            "argument name 'scalar' found" in str(err.value))
     output = fortran_writer(intrinsic)
     assert "ALLOCATED(scalar=b)" in output

@@ -333,7 +333,8 @@ def test_sympy_writer_type_map(expr, sym_map, fortran_reader):
 
 
 def test_sympy_writer_type_map_non_canonical(fortran_reader):
-    ''' Test we get an error when the intrinsic can't be canonicalised.'''
+    ''' Test we get an error when the intrinsic can't have argument names
+    computed.'''
     source = """program test_prog
     use my_mod
     integer :: i, j, k
@@ -352,9 +353,9 @@ def test_sympy_writer_type_map_non_canonical(fortran_reader):
     writer = SymPyWriter()
     with pytest.raises(VisitorError) as err:
         _ = writer([assign.rhs])
-    assert ("Sympy handler can't handle an IntrinsicCall that can't be "
-            "canonicalised. Use explicit argument names to force "
-            "canonicalisation. Failing node was 'SUM(i, j)'."
+    assert ("Sympy handler can't handle an IntrinsicCall that can't have "
+            "argument names automatically added. Use explicit argument names "
+            "instead. Failing node was 'SUM(i, j)'."
             in str(err.value))
 
 

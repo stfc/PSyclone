@@ -353,16 +353,16 @@ def test_intrinsiccall_create_errors():
     # An allocate must have one or more References as argument.
     with pytest.raises(ValueError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [])
-    assert ("Found too few arguments when canonicalising the 'ALLOCATE' "
-            "IntrinsicCall. Requires at least 1 arguments but found 0."
-            in str(err.value))
+    assert ("Found too few arguments when computing argument names for "
+            "the 'ALLOCATE' IntrinsicCall. Requires at least 1 arguments "
+            "but found 0." in str(err.value))
     # The random intrinsic only accepts one argument.
     with pytest.raises(ValueError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
                              [aref, aref.copy()])
-    assert ("Found too many arguments when canonicalising the 'RANDOM_NUMBER'"
-            " IntrinsicCall. Requires at most 1 arguments but found 2."
-            in str(err.value))
+    assert ("Found too many arguments when computing argument names for the "
+            "'RANDOM_NUMBER' IntrinsicCall. Requires at most 1 arguments but "
+            "found 2." in str(err.value))
     # Wrong type for a positional argument.
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
@@ -387,9 +387,9 @@ def test_intrinsiccall_create_errors():
     with pytest.raises(ValueError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
                              [aref.detach(), ("willow", Reference(sym))])
-    assert ("Found invalid argument name 'willow' when canonicalising the "
-            "'RANDOM_NUMBER' IntrinsicCall. Allowed argument names are "
-            "'['harvest']'." in str(err.value))
+    assert ("Found invalid argument name 'willow' when computing argument "
+            "names for the 'RANDOM_NUMBER' IntrinsicCall. Allowed argument "
+            "names are '['harvest']'." in str(err.value))
 
     # Wrong type for the name of an optional argument.
     with pytest.raises(TypeError) as err:
@@ -585,58 +585,59 @@ end program test_prog
             "kind=kind(x=1), back=.true.) == 0) then" in result)
 
 
-def test_intrinsic_canonicalisation_value_errors():
+def test_intrinsic_compute_argument_names_value_errors():
     '''
-    Test the canonicalisation function of the IntrinsicCall class raises
+    Test the compute_argument_names function of the IntrinsicCall class raises
     ValueErrors with bad inputs.
     '''
 
-    # Test canonicalisation fails if we have an incorrect name argument.
+    # Test argument name computation fails if we have an incorrect named
+    # argument.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     # Set up the argument_names array
     _ = intrinsic.argument_names
     intrinsic._argument_names[0] = (intrinsic._argument_names[0][0], "wrong")
     with pytest.raises(ValueError) as err:
-        intrinsic.canonicalise()
-    assert ("Found invalid argument name 'wrong' when canonicalising the "
-            "'SUM' IntrinsicCall. Allowed argument names are "
+        intrinsic.compute_argument_names()
+    assert ("Found invalid argument name 'wrong' when computing argument "
+            "names for the 'SUM' IntrinsicCall. Allowed argument names are "
             "'['array', 'dim', 'mask']'." in str(err.value))
 
-    # Test canonicalisation fails if we don't have enough arguments.
+    # Test argument name computation fails if we don't have enough arguments.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     with pytest.raises(ValueError) as err:
-        intrinsic.canonicalise()
-    assert ("Found too few arguments when canonicalising the 'SUM' "
-            "IntrinsicCall. Requires at least 1 arguments but found 0."
+        intrinsic.compute_argument_names()
+    assert ("Found too few arguments when computing argument names for the "
+            "'SUM' IntrinsicCall. Requires at least 1 arguments but found 0."
             in str(err.value))
 
-    # Test canonicalisation fails if we have too many arguments
+    # Test argument name computation fails if we have too many arguments
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     with pytest.raises(ValueError) as err:
-        intrinsic.canonicalise()
-    assert ("Found too many arguments when canonicalising the 'SUM' "
-            "IntrinsicCall. Requires at most 3 arguments but found 4."
+        intrinsic.compute_argument_names()
+    assert ("Found too many arguments when computing argument names for the "
+            "'SUM' IntrinsicCall. Requires at most 3 arguments but found 4."
             in str(err.value))
 
 
-def test_intrinsic_canonicalisation_not_implemented_errors():
+def test_intrinsic_compute_argument_names_not_implemented_errors():
     '''
-    Test the canonicalisation function of the IntrinsicCall class raises
+    Test the compute_argument_names function of the IntrinsicCall class raises
     NotImplementedErrors for Intrinsic structures PSyclone can't handle.
     '''
-    # Test canonicalisation doesn't work when we have 2 arguments for SUM
+    # Test computing argument names doesn't work when we have 2 arguments for SUM
     # with no naming, as it can't determine between the SUM variants.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     with pytest.raises(NotImplementedError) as err:
-        intrinsic.canonicalise()
-    assert ("Cannot canonicalise 'SUM' IntrinsicCall as PSyclone can't "
-            "determine which argument set it should use. This can be "
+        intrinsic.compute_argument_names()
+    assert ("Cannot add argument names to 'SUM' IntrinsicCall as PSyclone "
+            "can't determine which argument set it should use. This can be "
             "resolved by using named arguments in the Fortran source."
             in str(err.value))
 
@@ -652,11 +653,11 @@ def test_intrinsic_canonicalisation_not_implemented_errors():
     intrinsic._argument_names[0] = (intrinsic._argument_names[0][0], "n1")
     intrinsic._argument_names[1] = (intrinsic._argument_names[1][0], "n2")
     with pytest.raises(NotImplementedError) as err:
-        intrinsic.canonicalise()
-    assert ("Cannot canonicalise 'BESSEL_JN' IntrinsicCall as PSyclone can't "
-            "determine which argument set it should use. This can be resolved "
-            "by using named arguments in the Fortran source"
-            in str(err.value))
+        intrinsic.compute_argument_names()
+    assert ("Cannot add argument names to 'BESSEL_JN' IntrinsicCall as "
+            "PSyclone can't determine which argument set it should use. "
+            "This can be resolved by using named arguments in the Fortran "
+            "source" in str(err.value))
 
     # Test we get the expected error when non-optional argument names are
     # passed to an intrinsic where PSyclone can't handle the required argument
@@ -666,47 +667,49 @@ def test_intrinsic_canonicalisation_not_implemented_errors():
     _ = intrinsic.argument_names
     intrinsic._argument_names[0] = (intrinsic._argument_names[0][0], "array")
     with pytest.raises(NotImplementedError) as err:
-        intrinsic.canonicalise()
-    assert ("Cannot canonicalise 'ALLOCATED' as non-optional argument name "
-            "'array' found but the Intrinsic has context-sensitive argument "
-            "names which is unsupported by PSyclone." in str(err.value))
+        intrinsic.compute_argument_names()
+    assert ("Cannot add argument names to 'ALLOCATED' as non-optional "
+            "argument name 'array' found but the Intrinsic has "
+            "context-sensitive argument names which is unsupported by "
+            "PSyclone." in str(err.value))
 
 
-def test_canonicalisation():
+def test_compute_argument_names():
     '''
-    Test that the canonicalisation function works as expected for
-    cases that can be canonicalised.
+    Test that the compute_argument_names function works as expected for
+    cases that can have argument names computed.
     '''
-    # Test canonicalisation works if we have 1 argument for SUM.
+    # Test argument name computation works if we have 1 argument for SUM.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
-    intrinsic.canonicalise()
+    intrinsic.compute_argument_names()
     assert intrinsic.argument_names[0] == "array"
 
-    # Test canonicalisation does work when we give a name to the 2nd argument.
+    # Test argument name compuutation works when we give a name to the
+    # 2nd argument.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("b", INTEGER_TYPE)))
     # Set up the argument_names array and set the second ones name to be mask
     _ = intrinsic.argument_names
     intrinsic._argument_names[1] = (intrinsic._argument_names[1][0], "mask")
-    intrinsic.canonicalise()
+    intrinsic.compute_argument_names()
     assert intrinsic.argument_names == ["array", "mask"]
 
-    # Test that the correct canonicalisation is performed when we have a named
-    # argument only in one of the lists.
+    # Test that the correct argument name computation is performed when we
+    # have a named argument only in one of the lists.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("b", INTEGER_TYPE)))
     # Set up the argument_names array and set the second ones name to be dim
     _ = intrinsic.argument_names
     intrinsic._argument_names[1] = (intrinsic._argument_names[1][0], "dim")
-    intrinsic.canonicalise()
+    intrinsic.compute_argument_names()
     assert intrinsic.argument_names[0] == "array"
     assert intrinsic.argument_names[1] == "dim"
 
-    # Test that canonicalisation works when optional arguments appear first
-    # when all arguments are named.
+    # Test that argument name computation works when optional arguments appear
+    # first when all arguments are named.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     a_arg = Reference(DataSymbol("a", INTEGER_TYPE))
     b_arg = Reference(DataSymbol("b", INTEGER_TYPE))
@@ -717,19 +720,20 @@ def test_canonicalisation():
     _ = intrinsic.argument_names
     intrinsic._argument_names[0] = (intrinsic._argument_names[0][0], "mask")
     intrinsic._argument_names[1] = (intrinsic._argument_names[1][0], "array")
-    intrinsic.canonicalise()
+    intrinsic.compute_argument_names()
     assert intrinsic.argument_names == ["mask", "array"]
     assert intrinsic.arguments[0] is a_arg
     assert intrinsic.arguments[1] is b_arg
 
-    # Check we can canonicalise an intrinsic with only one argument set.
+    # Check we can compute argument names for an intrinsic with only one
+    # argument set.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SIN)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
-    intrinsic.canonicalise()
+    intrinsic.compute_argument_names()
     assert intrinsic.argument_names == ["x"]
 
-    # Check that canonicalisation succeeds for an intrinsic with no required
-    # arguments
+    # Check that argument name computation succeeds for an intrinsic with no
+    # required arguments
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SYSTEM_CLOCK)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("b", INTEGER_TYPE)))
@@ -740,21 +744,21 @@ def test_canonicalisation():
     intrinsic._argument_names[1] = (intrinsic._argument_names[1][0],
                                     "count_max")
     intrinsic._argument_names[2] = (intrinsic._argument_names[2][0], "count")
-    intrinsic.canonicalise()
+    intrinsic.compute_argument_names()
     assert intrinsic.argument_names == ["count_rate", "count_max", "count"]
     assert intrinsic.children[1].symbol.name == "a"
     assert intrinsic.children[2].symbol.name == "b"
     assert intrinsic.children[3].symbol.name == "c"
 
     # Test canonicliation for intrinsic when PSyclone can't
-    # canonicalise the names of non-optional arguments.
+    # compute argument names of non-optional arguments.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("b", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("c", INTEGER_TYPE)))
     intrinsic.argument_names
     intrinsic._argument_names[2] = (intrinsic._argument_names[2][0], "mold")
-    intrinsic.canonicalise()
+    intrinsic.compute_argument_names()
     assert intrinsic.argument_names == [None, None, "mold"]
 
     # Check that we canoncalise when we have unnamed optional arguments.
@@ -762,14 +766,14 @@ def test_canonicalisation():
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("b", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("c", INTEGER_TYPE)))
-    intrinsic.canonicalise()
+    intrinsic.compute_argument_names()
     assert intrinsic.argument_names == ["array", "dim", "mask"]
 
     # Check that we don't fail when the required argument name is None
     # and no argument name can be generated by PSyclone.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATED)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
-    intrinsic.canonicalise()
+    intrinsic.compute_argument_names()
     assert intrinsic.argument_names == [None]
 
 

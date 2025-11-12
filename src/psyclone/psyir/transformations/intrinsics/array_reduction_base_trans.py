@@ -82,8 +82,8 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         # Determine the arguments to the intrinsic
         args = [None, None, None]
         arg_names_map = {"array": 0, "dim": 1, "mask": 2}
-        # Canonicalise the intrinsic to resolve the names.
-        node.canonicalise()
+        # Add argument names to the intrinsic.
+        node.compute_argument_names()
         for idx, child in enumerate(node.arguments):
             name = node.argument_names[idx].lower()
             args[arg_names_map[name]] = child

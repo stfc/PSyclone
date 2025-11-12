@@ -70,8 +70,8 @@ IAttr = namedtuple(
 # then `max_count` will be None. If max_count is not None, then arg_names
 # will contain a list of the argument names of the required arguments, in
 # the order defined by the standard. If max_count is None, arg_names will
-# be a tuple containing None to ensure the canonicalisation logic still
-# works.
+# be a tuple containing None to ensure the argument name computation logic
+# still works.
 ArgDesc = namedtuple('ArgDesc', 'min_count max_count types arg_names')
 
 
@@ -3176,7 +3176,7 @@ class IntrinsicCall(Call):
     def _find_matching_interface(self) -> Tuple[str]:
         '''
         Finds the matching required argument interface for this node to
-        canonicalise to.
+        add argument names from.
 
         :raises NotImplementedError: if there is not exactly one argument
                                      interface that matches this
@@ -3236,7 +3236,7 @@ class IntrinsicCall(Call):
                 # potential interface that are not already matched to a
                 # positional argument in this IntrinsicCall. These must
                 # be matched to named arguments in this IntrinsicCall, else
-                # this interface cannot be a candidate for canonicalisation.
+                # this interface cannot be a candidate for argument names.
                 remaining_required = choice[num_positional_arguments:]
                 for name in remaining_required:
                     lname = name.lower()
@@ -3244,12 +3244,12 @@ class IntrinsicCall(Call):
                         potential_interfaces.remove(choice)
                         break
 
-            # If we didn't reduce the number of potential interfacfes to a
-            # single interface then we can't canonicalise.
+            # If we didn't reduce the number of potential interfaces to a
+            # single interface then we can't add argument names.
             if (len(potential_interfaces) > 1 or
                     len(potential_interfaces) == 0):
                 raise NotImplementedError(
-                    f"Cannot canonicalise '{self.intrinsic.name}' "
+                    f"Cannot add argument names to '{self.intrinsic.name}' "
                     f"IntrinsicCall as PSyclone can't determine which "
                     f"argument set it should use. This can be resolved by "
                     f"using named arguments in the Fortran source."
@@ -3262,17 +3262,18 @@ class IntrinsicCall(Call):
             # This intrinsic has no required arguments.
             return ()
 
-    def canonicalise(self):
-        '''Canonicalise an IntrinsicCall in the PSyIR. Upon successful
-        canonicalisation, all arguments will become named arguments.
+    def compute_argument_names(self):
+        '''Computes the argument names that correspond to the arguments
+        of this IntrinsicCall, and add those argument names. If the interface
+        is ambiguous, this function will raise an error.
 
-        A small number of intrinsics (e.g. ALLOCATE) never have ambiguity
-        and no argument limits, in which case no canonicalisation is done.
+        A small number of intrinsics (e.g. ALLOCATE, MAX) never have ambiguity
+        and no argument limits, in which case no argument names are added.
 
         :raises ValueError: If the number of arguments or argument names
             are not valid for this IntrinsicCall.
         :raises NotImplementedError: If there is argument ambiguity and
-            canonicalisation is not possible.
+            computation of argument names is not possible.
         '''
         # First step is to convert all the argument names in the
         # intrinsic call to lower case. This also avoids constant
@@ -3306,23 +3307,23 @@ class IntrinsicCall(Call):
                 if name not in all_valid_names:
                     raise ValueError(
                         f"Found invalid argument name '{name}' when "
-                        f"canonicalising the '{self.intrinsic.name}' "
-                        f"IntrinsicCall. Allowed argument names are "
-                        f"'{sorted(set(all_valid_names))}'."
+                        f"computing argument names for the "
+                        f"'{self.intrinsic.name}' IntrinsicCall. Allowed "
+                        f"argument names are '{sorted(set(all_valid_names))}'."
                     )
 
         # Check that this call has a valid number of arguments
         if len(self.arguments) < self.intrinsic.required_args.min_count:
             raise ValueError(
-                f"Found too few arguments when canonicalising the "
-                f"'{self.intrinsic.name}' IntrinsicCall. Requires at "
+                f"Found too few arguments when computing argument names for "
+                f"the '{self.intrinsic.name}' IntrinsicCall. Requires at "
                 f"least {self.intrinsic.required_args.min_count} "
                 f"arguments but found {len(self.arguments)}."
             )
 
         # If there is no maximum number of required arguments then we
-        # can skip the rest of canonicalisation, as this Intrinsic can never
-        # have ambiguity.
+        # can skip the rest of argument name computation, as this Intrinsic
+        # can never have ambiguity.
         if self.intrinsic.required_args.max_count is None:
             return
 
@@ -3331,12 +3332,12 @@ class IntrinsicCall(Call):
             max_args = (self.intrinsic.required_args.max_count +
                         len(optional_names))
             raise ValueError(
-                f"Found too many arguments when canonicalising the "
-                f"'{self.intrinsic.name}' IntrinsicCall. Requires at most "
-                f"{max_args} arguments but found {len(self.arguments)}."
+                f"Found too many arguments when computing argument names "
+                f"for the '{self.intrinsic.name}' IntrinsicCall. Requires at "
+                f"most {max_args} arguments but found {len(self.arguments)}."
             )
 
-        # Find which intrinsic call interface we are canonicalising with.
+        # Find which intrinsic call interface we matching arguments to.
         interface_arg_names = self._find_matching_interface()
 
         # Handle cases where None or "" is in the interface_arg_names,
@@ -3344,19 +3345,21 @@ class IntrinsicCall(Call):
         # cannot handle.
         if interface_arg_names and not interface_arg_names[0]:
             # If we find any named non-optional named arguments for these
-            # intrinsics then we can't canonicalise this IntrinsicCall.
-            # N.B. With currently supported intrinsic there are no
+            # intrinsics then we can't add argument names to this
+            # IntrinsicCall.
+            # N.B. With currently supported intrinsics there are no
             # optional argument on these context-sensitive intrinsics
             # that have a finite argument count, but we keep the check
             # in case we need the support in future, and it still handles
             # what we currently need to check (i.e. if we have a named
-            # argument here we can't canonicalise it safely).
+            # argument here we can't add argument names to it safely).
             for name in self.argument_names:
                 if not name:
                     continue
                 if name not in optional_names:
                     raise NotImplementedError(
-                        f"Cannot canonicalise '{self.intrinsic.name}' "
+                        f"Cannot add argument names to "
+                        f"'{self.intrinsic.name}' "
                         f"as non-optional argument name '{name}' found "
                         f"but the Intrinsic has context-sensitive argument "
                         f"names which is unsupported by PSyclone."
@@ -3474,11 +3477,11 @@ class IntrinsicCall(Call):
         # the intrinsic enum.
         call._add_args(call, arguments)
 
-        # Error check and canonicalise the call
+        # Error check and add argument names to the call
         try:
-            call.canonicalise()
+            call.compute_argument_names()
         except (ValueError, NotImplementedError):
-            # Since we fail canonicalisation, we need to undo any links
+            # Since we fail adding argument names, we need to undo any links
             # created between nodes and return all inputs to their original
             # state before raising the error to the caller.
             for child in call.children:
