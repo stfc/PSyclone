@@ -501,8 +501,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         :param index: only check the given array index.
 
-        :returns: True if the access to this array index is a range
-            that specifies all index elements. Otherwise returns
+        :returns: True if the access to this array (or specified array
+            dimension) iterates over all elements. Otherwise returns
             False.
 
         '''

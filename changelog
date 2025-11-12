@@ -1,3 +1,9 @@
+   17) PR #3214 for #3188. Improves the validation when doing automatic
+   array privatisation.
+
+   16) PR #3187 for #3184. Improve logging when chasing imports and test
+   inining with the same imported symbol in the caller and the callee.
+
    15) PR #3211 towards #1540. Resolve indirect imports when requested
    by name.
 
