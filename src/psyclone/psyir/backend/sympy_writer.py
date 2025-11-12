@@ -794,7 +794,7 @@ class SymPyWriter(FortranWriter):
                     shape = node.symbol.shape
                 else:
                     # If we don't know the dimension we make it look like a
-                    # function call without argumetns, this will make it not
+                    # function call without arguments, this will make it not
                     # fall over, but still be distinct to any array access to
                     # a particular item
                     shape = []

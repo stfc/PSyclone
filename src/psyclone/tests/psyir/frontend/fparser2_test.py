@@ -1809,7 +1809,7 @@ def test_process_resolving_modules_give_correct_types(
     module = parse_tree.children[0]
 
     # By default this will all be parsed as Calls with unknown
-    # is_lememental/is_pre attributes
+    # is_elemental/is_pure attributes
     processor = Fparser2Reader()
     psyir = processor._module_handler(module, None)
     assigns = psyir.walk(Assignment)

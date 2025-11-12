@@ -96,7 +96,7 @@ def test_handling_part_ref_with_symbol_type():
 
 def test_handling_part_ref_without_symbol_type(fortran_reader):
     '''Test that fparser2 Part_Ref is converted to a Call if the reference
-    symbol if of unknown kind. Unless it is found on a specific location that
+    symbol is of unknown kind unless it is found on a specific location that
     we can infer it can only be an array (these rules are implemented in the
     _refine_symbols_with_usage_location method).
 

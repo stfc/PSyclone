@@ -613,6 +613,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         :raises NotImplementedError: if any of the array-indices involve a
                                      function call or are of unknown type.
+        :raises InternalError: if any index expression has an unexpected type.
         '''
         shape = []
         for idx, idx_expr in enumerate(self.indices):
@@ -648,8 +649,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         f"'{self.debug_string()}' is of '{dtype}' type and "
                         f"therefore whether it is an array slice (i.e. an "
                         f"indirect access) cannot be determined.")
-            # The validate only allows [Range | DataNode] children, so there is
-            # no else condition
+            else:
+                raise InternalError(
+                    f"Found unexpected node of type '{type(idx_expr)}' "
+                    f"as an index expression.")
 
         return shape
 

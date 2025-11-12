@@ -42,7 +42,8 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, ArrayReference, BinaryOperation, Range,
-    Literal, Routine, StructureReference, Assignment, Reference, IntrinsicCall)
+    Literal, Routine, StructureReference, Assignment, Reference, IntrinsicCall,
+    Schedule)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, INTEGER_TYPE,
@@ -774,6 +775,21 @@ def test_struct_get_effective_shape(fortran_reader):
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert isinstance(shape[0], IntrinsicCall)
+
+
+def test_unexpected_type_in_get_effective_shape(monkeypatch):
+    '''Tests for the _get_effective_shape() throws the appropriate
+    error if a node of an unexpected type is found.'''
+
+    monkeypatch.setattr(ArrayMixin, "_validate_child", lambda x, y, z: True)
+    arrayref = ArrayReference.create(
+        DataSymbol("a", UnresolvedType()),
+        indices=[Schedule()]
+    )
+    with pytest.raises(InternalError) as err:
+        arrayref._get_effective_shape()
+    assert ("Found unexpected node of type '<class 'psyclone.psyir.nodes."
+            "schedule.Schedule'>' as an index expression" in str(err.value))
 
 
 # get_outer_range_index
