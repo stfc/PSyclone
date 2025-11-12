@@ -41,8 +41,7 @@ import os
 import sys
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
-    normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
-    NEMO_MODULES_TO_IMPORT)
+    normalise_loops, enhance_tree_information, NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import (
     OMPTargetTrans, OMPDeclareTargetTrans)
@@ -91,7 +90,7 @@ NEMOV5_EXCLUSIONS = [
     "sbcssm.f90",
     "tramle.f90",
     "trazdf.f90",
-    # Fail when enabling seaice
+    # Fail in nvfortran when enabling seaice
     "icefrm.f90",  # Has unsupported implicit symbol declaration
     "icerst.f90"
 ]
@@ -114,33 +113,47 @@ SKIP_FOR_PERFORMANCE = [
     "histcom.f90",
 ]
 
-OFFLOADING_ISSUES = [
-    # Produces different output results
-    "zdftke.f90",
-    # The following issues only affect BENCH (because ice is enabled?)
-    # Runtime Error: Illegal address during kernel execution
-    "trcrad.f90",
-    # nvhpc > 24.11 - Signal 11 issues
-    "trcbbl.f90",
-    "bdyice.f90",
-    "sedfunc.f90",
-    "stpmlf.f90",
-    "trddyn.f90",
-    "trczdf.f90",
-    "trcice_pisces.f90",
-    "dtatsd.f90",
-    "trcatf.f90",
-    "stp2d.f90",
-]
+# These files change the results from the baseline when psyclone adds
+# parallelisation dirctives
+PARALLELISATION_ISSUES = []
+if not NEMOV4:
+    PARALLELISATION_ISSUES.extend([
+        "ldfc1d_c2d.f90",
+        "tramle.f90",
+        "traqsr.f90",
+    ])
 
-if "acc_offloading" in PARALLEL_DIRECTIVES:
-    OFFLOADING_ISSUES = OFFLOADING_ISSUES + [
+# These files change the results from the baseline when psyclone adds
+# offloading dirctives
+OFFLOADING_ISSUES = []
+if not NEMOV4:
+    OFFLOADING_ISSUES.extend([
+        # Produces different output results
+        "zdftke.f90",
+        # The following issues only affect BENCH (because ice is enabled?)
+        # Runtime Error: Illegal address during kernel execution
+        "trcrad.f90",
+        # nvhpc > 24.11 - Signal 11 issues
+        "trcbbl.f90",
+        "bdyice.f90",
+        "sedfunc.f90",
+        "stpmlf.f90",
+        "trddyn.f90",
+        "trczdf.f90",
+        "trcice_pisces.f90",
+        "dtatsd.f90",
+        "trcatf.f90",
+        "stp2d.f90",
+    ])
+
+if not NEMOV4 and "acc_offloading" in PARALLEL_DIRECTIVES:
+    OFFLOADING_ISSUES.extend([
         # Fail in OpenACC ORCA2_ICE_PISCES
         "dynzdf.f90",
         "trabbl.f90",
         "trazdf.f90",
         "zdfsh2.f90",
-    ]
+    ])
 
 ASYNC_ISSUES = [
     # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
@@ -226,7 +239,7 @@ def filter_files_by_name(name: str) -> bool:
 
     # Parallelising this file currently causes a noticeable slowdown
     # if name.startswith("icethd"):
-    if name.startswith("ice"):
+    if not NEMOV4 and name.startswith("ice"):
         return True
     if name.startswith("icb"):
         return True

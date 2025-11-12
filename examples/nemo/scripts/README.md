@@ -62,9 +62,10 @@ wget https://gws-access.jasmin.ac.uk/public/nemo/sette_inputs/r5.0.0/ORCA2_ICE_v
 tar -xzf ORCA2_ICE_v5.0.0.tar.gz
 ```
 
-The examples have been tested with NEMOv4.0.2 and NEMOv5.0, but we aim to support any
-version of NEMO. If you encounter any issue applying these examples please report to
-the authors.
+The examples have been tested with NEMOv4.0.2 (SPLITZ configuration) and
+NEMOv5.0 (BENCH and ORCA_ICE_PISCIES configuration), but we aim to support
+any version of NEMO. If you encounter any issue applying these examples
+please report to the authors.
 
 
 ## Set up environment variables
@@ -127,6 +128,15 @@ unset REPRODUCIBLE
 export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
 export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
 ```
+
+> [!Note]
+> Currently, NEMOv4 and NEMOv5 take different optimisation paths, so it is
+> imporant to also set:
+>
+> ```bash
+> export NEMOv4=1
+> ```
+> when applying the transformations to NEMOv4.
 
 TODO: Mention `ASYNC_PARALLEL`, `ENABLE_INLINING`, `PROFILING`
 

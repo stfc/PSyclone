@@ -190,12 +190,7 @@ jobs:
         export NV_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
         make run-openacc_loops
-        # Check the output is as expected (TODO #2895: improve numerical reproducibility)
-        make output-openacc_loops | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
-        make output-openacc_loops | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
-        make output-openacc_loops | grep -q "|U|_max:  0.458515" || (echo "Error: '|U|_max:  0.458515' not found!" & false)
-        make output-openacc_loops | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
-        make output-openacc_loops | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
+        diff <(make -s output-openacc_loops)  KGOs/run.stat.nemo4.spitz12.nvhpc.10steps
         export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openacc_loops) | head -n 2 | tail -n 1 | awk '{print $1}')
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
       
