@@ -37,9 +37,13 @@
 
 ''' This module contains the implementation of the StructureReference node. '''
 
+from __future__ import annotations
+from typing import Optional, Tuple, Union
+
 from psyclone.core import Signature
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.array_member import ArrayMember
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_member import (
@@ -132,8 +136,13 @@ class StructureReference(Reference, StructureAccessorMixin):
                     overwrite_datatype=overwrite_datatype)
 
     @classmethod
-    def _create(cls, symbol, symbol_type, members, parent=None,
-                overwrite_datatype=None):
+    def _create(cls,
+                symbol: DataSymbol,
+                symbol_type: DataTypeSymbol,
+                members: list[Union[str, Tuple[str, list[Node]]]],
+                parent: Optional[Node] = None,
+                overwrite_datatype: Optional[DataType] = None,
+                ) -> StructureReference:
         # pylint: disable=too-many-arguments
         '''
         Create an instance of `cls` given a symbol, a type and a
@@ -145,41 +154,44 @@ class StructureReference(Reference, StructureAccessorMixin):
         type as a separate argument.
 
         :param symbol: the symbol that this reference is to.
-        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param symbol_type: the type of the symbol being referenced.
-        :type symbol_type: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-        :param members: the component(s) of the structure that are being \
-            accessed. Any components that are array references must \
-            provide the name of the array and a list of DataNodes describing \
+        :param members: the component(s) of the structure that are being
+            accessed. Any components that are array references must
+            provide the name of the array and a list of DataNodes describing
             which part of it is accessed.
-        :type members: list of str or 2-tuples containing (str, \
-            list of nodes describing array access)
         :param parent: the parent of this node in the PSyIR.
-        :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-        :param overwrite_datatype: the datatype for the reference, which will \
-            overwrite the value determined by analysing the corresponding \
-            user defined type. This is useful when e.g. the module that \
+        :param overwrite_datatype: the datatype for the reference, which will
+            overwrite the value determined by analysing the corresponding
+            user defined type. This is useful when e.g. the module that
             declares the structure cannot be accessed.
-        :type overwrite_datatype: \
-            Optional[:py:class:`psyclone.psyir.symbols.DataType`]
 
         :returns: a StructureReference instance.
-        :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
 
-        :raises TypeError: if the arguments to the create method are not of \
+        :raises TypeError: if the arguments to the create method are not of
             the expected type.
-        :raises ValueError: if no members are provided (since this would then \
+        :raises ValueError: if no members are provided (since this would then
             be a Reference as opposed to a StructureReference).
-        :raises NotImplementedError: if any of the structures being referenced\
+        :raises NotImplementedError: if any of the structures being referenced
             do not have full type information available.
 
         '''
         if not isinstance(symbol_type, (StructureType, DataTypeSymbol,
-                                        UnresolvedType, UnsupportedType)):
+                                        UnresolvedType, UnsupportedType,
+                                        ArrayType)):
             raise TypeError(
                 f"A StructureReference must refer to a symbol that is (or "
                 f"could be) a structure, however symbol '{symbol.name}' has "
                 f"type '{symbol_type}'.")
+        if isinstance(symbol_type, ArrayType):
+            if not isinstance(
+                    symbol_type.intrinsic,
+                    (StructureType, DataTypeSymbol,
+                     UnresolvedType, UnsupportedType)):
+                raise TypeError(
+                    f"A StructureReference to an array must refer to a "
+                    f"symbol of ArrayType with an intrinsic type that is "
+                    f"(or could be) a structure. However, the intrinsic type "
+                    f"of array '{symbol.name}' is {symbol_type.intrinsic}")
         if not isinstance(members, list):
             raise TypeError(
                 f"The 'members' argument to StructureReference._create() "

@@ -58,7 +58,7 @@ env:
   NETCDF_FORTRAN_VERSION: 4.6
   NVFORTRAN_VERSION: 25.7
   OPENMPI_VERSION: 5.0
-  PYTHON_VERSION: 3.13
+  PYTHON_VERSION: 3.14
   NUM_PARALLEL: 16
 
 jobs:
@@ -153,3 +153,8 @@ jobs:
         cd examples/nemo/eg1
         psyclone -s ./openmp_cpu_levels_trans.py --log-level DEBUG --log-file log.out ../code/tra_adv.F90
         test -f log.out
+    - name: Test reasonable psycloning times for complex files
+      run: |
+        . .runner_venv/bin/activate
+        # Fail if it takes more than 15s
+        timeout -s INT 15s psyclone /archive/psyclone-tests/latest-run/slow_files/ukca_aero_ctl.F90

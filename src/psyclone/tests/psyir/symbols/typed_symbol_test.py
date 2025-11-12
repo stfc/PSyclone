@@ -40,7 +40,6 @@
 
 import pytest
 
-from psyclone.core import Signature
 from psyclone.psyir.symbols import (
     AutomaticInterface, ArrayType, TypedSymbol, ContainerSymbol, DataSymbol,
     ImportInterface, UnresolvedInterface, ScalarType,
@@ -299,22 +298,23 @@ def test_typed_symbol_replace_symbols_using(table):
     assert sym2.datatype is new_tsym
 
 
-def test_typed_symbol_reference_accesses():
+def test_typed_symbol_get_all_accessed_symbols():
     '''
-    Test the reference_accesses() method of TypedSymbol.
+    Test the get_all_accessed_symbols() method of TypedSymbol.
     '''
     # When the type has a custom precision.
     kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
     real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind))
     sym = TSymbol("a", real_kind_type)
-    vam = sym.reference_accesses()
-    assert vam.all_signatures == [Signature("r_def")]
+    dependent_symbols = sym.get_all_accessed_symbols()
+    assert kind in dependent_symbols
+
     # When the type is specified by a DataTypeSymbol.
     type_sym = DataTypeSymbol("some_type", UnresolvedType())
     struc_sym = TSymbol("b", type_sym)
-    vai2 = struc_sym.reference_accesses()
-    assert vai2.all_signatures == [Signature("some_type")]
+    dependent_symbols = struc_sym.get_all_accessed_symbols()
+    assert type_sym in dependent_symbols
+
     # Dependencies are ignored for imported symbols.
     struc_sym.interface = ImportInterface(ContainerSymbol("somewhere"))
-    vai3 = struc_sym.reference_accesses()
-    assert not vai3.all_signatures
+    assert not struc_sym.get_all_accessed_symbols()

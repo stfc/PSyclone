@@ -124,7 +124,7 @@ def test_access_info_is_any_read_or_write():
     access_info = AccessInfo(AccessType.INQUIRY, Node())
     assert not access_info.is_any_read()
     assert not access_info.is_any_write()
-    access_info = AccessInfo(AccessType.TYPE_INFO, Node())
+    access_info = AccessInfo(AccessType.CONSTANT, Node())
     assert not access_info.is_any_read()
     assert not access_info.is_any_write()
 
