@@ -173,25 +173,39 @@ jobs:
     - name: NEMO MetOffice OpenACC loops for GPU
       id: nemo_acc_loops
       run: |
+        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%nvhpc
         . .runner_venv/bin/activate
+
+        # Set up envvars
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PROFILE_HOME=${GITHUB_WORKSPACE}/lib/profiling/nvidia/
         export NEMO_DIR=${PREFIX}/UKMO-NEMOv4
-        cd $PSYCLONE_NEMO_DIR
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
-        module load perl/${PERL_VERSION}
-        make clean
+        export TEST_DIR=SPITZ12_ACC_LOOPS_NVHPC
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
         export PARALLEL_DIRECTIVES="acc_offloading"
         export REPRODUCIBLE=1
-        export NEMOV4=1
-        make -j ${NUM_PARALLEL} openacc_loops
-        COMPILER_ARCH=linux_nvidia_acc_gpu make -j ${NUM_PARALLEL} compile-openacc_loops
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py -I ${MPI_HOME}/include"
+        export FCFLAGS="-i4 -Mr8 -O2 -Mnovect -Mnofma -g -acc -mp=gpu -gpu=mem:managed,math_uniform"
+        export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
+
+        # Compile
+        cd ${PREFIX}/ECMWF-NEMOv4
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        rm -rf cfgs/${TEST_DIR}
+        ./makenemo -r SPITZ12 -m linux_spack -n ${TEST_DIR} \
+          add_key "IEEE_IS_NAN=ieee_is_nan key_nosignedzero" \
+          del_key "key_iomput key_mpp_mpi key_si3" -j ${NUM_PARALLEL}
+
+        # Run test
         export NV_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
-        make run-openacc_loops
-        diff <(make -s output-openacc_loops)  KGOs/run.stat.nemo4.spitz12.nvhpc.10steps
-        export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openacc_loops) | head -n 2 | tail -n 1 | awk '{print $1}')
+        cd cfgs/${TEST_DIR}/EXP00/
+        ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA1_GO8_NEMOv4/*.nc .
+        ./nemo
+        diff run.stat $PSYCLONE_NEMO_DIR/KGOs/run.stat.nemo4.spitz12.nvhpc.10steps
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" timing.output | head -n 2 | tail -n 1 | awk '{print $1}')
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
       
     # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs. This uses
@@ -205,6 +219,7 @@ jobs:
         source .runner_venv/bin/activate
 
         # Set up envvars
+        export TEST_DIR=SPITZ12_ACC_LOOPS_NVHPC
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
@@ -215,12 +230,14 @@ jobs:
 
         # Compile
         cd ${PREFIX}/ECMWF-NEMOv4
-        ./makenemo -r SPITZ12 -m linux_spack -n SPITZ12_psyclone \
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        rm -rf cfgs/${TEST_DIR}
+        ./makenemo -r SPITZ12 -m linux_spack -n ${TEST_DIR} \
           add_key "IEEE_IS_NAN=ieee_is_nan key_nosignedzero" \
           del_key "key_iomput" -j ${NUM_PARALLEL}
         
         # Run NEMO
-        cd cfgs/SPITZ12_psyclone/EXP00/
+        cd cfgs/${TEST_DIR}/EXP00/
         ln -sf /archive/psyclone-tests/nemo-inputs/ECMWF-eORCA1_GO8/* .
         export OMP_NUM_THREADS=12
         ./nemo

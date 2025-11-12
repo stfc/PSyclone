@@ -169,15 +169,15 @@ OMP_NUM_THREADS=4 CUDA_VISIBLE_DEVICES=1,2 mpirun -n 2 ./nemo
 ## Identifying the cause of issues
 
 A difficulty of working with code-transformation scripts is that it is possible
-to incorrect transform a file semantics while still creating valid Fortran.
+to incorrectly transform a file semantics while still creating valid Fortran.
 This means that the transformation will succeed and the generated code will
 compile, but the results will diverge. This gets more complicated with parallel
 programming because certain operations like reductions or atomics are not
 always reproducible. For NEMO we typically compare the generated `run.stat` field
 values. To do that we recommend:
 
-- Starting building NEMO without `psyclonefc` and conservative optimisation flags
-  and ru it serially. Then store the generated `run.stat`.
+- Starting building NEMO *without* `psyclonefc` and conservative optimisation flags
+  and run it serially. Then store the generated `run.stat`.
 - Then switch to using `psyclonefc` with the `PSYCLONE_OTPS="-s passthrough.py"`,
   this will make all files pass through psyclone but without applying any
   transformations. Check if the results still match.
