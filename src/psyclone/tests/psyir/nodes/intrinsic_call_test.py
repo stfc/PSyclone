@@ -629,8 +629,8 @@ def test_intrinsic_compute_argument_names_not_implemented_errors():
     Test the compute_argument_names function of the IntrinsicCall class raises
     NotImplementedErrors for Intrinsic structures PSyclone can't handle.
     '''
-    # Test computing argument names doesn't work when we have 2 arguments for SUM
-    # with no naming, as it can't determine between the SUM variants.
+    # Test computing argument names doesn't work when we have 2 arguments for
+    # SUM with no naming, as it can't determine between the SUM variants.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
