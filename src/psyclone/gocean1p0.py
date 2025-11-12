@@ -1371,7 +1371,7 @@ class GOKernelArgument(KernelArgument):
                 "internal", datatype=region_type, visibility=public)
             r2d_field_type.add(
                 "whole", datatype=region_type, visibility=public)
-            # r2d_field can have UnresolvedType and UnresolvedInterface because
+            # r2d_field can have UnresolvedInterface because
             # it is an unnamed import from a module.
             type_symbol = symtab.find_or_create_tag(
                 "r2d_field", symbol_type=DataTypeSymbol,

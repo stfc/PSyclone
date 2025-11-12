@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import Call, CodeBlock, Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import OMPParallelTrans, \
     OMPSingleTrans
-from psyclone.psyir.transformations import InlineTrans, OMPTaskTrans
+from psyclone.psyir.transformations import OMPTaskTrans
 from psyclone.tests.utilities import get_invoke
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -145,7 +145,7 @@ end subroutine sub
     assert out == correct
 
 
-def test_omptask_apply_kern(fortran_reader, fortran_writer):
+def test_omptask_apply_kern(fortran_reader):
     '''
     Check that the OMPTaskTrans apply method correctly kernel module inlines
     and inlines a called routine.
@@ -187,36 +187,17 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     assert len(my_test.walk(Call, Kern)) == 0
 
 
-def test_omptask_inline_kernels(monkeypatch):
+def test_omptask_inline_kernels():
     '''Test the _inline_kernels functionality up to inlining of Call nodes.'''
     _, invoke = get_invoke("single_invoke.f90", "gocean",
                            dist_mem=False, idx=0)
     taskt = OMPTaskTrans()
     schedule = invoke.schedule
 
-    # Currently the InlineTrans validation will reject the GOcean kernel call
-    # because it can't determine the type of `fld%data` being passed in.
-    with pytest.raises(TransformationError) as err:
-        taskt._inline_kernels(schedule.children[0])
-
-    assert (
-        "CallMatchingArgumentsNotFound: Argument type mismatch of call"
-        " argument 'cu_fld%data' (UnresolvedType) and routine argument 'cu' "
-        "(Array" in str(err.value)
-    )
-    # If we monkeypatch the validate(), get_callee() and
-    # _check_argument_type_matches methods then it should succeed.
-    monkeypatch.setattr(InlineTrans, "validate",
-                        lambda _1, _2, routine,
-                        use_first_callee_and_no_arg_check,
-                        permit_codeblocks, permit_unsupported_type_args: None)
-    call = schedule.children[0].loop_body[0].loop_body[0]
-    callee = call.get_callees()[0]
-    monkeypatch.setattr(call, "get_callee",
-                        lambda use_first_callee_and_no_arg_check: (callee, []))
-    monkeypatch.setattr(call, "_check_argument_type_matches",
-                        lambda call_arg, routine_arg: None)
+    # Make sure we indeed have a kernel before inlining:
+    assert schedule.walk(Kern)
     taskt._inline_kernels(schedule.children[0])
+    # And the kernel must be gone now.
     assert not schedule.walk(Kern)
 
 
