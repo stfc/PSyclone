@@ -191,7 +191,7 @@ jobs:
         export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
 
         # Compile
-        cd ${PREFIX}/ECMWF-NEMOv4
+        cd ${PREFIX}/UKMO-NEMOv4
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         rm -rf cfgs/${TEST_DIR}
         ./makenemo -r SPITZ12 -m linux_spack -n ${TEST_DIR} \
