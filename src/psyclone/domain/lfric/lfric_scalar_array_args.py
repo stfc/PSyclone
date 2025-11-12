@@ -181,7 +181,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
             print(self._real_scalar_arrays[intent])
             print(self._integer_scalar_arrays[intent])
             print(self._logical_scalar_arrays[intent])
-        
+
         print(self._scalar_array_args)
 
         # Create declarations
@@ -198,12 +198,10 @@ class LFRicScalarArrayArgs(LFRicCollection):
         # print(self.symtab.tags_dict)
         # Real ScalarArray arguments
 
-
         # It seems that the symbols are not being added in the stub
         # declaration phase in the same way as they are in the invoke
         # declaration. LFRicCollections seems to initialise differently
         # for these two - could be to do with it.
-
 
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalar_arrays[intent]:
