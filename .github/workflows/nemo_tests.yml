@@ -186,7 +186,7 @@ jobs:
         export MPIF90=psyclonefc
         export PARALLEL_DIRECTIVES="acc_offloading"
         export REPRODUCIBLE=1
-        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py -I ${MPI_HOME}/include"
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
         export FCFLAGS="-i4 -Mr8 -O2 -Mnovect -Mnofma -g -acc -mp=gpu -gpu=mem:managed,math_uniform"
         export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
 
