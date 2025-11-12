@@ -285,8 +285,8 @@ def test_variable_access_sequence_update() -> None:
     with pytest.raises(ValueError) as err:
         access_seq1.update(access_seq3)
 
-    assert ("Updating AccessSequence for 'var_name' with data for "
-            "'other_name'." == str(err.value))
+    assert ("Cannot update the AccessSequence for 'var_name' using data for "
+            "a different access ('other_name')." == str(err.value))
 
 
 def test_variable_access_sequence_has_indices(

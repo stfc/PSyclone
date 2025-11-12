@@ -592,7 +592,7 @@ def test_extract_ignore_wrong_vars(fortran_reader: FortranReader,
     # First remove b as read variable,
     # which should not log a warning:
     # -------------------------------
-    monkeypatch.setattr(ExtractNode, "get_removable_variables",
+    monkeypatch.setattr(ExtractNode, "get_ignored_variables",
                         lambda self: [("", Signature("b"))])
     with caplog.at_level(logging.WARNING):
         code = fortran_writer(psyir)
@@ -602,7 +602,7 @@ def test_extract_ignore_wrong_vars(fortran_reader: FortranReader,
     # Then remove a as written variable,
     # which should not log a warning:
     # ----------------------------------
-    monkeypatch.setattr(ExtractNode, "get_removable_variables",
+    monkeypatch.setattr(ExtractNode, "get_ignored_variables",
                         lambda self: [("", Signature("a"))])
     with caplog.at_level(logging.WARNING):
         code = fortran_writer(psyir)
@@ -612,7 +612,7 @@ def test_extract_ignore_wrong_vars(fortran_reader: FortranReader,
     # Now try to remove non-existing variable,
     # which must log a warning:
     # ----------------------------------------
-    monkeypatch.setattr(ExtractNode, "get_removable_variables",
+    monkeypatch.setattr(ExtractNode, "get_ignored_variables",
                         lambda self: [("", "xx")])
     with caplog.at_level(logging.WARNING):
         code = fortran_writer(psyir)

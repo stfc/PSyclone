@@ -294,10 +294,10 @@ class AccessSequence(list):
         return False
 
     @property
-    def all_read_accesses(self) -> list[str]:
-        ''':returns: a list with all AccessInfo data for this variable
+    def all_read_accesses(self) -> list[AccessInfo]:
+        '''
+        :returns: a list with all AccessInfo data for this variable
             that involve reading this variable.
-        :rtype: List[:py:class:`psyclone.core.AccessInfo`]
         '''
         return [access for access in self
                 if access.access_type in AccessType.all_read_accesses()]
@@ -336,8 +336,9 @@ class AccessSequence(list):
             a different signature.
         '''
         if self._signature != access_seq.signature:
-            raise ValueError(f"Updating AccessSequence for '{self.signature}' "
-                             f"with data for '{access_seq.signature}'.")
+            raise ValueError(f"Cannot update the AccessSequence for "
+                             f"'{self.signature}' using data for a different "
+                             f"access ('{access_seq.signature}').")
         for access_info in access_seq:
             self.add_access(access_info.access_type, access_info.node,
                             access_info.component_indices)

@@ -49,7 +49,7 @@ wrapping up settings for generating driver for the extracted code, will
 be added in Issue #298.
 '''
 
-from typing import cast, List, Tuple, TYPE_CHECKING, Union
+from typing import cast, List, Tuple, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.core import AccessSequence, Signature
@@ -171,7 +171,7 @@ class ExtractNode(PSyDataNode):
         '''
         return self._post_name
 
-    def get_removable_variables(self) -> list[tuple[str, Signature]]:
+    def get_ignored_variables(self) -> list[tuple[str, Signature]]:
         '''
         This function is used to create a list of variables that
         should not be written to a kernel data file (or read in the
@@ -179,7 +179,7 @@ class ExtractNode(PSyDataNode):
         variables (as long as the variables are only used in loops).
         The main reason for this is that using OpenMP parallelism
         means that loop variables are undefined when exiting the
-        loop, so comparing then results in errors.
+        loop, so comparing them results in errors.
 
         Detect all loop variables that do not need to be added to
         a kernel data file. This function tests that a loop variable
@@ -202,14 +202,16 @@ class ExtractNode(PSyDataNode):
         # First collect all accesses to loop variables from all loops
         # into a dictionary. We update the accesses if a loop variable
         # is used in more than one loop
-        all_loops: dict[Signature, AccessSequence] = {}
+        all_loop_var_accesses: dict[Signature, AccessSequence] = {}
         for loop in self.walk(Loop):
             loop_var_sig = Signature(loop.variable.name)
             accesses_in_loop = loop.reference_accesses()
-            if loop_var_sig in all_loops:
-                all_loops[loop_var_sig].update(accesses_in_loop[loop_var_sig])
+            if loop_var_sig in all_loop_var_accesses:
+                all_loop_var_accesses[loop_var_sig].update(
+                    accesses_in_loop[loop_var_sig])
             else:
-                all_loops[loop_var_sig] = accesses_in_loop[loop_var_sig]
+                all_loop_var_accesses[loop_var_sig] = (
+                    accesses_in_loop[loop_var_sig])
 
         # Now check all loop variables, and if all accesses to this variable
         # are from loops only (i.e. the final value of the loop variable is
@@ -218,7 +220,7 @@ class ExtractNode(PSyDataNode):
         # discarded (e.g. a loop variable might be declared as omp private).
         # We do this by counting how many directive nodes are in the list, and
         # then subtracting this number from all accesses:
-        for var_sig, accesses in all_loops.items():
+        for var_sig, accesses in all_loop_var_accesses.items():
             directive_count = 0
             for access in all_accesses[var_sig]:
                 statement = access.node.ancestor(Statement, include_self=True)
@@ -257,7 +259,7 @@ class ExtractNode(PSyDataNode):
         ctu = CallTreeUtils()
         read_write_info = ctu.get_in_out_parameters(
             self, include_non_data_accesses=False)
-        removable_vars = self.get_removable_variables()
+        vars_to_ignore = self.get_ignored_variables()
 
         # Use the copy of the dsl_tree to get the external symbols
         ctu.get_non_local_read_write_info(copy_dsl_tree.children,
@@ -286,9 +288,11 @@ class ExtractNode(PSyDataNode):
                                               postfix=postfix,
                                               prefix=prefix,
                                               region_name=region_name_tuple,
-                                              removable_vars=removable_vars)
+                                              vars_to_ignore=vars_to_ignore)
 
-        for var_info in removable_vars:
+        # Remove the variables to be ignored from the read_write_info object,
+        # so they will not be extracted.
+        for var_info in vars_to_ignore:
             read_write_info.remove(signature=var_info[1],
                                    container_name=var_info[0])
 
@@ -321,7 +325,7 @@ class ExtractNode(PSyDataNode):
             generating a name clash.
 
         '''
-        suffix: Union[str, int] = ""
+        suffix = ""
         # Create the a set of all input and output variables (to avoid
         # checking input+output variables more than once)
         all_vars = read_write_info.all_used_vars_list
