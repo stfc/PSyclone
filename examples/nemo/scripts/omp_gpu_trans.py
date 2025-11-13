@@ -41,7 +41,7 @@ import os
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
     normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
-    NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
+    NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.transformations import (
     OMPTargetTrans, OMPDeclareTargetTrans)
@@ -75,8 +75,7 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = [
-    "vremap.f90",  # TODO #2772
-    "icefrm.f90",  # Has unsupportet implicit symbol declaration
+    "icefrm.f90",  # Has an unsupported implicit symbol declaration
 ]
 
 NEMOV5_EXCLUSIONS = []
@@ -236,7 +235,7 @@ def trans(psyir):
                     region_directive_trans=omp_target_trans,
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
+                    privatise_arrays=True,
                     asynchronous_parallelism=ASYNC_PARALLEL,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     enable_reductions=not REPRODUCIBLE
@@ -252,7 +251,7 @@ def trans(psyir):
             insert_explicit_loop_parallelism(
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES),
+                    privatise_arrays=True,
                     asynchronous_parallelism=ASYNC_PARALLEL
             )
 
