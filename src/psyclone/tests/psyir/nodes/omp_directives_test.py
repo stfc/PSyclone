@@ -717,6 +717,14 @@ def test_infer_sharing_attributes_with_codeblocks(
     output = fortran_writer(psyir)
     assert "firstprivate(scalar1,scalar2)" in output
 
+    # Add many more Codeblocks. For performance reasons this will skip the
+    # analysis, but still return them all as firstprivate
+    cb = loop.walk(nodes.CodeBlock)[0]
+    for _ in range(10):
+        cb.parent.addchild(cb.copy())
+    output = fortran_writer(psyir)
+    assert "firstprivate(scalar1,scalar2)" in output
+
 
 def test_infer_sharing_attributes(fortran_reader):
     ''' Tests for the infer_sharing_attributes() method of OpenMP directives

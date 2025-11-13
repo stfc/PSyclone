@@ -39,7 +39,7 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
-from typing import Optional, Set
+from typing import Optional
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 # We cannot import from 'nodes' directly due to circular import
@@ -193,6 +193,14 @@ class Reference(DataNode):
         '''
         return (Signature(self.name), [[]])
 
+    def get_all_accessed_symbols(self) -> set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this Reference.
+        '''
+        symbols = super().get_all_accessed_symbols()
+        symbols.add(self.symbol)
+        return symbols
+
     def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
@@ -250,7 +258,7 @@ class Reference(DataNode):
         return chain.find_forward_accesses()
 
     def escapes_scope(
-            self, scope: Node, visited_nodes: Optional[Set] = None
+            self, scope: Node, visited_nodes: Optional[set] = None
     ) -> bool:
         '''
         Whether the symbol lifetime continues after the given scope. For
@@ -292,6 +300,13 @@ class Reference(DataNode):
 
         # Check if this instance is in the provided scope
         if not self.is_descendant_of(scope):
+            # If the next_access is an array access that does not cover all
+            # elements of the array, therefore, it has escaped the scope
+            # because  some array elements will still have the scope values.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes.array_mixin import ArrayMixin
+            if isinstance(self, ArrayMixin):
+                return not self.is_full_range()
             # If following the recursive calls through next_accesses()
             # it reaches a point outside the scope, return True (
             # it has escaped the scope), unless this is a write-only
@@ -312,7 +327,7 @@ class Reference(DataNode):
         return False
 
     def enters_scope(
-            self, scope: Node, visited_nodes: Optional[Set] = None
+            self, scope: Node, visited_nodes: Optional[set] = None
     ) -> bool:
         '''
         Whether the symbol lifetime starts before the given scope. For

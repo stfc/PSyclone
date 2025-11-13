@@ -1,3 +1,31 @@
+   1) PR #3218 for #2705. Adds explicit type information for the r2d_field
+   type in GOcean so that kernel inlining succeeds.
+
+Release 3.2.1 12th of November 2025
+
+   17) PR #3214 for #3188. Improves the validation when doing automatic
+   array privatisation.
+
+   16) PR #3187 for #3184. Improve logging when chasing imports and test
+   inining with the same imported symbol in the caller and the callee.
+
+   15) PR #3211 towards #1540. Resolve indirect imports when requested
+   by name.
+
+   14) PR #3194 towards #3183. Adds a new get_all_accessed_symbols
+   method to Node to reduce the cost of certain transformations.
+
+   13) PR #3204 towards #3203. Fix make calls using netcdf target.
+
+   12) PR #3182 for #2772. Add support for creating StructureReferences
+   with symbols of array datatype (representing a whole array access).
+
+   11) PR #3201 for #3200. Fix for comparing datatypes with equivalent
+   interfaces.
+
+   10) PR #3191 for #3189. Ensures that Fortran '==' is converted into
+   Sympy Eq(...).
+
    9) PR #2944 for #2909. Add OWNED_DOF and OWNED_CELL_COLUMN values in the
    operates_on LFRic metadata.
 

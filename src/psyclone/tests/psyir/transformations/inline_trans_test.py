@@ -40,18 +40,19 @@
 import os
 import pytest
 
-from psyclone.psyir.nodes.node import Node
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import InternalError
+from psyclone.psyGen import Kern
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    Assignment, Call, CodeBlock, IntrinsicCall, Loop, Reference, Routine,
-    Statement)
+    Assignment, Call, CodeBlock, IntrinsicCall, Loop, Node, Reference,
+    Routine, Statement)
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType)
 from psyclone.psyir.transformations import (
     InlineTrans, TransformationError)
-from psyclone.tests.utilities import Compile
+from psyclone.tests.utilities import Compile, get_invoke
 
 MY_TYPE = ("  integer, parameter :: ngrids = 10\n"
            "  type other_type\n"
@@ -201,65 +202,33 @@ def test_apply_array_access(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
-def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
+def test_apply_gocean_kern(fortran_writer: FortranWriter) -> None:
     '''
     Test the apply method with a typical GOcean kernel.
-
-    TODO #924 - currently this xfails because we don't resolve the type of
-    the actual argument.
-
     '''
-    code = (
-        "module psy_single_invoke_test\n"
-        "  use field_mod, only: r2d_field\n"
-        "  use kind_params_mod\n"
-        "  implicit none\n"
-        "  contains\n"
-        "  subroutine invoke_0_compute_cu(cu_fld, pf, u_fld)\n"
-        "    type(r2d_field), intent(inout) :: cu_fld, pf, u_fld\n"
-        "    integer j, i\n"
-        "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
-        "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
-        "        call compute_cu_code(i, j, cu_fld%data, pf%data, "
-        "u_fld%data)\n"
-        "      end do\n"
-        "    end do\n"
-        "  end subroutine invoke_0_compute_cu\n"
-        "  subroutine compute_cu_code(i, j, cu, p, u)\n"
-        "    implicit none\n"
-        "    integer,  intent(in) :: i, j\n"
-        "    real(go_wp), intent(out), dimension(:,:) :: cu\n"
-        "    real(go_wp), intent(in),  dimension(:,:) :: p, u\n"
-        "    cu(i,j) = 0.5d0*(p(i,j)+p(i-1,j))*u(i,j)\n"
-        "  end subroutine compute_cu_code\n"
-        "end module psy_single_invoke_test\n"
-    )
-    # Set up include_path to import the proper module
-    src_dir = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "../../../../../external/dl_esm_inf/finite_difference/src")
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(src_dir)])
-    monkeypatch.setattr(fortran_reader._processor, "_modules_to_resolve",
-                        ["kind_params_mod"])
-    psyir = fortran_reader.psyir_from_source(code)
+    _, invoke = get_invoke("single_invoke.f90", "gocean",
+                           dist_mem=False, idx=0)
+
+    kmit = KernelModuleInlineTrans()
     inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(
-            psyir.walk(Call)[0],
-            use_first_callee_and_no_arg_check=True
-        )
-    if ("actual argument 'cu_fld%data' corresponding to an array formal "
-            "argument ('cu') is unknown" in str(err.value)):
-        pytest.xfail(
-            "TODO #924 - extend validation to attempt to resolve type of "
-            "actual argument.")
-    output = fortran_writer(psyir)
-    assert ("    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
-            "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
-            "        cu_fld%data(i,j) = 0.5d0 * (pf%data(i,j) + "
-            "pf%data(i - 1,j)) * u_fld%data(i,j)\n"
-            "      enddo\n"
-            "    enddo\n" in output)
+
+    # First module inline all kernels, and lower them (i.e.
+    # replace invokes with calls)
+    for kern in invoke.schedule.walk(Kern):
+        kmit.apply(kern)
+        kern.lower_to_language_level()
+    # Then inline the calls
+    for call in invoke.schedule.walk(Call):
+        inline_trans.apply(call)
+
+    output = fortran_writer(invoke.schedule)
+    expected = ("  do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+                "    do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
+                "      cu_fld%data(i,j) = 0.5d0 * (p_fld%data(i + 1,j) + "
+                "p_fld%data(i,j)) * u_fld%data(i,j)\n"
+                "    enddo\n"
+                "  enddo")
+    assert expected in output
 
 
 def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
