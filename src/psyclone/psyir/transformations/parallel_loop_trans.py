@@ -279,9 +279,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     if not call.is_pure]
         if not_pure:
             message = (
-                f"Loop cannot be parallelised because it cannot "
-                f"guarantee that the following calls are pure: "
-                f"{sorted(set(not_pure))}")
+                f"Loop cannot be parallelised because psyclone cannot "
+                f"guarantee that the accesses to {sorted(set(not_pure))} are "
+                f"arrays or pure calls. If they are but the symbol is "
+                f"imported, try adding the module in RESOLVE_IMPORTS.")
             if verbose:
                 node.append_preceding_comment(message)
             raise TransformationError(message)

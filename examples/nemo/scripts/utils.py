@@ -40,8 +40,8 @@ from typing import List, Union
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Assignment, Loop, Directive, Node, Reference, CodeBlock,
-    Call, Return, IfBlock, Routine, Schedule, IntrinsicCall)
+    Assignment, Loop, Directive, Node, Reference, CodeBlock, Call, Return,
+    IfBlock, Routine, Schedule, IntrinsicCall, StructureReference)
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
@@ -235,6 +235,8 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
+            if assignment.walk(StructureReference):
+                continue  # TODO #2951 Fix issues with structure_refs
             try:
                 explicit_loops.apply(
                     assignment, options={'verbose': True})
@@ -368,9 +370,10 @@ def insert_explicit_loop_parallelism(
 
     '''
     nemo_v4 = os.environ.get('NEMOV4', False)
-    # These are both in "dynspg_ts.f90" and has a big performance impact
+    # TODO #2937: These are both in "dynspg_ts.f90", they have a WaW dependency
+    # but we currenlty ignore these.
     if schedule.name in ("ts_wgt", "ts_rst"):
-        return  # TODO #2937 WaW dependency incorrectly considered private
+        return
     # Add the parallel directives in each loop
     for loop in schedule.walk(Loop):
         if loop.ancestor(Directive):

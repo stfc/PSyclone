@@ -58,10 +58,20 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # array privatisation is disabled.
 NEMOV4 = os.environ.get('NEMOV4', False)
 
-CPU_REDUCTIONS = os.environ.get('CPU_REDUCTIONS', False)
+# By default, allow optimisations that may change the results, e.g. reductions
+REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = []
+if not NEMOV4:
+    # TODO #3112: These produce diverging run.stat results in gcc NEMOv5 BENCH
+    FILES_TO_SKIP = [
+        "dynhpg.f90",
+        "dynspg_ts.f90",
+        "sbcssm.f90",
+        "tramle.f90",
+        "trazdf.f90",
+    ]
 
 if PROFILING_ENABLED:
     # Fails with profiling enabled. issue #2723
@@ -80,6 +90,14 @@ def trans(psyir):
     # nothing else. This is useful for file-by-file exhaustive tests.
     only_do_file = os.environ.get('ONLY_FILE', False)
     if only_do_file and psyir.name != only_do_file:
+        return
+
+    # Parallelising this file currently causes a noticeable slowdown
+    if psyir.name.startswith("icethd"):
+        return
+
+    # This file fails for gcc NEMOv5 BENCH
+    if not NEMOV4 and psyir.name == "icedyn_rhg_evp.f90":
         return
 
     omp_parallel_trans = None
@@ -109,7 +127,6 @@ def trans(psyir):
                     region_directive_trans=omp_parallel_trans,
                     loop_directive_trans=omp_loop_trans,
                     collapse=False,
-                    privatise_arrays=(not NEMOV4 and
-                                      psyir.name not in PRIVATISATION_ISSUES),
-                    enable_reductions=CPU_REDUCTIONS,
+                    privatise_arrays=not NEMOV4,
+                    enable_reductions=not REPRODUCIBLE,
             )
