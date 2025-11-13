@@ -39,18 +39,24 @@ function via the -s option. It module inlines all kernels.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.gocean1p0 import GOKern
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import FileContainer
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
-    Take the supplied psy object, and inline all kernels.
+    Take the supplied psyir object, and module inline all kernels
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
 
     '''
     # TODO: Create an instance of the inline transformation
+
+    km_inline = ...
+    for sched in psyir.walk(InvokeSchedule):
+        print("invoke", sched.name)
+        for kern in sched.kernels():
+            print("  kern", kern.name)
 
     # TODO: Look at the schedule representation, i.e. print
     # psyir.view()

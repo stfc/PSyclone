@@ -39,17 +39,17 @@ function via the -s option. It module inlines all kernels.
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import FileContainer
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
-    Take the supplied psyir object, and inline all kernels
+    Take the supplied psyir object, and module inline all kernels
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    inline = KernelModuleInlineTrans()
+    km_inline = KernelModuleInlineTrans()
 
     for sched in psyir.walk(InvokeSchedule):
         print("invoke", sched.name)
@@ -63,4 +63,4 @@ def trans(psyir):
 
     for kern in psyir.kernels():
         # Inline all kernels to help gfortran with inlining.
-        inline.apply(kern)
+        km_inline.apply(kern)

@@ -41,9 +41,10 @@ all invokes.
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import FileContainer
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
     Take the supplied psyir object, and fuse the first two loops
 
@@ -51,18 +52,18 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    inline = KernelModuleInlineTrans()
+    fuse = GOceanLoopFuseTrans()
+    km_inline = KernelModuleInlineTrans()
 
     # Inline all kernels to help gfortran with inlining.
     for kern in psyir.kernels():
-        inline.apply(kern)
+        km_inline.apply(kern)
 
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
     print(schedule.view())
 
-    fuse = GOceanLoopFuseTrans()
     # do j do i count
     # do j do i born
     # do j do i die

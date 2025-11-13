@@ -43,40 +43,9 @@ from psyclone.core import AccessType, Signature
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.nodes import Call, Loop, Reference, Routine
+from psyclone.psyir.nodes import Call, FileContainer, Loop, Reference, Routine
 from psyclone.psyir.symbols import AutomaticInterface, DataSymbol, REAL8_TYPE
-from psyclone.psyir.transformations import InlineTrans, TransformationError
-
-
-class GOceanInlineTrans(InlineTrans):
-    '''A simple wrapper around InlineTrans that will ignore an error
-    that happens in GOcean, but that can be safely ignored.
-
-    THIS IS A BIG HACK TILL PSYCLONE PROPERLY SUPPORTS INLINING
-    OF GOCEAN KERNELS!!!!! USE AT YOUR OWN RISK.
-    '''
-
-    def validate(self, node: Call, **kwargs) -> None:
-        '''ATM we can't use inlining with GOcean, since we get the error:
-            "the type of the actual argument 'neighbours' corresponding to an"
-            "array formal argument ('neighbours') is unknown."
-        Since in this case we know it is safe to inline, ignore this error.
-
-        :param node: the call to inline
-        :type node: :py:class:`psyclone.psyir.nodes.Call`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        '''
-        try:
-            super().validate(node, **kwargs)
-        except TransformationError as err:
-            if ("cannot be inlined because the type of the actual argument"
-                    in str(err.value) and "corresponding to an array formal "
-                    "argument " in str(err.value) and "is unknown" in
-                    str(err.value)):
-                return
-            raise TransformationError(str(err.value)) from err
+from psyclone.psyir.transformations import InlineTrans
 
 
 # This list is used to store all used r2d_fields that are local to the
@@ -92,10 +61,12 @@ potential_symbols = []
 # and `die` with scalars (`born_scalar` and `die_scalar`)
 
 
-def trans_alg(psyir):
+def trans_alg(psyir: FileContainer) -> None:
     '''This function is called on the algorithm layer. It detects all local
     fields (i.e. not coming from an import or as a argument), so when
     transforming the PSy layer, we will try to replace them with scalars
+
+    :param psyir: the PSyIR of the Algorithm-layer.
     '''
 
     # Replace arrays with scalars if possible - after inlining
@@ -118,14 +89,14 @@ def trans_alg(psyir):
             potential_symbols.append(sig)
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
     Take the supplied psyir object, and fuse the first two loops
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    # pylint: disable=too-many-locals
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
@@ -165,14 +136,14 @@ def trans(psyir):
     # do j do i combine
 
     kmit = KernelModuleInlineTrans()
-    inline = GOceanInlineTrans()
+    inline = InlineTrans()
 
-    # Inline all kernels. We need to replace kernel with actual calls
-    # for that to work due to known issues inlining GOcean kernels:
+    # Inline all kernels. We need to lower to language level before
+    # we can inline. Also, any kernel must first be module inlined.
     psyir.lower_to_language_level()
     for call in psyir.walk(Call):
         kmit.apply(call)
-        inline.apply(call, use_first_callee_and_no_arg_check=True)
+        inline.apply(call)
 
     # Now try to replace fields (that are locally used in the algorithm
     # layer) with scalars

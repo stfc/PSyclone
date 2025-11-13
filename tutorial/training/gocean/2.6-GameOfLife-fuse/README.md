@@ -22,19 +22,20 @@ The GNU Fortran compiler on the other hand is not able to inline
 code from a different file, but it can inline successfully if the
 code is contained in the same file.
 
-At this stage full inlining capabilities (as in putting the whole kernel
-code inside the nested loops in the psy-layer) are still
-work-in-progress. But it can move the code from the kernel files
-into the psy-layer files, which in turn will enable GNU Fortran
-to inline the kernel calls.
+PSyclone's `KernelModuleInlineTrans` can move the code from the kernel
+files into the psy-layer files, which in turn will enable GNU Fortran
+to inline the kernel calls. This step is also a pre-requisite for
+full inlining, i.e. replacing a function call with the content
+of the function.
 
-In order to do this, the PSyclone `inline` transformation has to
-be applied to each kernel that should be inlined. This
+In order add all kernels to the psy-layer file, the PSyclone
+`KernelModuleInlineTrans` transformation has to
+be applied to each kernel that should be module inlined. This
 requires a script which PSyclone will call after the psy-layer
 has been created, but before the Fortran code is produced.
 
-The following example script shows a script that will inline the
-first kernel. It imports the inline transformation
+The following example script shows a script that will module inline
+the first kernel. It imports the inline transformation
 `KernelModuleInlineTrans` to be used on the kernels that should
 be inlined. It then gets the psy-layer representation of the
 `invoke_compute` invoke statement. Have a look at `time_step_alg_mod.x90`
@@ -48,7 +49,7 @@ applies the inline tranformation.
 
     def trans(psyir):
         '''
-        Take the supplied psyir object, and apply module inlining.
+        Take the supplied psyir object, and module inline all kernels
     
         :param psy: the PSy layer to transform.
         :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -278,14 +279,12 @@ fuse the last three loops, and measure the performance.
 
 
 ## Full Inlining
-Full-inlining is not yet fully supported in the GOcean API. But
-it can be made to work by ignoring one error that is raised in
-the `validation`. It is out of scope of this tutorial, but the
+Full-inlining, i.e. replacing the function call with the code
+of the called function can be used by PSyclone as well.
+It is out of scope of this tutorial, but the
 solution directory contains a more sophisticated script. It does:
 
-1. Fully inline all kernels by ignoring the validation error
-   currently raised when inlining GOcean kernels (danger territory
-   obviously),
+1. Fully inline all kernels.
 2. Analyse the algorithm layer to identify and store fields that
    are not used outside of the algorithm layer. These fields are
    therefore not required to store any results, and are considered
@@ -332,6 +331,6 @@ The main loops now look like this:
     enddo
 
 Notice how no writes to arrays are done anymore for `born` and `die`, which
-have been replaced with new scalar variables. Note that this can trigger
+have been replaced with new scalar variables. This can trigger
 compiler warnings about unused variables (since the input parameters
 `die` and `born` are indeed not used anymore).
