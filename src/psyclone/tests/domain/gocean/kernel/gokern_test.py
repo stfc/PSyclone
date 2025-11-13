@@ -141,6 +141,24 @@ def test_gok_reference_accesses():
     vam = kern1.reference_accesses()
     assert str(vam) == "cu_fld: WRITE, p_fld: READ, u_fld: READ"
 
+    # TODO #3129: Implementing the idea in this issue will add additional
+    # accesses matching the metadata specification. These would correspond
+    # to the stencils 100, 110, 123
+    # expected = {
+    #     # First stencil direction of 123: 1
+    #     "['i - 1', 'j - 1']",
+    #     # Second stencil direction of 123: 2
+    #     "['i', 'j + 1']", "['i', 'j + 2']",
+    #     # Third stencil direction of 123: 3
+    #     "['i + 1', 'j + 1']", "['i + 2', 'j + 2']", "['i + 3', 'j + 3']",
+    #     # First stencil direction of 110: 1
+    #     "['i - 1', 'j']",
+    #     # Second stencil direction of 110: 1
+    #     "['i', 'j']",
+    #     # First stencil direction of 100: 1
+    #     "['i - 1', 'j + 1']"
+    #     }
+
 
 # -----------------------------------------------------------------------------
 def test_gok_access_info_scalar_and_property():
@@ -165,4 +183,4 @@ def test_gok_access_info_scalar_and_property():
     # at this level.
     tmask = vam[Signature("p_fld%grid%tmask")]
     comp_ind = tmask[0].component_indices()
-    assert not comp_ind
+    assert comp_ind == tuple(tuple())

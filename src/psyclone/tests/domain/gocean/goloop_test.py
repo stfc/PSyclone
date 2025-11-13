@@ -317,15 +317,6 @@ def test_independent_iterations(monkeypatch):
     schedule = GOInvokeSchedule.create('name')
     goloop = GOLoop(loop_type="inner", parent=schedule)
 
-    # We can not check if an incomplete loop has independent iterations
-    # because this depends on its body, and for a DSL loop in particular
-    # on the kernel calls that it contains
-    with pytest.raises(InternalError) as err:
-        goloop.independent_iterations()
-    assert (
-        "Loop is incomplete. It should have exactly 4 children, but found"
-        " loop with 0 children" in str(err.value))
-
     # Add dummy children
     goloop.addchild(Literal("1", INTEGER_TYPE))
     goloop.addchild(Literal("1", INTEGER_TYPE))

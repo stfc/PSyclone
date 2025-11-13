@@ -410,11 +410,6 @@ class GOLoop(PSyLoop):
         :rtype: bool
 
         '''
-        # By definition a GOLoop with one GOKern is loop-independent
-        if len(self.loop_body.children) == 1:
-            if isinstance(self.loop_body.children[0], GOKern):
-                return True
-
         if not dep_tools:
             dtools = DependencyTools()
         else:
@@ -967,6 +962,9 @@ class GOKern(CodedKern):
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
+        # TODO #3219: Replace this with nodes representing the computation
+        # pattern.
+
         # Query each possible stencil direction and add corresponding
         # variable accesses. Note that if (i,j) itself is accessed, the
         # depth will be 1, so one access using the arg.access is added
