@@ -40,7 +40,7 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    PARALLELISATION_ISSUES, PRIVATISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
+    PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
