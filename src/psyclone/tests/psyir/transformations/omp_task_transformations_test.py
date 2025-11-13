@@ -187,7 +187,7 @@ def test_omptask_apply_kern(fortran_reader):
     assert len(my_test.walk(Call, Kern)) == 0
 
 
-def test_omptask_inline_kernels():
+def test_omptask_inline_kernels() -> None:
     '''Test the _inline_kernels functionality up to inlining of Call nodes.'''
     _, invoke = get_invoke("single_invoke.f90", "gocean",
                            dist_mem=False, idx=0)
@@ -197,8 +197,10 @@ def test_omptask_inline_kernels():
     # Make sure we indeed have a kernel before inlining:
     assert schedule.walk(Kern)
     taskt._inline_kernels(schedule.children[0])
-    # And the kernel must be gone now.
+    # Since the PSyIR should have been lowered as part of the inlining,
+    # we need to also check that there are no calls remaining.
     assert not schedule.walk(Kern)
+    assert not schedule.walk(Call)
 
 
 # This test relies on inline functionality not yet supported
