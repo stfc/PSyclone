@@ -438,9 +438,7 @@ jobs:
         # Uses both, threading and offloading
         export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 ./nemo
-        # TODO #3220: Make async reproducible
-        # diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
-        cat run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
