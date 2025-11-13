@@ -41,7 +41,7 @@ from typing import List, Union
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, Call, Return,
-    IfBlock, Routine, Schedule, IntrinsicCall, StructureReference)
+    IfBlock, Routine, Schedule, IntrinsicCall)
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
@@ -201,7 +201,7 @@ def normalise_loops(
     :param hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
     '''
-    filename = schedule.root
+    filename = schedule.root.name
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
         # to files with statement functions because it will attempt to put the
