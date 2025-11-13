@@ -408,9 +408,9 @@ def _refine_symbols_with_usage_location(
                         symbol_type=DataSymbol,
                         datatype=UnresolvedType())
         if name in direct_refnames_in_exprs:
-            # If this any other expression has the same reference name without
+            # If any other expression has the same reference name without
             # parenthesis, e.g.: a + a(3), we know a is an array and not a
-            # function call, as the later have mandatory parenthesis.
+            # function call, as the latter have mandatory parenthesis.
             _find_or_create_unresolved_symbol(
                 location, name,
                 symbol_type=DataSymbol,

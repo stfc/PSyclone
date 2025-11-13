@@ -40,9 +40,8 @@ directives into Nemo code. '''
 import os
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
-    normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
-    NEMO_MODULES_TO_IMPORT)
-from psyclone.psyir.nodes import Routine
+    normalise_loops, PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
+from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import (
     OMPTargetTrans, OMPDeclareTargetTrans)
 from psyclone.transformations import (
@@ -75,8 +74,8 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = [
-    "icefrm.f90",  # Has unsupportet implicit symbol declaration
-    "fldread.f90",  # TODO #2951: Bug in ArrayAssignment2LoopsTrans
+    "icefrm.f90",  # Has an unsupported implicit symbol declaration
+    "icerst.f90",
 ]
 
 NEMOV5_EXCLUSIONS = []
@@ -114,6 +113,7 @@ OFFLOADING_ISSUES = [
 ]
 
 ASYNC_ISSUES = [
+    # TODO #3220: Explore the cause of the async issues
     # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
     # (often invalid pointer dereference) in get_cstrgsurf
     "sbcclo.f90",
@@ -124,7 +124,6 @@ ASYNC_ISSUES = [
     "zdfsh2.f90",
     # Diverging results with asynchronicity
     "traadv_fct.f90",
-    "bdy_oce.f90",
 ]
 
 
@@ -192,7 +191,6 @@ def trans(psyir):
                 subroutine.name == 'dom_ngb'):
             continue
 
-        enhance_tree_information(subroutine)
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,
