@@ -40,8 +40,7 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, PARALLELISATION_ISSUES,
-    NEMO_MODULES_TO_IMPORT)
+    PARALLELISATION_ISSUES, PRIVATISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
@@ -59,20 +58,10 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # array privatisation is disabled.
 NEMOV4 = os.environ.get('NEMOV4', False)
 
-# By default, allow optimisations that may change the results, e.g. reductions
-REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
+CPU_REDUCTIONS = os.environ.get('CPU_REDUCTIONS', False)
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = []
-if not NEMOV4:
-    # TODO #3112: These produce diverging run.stat results in gcc NEMOv5 BENCH
-    FILES_TO_SKIP = [
-        "dynhpg.f90",
-        "dynspg_ts.f90",
-        "sbcssm.f90",
-        "tramle.f90",
-        "trazdf.f90",
-    ]
 
 if PROFILING_ENABLED:
     # Fails with profiling enabled. issue #2723
@@ -87,13 +76,10 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-
-    # Parallelising this file currently causes a noticeable slowdown
-    if psyir.name.startswith("icethd"):
-        return
-
-    # This file fails for gcc NEMOv5 BENCH
-    if not NEMOV4 and psyir.name == "icedyn_rhg_evp.f90":
+    # If the environemnt has ONLY_FILE defined, only process that one file and
+    # nothing else. This is useful for file-by-file exhaustive tests.
+    only_do_file = os.environ.get('ONLY_FILE', False)
+    if only_do_file and psyir.name != only_do_file:
         return
 
     omp_parallel_trans = None
@@ -105,8 +91,6 @@ def trans(psyir):
 
         if PROFILING_ENABLED:
             add_profiling(subroutine.children)
-
-        enhance_tree_information(subroutine)
 
         normalise_loops(
                 subroutine,
@@ -125,6 +109,7 @@ def trans(psyir):
                     region_directive_trans=omp_parallel_trans,
                     loop_directive_trans=omp_loop_trans,
                     collapse=False,
-                    privatise_arrays=not NEMOV4,
-                    enable_reductions=not REPRODUCIBLE,
+                    privatise_arrays=(not NEMOV4 and
+                                      psyir.name not in PRIVATISATION_ISSUES),
+                    enable_reductions=CPU_REDUCTIONS,
             )

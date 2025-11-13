@@ -40,8 +40,7 @@ directives into Nemo code. '''
 import os
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
-    normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
-    NEMO_MODULES_TO_IMPORT)
+    normalise_loops, PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import (
     OMPTargetTrans, OMPDeclareTargetTrans)
@@ -76,7 +75,6 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = [
     "icefrm.f90",  # Has unsupportet implicit symbol declaration
-    "fldread.f90",  # TODO #2951: Bug in ArrayAssignment2LoopsTrans
 ]
 
 NEMOV5_EXCLUSIONS = []
@@ -192,7 +190,6 @@ def trans(psyir):
                 subroutine.name == 'dom_ngb'):
             continue
 
-        enhance_tree_information(subroutine)
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,

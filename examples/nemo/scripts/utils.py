@@ -40,11 +40,9 @@ from typing import List, Union
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Assignment, Loop, Directive, Node, Reference, CodeBlock, ArrayReference,
+    Assignment, Loop, Directive, Node, Reference, CodeBlock,
     Call, Return, IfBlock, Routine, Schedule, IntrinsicCall)
-from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, ScalarType, UnsupportedFortranType,
-    ArrayType, REAL_TYPE)
+from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
@@ -108,52 +106,6 @@ def _it_should_be(symbol, of_type, instance):
         symbol.specialise(DataSymbol, datatype=instance)
     elif not isinstance(symbol.datatype, of_type):
         symbol.datatype = instance
-
-
-def enhance_tree_information(schedule):
-    ''' Manually fix some PSyIR issues produced by not having enough symbol
-    information from external modules. Using RESOLVE_IMPORTS improves the
-    situation but it's not complete (not all symbols are imported)
-    and it is not transitive (imports that inside import other symbols).
-
-    :param schedule: the PSyIR Schedule to transform.
-    :type schedule: :py:class:`psyclone.psyir.nodes.node`
-
-    '''
-    return
-    # These are all indirect wildcard imports that psyclone misses but are
-    # necessary to offload performance-sensitive loops.
-    are_integers = ('ntsj', 'ntsi', 'ntei', 'ntej', 'jpk', 'jpkm1', 'jpkglo',
-                    'nksr', 'Ni_0', 'Nj_0', 'Ni0glo', 'nn_hls', 'jpiglo',
-                    'Nis0', 'Nie0', 'Njs0', 'Nje0', 'ntei', 'ntej', 'jpi',
-                    'jpj')
-    are_arrays = {
-        'tmask': UnsupportedFortranType(
-                    "real(kind = wp), public, allocatable, dimension(:, :, :),"
-                    " target :: tmask",
-                    ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]*3)),
-        'e3w_1d': ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]*1),
-        'e3t_1d': ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]*1),
-        'gdept_1d': ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]*1),
-        'hmld': ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]*2),
-        'r3t': ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]*3),
-    }
-
-    for reference in schedule.walk(Reference):
-        if reference.symbol.name in are_integers:
-            _it_should_be(reference.symbol, ScalarType, INTEGER_TYPE)
-        if reference.symbol.name in are_arrays:
-            new_type = are_arrays[reference.symbol.name]
-            if not isinstance(reference.symbol, DataSymbol):
-                # We need to specialise the generic Symbol with its type
-                reference.symbol.specialise(DataSymbol, datatype=new_type)
-            if (isinstance(reference.parent, Call) and
-                    reference.parent.routine is reference):
-                # We also need to replace the Call with an ArrayRef
-                array_ref = ArrayReference.create(reference.symbol, [])
-                for child in reference.parent.arguments:
-                    array_ref.addchild(child.detach())
-                reference.parent.replace_with(array_ref)
 
 
 def inline_calls(schedule):
@@ -270,10 +222,6 @@ def normalise_loops(
                     Reference2ArrayRangeTrans().apply(reference)
                 except TransformationError:
                     pass
-        # The transformation above brings new symbols from dimension
-        # expressions, we want these symbols to have all typing information
-        # possible as these are offloading candidates
-        enhance_tree_information(schedule)
 
     if loopify_array_intrinsics:
         for intr in schedule.walk(IntrinsicCall):
