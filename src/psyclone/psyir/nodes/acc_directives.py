@@ -990,7 +990,7 @@ def _sig_set_to_string(sig_set: Set[Signature]) -> str:
     :returns: a lexically sorted string of comma-separated (sub)signatures.
 
     '''
-    names = {s[:i+1].to_language() for s in sig_set for i in range(len(s))}
+    names = {str(s[:i+1]) for s in sig_set for i in range(len(s))}
     return ",".join(sorted(names))
 
 
