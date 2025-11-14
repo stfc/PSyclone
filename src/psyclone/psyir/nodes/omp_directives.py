@@ -52,7 +52,7 @@ import logging
 from typing import List
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
+from psyclone.core import AccessType, Signature
 from psyclone.errors import (GenerationError,
                              UnresolvedDependencyError)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -1933,13 +1933,37 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        reductions = self.reductions()
+        if not reductions:
+            return super().lower_to_language_level()
+
+        # We only attempt to automatically add reduction clauses if we have a
+        # high-level (DSL) reduction operation.
+        self.children[0].lower_to_language_level()
         # Remove any existing Reduction clauses.
         self.children = [self.children[0]]
-        for reduction_type in AccessType.get_valid_reduction_modes():
-            reductions = self._get_reductions_list(reduction_type)
-            for reduction in reductions:
-                self.add_child(OMPReductionClause(OMP_OPERATOR_MAPPING[reduction_type], children=[xxx]))
-        #self._lowered_reduction_string = self._reduction_string()
+
+        # Create data sharing clauses (order alphabetically to make generation
+        # reproducible)
+        _, _, need_sync = self.infer_sharing_attributes()
+
+        vam = self.children[0].reference_accesses()
+        from psyclone.psyir.tools.reduction_inference import (
+            ReductionInferenceTool)
+        from psyclone.psyir.transformations.omp_loop_trans import (
+            MAP_REDUCTION_OP_TO_OMP)
+        red_tool = ReductionInferenceTool(
+            [BinaryOperation.Operator.ADD])
+
+        for sym in need_sync:
+            sig = Signature(sym.name)
+            acc_seq = vam[sig]
+            clause = red_tool.attempt_reduction(sig, acc_seq)
+            if clause:
+                self.children.append(
+                    OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[clause[0]],
+                                       children=[clause[1].copy()]))
+
         return super().lower_to_language_level()
 
     def begin_string(self):
