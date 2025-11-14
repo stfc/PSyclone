@@ -155,7 +155,6 @@ class KernStubArgList(ArgOrdering):
             self.append(scalar_arg.name, var_accesses)
             self.append("dims_"+scalar_arg.name, var_accesses)
 
-
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
         argument list. If supplied it also stores these accesses to the
