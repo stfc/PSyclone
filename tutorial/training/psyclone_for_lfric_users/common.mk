@@ -5,5 +5,5 @@
 this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 
 # PSyclone directory is up two from this file
-ROOT_DIR := $(abspath $(dir $(this_file))../../../..)
+ROOT_DIR := $(abspath $(dir $(this_file))../../..)
 PSYCLONE = psyclone --config $(ROOT_DIR)/config/psyclone.cfg --psykal-dsl lfric

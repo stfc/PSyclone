@@ -33,17 +33,34 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
+# Get all directories with a Makefile, which will be in all examples,
+# and then remove the Makefile from the list to get the list of all
+# directories (otherwise we would also get __pycache__)
+EXAMPLES=$(sort $(patsubst %/Makefile,%,$(wildcard */Makefile)))
 
-.PHONY: test compile clean allclean
+test_EXAMPLES=$(addprefix test_,$(EXAMPLES))
+clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
+allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
 
-test:
-	$(MAKE) -C lfric test
+.PHONY: $(test_EXAMPLES) $(clean_EXAMPLES) $(allclean_EXAMPLES)
 
+test: $(test_EXAMPLES)
+clean: $(clean_EXAMPLES)
+allclean: $(allclean_EXAMPLES)
+
+# Only some of the examples can be compiled:
 compile:
-	$(MAKE) -C lfric compile
+	$(MAKE) -C 1_using_psyclone compile
+	$(MAKE) -C 2_supporting_mpi compile
+	$(MAKE) -C 3_applying_openmp compile
+	$(MAKE) -C 4_mpi_and_openmp compile
 
-clean:
-	$(MAKE) -C lfric clean
 
-allclean:
-	$(MAKE) -C lfric allclean
+$(test_EXAMPLES):
+	$(MAKE) -C $(patsubst test_%,%,$@) test
+
+$(clean_EXAMPLES):
+	$(MAKE) -C $(patsubst clean_%,%,$@) clean
+
+$(allclean_EXAMPLES):
+	$(MAKE) -C $(patsubst allclean_%,%,$@) allclean
