@@ -520,13 +520,19 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     if not next_loop.independent_iterations(
                                dep_tools=dtools,
                                signatures_to_ignore=list_of_signatures):
+                        msgs = dtools.get_all_messages()
+                        # This warning message is not a problem
+                        if all(msg.code == DTCode.WARN_SCALAR_WRITTEN_ONCE
+                               for msg in msgs):
+                            continue
+                        # Otherwise mention the cause to stop collapsing at
+                        # this level
                         if verbose:
-                            msgs = dtools.get_all_messages()
                             next_loop.preceding_comment = (
                                 "\n".join([str(m) for m in msgs]) +
-                                " Consider using the \"ignore_dependencies_"
-                                "for\" transformation option if this is a "
-                                "false dependency.")
+                                " Consider using the \"ignore_dependencies"
+                                "_for\" transformation option if this is a"
+                                " false dependency.")
                         break
         else:
             num_collapsable_loops = None
