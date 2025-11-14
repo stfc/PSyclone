@@ -1,3 +1,6 @@
+   3) PR #3210 for #3203. Removes outstanding references to the old,
+   pared-down LFRic infrastructure.
+
    2) PR #3164 for #1320. Refactors the AccessSequence.component_indices
    property into a method to remove internal state.
  
