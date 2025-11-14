@@ -41,7 +41,7 @@ from typing import List, Union
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, Call, Return,
-    IfBlock, Routine, Schedule, IntrinsicCall)
+    IfBlock, Routine, Schedule, IntrinsicCall, StructureReference)
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
@@ -376,13 +376,19 @@ def insert_explicit_loop_parallelism(
     # but we currenlty ignore these.
     if schedule.name in ("ts_wgt", "ts_rst"):
         return
+
+    enable_nowaits = False
+    if asynchronous_parallelism and not schedule.walk(StructureReference):
+        # TODO #3220: Explore the cause of the async issues
+        enable_nowaits = True
+
     # Add the parallel directives in each loop
     for loop in schedule.walk(Loop):
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
         opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
-                "verbose": True, "nowait": asynchronous_parallelism,
+                "verbose": True, "nowait": enable_nowaits,
                 "enable_reductions": enable_reductions}
 
         if uniform_intrinsics_only:
@@ -461,7 +467,7 @@ def insert_explicit_loop_parallelism(
 
     # If we are adding asynchronous parallelism then we now try to minimise
     # the number of barriers.
-    if asynchronous_parallelism:
+    if enable_nowaits:
         minsync_trans = OMPMinimiseSyncTrans()
         minsync_trans.apply(schedule)
 
