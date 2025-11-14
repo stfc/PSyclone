@@ -53,7 +53,7 @@ from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config, ConfigurationError
-from psyclone.core import Signature, VariablesAccessMap
+from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.errors import GenerationError, InternalError
@@ -236,6 +236,10 @@ class GOLoop(PSyLoop):
         self.iteration_space = iteration_space
         self.index_offset = index_offset
         self.variable = variable
+
+        if self.loop_type not in ["inner", "outer"]:
+            raise InternalError(f"While the loop type '{self._loop_type}' is "
+                                f"valid, it is not yet supported.")
 
         # Initialise bounds lookup map if it is not already
         if not GOLoop._bounds_lookup:
@@ -879,11 +883,11 @@ class GOKernCallFactory():
         symtab = invoke.symbol_table
 
         # All loops in GOcean iterate over 2D, prepare the iteration symbols
-        inner_symbol = symtab.find_or_create_tag(
-                "contiguous_kidx", root_name="i", symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE)
         outer_symbol = symtab.find_or_create_tag(
                 "noncontiguous_kidx", root_name="j", symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE)
+        inner_symbol = symtab.find_or_create_tag(
+                "contiguous_kidx", root_name="i", symbol_type=DataSymbol,
                 datatype=INTEGER_TYPE)
 
         # Add temporary parent as the GOKern constructor needs to find its

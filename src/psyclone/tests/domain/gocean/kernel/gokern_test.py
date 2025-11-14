@@ -121,7 +121,6 @@ def test_gok_construction_with_large_stencils():
                         "p_fld%data: READ, u_fld%data: READ")
 
 
-
 def test_gok_get_callees():
     '''
     Test the get_callees() method of GOKern.
@@ -158,7 +157,6 @@ def test_gok_get_callees():
             "PSyIR" in err_text)
     assert ("does not contain the routine that it names as implementing the "
             "kernel ('compute_cu_code')" in err_text)
-
 
 
 # -----------------------------------------------------------------------------
