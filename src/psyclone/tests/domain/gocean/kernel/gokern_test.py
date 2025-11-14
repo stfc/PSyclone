@@ -87,6 +87,31 @@ def test_gok_construction():
     assert kern.name == "compute_cu_code"
     assert kern._index_offset == "go_offset_sw"
 
+    # This first child represents the computation pattern of the kernel
+    assert kern.children[0].debug_string() == (
+        "cu_fld%data(i,j) = p_fld%data(i,j) + u_fld%data(i,j)\n")
+
+
+def test_gok_construction_with_stencils():
+    '''Test that GOcean kernel information are correct, and that the index
+    information are PSyIR nodes.
+
+    '''
+    # Large stencil has 100, 110, 123 as stencil
+    _, invoke = get_invoke("large_stencil.f90", "gocean", idx=0)
+    schedule = invoke.schedule
+
+    # Get the first kernel
+    kern1 = schedule.walk(GOKern)[0]
+
+    # Check the compputation prototype
+    assert kern1.children[0].debug_string() == (
+        "cu_fld%data(i,j) = p_fld%data(i,j + 1) + u_fld%data(i,j)\n")
+
+    vam = kern1.reference_accesses()
+    assert str(vam) == "i: READ, j: READ, cu_fld%data: WRITE, p_fld%data: READ, u_fld%data: READ"
+
+
 
 def test_gok_get_callees():
     '''
@@ -126,39 +151,6 @@ def test_gok_get_callees():
             "kernel ('compute_cu_code')" in err_text)
 
 
-# -----------------------------------------------------------------------------
-def test_gok_reference_accesses():
-    '''Test that GOcean kernel information are correct, and that the index
-    information are PSyIR nodes.
-
-    '''
-    # Large stencil has 100, 110, 123 as stencil
-    _, invoke = get_invoke("large_stencil.f90", "gocean", idx=0)
-    schedule = invoke.schedule
-
-    # Get the first kernel
-    kern1 = schedule.walk(GOKern)[0]
-    vam = kern1.reference_accesses()
-    assert str(vam) == "cu_fld: WRITE, p_fld: READ, u_fld: READ"
-
-    # TODO #3129: Implementing the idea in this issue will add additional
-    # accesses matching the metadata specification. These would correspond
-    # to the stencils 100, 110, 123
-    # expected = {
-    #     # First stencil direction of 123: 1
-    #     "['i - 1', 'j - 1']",
-    #     # Second stencil direction of 123: 2
-    #     "['i', 'j + 1']", "['i', 'j + 2']",
-    #     # Third stencil direction of 123: 3
-    #     "['i + 1', 'j + 1']", "['i + 2', 'j + 2']", "['i + 3', 'j + 3']",
-    #     # First stencil direction of 110: 1
-    #     "['i - 1', 'j']",
-    #     # Second stencil direction of 110: 1
-    #     "['i', 'j']",
-    #     # First stencil direction of 100: 1
-    #     "['i - 1', 'j + 1']"
-    #     }
-
 
 # -----------------------------------------------------------------------------
 def test_gok_access_info_scalar_and_property():
@@ -176,11 +168,12 @@ def test_gok_access_info_scalar_and_property():
 
     # Check that we get the grid properties listed:
     assert (str(vam) ==
+            "i: READ, j: READ, p_fld%data: READ+WRITE, "
             "p_fld%grid%subdomain%internal%xstop: READ, "
-            "p_fld%grid%tmask: READ, p_fld: READWRITE")
+            "p_fld%grid%tmask: READ")
 
     # Kernel calls have the whole field provided, so no indices are given
     # at this level.
     tmask = vam[Signature("p_fld%grid%tmask")]
     comp_ind = tmask[0].component_indices()
-    assert comp_ind == tuple(tuple())
+    assert comp_ind == (tuple(), tuple(), tuple())

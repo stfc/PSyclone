@@ -69,7 +69,8 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Literal, Schedule, KernelSchedule, StructureReference, IntrinsicCall,
     Reference, Call, Assignment, ACCEnterDataDirective, ACCParallelDirective,
-    ACCKernelsDirective, Container, ACCUpdateDirective, Routine)
+    ACCKernelsDirective, Container, ACCUpdateDirective, Routine,
+    BinaryOperation)
 from psyclone.psyir.symbols import (
     ImportInterface, INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol,
     ScalarType, UnresolvedType, DataTypeSymbol, UnresolvedInterface,
@@ -207,6 +208,8 @@ class GOLoop(PSyLoop):
 
         :param parent: optional parent node (default None).
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param variable: the loop iteration variable.
+        :type variable: :py:class:`psyclone.psyir.symbols.Symbol`
         :param str loop_type: loop type - must be 'inner' or 'outer'.
         :param str field_name: name of the field this loop iterates on.
         :param str field_space: space of the field this loop iterates on.
@@ -218,8 +221,8 @@ class GOLoop(PSyLoop):
     '''
     _bounds_lookup = {}
 
-    def __init__(self, parent, loop_type="", field_name="", field_space="",
-                 iteration_space="", index_offset=""):
+    def __init__(self, parent, variable, loop_type="", field_name="",
+                 field_space="", iteration_space="", index_offset=""):
         # pylint: disable=too-many-arguments
         const = GOceanConstants()
 
@@ -232,44 +235,14 @@ class GOLoop(PSyLoop):
         self.field_space = field_space
         self.iteration_space = iteration_space
         self.index_offset = index_offset
-
-        # Check that the GOLoop is inside the GOcean PSy-layer
-        if not self.ancestor(GOInvokeSchedule):
-            raise GenerationError(
-                "GOLoops must always be constructed with a parent which is"
-                " inside (directly or indirectly) of a GOInvokeSchedule")
-
-        # We set the loop variable name in the constructor so that it is
-        # available when we're determining which vars should be OpenMP
-        # PRIVATE (which is done *before* code generation is performed)
-        if self.loop_type == "inner":
-            tag = "contiguous_kidx"
-            suggested_name = "i"
-        elif self.loop_type == "outer":
-            tag = "noncontiguous_kidx"
-            suggested_name = "j"
-        else:
-            raise InternalError(f"While the loop type '{self._loop_type}' is "
-                                f"valid, it is not yet supported.")
-
-        # In the GOcean API the loop iteration variables are declared in the
-        # Invoke routine scope in order to share them between all GOLoops.
-        # This is important because some transformations/scripts work with
-        # this assumption when moving or fusing loops.
-        symtab = self.ancestor(InvokeSchedule).symbol_table
-        try:
-            self.variable = symtab.lookup_with_tag(tag)
-        except KeyError:
-            self.variable = symtab.new_symbol(
-                suggested_name, tag, symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE)
+        self.variable = variable
 
         # Initialise bounds lookup map if it is not already
         if not GOLoop._bounds_lookup:
             GOLoop.setup_bounds()
 
     @staticmethod
-    def create(parent, loop_type, field_name="", field_space="",
+    def create(parent, variable, loop_type, field_name="", field_space="",
                iteration_space="", index_offset=""):
         # pylint: disable=too-many-arguments,arguments-renamed
         '''
@@ -278,6 +251,8 @@ class GOLoop(PSyLoop):
 
         :param parent: parent node of this GOLoop.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param variable: the loop iteration variable.
+        :type variable: :py:class:`psyclone.psyir.symbols.Symbol`
         :param str loop_type: loop type - must be 'inner' or 'outer'.
         :param str field_name: name of the field this loop iterates on.
         :param str field_space: space of the field this loop iterates on.
@@ -290,7 +265,7 @@ class GOLoop(PSyLoop):
         '''
 
         # Create loop node
-        node = GOLoop(parent, loop_type, field_name, field_space,
+        node = GOLoop(parent, variable, loop_type, field_name, field_space,
                       iteration_space, index_offset)
 
         # Add start, stop, step and body and Loop children
@@ -891,12 +866,32 @@ class GOKernCallFactory():
         :rtype: :py:class:`psyclone.gocean1p0.GOLoop`
 
         '''
+        # Check that the GOKern is inside the GOcean PSy-layer
+        if (
+            not parent or
+            not parent.ancestor(GOInvokeSchedule, include_self=True)
+        ):
+            raise GenerationError(
+                "GOKern must always be constructed with a parent which is "
+                "inside (directly or indirectly) of a GOInvokeSchedule")
+
+        invoke = parent.ancestor(GOInvokeSchedule, include_self=True)
+        symtab = invoke.symbol_table
+
+        # All loops in GOcean iterate over 2D, prepare the iteration symbols
+        inner_symbol = symtab.find_or_create_tag(
+                "contiguous_kidx", root_name="i", symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE)
+        outer_symbol = symtab.find_or_create_tag(
+                "noncontiguous_kidx", root_name="j", symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE)
+
         # Add temporary parent as the GOKern constructor needs to find its
         # way to the top-level InvokeSchedule but we still don't have the
         # PSyIR loops to place it in the appropriate place. We can't create
         # the loops first because those depend on information provided by
         # this kernel.
-        gocall = GOKern(call, parent=parent)
+        gocall = GOKern(call, inner_symbol, outer_symbol, parent=parent)
 
         # Determine Loop information from the enclosed Kernel
         iteration_space = gocall.iterates_over
@@ -905,18 +900,20 @@ class GOKernCallFactory():
         index_offset = gocall.index_offset
 
         # Create the double loop structure
-        outer_loop = GOLoop.create(loop_type="outer",
+        outer_loop = GOLoop.create(parent=parent,
+                                   variable=outer_symbol,
+                                   loop_type="outer",
                                    iteration_space=iteration_space,
                                    field_space=field_space,
                                    field_name=field_name,
-                                   index_offset=index_offset,
-                                   parent=parent)
-        inner_loop = GOLoop.create(loop_type="inner",
+                                   index_offset=index_offset)
+        inner_loop = GOLoop.create(parent=outer_loop.loop_body,
+                                   variable=inner_symbol,
+                                   loop_type="inner",
                                    iteration_space=iteration_space,
                                    field_space=field_space,
                                    field_name=field_name,
-                                   index_offset=index_offset,
-                                   parent=outer_loop.loop_body)
+                                   index_offset=index_offset)
         outer_loop.loop_body.addchild(inner_loop)
         # Remove temporary parent
         # pylint: disable=protected-access
@@ -938,7 +935,7 @@ class GOKern(CodedKern):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    def __init__(self, call, parent=None):
+    def __init__(self, call, inner_symbol, outer_symbol, parent=None):
         super().__init__(GOKernelArguments, call, parent, check=False)
         # Store the name of this kernel type (i.e. the name of the
         # Fortran derived type containing its metadata).
@@ -947,74 +944,77 @@ class GOKern(CodedKern):
         # store it here. This is used to check that all of the kernels
         # invoked by an application are using compatible index offsets.
         self._index_offset = call.ktype.index_offset
+        self.addchild(
+                self.prototype_from_metadata(inner_symbol, outer_symbol)
+        )
 
-    def _record_stencil_accesses(self, signature, arg, var_accesses):
-        '''This function adds accesses to a field depending on the
-        meta-data declaration for this argument (i.e. accounting for
-        any stencil accesses).
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
 
-        :param signature: signature of the variable.
-        :type signature: :py:class:`psyclone.core.Signature`
-        :param arg:  the meta-data information for this argument.
-        :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
-        :param var_accesses: VariablesAccessMap instance that stores the
-            information about the field accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
 
         '''
-        # TODO #3219: Replace this with nodes representing the computation
-        # pattern.
+        return position == 0 and isinstance(child, Assignment)
 
-        # Query each possible stencil direction and add corresponding
-        # variable accesses. Note that if (i,j) itself is accessed, the
-        # depth will be 1, so one access using the arg.access is added
-        for j in [-1, 0, 1]:
-            for i in [-1, 0, 1]:
-                if i == 0 and j == 0:
-                    # This is not necessarely a stencil, and the access
-                    # pattern is given by the argument metadata
-                    var_accesses.add_access(signature, arg.access, self)
-                elif arg.stencil.depth(i, j) > 0:
-                    # This is a stencil access, so mark the READ accesses
-                    # to account for reading other indices of the field
-                    var_accesses.add_access(signature, AccessType.READ, self)
-
-    def reference_accesses(self) -> VariablesAccessMap:
-        '''
-        :returns: a map of all the symbol accessed inside this node, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-
-        '''
-        var_accesses = VariablesAccessMap()
-        # Grid properties are accessed using one of the fields. This stores
-        # the field used to avoid repeatedly determining the best field:
+    def prototype_from_metadata(self, inner_symbol, outer_symbol):
+        ''' Inspect the kernel metadata and produce a prototype of the
+        computation pattern that this kernel uses (e.g. using the defined
+        stencil accessors) '''
+        config = Config.get().api_conf("gocean")
         field_for_grid_property = None
+        symtab = self.scope.symbol_table
+        # deref_name = api_config.grid_properties[self._property_name].fortran
+        write_access = None
+        read_accesses = []
         for arg in self.arguments.args:
+            # Literals can be ignores as they don't change the acces pattern
+            if arg.is_literal:
+                continue
+            # For grid properties we need StructureReferences to the property
             if arg.argument_type == "grid_property":
                 if not field_for_grid_property:
-                    field_for_grid_property = \
-                        self._arguments.find_grid_access()
-                var_name = arg.dereference(field_for_grid_property.name)
-            else:
-                var_name = arg.name
+                    field_for_grid_property = symtab.lookup(
+                        self._arguments.find_grid_access().name)
+                members = config.grid_properties[arg._property_name].fortran
+                members = members.split("%")[1:]
+                read_accesses.append(
+                    StructureReference.create(
+                            field_for_grid_property, members))
+                continue
 
-            signature = Signature(var_name.split("%"))
+            # For scalars is a plain Reference
+            symbol = symtab.lookup(arg.name)
             if arg.is_scalar:
-                # The argument is only a variable if it is not a constant:
-                if not arg.is_literal:
-                    var_accesses.add_access(signature, arg.access, self)
-            else:
-                if arg.argument_type == "field":
-                    # Now add 'artificial' accesses to this field depending
-                    # on meta-data (access-mode and stencil information):
-                    self._record_stencil_accesses(signature, arg,
-                                                  var_accesses)
+                read_accesses.append(Reference(symbol))
+
+            # For fields, is an StructureReference with an ArrayMember
+            # to the index specified by the stencil (can be more than one)
+            if arg.argument_type == "field":
+                access = StructureReference.create(symbol, [
+                    ("data", [Reference(Symbol("i")), Reference(Symbol("j"))])
+                ])
+                if arg.access == AccessType.WRITE:
+                    write_access = access
+                elif arg.access == AccessType.READWRITE:
+                    write_access = access
+                    read_accesses.append(access.copy())
                 else:
-                    var_accesses.add_access(signature, arg.access, self)
-        var_accesses.update(super().reference_accesses())
-        return var_accesses
+                    read_accesses.append(access)
+
+        # Now create the assignment prototype
+        if not write_access:
+            write_access = Reference(Symbol("TODO"))
+        rhs = read_accesses.pop(0)
+        while read_accesses:
+            rhs = BinaryOperation.create(
+                    BinaryOperation.Operator.ADD,
+                    rhs, read_accesses.pop(0))
+        return Assignment.create(write_access, rhs)
 
     @property
     def index_offset(self):
