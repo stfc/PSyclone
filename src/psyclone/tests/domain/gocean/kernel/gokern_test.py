@@ -88,28 +88,37 @@ def test_gok_construction():
     assert kern._index_offset == "go_offset_sw"
 
     # This first child represents the computation pattern of the kernel
+    # the second argument has a (000,011,000) stencil
     assert kern.children[0].debug_string() == (
-        "cu_fld%data(i,j) = p_fld%data(i,j) + u_fld%data(i,j)\n")
+        "cu_fld%data(i,j) = p_fld%data(i,j) + p_fld%data(i,j + 1) + "
+        "u_fld%data(i,j)\n")
 
 
-def test_gok_construction_with_stencils():
+def test_gok_construction_with_large_stencils():
     '''Test that GOcean kernel information are correct, and that the index
     information are PSyIR nodes.
 
     '''
-    # Large stencil has 100, 110, 123 as stencil
     _, invoke = get_invoke("large_stencil.f90", "gocean", idx=0)
     schedule = invoke.schedule
 
     # Get the first kernel
     kern1 = schedule.walk(GOKern)[0]
 
-    # Check the compputation prototype
+    # Check the computation prototype:
+    # firstargument cu_fld is pointwise (and write only)
+    # secondargument p_fld is a (100, 110, 123) stencil
+    # third argument u_fld is pointwise
     assert kern1.children[0].debug_string() == (
-        "cu_fld%data(i,j) = p_fld%data(i,j + 1) + u_fld%data(i,j)\n")
+        "cu_fld%data(i,j) = p_fld%data(i - 1,j - 1) + p_fld%data(i,j - 1) + "
+        "p_fld%data(i,j) + p_fld%data(i + 1,j - 1) + p_fld%data(i + 1,j) + "
+        "p_fld%data(i + 2,j) + p_fld%data(i + 1,j + 1) + "
+        "p_fld%data(i + 2,j + 2) + p_fld%data(i + 3,j + 3) + "
+        "u_fld%data(i,j)\n")
 
     vam = kern1.reference_accesses()
-    assert str(vam) == "i: READ, j: READ, cu_fld%data: WRITE, p_fld%data: READ, u_fld%data: READ"
+    assert str(vam) == ("cu_fld%data: WRITE, i: READ, j: READ, "
+                        "p_fld%data: READ, u_fld%data: READ")
 
 
 
@@ -154,7 +163,7 @@ def test_gok_get_callees():
 
 # -----------------------------------------------------------------------------
 def test_gok_access_info_scalar_and_property():
-    '''Test  GOcean kernel information when using a grid property and scalar
+    '''Test GOcean kernel information when using a grid property and scalar
     variables.
 
     '''
@@ -162,11 +171,18 @@ def test_gok_access_info_scalar_and_property():
                            "gocean", idx=0)
     schedule = invoke.schedule
 
-    # Get the first kernel
+    # Get the first kernel (the scalar is a literal)
     kern1 = schedule.walk(GOKern)[0]
-    vam = kern1.reference_accesses()
+
+    # Literals are ignored and properties are accesses without indices
+    # (because they can only be accessed as pointwise reads anyway)
+    assert kern1.children[0].debug_string() == (
+        "p_fld%data(i,j) = p_fld%data(i,j) + "
+        "p_fld%grid%subdomain%internal%xstop + p_fld%grid%tmask\n"
+    )
 
     # Check that we get the grid properties listed:
+    vam = kern1.reference_accesses()
     assert (str(vam) ==
             "i: READ, j: READ, p_fld%data: READ+WRITE, "
             "p_fld%grid%subdomain%internal%xstop: READ, "
@@ -177,3 +193,11 @@ def test_gok_access_info_scalar_and_property():
     tmask = vam[Signature("p_fld%grid%tmask")]
     comp_ind = tmask[0].component_indices()
     assert comp_ind == (tuple(), tuple(), tuple())
+
+    # In the second invoke the scalar is a symbol reference
+    _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
+                           "gocean", idx=1)
+    schedule = invoke.schedule
+    kern1 = schedule.walk(GOKern)[0]
+    assert "real_val: READ" in str(kern1.reference_accesses())
+    assert "= real_val +" in kern1.children[0].debug_string()

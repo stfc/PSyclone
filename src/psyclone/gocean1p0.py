@@ -995,16 +995,51 @@ class GOKern(CodedKern):
             # For fields, is an StructureReference with an ArrayMember
             # to the index specified by the stencil (can be more than one)
             if arg.argument_type == "field":
-                access = StructureReference.create(symbol, [
-                    ("data", [Reference(Symbol("i")), Reference(Symbol("j"))])
-                ])
-                if arg.access == AccessType.WRITE:
-                    write_access = access
-                elif arg.access == AccessType.READWRITE:
-                    write_access = access
-                    read_accesses.append(access.copy())
-                else:
-                    read_accesses.append(access)
+                # Check all stencil directions
+                for j in [-1, 0, 1]:
+                    for i in [-1, 0, 1]:
+                        # Create an access for each position in that direction
+                        # until reaching the depth value
+                        depth = arg.stencil.depth(i, j)
+                        for offset in range(1, depth+1):
+                            if i == 0 and j == 0:
+                                # In this case it just refers to pointwise
+                                offset = 0
+
+                            inner_index = Reference(inner_symbol)
+                            outer_index = Reference(outer_symbol)
+                            if j > 0:
+                                inner_index = BinaryOperation.create(
+                                    BinaryOperation.Operator.ADD,
+                                    inner_index,
+                                    Literal(str(abs(offset)), INTEGER_TYPE))
+                            elif j < 0:
+                                inner_index = BinaryOperation.create(
+                                    BinaryOperation.Operator.SUB,
+                                    inner_index,
+                                    Literal(str(abs(offset)), INTEGER_TYPE))
+
+                            if i > 0:
+                                outer_index = BinaryOperation.create(
+                                    BinaryOperation.Operator.ADD,
+                                    outer_index,
+                                    Literal(str(abs(offset)), INTEGER_TYPE))
+                            elif i < 0:
+                                outer_index = BinaryOperation.create(
+                                    BinaryOperation.Operator.SUB,
+                                    outer_index,
+                                    Literal(str(abs(offset)), INTEGER_TYPE))
+
+                            access = StructureReference.create(symbol, [
+                                ("data", [inner_index, outer_index])
+                            ])
+                            if arg.access == AccessType.WRITE:
+                                write_access = access
+                            elif arg.access == AccessType.READWRITE:
+                                write_access = access
+                                read_accesses.append(access.copy())
+                            else:
+                                read_accesses.append(access)
 
         # Now create the assignment prototype
         if not write_access:
