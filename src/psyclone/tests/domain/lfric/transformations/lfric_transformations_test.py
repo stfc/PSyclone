@@ -46,13 +46,14 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
+from psyclone.domain.common.psylayer.global_reduction import GlobalReduction
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.domain.lfric import LFRicLoop
 from psyclone.lfric import (LFRicHaloExchangeStart,
                             LFRicHaloExchangeEnd, LFRicHaloExchange)
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
+from psyclone.psyGen import InvokeSchedule, BuiltIn
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
     colored, Loop, Schedule, Literal, Directive, OMPDoDirective,
@@ -1904,8 +1905,8 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
     if dist_mem:
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert (
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -1919,8 +1920,8 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
     else:
         assert "loop0_stop = undf_aspc1_f1" in code
         assert (
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -1949,8 +1950,9 @@ def test_reduction_real_do(tmpdir, dist_mem):
     if dist_mem:
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n" in code
         assert (
-            "    !$omp parallel default(shared) private(df)\n"
-            "    !$omp do schedule(static) reduction(+:asum)\n"
+            "    !$omp parallel default(shared) private(df) "
+            "reduction(+: asum)\n"
+            "    !$omp do schedule(static)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -1964,8 +1966,9 @@ def test_reduction_real_do(tmpdir, dist_mem):
     else:
         assert "loop0_stop = undf_aspc1_f1\n" in code
         assert (
-            "    !$omp parallel default(shared) private(df)\n"
-            "    !$omp do schedule(static) reduction(+:asum)\n"
+            "    !$omp parallel default(shared) private(df) "
+            "reduction(+: asum)\n"
+            "    !$omp do schedule(static)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -1999,8 +2002,8 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2013,8 +2016,8 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "\n"
             "    ! Zero summation variables\n"
             "    asum = 0.0_r_def\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2031,8 +2034,8 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2041,8 +2044,8 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "\n"
             "    ! Zero summation variables\n"
             "    asum = 0.0_r_def\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) private(df) "
+            "schedule(static) reduction(+: asum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2130,7 +2133,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      f1_data(df) = bvalue * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
-            "    !$omp do schedule(static) reduction(+:asum)\n"
+            "    !$omp do schedule(static) reduction(+: asum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
             "      asum = asum + f1_data(df)\n"
@@ -2968,8 +2971,8 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "\n"
             "    ! Zero summation variables\n"
             "    asum = 0.0_r_def\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
             "      asum = asum + f1_data(df)\n"
@@ -2994,8 +2997,8 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "\n"
             "    ! Zero summation variables\n"
             "    asum = 0.0_r_def\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
             "      asum = asum + f1_data(df)\n"
@@ -3750,7 +3753,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     ompdefault = colored("OMPDefaultClause", Directive._colour)
     ompprivate = colored("OMPPrivateClause", Directive._colour)
     ompfprivate = colored("OMPFirstprivateClause", Directive._colour)
-    gsum = colored("GlobalSum", GlobalSum._colour)
+    gsum = colored("GlobalReduction", GlobalReduction._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)
     sched = colored("Schedule", Schedule._colour)
@@ -3789,7 +3792,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
             2*indent + ompfprivate + "[]\n" +
-            indent + "1: " + gsum + "[scalar='asum']\n" +
+            indent + "1: " + gsum + "[operand='asum']\n" +
             indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
             3*indent + "0: " + ompdo + "[omp_schedule=static]\n" +
@@ -3820,7 +3823,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
             2*indent + ompfprivate + "[]\n" +
-            indent + "4: " + gsum + "[scalar='bsum']\n")
+            indent + "4: " + gsum + "[operand='bsum']\n")
         if not annexed:
             expected = expected.replace("nannexed", "ndofs")
     else:  # not dist_mem. annexed can be True or False

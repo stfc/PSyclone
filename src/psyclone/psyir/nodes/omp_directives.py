@@ -52,7 +52,7 @@ import logging
 from typing import List
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
+from psyclone.core import AccessSequence, AccessType, Signature
 from psyclone.errors import (GenerationError,
                              UnresolvedDependencyError)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -1312,16 +1312,16 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         # first check whether we have more than one reduction with the same
         # name in this Schedule. If so, raise an error as this is not
         # supported for a parallel region.
-        names = []
+        red_names_and_loops = []
         reduction_kernels = self.reductions()
         for call in reduction_kernels:
             name = call.reduction_arg.name
-            if name in names:
+            if name in [item[0] for item in red_names_and_loops]:
                 raise GenerationError(
                     f"Reduction variables can only be used once in an invoke. "
                     f"'{name}' is used multiple times, please use a different "
                     f"reduction variable")
-            names.append(name)
+            red_names_and_loops.append((name, call.ancestor(Loop)))
 
         if reduction_kernels:
             first_type = type(self.dir_body[0])
@@ -1400,21 +1400,35 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         self.children[2].replace_with(private_clause)
         self.children[3].replace_with(fprivate_clause)
 
+        if reduction_kernels and not reprod_red_call_list:
+            vam = self.reference_accesses()
+            from psyclone.psyir.tools.reduction_inference import (
+                ReductionInferenceTool)
+            from psyclone.psyir.transformations.omp_loop_trans import (
+                MAP_REDUCTION_OP_TO_OMP)
+            red_tool = ReductionInferenceTool(
+                [BinaryOperation.Operator.ADD])
+            #import pdb; pdb.set_trace()
+            for name, _ in red_names_and_loops:
+                sig = Signature(name)
+                acc_seq = vam[sig]
+                clause = red_tool.attempt_reduction(sig, acc_seq)
+                if clause:
+                    self.children.append(
+                        OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[clause[0]],
+                                           children=[clause[1].copy()]))
+
         return self
 
-    def begin_string(self):
+    def begin_string(self) -> str:
         '''Returns the beginning statement of this directive, i.e.
         "omp parallel". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the opening statement of this directive.
-        :rtype: str
 
         '''
         result = "omp parallel"
-        # TODO #514: not yet working with NEMO, so commented out for now
-        # if not self._reprod:
-        #     result += self._reduction_string()
 
         return result
 
@@ -1681,10 +1695,6 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         self._omp_schedule = omp_schedule
         self._collapse = None
         self.collapse = collapse  # Use setter with error checking
-        # TODO #514 - reductions are only implemented in LFRic, for now we
-        # store the needed clause when lowering, but this needs a better
-        # solution
-        self._lowered_reduction_string = ""
         self.nowait = nowait
 
     @staticmethod
@@ -1800,20 +1810,6 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         if self._collapse and self._collapse > 1:
             parts.append(f"collapse={self._collapse}")
         return f"{self.coloured_name(colour)}[{','.join(parts)}]"
-
-    def _reduction_string(self):
-        '''
-        :returns: the OMP reduction information.
-        :rtype: str
-        '''
-        for reduction_type in AccessType.get_valid_reduction_modes():
-            reductions = self._get_reductions_list(reduction_type)
-            parts = []
-            for reduction in reductions:
-                parts.append(f"reduction("
-                             f"{OMP_OPERATOR_MAPPING[reduction_type]}:"
-                             f"{reduction})")
-        return ", ".join(parts)
 
     @property
     def omp_schedule(self):
@@ -1933,8 +1929,8 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        self._lowered_reduction_string = self._reduction_string()
-        return super().lower_to_language_level()
+        DataSharingAttributeMixin.lower_to_language_level(self)
+        super().lower_to_language_level()
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -1950,8 +1946,8 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
             string += f" schedule({self.omp_schedule})"
         if self._collapse:
             string += f" collapse({self._collapse})"
-        if self._lowered_reduction_string:
-            string += f" {self._lowered_reduction_string}"
+        #if self._lowered_reduction_string:
+        #    string += f" {self._lowered_reduction_string}"
         return string
 
     def end_string(self):
@@ -2045,7 +2041,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         '''
         # Calling the super() explicitly to avoid confusion
         # with the multiple-inheritance
-        self._lowered_reduction_string = self._reduction_string()
+        #self._lowered_reduction_string = self._reduction_string()
         OMPParallelDirective.lower_to_language_level(self)
         self.children[4].replace_with(OMPScheduleClause(self._omp_schedule))
 
@@ -2063,8 +2059,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         string = f"omp {self._directive_string}"
         if self._collapse:
             string += f" collapse({self._collapse})"
-        if self._lowered_reduction_string:
-            string += f" {self._lowered_reduction_string}"
+        #if self._lowered_reduction_string:
+        #    string += f" {self._lowered_reduction_string}"
         return string
 
     def end_string(self):

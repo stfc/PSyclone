@@ -144,7 +144,7 @@ instances of the `Argument` class within a PSyIR tree.
 
 The `Argument` class is used to specify the data being passed into and
 out of instances of the `Kern` class, `HaloExchange` class and
-`GlobalSum` class (and their subclasses).
+`GlobalReduction` class (and their subclasses).
 
 As an illustration consider the following invoke::
 
@@ -217,7 +217,7 @@ exist.
 If there is a field vector associated with an instance of an
 `Argument` class then all of the data in its vector indices are
 assumed to be accessed when the argument is part of a `Kern` or a
-`GlobalSum`. However, in contrast, a `HaloExchange` only acts on a
+`GlobalReduction`. However, in contrast, a `HaloExchange` only acts on a
 single index of a field vector. Therefore there is one halo exchange
 per field vector index. For example::
 
