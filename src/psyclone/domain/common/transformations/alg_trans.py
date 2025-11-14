@@ -94,7 +94,7 @@ class AlgTrans(Transformation):
         '''
         self.validate(node, options=options, **kwargs)
         idx = 0
-        for call in node.walk(Call):
+        for call in node.walk(Call, stop_type=Call):
             if call.routine.name.lower() == "invoke":
                 self._invoke_trans.apply(call, idx, options=options, **kwargs)
                 idx += 1

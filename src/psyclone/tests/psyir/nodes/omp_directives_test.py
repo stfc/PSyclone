@@ -941,7 +941,7 @@ def test_infer_sharing_attributes(fortran_reader):
             integer :: i, scalar1, scalar2
             real, dimension(10) :: array
             do i = 1, 10
-               array(i) = 1_ikind + INTEGER(i, ikind)
+               array(i) = 1_ikind + INT(i, ikind)
             enddo
         end subroutine''')
     omplooptrans = OMPLoopTrans()
