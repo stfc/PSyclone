@@ -535,8 +535,8 @@ end module my_mod
     assert isinstance(my_sub, symbols.RoutineSymbol)
     with pytest.raises(ValueError) as err:
         table.remove(my_sub)
-    assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced by "
-            "'call my_sub()" in str(err.value))
+    assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced "
+            "inside the 'my_mod' scope" in str(err.value))
 
     # Add the routine symbol into the filecontainer then we should be able
     # to remove it from the module - this validates the
@@ -574,9 +574,8 @@ end module my_mod
     assert isinstance(my_sub, symbols.RoutineSymbol)
     with pytest.raises(ValueError) as err:
         table.remove(my_sub)
-    assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced by "
-            "the definition of Symbol 'whatever: GenericInterfaceSymbol"
-            in str(err))
+    assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced "
+            "inside the 'my_mod' scope" in str(err.value))
 
 
 def test_remove_containersymbols():
@@ -874,7 +873,8 @@ def test_table_merge():
     table2.add(wp_sym)
     table2.add(symbols.DataSymbol(
         "marvin",
-        symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL, wp_sym)))
+        symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL,
+                           Reference(wp_sym))))
     table1.merge(table2, symbols_to_skip=[dent])
     assert table1.lookup("beeblebrox")
     assert "dent" not in table1
@@ -1761,6 +1761,11 @@ def test_append_argument():
     assert sym_table.argument_list[-2] is arg1
     assert arg2 in sym_table.argument_datasymbols
 
+    # Attempting to append an argument that is already present does nothing.
+    sym_table.append_argument(arg1)
+    assert sym_table.argument_list[-1] is arg2
+    assert sym_table.argument_list[-2] is arg1
+
     with pytest.raises(TypeError) as err:
         sym_table.append_argument("Not a symbol")
     assert ("Expected a DataSymbol for the argument to insert but found "
@@ -1981,7 +1986,8 @@ def test_precision_datasymbols():
                               interface=symbols.UnresolvedInterface())
     sym_table.add(rdef)
     # Add a symbol that uses r_def for its precision
-    scalar_type = symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL, rdef)
+    scalar_type = symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL,
+                                     Reference(rdef))
     sym_table.add(symbols.DataSymbol("s2", scalar_type))
     # By default we should get this precision symbol
     assert sym_table.precision_datasymbols == [rdef]
@@ -2201,7 +2207,8 @@ def test_deep_copy():
     # Initial value containing a Reference to an unresolved Symbol.
     sym5a = symbols.DataSymbol(
         "sym5a",
-        symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER, wp),
+        symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER,
+                           Reference(wp)),
         initial_value=BinaryOperation.create(BinaryOperation.Operator.ADD,
                                              Reference(sym1),
                                              Reference(other_sym)))
@@ -2293,7 +2300,7 @@ def test_deep_copy():
     # Check that precision value has been updated.
     new_wp = symtab2.lookup("wp")
     new_dp = symtab2.lookup("dp")
-    assert newsym5a.datatype.precision is new_wp
+    assert newsym5a.datatype.precision == Reference(new_wp)
     assert new_wp.initial_value.arguments[0].symbol is new_dp
 
     # Add new symbols and rename symbols in both symbol tables and check
@@ -2939,7 +2946,8 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
     assert not isinstance(b_1, symbols.DataSymbol)
 
     # Resolve only 'not_used3' from wildcard imports
-    subroutine.symbol_table.resolve_imports(
+    with caplog.at_level(logging.INFO):
+        subroutine.symbol_table.resolve_imports(
             symbol_target=symbols.Symbol('not_used3'))
     not_used3 = subroutine.symbol_table.lookup('not_used3')
     assert isinstance(not_used3, symbols.DataSymbol)
@@ -2947,6 +2955,8 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
     # This still does not resolve the other symbols in the same module
     assert not isinstance(b_1, symbols.DataSymbol)
     assert not isinstance(b_2, symbols.DataSymbol)
+    assert ("Imported symbols ['not_used3'] from module 'b_mod' into 'test'"
+            in caplog.text)
 
     # Resolve only b_2 symbol info
     subroutine.symbol_table.resolve_imports(
@@ -3350,7 +3360,7 @@ def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
     mod = psyir.children[0]
     subroutine = psyir.walk(Routine)[0]
     lit = subroutine.walk(Literal)[0]
-    sym = lit.datatype.precision
+    sym = lit.datatype.precision.symbol
     mod.symbol_table.resolve_imports(symbol_target=sym)
     # A new Symbol with the correct properties should have been added to the
     # table associated with the Container.

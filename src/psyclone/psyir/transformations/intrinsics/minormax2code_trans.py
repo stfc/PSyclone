@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing a class that provides functionality to transform
 a PSyIR MIN or MAX intrinsics to PSyIR code. This could be useful if the
@@ -43,15 +44,19 @@ functionality that can be specialised by MIN and MAX-specific
 transformations.
 
 '''
+from abc import ABC
+import warnings
 
 from psyclone.psyir.nodes import BinaryOperation, Assignment, \
         Reference, IfBlock
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
         Intrinsic2CodeTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
-class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
+@transformation_documentation_wrapper
+class MinOrMax2CodeTrans(Intrinsic2CodeTrans, ABC):
     '''Provides a utility transformation from a PSyIR MIN or MAX Intrinsic
     node to equivalent code in a PSyIR tree. Validity checks are also
     performed (by the parent class). This utility transformation is
@@ -80,7 +85,7 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
         super().__init__()
         self._compare_operator = None
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply this utility transformation to the specified node. This node
         must be a MIN or MAX IntrinsicCall. The intrinsic is converted to
         equivalent inline code. This is implemented as a PSyIR transform from:
@@ -108,7 +113,7 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
         MAX](A, B, C ...)`` can be arbitrary PSyIR code.
 
         This transformation requires the IntrinsicCall node to be a
-        descendent of an assignment and will raise an exception if
+        descendant of an assignment and will raise an exception if
         this is not the case.
 
         :param node: a MIN or MAX intrinsic.
@@ -117,8 +122,12 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
         :type options: Optional[Dict[str, Any]]
 
         '''
+        # TODO 2668: options are now deprecated:
+        if options:
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+
         # pylint: disable=too-many-locals
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
@@ -170,3 +179,7 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
             # if [if_condition] then [then_body]
             if_stmt = IfBlock.create(if_condition, then_body)
             assignment.parent.children.insert(assignment.position, if_stmt)
+
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["MinOrMax2CodeTrans"]

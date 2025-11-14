@@ -39,6 +39,7 @@
 '''This module contains the SymbolError class and the generic Symbol class.
 '''
 
+from __future__ import annotations
 from enum import Enum
 from psyclone.errors import PSycloneError, InternalError
 from psyclone.psyir.symbols.interfaces import (
@@ -153,12 +154,16 @@ class Symbol(CommentableMixin):
         copy.inline_comment = self.inline_comment
         return copy
 
-    def copy_properties(self, symbol_in):
+    def copy_properties(self,
+                        symbol_in: Symbol,
+                        exclude_interface: bool = False):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name (which is immutable) and visibility.
+        If `exclude_interface` is True, the interface is also not updated.
 
         :param symbol_in: the symbol from which the properties are copied.
-        :type symbol_in: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param exclude_interface: whether or not to copy the interface
+            property of the provided Symbol (default is to include it).
 
         :raises TypeError: if the argument is not the expected type.
 
@@ -166,7 +171,8 @@ class Symbol(CommentableMixin):
         if not isinstance(symbol_in, Symbol):
             raise TypeError(f"Argument should be of type 'Symbol' but "
                             f"found '{type(symbol_in).__name__}'.")
-        self._interface = symbol_in.interface
+        if not exclude_interface:
+            self._interface = symbol_in.interface
 
     def specialise(self, subclass, **kwargs):
         '''Specialise this symbol so that it becomes an instance of the class
@@ -514,7 +520,7 @@ class Symbol(CommentableMixin):
             # Access Info might not have information if a variable is used
             # as array (e.g. in case of an array expression). In this case
             # we still need to check the type information in the symbol table.
-            is_array = access_info.is_array(index_variable=index_variable)
+            is_array = access_info.has_indices(index_variable=index_variable)
 
             # Access information might indicate that a variable is not an
             # array if it is used in array expressions only. In order to
@@ -563,15 +569,8 @@ class Symbol(CommentableMixin):
             except KeyError:
                 pass
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> set["Symbol"]:
         '''
-        :returns: a map of all the symbol accessed inside this Symbol, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this Symbol.
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core import VariablesAccessMap
-        return VariablesAccessMap()
+        return set()

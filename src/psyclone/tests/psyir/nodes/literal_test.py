@@ -40,7 +40,7 @@
 ''' Performs py.test tests on the Literal PSyIR node. '''
 
 import pytest
-from psyclone.psyir.nodes import Literal
+from psyclone.psyir.nodes import Literal, Reference
 from psyclone.psyir.symbols import (
     ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol, INTEGER_SINGLE_TYPE,
     REAL_DOUBLE_TYPE, ScalarType, SymbolTable)
@@ -265,12 +265,20 @@ def test_literal_equality():
 def test_literal_replace_symbols_using():
     '''Test the replace_symbols_using() method of Literal.'''
     idef = DataSymbol("idef", INTEGER_SINGLE_TYPE)
-    stype = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    stype = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
     lit = Literal("1", stype)
     table = SymbolTable()
     lit.replace_symbols_using(table)
-    assert lit.datatype.precision is idef
+    assert lit.datatype.precision.symbol is idef
     idef2 = idef.copy()
     table.add(idef2)
     lit.replace_symbols_using(table)
-    assert lit.datatype.precision is idef2
+    assert lit.datatype.precision.symbol is idef2
+
+
+def test_get_all_accessed_symbols():
+    '''Test the get_all_accessed_symbols() method of Literal.'''
+    idef = DataSymbol("idef", INTEGER_SINGLE_TYPE)
+    stype = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
+    lit = Literal("1", stype)
+    assert idef in lit.get_all_accessed_symbols()

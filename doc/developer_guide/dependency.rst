@@ -81,22 +81,63 @@
     fortran_writer = FortranWriter()
 
 
-Dependency Analysis Functionality in PSyclone
-#############################################
+Dependency Analysis Tools
+#########################
 
-There are two different dependency analysis methods implemented, 
-the old :ref:`dependency analysis<old_dependency_analysis>`
-one, and a new one based on a 
-:ref:`variable access API<variable_accesses>`. There is a certain
-overlap between these two methods, and it is expected that the current
-dependency analysis, which does not support the NEMO API, will be
-integrated with the variable access API in the future (see
+PSyIR nodes provide multiple methods to reason about the dependencies
+and lifetimes of the symbols used in a PSyIR tree. These are described
+in :ref:`the PSyIR dependency analysis methods section<psyir_dependency_methods>`.
+
+These methods currently use two distinct implementations, the new
+:ref:`variable access API<variable_accesses>` (which also provides the
+:ref:`DefinitionUseChains<defusechain>` and the
+:ref:`Loop Dependency Tools<deptools>` for deeper analysis), and the older
+:ref:`PSyKAl halo exchange dependency analysis<old_dependency_analysis>`.
+There is a certain overlap between these two methods, and it is expected that
+the old PSyKAl dependency analysis will be integrated with the variable access
+API in the future (see
 `#1148 <https://github.com/stfc/PSyclone/issues/1148>`_).
+
+.. _psyir_dependency_methods:
+
+PSyIR Dependency Analysis Methods
+=================================
+
+
+.. automethod:: psyclone.psyir.nodes.Node.reference_accesses
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Reference.previous_accesses
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Reference.next_accesses
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Reference.escapes_scope
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Reference.enters_scope
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Loop.independent_iterations
+    :no-index:
+
+PSyKAl analysis methods:
+
+.. automethod:: psyclone.psyir.nodes.Node.dag
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Node.backward_dependence
+    :no-index:
+
+.. automethod:: psyclone.psyir.nodes.Node.forward_dependence
+    :no-index:
+
 
 .. _old_dependency_analysis:
 
-Dependence Analysis
-===================
+PSyKAl Dependence Analysis
+==========================
 
 Dependence Analysis in PSyclone produces ordering constraints between
 instances of the `Argument` class within a PSyIR tree.
@@ -349,102 +390,6 @@ instances to store all accesses to a single variable. A new instance of
     :no-index:
     :members:
 
-Indices
--------
-The `AccessInfo` class stores the original PSyIR node that contains the
-access, but it also stores the indices used in a simplified form, which
-makes it easier to analyse dependencies without having
-to analyse a PSyIR tree for details. The indices are stored in the
-ComponentIndices object that each access has, which can be accessed
-using the `component_indices` property of an `AccessInfo` object.
-
-.. autoclass:: psyclone.core.ComponentIndices
-    :no-index:
-    :members:
-    :special-members: __getitem__, __len__
-
-The `ComponentIndices` class provides an array-like accessor for the
-internal data structure, you can use `len(component_indices)` to get the
-number of components for which array indices are stored.
-The information can be accessed using array subscription syntax, e.g.:
-`component_index[0]` will return the list of array indices used in the
-first component. You can also use a 2-tuple to select a component
-and a dimension at the same time, e.g. `component_indices[(0,1)]`, which
-will return the index used in the second dimension of the first component.
-
-`ComponentIndices` provides an easy way
-to iterate over all indices using its `iterate()` method, which returns all
-valid 2-tuples of component index and dimension index. For example:
-
-..
-    The testsetup provides the access information for 'a(i,j)=1',
-    so it should report the accesses to 'i' and 'j'.
-
-.. testcode::
-
-  # access_info is an AccessInfo instance and contains one access. This
-  # could be as simple as `a(i,j)`, but also something more complicated
-  # like `a(i+2*j)%b%c(k, l)`.
-  for indx in access_info.component_indices.iterate():
-      # indx is a 2-tuple of (component_index, dimension_index)
-      psyir_index = access_info.component_indices[indx]
-
-  # Using enumerate:
-  for count, indx in enumerate(access_info.component_indices.iterate()):
-      psyir_index = access_info.component_indices[indx]
-      # fortran writer converts a PSyIR node to Fortran:
-      print(f"Index-id {count} of 'a(i,j)': {fortran_writer(psyir_index)}")
-
-.. testoutput::
-
-    Index-id 0 of 'a(i,j)': i
-    Index-id 1 of 'a(i,j)': j
-
-To find out details about an index expression, you can either analyse
-the tree (e.g. using `walk`), or use the variable access functionality again.
-Below is an example that shows how this is done to determine if an array
-expression contains a reference to a given variable specified as a
-signature in the variable `index_variable`. The
-variable `access_info` is an instance of `AccessInfo` and contains the
-information about one reference. The function `reference_accesses` is used
-to analyse the index expression. Typically, this code would be
-wrapped in an outer loop over all accesses.
-
-..
-    The testsetup provides the access information for 'a(i,j)=1',
-    so the code should output that the index 'i' is used.
-
-.. testcode::
-
-  index_variable = Signature("i")
-  # access_info contains the access information for a single
-  # reference, e.g. `a(i+2*j)%b%c(k, l)`. Loop over all
-  # individual index expressions ("i+2*j", then "k" and "l"
-  # in the example above).
-  for indx in access_info.component_indices.iterate():
-      index_expression = access_info.component_indices[indx]
-
-      # Create an access info object to collect the accesses
-      # in the index expression
-      accesses = VariablesAccessMap(index_expression)
-      
-      # Then test if the index variable is used. Note that
-      # the key of `access` is a signature, as is the `index_variable`
-      if index_variable in accesses:
-          # The index variable is used as an index
-          # at the specified location.
-          print(f"Index '{index_variable}' is used.")
-          break
-  else:
-      print(f"Index '{index_variable}' is not used.")
-
-
-.. testoutput::
-    :hide:
-
-    Index 'i' is used.
-
-
 Access Examples
 ---------------
 
@@ -547,8 +492,10 @@ until we find accesses that would prevent parallelisation:
           from the kernel metadata, not from the actual kernel source 
           code.
 
-Dependency Tools
-================
+.. _deptools:
+
+Loop Dependency Tools
+=====================
 
 PSyclone contains a class that builds upon the data-dependency functionality
 to provide useful tools for dependency analysis. It especially provides
@@ -599,6 +546,8 @@ can be parallelised:
     :hide:
 
     Error: The write access to 'a(i,i)' and the read access to 'a(i + 1,i + 1)' are dependent and cannot be parallelised. Variable: 'a'.
+
+.. _defusechain:
 
 DefinitionUseChain
 ==================

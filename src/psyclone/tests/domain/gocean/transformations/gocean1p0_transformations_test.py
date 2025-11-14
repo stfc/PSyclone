@@ -1477,10 +1477,12 @@ def test_accroutinetrans_module_use():
     # (and is not a problem) but that `magic` is a variable.
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
-    assert ("accesses the symbol 'magic: DataSymbol<Scalar<REAL, go_wp: "
-            "DataSymbol<Scalar<INTEGER, UNDEFINED>, Unresolved, "
-            "constant=True>>, Import(container='model_mod')>' which is "
-            "imported" in str(err.value))
+    assert ("Transformation Error: Kernel 'kernel_with_use_code' accesses "
+            "the symbol 'magic: DataSymbol<Scalar<REAL, Reference"
+            "[name:'go_wp']>, Import(container='model_mod')>' which is "
+            "imported. If this symbol represents data then it must first be "
+            "converted to a Kernel argument using the "
+            "KernelImportsToArguments transformation." in str(err.value))
 
 
 def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):

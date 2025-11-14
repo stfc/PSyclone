@@ -151,7 +151,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
             # Then work our way down the various members.
             for depth in range(1, len(sig)):
                 if sig[:depth+1] not in access_dict:
-                    if node.is_array:
+                    if node.symbol.is_array:
                         base_cls = ArrayOfStructuresReference
                         # Copy the indices so as not to modify the original
                         # node.

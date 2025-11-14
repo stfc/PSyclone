@@ -40,14 +40,13 @@
 
 import pytest
 
-from psyclone.core import Signature
 from psyclone.psyir.symbols import (
-    TypedSymbol, ContainerSymbol, DataSymbol,
-    ImportInterface, UnresolvedInterface, ScalarType, ArrayType,
+    AutomaticInterface, ArrayType, TypedSymbol, ContainerSymbol, DataSymbol,
+    ImportInterface, UnresolvedInterface, ScalarType,
     REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE,
     INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE, Symbol, SymbolTable,
-    DataTypeSymbol, UnresolvedType, UnsupportedFortranType)
+    BOOLEAN_TYPE, CHARACTER_TYPE, DataTypeSymbol, NoType, RoutineSymbol,
+    Symbol, SymbolTable, UnresolvedType, UnsupportedFortranType)
 from psyclone.psyir.nodes import Literal, Reference
 
 
@@ -77,7 +76,7 @@ def test_typed_symbol_initialisation():
     assert isinstance(TSymbol('a', REAL_DOUBLE_TYPE), TypedSymbol)
     assert isinstance(TSymbol('a', REAL4_TYPE), TypedSymbol)
     kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
-    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, kind)
+    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind))
     assert isinstance(TSymbol('a', real_kind_type), TypedSymbol)
     assert isinstance(TSymbol('a', INTEGER_SINGLE_TYPE), TypedSymbol)
     assert isinstance(TSymbol('a', INTEGER_DOUBLE_TYPE), TypedSymbol)
@@ -202,11 +201,16 @@ def test_typed_symbol_copy_properties():
     ''' Check that the copy_properties() method works as expected. '''
     array_type = ArrayType(REAL_SINGLE_TYPE, [1, 2])
     symbol = TSymbol("myname", array_type)
-    new_sym = TSymbol("new_name", INTEGER_SINGLE_TYPE)
-    new_sym.copy_properties(symbol)
-    # Name should be unchanged
+    new_sym = TSymbol("new_name", INTEGER_SINGLE_TYPE,
+                      interface=UnresolvedInterface())
+    new_sym.copy_properties(symbol, exclude_interface=True)
+    # Name should be unchanged, as should interface.
     assert new_sym.name == "new_name"
+    assert isinstance(new_sym.interface, UnresolvedInterface)
     assert new_sym.datatype == array_type
+    # Repeat but permit interface to be updated.
+    new_sym.copy_properties(symbol)
+    assert isinstance(new_sym.interface, AutomaticInterface)
     with pytest.raises(TypeError) as err:
         new_sym.copy_properties(INTEGER_SINGLE_TYPE)
     assert ("Argument should be of type 'TypedSymbol' but found 'ScalarType'"
@@ -233,6 +237,18 @@ def test_typed_symbol_resolve_type(monkeypatch):
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
     assert isinstance(new_sym.interface, ImportInterface)
+    # Repeat for an imported RoutineSymbol with NoType (implying that it is
+    # the target of a call).
+    symbolc = RoutineSymbol('c', datatype=NoType(),
+                            interface=ImportInterface(module))
+    # Monkeypatch the get_external_symbol() method so that it just returns
+    # a new RoutineSymbol that is pure.
+    monkeypatch.setattr(symbolc, "get_external_symbol",
+                        lambda: RoutineSymbol("b", datatype=NoType(),
+                                              is_pure=True))
+    new_sym = symbolc.resolve_type()
+    assert new_sym is symbolc
+    assert symbolc.is_pure
 
 
 def test_typed_symbol_shape():
@@ -259,7 +275,7 @@ def test_typed_symbol_replace_symbols_using(table):
 
     '''
     kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
-    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, kind)
+    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind))
     sym = TSymbol("a", real_kind_type)
     new_kind = kind.copy()
     if table is not None:
@@ -267,7 +283,7 @@ def test_typed_symbol_replace_symbols_using(table):
         sym.replace_symbols_using(table)
     else:
         sym.replace_symbols_using(new_kind)
-    assert sym.datatype.precision is new_kind
+    assert sym.datatype.precision.symbol is new_kind
     tsym = DataTypeSymbol("a_type", UnresolvedType())
     sym2 = TSymbol("b", tsym)
     if table is not None:
@@ -282,22 +298,23 @@ def test_typed_symbol_replace_symbols_using(table):
     assert sym2.datatype is new_tsym
 
 
-def test_typed_symbol_reference_accesses():
+def test_typed_symbol_get_all_accessed_symbols():
     '''
-    Test the reference_accesses() method of TypedSymbol.
+    Test the get_all_accessed_symbols() method of TypedSymbol.
     '''
     # When the type has a custom precision.
     kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
-    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, kind)
+    real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind))
     sym = TSymbol("a", real_kind_type)
-    vam = sym.reference_accesses()
-    assert vam.all_signatures == [Signature("r_def")]
+    dependent_symbols = sym.get_all_accessed_symbols()
+    assert kind in dependent_symbols
+
     # When the type is specified by a DataTypeSymbol.
     type_sym = DataTypeSymbol("some_type", UnresolvedType())
     struc_sym = TSymbol("b", type_sym)
-    vai2 = struc_sym.reference_accesses()
-    assert vai2.all_signatures == [Signature("some_type")]
+    dependent_symbols = struc_sym.get_all_accessed_symbols()
+    assert type_sym in dependent_symbols
+
     # Dependencies are ignored for imported symbols.
     struc_sym.interface = ImportInterface(ContainerSymbol("somewhere"))
-    vai3 = struc_sym.reference_accesses()
-    assert not vai3.all_signatures
+    assert not struc_sym.get_all_accessed_symbols()

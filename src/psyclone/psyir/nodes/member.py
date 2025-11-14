@@ -118,14 +118,6 @@ class Member(Node):
     def __str__(self):
         return self.node_str(False)
 
-    @property
-    def is_array(self):
-        ''':returns: whether this member is an array.
-        :rtype: bool
-
-        '''
-        return False
-
     def get_signature_and_indices(self):
         '''
         :returns: the Signature of this member access, and a list of list of
@@ -149,6 +141,16 @@ class Member(Node):
             depth += 1
             current = current.parent
         return current.parent, depth
+
+    def component_indices(self) -> tuple[tuple[Node]]:
+        '''
+        :returns: a tuple of tuples of index expressions; one for every
+            component in the accessor. For example, for a scalar it
+            returns `(())`, for `a%b` it returns ((),()) - two components
+            with 0 indices in each, and for `a(i)%b(j,k+1)` it
+            returns `((i,),(j,k+1))`.
+        '''
+        return (tuple(),)
 
 
 # For Sphinx AutoAPI documentation generation

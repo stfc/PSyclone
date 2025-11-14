@@ -111,7 +111,9 @@ class SymPyWriter(FortranWriter):
         {BinaryOperation.Operator.AND: "And({lhs}, {rhs})",
          BinaryOperation.Operator.OR: "Or({lhs}, {rhs})",
          BinaryOperation.Operator.EQV: "Equivalent({lhs}, {rhs})",
-         BinaryOperation.Operator.NEQV: "Xor({lhs}, {rhs})"}
+         BinaryOperation.Operator.NEQV: "Xor({lhs}, {rhs})",
+         BinaryOperation.Operator.EQ: "Eq({lhs}, {rhs})"
+         }
 
     def __init__(self):
         super().__init__()
@@ -290,7 +292,7 @@ class SymPyWriter(FortranWriter):
         #  a%b => [0,0] and  a(2)%b => [1,0]
         num_dims_for_access = []
         for access in sva:
-            indices = access.component_indices
+            indices = access.component_indices()
             # Create the list of number of indices on each component for
             # this access.
             num_dims = []
@@ -314,16 +316,16 @@ class SymPyWriter(FortranWriter):
         :param sva: information on the ways in which the Symbol is accessed.
 
         '''
-        if all(acs.is_array() for acs in sva):
+        if all(acs.has_indices() for acs in sva):
             return
         if not sym or isinstance(sym, (DataSymbol, RoutineSymbol)):
             return
         # Find an access that has indices.
         for acs in sva:
-            if not acs.is_array():
+            if not acs.has_indices():
                 continue
             ndims = None
-            for indices in acs.component_indices:
+            for indices in acs.component_indices():
                 if indices:
                     ndims = len(indices)
             if ndims is not None:
@@ -420,14 +422,14 @@ class SymPyWriter(FortranWriter):
                 # have a scope, hence the try...except.
                 orig_sym = sva[0].node.scope.symbol_table.lookup(sig.var_name)
             except SymbolError:
+                # If we can't find it, use the symbol associated to the sva
+                orig_sym = None
                 if isinstance(sva[0].node, Reference):
                     orig_sym = sva[0].node.symbol
-                else:
-                    orig_sym = None
 
             is_fn_call = isinstance(orig_sym, RoutineSymbol)
 
-            if (sva.is_array() or
+            if (sva.has_indices() or
                     (orig_sym and (orig_sym.is_array or is_fn_call))):
                 # A Fortran array or function call. Declare a new SymPy
                 # function for it. This SymPy function will convert array
@@ -451,7 +453,7 @@ class SymPyWriter(FortranWriter):
                 # A scalar access.
                 if sig.is_structure:
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
-                        sig.to_language(), **assumptions)
+                        str(sig), **assumptions)
                 else:
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
                         sig.var_name, **assumptions)
@@ -805,7 +807,7 @@ class SymPyWriter(FortranWriter):
             # been re-named, and we can use it as is.
             name = node.name
 
-        if not node.is_array:
+        if not node.symbol.is_array:
             # This reference is not an array, just return the name
             return name
 

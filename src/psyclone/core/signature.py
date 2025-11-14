@@ -39,7 +39,6 @@
 '''This module provides management of variable access information.'''
 
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
 # =============================================================================
@@ -105,89 +104,6 @@ class Signature:
     # ------------------------------------------------------------------------
     def __str__(self):
         return "%".join(self._signature)
-
-    # ------------------------------------------------------------------------
-    def to_language(self, component_indices=None, language_writer=None):
-        # pylint: disable=too-many-locals
-        '''Converts this signature with the provided indices to a string
-        in the selected language.
-
-        TODO 1320 This subroutine can be removed when we stop supporting
-        strings - then we can use a PSyIR writer for the ReferenceNode
-        to provide the right string.
-
-        :param component_indices: the indices for each component of \
-            the signature.
-        :type component_indices: None (default is scalar access), or \
-            :py:class:`psyclone.core.component_indices.ComponentIndices`
-        :param language_writer: a backend visitor to convert PSyIR \
-            expressions to a representation in the selected language. \
-            This is used when creating error and warning messages.
-        :type language_writer: None (default is Fortran), or an instance of \
-            :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
-
-        :raises InternalError: if the number of components in this signature \
-            is different from the number of indices in component_indices.
-        '''
-
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core import ComponentIndices
-
-        # By default, if component_indices is None, we assume a scalar access:
-        if component_indices is None:
-            component_indices = ComponentIndices([[]] * len(self))
-
-        # Check if number of components between self and component_indices
-        # is consistent:
-        if len(self._signature) != len(component_indices):
-            raise InternalError(f"Signature '{self}' has {len(self)} "
-                                f"components, but component_indices "
-                                f"{component_indices} has "
-                                f"{len(component_indices)}.")
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.debug_writer import DebugWriter
-        from psyclone.psyir.nodes import Literal, Node, Reference
-
-        if language_writer is None:
-            writer = DebugWriter()
-        else:
-            writer = language_writer
-
-        # out_list collects the string representation of the components
-        # including indices
-        out_list = []
-        for i, component in enumerate(self._signature):
-            indices = component_indices[i]
-            if not indices:
-                out_list.append(component)
-            else:
-                # If there are indices, add the "(ind1, ind2, ...)"
-                # TODO 1320: since we support strings and integer, we cannot
-                # simply pass the list of indices to writer.gen_indices
-                # (since it only accepts PSyIR Nodes). Instead we convert each
-                # string to a Reference, and each integer to a Literal
-                index_list = []
-
-                for dimension in indices:
-                    if isinstance(dimension, Node):
-                        index_list.append(dimension)
-                    elif isinstance(dimension, int):
-                        index_list.append(Literal(str(dimension),
-                                                  INTEGER_TYPE))
-                    else:
-                        ref = Reference(DataSymbol(dimension, INTEGER_TYPE))
-                        index_list.append(ref)
-                dims = writer.gen_indices(index_list, component)
-
-                parenthesis = writer.array_parenthesis
-                out_list.append(component + parenthesis[0] +
-                                ",".join(dims) +
-                                parenthesis[1])
-
-        # Combine the components in out_list to form the language string.
-        return writer.structure_character.join(out_list)
 
     # ------------------------------------------------------------------------
     def __repr__(self):

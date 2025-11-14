@@ -45,12 +45,28 @@ from psyclone.psyir.nodes import (
     IfBlock, Loop, Node,
     OMPDoDirective,
     OMPBarrierDirective, OMPTaskwaitDirective,
-    OMPTargetDirective, Routine, WhileLoop
+    OMPTargetDirective, Routine, WhileLoop,
+    OMPParallelDirective
 )
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
+
+
+def _eliminate_final_parallel_barrier(
+        parallel_directive: OMPParallelDirective
+) -> None:
+    '''
+    Removes the final OMPBarrierDirective from the end of the
+    provided parallel_directive if present.
+
+    :param parallel_directive: The OMPParallelDirective whose final child
+                               is to be removed if its a barrier.
+    '''
+    if isinstance(parallel_directive.dir_body.children[-1],
+                  OMPBarrierDirective):
+        parallel_directive.dir_body.children[-1].detach()
 
 
 # Inherits from AsyncTransMixin as it needs some of the helper functions
@@ -351,7 +367,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
                                 (Loop, WhileLoop), shared_with=next_depend
                         )
                         if (loop_ancestor and
-                                not barrier.is_descendent_of(loop_ancestor)):
+                                not barrier.is_descendant_of(loop_ancestor)):
                             continue
 
                     # The barrier appears between the node and its dependency.
@@ -362,25 +378,25 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
                         # Check if there's an elseblock, and if the barrier
                         # is inside the else body if so.
                         if (barrier_ancestor_if.else_body and
-                                barrier.is_descendent_of(
+                                barrier.is_descendant_of(
                                     barrier_ancestor_if.else_body)):
                             # Check that either the dependency or the directive
                             # are in the same else body
-                            if (not (directive.is_descendent_of(
+                            if (not (directive.is_descendant_of(
                                         barrier_ancestor_if.else_body) or
-                                     next_depend.is_descendent_of(
+                                     next_depend.is_descendant_of(
                                          barrier_ancestor_if.else_body)
                                      )):
                                 # Neither are in the same else block so exit
                                 # early
                                 break
-                        elif (barrier.is_descendent_of(
+                        elif (barrier.is_descendant_of(
                                 barrier_ancestor_if.if_body)):
                             # Check that either the dependency or the directive
                             # are in the same else body
-                            if (not (directive.is_descendent_of(
+                            if (not (directive.is_descendant_of(
                                         barrier_ancestor_if.if_body) or
-                                     next_depend.is_descendent_of(
+                                     next_depend.is_descendant_of(
                                          barrier_ancestor_if.if_body)
                                      )):
                                 # Neither are in the same else block so exit
@@ -517,6 +533,10 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         if len(cpu_directives) > 0:
             self._eliminate_adjacent_barriers(node, OMPBarrierDirective)
             self._eliminate_barriers(node, cpu_directives, OMPBarrierDirective)
+            # We can also remove the final child from each parallel directive
+            # if its a OMPBarrierDirective as they are uneccessary.
+            for parallel in node.walk(OMPParallelDirective):
+                _eliminate_final_parallel_barrier(parallel)
         # Eliminate OMPTaskwaitDirectives for the gpu_directives
         if len(gpu_directives) > 0:
             self._eliminate_adjacent_barriers(node, OMPTaskwaitDirective)

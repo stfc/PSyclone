@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: M. Naylor, University of Cambridge, UK
 
 ''' pytest tests for the parallel_loop_trans module. '''
 
@@ -92,7 +93,7 @@ def test_paralooptrans_validate_force(fortran_reader):
     trans.validate(loop, {"force": True})
 
 
-def test_paralooptrans_validate_pure_calls(fortran_reader):
+def test_paralooptrans_validate_pure_calls(fortran_reader, fortran_writer):
     ''' Test that the validation checks for calls that are not guaranteed
     to be pure unless the 'force' option is provided.
     '''
@@ -121,6 +122,30 @@ def test_paralooptrans_validate_pure_calls(fortran_reader):
     trans.validate(loop.copy(), {"force": True})
     loop.scope.symbol_table.lookup("my_sub2").is_pure = True
     trans.validate(loop)
+
+    # Also allow pure when the fuction definition can be found
+    psyir = fortran_reader.psyir_from_source('''
+    pure subroutine return_scalar(x, y)
+        integer, intent(in) :: x
+        integer, intent(out) :: y
+        y = x + 1
+    end subroutine return_scalar
+
+    subroutine private_vars()
+        integer, parameter :: n = 100
+        integer :: i, j, k
+        logical :: correct(n)
+        do i = 1, n
+            j = i + 1
+            call return_scalar(i, k)
+            correct(i) = j == k
+        end do
+    end subroutine private_vars
+    ''')
+    loop = psyir.walk(Loop)[0]
+    trans.apply(loop)
+    code = fortran_writer(psyir)
+    assert "!$omp parallel do default(shared) private(i,j,k)" in code
 
 
 def test_paralooptrans_validate_loop_inside_pure(fortran_reader):
@@ -613,7 +638,20 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
     assert "ztmp(jj)\' causes a write-write race condition." in str(err.value)
     assert "ztmp2(jj)\' causes a write-write race condition." in str(err.value)
 
-    # Now enable array privatisation
+    # Automatic array privatisation will not work because there is a path to
+    # reach the ztmp2 as a read first (when the condition is not taken)
+    with pytest.raises(TransformationError) as err:
+        trans.apply(loop, {"privatise_arrays": True})
+    assert ("The write-write dependency in 'ztmp2' cannot be solved by "
+            "automatic array privatisation." in str(err.value))
+    # But the 'ztmp' error is gone: both in the original format or in the
+    # privatisation attempted format
+    assert "ztmp(jj)" not in str(err.value)
+    assert "'ztmp'" not in str(err.value)
+
+    # It can still be parallelised by explictly marking the symbol as private
+    ztmp2 = loop.scope.symbol_table.lookup("ztmp2")
+    loop.explicitly_private_symbols.add(ztmp2)
     trans.apply(loop, {"privatise_arrays": True})
     assert ("!$omp parallel do default(shared) private(ji,jj,ztmp) "
             "firstprivate(ztmp2)" in fortran_writer(psyir))
@@ -650,14 +688,11 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
     assert ("ztmp_nonlocal(jj)\' causes a write-write race "
             not in str(err.value))
     assert ("The write-write dependency in 'ztmp_after' cannot be solved by "
-            "array privatisation because it is not a plain local array or it "
-            "is used after the loop" in str(err.value))
+            "automatic array privatisation." in str(err.value))
     assert ("The write-write dependency in 'ztmp_nonlocal' cannot be solved "
-            "by array privatisation because it is not a plain local array or "
-            "it is used after the loop" in str(err.value))
+            "by automatic array privatisation." in str(err.value))
     assert ("The write-write dependency in 'mystruct%array' cannot be solved "
-            "by array privatisation because it is not a plain local array or "
-            "it is used after the loop" in str(err.value))
+            "by automatic array privatisation." in str(err.value))
 
     # The privatise_arrays only accepts bools
     with pytest.raises(TypeError) as err:
@@ -667,7 +702,7 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
 
 
 def test_paralooptrans_array_privatisation_complex_control_flow(
-        fortran_reader, fortran_writer):
+        fortran_reader):
     '''
     Check that the 'privatise_arrays' transformation option allows to ignore
     write-write dependencies by setting the associated variable as 'private'
@@ -725,11 +760,42 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
 
     with pytest.raises(TransformationError) as err:
         trans.validate(loop, {"privatise_arrays": True})
-    assert ("write-write dependency in 'ztmp' cannot be solved by array "
-            "privatisation" in str(err.value))
+    assert ("write-write dependency in 'ztmp' cannot be solved by automatic "
+            "array privatisation" in str(err.value))
 
     # But it is fine when explicitly requesting the symbol to be private
     loop.explicitly_private_symbols.add(loop.scope.symbol_table.lookup("ztmp"))
+    trans.validate(loop, {"privatise_arrays": True})
+
+    # Check if the whole loop body is inside a conditional, this is needed
+    # because the privatisation validation will search for the node following
+    # the condition, and we have a special case is such node does not exist.
+    # Also check that intrinsics such as l/ubound do not interfere with
+    # checking that the variable is write-first
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer ji, jj, i
+          real :: var1(10,10)
+          real :: ztmp(10)
+          var1 = 1.0
+
+          do ji = 1, 10
+              if (i == 1) then
+                do jj = lbound(ztmp), ubound(ztmp)
+                  ztmp(jj) = 3
+                end do
+                do jj = 1, 10
+                  var1(ji, jj) = ztmp(jj) * 2
+                end do
+              endif
+          end do
+        end subroutine my_sub''')
+    loop = psyir.walk(Loop, stop_type=Loop)[0]
+    trans = ParaTrans()
+
+    # In this case ztmp is written-first (regardless of the conditional because
+    # there is no use aftet the condition) and not used after the loop, so it
+    # will pass the privatisation validation
     trans.validate(loop, {"privatise_arrays": True})
 
 
@@ -1075,6 +1141,34 @@ end subroutine x
     result = psyir.walk(Loop)[1].loop_body.children[0]
     assert paratrans._find_next_dependency(loop, direc) == [result]
 
+    # Check that if the next dependency is in a different part of an IfBlock
+    # then the dependency found is the entire IfBlock when contained in a
+    # parent loop
+    code = """subroutine x
+    integer :: i, j, k
+    integer, dimension(100) :: a
+    do i = 1, 10
+      if(k == 2) then
+        do j= 1, 100
+          a(j) = a(j) + i
+        end do
+      else
+        do j=1, 100
+          a(j) = a(j) - i
+        end do
+      end if
+    end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    # Add a directive around the first do j = 1 loop
+    loop = psyir.walk(Loop)[1]
+    direc = paratrans._directive(None)
+    loop.detach()
+    direc.children[0].addchild(loop)
+    psyir.walk(IfBlock)[0].if_body.children.insert(0, direc)
+    result = psyir.walk(IfBlock)[0]
+    assert paratrans._find_next_dependency(loop, direc) == [result]
+
 
 def test_parallel_loop_trans_add_asynchronicity():
     '''Test the _add_asynchronicity function of the parallel loop trans.'''
@@ -1082,3 +1176,21 @@ def test_parallel_loop_trans_add_asynchronicity():
     paratrans = ParaTrans()
     # Default implementation does nothing.
     paratrans._add_asynchronicity(None)
+
+
+def test_paralooptrans_reduction_ops_type(fortran_reader):
+    '''
+    Test that the type of the 'reduction_ops' option is checked.
+    '''
+    psyir = fortran_reader.psyir_from_source(CODE)
+    loop = psyir.walk(Loop)[1]
+    trans = ParaTrans()
+    with pytest.raises(TypeError) as err:
+        trans.apply(loop, reduction_ops=False)
+    assert ("reduction_ops for ParallelLoopTrans.apply() should be a list "
+            "but found type bool") in str(err.value)
+    with pytest.raises(TypeError) as err:
+        trans.apply(loop, reduction_ops=[False])
+    assert ("Elements of reduction_ops for ParallelLoopTrans.apply() should "
+            "have type BinaryOperation.Operator or IntrinsicCall.Intrinsic "
+            "but found bool" in str(err.value))

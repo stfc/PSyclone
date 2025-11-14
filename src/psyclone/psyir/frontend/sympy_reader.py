@@ -44,27 +44,42 @@ from psyclone.psyir.frontend.fortran import FortranReader
 
 # pylint: disable=invalid-name
 class FortranPrinter(Printer):
-    '''Specialise the SymPy Printer to convert logical operators back to
-    Fortran format. While SymPy has a Fortran printer (fcode), it does not
-    handle e.g. Fortran Array expressions (a(2:5)), so we specialise the
+    '''Specialise the SymPy Printer to convert logical operators and literals
+    back to Fortran format. While SymPy has a Fortran printer (fcode), it does
+    not handle e.g. Fortran Array expressions (a(2:5)), so we specialise the
     generic SymPy Printer and handle the necessary conversions.'''
 
-    def _print_And(self, expr):
+    def _print_And(self, expr) -> str:
         '''Called when converting an AND expression.'''
         return f"({'.AND.' .join(self._print(i) for i in expr.args)})"
 
-    def _print_Or(self, expr):
+    def _print_Or(self, expr) -> str:
         '''Called when converting an OR expression.'''
         return f"({'.OR.' .join(self._print(i) for i in expr.args)})"
 
-    def _print_Equivalent(self, expr):
+    def _print_Equivalent(self, expr) -> str:
         '''Called when converting an EQUIVALENT expression.'''
         return f"({'.EQV.' .join(self._print(i) for i in expr.args)})"
 
-    def _print_Xor(self, expr):
+    def _print_Xor(self, expr) -> str:
         '''Called when converting an XOR expression, which in Fortran
-        is NEQV.'''
+        is .NEQV.'''
         return f"({'.NEQV.' .join(self._print(i) for i in expr.args)})"
+
+    def _print_Equality(self, expr) -> str:
+        '''Called when converting an Eq expression, which in Fortran
+        is =='''
+        return f"({'==' .join(self._print(i) for i in expr.args)})"
+
+    def _print_BooleanTrue(self, expr) -> str:
+        '''Called when converting a SymPy value of True.'''
+        # pylint: disable=unused-argument
+        return ".TRUE."
+
+    def _print_BooleanFalse(self, expr) -> str:
+        '''Called when converting a SymPy value of False.'''
+        # pylint: disable=unused-argument
+        return ".FALSE."
 
 
 class SymPyReader():

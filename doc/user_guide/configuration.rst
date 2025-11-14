@@ -118,7 +118,6 @@ and an optional API specific section, for example for the
                    r_solver: 4,
                    r_tran: 8,
                    r_bl: 8,
-                   r_phys: 8,
                    r_um: 8
    RUN_TIME_CHECKS = false
    NUM_ANY_SPACE = 10
@@ -151,33 +150,38 @@ supported by PSyclone.
 
 .. tabularcolumns:: |l|L|l|
 
-======================= ======================================================= ===========
-Entry                   Description                                             Type
-======================= ======================================================= ===========
-DISTRIBUTED_MEMORY      Whether or not to generate code for distributed-memory  bool
-                        parallelism by default.  Note that this is currently
-                        only supported for the LFRic API.
-REPRODUCIBLE_REDUCTIONS Whether or not to generate code for reproducible OpenMP bool
-                        reductions (see :ref:`openmp-reductions`) by default.
-REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,  int
-                        this setting controls the amount of padding used
-                        between elements of the array in which each thread
-                        accumulates its local reduction. (This prevents false
-                        sharing of cache lines by different threads.)
-PSYIR_ROOT_NAME         The root for generated PSyIR symbol names if one is not str
-                        supplied when creating a symbol. Defaults to
-                        "psyir_tmp".
-VALID_PSY_DATA_PREFIXES Which class prefixes are permitted in any               list of str
-                        PSyData-related transformations. See :ref:`psy_data`
-                        for details.
-BACKEND_CHECKS_ENABLED  Optional (defaults to True). Whether or not the PSyIR   bool
-                        backend should validate the tree that it is passed.
-                        Can be overridden by the ``--backend`` command-line
-                        flag (see :ref:`backend-options`).
-FORTRAN_STANDARD        Optional (defaults to f2008). The Fortran standard      str
-                        that should be used by fparser. Valid values are
-                        f2003 and f2008.
-======================= ======================================================= ===========
+============================ ======================================================= ===========
+Entry                        Description                                             Type
+============================ ======================================================= ===========
+DISTRIBUTED_MEMORY           Whether or not to generate code for distributed-memory  bool
+                             parallelism by default.  Note that this is currently
+                             only supported for the LFRic API.
+REPRODUCIBLE_REDUCTIONS      Whether or not to generate code for reproducible OpenMP bool
+                             reductions (see :ref:`openmp-reductions`) by default.
+REPROD_PAD_SIZE              If generating code for reproducible OpenMP reductions,  int
+                             this setting controls the amount of padding used
+                             between elements of the array in which each thread
+                             accumulates its local reduction. (This prevents false
+                             sharing of cache lines by different threads.)
+PSYIR_ROOT_NAME              The root for generated PSyIR symbol names if one is not str
+                             supplied when creating a symbol. Defaults to
+                             "psyir_tmp".
+VALID_PSY_DATA_PREFIXES      Which class prefixes are permitted in any               list of str
+                             PSyData-related transformations. See :ref:`psy_data`
+                             for details.
+BACKEND_CHECKS_ENABLED       Optional (defaults to True). Whether or not the PSyIR   bool
+                             backend should validate the tree that it is passed.
+                             Can be overridden by the ``--backend`` command-line
+                             flag (see :ref:`backend-options`).
+BACKEND_INDENTATION_DISABLED Optional (defaults to False). Whether or not the        bool
+                             PSyIR backend should output nested code structures
+                             using indentation. Can be overridden by the
+                             ``--backend`` command-line flag (see
+                             :ref:`backend-options`).
+FORTRAN_STANDARD             Optional (defaults to f2008). The Fortran standard      str
+                             that should be used by fparser. Valid values are
+                             f2003 and f2008.
+============================ ======================================================= ===========
 
 Common Sections
 ^^^^^^^^^^^^^^^

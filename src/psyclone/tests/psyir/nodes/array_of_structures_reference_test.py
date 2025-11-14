@@ -174,20 +174,6 @@ def test_ast_str():
             "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]")
 
 
-def test_ast_is_array():
-    ''' Test that an ArrayOfStructuresReference is marked as being an array.
-    '''
-    grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC,
-         None)])
-    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
-    grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
-    ssym = symbols.DataSymbol("grid", grid_array_type)
-    asref = nodes.ArrayOfStructuresReference.create(
-        ssym, [nodes.Literal("2", symbols.INTEGER_TYPE)], ["nx"])
-    assert asref.is_array
-
-
 def test_asr_datatype():
     '''Test that the datatype property works correctly for
     ArrayOfStructuresReference. (The actual implementation is in
@@ -234,7 +220,8 @@ def test_aos_ref_replace_symbols_using(component_symbol):
     Reference but we have a test here as it's a complex case.
 
     '''
-    i64 = symbols.DataSymbol("i64", symbols.INTEGER_DOUBLE_TYPE)
+    i64 = nodes.Reference(symbols.DataSymbol("i64",
+                                             symbols.INTEGER_DOUBLE_TYPE))
     itype = symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER, i64)
     int_one = nodes.Literal("1", itype)
     idx = symbols.DataSymbol("idx", symbols.INTEGER_TYPE)
@@ -259,9 +246,9 @@ def test_aos_ref_replace_symbols_using(component_symbol):
     newidx = idx.copy()
     table.add(newidx)
     newi64 = i64.copy()
-    table.add(newi64)
+    table.add(newi64.symbol)
     asref.replace_symbols_using(table)
     # Everything should refer to the new symbols now.
     assert asref.symbol is newcs
-    assert asref.indices[0].datatype.precision is newi64
+    assert asref.indices[0].datatype.precision.symbol is newi64.symbol
     assert asref.member.member.indices[0].symbol is newidx

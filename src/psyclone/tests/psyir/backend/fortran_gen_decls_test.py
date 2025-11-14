@@ -40,10 +40,12 @@
 import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation,
-                                  Container, Routine, Return)
+from psyclone.psyir.nodes import (
+    BinaryOperation, Container, IntrinsicCall, Literal, Reference, Routine,
+    Return)
 from psyclone.psyir.symbols import (
-    DataSymbol, DataTypeSymbol, ContainerSymbol, GenericInterfaceSymbol,
+    ArrayType, DataSymbol, DataTypeSymbol, ContainerSymbol,
+    GenericInterfaceSymbol,
     RoutineSymbol, ScalarType, Symbol, SymbolTable, UnresolvedType,
     StructureType, ImportInterface, UnresolvedInterface, ArgumentInterface,
     INTEGER_TYPE, REAL_TYPE, StaticInterface, PreprocessorInterface,
@@ -68,6 +70,22 @@ def test_gen_param_decls_dependencies(fortran_writer):
     assert (result == "integer, parameter :: rlg = 8\n"
                       "integer, parameter :: wp = rlg\n"
                       "integer, parameter :: var = rlg + wp\n")
+    # A Symbol can depend upon itself. We can't currently create such a Symbol
+    # directly (because we need the symbol to exist in order to make a
+    # Reference to it).
+    circ_sym = DataSymbol("circle", INTEGER_TYPE, is_constant=True,
+                          initial_value=IntrinsicCall.create(
+                              IntrinsicCall.Intrinsic.HUGE,
+                              [Reference(var_sym)]))
+    # Now that we have the Symbol, update the initial value to refer to it.
+    circ_sym.initial_value.arguments[0].replace_with(Reference(circ_sym))
+    symbol_table.add(circ_sym)
+    result = fortran_writer._gen_parameter_decls(symbol_table)
+    assert (result == "integer, parameter :: rlg = 8\n"
+                      "integer, parameter :: wp = rlg\n"
+                      "integer, parameter :: var = rlg + wp\n"
+                      "integer, parameter :: circle = HUGE(circle)\n")
+
     # Check that an (invalid, obviously) circular dependency is handled.
     # Replace "rlg" with a new one that depends on "wp".
     del symbol_table._symbols[rlg_sym.name]
@@ -104,7 +122,7 @@ def test_gen_param_decls_kind_dep(fortran_writer):
                           initial_value=Literal("4", INTEGER_TYPE))
     wp_sym = DataSymbol("wp", INTEGER_TYPE, is_constant=True,
                         initial_value=Reference(rdef_sym))
-    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, wp_sym)
+    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(wp_sym))
     var_sym = DataSymbol("var", rdef_type, is_constant=True,
                          initial_value=Literal("1.0", rdef_type))
     var2_sym = DataSymbol("var2", REAL_TYPE, is_constant=True,
@@ -118,6 +136,34 @@ def test_gen_param_decls_kind_dep(fortran_writer):
                       "integer, parameter :: wp = r_def\n"
                       "real, parameter :: var2 = 1.0_wp\n"
                       "real(kind=wp), parameter :: var = 1.0_wp\n")
+
+
+def test_gen_param_decls_case_insensitive(fortran_reader,
+                                          fortran_writer):
+    '''
+    Checks that _gen_parameter_decls is not case sensitive. We have to
+    use the fortran frontend to exercise this.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+module my_mod
+  implicit none
+  integer(kind=AN_int), parameter :: a_second_int = 5_i_def
+  integer, parameter :: an_int=6
+  Integer, Parameter :: InterpolationLevels(nfieldnames3d) = &
+                  [ 2, 0, Huge(InterpolationLevels)/3, 0 ]
+  integer, parameter :: nFieldNames3d = 4
+  integer, parameter :: I_DEF = 4
+end module my_mod''')
+    container = psyir.walk(Container)[1]
+    result = fortran_writer._gen_parameter_decls(container.symbol_table)
+    assert result == (
+        "integer, parameter :: an_int = 6\n"
+        "integer, parameter :: i_def = 4\n"
+        "integer(kind=an_int), parameter :: a_second_int = 5_i_def\n"
+        "integer, parameter :: nfieldnames3d = 4\n"
+        "integer, dimension(nfieldnames3d), parameter :: "
+        "interpolationlevels = [2, 0, HUGE(InterpolationLevels) / 3, 0]\n")
 
 
 def test_gen_decls(fortran_writer):
@@ -207,6 +253,34 @@ def test_gen_decls(fortran_writer):
             "from a module and there are no wildcard "
             "imports which could be bringing them into scope: "
             "'unknown'" in str(excinfo.value))
+
+
+def test_gen_decls_array(fortran_writer):
+    '''
+    Test that various forms of array declaration are created correctly.
+    '''
+    atype = ArrayType(REAL_TYPE, [3, 5])
+    symbol_table = SymbolTable()
+    symbol_table.add(DataSymbol("simple", atype))
+    result = fortran_writer.gen_decls(symbol_table)
+    assert "real, dimension(3,5) :: simple" in result
+    # With range
+    sym = symbol_table.new_symbol("upper", symbol_type=DataSymbol,
+                                  datatype=INTEGER_TYPE)
+    atype = ArrayType(REAL_TYPE, [(3, 5), (-1, Reference(sym))])
+    symbol_table.add(DataSymbol("simple2", atype))
+    result = fortran_writer.gen_decls(symbol_table)
+    assert "real, dimension(3:5,-1:upper) :: simple2" in result
+    # Only an explicit lower bound.
+    atype = ArrayType(REAL_TYPE, [(3, ArrayType.Extent.ATTRIBUTE)])
+    symbol_table.add(DataSymbol("simple3", atype))
+    result = fortran_writer.gen_decls(symbol_table)
+    assert "real, dimension(3:) :: simple3" in result
+    # With default lower bound.
+    atype = ArrayType(REAL_TYPE, [(1, ArrayType.Extent.ATTRIBUTE)])
+    symbol_table.add(DataSymbol("simple4", atype))
+    result = fortran_writer.gen_decls(symbol_table)
+    assert "real, dimension(:) :: simple4" in result
 
 
 def test_gen_decls_nested_scope(fortran_writer):

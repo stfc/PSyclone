@@ -44,13 +44,14 @@ the generator.py file. This includes the generate and the main
 functions.
 '''
 
+import logging
 import os
+from pathlib import Path
 import re
 import shutil
 import stat
-import logging
 from sys import modules
-
+from typing import Optional
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -71,7 +72,7 @@ from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.version import __VERSION__
-
+from psyclone.tests.utilities import get_base_path
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
@@ -178,7 +179,7 @@ this is invalid python
         _, _ = generate(
             os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
             api="lfric", script_name=error_syntax)
-    assert ("invalid syntax (test_script.py, line 2)" in str(err.value))
+    assert "invalid syntax (test_script.py, line 2)" in str(err.value)
 
     error_import = script_factory("""
 import non_existent
@@ -840,8 +841,7 @@ def test_main_api(capsys, caplog):
                 caplog.record_tuples[0][2])
 
 
-def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory,
-                                           monkeypatch):
+def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory):
     ''' Test the keep comments and keep directives arguments to main. '''
     filename = str(tmpdir_factory.mktemp('psyclone_test').join("test.f90"))
     code = """subroutine a()
@@ -928,7 +928,7 @@ def test_keep_comments_lfric(capsys, monkeypatch):
     assert "!$omp barrier" in output
 
 
-def test_keep_comments_gocean(capsys, monkeypatch):
+def test_keep_comments_gocean(capsys):
     '''Test that the GOcean API correctly keeps comments and directives
     when applied the appropriate arguments.'''
     filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
@@ -990,8 +990,8 @@ def test_main_directory_arg(capsys):
           "-d", NEMO_BASE_PATH])
 
 
-def test_main_disable_backend_validation_arg(capsys):
-    '''Test the --backend option in main().'''
+def test_main_backend_arg(capsys):
+    '''Test the --backend options in main().'''
     filename = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
     with pytest.raises(SystemExit):
         main([filename, "-api", "lfric", "--backend", "invalid"])
@@ -1004,9 +1004,15 @@ def test_main_disable_backend_validation_arg(capsys):
     assert Config.get().backend_checks_enabled is True
     main([filename, "-api", "lfric", "--backend", "disable-validation"])
     assert Config.get().backend_checks_enabled is False
+    assert Config.get().backend_indentation_disabled is False
     Config._instance = None
-    main([filename, "-api", "lfric", "--backend", "enable-validation"])
+    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    main([filename, "--backend", "disable-indentation"])
+    output, _ = capsys.readouterr()
+    # None of the three DO loops should be indented.
+    assert len(re.findall(r"^do j", output, re.MULTILINE)) == 3
     assert Config.get().backend_checks_enabled is True
+    assert Config.get().backend_indentation_disabled is True
     Config._instance = None
 
 
@@ -1072,13 +1078,17 @@ def trans(psyir):
 
 
 @pytest.mark.parametrize(
-         "idx, value, output",
-         [("0", "False", "result = a + b"),
-          ("1", "True", "result = 1 + 1"),
-          ("2", "[\"module1\"]", "result = 1 + b"),
-          ("3", "[\"module2\"]", "result = a + 1"),
+         "idx, value, output", [
+          ("0", "False", "result = a + b + c"),
+          # Indirect import is not resolved
+          ("1", "True", "result = 1 + 1 + c"),
+          ("2", "[\"module1\"]", "result = 1 + b + c"),
+          ("3", "[\"module2\"]", "result = a + 1 + c"),
+          # Indirect import resolved by name
+          ("4", "[\"module1\",\"module3\"]", "result = 1 + b + 1"),
           # Now change both with case insensitive names
-          ("4", "[\"mOdule1\",\"moduLe2\"]", "result = 1 + 1")])
+          ("5", "[\"mOdule1\",\"moduLe2\"]", "result = 1 + 1 + c")
+          ])
 def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
                                              idx, value, output):
     ''' Test that applying recipes in the code-transformation mode follows the
@@ -1086,6 +1096,7 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
 
     module1 = '''
         module module1
+            use module3
             integer :: a
         end module module1
     '''
@@ -1094,6 +1105,11 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
             integer :: b
         end module module2
     '''
+    module3 = '''
+        module module3
+            integer :: c
+        end module module3
+    '''
     code = '''
         module test
             use module1
@@ -1101,7 +1117,7 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
             real :: result
         contains
             subroutine mytest()
-                result = a + b
+                result = a + b + c
             end subroutine mytest
         end module test
     '''
@@ -1121,6 +1137,7 @@ def trans(psyir):
     recipe_name = f"replace_integers_{idx}.py"
     for filename, content in [("module1.f90", module1),
                               ("module2.f90", module2),
+                              ("module3.f90", module3),
                               ("code.f90", code),
                               (recipe_name, recipe)]:
         with open(tmpdir.join(filename), "w", encoding='utf-8') as my_file:
@@ -1128,6 +1145,7 @@ def trans(psyir):
 
     # Execute the recipe (no -I needed as we have everything at the same place)
     monkeypatch.chdir(tmpdir)
+    ModuleManager._instance = None
     main(["code.f90", "-s", recipe_name])
     captured = capsys.readouterr()
 
@@ -1161,6 +1179,137 @@ def trans(psyir):
     assert "module newname\n" in new_code
 
 
+def test_code_transformation_free_form(tmpdir, capsys):
+    '''Test that the free-form option works for code transformation.'''
+    code = '''
+    subroutine test
+    integer :: n
+    n = 3 + 4
+    end subroutine'''
+    # Using a fixed format file extension to check the --free-form
+    # option is correctly overriding the default behaviour.
+    inputfile = str(tmpdir.join("free_form.f"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([inputfile, "--free-form"])
+    captured, _ = capsys.readouterr()
+    correct = """subroutine test()
+  integer :: n
+
+  n = 3 + 4
+
+end subroutine test"""
+    assert correct in captured
+
+
+def test_code_transformation_fixed_form(tmpdir, capsys, caplog):
+    ''' Test that the fixed-form option works for code transformation.'''
+    code = '''
+      subroutine test
+c     Comment here.
+      integer n
+
+      n = 3 +
+     &4
+      end subroutine'''
+    inputfile = str(tmpdir.join("fixed_form.f90"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([inputfile, "--fixed-form"])
+    captured, _ = capsys.readouterr()
+    correct = """subroutine test()
+  integer :: n
+
+  n = 3 + 4
+
+end subroutine test"""
+    assert correct in captured
+
+    with pytest.raises(SystemExit) as error:
+        main([inputfile])
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    assert error.value.code == 1
+    out, err = capsys.readouterr()
+    assert ("Failed to create PSyIR from file " in err)
+    assert ("File was treated as free form" in err)
+
+    # Check that if we use a fixed form file extension we get the expected
+    # behaviour.
+    code = '''
+      subroutine test
+c     Comment here.
+      integer n
+
+      n = 3 +
+     &4
+      end subroutine'''
+    inputfile = str(tmpdir.join("fixed_form.f"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([inputfile])
+    captured, _ = capsys.readouterr()
+    correct = """subroutine test()
+  integer :: n
+
+  n = 3 + 4
+
+end subroutine test"""
+    assert correct in captured
+
+    caplog.clear()
+    # Check an unknown file extension gives a log message and fails for a
+    # fixed form input.
+    with caplog.at_level(logging.INFO):
+        inputfile = str(tmpdir.join("fixed_form.1s2"))
+        with open(inputfile, "w", encoding='utf-8') as my_file:
+            my_file.write(code)
+        with pytest.raises(SystemExit) as error:
+            main([inputfile])
+        assert error.value.code == 1
+        out, err = capsys.readouterr()
+        assert ("Failed to create PSyIR from file " in err)
+        assert caplog.records[0].levelname == "INFO"
+        assert ("' doesn't end with a recognised "
+                "file extension. Assuming free form." in
+                caplog.record_tuples[0][2])
+
+
+@pytest.mark.parametrize("validate", [True, False])
+def test_code_transformation_backend_validation(validate: bool,
+                                                monkeypatch) -> None:
+    '''
+    Test that the backend validation flag is passed to
+    the Fortran writer when using generic code transformations.
+    '''
+
+    # Create a dummy Fortran writer, which we use to check
+    # the values passed in
+    def dummy_fortran_writer(check_global_constraints: bool,
+                             disable_copy: bool,
+                             indent_string: Optional[str] = None):
+        # pylint: disable=unused-argument
+        """A dummy function used to test that the FortranWriter
+        gets the backend-validation flag as intended.
+        """
+        assert check_global_constraints is validate
+        # The writer must returns some string
+        return lambda x: "some-string-doesn't-matter"
+
+    monkeypatch.setattr(generator, "FortranWriter", dummy_fortran_writer)
+
+    # The input file doesn't really matter, so just use a
+    # kernel file from gocean:
+    input_file = Path(get_base_path("gocean")) / "test27_loop_swap.f90"
+
+    if validate:
+        options = []
+    else:
+        options = ["--backend", "disable-validation"]
+    main([str(input_file)] + options)
+    # The actual assert is in the dummy_fortran_writer function above
+
+
 def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
     '''
     Test the error handling in the code_transformation_mode() method when
@@ -1178,7 +1327,7 @@ def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
     with caplog.at_level(logging.ERROR):
         with pytest.raises(SystemExit):
             code_transformation_mode(inputfile, None, None, False, False)
-        out, err = capsys.readouterr()
+        _, err = capsys.readouterr()
         assert "Failed to create PSyIR from file '" in err
         assert "Is the input valid Fortran" in caplog.text
 
@@ -1271,7 +1420,10 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     assert ("Error, unexpected exception, please report to the authors:"
             in output)
     assert "Traceback (most recent call last):" in output
-    assert "TypeError: argument of type 'int' is not iterable" in output
+    # Python >= 3.14 uses "is not a container or iterable",
+    # so we split the assertion for cross-version support
+    assert "TypeError: argument of type 'int' is not " in output
+    assert "iterable" in output
 
 
 def test_main_fort_line_length_off(capsys):
@@ -1496,7 +1648,7 @@ def test_invalid_kern_naming():
     assert "but got 'not-a-scheme'" in str(err.value)
 
 
-def test_enable_cache_flag(capsys, tmpdir, monkeypatch):
+def test_enable_cache_flag(tmpdir, monkeypatch):
     ''' Check that if the --enable-cache flag is provided, resolve imports will
     create .psycache files for each imported module.
 
@@ -1883,3 +2035,16 @@ def test_generate_unresolved_container_gocean(tmpdir):
     assert ("alg.f90' must be named in a use statement (found "
             "['kind_params_mod', 'grid_mod', 'field_mod', 'module_mod'])."
             in str(info.value))
+
+
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_ignore_pattern():
+    '''Checks that we can pass ignore patterns to the module manager.
+    '''
+    alg = os.path.join(get_base_path("lfric"), "1_single_invoke.f90")
+    main(["-api", "lfric", alg,
+          "--modman-file-ignore", "abc1",
+          "--modman-file-ignore", "abc2"])
+
+    mod_man = ModuleManager.get()
+    assert mod_man._ignore_files == set(["abc1", "abc2"])

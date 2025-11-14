@@ -39,11 +39,16 @@
 
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
+import warnings
+from pathlib import Path
 import pytest
+
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.parse import ModuleManager
 from psyclone.psyGen import CodedKern, Kern
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
@@ -321,7 +326,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     assert rsym.visibility == Symbol.Visibility.PRIVATE
 
 
-def test_validate_local_routine(fortran_reader):
+def test_validate_already_existing_local_routine(fortran_reader):
     '''Test that validate rejects a call to a routine that is already present
     in the current Container.'''
     psyir = fortran_reader.psyir_from_source('''
@@ -342,9 +347,8 @@ def test_validate_local_routine(fortran_reader):
     inline_trans = KernelModuleInlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("routine 'do_something' cannot be module inlined into Container "
-            "'my_mod' because a *different* routine with that name already "
-            "exists and versioning" in str(err.value))
+    assert ("The target of 'call do_something(a)' is already module inlined."
+            in str(err.value))
 
 
 def test_validate_fail_to_get_psyir(fortran_reader, config_instance):
@@ -425,6 +429,7 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
                      " nested scopes")
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     ''' Test that we can succesfully inline a basic kernel subroutine
     routine into the PSy layer module using a transformation '''
@@ -528,7 +533,7 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
     # Since we don't currently rename module-inlined kernels (TODO #2846),
     # module-inlining just one instance means that calls to that same Kernel
     # throughout the whole module use the newly-inlined version.
-    assert ("""subroutine invoke_1(scalar_r_phys, field_r_phys, \
+    assert ("""subroutine invoke_1(scalar_r_bl, field_r_bl, \
 operator_r_def, f1, f2, m1, a, m2, istp, qr)
     use function_space_mod, only : basis, diff_basis
     use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, \
@@ -662,12 +667,14 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
         use external_mod1, only: r_def
-        use external_mod2, only: my_user_type
+        use external_mod2, only: kind_multiplier
+        use external_mod3, only: init_val
+        use external_mod4, only: my_user_type
         use not_needed
         implicit none
         contains
         subroutine code()
-            real(kind=r_def) :: a,b
+            real(kind=r_def*kind_multiplier) :: a,b = init_val
             type(my_user_type) :: x
             a = b + x%data
         end subroutine code
@@ -677,8 +684,12 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     routine = psyir.walk(Routine)[0]
     new_routines = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
+    # The code_to_inline will contain the needed module imports, but
+    # will ignore the non-used imports
     assert "use external_mod1, only : r_def" in result
-    assert "use external_mod2, only : my_user_type" in result
+    assert "use external_mod2, only : kind_multiplier" in result
+    assert "use external_mod3, only : init_val" in result
+    assert "use external_mod4, only : my_user_type" in result
     assert "use not_needed" not in result
 
     # Also, if they are literal precision expressions
@@ -700,6 +711,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : r_def" in result
     assert "use not_needed" not in result
+    assert "1.0_r_def" in result
 
     # Also, if they are routine names
     psyir = fortran_reader.psyir_from_source('''
@@ -1106,10 +1118,12 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
     assert len(prog_psyir.children) == 2
     assert set(child.name for child in prog_psyir.children) == {"my_sub",
                                                                 "my_prog"}
+    output = fortran_writer(prog_psyir)
+
+    assert "use my_mod" not in output
+
     # Now that we've 'privatised' the target of the call, the code can be
     # compiled standalone.
-    output = fortran_writer(prog_psyir)
-    assert "use my_mod" not in output
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -1342,3 +1356,84 @@ def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     ctr_sym = container.symbol_table.lookup("my_mod")
     (isym,) = container.symbol_table.symbols_imported_from(ctr_sym)
     assert isym.interface.orig_name == "my_sub"
+
+
+def test_mod_inline_shared_wildcard_import(monkeypatch, tmpdir):
+    '''
+    Check that symbols are resolved correctly when module inlining, provided
+    the frontend is told to chase the imports.
+
+    '''
+    with open(Path(tmpdir, "ice_params.f90"), "w") as ffile:
+        ffile.write('''\
+    module ice_params
+      real, parameter :: eps20 = 1.023
+    end module ice_params''')
+    # Create the module containing the subroutine definition that accesses
+    # eps20.
+    with open(Path(tmpdir, "my_mod.f90"), "w") as ffile:
+        ffile.write('''\
+    module my_mod
+      use ice_params
+      use not_found
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = eps20
+      end subroutine my_sub
+    end module my_mod
+    ''')
+    code = '''\
+    module this_mod
+      use ice_params
+      use my_mod
+    contains
+      subroutine do_it()
+        real, dimension(10) :: a
+        ! When finding the routine to inline, the frontend will chase the
+        ! imports from "ice_params" and "my_mod" and therefore eps20
+        ! should be resolved.
+        a(:) = eps20
+        call my_sub(a)
+      end subroutine do_it
+    end module this_mod'''
+    # Tell the ModuleManager to chase imports from specific modules.
+    ModuleManager.get().resolve_indirect_imports = ["ice_params", "my_mod"]
+    ModuleManager.get().add_search_path([tmpdir])
+    reader = FortranReader(resolve_modules=["ice_params", "my_mod"])
+    psyir = reader.psyir_from_source(code)
+    container = psyir.children[0]
+    calls = container.walk(Call)
+    intrans = KernelModuleInlineTrans()
+    intrans.apply(calls[-1])
+    # Check that eps20 has the correct interface in the inlined Routine.
+    # The imports in the inlined routine should have been followed and
+    # hence 'eps20' resolved.
+    inlined = container.find_routine_psyir("my_sub", allow_private=True)
+    eps_sym = inlined.symbol_table.lookup("eps20")
+    assert not eps_sym.is_unresolved
+    assert eps_sym.is_import
+    assert eps_sym.interface.container_symbol.name == "ice_params"
+
+
+# TODO 2668 Remove test.
+def test_module_inline_deprecation_warning():
+    '''Tests that the transformation gives the expected deprecation warning
+    when an options dict is provided.
+    '''
+    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric",
+                             name="invoke_0", dist_mem=False)
+    kern_call = invoke.schedule.walk(CodedKern)[0]
+    inline_trans = KernelModuleInlineTrans()
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to be triggered.
+        warnings.simplefilter("always")
+        inline_trans.apply(kern_call, options={"a": "test"})
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in str(w[0].message))

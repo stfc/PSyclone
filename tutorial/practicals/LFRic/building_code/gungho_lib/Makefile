@@ -39,12 +39,12 @@ F90FLAGS ?= -Wall -g -fcheck=bound
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../..
-LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/lfric/infrastructure
-LFRIC_NAME = lfric_netcdf
+LFRIC_PATH = $(PSYCLONE_RELPATH)/external/lfric_infrastructure/src
+LFRIC_NAME = lfric
 LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This will add the required include flags to LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
+include $(LFRIC_PATH)/lfric_include_flags.mk
 
 # Source rules
 ALGORITHMS = $(wildcard *_alg_mod.x90)
@@ -61,12 +61,15 @@ PSY_OBJ = $(filter %.o,$(PSY_SRC:.f90=.o))
 GHLIB_OBJ = $(filter %.o,$(GHLIB_SRC:.F90=.o) $(GHLIB_SRC:.f90=.o)) \
 	 $(ALGORITHM_OBJ) $(PSY_OBJ)
 
+# TODO #3114
+default:
+	echo "Compilation for building_code/1_simple_kernels/part1 not working yet."
+
 default: $(LFRIC_LIB) $(GHLIB_OBJ)
 	$(AR) $(ARFLAGS) libgungho.a $(GHLIB_OBJ)
-default: $(LIB)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) netcdf
+	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
 # ------------
