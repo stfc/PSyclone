@@ -1479,7 +1479,7 @@ class LFRicProxies(LFRicCollection):
         init_cursor = cursor
         for arg in self._invoke.psy_unique_vars:
             # We don't have proxies for scalars
-            if arg.is_scalar:
+            if arg.is_scalar or arg.is_scalar_array:
                 continue
 
             const = LFRicConstants()
@@ -1933,7 +1933,7 @@ class LFRicMeshes():
         # kernels in this invoke.
         self._first_var = None
         for var in unique_psy_vars:
-            if not var.is_scalar:
+            if not (var.is_scalar or var.is_scalar_array):
                 self._first_var = var
                 break
 
@@ -5680,6 +5680,7 @@ class LFRicKernelArgument(KernelArgument):
         # any-space function spaces.
         self._kernel_args = kernel_args
         self._vector_size = arg_meta_data.vector_size
+        self._array_ndims = arg_meta_data.array_ndims
         self._argument_type = arg_meta_data.argument_type
         self._stencil = None
         if arg_meta_data.mesh:
@@ -5893,7 +5894,8 @@ class LFRicKernelArgument(KernelArgument):
                 # The collection datatype is not recognised or supported.
                 alg_datatype = None
 
-        if self.is_scalar:
+        # TODO: Check this is correct after is_scalar is fixed
+        if self.is_scalar or self.is_scalar_array:
             self._init_scalar_properties(alg_datatype, alg_precision,
                                          check)
         elif self.is_field:
@@ -5934,6 +5936,7 @@ class LFRicKernelArgument(KernelArgument):
             not declared with default precision.
 
         '''
+        # TODO: Check whether this needs scalars and ScalarArray separated
         const = LFRicConstants()
         # Check the type of scalar defined in the metadata is supported.
         if self.intrinsic_type not in const.VALID_INTRINSIC_TYPES:
@@ -6152,6 +6155,16 @@ class LFRicKernelArgument(KernelArgument):
         return self._argument_type in const.VALID_SCALAR_NAMES
 
     @property
+    def is_scalar_array(self):
+        '''
+        :returns: True if this kernel argument represents a \
+                  ScalarArray, False otherwise.
+        :rtype: bool
+        '''
+        const = LFRicConstants()
+        return self._argument_type in const.VALID_ARRAY_NAMES
+
+    @property
     def is_field(self):
         '''
         :returns: True if this kernel argument represents a field, \
@@ -6259,7 +6272,10 @@ class LFRicKernelArgument(KernelArgument):
                     f"PSyIR contains one or more References.")
             return lit
 
-        if self.is_scalar:
+        # TODO: this needs altering to consider ScalarArrays
+        # Currently, this is adding a ScalarArray as a normal
+        # scalar variable
+        if self.is_scalar and not self.is_scalar_array:
             try:
                 scalar_sym = symbol_table.lookup(self.name)
             except KeyError:
@@ -6514,7 +6530,7 @@ class LFRicKernelArgument(KernelArgument):
                         symbol_type=ContainerSymbol)
                         ))
 
-        if self.is_scalar:
+        if self.is_scalar or self.is_scalar_array:
             # Find or create the DataType for the appropriate scalar type.
             if self.intrinsic_type == "real":
                 prim_type = ScalarType.Intrinsic.REAL

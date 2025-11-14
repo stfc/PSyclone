@@ -459,7 +459,7 @@ class ArgOrdering:
                 self.operator(arg, var_accesses=var_accesses)
             elif arg.argument_type == "gh_columnwise_operator":
                 self.cma_operator(arg, var_accesses=var_accesses)
-            elif arg.is_scalar:
+            elif arg.is_scalar or arg.is_scalar_array:
                 self.scalar(arg, var_accesses=var_accesses)
             else:
                 raise GenerationError(
@@ -770,23 +770,28 @@ class ArgOrdering:
 
         '''
         const = LFRicConstants()
-        if not scalar_arg.is_scalar:
+        if not (scalar_arg.is_scalar or scalar_arg.is_scalar_array):
             raise InternalError(
                 f"Expected argument type to be one of "
-                f"{const.VALID_SCALAR_NAMES} but got "
-                f"'{scalar_arg.argument_type}'")
+                f"{const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES}"
+                f" but got '{scalar_arg.argument_type}'")
 
-        if scalar_arg.is_literal:
-            # If we have a literal, do not add it to the variable access
-            # information. We do this by providing None as var access.
-            self.append(scalar_arg.name, None, mode=scalar_arg.access,
-                        metadata_posn=scalar_arg.metadata_index)
-            if scalar_arg.precision and var_accesses is not None:
-                var_accesses.add_access(Signature(scalar_arg.precision),
-                                        AccessType.CONSTANT, self._kern)
-        else:
-            self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
-                        metadata_posn=scalar_arg.metadata_index)
+        # if scalar_arg.is_scalar:
+        # if scalar_arg.is_literal:
+        #     # If we have a literal, do not add it to the variable access
+        #     # information. We do this by providing None as var access.
+        #     self.append(scalar_arg.name, None, mode=scalar_arg.access,
+        #                 metadata_posn=scalar_arg.metadata_index)
+        #     if scalar_arg.precision and var_accesses is not None:
+        #         var_accesses.add_access(Signature(scalar_arg.precision),
+        #                                 AccessType.CONSTANT, self._kern)
+        # else:
+        #     self.append(scalar_arg.name, var_accesses,
+        #                 mode=scalar_arg.access,
+        #                 metadata_posn=scalar_arg.metadata_index)
+        # else:
+        #     # It is a ScalarArray
+        #     pass
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and

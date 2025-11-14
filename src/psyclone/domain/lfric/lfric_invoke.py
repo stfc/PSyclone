@@ -93,9 +93,12 @@ class LFRicInvoke(Invoke):
         from psyclone.domain.lfric import (
             LFRicCellIterators, LFRicHaloDepths, LFRicLoopBounds,
             LFRicRunTimeChecks,
-            LFRicScalarArgs, LFRicFields, LFRicDofmaps, LFRicStencils)
+            LFRicScalarArgs, LFRicScalarArrayArgs, LFRicFields, LFRicDofmaps,
+            LFRicStencils)
 
         self.scalar_args = LFRicScalarArgs(self)
+
+        self.scalar_array_args = LFRicScalarArrayArgs(self)
 
         # Initialise our Invoke stencil information
         self.stencil = LFRicStencils(self)
@@ -274,7 +277,8 @@ class LFRicInvoke(Invoke):
 
         '''
         # Declare all quantities required by this PSy routine (Invoke)
-        for entities in [self.scalar_args, self.fields, self.lma_ops,
+        for entities in [self.scalar_args, self. scalar_array_args,
+                         self.fields, self.lma_ops,
                          self.stencil, self.meshes,
                          self.function_spaces, self.dofmaps, self.cma_ops,
                          self.boundary_conditions, self.evaluators,

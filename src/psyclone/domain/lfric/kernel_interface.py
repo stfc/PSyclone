@@ -423,6 +423,7 @@ class KernelInterface(ArgOrdering):
             "real": LFRicTypes("LFRicRealScalarDataSymbol"),
             "logical": LFRicTypes("LFRicLogicalScalarDataSymbol")}
         try:
+            # TODO: add the ScalarArray alternative
             symbol = self._symtab.find_or_create_tag(
                 scalar_arg.name,
                 symbol_type=mapping[scalar_arg.intrinsic_type],

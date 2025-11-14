@@ -1697,6 +1697,30 @@ def test_lfrickernelargument_idtp_scalar():
             "not." in str(info.value))
 
 
+def test_lfrickernelargument_idtp_scalar_array():
+    '''Test the _init_data_type_properties method in the LFRicKernelArgument
+    class for a ScalarArray.
+
+    '''
+    # Use one of the examples to create an instance of
+    # LFRicKernelArgument that describes a ScalarArray.
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "28.scalar_array_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    scalar_argument = psy.invokes.invoke_list[0].schedule.args[1]
+    assert not scalar_argument.is_scalar
+    assert scalar_argument.is_scalar_array
+
+    scalar_argument = psy.invokes.invoke_list[0].schedule.args[2]
+    assert not scalar_argument.is_scalar
+    assert scalar_argument.is_scalar_array
+
+    scalar_argument = psy.invokes.invoke_list[0].schedule.args[3]
+    assert not scalar_argument.is_scalar
+    assert scalar_argument.is_scalar_array
+
+
 def test_lfrickernelargument_idtp_reduction():
     '''Test the _init_data_type_properties method in the LFRicKernelArgument
     class for a scalar reduction.
