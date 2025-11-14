@@ -130,7 +130,7 @@ jobs:
         module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         make -C tutorial/practicals compile
-        make -C tutorial/training/users compile
+        make -C tutorial/training/psyclone_for_lfric_users compile
     - name: Examples with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate

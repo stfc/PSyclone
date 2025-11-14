@@ -34,20 +34,8 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 
-test:
-	$(MAKE) -C users test
-	$(MAKE) -C gocean test
-	$(MAKE) -C lfric test
-	$(MAKE) -C transformation test
-
-compile:
-	$(MAKE) -C users compile
-	$(MAKE) -C gocean compile
-	$(MAKE) -C lfric compile
-	$(MAKE) -C transformation compile
-
-clean:
-	$(MAKE) -C users clean
-	$(MAKE) -C gocean clean
-	$(MAKE) -C lfric clean
-	$(MAKE) -C transformation clean
+test compile clean:
+	$(MAKE) -C psyclone_for_lfric_users $@
+	$(MAKE) -C gocean $@
+	$(MAKE) -C lfric $@
+	$(MAKE) -C transformation $@
