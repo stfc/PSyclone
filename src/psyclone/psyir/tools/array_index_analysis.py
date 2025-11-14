@@ -52,8 +52,13 @@ from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
 # The analysis class provides a method 'is_loop_conflict_free()' to decide
 # whether or not the array accesses in a given loop are conflicting between
 # iterations. Two array accesses are conflicting if they access the same
-# element of the same array, and at least one of the accesses is a write.  The
-# analysis algorithm operates, broadly, as follows.
+# element of the same array, and at least one of the accesses is a write.
+#
+# The analysis assumes that any scalar integer or scalar logical variables
+# written by the loop can safely be considered as private within each
+# iteration. This should be validated by the callee.
+#
+# The analysis algorithm operates, broadly, as follows.
 #
 # Given a loop, we find its enclosing routine, and start analysing the routine
 # statement-by-statement in a recursive-descent fashion.
@@ -153,7 +158,7 @@ class ArrayIndexAnalysis:
         def __init__(self,
                      cond:       z3.BoolRef,
                      is_write:   bool,
-                     indices:    list[z3.ExprRef],
+                     indices:    list[list[z3.ExprRef]],
                      psyir_node: Node):
             # The condition at the location of the access
             self.cond = cond
@@ -236,13 +241,16 @@ class ArrayIndexAnalysis:
         var_accesses = node.reference_accesses()
         for sig, access_seq in var_accesses.items():
             for access_info in access_seq.all_write_accesses:
-                sym = self.routine.symbol_table.lookup(sig.var_name)
-                if sym.is_unresolved:
-                    continue  # pragma: no cover
-                elif _is_scalar_integer(sym.datatype):
+                if isinstance(access_info.node, Loop):
                     self.kill_integer_var(sig.var_name)
-                elif _is_scalar_logical(sym.datatype):
-                    self.kill_logical_var(sig.var_name)
+                    break
+                elif isinstance(access_info.node, Reference):
+                    if _is_scalar_integer(access_info.node.datatype):
+                        self.kill_integer_var(sig.var_name)
+                        break
+                    elif _is_scalar_logical(access_info.node.datatype):
+                        self.kill_logical_var(sig.var_name)
+                        break
 
     # Add the SMT constraint to the constraint set
     def add_constraint(self, smt_expr: z3.BoolRef):
@@ -319,7 +327,7 @@ class ArrayIndexAnalysis:
                          array_name: str,
                          is_write:   bool,
                          cond:       z3.BoolRef,
-                         indices:    list[z3.ExprRef],
+                         indices:    list[list[z3.ExprRef]],
                          psyir_node: Node):
         access = ArrayIndexAnalysis.ArrayAccess(
                    cond, is_write, indices, psyir_node)
@@ -332,36 +340,32 @@ class ArrayIndexAnalysis:
         var_accesses = node.reference_accesses()
         for sig, access_seq in var_accesses.items():
             for access_info in access_seq:
-                if access_info.is_data_access:
-
-                    # ArrayReference
-                    if isinstance(access_info.node, ArrayReference):
-                        indices = []
-                        for index in access_info.node.indices:
-                            if isinstance(index, Range):
-                                var = self.fresh_integer_var()
-                                self.constrain_loop_var(
-                                  var, index.start, index.stop, index.step)
-                                indices.append(var)
-                            else:
-                                indices.append(
-                                  self.translate_integer_expr_with_subst(
-                                    index))
+                if isinstance(access_info.node, Reference):
+                    (_, indices) = access_info.node.get_signature_and_indices()
+                    indices_flat = [i for inds in indices for i in inds]
+                    is_array_access = (
+                      access_info.is_data_access and
+                          (indices_flat != [] or
+                           isinstance(access_info.node.datatype, ArrayType)))
+                    if is_array_access:
+                        smt_indices = []
+                        for inds in indices:
+                            smt_inds = []
+                            for ind in inds:
+                                if isinstance(ind, Range):
+                                    var = self.fresh_integer_var()
+                                    self.constrain_loop_var(
+                                      var, ind.start, ind.stop, ind.step)
+                                    smt_inds.append(var)
+                                else:
+                                    smt_inds.append(
+                                      self.translate_integer_expr_with_subst(
+                                        ind))
+                            smt_indices.append(smt_inds)
                         self.add_array_access(
-                            sig.var_name,
+                            str(sig),
                             access_info.is_any_write(),
-                            cond, indices, access_info.node)
-
-                    # Reference with datatype ArrayType
-                    elif (isinstance(access_info.node, Reference) and
-                          isinstance(access_info.node.datatype, ArrayType)):
-                        indices = []
-                        for index in access_info.node.datatype.shape:
-                            var = self.fresh_integer_var()
-                            indices.append(var)
-                        self.add_array_access(
-                            sig.var_name, access_info.is_any_write(),
-                            cond, indices, access_info.node)
+                            cond, smt_indices, access_info.node)
 
     # Move the current access dict to the stack, and proceed with an empty one
     def save_access_dict(self):
@@ -398,23 +402,26 @@ class ArrayIndexAnalysis:
         iter_i = self.saved_access_dicts[0]
         iter_j = self.saved_access_dicts[1]
         conflicts = []
-        for (arr_name, i_accesses) in iter_i.items():
-            j_accesses = iter_j[arr_name]
-            # For each write access in the i iteration
-            for i_access in i_accesses:
-                if i_access.is_write:
-                    # Check for conflicts against every access in the
-                    # j iteration
-                    for j_access in j_accesses:
-                        assert len(i_access.indices) == len(j_access.indices)
-                        indices_equal = []
-                        for (i_idx, j_idx) in zip(i_access.indices,
-                                                  j_access.indices):
-                            indices_equal.append(i_idx == j_idx)
-                        conflicts.append(z3.And(
-                          *indices_equal,
-                          i_access.cond,
-                          j_access.cond))
+        for (i_arr_name, i_accesses) in iter_i.items():
+            for (j_arr_name, j_accesses) in iter_j.items():
+                if (i_arr_name == j_arr_name or
+                    i_arr_name.startswith(j_arr_name + "%") or
+                    j_arr_name.startswith(i_arr_name + "%")):
+                    # For each write access in the i iteration
+                    for i_access in i_accesses:
+                        if i_access.is_write:
+                            # Check for conflicts against every access in the
+                            # j iteration
+                            for j_access in j_accesses:
+                                indices_equal = []
+                                for (i_idxs, j_idxs) in zip(i_access.indices,
+                                                            j_access.indices):
+                                    for (i_idx, j_idx) in zip(i_idxs, j_idxs):
+                                        indices_equal.append(i_idx == j_idx)
+                                conflicts.append(z3.And(
+                                  *indices_equal,
+                                  i_access.cond,
+                                  j_access.cond))
 
         # Invoke Z3 solver with a timeout
         solver = z3.Solver()
@@ -436,18 +443,24 @@ class ArrayIndexAnalysis:
 
         # Assignment
         if isinstance(stmt, Assignment):
-            if (isinstance(stmt.lhs, Reference)
-                    and not isinstance(stmt.lhs, ArrayReference)):
-                if _is_scalar_integer(stmt.lhs.datatype):
-                    rhs_smt = self.translate_integer_expr_with_subst(stmt.rhs)
-                    self.add_integer_assignment(stmt.lhs.name, rhs_smt)
-                    if self.in_loop_to_parallelise:
-                        self.add_all_array_accesses(stmt.rhs, cond)
-                    return
-                elif _is_scalar_logical(stmt.lhs.datatype):
-                    rhs_smt = self.translate_logical_expr_with_subst(stmt.rhs)
-                    self.add_logical_assignment(stmt.lhs.name, rhs_smt)
-                    return
+            if isinstance(stmt.lhs, Reference):
+                (sig, indices) = stmt.lhs.get_signature_and_indices()
+                indices_flat = [i for inds in indices for i in inds]
+                if indices_flat == [] and len(sig) == 1:
+                    if _is_scalar_integer(stmt.lhs.datatype):
+                        rhs_smt = self.translate_integer_expr_with_subst(
+                                    stmt.rhs)
+                        self.add_integer_assignment(sig.var_name, rhs_smt)
+                        if self.in_loop_to_parallelise:
+                            self.add_all_array_accesses(stmt.rhs, cond)
+                        return
+                    elif _is_scalar_logical(stmt.lhs.datatype):
+                        rhs_smt = self.translate_logical_expr_with_subst(
+                                    stmt.rhs)
+                        self.add_logical_assignment(sig.var_name, rhs_smt)
+                        if self.in_loop_to_parallelise:
+                            self.add_all_array_accesses(stmt.rhs, cond)
+                        return
 
         # Schedule
         if isinstance(stmt, Schedule):
@@ -562,10 +575,13 @@ def translate_integer_expr(expr_root: Node,
         if (isinstance(expr, Reference)
                 and not isinstance(expr, ArrayReference)
                 and type_ok):
-            if use_bv:
-                return z3.BitVec(expr.name, int_width)
-            else:
-                return z3.Int(expr.name)
+            (sig, indices) = expr.get_signature_and_indices()
+            indices_flat = [i for inds in indices for i in inds]
+            if indices_flat == []:
+                if use_bv:
+                    return z3.BitVec(str(sig), int_width)
+                else:
+                    return z3.Int(str(sig))
 
         # UnaryOperation
         if isinstance(expr, UnaryOperation):
@@ -718,7 +734,10 @@ def translate_logical_expr(expr_root: Node,
         if (isinstance(expr, Reference)
                 and not isinstance(expr, ArrayReference)
                 and type_ok):
-            return z3.Bool(expr.name)
+            (sig, indices) = expr.get_signature_and_indices()
+            indices_flat = [i for inds in indices for i in inds]
+            if indices_flat == []:
+                return z3.Bool(str(sig))
 
         # UnaryOperation
         if isinstance(expr, UnaryOperation):

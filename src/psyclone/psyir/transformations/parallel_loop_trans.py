@@ -305,7 +305,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                             self.inferred_reduction_clauses.append(clause)
                             continue
 
-                if (message.code == DTCode.ERROR_DEPENDENCY):
+                if (message.code == DTCode.ERROR_DEPENDENCY or
+                    message.code == DTCode.ERROR_WRITE_WRITE_RACE):
                     num_depedency_errors = num_depedency_errors + 1
                 errors.append(str(message))
 
@@ -525,7 +526,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
 
                         if use_smt_array_anal:
                             all_dep_errors = all(
-                              [msg.code == DTCode.ERROR_DEPENDENCY
+                              [msg.code == DTCode.ERROR_DEPENDENCY or
+                               msg.code == DTCode.ERROR_WRITE_WRITE_RACE
                                for msg in msgs])
                             arr_anal = ArrayIndexAnalysis(
                                          smt_array_anal_options)
