@@ -125,7 +125,7 @@ def test_structure_contructor(fortran_reader):
 
     lfric_invoke_trans.validate(subroutine.children[0])
     lfric_invoke_trans._validate_fp2_node(
-        subroutine[0].arguments[0]._fp2_nodes[0])
+        subroutine[0].arguments[0].get_ast_nodes()[0])
 
 
 @pytest.mark.parametrize("string", ["error='hello'", "name=0"])

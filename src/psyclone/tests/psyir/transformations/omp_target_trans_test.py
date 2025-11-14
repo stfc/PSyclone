@@ -168,8 +168,8 @@ def test_omptargettrans_validate(fortran_reader):
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[2])
-    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a OMPTarget"
-            "Trans transformation" in str(err.value))
+    assert ("Nodes of type 'Fparser2CodeBlock' cannot be enclosed by a "
+            "OMPTarget Trans transformation" in str(err.value))
 
     # The last loop is valid
     omptargettrans.validate(loops[3])

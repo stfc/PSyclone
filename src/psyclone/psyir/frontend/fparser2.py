@@ -59,7 +59,7 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Call, CodeBlock, Container, Directive, FileContainer,
     IfBlock, IntrinsicCall, Literal, Loop, Member, Node, Range,
     Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
-    WhileLoop)
+    WhileLoop, Fparser2CodeBlock)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, CHARACTER_TYPE,
@@ -1085,7 +1085,7 @@ class Fparser2Reader():
         else:
             structure = CodeBlock.Structure.EXPRESSION
 
-        code_block = CodeBlock(fp2_nodes, structure, parent=parent)
+        code_block = Fparser2CodeBlock(fp2_nodes, structure, parent=parent)
         if message:
             code_block.preceding_comment = message
         parent.addchild(code_block)
@@ -3818,8 +3818,8 @@ class Fparser2Reader():
         fp2_program = parser(reader)
         # Ignore the program part of the fparser2 tree
         exec_part = walk(fp2_program, Fortran2003.Execution_Part)
-        code_block = CodeBlock(exec_part, CodeBlock.Structure.STATEMENT,
-                               parent=parent)
+        code_block = Fparser2CodeBlock(
+            exec_part, CodeBlock.Structure.STATEMENT, parent=parent)
 
         # Handlers assume a single node is returned and in this
         # implementation we create an assignment (see below), a

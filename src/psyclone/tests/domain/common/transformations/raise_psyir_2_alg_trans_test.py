@@ -121,8 +121,8 @@ def test_parse_args_get_symbol(fortran_reader):
     assert isinstance(code_block, CodeBlock)
 
     # Check expected output from parse_args
-    nodes = RaisePSyIR2AlgTrans._parse_args(code_block,
-                                            code_block._fp2_nodes[0])
+    nodes = RaisePSyIR2AlgTrans._parse_args(
+        code_block, code_block.get_ast_nodes()[0])
     assert isinstance(nodes, list)
     assert len(nodes) == 1
     assert isinstance(nodes[0], Literal)
@@ -131,16 +131,16 @@ def test_parse_args_get_symbol(fortran_reader):
     # Check expected output from get_symbol when no symbol exists
     with pytest.raises(KeyError):
         _ = code_block.scope.symbol_table.lookup("kern")
-    symbol = RaisePSyIR2AlgTrans._get_symbol(code_block,
-                                             code_block._fp2_nodes[0])
+    symbol = RaisePSyIR2AlgTrans._get_symbol(
+        code_block, code_block.get_ast_nodes()[0])
     assert isinstance(symbol, DataTypeSymbol)
     assert symbol.name == "kern"
     symbol2 = code_block.scope.symbol_table.lookup("kern")
     assert symbol2 is symbol
 
     # Check expected output from get_symbol when symbol already exists
-    symbol3 = RaisePSyIR2AlgTrans._get_symbol(code_block,
-                                              code_block._fp2_nodes[0])
+    symbol3 = RaisePSyIR2AlgTrans._get_symbol(
+        code_block, code_block.get_ast_nodes()[0])
     assert symbol3 is symbol
 
 
@@ -180,7 +180,8 @@ def test_structure_constructor():
 
     invoke = psyir.children[0][0]
     invoke_trans.validate(invoke)
-    invoke_trans._validate_fp2_node(invoke.arguments[0]._fp2_nodes[0])
+    invoke_trans._validate_fp2_node(
+        invoke.arguments[0].get_ast_nodes()[0])
 
 
 @pytest.mark.parametrize("string", ["error='hello'", "name=0"])

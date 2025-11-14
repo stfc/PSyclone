@@ -50,7 +50,7 @@ from fparser.two.parser import ParserFactory
 from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.codeblock import CodeBlock, Fparser2CodeBlock
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.nodes.node import Node
@@ -615,8 +615,9 @@ class PSyDataNode(Statement):
             # Tell the reader that the source is free format
             reader.set_format(FortranFormat(True, False))
             fp2_node = Fortran2003.Call_Stmt(reader)
-            return CodeBlock([fp2_node], CodeBlock.Structure.STATEMENT,
-                             annotations=annotations)
+            return Fparser2CodeBlock(
+                [fp2_node], CodeBlock.Structure.STATEMENT,
+                annotations=annotations)
 
         routine_schedule = self.ancestor(Routine)
         if routine_schedule is None:

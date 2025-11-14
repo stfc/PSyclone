@@ -35,8 +35,8 @@
 
 ''' PSyIR TreeSitter Fortran reader '''
 
-from psyclone.psyir.nodes import *
-from psyclone.psyir.nodes.codeblock import TSCodeBlock
+from psyclone.psyir import nodes
+from psyclone.psyir.nodes.codeblock import TreeSitterCodeBlock, CodeBlock
 
 
 class FortranTreeSitterReader():
@@ -61,22 +61,22 @@ class FortranTreeSitterReader():
             except NotImplementedError:
                 if not self._ongoing_codeblock:
                     self._ongoing_codeblock.append(tsnode)
-                if not isinstance(self.location, Schedule):
+                if not isinstance(self.location, nodes.Schedule):
                     children.append(self.generate_accomulated_codeblock())
         return children
 
     def generate_accomulated_codeblock(self, message=None):
 
-        if isinstance(self.location, (Schedule, Container)):
+        if isinstance(self.location, (nodes.Schedule, nodes.Container)):
             structure = CodeBlock.Structure.STATEMENT
-        elif isinstance(self.location, Directive):
-            raise InternalError(
-                "Fparser2Reader:nodes_to_code_block: A CodeBlock with "
-                "a Directive as parent is not yet supported.")
+        # elif isinstance(self.location, Directive):
+        #     raise InternalError(
+        #         "Fparser2Reader:nodes_to_code_block: A CodeBlock with "
+        #         "a Directive as parent is not yet supported.")
         else:
             structure = CodeBlock.Structure.EXPRESSION
 
-        code_block = TSCodeBlock(self._ongoing_codeblock, structure)
+        code_block = TreeSitterCodeBlock(self._ongoing_codeblock, structure)
         self._ongoing_codeblock = []
         if message:
             code_block.preceding_comment = message
@@ -91,7 +91,7 @@ class FortranTreeSitterReader():
         return handler
 
     def _file_container(self, tsnode):
-        file_container = FileContainer("test")
+        file_container = nodes.FileContainer("test")
         self.location = file_container
         file_container.children.extend(self.process_nodes(tsnode.children))
         return file_container

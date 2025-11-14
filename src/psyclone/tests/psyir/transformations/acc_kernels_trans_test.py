@@ -113,7 +113,7 @@ def test_no_kernels_error(fortran_reader):
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children[0:2], {"default_present": True})
-    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
+    assert ("Nodes of type 'Fparser2CodeBlock' cannot be enclosed by a "
             "ACCKernelsTrans transformation" in str(err.value))
 
 
@@ -248,7 +248,7 @@ def test_no_code_block_kernels(fortran_reader):
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children)
-    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
+    assert ("Nodes of type 'Fparser2CodeBlock' cannot be enclosed by a "
             "ACCKernelsTrans" in str(err.value))
 
 

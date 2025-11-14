@@ -657,7 +657,7 @@ def add_profile_region(nodes):
             return
         if len(nodes) == 1:
             if isinstance(nodes[0], CodeBlock) and \
-               len(nodes[0].get_ast_nodes) == 1:
+               len(nodes[0].get_ast_nodes()) == 1:
                 # Don't create profiling regions for CodeBlocks consisting
                 # of a single statement
                 return

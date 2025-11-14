@@ -41,7 +41,7 @@
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.nodes.codeblock import CodeBlock, Fparser2CodeBlock
 from psyclone.psyir.nodes.node import colored
 from psyclone.errors import GenerationError
 
@@ -73,7 +73,7 @@ def test_codeblock_getastnodes():
     '''
     original = ["hello", "there"]
     cblock = CodeBlock(original, CodeBlock.Structure.EXPRESSION)
-    result = cblock.get_ast_nodes
+    result = cblock.get_ast_nodes()
     assert result == original
     # Check that the list is a copy not a reference.
     assert result is not original
@@ -120,7 +120,7 @@ def test_codeblock_get_symbol_names(parser):
       END DO myloop
     end subroutine mytest''')
     prog = parser(reader)
-    block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    block = Fparser2CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
     sym_names = block.get_symbol_names()
     assert "a" in sym_names
     assert "b" in sym_names
@@ -191,7 +191,8 @@ def test_codeblock_ref_accesses(parser):
       END DO myloop
     end subroutine mytest''')
     prog = parser(reader)
-    block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    block = Fparser2CodeBlock(
+        prog.children, CodeBlock.Structure.STATEMENT)
     vam = block.reference_accesses()
     all_sigs = vam.all_signatures
     all_names = [sig.var_name for sig in all_sigs]

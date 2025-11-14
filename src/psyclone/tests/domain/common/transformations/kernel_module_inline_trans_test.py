@@ -50,7 +50,7 @@ from psyclone.parse import ModuleManager
 from psyclone.psyGen import CodedKern, Kern
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Container, Routine, CodeBlock, Call, IntrinsicCall)
+    Container, Routine, CodeBlock, Call, IntrinsicCall, Fparser2CodeBlock)
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, GenericInterfaceSymbol, ImportInterface,
     RoutineSymbol, REAL_TYPE, Symbol, SymbolError, SymbolTable,
@@ -167,7 +167,7 @@ def test_validate_no_inline_global_var(parser):
         alpha = alpha + 1
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
-    block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
+    block = Fparser2CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
     kschedules = kernels[0].get_callees()
     ksched = kschedules[0]
     ksched.pop_all_children()
@@ -184,7 +184,7 @@ def test_validate_no_inline_global_var(parser):
         unknown = unknown + 1
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
-    block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
+    block = Fparser2CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
     kschedules = kernels[0].get_callees()
     ksched = kschedules[0]
     ksched.pop_all_children()

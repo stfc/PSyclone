@@ -212,7 +212,7 @@ class RaisePSyIR2AlgTrans(Transformation):
                 pass
             elif isinstance(arg, CodeBlock):
                 # pylint: disable=protected-access
-                for fp2_node in arg._fp2_nodes:
+                for fp2_node in arg.get_ast_nodes():
                     self._validate_fp2_node(fp2_node)
             else:
                 if isinstance(arg, Call):
@@ -259,7 +259,7 @@ class RaisePSyIR2AlgTrans(Transformation):
             else:
                 # The validates check that this can only be a Codeblock with
                 # a StructureConstructor fparser2 node inside
-                for fp2_node in call_arg.get_ast_nodes:
+                for fp2_node in call_arg.get_ast_nodes():
                     # This child is a kernel
                     type_symbol = self._get_symbol(node, fp2_node)
                     args = self._parse_args(call_arg, fp2_node)
