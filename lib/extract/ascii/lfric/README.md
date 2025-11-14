@@ -56,7 +56,7 @@ that ``NO_MPI`` is not set).
 
 By default the ``Makefile`` links with the pared-down
 LFRic infrastructure located in a clone of PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
 This is not available in the PSyclone [installation](
 ./../../../README.md#installation) so the exact path
 **must be specified** using the environment variable ``LFRIC_PATH``, e.g.
