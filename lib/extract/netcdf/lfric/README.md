@@ -11,14 +11,13 @@ compare performance).
 ## Dependencies
 
 This library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
-the application. The following dependencies must be available:
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to
+interface with the application. The following dependencies must be available:
 
-- The LFRic infrastructure library. A pared-down version of LFRic
-  infrastructure is located in the PSyclone repository (see e.g.
-  [LFRic Example 17](
-  https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17), however
-  it is not included in the PSyclone [installation](
+- The LFRic infrastructure library, which is included in the PSyclone repository
+  (see e.g. [LFRic Example 17](
+  https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17)), however
+  it is not included in a PSyclone [installation](
   ./../../../README.md#installation). See the [LFRic API](
   https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html) documentation
   for information on how to obtain access to the LFRic code.
@@ -63,7 +62,7 @@ variable ``MPI=yes`` before starting the build process (which will make sure
 that ``NO_MPI`` is not set).
 
 The NetCDF helper program ``nf-config`` is used to get the NetCDF-specific
-include paths. By default it is set to the relative path to the pared-down
+include paths. By default it is set to the relative path to the
 LFRic infrastructure located in a clone of PSyclone repository,
 ``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
 This is not available in the PSyclone [installation](

@@ -65,7 +65,7 @@ INF_LIB = $(LFRIC_PATH)/lib$(INF_LIB_NAME).a
 
 include $(LFRIC_PATH)/lfric_include_flags.mk
 
-F90FLAGS += $(LFRIC_INCLUDE_FLAGS) $$(nf-config --fflags)
+F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 PSYDATA_LIB_NAME = _read_only
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a

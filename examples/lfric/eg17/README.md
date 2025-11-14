@@ -3,29 +3,12 @@
 **Author:** J. Henrichs, Bureau of Meteorology
 
 This directory contains some standalone, runnable examples of LFRic code.
-They are based on a subset of the LFRic infrastructure library
-included in
+They are based on the LFRic infrastructure library included in
 ``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
-Significant refactoring was required in order to only include a
-small number of infrastructure files from the original LFRic source files.
-In many case unnecessary dependencies were just removed. Some examples:
-- XIOS was just removed (i.e. code that used XIOS was simply removed).
-- YAXT/MPI was completely removed (code that used it was simply removed).
-- Some dependencies were removed (for example the ``global_mesh`` module
-  also provides functionality for managing collections/maps of 
-  global meshes. This needlessly increases the number of files required).
-- Other support was just removed (e.g. UGRID, ...), though NetCDF
-  support is included.
-
-As a result, the initialisation of LFRic is somewhat different from
-the full LFRic model. For example, LFRic typically uses grid-IDs to pass
-grids between subroutines (which requires global management objects to handle
-the IDs), while the PSyclone LFRic infrastructure relies on passing pointers
-to objects.
 
 The examples in this subdirectory show:
 - A [full_example](./full_example) of a stand-alone LFRic-based code. It
-  shows the use of the reduced infrastructure library to create LFRic code.
+  shows the use of the infrastructure library to create LFRic code.
   PSyclone is used to process two invoke statements.
 - A stand-alone example using [NetCDF](./full_example_netcdf) to read
   in a mesh.

@@ -11,10 +11,10 @@ This library uses the [PSyData API](
 https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
 the application. The following dependencies must be available:
 
-- The LFRic infrastructure library. A pared-down version of LFRic
+- The LFRic infrastructure library. A full version of the LFRic
   infrastructure is located in the PSyclone repository (see e.g.
   [LFRic Example 17](
-  https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17), however
+  https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17)), however
   it is not included in the PSyclone [installation](
   ./../../README.md#installation). See the [LFRic API](
   https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html) documentation
@@ -38,10 +38,9 @@ default to ``gfortran`` and the empty string.
 
 The location of the LFRic infrastructure library is specified using the
 environment variable ``LFRIC_PATH``. It defaults to the relative path
-to location of the pared-down LFRic infrastructure located in a clone of
-PSyclone repository,
+of the LFRic infrastructure located in the PSyclone repository,
 ``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
-This is not available in the PSyclone [installation](
+This is not available in a PSyclone [installation](
 ./../../README.md#installation) so the exact path
 **must be specified** during the compilation process, e.g.
 

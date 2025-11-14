@@ -71,12 +71,12 @@ installed next to PSyclone.
 ### LFRIC_DIR
 The location of the LFRic infrastructure library. It defaults to
 ``../../../../external/lfric_infrastructure/src``,
-which is the small, stand-alone LFRic infrastructure library that
-is included in PSyclone. In spite of the dependence on LFRic, this
-profiling wrapper library can be used with with any application.
+which is a version of the LFRic infrastructure library that
+is included in PSyclone. In spite of the dependence on LFRic, the
+LFRic timer profiling wrapper library can be used with with any application.
 Note that this variable is not directly used by this Makefile,
 but the lfric_timer wrapper library will use (and compile if
-required) the LFRic infrastructure version.
+required) the LFRic infrastructure files.
 
 ### VERNIER_DIR
 The location of the Vernier library. It defaults to

@@ -46,7 +46,7 @@
 # Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?=
-# Path to the LFRic infrastructure library. It defaults to the pared-down
+# Path to the LFRic infrastructure library. It defaults to the
 # version of the LFRic infrastructure distributed with PSyclone.
 # Overwrite for a different infrastructure version.
 LFRIC_PATH ?= ../../../external/lfric_infrastructure/src
