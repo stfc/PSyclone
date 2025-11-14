@@ -1015,8 +1015,7 @@ class KernCallArgList(ArgOrdering):
                 if var_accesses is not None:
                     var_accesses.add_access(Signature(array_ref.name),
                                             AccessType.READ,
-                                            self._kern,
-                                            ["colour", "tile", "cell"])
+                                            self._kern)
             else:
                 symbol = self._kern.colourmap
                 array_ref = ArrayReference.create(
@@ -1025,7 +1024,7 @@ class KernCallArgList(ArgOrdering):
                 if var_accesses is not None:
                     var_accesses.add_access(Signature(array_ref.name),
                                             AccessType.READ,
-                                            self._kern, ["colour", "cell"])
+                                            self._kern)
 
             return (array_ref.debug_string(), array_ref)
 

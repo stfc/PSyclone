@@ -142,6 +142,16 @@ class Member(Node):
             current = current.parent
         return current.parent, depth
 
+    def component_indices(self) -> tuple[tuple[Node]]:
+        '''
+        :returns: a tuple of tuples of index expressions; one for every
+            component in the accessor. For example, for a scalar it
+            returns `(())`, for `a%b` it returns ((),()) - two components
+            with 0 indices in each, and for `a(i)%b(j,k+1)` it
+            returns `((i,),(j,k+1))`.
+        '''
+        return (tuple(),)
+
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ['Member']
