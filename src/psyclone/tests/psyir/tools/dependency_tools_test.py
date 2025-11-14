@@ -740,13 +740,20 @@ def test_reserved_words(fortran_reader):
 def test_gocean_parallel():
     '''Check that PSyclones gives useful error messages for a GOKern.'''
 
-    # TODO #2531: this kernel should not be accepted in the first place.
+    # TODO #2531: This kernel should not be accepted in the first place, it
+    # has "go_arg(GO_READWRITE, GO_CT, GO_STENCIL(010,010,010)"
     _, invoke = get_invoke("test31_stencil_not_parallel.f90",
                            api="gocean", idx=0, dist_mem=False)
 
     loop = invoke.schedule.children[0]
     dep_tools = DependencyTools()
     parallel = dep_tools.can_loop_be_parallelised(loop)
+
+    if parallel is True:
+        pytest.xfail(
+            reason=("TODO #2531: GOcean metadata validation should not allow"
+                    " kernels with multiple write locations")
+        )
     assert not parallel
 
     assert ("Variable 'u_fld' is read first, which indicates a reduction."

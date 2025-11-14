@@ -104,7 +104,7 @@ def test_value_range_check_options(fortran_writer):
     value_range_check.apply(invoke.schedule[0].loop_body[0],
                             options={"region_name": ("a", "b")})
     code = fortran_writer(invoke.schedule)
-    assert 'CALL value_range_check_psy_data % PreStart("a", "b", 4, 2)' in code
+    assert 'CALL value_range_check_psy_data % PreStart("a", "b", 5, 2)' in code
 
 
 # -----------------------------------------------------------------------------
@@ -160,17 +160,17 @@ def test_value_range_check_psyir_visitor(fortran_writer):
                 'ncycle)',
                 'CALL value_range_check_psy_data % PreEnd',
                 'CALL value_range_check_psy_data % PostStart',
-                'CALL value_range_check_psy_data % ProvideVariable("cv_fld", '
-                'cv_fld)',
+                'CALL value_range_check_psy_data % ProvideVariable('
+                '"cv_fld%data", cv_fld % data)',
                 'CALL value_range_check_psy_data % ProvideVariable("i", i)',
                 'CALL value_range_check_psy_data % ProvideVariable("j", j)',
-                'CALL value_range_check_psy_data % ProvideVariable("p_fld", '
-                'p_fld)',
+                'CALL value_range_check_psy_data % ProvideVariable('
+                '"p_fld%data", p_fld % data)',
                 'CALL value_range_check_psy_data % PostEnd',
                 ]
 
     for line in expected:
-        assert line in code
+        assert line in code, str(line) + "\n --- \n" + str(code)
 
 
 # -----------------------------------------------------------------------------
