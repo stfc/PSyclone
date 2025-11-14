@@ -291,7 +291,7 @@ class SymPyWriter(FortranWriter):
         #  a%b => [0,0] and  a(2)%b => [1,0]
         num_dims_for_access = []
         for access in sva:
-            indices = access.component_indices
+            indices = access.component_indices()
             # Create the list of number of indices on each component for
             # this access.
             num_dims = []
@@ -426,7 +426,7 @@ class SymPyWriter(FortranWriter):
                 # A scalar access.
                 if sig.is_structure:
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
-                        sig.to_language(), **assumptions)
+                        str(sig), **assumptions)
                 else:
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
                         sig.var_name, **assumptions)

@@ -214,7 +214,7 @@ class Reference(DataNode):
         for indices in all_indices:
             for index in indices:
                 var_accesses.update(index.reference_accesses())
-        var_accesses.add_access(sig, AccessType.READ, self, all_indices)
+        var_accesses.add_access(sig, AccessType.READ, self)
         return var_accesses
 
     @property
@@ -409,6 +409,16 @@ class Reference(DataNode):
 
         # Walk on down the tree.
         super().replace_symbols_using(table_or_symbol)
+
+    def component_indices(self) -> tuple[tuple[Node]]:
+        '''
+        :returns: a tuple of tuples of index expressions; one for every
+            component in the accessor. For example, for a scalar it
+            returns `(())`, for `a%b` it returns ((),()) - two components
+            with 0 indices in each, and for `a(i)%b(j,k+1)` it
+            returns `((i,),(j,k+1))`.
+        '''
+        return tuple(tuple())
 
 
 # For AutoAPI documentation generation

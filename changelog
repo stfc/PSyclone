@@ -1,3 +1,6 @@
+   2) PR #3164 for #1320. Refactors the AccessSequence.component_indices
+   property into a method to remove internal state.
+ 
    1) PR #3218 for #2705. Adds explicit type information for the r2d_field
    type in GOcean so that kernel inlining succeeds.
 
