@@ -237,11 +237,11 @@ class LFRicScalarArrayArgs(LFRicCollection):
                         else:
                             # For stub generation
                             array_symbol = self.symtab.find_or_create(
-                            arg.name,
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
-                                LFRicTypes("LFRicRealScalarDataType")(),
-                                [arg._array_ndims]))
+                                arg.name,
+                                symbol_type=DataSymbol,
+                                datatype=ArrayType(
+                                    LFRicTypes("LFRicRealScalarDataType")(),
+                                    [arg._array_ndims]))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
@@ -281,11 +281,11 @@ class LFRicScalarArrayArgs(LFRicCollection):
                         else:
                             # For stub generation
                             array_symbol = self.symtab.find_or_create(
-                            arg.name,
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
-                                LFRicTypes("LFRicIntegerScalarDataType")(),
-                                [arg._array_ndims]))
+                                arg.name,
+                                symbol_type=DataSymbol,
+                                datatype=ArrayType(
+                                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                                    [arg._array_ndims]))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
@@ -325,11 +325,11 @@ class LFRicScalarArrayArgs(LFRicCollection):
                         else:
                             # For stub generation
                             array_symbol = self.symtab.find_or_create(
-                            arg.name,
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
-                                LFRicTypes("LFRicLogicalScalarDataType")(),
-                                [arg._array_ndims]))
+                                arg.name,
+                                symbol_type=DataSymbol,
+                                datatype=ArrayType(
+                                    LFRicTypes("LFRicLogicalScalarDataType")(),
+                                    [arg._array_ndims]))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
