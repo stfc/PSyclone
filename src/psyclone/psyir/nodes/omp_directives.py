@@ -1933,7 +1933,13 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        self._lowered_reduction_string = self._reduction_string()
+        # Remove any existing Reduction clauses.
+        self.children = [self.children[0]]
+        for reduction_type in AccessType.get_valid_reduction_modes():
+            reductions = self._get_reductions_list(reduction_type)
+            for reduction in reductions:
+                self.add_child(OMPReductionClause(OMP_OPERATOR_MAPPING[reduction_type], children=[xxx]))
+        #self._lowered_reduction_string = self._reduction_string()
         return super().lower_to_language_level()
 
     def begin_string(self):
