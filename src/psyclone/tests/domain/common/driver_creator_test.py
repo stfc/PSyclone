@@ -137,9 +137,12 @@ def test_lfric_driver_simple_test():
         "call extract_psy_data%ReadVariable('undf_w3', undf_w3)",
         "call extract_psy_data%ReadVariable('x_ptr_vector_data', "
         "x_ptr_vector_data)",
-        "call extract_psy_data%ReadVariable('cell_post', cell_post)"
     ]:
         assert line.lower() in driver.lower(), line
+
+    # Loop variables should be removed:
+    assert ("call extract_psy_data%readvariable('cell_post', cell_post)"
+            not in driver.lower())
 
     # A read-write/inc variable should not be allocated (since it will
     # be allocated as part of reading in its value):
