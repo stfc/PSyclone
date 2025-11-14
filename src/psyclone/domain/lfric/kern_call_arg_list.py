@@ -52,13 +52,13 @@ from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
-    # ArrayReference, Reference, StructureReference, Literal)
-    ArrayReference, Reference, StructureReference)
+    ArrayReference, Reference, StructureReference, Literal)
+    # ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
     ImportInterface, ScalarType, ArrayType, UnsupportedFortranType,
-    # ArgumentInterface, INTEGER_TYPE)
-    ArgumentInterface)
+    ArgumentInterface, INTEGER_TYPE)
+    # ArgumentInterface)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
@@ -251,36 +251,36 @@ class KernCallArgList(ArgOrdering):
 
         '''
         super().scalar(scalar_arg, var_accesses)
-        # if scalar_arg.is_scalar:
-        if scalar_arg.is_literal:
-            self.psyir_append(scalar_arg.psyir_expression())
+        if scalar_arg.is_scalar:
+            if scalar_arg.is_literal:
+                self.psyir_append(scalar_arg.psyir_expression())
+            else:
+                sym = self._symtab.lookup(scalar_arg.name)
+                self.psyir_append(Reference(sym))
         else:
-            sym = self._symtab.lookup(scalar_arg.name)
-            self.psyir_append(Reference(sym))
-        # else:
-        #     # ScalarArray
-        #     dims_array_symbol = self._symtab.find_or_create(
-        #             "dims_" + scalar_arg.name,
-        #             symbol_type=DataSymbol,
-        #             datatype=ArrayType(
-        #                 LFRicTypes("LFRicIntegerScalarDataType")(),
-        #                 [scalar_arg._array_ndims]))
-        #     self._symtab.append_argument(dims_array_symbol)
+            # ScalarArray
+            dims_array_symbol = self._symtab.find_or_create(
+                    "dims_" + scalar_arg.name,
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                        LFRicTypes("LFRicIntegerScalarDataType")(),
+                        [scalar_arg._array_ndims]))
+            self._symtab.append_argument(dims_array_symbol)
 
-        #     # Create list of dims_array references
-        #     sym_list = [ArrayReference.create(
-        #         dims_array_symbol,
-        #         [Literal(str(idx), INTEGER_TYPE)])
-        #             for idx in range(1, scalar_arg._array_ndims + 1)]
+            # Create list of dims_array references
+            sym_list = [ArrayReference.create(
+                dims_array_symbol,
+                [Literal(str(idx), INTEGER_TYPE)])
+                    for idx in range(1, scalar_arg._array_ndims + 1)]
 
-        #     # Create ScalarArray reference
-        #     array_symbol = self._symtab.find_or_create(
-        #         scalar_arg.name,
-        #         symbol_type=DataSymbol,
-        #         datatype=ArrayType(
-        #             LFRicTypes("LFRicRealScalarDataType")(),
-        #             sym_list))
-        #     self._symtab.append_argument(array_symbol)
+            # Create ScalarArray reference
+            array_symbol = self._symtab.find_or_create(
+                scalar_arg.name,
+                symbol_type=DataSymbol,
+                datatype=ArrayType(
+                    LFRicTypes("LFRicRealScalarDataType")(),
+                    sym_list))
+            self._symtab.append_argument(array_symbol)
     # TODO uncomment this method when ensuring we only pass ncell3d once
     # to any given kernel.
     # def mesh_ncell3d(self):

@@ -148,6 +148,13 @@ class KernStubArgList(ArgOrdering):
         :raises InternalError: if the argument is not a recognised scalar type.
 
         '''
+        if scalar_arg.is_scalar:
+            self.append(scalar_arg.name, var_accesses)
+        else:
+            # ScalarArray
+            self.append(scalar_arg.name, var_accesses)
+            self.append("dims_"+scalar_arg.name, var_accesses)
+
 
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
