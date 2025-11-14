@@ -227,11 +227,21 @@ class LFRicScalarArrayArgs(LFRicCollection):
                                 for idx in range(1, arg._array_ndims + 1)]
                         print(sym_list)
                         # Find ScalarArray tag and convert it to an ArrayType
-                        array_symbol = self.symtab.lookup_with_tag(
-                            "AlgArgs_" + arg.name)
-                        array_symbol.datatype = ArrayType(
+                        if not self._kernel:
+                            # For code generation
+                            array_symbol = self.symtab.lookup_with_tag(
+                                "AlgArgs_" + arg.name)
+                            array_symbol.datatype = ArrayType(
                                 LFRicTypes("LFRicRealScalarDataType")(),
                                 sym_list)
+                        else:
+                            # For stub generation
+                            array_symbol = self.symtab.find_or_create(
+                            arg.name,
+                            symbol_type=DataSymbol,
+                            datatype=ArrayType(
+                                LFRicTypes("LFRicRealScalarDataType")(),
+                                [arg._array_ndims]))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
@@ -261,11 +271,21 @@ class LFRicScalarArrayArgs(LFRicCollection):
                                 for idx in range(1, arg._array_ndims + 1)]
                         print(sym_list)
                         # Find ScalarArray tag and convert it to an ArrayType
-                        array_symbol = self.symtab.lookup_with_tag(
-                            "AlgArgs_" + arg.name)
-                        array_symbol.datatype = ArrayType(
+                        if not self._kernel:
+                            # For code generation
+                            array_symbol = self.symtab.lookup_with_tag(
+                                "AlgArgs_" + arg.name)
+                            array_symbol.datatype = ArrayType(
                                 LFRicTypes("LFRicIntegerScalarDataType")(),
                                 sym_list)
+                        else:
+                            # For stub generation
+                            array_symbol = self.symtab.find_or_create(
+                            arg.name,
+                            symbol_type=DataSymbol,
+                            datatype=ArrayType(
+                                LFRicTypes("LFRicIntegerScalarDataType")(),
+                                [arg._array_ndims]))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
@@ -295,11 +315,21 @@ class LFRicScalarArrayArgs(LFRicCollection):
                                 for idx in range(1, arg._array_ndims + 1)]
 
                         # Find ScalarArray tag and convert it to an ArrayType
-                        array_symbol = self.symtab.lookup_with_tag(
-                            "AlgArgs_" + arg.name)
-                        array_symbol.datatype = ArrayType(
+                        if not self._kernel:
+                            # For code generation
+                            array_symbol = self.symtab.lookup_with_tag(
+                                "AlgArgs_" + arg.name)
+                            array_symbol.datatype = ArrayType(
                                 LFRicTypes("LFRicLogicalScalarDataType")(),
                                 sym_list)
+                        else:
+                            # For stub generation
+                            array_symbol = self.symtab.find_or_create(
+                            arg.name,
+                            symbol_type=DataSymbol,
+                            datatype=ArrayType(
+                                LFRicTypes("LFRicLogicalScalarDataType")(),
+                                [arg._array_ndims]))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
