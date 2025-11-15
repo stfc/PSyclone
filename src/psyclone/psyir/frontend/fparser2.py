@@ -887,8 +887,7 @@ def _get_arg_names(node_list):
 
 class Fparser2Reader():
     '''
-    Class to encapsulate the functionality for processing the fparser2 AST and
-    convert the nodes to PSyIR.
+    Processes the fparser2 parse_tree and converts it to PSyIR.
 
     :param ignore_directives: Whether directives should be ignored or not
         (default True). Only has an effect if comments were not ignored when

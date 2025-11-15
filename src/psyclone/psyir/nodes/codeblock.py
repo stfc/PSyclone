@@ -78,7 +78,7 @@ class CodeBlock(Statement, DataNode):
     #: The annotations that are supported by this node.
     #: psy-data-start - this node has replaced a PSyDataNode during the
     #: lowering of the PSyIR to language level.
-    valid_annotations = ("psy-data-start")
+    valid_annotations = ("psy-data-start", )
 
     class Structure(Enum):
         '''
@@ -314,5 +314,11 @@ class Fparser2CodeBlock(CodeBlock):
 
 
 class TreeSitterCodeBlock(CodeBlock):
+    ''' The treesitter implementation of CodeBlock. '''
+
     def get_fortran_lines(self):
-        return [ast_node.text for ast_node in self.get_ast_nodes()]
+        '''
+        :returns: a list of each line of fortran represented by this node.
+        '''
+        return [str(ast_node.text, encoding="utf8") for ast_node
+                in self.get_ast_nodes()]

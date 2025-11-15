@@ -67,6 +67,7 @@ VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
 LFRIC_API_NAMES = ["lfric", "dynamo0.3"]
 GOCEAN_API_NAMES = ["gocean", "gocean1.0"]
+SUPPORTED_FRONTENDS = ["fparser2", "treesitter"]
 
 
 # pylint: disable=too-many-lines
@@ -234,6 +235,9 @@ class Config:
 
         # The Fortran standard that fparser should use
         self._fortran_standard = None
+
+        # The Fortran standard that fparser should use
+        self._frontend = 'fparser2'
 
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
@@ -500,6 +504,27 @@ class Config:
         # If we get to here then we have failed to find a config file
         raise ConfigurationError(f"{_FILE_NAME} not found in any of "
                                  f"{_file_paths}")
+
+    @property
+    def frontend(self) -> str:
+        '''
+        :returns: the frontend used to parse the input files.
+        '''
+        return self._frontend
+
+    @frontend.setter
+    def frontend(self, value: str):
+        '''
+        :param value: which frontend to use to parse the input files.
+
+        :raises ConfigurationError: the provided value is not a string.
+        :raises ConfigurationError: the provided values is not supported.
+        '''
+        if not isinstance(value, str) or value not in SUPPORTED_FRONTENDS:
+            raise ConfigurationError(
+                f"frontend must be one of {SUPPORTED_FRONTENDS} but got "
+                f"{value}")
+        self._frontend = value
 
     @property
     def distributed_memory(self):

@@ -86,7 +86,7 @@ class FortranReader():
                  ignore_directives: bool = True,
                  last_comments_as_codeblocks: bool = False,
                  resolve_modules: Union[bool, List[str]] = False):
-        if os.environ.get("PSYCLONE_TS") is not None:
+        if Config.get().frontend == 'treesitter':
             import tree_sitter_fortran
             from tree_sitter import Language, Parser
             language = Language(tree_sitter_fortran.language())
@@ -140,12 +140,9 @@ class FortranReader():
         :raises ValueError: if the supplied Fortran cannot be parsed.
 
         '''
-        if os.environ.get("PSYCLONE_TS") is not None:
-            print(source_code)
+        if Config.get().frontend == 'treesitter':
             tree = self._parser.parse(bytes(source_code, "utf8"))
-            print(tree.root_node)
             psyir = self._processor.generate_psyir(tree.root_node)
-            print(psyir)
             return psyir
         SYMBOL_TABLES.clear()
         string_reader = FortranStringReader(
@@ -267,7 +264,7 @@ class FortranReader():
         :raises ValueError: if the parser fails to parse the contents of
                             the supplied file.
         '''
-        if os.environ.get("PSYCLONE_TS") is not None:
+        if Config.get().frontend == 'treesitter':
             with open(file_path, encoding="utf-8") as fortran_file:
                 return self.psyir_from_source(fortran_file.read())
 

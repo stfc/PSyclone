@@ -494,6 +494,10 @@ def main(arguments):
         '-p', '--profile', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="add profiling hooks for 'kernels', 'invokes' or 'routines'")
     parser.add_argument(
+        '--frontend', default='fparser2', choices=['fparser2', 'treesitter'],
+        help=("choose the frontend parser ('treesitter' is HIGHLY "
+              "experimental!)"))
+    parser.add_argument(
         '--backend', dest='backend', action="append",
         choices=['disable-validation', 'disable-indentation'],
         help=("options to control the PSyIR backend used for code generation. "
@@ -616,6 +620,7 @@ def main(arguments):
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
     Config.get().load(args.config)
+    Config.get().frontend = args.frontend
 
     # Check whether a PSyKAl API has been specified.
     if args.psykal_dsl is None:

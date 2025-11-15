@@ -35,24 +35,63 @@
 
 ''' PSyIR TreeSitter Fortran reader '''
 
+from typing import Optional
+
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes.codeblock import TreeSitterCodeBlock, CodeBlock
 
 
 class FortranTreeSitterReader():
-    ''' TreeSitter to PSyIR  '''
+    ''' Processes the TreeSitter parse_tree and converts it to PSyIR.
 
-    def __init__(self):
+    :param ignore_directives: Whether directives should be ignored or not
+        (default True). Currently ignored.
+    :param last_comments_as_codeblocks: Whether the last comments in the a
+        given block (e.g. subroutine, do, if-then body, etc.) should be kept as
+        CodeBlocks or lost (default False). Currently ignored.
+    :param resolve_modules: Whether to resolve modules while parsing a file,
+        for more precise control it also accepts a list of module names.
+        Defaults to False. Currently ignored.
+
+    :raises TypeError: if the constructor argument is not of the expected type.
+    '''
+
+    def __init__(self, ignore_directives: bool = True,
+                 last_comments_as_codeblocks: bool = False,
+                 resolve_modules: bool = False):
+        self._ignore_directives = ignore_directives
+        self._resolve_modules = resolve_modules
+        self._last_comments_as_codeblocks = last_comments_as_codeblocks
         self.location = None
         self._ongoing_codeblock = []
         self.handlers = {
-            'translation_unit': self._file_container
+            'translation_unit': self._translation_unit
         }
 
-    def generate_psyir(self, tsnode):
-        return self.get_handler(tsnode)(tsnode)
+    def generate_psyir(self, parse_tree, filename=""):
+        '''Translate the supplied treesitter node to PSyIR.
+
+        :param parse_tree: the supplied treesitter parse tree.
+        :type parse_tree: :py:class:`fparser.two.Fortran2003.Program`
+        :param Optional[str] filename: associated name for FileContainer.
+
+        :returns: PSyIR of the supplied fparser2 parse_tree.
+        :rtype: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+        :raises GenerationError: if the root of the supplied fparser2
+            parse tree is not a Program.
+
+        '''
+        return self.get_handler(parse_tree)(parse_tree)
 
     def process_nodes(self, list_of_nodes):
+        '''
+        Create the PSyIR of the supplied list of treesitter nodes.
+
+        :param nodes: List of sibling nodes in fparser2 AST.
+        :type nodes: list[:py:class:`fparser.two.utils.Base`]
+
+        '''
         children = []
         for tsnode in list_of_nodes:
             try:
@@ -65,14 +104,16 @@ class FortranTreeSitterReader():
                     children.append(self.generate_accomulated_codeblock())
         return children
 
-    def generate_accomulated_codeblock(self, message=None):
+    def generate_accomulated_codeblock(self, message: Optional[str] = None):
+        '''
+        Create a CodeBlock node with the contents accomulated in the
+        _ongoing_codeblock list.
 
+        :param message: comment to associate with the CodeBlock.
+
+        '''
         if isinstance(self.location, (nodes.Schedule, nodes.Container)):
             structure = CodeBlock.Structure.STATEMENT
-        # elif isinstance(self.location, Directive):
-        #     raise InternalError(
-        #         "Fparser2Reader:nodes_to_code_block: A CodeBlock with "
-        #         "a Directive as parent is not yet supported.")
         else:
             structure = CodeBlock.Structure.EXPRESSION
 
@@ -84,13 +125,23 @@ class FortranTreeSitterReader():
         return code_block
 
     def get_handler(self, tsnode):
+        '''
+        :param tsnode: a given treesitter node.
+
+        :returns: the method that handles the given node type.
+        '''
         handler = self.handlers.get(tsnode.type)
         if not handler:
             raise NotImplementedError(
                 f"Unsupported '{tsnode.type}' tree-sitter node.")
         return handler
 
-    def _file_container(self, tsnode):
+    def _translation_unit(self, tsnode) -> nodes.Node:
+        ''' Handle translation_unit treesitter node.
+
+        :param tsnode: the node the process.
+        :returns: the equivatent PSyIR Node.
+        '''
         file_container = nodes.FileContainer("test")
         self.location = file_container
         file_container.children.extend(self.process_nodes(tsnode.children))
