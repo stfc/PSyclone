@@ -1047,12 +1047,17 @@ class GOKern(CodedKern):
 
         # Now create the assignment prototype
         if not write_access:
-            write_access = Reference(Symbol("TODO"))
-        rhs = read_accesses.pop(0)
-        while read_accesses:
-            rhs = BinaryOperation.create(
-                    BinaryOperation.Operator.ADD,
-                    rhs, read_accesses.pop(0))
+            raise InternalError("This should not be a valid kernel")
+        if not read_accesses:
+            # There can be write-only kernels, in this case we just put
+            # a constant literal
+            rhs = Literal("1", INTEGER_TYPE)
+        else:
+            rhs = read_accesses.pop(0)
+            while read_accesses:
+                rhs = BinaryOperation.create(
+                        BinaryOperation.Operator.ADD,
+                        rhs, read_accesses.pop(0))
         return Assignment.create(write_access, rhs)
 
     @property
