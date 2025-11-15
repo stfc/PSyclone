@@ -51,9 +51,11 @@ from fparser.two.utils import walk
 from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
-from psyclone.gocean1p0 import GOKern, GOKernelSchedule
+from psyclone.gocean1p0 import (
+    GOKern, GOKernelSchedule, GOKernCallFactory)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import Schedule
 from psyclone.tests.utilities import get_invoke
 
 API = "gocean"
@@ -67,6 +69,27 @@ BASE_PATH = os.path.join(
 def setup():
     '''Make sure that all tests here use gocean as API.'''
     Config.get().api = API
+
+
+def test_gok_factory(monkeypatch):
+    '''
+    Test that the GOKernCallFactory only creates a GOKern inside
+    GOInvokeSchedule.
+    '''
+    # Do not test GOKern here, this is done below, and needs valid metadata
+    # which is difficult to assemble
+    monkeypatch.setattr(GOKern, "__init__",
+                        lambda _1, _2, _3, _4, parent: None)
+    call = None
+
+    with pytest.raises(GenerationError) as err:
+        GOKernCallFactory.create(call)
+    assert ("GOKern must always be constructed with a parent inside a "
+            "GOInvokeSchedule" in str(err.value))
+    with pytest.raises(GenerationError) as err:
+        GOKernCallFactory.create(call, parent=Schedule())
+    assert ("GOKern must always be constructed with a parent inside a "
+            "GOInvokeSchedule" in str(err.value))
 
 
 def test_gok_construction():
@@ -88,16 +111,39 @@ def test_gok_construction():
     assert kern._index_offset == "go_offset_sw"
 
     # This first child represents the computation pattern of the kernel
-    # the second argument has a (000,011,000) stencil
+    # This kernel has a pointwise write (cu_fld), a '000,011,000' stencil
+    # (p_fld) and a pointwise read (u_fld)
     assert kern.children[0].debug_string() == (
         "cu_fld%data(i,j) = p_fld%data(i,j) + p_fld%data(i,j + 1) + "
         "u_fld%data(i,j)\n")
 
+    # Now remove all read accesses (this is still a valid kernel), it could
+    # be just assigning a value
+    ref_i = schedule.symbol_table.lookup("i")
+    ref_j = schedule.symbol_table.lookup("j")
+    kern.arguments._args = [kern.arguments._args[0]]
+    assert kern.prototype_from_metadata(ref_i, ref_j).debug_string() == (
+        "cu_fld%data(i,j) = 1\n"
+    )
+
+    # Now add two write fields, this is not a valid
+    # kern.arguments._args = [kern.arguments._args[0], kern.arguments._args[0]]
+    # with pytest.raises(InternalError) as err:
+    #     kern.prototype_from_metadata(ref_i, ref_j)
+    # assert ("This is not a valid kernel, a kernel can only write to one "
+    #         "field" in str(err.value))
+
+    # # Now add two write fields, this is not a valid
+    # kern.arguments._args = []
+    # with pytest.raises(InternalError) as err:
+    #     kern.prototype_from_metadata(ref_i, ref_j)
+    # assert ("This is not a valid kernel, a kernel must write to one field"
+    #         in str(err.value))
+
 
 def test_gok_construction_with_large_stencils():
-    '''Test that GOcean kernel information are correct, and that the index
-    information are PSyIR nodes.
-
+    '''Test that GOcean kernel information when the metadata includes
+    a stencil expanding to multiple depths in multiple directions.
     '''
     _, invoke = get_invoke("large_stencil.f90", "gocean", idx=0)
     schedule = invoke.schedule

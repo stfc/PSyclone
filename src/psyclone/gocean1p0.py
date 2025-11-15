@@ -876,8 +876,8 @@ class GOKernCallFactory():
             not parent.ancestor(GOInvokeSchedule, include_self=True)
         ):
             raise GenerationError(
-                "GOKern must always be constructed with a parent which is "
-                "inside (directly or indirectly) of a GOInvokeSchedule")
+                "GOKern must always be constructed with a parent inside"
+                " a GOInvokeSchedule")
 
         invoke = parent.ancestor(GOInvokeSchedule, include_self=True)
         symtab = invoke.symbol_table
@@ -1037,17 +1037,22 @@ class GOKern(CodedKern):
                             access = StructureReference.create(symbol, [
                                 ("data", [inner_index, outer_index])
                             ])
-                            if arg.access == AccessType.WRITE:
-                                write_access = access
-                            elif arg.access == AccessType.READWRITE:
-                                write_access = access
-                                read_accesses.append(access.copy())
-                            else:
+                            if arg.access in (AccessType.WRITE,
+                                              AccessType.READWRITE):
+                                # if write_access is not None:
+                                #     raise InternalError(
+                                #         "This is not a valid kernel, a "
+                                #         "kernel can only write to one field"
+                                #     )
+                                write_access = access.copy()
+                            if arg.access != AccessType.WRITE:
                                 read_accesses.append(access)
 
         # Now create the assignment prototype
-        if not write_access:
-            raise InternalError("This should not be a valid kernel")
+        # if not write_access:
+        #     raise InternalError(
+        #         "This is not a valid kernel, a kernel must write "
+        #         "to one field.")
         if not read_accesses:
             # There can be write-only kernels, in this case we just put
             # a constant literal
