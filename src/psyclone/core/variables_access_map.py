@@ -40,9 +40,8 @@
 '''This module provides management of variable access information.'''
 
 
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 
-from psyclone.core.component_indices import ComponentIndices
 from psyclone.core.signature import Signature
 from psyclone.core.access_sequence import AccessSequence
 from psyclone.core.access_type import AccessType
@@ -70,34 +69,12 @@ class VariablesAccessMap(dict):
             self,
             signature: Signature,
             access_type: AccessType,
-            node: "Node",
-            component_indices: Optional[ComponentIndices] = None) -> None:
+            node: "Node") -> None:
         '''Adds access information for the variable with the given signature.
-        If the `component_indices` parameter is not an instance of
-        `ComponentIndices`, it is used to construct an instance. Therefore it
-        can be None, a list or a list of lists of PSyIR nodes. In the case of
-        a list of lists, this will be used unmodified to construct the
-        ComponentIndices structures. If it is a simple list, it is assumed
-        that it contains the indices used in accessing the last component
-        of the signature. For example, for `a%b` with
-        `component_indices=[i,j]`, it will create `[[], [i,j]` as component
-        indices, indicating that no index is used in the first component `a`.
-        If the access is supposed to be for `a(i)%b(j)`, then the
-        `component_indices` argument must be specified as a list of lists,
-        i.e. `[[i], [j]]`.
 
         :param signature: the signature of the variable.
-        :type signature: :py:class:`psyclone.core.Signature`
         :param access_type: the type of access (READ, WRITE, ...)
-        :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
-        :type node: :py:class:`psyclone.psyir.nodes.Node` instance
-        :param component_indices: index information for the access.
-        :type component_indices: \
-            :py:class:`psyclone.core.component_indices.ComponentIndices`, or \
-            any other type that can be used to construct a ComponentIndices \
-            instance (None, List[:py:class:`psyclone.psyir.nodes.Node`] \
-             or List[List[:py:class:`psyclone.psyir.nodes.Node`]])
 
         '''
         if not isinstance(signature, Signature):
@@ -105,37 +82,11 @@ class VariablesAccessMap(dict):
                                 f"'{type(signature).__name__}' but expected "
                                 f"it to be of type psyclone.core.Signature.")
 
-        # To make it easier for the user, we allow to implicitly create the
-        # component indices instance here:
-        if not isinstance(component_indices, ComponentIndices):
-            # Handle some convenient cases:
-            # 1. Add the right number of [] if component_indices is None:
-            if component_indices is None:
-                component_indices = ComponentIndices([[]] * len(signature))
-            elif isinstance(component_indices, list):
-                # 2. If the argument is a simple list (not a list of lists),
-                # assume that the indices are for the last component, and
-                # add enough [] to give the right number of entries in the
-                # list that is used to create the ComponentIndices instance:
-                is_list_of_lists = all(isinstance(indx, list)
-                                       for indx in component_indices)
-                if not is_list_of_lists:
-                    component_indices = [[]] * (len(signature)-1) \
-                                      + [component_indices]
-
-                component_indices = ComponentIndices(component_indices)
-
-        if len(signature) != len(component_indices):
-            raise InternalError(f"Cannot add '{component_indices}' with "
-                                f"length {len(component_indices)} as "
-                                f"indices for '{signature}' which "
-                                f"requires {len(signature)} elements.")
-
         if signature in self:
-            self[signature].add_access(access_type, node, component_indices)
+            self[signature].add_access(access_type, node)
         else:
             var_info = AccessSequence(signature)
-            var_info.add_access(access_type, node, component_indices)
+            var_info.add_access(access_type, node)
             self[signature] = var_info
 
     @property

@@ -38,11 +38,10 @@
 
 import pytest
 
-from psyclone.core import ComponentIndices, Signature, VariablesAccessMap
+from psyclone.core import Signature, VariablesAccessMap
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, Node
 from psyclone.tests.utilities import get_invoke
 
@@ -85,13 +84,11 @@ def test_variables_access_map() -> None:
             "WRITE+READ")
     assert not var_accesses.is_called(Signature("new_var"))
 
-    var_accesses.add_access(Signature("sub"),
-                            AccessType.CALL, Node(), component_indices=None)
+    var_accesses.add_access(Signature("sub"), AccessType.CALL, Node())
     assert var_accesses.is_called(Signature("sub"))
 
     var_accesses.add_access(Signature("read_write"),
-                            AccessType.READWRITE, Node(),
-                            component_indices=None)
+                            AccessType.READWRITE, Node())
     assert var_accesses.has_read_write(Signature("read_write"))
 
 
@@ -117,44 +114,6 @@ def test_variables_access_map_errors() -> None:
 
     assert "Got 'no-signature' of type 'str' but expected it to be of type " \
            "psyclone.core.Signature." in str(err_internal.value)
-
-    # Check for consistency between signature and component indices:
-    with pytest.raises(InternalError) as err_internal:
-        var_accesses.add_access(Signature(("a", "b")), AccessType.READ, node,
-                                ComponentIndices([]))
-    assert "Cannot add '[[]]' with length 1 as indices for 'a%b' which "\
-           "requires 2 elements." in str(err_internal.value)
-
-
-# -----------------------------------------------------------------------------
-def test_component_indices_auto_extension() -> None:
-    '''To make it more convenient for the user certain combinations of
-    signature and component_indices in the add_access call will
-    automatically add empty indices to the component_indices. For example.
-    adding "ssh_fld%grid%tmask" with indices ["i", "j"] will automatically
-    create component_indices like [[], [], ["i", "j"]].
-    '''
-    var_accesses = VariablesAccessMap()
-    node = Node()
-    sig = Signature(("a", "b", "c"))
-    # This should auto-extent the component indices,
-    # since they are specified as a simple list:
-    var_accesses.add_access(sig, AccessType.READ, node, ["i", "j"])
-    assert (var_accesses[sig][0].component_indices.indices_lists ==
-            [[], [], ["i", "j"]])
-
-    # This must trigger an exception, since a list of lists is used, which
-    # should not get any values added:
-    with pytest.raises(InternalError) as err:
-        var_accesses.add_access(sig, AccessType.READ, node, [["i", "j"]])
-    assert ("Cannot add '[['i', 'j']]' with length 1 as indices for 'a%b%c' "
-            "which requires 3 elements." in str(err.value))
-
-    component_indices = ComponentIndices(["i", "j"])
-    with pytest.raises(InternalError) as err:
-        var_accesses.add_access(sig, AccessType.READ, node, component_indices)
-    assert ("Cannot add '[['i', 'j']]' with length 1 as indices for 'a%b%c' "
-            "which requires 3 elements." in str(err.value))
 
 
 # -----------------------------------------------------------------------------
@@ -228,44 +187,18 @@ def test_derived_type_scalar(fortran_reader: FortranReader) -> None:
 
 
 # -----------------------------------------------------------------------------
-def to_fortran(writer: FortranWriter,
-               index_expression: list[list[Node]]) -> list[list[str]]:
-    '''A small helper function that converts index information from an
-    AccessInfo object to a list of list of strings. For example, an access
-    like `a(i)%b%c(j,k)` will have an index expression of
-    `[ [i], [], [j, k]]`, where `i`, `j`, and `k` are the PSyIR representation
-    of the indices. This function will convert each PSyIR node to a string,
-    returning in the example: `[ ["i"], [], ["j", "k"]]`
-
-    :param writer: a FortranWriter object.
-    :type writer: :py:class:`psyclone.psyir.backend.fortan.FortranWriter`
-    :param expression: a Fortran PSyIR node with the index expression to \
-        convert.
-    :type index_expression: list of list of :py:class:`psyclone.psyir.node`s
-
-    :return: list of list of corresponding Fortran code, each as string.
-    '''
-
-    result = []
-    for indices in index_expression:
-        result.append([writer(index) for index in indices])
-    return result
-
-
-# -----------------------------------------------------------------------------
 @pytest.mark.parametrize("array, indices",
-                         [("a%b%c", [[], [], []]),
-                          ("a%b%c(i)", [[], [], ["i"]]),
-                          ("a%b(j)%c", [[], ["j"], []]),
-                          ("a%b(j)%c(i)", [[], ["j"], ["i"]]),
-                          ("a(k)%b%c", [["k"], [], []]),
-                          ("a(k)%b%c(i)", [["k"], [], ["i"]]),
-                          ("a(k)%b(j)%c", [["k"], ["j"], []]),
-                          ("a(k)%b(j)%c(i)", [["k"], ["j"], ["i"]])
+                         [("a%b%c", ((), (), ())),
+                          ("a%b%c(i)", ((), (), ("i",))),
+                          ("a%b(j)%c", ((), ("j",), ())),
+                          ("a%b(j)%c(i)", ((), ("j",), ("i",))),
+                          ("a(k)%b%c", (("k",), (), ())),
+                          ("a(k)%b%c(i)", (("k",), (), ("i",))),
+                          ("a(k)%b(j)%c", (("k",), ("j",), ())),
+                          ("a(k)%b(j)%c(i)", (("k",), ("j",), ("i",)))
                           ])
 def test_derived_type_array(array: str,
                             indices: list[list[str]],
-                            fortran_writer: FortranWriter,
                             fortran_reader: FortranReader) -> None:
     '''This function tests the handling of derived array types.
     '''
@@ -288,11 +221,15 @@ def test_derived_type_array(array: str,
     assert "j: READ" in str(vai1)
     assert "k: READ" in str(vai1)
 
-    # Verify that the index expression is correct. Convert the index
-    # expression to a list of list of strings to make this easier:
+    # The elements in the parameterised indices are string names, but
+    # component_indices returns Reference nodes, so to make it easy
+    # to compare, we first convert each Reference to only its name
     sig = Signature(("a", "b", "c"))
     access = vai1[sig][0]
-    assert to_fortran(fortran_writer, access.component_indices) == indices
+    component_names = tuple(tuple(node.name for node in idx) for idx in
+                            access.component_indices())
+    # Then we can do a simple == to compare all elements of both tuples
+    assert component_names == indices
 
 
 # -----------------------------------------------------------------------------
