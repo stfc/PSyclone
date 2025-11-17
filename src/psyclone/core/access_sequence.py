@@ -59,12 +59,13 @@ class AccessInfo():
     available).
 
     :param access: the access type.
-    :param node: Node in PSyIR in which the access happens.
+    :param node: Node in PSyIR in which the access happens, can also
+        be a DataSymbol.
 
     '''
     def __init__(
         self, access_type: AccessType,
-        node: 'Node',
+        node: Union['Node', Symbol]
     ) -> None:
 
         self._access_type = access_type
