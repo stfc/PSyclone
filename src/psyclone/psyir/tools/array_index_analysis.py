@@ -393,7 +393,7 @@ class ArrayIndexAnalysis:
 
         # Resolve choice of integers v. bit vectors
         if self.use_bv is None:
-            for call in loop.walk(IntrinsicCall):
+            for call in routine.walk(IntrinsicCall):
                 i = call.intrinsic
                 if i in [IntrinsicCall.Intrinsic.SHIFTL,
                          IntrinsicCall.Intrinsic.SHIFTR,
