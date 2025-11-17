@@ -137,11 +137,12 @@ from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
 
 
 class ArrayIndexAnalysis:
+
     # Class representing analysis options
     class Options:
         def __init__(self,
                      int_width: int = 32,
-                     use_bv: int = True,
+                     use_bv: bool = None,
                      smt_timeout_ms: int = 5000,
                      prohibit_overflow: bool = False):
             # Set SMT solver timeout in milliseconds
@@ -389,6 +390,19 @@ class ArrayIndexAnalysis:
         # Start with an empty constraint set and substitution
         self.init_analysis()
         self.loop_to_parallelise = loop
+
+        # Resolve choice of integers v. bit vectors
+        if self.use_bv is None:
+            for call in loop.walk(IntrinsicCall):
+                i = call.intrinsic
+                if i in [IntrinsicCall.Intrinsic.SHIFTL,
+                         IntrinsicCall.Intrinsic.SHIFTR,
+                         IntrinsicCall.Intrinsic.SHIFTA,
+                         IntrinsicCall.Intrinsic.IAND,
+                         IntrinsicCall.Intrinsic.IOR,
+                         IntrinsicCall.Intrinsic.IEOR]:
+                    self.use_bv = True
+                    break
 
         # Step through body of the enclosing routine, statement by statement
         for stmt in routine.children:
