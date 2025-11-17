@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import (
         BinaryOperation, IntrinsicCall
 )
 from psyclone.psyir.tools import (
-        DependencyTools, DTCode, ReductionInferenceTool, ArrayIndexAnalysis
+        DependencyTools, DTCode, ReductionInferenceTool, ArrayIndexAnalysis,
 )
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
@@ -175,10 +175,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             reduction_ops = self.get_option("reduction_ops", **kwargs)
             if reduction_ops is None:
                 reduction_ops = []
-            use_smt_array_anal = self.get_option(
-              "use_smt_array_anal", **kwargs)
-            smt_array_anal_options = self.get_option(
-              "smt_array_anal_options", **kwargs)
+            use_smt_array_index_analysis = self.get_option(
+                "use_smt_array_index_analysis", **kwargs)
         else:
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
@@ -189,9 +187,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             sequential = options.get("sequential", False)
             privatise_arrays = options.get("privatise_arrays", False)
             reduction_ops = options.get("reduction_ops", [])
-            use_smt_array_anal = options.get("use_smt_array_anal", False)
-            smt_array_anal_options = options.get(
-                "smt_array_anal_options", ArrayIndexAnalysis.Options())
+            use_smt_array_index_analysis = options.get(
+                "use_smt_array_index_analysis", False)
 
         # Check type of reduction_ops (not handled by validate_options)
         if not isinstance(reduction_ops, list):
@@ -267,7 +264,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     f" object containing str representing the "
                     f"symbols to ignore, but got '{ignore_dependencies_for}'.")
 
-        dep_tools = DependencyTools()
+        dep_tools = DependencyTools(
+            use_smt_array_index_analysis=use_smt_array_index_analysis)
 
         signatures = [Signature(name) for name in ignore_dependencies_for]
 
@@ -278,7 +276,6 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             # The DependencyTools also returns False for things that are
             # not an issue, so we ignore specific messages.
             errors = []
-            num_depedency_errors = 0
             for message in dep_tools.get_all_messages():
                 if message.code == DTCode.WARN_SCALAR_WRITTEN_ONCE:
                     continue
@@ -304,21 +301,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                         if clause:
                             self.inferred_reduction_clauses.append(clause)
                             continue
-
-                if (message.code == DTCode.ERROR_DEPENDENCY or
-                    message.code == DTCode.ERROR_WRITE_WRITE_RACE):
-                    num_depedency_errors = num_depedency_errors + 1
                 errors.append(str(message))
-
-            # Use ArrayIndexAnalysis
-            if use_smt_array_anal:
-                # Are all the errors array dependency errors?
-                if len(errors) > 0 and len(errors) == num_depedency_errors:
-                    # Try using the ArrayIndexAnalysis to prove that the
-                    # dependency errors are false
-                    arr_anal = ArrayIndexAnalysis(smt_array_anal_options)
-                    if arr_anal.is_loop_conflict_free(node):
-                        errors = []
 
             if errors:
                 error_lines = "\n".join(errors)
@@ -348,9 +331,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
               nowait: bool = False,
               reduction_ops: List[Union[BinaryOperation.Operator,
                                         IntrinsicCall.Intrinsic]] = None,
-              use_smt_array_anal: bool = False,
-              smt_array_anal_options:
-                  ArrayIndexAnalysis.Options = ArrayIndexAnalysis.Options(),
+              use_smt_array_index_analysis:
+                  Union[bool, ArrayIndexAnalysis.Options] = False,
               **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
@@ -395,10 +377,11 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         :param reduction_ops: if non-empty, attempt parallelisation
             of loops by inferring reduction clauses involving any of
             the reduction operators in the list.
-        :param bool use_smt_array_anal: whether to use the SMT-based
-            ArrayIndexAnalysis to discharge false dependency errors.
-        :param bool smt_array_anal_options: options for the array index
-            analysis.
+        :param use_smt_array_index_analysis: if True, the SMT-based
+            array index analysis will be used for detecting array access
+            conflicts. An ArrayIndexAnalysis.Options value can also be given,
+            instead of a bool, in which case the analysis will be invoked
+            with the given options.
 
         '''
         if not options:
@@ -408,8 +391,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     privatise_arrays=privatise_arrays,
                     sequential=sequential, nowait=nowait,
                     reduction_ops=reduction_ops,
-                    use_smt_array_anal=use_smt_array_anal,
-                    smt_array_anal_options=smt_array_anal_options,
+                    use_smt_array_index_analysis=use_smt_array_index_analysis,
                     **kwargs
             )
             # Rename the input options that are renamed in this apply method.
@@ -431,9 +413,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             privatise_arrays = options.get("privatise_arrays", False)
             nowait = options.get("nowait", False)
             reduction_ops = options.get("reduction_ops", [])
-            use_smt_array_anal = options.get("use_smt_array_anal", False)
-            smt_array_anal_options = options.get(
-                "smt_array_anal_options", ArrayIndexAnalysis.Options())
+            use_smt_array_index_analysis = options.get(
+                "use_smt_array_index_analysis", False)
 
         self.validate(node, options=options, verbose=verbose,
                       collapse=collapse, force=force,
@@ -441,12 +422,13 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                       privatise_arrays=privatise_arrays,
                       sequential=sequential, nowait=nowait,
                       reduction_ops=reduction_ops,
-                      use_smt_array_anal=use_smt_array_anal,
-                      smt_array_anal_options=smt_array_anal_options,
+                      use_smt_array_index_analysis=(
+                          use_smt_array_index_analysis),
                       **kwargs)
 
         list_of_signatures = [Signature(name) for name in list_of_names]
-        dtools = DependencyTools()
+        dtools = DependencyTools(
+                   use_smt_array_index_analysis=use_smt_array_index_analysis)
 
         # Add all reduction variables inferred by 'validate' to the list
         # of signatures to ignore
@@ -521,28 +503,14 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     if not next_loop.independent_iterations(
                                dep_tools=dtools,
                                signatures_to_ignore=list_of_signatures):
-                        msgs = dtools.get_all_messages()
-                        discharge_errors = False
-
-                        if use_smt_array_anal:
-                            all_dep_errors = all(
-                              [msg.code == DTCode.ERROR_DEPENDENCY or
-                               msg.code == DTCode.ERROR_WRITE_WRITE_RACE
-                               for msg in msgs])
-                            arr_anal = ArrayIndexAnalysis(
-                                         smt_array_anal_options)
-                            discharge_errors = (
-                              all_dep_errors and
-                              arr_anal.is_loop_conflict_free(next_loop))
-
-                        if not discharge_errors:
-                            if verbose:
-                                next_loop.preceding_comment = (
-                                    "\n".join([str(m) for m in msgs]) +
-                                    " Consider using the \"ignore_dependenc"
-                                    "ies_for\" transformation option if this "
-                                    "is a false dependency.")
-                            break
+                        if verbose:
+                            msgs = dtools.get_all_messages()
+                            next_loop.preceding_comment = (
+                                "\n".join([str(m) for m in msgs]) +
+                                " Consider using the \"ignore_dependencies_"
+                                "for\" transformation option if this is a "
+                                "false dependency.")
+                        break
         else:
             num_collapsable_loops = None
 

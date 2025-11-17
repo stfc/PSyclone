@@ -5383,6 +5383,7 @@ def test_array_analysis_option(fortran_reader, fortran_writer):
       end subroutine my_matmul''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    omplooptrans.apply(loop, collapse=True, use_smt_array_anal=True)
+    omplooptrans.apply(
+        loop, collapse=True, use_smt_array_index_analysis=True)
     output = fortran_writer(psyir)
     assert "collapse(2)" in output

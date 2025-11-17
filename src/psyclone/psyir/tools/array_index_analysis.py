@@ -345,8 +345,8 @@ class ArrayIndexAnalysis:
                     indices_flat = [i for inds in indices for i in inds]
                     is_array_access = (
                       access_info.is_data_access and
-                          (indices_flat != [] or
-                           isinstance(access_info.node.datatype, ArrayType)))
+                      (indices_flat != [] or
+                       isinstance(access_info.node.datatype, ArrayType)))
                     if is_array_access:
                         smt_indices = []
                         for inds in indices:
@@ -405,8 +405,8 @@ class ArrayIndexAnalysis:
         for (i_arr_name, i_accesses) in iter_i.items():
             for (j_arr_name, j_accesses) in iter_j.items():
                 if (i_arr_name == j_arr_name or
-                    i_arr_name.startswith(j_arr_name + "%") or
-                    j_arr_name.startswith(i_arr_name + "%")):
+                        i_arr_name.startswith(j_arr_name + "%") or
+                        j_arr_name.startswith(i_arr_name + "%")):
                     # For each write access in the i iteration
                     for i_access in i_accesses:
                         if i_access.is_write:
