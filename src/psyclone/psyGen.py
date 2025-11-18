@@ -101,7 +101,7 @@ def object_index(alist, item):
     raise ValueError(f"Item '{item}' not found in list: {alist}")
 
 
-def zero_reduction_variables(red_call_list):
+def ARPDBG_zero_reduction_variables(red_call_list):
     '''zero all reduction variables associated with the calls in the call
     list'''
     if red_call_list:
@@ -724,6 +724,20 @@ class InvokeSchedule(Routine):
         result += "End " + self.coloured_name(False) + "\n"
         return result
 
+    def lower_to_language_level(self):
+        '''
+        '''
+        # Create a Symbol to hold the result for every kernel that does
+        # a reproducible reduction. (Non-reproducible reductions are just
+        # handled with standard OMP.)
+        # TODO possibly, this should just be done by every kernel
+        # individually?
+        for kern in self.walk(Kern):
+            if not kern.is_reduction:
+                continue
+            tag = f"{kern.name}:{kern._reduction_arg.name}"
+        super().lower_to_language_level()
+
 
 class GlobalSum(Statement):
     '''
@@ -1052,28 +1066,11 @@ class Kern(Statement):
             return ancestor.reprod
         return False
 
-    @property
-    def local_reduction_name(self):
-        '''
-        :returns: a local reduction variable name that is unique for the
-                  current reduction argument name. This is used for
-                  thread-local reductions with reproducible reductions.
-        :rtype: str
-
-        '''
-        # TODO #2381: Revisit symbol creation, now moved to the
-        # Kern._reduction_reference() method, and try to associate it
-        # with the PSy-layer generation or relevant transformation.
-        return "l_" + self.reduction_arg.name
-
-    def zero_reduction_variable(self):
+    def initialise_reduction_variable(self):
         '''
         Generate code to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
         reductions, if specified.
-
-        TODO #514: This is only used by LFRic, but should be generalised,
-        ideally in psyir.nodes.omp/acc_directives
 
         :raises GenerationError: if the variable to zero is not a scalar.
         :raises GenerationError: if the reprod_pad_size (read from the
@@ -1082,11 +1079,6 @@ class Kern(Statement):
             neither 'real' nor 'integer'.
 
         '''
-        # pylint: disable-next=import-outside-toplevel
-        from psyclone.domain.common.psylayer import PSyLoop
-
-        variable_name = self._reduction_arg.name
-        local_var_name = self.local_reduction_name
         var_arg = self._reduction_arg
         # Check for a non-scalar argument
         if not var_arg.is_scalar:
@@ -1111,11 +1103,15 @@ class Kern(Statement):
 
         # Retrieve the variable and precision information
         kind_str = f"(kind={var_arg.precision})" if var_arg.precision else ""
-        variable = self.scope.symbol_table.lookup(variable_name)
-        insert_loc = self.ancestor(PSyLoop)
-        # If it has ancestor directive keep going up
-        while isinstance(insert_loc.parent.parent, Directive):
-            insert_loc = insert_loc.parent.parent
+        var_name = f"{self.name}:{var_arg.name}"
+        variable = self.scope.symbol_table.find_or_create_tag(var_name)
+        # Find a safe location to initialise it.
+        insert_loc = self.ancestor((Loop, Directive))
+        while insert_loc:
+            loc = insert_loc.ancestor((Loop, Directive))
+            if not loc:
+                break
+            insert_loc = loc 
         cursor = insert_loc.position
         insert_loc = insert_loc.parent
         new_node = Assignment.create(
@@ -1158,7 +1154,7 @@ class Kern(Statement):
         Generate the appropriate code to place after the end parallel
         region.
 
-        :raises GenerationError: for an unsupported reduction access in \
+        :raises GenerationError: for an unsupported reduction access in
                                  LFRicBuiltIn.
         '''
         var_name = self._reduction_arg.name
@@ -1225,7 +1221,9 @@ class Kern(Statement):
         # Kern.local_reduction_name property, and try to associate it
         # with the PSy-layer generation or relevant transformation.
         symtab = self.scope.symbol_table
-        reduction_name = self.reduction_arg.name
+        local_var = symtab.lookup_with_tag(
+            f"{self.name}:{self._reduction_arg.name}")
+        #reduction_name = self.reduction_arg.name
         # Return a multi-valued ArrayReference for a reproducible reduction
         if self.reprod_reduction:
             array_dim = [
@@ -1239,7 +1237,7 @@ class Kern(Statement):
                 tag=self.local_reduction_name,
                 symbol_type=DataSymbol, datatype=reduction_array)
             return ArrayReference.create(
-                local_reduction, array_dim)
+                local_var, array_dim)
         # Return a single-valued Reference for a non-reproducible reduction
         return Reference(symtab.lookup(reduction_name))
 
@@ -1288,6 +1286,16 @@ class Kern(Statement):
     @property
     def iterates_over(self):
         return self._iterates_over
+
+    def lower_to_language_level(self):
+        '''
+        '''
+        if not self.is_reduction:
+            return super().lower_to_language_level()
+
+        # This Kernel performs a reduction.
+        # Initialise the variable that will hold the result.        
+        self.initialise_reduction_variable()
 
 
 class CodedKern(Kern):

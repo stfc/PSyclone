@@ -1333,8 +1333,8 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
                         "different types.")
 
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables
-        zero_reduction_variables(reduction_kernels)
+        #from psyclone.psyGen import zero_reduction_variables
+        #zero_reduction_variables(reduction_kernels)
 
         # Reproducible reduction will be done serially by accumulating the
         # partial results in an array indexed by the thread index
