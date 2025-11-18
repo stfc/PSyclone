@@ -50,7 +50,8 @@ from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Loop, Node, Range
-from psyclone.psyir.tools.array_index_analysis import ArrayIndexAnalysis
+from psyclone.psyir.tools.array_index_analysis import (
+    ArrayIndexAnalysis, ArrayIndexAnalysisOptions)
 
 
 # pylint: disable=too-many-lines
@@ -165,11 +166,11 @@ class DependencyTools():
     :type loop_types_to_parallelise: Optional[List[str]]
     :param use_smt_array_index_analysis: if True, the SMT-based
         array index analysis will be used for detecting array access
-        conflicts. An ArrayIndexAnalysis.Options value can also be given,
+        conflicts. An ArrayIndexAnalysisOptions value can also be given,
         instead of a bool, in which case the analysis will be invoked
         with the given options.
     :type use_smt_array_index_analysis: Union[
-        bool, ArrayIndexAnalysis.Options]
+        bool, ArrayIndexAnalysisOptions]
 
     :raises TypeError: if an invalid loop type is specified.
 
@@ -918,10 +919,10 @@ class DependencyTools():
         # Apply the SMT-based array index analysis, if enabled
         if self._use_smt_array_index_analysis:
             if isinstance(self._use_smt_array_index_analysis,
-                          ArrayIndexAnalysis.Options):
+                          ArrayIndexAnalysisOptions):
                 options = self._use_smt_array_index_analysis
             else:
-                options = ArrayIndexAnalysis.Options()
+                options = ArrayIndexAnalysisOptions()
             analysis = ArrayIndexAnalysis(options)
             conflict_free = analysis.is_loop_conflict_free(loop)
             if not conflict_free:

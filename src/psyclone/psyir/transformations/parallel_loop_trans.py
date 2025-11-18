@@ -53,7 +53,8 @@ from psyclone.psyir.nodes import (
         BinaryOperation, IntrinsicCall
 )
 from psyclone.psyir.tools import (
-        DependencyTools, DTCode, ReductionInferenceTool, ArrayIndexAnalysis,
+        DependencyTools, DTCode, ReductionInferenceTool,
+        ArrayIndexAnalysisOptions
 )
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
@@ -332,7 +333,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
               reduction_ops: List[Union[BinaryOperation.Operator,
                                         IntrinsicCall.Intrinsic]] = None,
               use_smt_array_index_analysis:
-                  Union[bool, ArrayIndexAnalysis.Options] = False,
+                  Union[bool, ArrayIndexAnalysisOptions] = False,
               **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
@@ -379,7 +380,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             the reduction operators in the list.
         :param use_smt_array_index_analysis: if True, the SMT-based
             array index analysis will be used for detecting array access
-            conflicts. An ArrayIndexAnalysis.Options value can also be given,
+            conflicts. An ArrayIndexAnalysisOptions value can also be given,
             instead of a bool, in which case the analysis will be invoked
             with the given options.
 
