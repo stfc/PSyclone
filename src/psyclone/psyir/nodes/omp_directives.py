@@ -1937,7 +1937,7 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         if not reductions:
             return super().lower_to_language_level()
 
-        # We only attempt to automatically add reduction clauses if we have a
+        # We only attempt to *automatically* add reduction clauses if we have a
         # high-level (DSL) reduction operation.
         self.children[0].lower_to_language_level()
         # Remove any existing Reduction clauses.
