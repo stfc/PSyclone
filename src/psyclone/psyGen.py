@@ -1217,29 +1217,17 @@ class Kern(Statement):
                 :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         '''
-        # TODO #2381: Revisit symbol creation, moved from the
-        # Kern.local_reduction_name property, and try to associate it
-        # with the PSy-layer generation or relevant transformation.
-        symtab = self.scope.symbol_table
+        symtab = self.ancestor(InvokeSchedule).symbol_table
         local_var = symtab.lookup_with_tag(
             f"{self.name}:{self._reduction_arg.name}")
-        #reduction_name = self.reduction_arg.name
-        # Return a multi-valued ArrayReference for a reproducible reduction
         if self.reprod_reduction:
+            # Return a multi-valued ArrayReference for a reproducible reduction
             array_dim = [
                 Literal("1", INTEGER_TYPE),
                 Reference(symtab.lookup_with_tag("omp_thread_index"))]
-            reduction_array = ArrayType(
-                symtab.lookup(reduction_name).datatype, array_dim)
-            local_reduction = DataSymbol(
-                self.local_reduction_name, datatype=reduction_array)
-            symtab.find_or_create_tag(
-                tag=self.local_reduction_name,
-                symbol_type=DataSymbol, datatype=reduction_array)
-            return ArrayReference.create(
-                local_var, array_dim)
+            return ArrayReference.create(local_var, array_dim)
         # Return a single-valued Reference for a non-reproducible reduction
-        return Reference(symtab.lookup(reduction_name))
+        return Reference(local_var)
 
     @property
     def arg_descriptors(self):

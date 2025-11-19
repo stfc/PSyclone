@@ -525,6 +525,28 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
         return assign
 
+    def lower_to_language_level(self):
+        '''
+        Lower this LFRicBuiltIn to language-level PSyIR.
+
+        '''
+        if self.is_reduction:
+            from psyclone.psyGen import InvokeSchedule
+            table = self.ancestor(InvokeSchedule).symbol_table
+            arg_sym = table.lookup(self.reduction_arg.name)
+            if self.reprod_reduction:
+                array_type = ArrayType(arg_sym.datatype, array_dim)
+                local_var = table.find_or_create_tag(
+                    root_name="local_"+self._reduction_arg.name,
+                    tag=f"{self.name}:{self._reduction_arg.name}",
+                    symbol_type=DataSymbol, datatype=array_type)
+            else:
+                table.remove(arg_sym)
+                table.add(arg_sym,
+                          tag=f"{self.name}:{self._reduction_arg.name}")
+            self.initialise_reduction_variable()
+
+        super().lower_to_language_level()
 
 # ******************************************************************* #
 # ************** Built-ins for real-valued fields ******************* #
