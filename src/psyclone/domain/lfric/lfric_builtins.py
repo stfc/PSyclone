@@ -2384,6 +2384,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
         # Get indexed references for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar reduction argument.
@@ -2437,6 +2438,7 @@ class LFRicSumXKern(LFRicBuiltIn):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
         # Get indexed references for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar reduction argument.
