@@ -5387,3 +5387,22 @@ def test_array_analysis_option(fortran_reader, fortran_writer):
         loop, collapse=True, use_smt_array_index_analysis=True)
     output = fortran_writer(psyir)
     assert "collapse(2)" in output
+
+
+def test_array_analysis_failure(fortran_reader, fortran_writer):
+    '''Test that a conflicting loop is not parallelised when using the
+    SMT-based array index analysis.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+      subroutine non_injective_index(arr)
+        integer, intent(inout) :: arr(:)
+        integer :: i
+        do i = 1, size(arr)
+          arr(i/2) = 0
+        end do
+      end subroutine''')
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        omplooptrans.apply(loop, use_smt_array_index_analysis=True)
+    assert "cannot be parallelised" in str(err.value)
