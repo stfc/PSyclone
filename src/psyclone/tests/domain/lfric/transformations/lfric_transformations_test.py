@@ -1995,7 +1995,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n" in code
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()\n" in code
         assert (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
@@ -2011,7 +2011,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n"
             "\n"
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "    !$omp parallel do reduction(+:asum) default(shared) "
             "private(df) schedule(static)\n"
@@ -2039,7 +2039,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "    enddo\n"
             "    !$omp end parallel do\n"
             "\n"
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "    !$omp parallel do reduction(+:asum) default(shared) "
             "private(df) schedule(static)\n"
@@ -2088,7 +2088,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
         expected_output = (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
@@ -2119,7 +2119,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
         assert "loop0_stop = undf_aspc1_f1" in result
         assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"

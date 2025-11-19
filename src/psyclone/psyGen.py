@@ -724,20 +724,6 @@ class InvokeSchedule(Routine):
         result += "End " + self.coloured_name(False) + "\n"
         return result
 
-    def lower_to_language_level(self):
-        '''
-        '''
-        # Create a Symbol to hold the result for every kernel that does
-        # a reproducible reduction. (Non-reproducible reductions are just
-        # handled with standard OMP.)
-        # TODO possibly, this should just be done by every kernel
-        # individually?
-        for kern in self.walk(Kern):
-            if not kern.is_reduction:
-                continue
-            tag = f"{kern.name}:{kern._reduction_arg.name}"
-        super().lower_to_language_level()
-
 
 class GlobalSum(Statement):
     '''
@@ -1083,9 +1069,10 @@ class Kern(Statement):
         # Check for a non-scalar argument
         if not var_arg.is_scalar:
             raise GenerationError(
-                f"Kern.zero_reduction_variable() should be a scalar but "
+                f"Kern.initialise_reduction_variable() should be a scalar but "
                 f"found '{var_arg.argument_type}'.")
-        # Generate the reduction variable
+        # Lookup the reduction variable
+        self.scope.symbol_table.lookup_with_tag(f"{self.name}:{var_arg.name}")
         var_data_type = var_arg.intrinsic_type
         if var_data_type == "real":
             data_type = ScalarType(ScalarType.Intrinsic.REAL,
@@ -1097,26 +1084,27 @@ class Kern(Statement):
                                                         UnresolvedType())))
         else:
             raise GenerationError(
-                f"Kern.zero_reduction_variable() should be either a 'real' or "
-                f"an 'integer' scalar but found scalar of type "
+                f"Kern.initialise_reduction_variable() should be either a "
+                f"'real' or an 'integer' scalar but found scalar of type "
                 f"'{var_arg.intrinsic_type}'.")
 
         # Retrieve the variable and precision information
         kind_str = f"(kind={var_arg.precision})" if var_arg.precision else ""
         var_name = f"{self.name}:{var_arg.name}"
-        variable = self.scope.symbol_table.find_or_create_tag(var_name)
+        variable = self.scope.symbol_table.lookup_with_tag(var_name)
         # Find a safe location to initialise it.
         insert_loc = self.ancestor((Loop, Directive))
         while insert_loc:
             loc = insert_loc.ancestor((Loop, Directive))
             if not loc:
                 break
-            insert_loc = loc 
+            insert_loc = loc
         cursor = insert_loc.position
         insert_loc = insert_loc.parent
         new_node = Assignment.create(
                         lhs=Reference(variable),
                         rhs=Literal("0", data_type))
+        new_node.append_preceding_comment("Initialise reduction variable")
         insert_loc.addchild(new_node, cursor)
         cursor += 1
 
@@ -1158,7 +1146,8 @@ class Kern(Statement):
                                  LFRicBuiltIn.
         '''
         var_name = self._reduction_arg.name
-        local_var_name = self.local_reduction_name
+        local_symbol = self.scope.symbol_table.lookup_with_tag(
+            f"{self.name}:{var_name}")
         reduction_access = self._reduction_arg.access
         if reduction_access not in REDUCTION_OPERATOR_MAPPING:
             api_strings = [access.api_specific_name()
@@ -1188,7 +1177,6 @@ class Kern(Statement):
         directive = self.ancestor(OMPParallelDirective)
         directive.parent.addchild(do_loop, directive.position+1)
         var_symbol = self.scope.symbol_table.lookup(var_name)
-        local_symbol = self.scope.symbol_table.lookup(local_var_name)
         do_loop.loop_body.addchild(Assignment.create(
            lhs=Reference(var_symbol),
            rhs=BinaryOperation.create(
@@ -1277,13 +1265,58 @@ class Kern(Statement):
 
     def lower_to_language_level(self):
         '''
+        Replace this Kern with the equivalent, language-level PSyIR.
+
         '''
         if not self.is_reduction:
-            return super().lower_to_language_level()
+            super().lower_to_language_level()
+            return
+
+        from psyclone.psyGen import InvokeSchedule
+        table = self.ancestor(InvokeSchedule).symbol_table
+        arg_sym = table.lookup(self.reduction_arg.name)
+        if self.reprod_reduction:
+            # For reproducible reductions, we need a rank-2 array to store
+            # the thread-local results.
+            nthreads = table.lookup_with_tag("omp_num_threads")
+            if Config.get().reprod_pad_size < 1:
+                raise GenerationError(
+                    f"REPROD_PAD_SIZE in {Config.get().filename} should be a "
+                    f"positive integer, but it is set to "
+                    f"'{Config.get().reprod_pad_size}'.")
+            pad_size = Literal(str(Config.get().reprod_pad_size), INTEGER_TYPE)
+
+            array_type = ArrayType(arg_sym.datatype,
+                                   2*[ArrayType.Extent.DEFERRED])
+            local_var = table.find_or_create_tag(
+                root_name="local_"+self._reduction_arg.name,
+                tag=f"{self.name}:{self._reduction_arg.name}",
+                symbol_type=DataSymbol, datatype=array_type)
+            alloc = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.ALLOCATE,
+                [ArrayReference.create(local_var,
+                                       [pad_size, Reference(nthreads)])])
+            # Find a safe location to allocate it.
+            insert_loc = self.ancestor((Loop, Directive))
+            while insert_loc:
+                loc = insert_loc.ancestor((Loop, Directive))
+                if not loc:
+                    break
+                insert_loc = loc
+            cursor = insert_loc.position
+            insert_loc = insert_loc.parent
+            insert_loc.addchild(alloc, cursor)
+
+        else:
+            table.remove(arg_sym)
+            table.add(arg_sym,
+                      tag=f"{self.name}:{self._reduction_arg.name}")
 
         # This Kernel performs a reduction.
         # Initialise the variable that will hold the result.        
         self.initialise_reduction_variable()
+
+        super().lower_to_language_level()
 
 
 class CodedKern(Kern):
