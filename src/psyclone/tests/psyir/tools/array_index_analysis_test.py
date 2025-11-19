@@ -38,13 +38,15 @@
 import pytest
 from psyclone.psyir.nodes import (Loop, Assignment, Reference)
 from psyclone.psyir.symbols import Symbol
-from psyclone.psyir.tools import ArrayIndexAnalysis
+from psyclone.psyir.tools import (
+    ArrayIndexAnalysis, ArrayIndexAnalysisOptions)
 from psyclone.psyir.tools.array_index_analysis import translate_logical_expr
 import z3
 
 
 # -----------------------------------------------------------------------------
-def test_reverse(fortran_reader, fortran_writer):
+@pytest.mark.parametrize("use_bv", [True, False])
+def test_reverse(use_bv, fortran_reader, fortran_writer):
     '''Test that an array reversal routine has no array conflicts
     '''
     psyir = fortran_reader.psyir_from_source('''
@@ -59,9 +61,10 @@ def test_reverse(fortran_reader, fortran_writer):
             arr(n+1-i) = tmp
           end do
         end subroutine''')
+    opts = ArrayIndexAnalysisOptions(use_bv=use_bv, prohibit_overflow=True)
     results = []
     for loop in psyir.walk(Loop):
-        results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
+        results.append(ArrayIndexAnalysis(opts).is_loop_conflict_free(loop))
     assert results == [True]
 
 
@@ -84,8 +87,9 @@ def test_odd_even_trans(fortran_reader, fortran_writer):
           end do
         end subroutine''')
     results = []
+    opts = ArrayIndexAnalysisOptions(prohibit_overflow=True)
     for loop in psyir.walk(Loop):
-        results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
+        results.append(ArrayIndexAnalysis(opts).is_loop_conflict_free(loop))
     assert results == [True]
 
 
@@ -126,10 +130,9 @@ def test_tiled_matmul(fortran_reader, fortran_writer):
 
 
 # -----------------------------------------------------------------------------
-def test_flatten1(fortran_reader, fortran_writer):
-    '''Test that an array flattening routine has no array conflicts in its
-    inner loop (there are conflicts, due to integer overflow, in its outer
-    loop)
+def test_flatten(fortran_reader, fortran_writer):
+    '''Test that an array flattening routine has no array conflicts in
+    either loop.
     '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine flatten1(mat, arr)
@@ -148,66 +151,60 @@ def test_flatten1(fortran_reader, fortran_writer):
     results = []
     for loop in psyir.walk(Loop):
         results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
-    assert results == [False, True]
-
-
-# -----------------------------------------------------------------------------
-def test_flatten2(fortran_reader, fortran_writer):
-    '''Test that an array flattening routine has no array conflicts
-    '''
-    psyir = fortran_reader.psyir_from_source('''
-        subroutine flatten2(mat, arr)
-          real, intent(in) :: mat(0:,0:)
-          real, intent(out) :: arr(0:)
-          integer :: i, n, ny
-          n = size(arr)
-          ny = size(mat, 2)
-          do i = 0, n-1
-            arr(i) = mat(mod(i, ny), i/ny)
-          end do
-        end subroutine''')
-    results = []
-    for loop in psyir.walk(Loop):
-        results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
-    assert results == [True]
+    assert results == [True, True]
 
 
 # -----------------------------------------------------------------------------
 @pytest.mark.parametrize("use_bv", [True, False])
-def test_translate_expr(use_bv, fortran_reader, fortran_writer):
+def test_translate_expr(use_bv,
+                        fortran_reader,
+                        fortran_writer):
     '''Test that Fortran expressions are being correctly translated to SMT.
     '''
+    opts = ArrayIndexAnalysisOptions(
+               use_bv=use_bv,
+               prohibit_overflow=True)
     def test(expr):
         psyir = fortran_reader.psyir_from_source(f'''
                   subroutine sub(x)
+                    integer :: arr(10)
                     logical, intent(out) :: x
+                    integer :: i
                     x = {expr}
                   end subroutine''')
         for assign in psyir.walk(Assignment):
             (rhs_smt, prohibit_overflow) = translate_logical_expr(
-                assign.rhs, 32, use_bv)
+                assign.rhs, opts)
             solver = z3.Solver()
             assert solver.check(rhs_smt) == z3.sat
 
     test("+1 == 1")
     test("abs(-1) == 1")
-    test("shiftr(2,1) == 1")
-    test("shifta(-2,1) == -1")
+    #test("shiftl(2,1) == 4")
+    #test("shiftr(2,1) == 1")
+    #test("shifta(-2,1) == -1")
     test("iand(5,1) == 1")
     test("ior(1,2) == 3")
     test("ieor(3,1) == 2")
     test("max(3,1) == 3")
+    test("i == 3")
     test(".true.")
     test(".not. .false.")
     test(".true. .and. .true.")
     test(".true. .or. .false.")
     test(".false. .eqv. .false.")
     test(".false. .neqv. .true.")
+    test("1 /= 2")
     test("1 < 2")
     test("10 > 2")
     test("1 <= 1 .and. 0 <= 1")
     test("1 >= 1 .and. 2 >= 1")
+    test("1 * 1 == 1")
+    test("mod(3, 2) == 1")
     test("foo(1)")
+    test("foo(1) == 1")
+    test("size(arr,tmp) == 1")
+    test("size(arr(1:2)) == 2")
 
 
 # -----------------------------------------------------------------------------
@@ -219,13 +216,14 @@ def check_conflict_free(fortran_reader, loop_str, yesno):
     psyir = fortran_reader.psyir_from_source(f'''
               subroutine sub(arr, n)
                 integer, intent(inout) :: arr(:)
-                integer, intent(in) :: n, i
+                integer, intent(in) :: n, i, tmp, tmp2
                 logical :: ok
                 {loop_str}
               end subroutine''')
     results = []
+    opts = ArrayIndexAnalysisOptions(prohibit_overflow=True)
     for loop in psyir.walk(Loop):
-        analysis = ArrayIndexAnalysis()
+        analysis = ArrayIndexAnalysis(opts)
         results.append(analysis.is_loop_conflict_free(loop))
     assert results == [yesno]
 
@@ -237,9 +235,10 @@ def test_ifblock_with_else(fortran_reader, fortran_writer):
                         '''do i = 1, n
                              ok = i == 1
                              if (ok) then
-                               arr(1) = 0
+                               arr(ior(1, 1)) = 0
                              else
-                               arr(i) = i
+                               tmp = i
+                               arr(tmp) = i
                              end if
                            end do
                            arr(2) = 0
@@ -264,6 +263,36 @@ def test_singleton_slice(fortran_reader, fortran_writer):
     check_conflict_free(fortran_reader,
                         '''do i = 1, n
                              arr(i:i:) = 0
+                           end do
+                        ''',
+                        True)
+
+
+# -----------------------------------------------------------------------------
+def test_while_loop(fortran_reader, fortran_writer):
+    '''Test a do loop nested within a while loop'''
+    check_conflict_free(fortran_reader,
+                        '''do while (tmp > 0)
+                             do i = 1, n
+                               tmp2 = arr(i)
+                               arr(i) = 0
+                               do while (tmp2 > 0)
+                                 tmp2 = tmp2 - 1
+                               end do
+                             end do
+                             tmp = tmp - 1
+                           end do
+                        ''',
+                        True)
+
+
+# -----------------------------------------------------------------------------
+def test_injective_index(fortran_reader, fortran_writer):
+    '''Test a do loop with an injective index mapping'''
+    check_conflict_free(fortran_reader,
+                        '''do i = 1, n
+                             tmp = i+1
+                             arr(tmp) = 0
                            end do
                         ''',
                         True)

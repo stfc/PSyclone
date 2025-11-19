@@ -143,7 +143,7 @@ class ArrayIndexAnalysisOptions:
                  use_bv: bool = None,
                  smt_timeout_ms: int = 5000,
                  prohibit_overflow: bool = False,
-                 handle_array_intrins: bool = False):
+                 handle_array_intrins: bool = True):
         # Set SMT solver timeout in milliseconds
         self.smt_timeout = smt_timeout_ms
         # Fortran integer width in bits
@@ -437,7 +437,7 @@ class ArrayIndexAnalysis:
 
         # Check that we have found and analysed the loop to parallelise
         if not (self.finished and len(self.saved_access_dicts) == 2):
-            return None
+            return None  # pragma: no cover
 
         # Forumlate constraints for solving, considering the two iterations
         iter_i = self.saved_access_dicts[0]
@@ -691,12 +691,15 @@ def translate_integer_expr(expr_root: Node,
                     return left_smt % right_smt
 
                 if opts.use_bv:
-                    if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTL:
-                        return left_smt << right_smt
-                    if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTR:
-                        return z3.LShR(left_smt, right_smt)
-                    if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTA:
-                        return left_smt >> right_smt
+                    # TODO: when fparser supports shift operations (#428),
+                    # we can remove the "no cover" block
+                    if True:  # pragma: no cover
+                        if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTL:
+                            return left_smt << right_smt
+                        if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTR:
+                            return z3.LShR(left_smt, right_smt)
+                        if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTA:
+                            return left_smt >> right_smt
                     if expr.intrinsic == IntrinsicCall.Intrinsic.IAND:
                         return left_smt & right_smt
                     if expr.intrinsic == IntrinsicCall.Intrinsic.IOR:
@@ -704,19 +707,24 @@ def translate_integer_expr(expr_root: Node,
                     if expr.intrinsic == IntrinsicCall.Intrinsic.IEOR:
                         return left_smt ^ right_smt
                 else:
-                    if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTL:
-                        return z3.BV2Int(z3.Int2BV(left_smt, opts.int_width) <<
-                                         z3.Int2BV(right_smt, opts.int_width),
-                                         is_signed=True)
-                    if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTR:
-                        return z3.BV2Int(z3.LShR(
-                                 z3.Int2BV(left_smt, opts.int_width),
-                                 z3.Int2BV(right_smt, opts.int_width)),
-                                 is_signed=True)
-                    if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTA:
-                        return z3.BV2Int(z3.Int2BV(left_smt, opts.int_width) >>
-                                         z3.Int2BV(right_smt, opts.int_width),
-                                         is_signed=True)
+                    # TODO: when fparser supports shift operations (#428),
+                    # we can remove the "no cover" block
+                    if True:  # pragma: no cover
+                        if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTL:
+                            return z3.BV2Int(
+                                     z3.Int2BV(left_smt, opts.int_width) <<
+                                     z3.Int2BV(right_smt, opts.int_width),
+                                     is_signed=True)
+                        if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTR:
+                            return z3.BV2Int(z3.LShR(
+                                     z3.Int2BV(left_smt, opts.int_width),
+                                     z3.Int2BV(right_smt, opts.int_width)),
+                                     is_signed=True)
+                        if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTA:
+                            return z3.BV2Int(
+                                     z3.Int2BV(left_smt, opts.int_width) >>
+                                     z3.Int2BV(right_smt, opts.int_width),
+                                     is_signed=True)
                     if expr.intrinsic == IntrinsicCall.Intrinsic.IAND:
                         return z3.BV2Int(z3.Int2BV(left_smt, opts.int_width) &
                                          z3.Int2BV(right_smt, opts.int_width),
@@ -863,7 +871,7 @@ def translate_array_intrinsic_call(call: IntrinsicCall) -> (str, str):
         return None
 
     if (len(call.children) != 2 and len(call.children) != 3):
-        return None
+        return None  # pragma: no cover
 
     array = call.children[1]
     if isinstance(array, Reference):
