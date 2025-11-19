@@ -164,6 +164,7 @@ def test_translate_expr(use_bv,
     opts = ArrayIndexAnalysisOptions(
                use_bv=use_bv,
                prohibit_overflow=True)
+
     def test(expr):
         psyir = fortran_reader.psyir_from_source(f'''
                   subroutine sub(x)
@@ -180,9 +181,9 @@ def test_translate_expr(use_bv,
 
     test("+1 == 1")
     test("abs(-1) == 1")
-    #test("shiftl(2,1) == 4")
-    #test("shiftr(2,1) == 1")
-    #test("shifta(-2,1) == -1")
+    # test("shiftl(2,1) == 4")
+    # test("shiftr(2,1) == 1")
+    # test("shifta(-2,1) == -1")
     test("iand(5,1) == 1")
     test("ior(1,2) == 3")
     test("ieor(3,1) == 2")
