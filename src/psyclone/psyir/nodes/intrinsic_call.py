@@ -807,7 +807,7 @@ class IntrinsicCall(Call):
                 max_count=1,
                 types=DataNode,
                 arg_names=(("x",),)),
-            optional_args={"Y": DataNode, "kind": DataNode},
+            optional_args={"y": DataNode, "kind": DataNode},
             return_type=None,
             reference_accesses=None,
         )
