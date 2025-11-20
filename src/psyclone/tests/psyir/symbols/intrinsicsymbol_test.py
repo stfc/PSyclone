@@ -36,8 +36,6 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.intrinsicsymbol file '''
 
-import pytest
-
 from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.symbols import IntrinsicSymbol
 
