@@ -46,8 +46,7 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants, LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import (
-    InvokeSchedule, HaloExchange)  # , zero_reduction_variables)
+from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, StructureReference,
     Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode,

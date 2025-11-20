@@ -101,19 +101,6 @@ def object_index(alist, item):
     raise ValueError(f"Item '{item}' not found in list: {alist}")
 
 
-def ARPDBG_zero_reduction_variables(red_call_list):
-    '''zero all reduction variables associated with the calls in the call
-    list'''
-    if red_call_list:
-        first = True
-        for call in red_call_list:
-            node = call.zero_reduction_variable()
-            if first:
-                node.append_preceding_comment(
-                    "Zero summation variables")
-                first = False
-
-
 def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
     '''
     Return all arguments in the supplied list that are of type
