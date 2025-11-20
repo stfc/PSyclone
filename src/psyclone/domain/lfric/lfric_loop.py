@@ -159,11 +159,6 @@ class LFRicLoop(PSyLoop):
             self.detach()
             return None
 
-        # Get the list of calls (to kernels) that need reduction variables
-        #if not self.is_openmp_parallel():
-        #    calls = self.reductions()
-        #    zero_reduction_variables(calls)
-
         # Set halo clean/dirty for all fields that are modified
         if Config.get().distributed_memory:
             if self._loop_type != "cells_in_colour":

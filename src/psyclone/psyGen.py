@@ -63,7 +63,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Container, Literal, Loop, Node, OMPDoDirective,
     Reference, Directive, Routine, Schedule, Statement, Assignment,
-    IntrinsicCall, BinaryOperation, OMPParallelDirective, FileContainer)
+    IntrinsicCall, BinaryOperation, FileContainer)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
     UnresolvedType, ImportInterface, INTEGER_TYPE, RoutineSymbol)
@@ -739,14 +739,14 @@ class InvokeSchedule(Routine):
             # specific kernels that perform reductions.
             omp_lib = self.symbol_table.find_or_create(
                 "omp_lib", symbol_type=ContainerSymbol)
-            omp_get_thread_num = self.symbol_table.find_or_create_tag(
+            self.symbol_table.find_or_create_tag(
                 "omp_get_thread_num", symbol_type=RoutineSymbol,
                 interface=ImportInterface(omp_lib))
             self.symbol_table.find_or_create_tag("omp_num_threads",
                                                  root_name="nthreads",
                                                  symbol_type=DataSymbol,
                                                  datatype=INTEGER_TYPE)
-            thread_idx = self.symbol_table.find_or_create_tag(
+            self.symbol_table.find_or_create_tag(
                 "omp_thread_index", root_name="th_idx",
                 symbol_type=DataSymbol, datatype=INTEGER_TYPE)
         super().lower_to_language_level()
@@ -1130,7 +1130,7 @@ class Kern(Statement):
         new_node = Assignment.create(
                         lhs=Reference(variable),
                         rhs=Literal("0", data_type))
-        new_node.append_preceding_comment("Initialise reduction variables")
+        new_node.append_preceding_comment("Initialise reduction variable")
         insert_loc.addchild(new_node, cursor)
         cursor += 1
 
@@ -1173,7 +1173,8 @@ class Kern(Statement):
                     step=Literal("1", INTEGER_TYPE),
                     children=[])
         parent.addchild(do_loop, position+1)
-        var_symbol = table.lookup_with_tag(f"{self.name}:{self._reduction_arg.name}")
+        var_symbol = table.lookup_with_tag(
+            f"{self.name}:{self._reduction_arg.name}")
         do_loop.loop_body.addchild(Assignment.create(
            lhs=Reference(var_symbol),
            rhs=BinaryOperation.create(
@@ -1312,7 +1313,7 @@ class Kern(Statement):
             insert_loc.addchild(alloc, cursor)
 
         # This Kernel performs a reduction.
-        # Initialise the variable that will hold the result.        
+        # Initialise the variable that will hold the result.
         self.initialise_reduction_variable()
 
         super().lower_to_language_level()
