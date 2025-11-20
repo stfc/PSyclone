@@ -49,7 +49,7 @@ from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import (
-        Call, Loop, Reference, Routine,
+        Call, Loop, Reference, Routine, Assignment, IfBlock,
         BinaryOperation, IntrinsicCall
 )
 from psyclone.psyir.tools import (
@@ -124,14 +124,49 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         if sym in loop.explicitly_private_symbols:
             return True
 
-        # Check that the symbol is not referenced following this loop (before
-        # the loop is fine because we can use OpenMP/OpenACC first-private or
-        # Fortran do concurrent local_init())
-        refs_in_loop = filter(lambda x: x.symbol is sym, loop.walk(Reference))
-        last_access = list(refs_in_loop)[-1]
         loop.compute_cached_abs_positions()
+
+        # Get the last access
+        refs_in_loop = filter(lambda x: x.symbol is sym, loop.walk(Reference))
+        refs_in_loop = list(refs_in_loop)
+        last_access = refs_in_loop[-1]
+        # If it's an assignment the last access is the one in the lhs
+        if last_access.ancestor(Assignment):
+            lhs = last_access.ancestor(Assignment).lhs
+            if isinstance(lhs, Reference) and lhs.symbol is sym:
+                last_access = lhs
+        # If the value of the symbol is used after the loop, it cannot be
+        # private
         if last_access.escapes_scope(loop):
             return False
+
+        # Also prevent cases when the first access in the loop is a read that
+        # could come from the previous iteration
+        while True:
+            first_access = refs_in_loop[0]
+            # If it's an assignment the first access is the one in the rhs
+            if first_access.ancestor(Assignment):
+                rhs = first_access.ancestor(Assignment).rhs
+                refs = filter(lambda x: x.symbol is sym, rhs.walk(Reference))
+                refs = list(refs)
+                if refs:
+                    first_access = refs[0]
+            if first_access.is_read:
+                return False
+            # If it is inside a conditional, there may be more entry points for
+            # this symbol, so we look for the next 'first_access'
+            inside_conditional = first_access.ancestor(IfBlock, limit=loop)
+            if inside_conditional:
+                following = inside_conditional.following_node()
+                if not following:
+                    break
+                # Skip al references in the condition that we already checked
+                refs_in_loop = list(filter(
+                    lambda x: x.abs_position > following.abs_position,
+                    refs_in_loop
+                ))
+            if not inside_conditional or not refs_in_loop:
+                break
 
         if not dry_run:
             loop.explicitly_private_symbols.add(sym)
@@ -281,9 +316,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                                                            dry_run=True):
                             errors.append(
                                 f"The write-write dependency in '{var_name}'"
-                                f" cannot be solved by array privatisation "
-                                f"because it is not a plain local array or "
-                                f"it is used after the loop.")
+                                f" cannot be solved by automatic array "
+                                f"privatisation. Use 'loop.explictly_private"
+                                f"_sybmols.add(sybmol)' if *YOU* can guarantee"
+                                f" that it is private.")
                     continue
                 # See if the scalar in question allows parallelisation of
                 # the loop using reduction clauses.
@@ -483,13 +519,19 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     if not next_loop.independent_iterations(
                                dep_tools=dtools,
                                signatures_to_ignore=list_of_signatures):
+                        msgs = dtools.get_all_messages()
+                        # This warning message is not a problem
+                        if all(msg.code == DTCode.WARN_SCALAR_WRITTEN_ONCE
+                               for msg in msgs):
+                            continue
+                        # Otherwise mention the cause to stop collapsing at
+                        # this level
                         if verbose:
-                            msgs = dtools.get_all_messages()
                             next_loop.preceding_comment = (
                                 "\n".join([str(m) for m in msgs]) +
-                                " Consider using the \"ignore_dependencies_"
-                                "for\" transformation option if this is a "
-                                "false dependency.")
+                                " Consider using the \"ignore_dependencies"
+                                "_for\" transformation option if this is a"
+                                " false dependency.")
                         break
         else:
             num_collapsable_loops = None
