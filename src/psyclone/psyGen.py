@@ -1302,7 +1302,7 @@ class Kern(Statement):
         # Initialise the variable that will hold the result.
         self.initialise_reduction_variable()
 
-        super().lower_to_language_level()
+        return super().lower_to_language_level()
 
 
 class CodedKern(Kern):
