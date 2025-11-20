@@ -640,9 +640,9 @@ def test_loop_node_bounds_intrinsic(fortran_reader, fortran_writer, tmpdir):
         "  integer :: i\n\n"
         "  a = 0.0\n"
         "  b = 0.0\n"
-        "  do i = UBOUND(array=a, dim=1) - MOD(UBOUND(array = a, dim = 1) "
-        "- LBOUND(array = a, dim = 1), 2 * UBOUND(array = b, dim = 1)), "
-        "LBOUND(array=a, dim=1), -1 * (2 * UBOUND(array=b, dim=1))\n"
+        "  do i = UBOUND(a, dim=1) - MOD(UBOUND(a, dim = 1) "
+        "- LBOUND(a, dim = 1), 2 * UBOUND(b, dim = 1)), "
+        "LBOUND(a, dim=1), -1 * (2 * UBOUND(b, dim=1))\n"
         "    a(i) = 0.0\n"
         "  enddo\n\n"
         "end program test\n")
@@ -667,7 +667,7 @@ def test_loop_node_bounds_intrinsic(fortran_reader, fortran_writer, tmpdir):
     with pytest.raises(VisitorError) as error:
         _ = adj_visitor(tl_psyir)
     assert ("The upper bound of a loop should not contain active variables, "
-            "but found 'b' in 'UBOUND(array=a, dim=b)'." in str(error.value))
+            "but found 'b' in 'UBOUND(a, dim=b)'." in str(error.value))
 
 
 def test_loop_node_passive(fortran_reader):

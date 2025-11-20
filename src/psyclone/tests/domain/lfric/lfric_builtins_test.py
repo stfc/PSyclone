@@ -1638,7 +1638,7 @@ def test_setval_random(fortran_writer, annexed):
     code = fortran_writer(kern)
     assert ("! Built-in: setval_random (fill a real-valued field "
             "with pseudo-random numbers)\n"
-            "call RANDOM_NUMBER(harvest=f1_data(df))\n") in code
+            "call RANDOM_NUMBER(f1_data(df))\n") in code
 
 
 # ------------- Sign of real field elements --------------------------------- #
@@ -1664,7 +1664,7 @@ def test_sign_X_and_its_int_version(fortran_writer):
     code = fortran_writer(kern)
     assert ("! Built-in: sign_X (sign of a real-valued field, applied to a "
             "scalar argument)\n"
-            "f2_data(df) = SIGN(a=a, b=f1_data(df))\n") in code
+            "f2_data(df) = SIGN(a, f1_data(df))\n") in code
 
     # Also with a literal
     kern = builtin_from_file("15.10.2_sign_X_builtin_set_by_value.f90")
@@ -1675,7 +1675,7 @@ def test_sign_X_and_its_int_version(fortran_writer):
     code = fortran_writer(kern)
     assert ("! Built-in: sign_X (sign of a real-valued field, applied to a "
             "scalar argument)\n"
-            "f2_data(df) = SIGN(a=-2.0_r_def, b=f1_data(df))\n" in code)
+            "f2_data(df) = SIGN(-2.0_r_def, f1_data(df))\n" in code)
 
     # The integer version has the datatype changed to integer in the metadata
     # and string representation
@@ -1927,7 +1927,7 @@ def test_int_to_real_x(fortran_writer):
     assert (
         "! Built-in: int_to_real_X (convert an integer-valued to a "
         "real-valued field)\n"
-        "f2_data(df) = REAL(a=f1_data(df), kind=r_def)\n") in code
+        "f2_data(df) = REAL(f1_data(df), kind=r_def)\n") in code
 
 
 @pytest.mark.parametrize("kind_name", ["r_solver", "r_tran", "r_bl"])
@@ -1969,7 +1969,7 @@ def test_int_to_real_x_precision(tmpdir, kind_name):
     assert (f"real(kind={kind_name}), pointer, dimension(:) :: "
             "f2_data => null()") in code
     assert f"type({kind_name}_field_proxy_type) :: f2_proxy" in code
-    assert f"f2_data(df) = REAL(a=f1_data(df), kind={kind_name})" in code
+    assert f"f2_data(df) = REAL(f1_data(df), kind={kind_name})" in code
 
     # Test compilation of generated code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1996,7 +1996,7 @@ def test_real_to_int_x(fortran_writer):
     assert (
         "! Built-in: real_to_int_X (convert a real-valued to an "
         "integer-valued field)\n"
-        "f2_data(df) = INT(a=f1_data(df), kind=i_def)\n") in code
+        "f2_data(df) = INT(f1_data(df), kind=i_def)\n") in code
 
 
 @pytest.mark.parametrize("kind_name", ["i_um", "i_ncdf"])
@@ -2027,7 +2027,7 @@ def test_real_to_int_x_precision(monkeypatch, tmpdir, kind_name):
     assert "use constants_mod\n" in code
     assert ("integer(kind=i_def), pointer, dimension(:) :: f2_data => null()"
             in code)
-    assert f"f2_data(df) = INT(a=f1_data(df), kind={kind_name})" in code
+    assert f"f2_data(df) = INT(f1_data(df), kind={kind_name})" in code
 
     # Test compilation of generated code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -2058,17 +2058,17 @@ def test_real_to_real_x(fortran_writer):
             assert (
                 "! Built-in: real_to_real_X (convert a real-valued to a "
                 "real-valued field)\n"
-                "f2_data(df) = REAL(a=f1_data(df), kind=r_tran)\n") in code
+                "f2_data(df) = REAL(f1_data(df), kind=r_tran)\n") in code
         elif idx == 1:
             assert (
                 "! Built-in: real_to_real_X (convert a real-valued to a "
                 "real-valued field)\n"
-                "f1_data(df) = REAL(a=f3_data(df), kind=r_def)\n") in code
+                "f1_data(df) = REAL(f3_data(df), kind=r_def)\n") in code
         elif idx == 2:
             assert (
                 "! Built-in: real_to_real_X (convert a real-valued to a "
                 "real-valued field)\n"
-                "f3_data(df) = REAL(a=f2_data(df), kind=r_solver)\n") in code
+                "f3_data(df) = REAL(f2_data(df), kind=r_solver)\n") in code
         else:
             assert False, code  # There are only 3 kern
 
@@ -2099,7 +2099,7 @@ def test_real_to_real_x_lowering(monkeypatch, tmpdir, kind_name):
     assert "use constants_mod\n" in code
 
     # Assert correct type is set
-    assert f"f2_data(df) = REAL(a=f1_data(df), kind={kind_name})" in code
+    assert f"f2_data(df) = REAL(f1_data(df), kind={kind_name})" in code
 
     # Test compilation of generated code
     assert LFRicBuild(tmpdir).code_compiles(psy)

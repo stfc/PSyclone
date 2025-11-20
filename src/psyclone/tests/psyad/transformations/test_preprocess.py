@@ -101,7 +101,7 @@ def test_preprocess_reference2arrayrange(tmpdir, fortran_reader,
         "      a(idx_1,idx) = b(idx_1,idx) * c(idx_1,idx)\n"
         "    enddo\n"
         "  enddo\n"
-        "  do i = LBOUND(array=d, dim=1), UBOUND(array=d, dim=1), 1\n"
+        "  do i = LBOUND(d, dim=1), UBOUND(d, dim=1), 1\n"
         "    d(i) = 0.0\n"
         "  enddo\n"
         "  e(:,:) = f(:,:)\n\n"
@@ -203,8 +203,8 @@ def test_preprocess_arrayassign2loop(tmpdir, fortran_reader, fortran_writer):
     expected = (
         "  integer :: idx\n"
         "  integer :: idx_1\n\n"
-        "  do idx = LBOUND(array=a, dim=3), UBOUND(array=a, dim=3), 1\n"
-        "    do idx_1 = LBOUND(array=a, dim=1), UBOUND(array=a, dim=1), 1\n"
+        "  do idx = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
+        "    do idx_1 = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
         "      a(idx_1,1,idx) = b(idx_1,1,idx) * c(idx_1,map(i) + 1,idx)\n"
         "    enddo\n"
         "  enddo\n"
@@ -341,7 +341,7 @@ def test_preprocess_associativity4(fortran_reader, fortran_writer):
         "  integer :: b\n"
         "  integer, dimension(10) :: c\n"
         "  integer, dimension(10) :: d\n\n"
-        "  a = b * SUM(array=c(:)) + b * SUM(array=d(:))\n\n"
+        "  a = b * SUM(c(:)) + b * SUM(d(:))\n\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     preprocess_trans(psyir, ["a", "c", "d"])
@@ -417,7 +417,7 @@ def test_associativity7(fortran_reader, fortran_writer):
         "  integer, dimension(10) :: c\n"
         "  integer, dimension(10) :: d\n"
         "  type(my_type) :: mt\n\n"
-        "  a = b * SUM(array=c(:)) + b * SUM(array=mt%x(:))\n\n"
+        "  a = b * SUM(c(:)) + b * SUM(mt%x(:))\n\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     preprocess_trans(psyir, ["a", "c", "mt"])

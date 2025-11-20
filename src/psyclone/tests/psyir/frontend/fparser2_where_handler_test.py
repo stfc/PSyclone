@@ -280,15 +280,15 @@ def test_basic_where():
         assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
     assert isinstance(loops[0].start_expr, Literal)
-    assert loops[0].stop_expr.debug_string() == "SIZE(array=dry, dim=3)"
+    assert loops[0].stop_expr.debug_string() == "SIZE(dry, dim=3)"
 
     ifblock = loops[2].loop_body[0]
     assert isinstance(ifblock, IfBlock)
     assert "was_where" in ifblock.annotations
     assert (ifblock.condition.debug_string() ==
-            "dry(LBOUND(array=dry, dim=1) + widx1 - 1,"
-            "LBOUND(array=dry, dim=2) + widx2 - 1,"
-            "LBOUND(array=dry, dim=3) + widx3 - 1)")
+            "dry(LBOUND(dry, dim=1) + widx1 - 1,"
+            "LBOUND(dry, dim=2) + widx2 - 1,"
+            "LBOUND(dry, dim=3) + widx3 - 1)")
 
 
 @pytest.mark.usefixtures("parser")
@@ -315,9 +315,9 @@ def test_where_array_subsections():
     assert isinstance(assign, Assignment)
     assert isinstance(assign.lhs.children[0], BinaryOperation)
     assert (assign.lhs.children[0].debug_string() ==
-            "LBOUND(array=z1_st, dim=1) + widx1 - 1")
+            "LBOUND(z1_st, dim=1) + widx1 - 1")
     assert (assign.lhs.children[2].debug_string() ==
-            "LBOUND(array=z1_st, dim=3) + widx2 - 1")
+            "LBOUND(z1_st, dim=3) + widx2 - 1")
 
 
 def test_where_mask_starting_value(fortran_reader, fortran_writer):
@@ -423,11 +423,11 @@ def test_where_mask_is_slice_lower_limit(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     out = fortran_writer(psyir)
     # Check that created loops have the correct number of iterations
-    assert "do widx2 = 1, UBOUND(array=picefr, dim=2) - jstart + 1, 1" in out
-    assert "do widx1 = 1, 4 - LBOUND(array=picefr, dim=1) + 1, 1" in out
+    assert "do widx2 = 1, UBOUND(picefr, dim=2) - jstart + 1, 1" in out
+    assert "do widx1 = 1, 4 - LBOUND(picefr, dim=1) + 1, 1" in out
     # Check that the indexing into the mask expression uses the lower bounds
     # specified in the original slice.
-    assert ("if (picefr(LBOUND(array=picefr, dim=1) + widx1 - 1,"
+    assert ("if (picefr(LBOUND(picefr, dim=1) + widx1 - 1,"
             "jstart + widx2 - 1) > 1.e-10)" in out)
     assert ("zevap_ice(widx1,widx2,1) = 0.0" in out)
     assert "if (picefr(4 + widx1 - 1,jstart + widx2 - 1) > 4.e-10)" in out
@@ -496,8 +496,8 @@ def test_where_containing_sum_no_dim(fortran_reader, fortran_writer):
     routine = psyir.walk(Routine)[0]
     assert isinstance(routine[0], Loop)
     output = fortran_writer(psyir)
-    assert ("SUM(array=a_i_last_couple) / picefr(LBOUND(array=picefr, dim=1) "
-            "+ widx1 - 1,LBOUND(array=picefr, dim=2) + widx2 - 1)" in output)
+    assert ("SUM(a_i_last_couple) / picefr(LBOUND(picefr, dim=1) "
+            "+ widx1 - 1,LBOUND(picefr, dim=2) + widx2 - 1)" in output)
 
 
 def test_where_mask_containing_sum_with_dim(fortran_reader):
@@ -555,8 +555,8 @@ def test_where_with_scalar_assignment(fortran_reader, fortran_writer):
   integer :: widx2
   integer :: widx1
 
-  do widx2 = 1, SIZE(array=dry, dim=3), 1
-    do widx1 = 1, SIZE(array=dry, dim=2), 1
+  do widx2 = 1, SIZE(dry, dim=3), 1
+    do widx1 = 1, SIZE(dry, dim=2), 1
       if (dry(1,widx1,widx2)) then
         var1 = depth
         z1_st(widx1,2,widx2) = var1 / ptsu(widx1,widx2,3)
@@ -630,9 +630,9 @@ def test_elsewhere():
     assert isinstance(ifblock.condition, BinaryOperation)
     assert ifblock.condition.operator == BinaryOperation.Operator.GT
     assert (ifblock.condition.debug_string() ==
-            "ptsu(LBOUND(array=ptsu, dim=1) + widx1 - 1,"
-            "LBOUND(array=ptsu, dim=2) + widx2 - 1,"
-            "LBOUND(array=ptsu, dim=3) + widx3 - 1) > 10._wp")
+            "ptsu(LBOUND(ptsu, dim=1) + widx1 - 1,"
+            "LBOUND(ptsu, dim=2) + widx2 - 1,"
+            "LBOUND(ptsu, dim=3) + widx3 - 1) > 10._wp")
     # Check that this IF block has an else body which contains another IF
     assert ifblock.else_body is not None
     ifblock2 = ifblock.else_body[0]
@@ -641,9 +641,9 @@ def test_elsewhere():
     assert isinstance(ifblock2.condition, BinaryOperation)
     assert ifblock2.condition.operator == BinaryOperation.Operator.LT
     assert (ifblock2.condition.debug_string() ==
-            "ptsu(LBOUND(array=ptsu, dim=1) + widx1 - 1,"
-            "LBOUND(array=ptsu, dim=2) + widx2 - 1,"
-            "LBOUND(array=ptsu, dim=3) + widx3 - 1) < 0.0_wp")
+            "ptsu(LBOUND(ptsu, dim=1) + widx1 - 1,"
+            "LBOUND(ptsu, dim=2) + widx2 - 1,"
+            "LBOUND(ptsu, dim=3) + widx3 - 1) < 0.0_wp")
     # Check that this IF block too has an else body
     assert isinstance(ifblock2.else_body[0], Assignment)
     # Check that we have three assignments of the correct form and with the
@@ -653,9 +653,9 @@ def test_elsewhere():
     for assign in assigns:
         assert isinstance(assign.lhs, ArrayReference)
         assert (assign.lhs.debug_string() ==
-                "z1_st(LBOUND(array=z1_st, dim=1) + widx1 - 1,"
-                "LBOUND(array=z1_st, dim=2) + widx2 - 1,"
-                "LBOUND(array=z1_st, dim=3) + widx3 - 1)")
+                "z1_st(LBOUND(z1_st, dim=1) + widx1 - 1,"
+                "LBOUND(z1_st, dim=2) + widx2 - 1,"
+                "LBOUND(z1_st, dim=3) + widx3 - 1)")
         assert isinstance(assign.parent.parent, IfBlock)
 
     assert isinstance(assigns[0].rhs, BinaryOperation)
@@ -809,7 +809,7 @@ def test_where_derived_type(fortran_reader, code, size_arg):
     assert len(loops) == 2
     assert isinstance(loops[1].stop_expr, IntrinsicCall)
     assert (loops[1].stop_expr.debug_string() ==
-            f"SIZE(array={size_arg}, dim=1)")
+            f"SIZE({size_arg}, dim=1)")
     assert isinstance(loops[1].loop_body[0], IfBlock)
     # All Range nodes should have been replaced
     assert not loops[0].walk(Range)
@@ -959,7 +959,7 @@ def test_non_array_reduction_intrinsic(fortran_reader, fortran_writer):
 
   do widx1 = 1, 100, 1
     if (a(widx1) < b(widx1)) then
-      c(widx1) = SIN(x=a(widx1))
+      c(widx1) = SIN(a(widx1))
     end if
   enddo
 
@@ -1038,7 +1038,7 @@ def test_elemental_intrinsic_to_loop(fortran_reader, fortran_writer):
   integer :: widx1
 
   do widx1 = 1, 100, 1
-    if (ABS(a=a(widx1)) < 2) then
+    if (ABS(a(widx1)) < 2) then
       b(widx1) = a(widx1)
     end if
   enddo
@@ -1053,7 +1053,7 @@ end program where_test'''
     implicit none
     real, dimension(100) :: a, b
 
-    where(dot_product(a,a(:)) + abs(a=a) < 2)
+    where(dot_product(a,a(:)) + abs(a) < 2)
         b = a
     end where
     end program
@@ -1062,7 +1062,7 @@ end program where_test'''
     out = fortran_writer(psyir)
     assert isinstance(psyir.children[0].children[0], Loop)
     correct = '''do widx1 = 1, 100, 1
-    if (DOT_PRODUCT(vector_a=a, vector_b=a(:)) + ABS(a=a(widx1)) < 2) then
+    if (DOT_PRODUCT(a, a(:)) + ABS(a(widx1)) < 2) then
       b(widx1) = a(widx1)
     end if
   enddo'''
@@ -1126,7 +1126,7 @@ def test_elemental_function_to_loop(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[1].children[0], Loop)
     correct = '''do widx1 = 1, 100, 1
-      if (x(a(:)) + ABS(a=a(widx1)) < 2) then
+      if (x(a(:)) + ABS(a(widx1)) < 2) then
         b(widx1) = a(widx1)
       end if
     enddo'''

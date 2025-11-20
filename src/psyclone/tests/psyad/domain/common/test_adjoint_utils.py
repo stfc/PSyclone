@@ -87,8 +87,8 @@ def test_create_real_comparison(fortran_writer):
         "  real :: relative_diff\n\n"
         "  ! Test the inner-product values for equality, allowing for the "
         "precision of the active variables\n"
-        "  MachineTol = SPACING(x=MAX(ABS(a=var1), ABS(a=var2)))\n"
-        "  relative_diff = ABS(a=var1 - var2) / MachineTol\n"
+        "  MachineTol = SPACING(MAX(ABS(var1), ABS(var2)))\n"
+        "  relative_diff = ABS(var1 - var2) / MachineTol\n"
         "  if (relative_diff < overall_tolerance) then\n"
         "    ! PSyclone CodeBlock (unsupported code) reason:\n"
         "    !  - Unsupported statement: Write_Stmt\n"
@@ -125,8 +125,8 @@ def test_common_real_comparison(fortran_writer):
         "  real :: relative_diff\n\n"
         "  ! Test the inner-product values for equality, allowing for the "
         "precision of the active variables\n"
-        "  MachineTol = SPACING(x=MAX(ABS(a=var1), ABS(a=var2)))\n"
-        "  relative_diff = ABS(a=var1 - var2) / MachineTol\n")
+        "  MachineTol = SPACING(MAX(ABS(var1), ABS(var2)))\n"
+        "  relative_diff = ABS(var1 - var2) / MachineTol\n")
     assert expected in result
 
 #  _common_write

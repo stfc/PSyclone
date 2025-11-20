@@ -53,7 +53,7 @@ from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, ArrayReference, BinaryOperation, Call,
     DataNode, IntrinsicCall, Literal, Node,
-    Range, Reference, StructureReference)
+    Range, Reference, StructureReference, Schedule)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, RoutineSymbol, ScalarType, Symbol,
     SymbolError, SymbolTable, UnresolvedType)
@@ -619,6 +619,7 @@ class SymPyWriter(FortranWriter):
 
         result = []
         for expr in expression_str_list:
+            print(expr)
             try:
                 result.append(parse_expr(expr, self.type_map))
             except SyntaxError as err:
@@ -789,7 +790,22 @@ class SymPyWriter(FortranWriter):
             args = self._gen_arguments(node)
             return f"{self._nindent}{name}({args})"
         except KeyError:
-            return super().intrinsiccall_node(node)
+            # This section is copied from FortranWriter IntrinsicCall,
+            # but doesn't attempt to match argument names and so avoids
+            # readding optional argument names back in.
+            args = self._gen_arguments(node)
+            if node.routine.name not in [
+                    "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS",
+                    "RANDOM_NUMBER", "RANDOM_SEED"]:
+                # Most intrinsics are functions and so don't have 'call'.
+                if not node.parent or isinstance(node.parent, Schedule):
+                    return f"{self._nindent}{node.routine.name}({args})\n"
+                return f"{node.routine.name}({args})"
+            if not node.parent or isinstance(node.parent, Schedule):
+                return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
+
+            # Otherwise it is inside-expression function call
+            return f"{self._visit(node.routine)}({args})"
 
     # -------------------------------------------------------------------------
     def reference_node(self, node: Reference) -> str:

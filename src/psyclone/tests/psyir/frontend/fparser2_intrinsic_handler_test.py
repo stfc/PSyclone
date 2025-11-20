@@ -103,7 +103,7 @@ end subroutine
     intrinsic_call = psyir.children[0].children[0].children[1]
     assert isinstance(intrinsic_call, IntrinsicCall)
     result = fortran_writer(intrinsic_call)
-    assert result == f"{intrinsic_name}(array=a, dim=d, mask=m)"
+    assert result == f"{intrinsic_name}(a, d, mask=m)"
     routine_symbol = intrinsic_call.routine.symbol
 
     assert isinstance(routine_symbol, RoutineSymbol)
@@ -137,7 +137,7 @@ end subroutine
     intrinsic_call = psyir.children[0].children[0].children[1]
     assert isinstance(intrinsic_call, IntrinsicCall)
     result = fortran_writer(intrinsic_call)
-    assert result == f"{intrinsic_name}(x=a)"
+    assert result == f"{intrinsic_name}(a)"
     routine_symbol = intrinsic_call.routine.symbol
     assert isinstance(routine_symbol, RoutineSymbol)
     assert intrinsic_call.routine.name == intrinsic_name

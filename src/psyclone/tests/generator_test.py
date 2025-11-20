@@ -2054,5 +2054,5 @@ def test_intrinsic_control_settings(tmpdir, caplog):
     filename = str(tmpdir.join("test.f90"))
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
-    main([filename, "--backend-omit-unneeded-intrinsic-arg-names"])
-    assert Config.get().backend_intrinsic_named_kwargs is False
+    main([filename, "--backend-add-all-intrinsic-arg-names"])
+    assert Config.get().backend_intrinsic_named_kwargs is True

@@ -150,8 +150,8 @@ inputs to the tangent-linear kernel
 
   ! test the inner-product values for equality, allowing for the precision \
 of the active variables
-  machinetol = spacing(x=max(abs(a=inner1), abs(a=inner2)))
-  relative_diff = abs(a=inner1 - inner2) / machinetol
+  machinetol = spacing(max(abs(inner1), abs(inner2)))
+  relative_diff = abs(inner1 - inner2) / machinetol
   if (relative_diff < overall_tolerance) then
     ! psyclone codeblock (unsupported code) reason:
     !  - unsupported statement: write_stmt

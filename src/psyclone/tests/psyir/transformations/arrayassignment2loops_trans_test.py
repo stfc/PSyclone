@@ -65,70 +65,70 @@ def test_str():
         # Scalar RHS
         [("integer, dimension(:) :: x, y, z, t\n"
           "x(:) = 0.0",
-          "  do idx = LBOUND(array=x, dim=1), UBOUND(array=x, dim=1), 1\n"
+          "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = 0.0\n"),
 
          # Array LHS and RHS
          ("integer, dimension(:) :: x, y, z, t\n"
           "x(:) = y(:)\n",
-          "  do idx = LBOUND(array=x, dim=1), UBOUND(array=x, dim=1), 1\n"
+          "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = y(idx)\n"),
 
          # Multi-dimensional array LHS and RHS
          ("integer, dimension(:,:,:) :: x, y, z, t\n"
           "x(:,:,:) = y(:,:,:)\n",
-          "  do idx = LBOUND(array=x, dim=3), UBOUND(array=x, dim=3), 1\n"
-          "    do idx_1 = LBOUND(array=x, dim=2), UBOUND(array=x, dim=2), 1\n"
-          "      do idx_2 = LBOUND(array=x, dim=1), "
-          "UBOUND(array=x, dim=1), 1\n"
+          "  do idx = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
+          "    do idx_1 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
+          "      do idx_2 = LBOUND(x, dim=1), "
+          "UBOUND(x, dim=1), 1\n"
           "        x(idx_2,idx_1,idx) = y(idx_2,idx_1,idx)\n"),
 
          # Multiple arrays on RHS
          ("integer, dimension(:) :: x, y, z, t\n"
           "x(:) = y(:) + z(:) * t(:)\n",
-          "  do idx = LBOUND(array=x, dim=1), UBOUND(array=x, dim=1), 1\n"
+          "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = y(idx) + z(idx) * t(idx)\n"),
 
          # Argument of elemental functions are expanded
          ("integer, dimension(:) :: x, y, z, t\n"
           "x(:) = max(y(:), z(:))\n",
-          "  do idx = LBOUND(array=x, dim=1), UBOUND(array=x, dim=1), 1\n"
+          "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = MAX(y(idx), z(idx))\n"),
 
          # Argument of inquiry functions are NOT expanded
          ("integer, dimension(:) :: x, y, z, t\n"
           "x(:) = y + size(y)\n",
-          "  do idx = LBOUND(array=x, dim=1), UBOUND(array=x, dim=1), 1\n"
-          "    x(idx) = y(idx) + SIZE(array=y)\n"),
+          "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "    x(idx) = y(idx) + SIZE(y)\n"),
 
          # Mix different array ranks with fixed indices
          ("integer, dimension(:) :: x, z, t\n"
           "integer, dimension(:,:) :: y\n"
           "x(:) = y(n,:)\n",
-          "  do idx = LBOUND(array=x, dim=1), UBOUND(array=x, dim=1), 1\n"
+          "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = y(n,idx)\n"),
 
          ("integer, dimension(:,:) :: x, z, t\n"
           "integer, dimension(:) :: y\n"
           "x(n,:) = y(:)\n",
-          "  do idx = LBOUND(array=x, dim=2), UBOUND(array=x, dim=2), 1\n"
+          "  do idx = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
           "    x(n,idx) = y(idx)\n"),
 
          ("integer, dimension(:,:) :: x, z, t\n"
           "integer, dimension(:,:,:) :: y\n"
           "x(:,:)=y(:,n,:)\n",
-          "  do idx = LBOUND(array=x, dim=2), UBOUND(array=x, dim=2), 1\n"
-          "    do idx_1 = LBOUND(array=x, dim=1), UBOUND(array=x, dim=1), 1\n"
+          "  do idx = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
+          "    do idx_1 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "      x(idx_1,idx) = y(idx_1,n,idx)\n"),
 
          # Same rank but different range locations
          ("integer, parameter :: jpi=2, jpj=4, jpk=6, jpt=9, ndim=10\n"
           "real, dimension(jpi,jpj,jpk,jpt,ndim) :: x, y, z, t\n"
           "x(:,jpj,:,ndim,:) = y(jpi,:,:,:,ndim) + 1.0\n",
-          "  do idx = LBOUND(array=x, dim=5), UBOUND(array=x, dim=5), 1\n"
-          "    do idx_1 = LBOUND(array=x, dim=3), UBOUND(array=x, dim=3), 1\n"
-          "      do idx_2 = LBOUND(array=x, dim=1), "
-          "UBOUND(array=x, dim=1), 1\n"
+          "  do idx = LBOUND(x, dim=5), UBOUND(x, dim=5), 1\n"
+          "    do idx_1 = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
+          "      do idx_2 = LBOUND(x, dim=1), "
+          "UBOUND(x, dim=1), 1\n"
           "        x(idx_2,jpj,idx_1,ndim,idx) = y(jpi,idx_2,idx_1,"
           "idx,ndim) + 1.0\n"
           "      enddo\n"
@@ -153,14 +153,14 @@ def test_str():
          # uses L/UBOUND which si correct).
          ("integer, dimension(2:4) :: x, y, z, t\n"
           "x(:) = 0",
-          "  do idx = LBOUND(array=x, dim=1), UBOUND(array=x, dim=1), 1\n"
+          "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = 0\n"),
 
          # Explicit lower bound value (assumed-shape array) - still just
          # uses LBOUND.
          ("integer, dimension(2:) :: x, y, z, t\n"
           "x(:) = 0",
-          "  do idx = LBOUND(array=x, dim=1), UBOUND(array=x, dim=1), 1\n"
+          "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = 0\n"),
 
          # Combine multiple previous features
@@ -173,42 +173,42 @@ def test_str():
          # SoA in LHS
          ("integer :: x, y, z, t\n"
           "mystruct%soa%array(:,:,:) = 0.0d0",
-          "  do idx = LBOUND(array=mystruct%soa%array, dim=3), "
-          "UBOUND(array=mystruct%soa%array, dim=3), 1\n"
-          "    do idx_1 = LBOUND(array=mystruct%soa%array, dim=2), "
-          "UBOUND(array=mystruct%soa%array, dim=2), 1\n"
-          "      do idx_2 = LBOUND(array=mystruct%soa%array, dim=1), "
-          "UBOUND(array=mystruct%soa%array, dim=1), 1\n"
+          "  do idx = LBOUND(mystruct%soa%array, dim=3), "
+          "UBOUND(mystruct%soa%array, dim=3), 1\n"
+          "    do idx_1 = LBOUND(mystruct%soa%array, dim=2), "
+          "UBOUND(mystruct%soa%array, dim=2), 1\n"
+          "      do idx_2 = LBOUND(mystruct%soa%array, dim=1), "
+          "UBOUND(mystruct%soa%array, dim=1), 1\n"
           "        mystruct%soa%array(idx_2,idx_1,idx) = 0.0d0\n"),
 
          # Array in LHS and SoA in RHS
          ("integer, dimension(:,:,:) :: x, y, z, t\n"
           "x(:,:,:) = 3 + mystruct%soa%array(:,:,:)",
-          "  do idx = LBOUND(array=x, dim=3), UBOUND(array=x, dim=3), 1\n"
-          "    do idx_1 = LBOUND(array=x, dim=2), UBOUND(array=x, dim=2), 1\n"
-          "      do idx_2 = LBOUND(array=x, dim=1), "
-          "UBOUND(array=x, dim=1), 1\n"
+          "  do idx = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
+          "    do idx_1 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
+          "      do idx_2 = LBOUND(x, dim=1), "
+          "UBOUND(x, dim=1), 1\n"
           # Ignore offset for this test, it is tested below
           "        x(idx_2,idx_1,idx) = 3 + mystruct%soa%array(idx_2 + "),
 
          # SoAoS on LHS
          ("integer :: x, y, z, t\n"
           "mystruct%aos(:,:,:)%value = 0.0d0",
-          "  do idx = LBOUND(array=mystruct%aos, dim=3), "
-          "UBOUND(array=mystruct%aos, dim=3), 1\n"
-          "    do idx_1 = LBOUND(array=mystruct%aos, dim=2), "
-          "UBOUND(array=mystruct%aos, dim=2), 1\n"
-          "      do idx_2 = LBOUND(array=mystruct%aos, dim=1), "
-          "UBOUND(array=mystruct%aos, dim=1), 1\n"
+          "  do idx = LBOUND(mystruct%aos, dim=3), "
+          "UBOUND(mystruct%aos, dim=3), 1\n"
+          "    do idx_1 = LBOUND(mystruct%aos, dim=2), "
+          "UBOUND(mystruct%aos, dim=2), 1\n"
+          "      do idx_2 = LBOUND(mystruct%aos, dim=1), "
+          "UBOUND(mystruct%aos, dim=1), 1\n"
           "        mystruct%aos(idx_2,idx_1,idx)%value = 0.0d0\n"),
 
          # SoAoS in the LHS and SoA in the RHS
          ("integer :: x, y, z, t\n"
           "mystruct%aos(:,4,:)%value = mystruct%soa%array(3,:,:)",
-          "  do idx = LBOUND(array=mystruct%aos, dim=3), "
-          "UBOUND(array=mystruct%aos, dim=3), 1\n"
-          "    do idx_1 = LBOUND(array=mystruct%aos, dim=1), "
-          "UBOUND(array=mystruct%aos, dim=1), 1\n"
+          "  do idx = LBOUND(mystruct%aos, dim=3), "
+          "UBOUND(mystruct%aos, dim=3), 1\n"
+          "    do idx_1 = LBOUND(mystruct%aos, dim=1), "
+          "UBOUND(mystruct%aos, dim=1), 1\n"
           # Ignore offset for this test, it is tested below
           "      mystruct%aos(idx_1,4,idx)%value = "
           "mystruct%soa%array(3,idx_1 + "),
@@ -217,12 +217,12 @@ def test_str():
          ("integer :: x, y, z, t\n"
           "mystruct%aoa(4, 3)%array(:,:,:) = "
           "mystruct%aoa(5, 8)%array(:,:,:)",
-          "  do idx = LBOUND(array=mystruct%aoa(4,3)%array, dim=3), "
-          "UBOUND(array=mystruct%aoa(4,3)%array, dim=3), 1\n"
-          "    do idx_1 = LBOUND(array=mystruct%aoa(4,3)%array, dim=2), "
-          "UBOUND(array=mystruct%aoa(4,3)%array, dim=2), 1\n"
-          "      do idx_2 = LBOUND(array=mystruct%aoa(4,3)%array, dim=1), "
-          "UBOUND(array=mystruct%aoa(4,3)%array, dim=1), 1\n"
+          "  do idx = LBOUND(mystruct%aoa(4,3)%array, dim=3), "
+          "UBOUND(mystruct%aoa(4,3)%array, dim=3), 1\n"
+          "    do idx_1 = LBOUND(mystruct%aoa(4,3)%array, dim=2), "
+          "UBOUND(mystruct%aoa(4,3)%array, dim=2), 1\n"
+          "      do idx_2 = LBOUND(mystruct%aoa(4,3)%array, dim=1), "
+          "UBOUND(mystruct%aoa(4,3)%array, dim=1), 1\n"
           # Ignore offset for this test, it is tested below
           "        mystruct%aoa(4,3)%array(idx_2,idx_1,idx) = "
           "mystruct%aoa(5,8)%array(idx_2 +")])
@@ -286,17 +286,17 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
 
     # The bounds are not known, so L/UBOUND expressions are used
     output_test1 = fortran_writer(psyir.walk(Assignment)[0])
-    assert ("x1(idx_1,idx) = y1(idx_1 + (LBOUND(array=y1, dim=1) "
-            "- LBOUND(array=x1, dim=1)),idx + "
-            "(LBOUND(array=y1, dim=2) - LBOUND(array=x1, dim=2)))"
+    assert ("x1(idx_1,idx) = y1(idx_1 + (LBOUND(y1, dim=1) "
+            "- LBOUND(x1, dim=1)),idx + "
+            "(LBOUND(y1, dim=2) - LBOUND(x1, dim=2)))"
             in output_test1)
 
     # When we know the bounds we can see they are different, we also
     # need the offsets (and can also use L/UBOUND)
     output_test2 = fortran_writer(psyir.walk(Assignment)[1])
-    assert ("x2(idx_3,idx_2) = y2(idx_3 + (LBOUND(array=y2, dim=1) "
-            "- LBOUND(array=x2, dim=1)),idx_2 + "
-            "(LBOUND(array=y2, dim=2) - LBOUND(array=x2, dim=2)))"
+    assert ("x2(idx_3,idx_2) = y2(idx_3 + (LBOUND(y2, dim=1) "
+            "- LBOUND(x2, dim=1)),idx_2 + "
+            "(LBOUND(y2, dim=2) - LBOUND(x2, dim=2)))"
             in output_test2)
 
     # If the bounds are implicit, the offset should also use the implicit
@@ -310,10 +310,10 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
 
     # SoA and SoAoS bounds are also constructed using L/UBOUNDS expressions
     output_test4 = fortran_writer(psyir.walk(Assignment)[3])
-    assert (" struct%values(idx_6 + (LBOUND(array=struct%values, dim=1) - "
-            "LBOUND(array=x, dim=1))) + struct%array(idx_6 + ("
-            "LBOUND(array=struct%array, dim=1) - "
-            "LBOUND(array=x, dim=1)))%value"
+    assert (" struct%values(idx_6 + (LBOUND(struct%values, dim=1) - "
+            "LBOUND(x, dim=1))) + struct%array(idx_6 + ("
+            "LBOUND(struct%array, dim=1) - "
+            "LBOUND(x, dim=1)))%value"
             in output_test4)
 
 
@@ -390,7 +390,7 @@ def test_apply_assumed_shape(fortran_reader, fortran_writer, tmpdir):
     trans = ArrayAssignment2LoopsTrans()
     trans.apply(assign)
     result = fortran_writer(psyir)
-    assert '''do idx = istart, UBOUND(array=var, dim=1), 1
+    assert '''do idx = istart, UBOUND(var, dim=1), 1
     var(idx) = 2 * var2(idx + (istart2 - istart))
   enddo''' in result
     assert Compile(tmpdir).string_compiles(result)
@@ -713,10 +713,10 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
 
     # The end result should look like:
     assert (
-        "  do idx = LBOUND(array=x, dim=1), UBOUND(array=x, dim=1), 1\n"
+        "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
         "    x(idx) = scalar\n"
         "  enddo\n"
-        "  do idx_1 = LBOUND(array=x, dim=1), UBOUND(array=x, dim=1), 1\n"
+        "  do idx_1 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
         "    x(idx_1) = array(idx_1)\n"
         "  enddo\n\n"
         "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "

@@ -513,7 +513,7 @@ def test_validate_array_of_struct(fortran_reader):
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as err:
         hoist_trans.validate(loop.loop_body[0])
-    assert ("The statement 'ipi = SIZE(array=ptab(jf)%pt4d, dim=1)' can't be "
+    assert ("The statement 'ipi = SIZE(ptab(jf)%pt4d, dim=1)' can't be "
             "hoisted as it reads variable 'jf'" in str(err.value))
 
 

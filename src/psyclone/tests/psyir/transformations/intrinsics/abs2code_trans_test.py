@@ -105,7 +105,7 @@ def test_correct(func, output, tmpdir):
         f"subroutine abs_example(arg)\n"
         f"  real, intent(inout) :: arg\n"
         f"  real :: psyir_tmp\n\n"
-        f"  psyir_tmp = ABS(a={output})\n\n"
+        f"  psyir_tmp = ABS({output})\n\n"
         f"end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
     trans.apply(intr_call)
@@ -152,7 +152,7 @@ def test_correct_expr(tmpdir):
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp = 1.0 + ABS(a=arg * 3.14) + 2.0\n\n"
+        "  psyir_tmp = 1.0 + ABS(arg * 3.14) + 2.0\n\n"
         "end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
     trans.apply(intr_call)
@@ -199,7 +199,7 @@ def test_correct_2abs(tmpdir):
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
         "  real :: psyir_tmp\n\n"
-        "  psyir_tmp = ABS(a=arg * 3.14) + ABS(a=1.0)\n\n"
+        "  psyir_tmp = ABS(arg * 3.14) + ABS(1.0)\n\n"
         "end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
     trans.apply(intr_call)

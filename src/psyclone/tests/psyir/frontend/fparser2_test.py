@@ -1201,7 +1201,7 @@ def test_process_array_declarations_bound_expressions():
     assert l5dtype.shape[0].lower.intrinsic is IntrinsicCall.Intrinsic.NINT
     assert isinstance(l5dtype.shape[0].upper, IntrinsicCall)
     assert l5dtype.shape[0].upper.intrinsic is IntrinsicCall.Intrinsic.NINT
-    assert l5dtype.shape[0].upper.debug_string() == "NINT(a=MAXVAL(array=l4))"
+    assert l5dtype.shape[0].upper.debug_string() == "NINT(MAXVAL(l4))"
 
 
 @pytest.mark.usefixtures("f2008_parser")

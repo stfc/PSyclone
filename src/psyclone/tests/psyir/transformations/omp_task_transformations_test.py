@@ -132,8 +132,8 @@ def test_omptask_apply(fortran_reader, fortran_writer):
   do jj = 1, 10, 1
     !$omp task private(ji) firstprivate(jj) shared(t,s) \
 depend(in: s(:,jj)) depend(out: t(:,jj))
-    do ji = 1, SIZE(array=ji, dim=2), 1
-      t(ji,jj) = INT(a=s(ji,jj))
+    do ji = 1, SIZE(ji, dim=2), 1
+      t(ji,jj) = INT(s(ji,jj))
     enddo
     !$omp end task
   enddo

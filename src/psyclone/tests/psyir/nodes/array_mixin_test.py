@@ -526,7 +526,7 @@ def test_member_get_bound_expression(fortran_writer):
     lbnd = ref.member._get_bound_expression(0, "lower")
     assert isinstance(lbnd, IntrinsicCall)
     out = fortran_writer(lbnd).lower()
-    assert "lbound(array=grid_var%data, dim=1)" in out
+    assert "lbound(grid_var%data, dim=1)" in out
     usym = DataSymbol("uvar", UnresolvedType())
     ref = ArrayOfStructuresReference.create(
         usym, [_ONE.copy()],
@@ -535,12 +535,12 @@ def test_member_get_bound_expression(fortran_writer):
     lbnd = ref.member.member._get_bound_expression(0, "lower")
     assert isinstance(lbnd, IntrinsicCall)
     out = fortran_writer(lbnd).lower()
-    assert "lbound(array=uvar(1)%map(1,2)%data, dim=1)" in out
+    assert "lbound(uvar(1)%map(1,2)%data, dim=1)" in out
 
     ubnd = ref.member._get_bound_expression(0, "upper")
     assert isinstance(ubnd, IntrinsicCall)
     out = fortran_writer(ubnd).lower()
-    assert "ubound(array=uvar(1)%map, dim=1)" in out
+    assert "ubound(uvar(1)%map, dim=1)" in out
     # Second, test when we do have type information.
     a2d = ArrayType(REAL_TYPE, [2, (2, 8)])
     # Structure that contains "map" which is a 2D array.
@@ -659,19 +659,19 @@ def test_get_effective_shape(fortran_reader):
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
-    assert "SIZE(array=a, dim=1)" in shape[0].debug_string()
+    assert "SIZE(a, dim=1)" in shape[0].debug_string()
     # Array slice with only lower-bound specified.
     #   a(2:) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
-    assert shape[0].debug_string() == "UBOUND(array=a, dim=1) - 2 + 1"
+    assert shape[0].debug_string() == "UBOUND(a, dim=1) - 2 + 1"
     # Array slice with only upper-bound specified.
     #   a(:5) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
-    assert shape[0].debug_string() == "5 - LBOUND(array=a, dim=1) + 1"
+    assert shape[0].debug_string() == "5 - LBOUND(a, dim=1) + 1"
     # Array slice with only step specified.
     #   a(::4) = 0.0
     child_idx += 1
@@ -680,7 +680,7 @@ def test_get_effective_shape(fortran_reader):
     # Since step is not unity, this is not a 'full-range' access so we still
     # end up with UBOUND and LBOUND, even though SIZE would be nicer.
     assert (shape[0].debug_string() ==
-            "(UBOUND(array=a, dim=1) - LBOUND(array=a, dim=1)) / 4 + 1")
+            "(UBOUND(a, dim=1) - LBOUND(a, dim=1)) / 4 + 1")
     # Array slice defined using LBOUND and UBOUND intrinsics but for a
     # different array altogether.
     #   a(lbound(b,1):ubound(b,2)) = 0.0
@@ -688,7 +688,7 @@ def test_get_effective_shape(fortran_reader):
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert (shape[0].debug_string() ==
-            "UBOUND(array=b, dim=2) - LBOUND(array=b, dim=1) + 1")
+            "UBOUND(b, dim=2) - LBOUND(b, dim=1) + 1")
     # Indirect array slice.
     #   b(indices(2:3,1), 2:5) = 2.0
     child_idx += 1
@@ -725,14 +725,14 @@ def test_get_effective_shape(fortran_reader):
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert (shape[0].debug_string().lower() ==
-            "ubound(array=b, dim=2) - (1 + indices(1,1)) + 1")
+            "ubound(b, dim=2) - (1 + indices(1,1)) + 1")
     # Array access with indices given by another array that is not explicitly
     # indexed.
     #   b(idx, a) = -1.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
-    assert "SIZE(array=a)" in shape[0].debug_string()
+    assert "SIZE(a)" in shape[0].debug_string()
     # Array-index expressions are symbols of unknown type so we don't know
     # whether we have an array slice or just a scalar.
     #   b(scalarval, arrayval) = 1
@@ -764,8 +764,8 @@ def test_struct_get_effective_shape(fortran_reader):
     child_idx = 0
     shape = routine.children[child_idx].lhs.member._get_effective_shape()
     assert len(shape) == 2
-    assert "SIZE(array=grid%data, dim=1)" in shape[0].debug_string()
-    assert "SIZE(array=grid%data, dim=2)" in shape[1].debug_string()
+    assert "SIZE(grid%data, dim=1)" in shape[0].debug_string()
+    assert "SIZE(grid%data, dim=2)" in shape[1].debug_string()
     # Slice of ArrayOfStructuresMixin
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()

@@ -260,9 +260,9 @@ def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
     call initialise_device_buffer(u_fld)
 
     ! do a set_args now so subsequent writes place the data appropriately
-    cu_fld_cl_mem = transfer(source=cu_fld%device_ptr, mold=cu_fld_cl_mem)
-    p_fld_cl_mem = transfer(source=p_fld%device_ptr, mold=p_fld_cl_mem)
-    u_fld_cl_mem = transfer(source=u_fld%device_ptr, mold=u_fld_cl_mem)
+    cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
+    p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
+    u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)
     call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
 p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
 
@@ -316,18 +316,18 @@ def test_invoke_opencl_initialisation_grid():
     integer(kind=c_size_t) :: size_in_bytes
 
     if (.not.c_associated(field%grid%tmask_device)) then
-      size_in_bytes = int(a=field%grid%nx * field%grid%ny, kind=8) * \
+      size_in_bytes = int(field%grid%nx * field%grid%ny, kind=8) * \
 c_sizeof(field%grid%tmask(1,1))
-      field%grid%tmask_device = transfer(source=create_ronly_buffer(\
-size_in_bytes), mold=field%grid%tmask_device)
-      size_in_bytes = int(a=field%grid%nx * field%grid%ny, kind=8) * \
+      field%grid%tmask_device = transfer(create_ronly_buffer(\
+size_in_bytes), field%grid%tmask_device)
+      size_in_bytes = int(field%grid%nx * field%grid%ny, kind=8) * \
 c_sizeof(field%grid%'''
     assert expected in generated_code
 
     for grid_property in check_properties:
         code = (f"field%grid%{grid_property}_device = transfer("
-                f"source=create_ronly_buffer(size_in_bytes), "
-                f"mold=field%grid%{grid_property}_device)")
+                f"create_ronly_buffer(size_in_bytes), "
+                f"field%grid%{grid_property}_device)")
         assert code in generated_code
 
     # Check that device grid write routine is generated
@@ -344,19 +344,19 @@ c_sizeof(field%grid%'''
     integer :: ierr
 
     cmd_queues => get_cmd_queues()
-    size_in_bytes = int(a=field%grid%nx * field%grid%ny, kind=8) * \
+    size_in_bytes = int(field%grid%nx * field%grid%ny, kind=8) * \
 c_sizeof(field%grid%tmask(1,1))
-    cl_mem = transfer(source=field%grid%tmask_device, mold=cl_mem)
+    cl_mem = transfer(field%grid%tmask_device, cl_mem)
     ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
 size_in_bytes,c_loc(field%grid%tmask),0,c_null_ptr,c_null_ptr)
     call check_status('clenqueuewritebuffer tmask', ierr)
-    size_in_bytes = int(a=field%grid%nx * field%grid%ny, kind=8) * \
+    size_in_bytes = int(field%grid%nx * field%grid%ny, kind=8) * \
 c_sizeof(field%grid%area_t(1,1))'''
     assert expected in generated_code
 
     for grid_property in check_properties:
-        code = (f"    cl_mem = transfer(source=field%grid%{grid_property}_"
-                f"device, mold=cl_mem)\n"
+        code = (f"    cl_mem = transfer(field%grid%{grid_property}_"
+                f"device, cl_mem)\n"
                 f"    ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,"
                 f"cl_true,0_8,size_in_bytes,c_loc(field%grid%{grid_property}),"
                 f"0,c_null_ptr,c_null_ptr)\n"
@@ -384,13 +384,13 @@ c_sizeof(field%grid%area_t(1,1))'''
       call initialise_grid_device_buffers(in_fld)
 
       ! do a set_args now so subsequent writes place the data appropriately
-      out_fld_cl_mem = transfer(source=out_fld%device_ptr, mold=out_fld_cl_mem)
-      in_out_fld_cl_mem = transfer(source=in_out_fld%device_ptr, \
-mold=in_out_fld_cl_mem)
-      in_fld_cl_mem = transfer(source=in_fld%device_ptr, mold=in_fld_cl_mem)
-      dx_cl_mem = transfer(source=dx%device_ptr, mold=dx_cl_mem)
-      gphiu_cl_mem = transfer(source=in_fld%grid%gphiu_device, \
-mold=gphiu_cl_mem)
+      out_fld_cl_mem = transfer(out_fld%device_ptr, out_fld_cl_mem)
+      in_out_fld_cl_mem = transfer(in_out_fld%device_ptr, \
+in_out_fld_cl_mem)
+      in_fld_cl_mem = transfer(in_fld%device_ptr, in_fld_cl_mem)
+      dx_cl_mem = transfer(dx%device_ptr, dx_cl_mem)
+      gphiu_cl_mem = transfer(in_fld%grid%gphiu_device, \
+gphiu_cl_mem)
       call compute_kernel_code_set_args(kernel_compute_kernel_code, \
 out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, \
 in_fld%grid%dx, gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
@@ -450,12 +450,12 @@ def test_opencl_routines_initialisation(kernel_outputdir):
     integer :: ierr
     integer :: i
 
-    cl_mem = transfer(source=from, mold=cl_mem)
+    cl_mem = transfer(from, cl_mem)
     cmd_queues => get_cmd_queues()
-    if (nx < size(array=to, dim=1) / 2) then
+    if (nx < size(to, dim=1) / 2) then
       do i = starty, starty + ny, 1
-        size_in_bytes = int(a=nx, kind=8) * c_sizeof(to(1,1))
-        offset_in_bytes = int(a=size(array=to, dim=1) * (i - 1) + \
+        size_in_bytes = int(nx, kind=8) * c_sizeof(to(1,1))
+        offset_in_bytes = int(size(to, dim=1) * (i - 1) + \
 (startx - 1)) * c_sizeof(to(1,1))
         ierr = clenqueuereadbuffer(cmd_queues(1),cl_mem,cl_false,\
 offset_in_bytes,size_in_bytes,c_loc(to(startx,i)),0,c_null_ptr,c_null_ptr)
@@ -465,9 +465,9 @@ offset_in_bytes,size_in_bytes,c_loc(to(startx,i)),0,c_null_ptr,c_null_ptr)
         call check_status('clfinish on read', clfinish(cmd_queues(1)))
       end if
     else
-      size_in_bytes = int(a=size(array=to, dim=1) * ny, kind=8) * \
+      size_in_bytes = int(size(to, dim=1) * ny, kind=8) * \
 c_sizeof(to(1,1))
-      offset_in_bytes = int(a=size(array=to, dim=1) * (starty - 1), kind=8) \
+      offset_in_bytes = int(size(to, dim=1) * (starty - 1), kind=8) \
 * c_sizeof(to(1,1))
       ierr = clenqueuereadbuffer(cmd_queues(1),cl_mem,cl_true,\
 offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
@@ -499,12 +499,12 @@ offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
     integer :: ierr
     integer :: i
 
-    cl_mem = transfer(source=to, mold=cl_mem)
+    cl_mem = transfer(to, cl_mem)
     cmd_queues => get_cmd_queues()
-    if (nx < size(array=from, dim=1) / 2) then
+    if (nx < size(from, dim=1) / 2) then
       do i = starty, starty + ny, 1
-        size_in_bytes = int(a=nx, kind=8) * c_sizeof(from(1,1))
-        offset_in_bytes = int(a=size(array=from, dim=1) * (i - 1) + \
+        size_in_bytes = int(nx, kind=8) * c_sizeof(from(1,1))
+        offset_in_bytes = int(size(from, dim=1) * (i - 1) + \
 (startx - 1)) * c_sizeof(from(1,1))
         ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_false,\
 offset_in_bytes,size_in_bytes,c_loc(from(startx,i)),0,c_null_ptr,c_null_ptr)
@@ -514,9 +514,9 @@ offset_in_bytes,size_in_bytes,c_loc(from(startx,i)),0,c_null_ptr,c_null_ptr)
         call check_status('clfinish on write', clfinish(cmd_queues(1)))
       end if
     else
-      size_in_bytes = int(a=size(array=from, dim=1) * ny, kind=8) * \
+      size_in_bytes = int(size(from, dim=1) * ny, kind=8) * \
 c_sizeof(from(1,1))
-      offset_in_bytes = int(a=size(array=from, dim=1) * (starty - 1)) * \
+      offset_in_bytes = int(size(from, dim=1) * (starty - 1)) * \
 c_sizeof(from(1,1))
       ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,\
 offset_in_bytes,size_in_bytes,c_loc(from(1,starty)),0,c_null_ptr,c_null_ptr)
@@ -536,10 +536,10 @@ offset_in_bytes,size_in_bytes,c_loc(from(1,starty)),0,c_null_ptr,c_null_ptr)
     integer(kind=c_size_t) :: size_in_bytes
 
     if (.not.field%data_on_device) then
-      size_in_bytes = int(a=field%grid%nx * field%grid%ny, kind=8) * \
+      size_in_bytes = int(field%grid%nx * field%grid%ny, kind=8) * \
 c_sizeof(field%data(1,1))
-      field%device_ptr = transfer(source=create_rw_buffer(size_in_bytes), \
-mold=field%device_ptr)
+      field%device_ptr = transfer(create_rw_buffer(size_in_bytes), \
+field%device_ptr)
       field%data_on_device = .true.
       field%read_from_device_f => read_from_device
       field%write_to_device_f => write_to_device
@@ -651,7 +651,7 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
 
     if (.not.initialised) then
       initialised = .true.
-      ocl_device_num = mod(a=get_rank() - 1, p=2) + 1
+      ocl_device_num = mod(get_rank() - 1, 2) + 1
       call ocl_env_init(1, ocl_device_num, .false., .false.)
       kernel_names(1) = 'compute_cu_code'
       call add_kernels(1, kernel_names)
@@ -711,7 +711,7 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
         # Check that the globalsize first dimension is a multiple of
         # the localsize first dimension
         expected += '''
-    if (MOD(a=p_fld%grid%nx, p=64) /= 0) then
+    if (MOD(p_fld%grid%nx, 64) /= 0) then
       call check_status('Global size is not a multiple of local size \
 (mandatory in OpenCL < 2.0).', -1)
     end if'''
@@ -725,9 +725,9 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
 
     # Cast dl_esm_inf pointers to cl_mem handlers
     expected += '''
-    cu_fld_cl_mem = TRANSFER(source=cu_fld%device_ptr, mold=cu_fld_cl_mem)
-    p_fld_cl_mem = TRANSFER(source=p_fld%device_ptr, mold=p_fld_cl_mem)
-    u_fld_cl_mem = TRANSFER(source=u_fld%device_ptr, mold=u_fld_cl_mem)'''
+    cu_fld_cl_mem = TRANSFER(cu_fld%device_ptr, cu_fld_cl_mem)
+    p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)
+    u_fld_cl_mem = TRANSFER(u_fld%device_ptr, u_fld_cl_mem)'''
 
     # Call the set_args subroutine with the boundaries corrected for the
     # OpenCL 0-indexing
@@ -967,7 +967,7 @@ def test_multiple_command_queues(dist_mem):
 
     kernelbarrier = '''
     ierr = clFinish(cmd_queues(2))
-    p_fld_cl_mem = TRANSFER(source=p_fld%device_ptr, mold=p_fld_cl_mem)'''
+    p_fld_cl_mem = TRANSFER(p_fld%device_ptr, p_fld_cl_mem)'''
 
     haloexbarrier = '''
     ierr = clFinish(cmd_queues(2))

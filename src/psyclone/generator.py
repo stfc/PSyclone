@@ -589,14 +589,13 @@ def main(arguments):
         help="Disables all indentation in the generated output code."
     )
     backend_group.add_argument(
-        "--backend-omit-unneeded-intrinsic-arg-names",
+        "--backend-add-all-intrinsic-arg-names",
         default=argparse.SUPPRESS,
         action="store_true",
-        help="By default, the backend names any required arguments to "
-             "intrinsic calls. This option disables this feature (in case "
-             "the processed code has overridden a Fortran intrinsic), "
-             "i.e. SUM(arr, mask=maskarr) instead of SUM(array=arr, "
-             "mask=maskarr)."
+        help="By default, the backend outputs the names of only optional "
+             "arguments to intrinsic calls. This option enables all argument "
+             "names on intrinsic calls, i.e. SUM(array=arr, mask=maskarr) "
+             "instead of SUM(arr, mask=maskarr)."
     )
 
     args = parser.parse_args(arguments)
@@ -651,10 +650,10 @@ def main(arguments):
     Config.get().api = api
 
     # Record any intrinsic output format settings.
-    if "backend_omit_unneeded_intrinsic_arg_names" in args:
+    if "backend_add_all_intrinsic_arg_names" in args:
         # The backend won't attempt to add names to required
         # arguments to Fortran intrinsics.
-        Config.get().backend_intrinsic_named_kwargs = False
+        Config.get().backend_intrinsic_named_kwargs = True
 
     # Record any profiling options.
     if args.profile:

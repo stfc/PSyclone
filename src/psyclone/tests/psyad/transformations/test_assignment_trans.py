@@ -1282,9 +1282,9 @@ def test_validate_unaryop():
         lhs_symbol, rhs_symbol])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each term on the RHS of the assignment 'a = SQRT(x=b)\n' must "
+    assert ("Each term on the RHS of the assignment 'a = SQRT(b)\n' must "
             "be linear with respect to the active variable, but found "
-            "'SQRT(x=b)'." in str(info.value))
+            "'SQRT(b)'." in str(info.value))
 
 
 def test_validate_mismatched_array_ranges():

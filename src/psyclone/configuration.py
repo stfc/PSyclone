@@ -237,7 +237,7 @@ class Config:
 
         # By default, the PSyIR backends output argument names on (most)
         # IntrinsicCalls. This option enables control of that behaviour.
-        self._backend_intrinsic_named_kwargs = True
+        self._backend_intrinsic_named_kwargs = False
 
     # -------------------------------------------------------------------------
     def load(self, config_file=None):

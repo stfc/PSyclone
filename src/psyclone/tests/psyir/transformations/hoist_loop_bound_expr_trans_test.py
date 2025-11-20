@@ -78,7 +78,7 @@ def test_apply(fortran_reader, fortran_writer):
     # Start expression is not hoisted because it is a literal
     expected = """
     loop_step = mytype%step
-    loop_stop = UBOUND(array=a, dim=1)
+    loop_stop = UBOUND(a, dim=1)
     do i = 1, loop_stop, loop_step
       a(i) = 1
     enddo\n"""
@@ -112,10 +112,10 @@ def test_apply_nested(fortran_reader, fortran_writer):
         trans.apply(loop)
     # Start expression is not hoisted because it is a simple scalar reference
     expected = """
-    loop_stop = UBOUND(array=a, dim=2)
+    loop_stop = UBOUND(a, dim=2)
     do i = start, loop_stop, 1
-      loop_stop_1 = UBOUND(array=a, dim=1)
-      loop_start = LBOUND(array=a, dim=1)
+      loop_stop_1 = UBOUND(a, dim=1)
+      loop_start = LBOUND(a, dim=1)
       do j = loop_start, loop_stop_1, 1
         a(j,i) = 1
       enddo
