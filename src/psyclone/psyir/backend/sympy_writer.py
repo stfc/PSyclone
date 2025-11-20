@@ -802,7 +802,8 @@ class SymPyWriter(FortranWriter):
                     return f"{self._nindent}{node.routine.name}({args})\n"
                 return f"{node.routine.name}({args})"
             if not node.parent or isinstance(node.parent, Schedule):
-                return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
+                return (f"{self._nindent}call "
+                        f"{self._visit(node.routine)}({args})\n")
 
             # Otherwise it is inside-expression function call
             return f"{self._visit(node.routine)}({args})"
