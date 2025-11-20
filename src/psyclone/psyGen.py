@@ -68,6 +68,7 @@ from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
     UnresolvedType, ImportInterface, INTEGER_TYPE, RoutineSymbol)
 from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
+from psyclone.psyir.symbols.symbol_table import SymbolTable
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -1066,13 +1067,13 @@ class Kern(Statement):
             return ancestor.reprod
         return False
 
-    def initialise_reduction_variable(self):
+    def initialise_reduction_variable(self) -> None:
         '''
-        Generate code to zero the reduction variable and to zero the local
+        Generate PSyIR to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
         reductions, if specified.
 
-        :raises GenerationError: if the variable to zero is not a scalar.
+        :raises GenerationError: if the variable to initialise is not a scalar.
         :raises GenerationError: if the reprod_pad_size (read from the
             configuration file) is less than 1.
         :raises GenerationError: for a reduction into a scalar that is
@@ -1086,25 +1087,16 @@ class Kern(Statement):
                 f"Kern.initialise_reduction_variable() should be a scalar but "
                 f"found '{var_arg.argument_type}'.")
         # Lookup the reduction variable
-        self.scope.symbol_table.lookup_with_tag(f"{self.name}:{var_arg.name}")
-        var_data_type = var_arg.intrinsic_type
-        if var_data_type == "real":
-            data_type = ScalarType(ScalarType.Intrinsic.REAL,
-                                   Reference(DataSymbol(var_arg.precision,
-                                                        UnresolvedType())))
-        elif var_data_type == "integer":
-            data_type = ScalarType(ScalarType.Intrinsic.INTEGER,
-                                   Reference(DataSymbol(var_arg.precision,
-                                                        UnresolvedType())))
-        else:
+        variable = self.scope.symbol_table.lookup_with_tag(
+            f"AlgArgs_{var_arg.name}")
+        if not (isinstance(variable.datatype, ScalarType) and
+                variable.datatype.intrinsic in [ScalarType.Intrinsic.INTEGER,
+                                                ScalarType.Intrinsic.REAL]):
             raise GenerationError(
                 f"Kern.initialise_reduction_variable() should be either a "
                 f"'real' or an 'integer' scalar but found scalar of type "
                 f"'{var_arg.intrinsic_type}'.")
 
-        # Retrieve the variable and precision information
-        var_tag = f"{self.name}:{var_arg.name}"
-        variable = self.scope.symbol_table.lookup_with_tag(var_tag)
         # Find a safe location to initialise it.
         insert_loc = self.ancestor((Loop, Directive))
         while insert_loc:
@@ -1116,7 +1108,7 @@ class Kern(Statement):
         insert_loc = insert_loc.parent
         new_node = Assignment.create(
                         lhs=Reference(variable),
-                        rhs=Literal("0", data_type))
+                        rhs=Literal("0", variable.datatype.copy()))
         new_node.append_preceding_comment("Initialise reduction variable")
         insert_loc.addchild(new_node, cursor)
         cursor += 1
@@ -1126,15 +1118,26 @@ class Kern(Statement):
                 f"{self.name}:{self._reduction_arg.name}:local")
             assign = Assignment.create(
                 lhs=Reference(local_var),
-                rhs=Literal("0", data_type)
+                rhs=Literal("0", variable.datatype.copy())
             )
             insert_loc.addchild(assign, cursor)
         return new_node
 
-    def reduction_sum_loop(self, parent, position, table):
+    def reduction_sum_loop(self,
+                           parent: Node,
+                           position: int,
+                           table: SymbolTable) -> None:
         '''
         Generate the appropriate code to place after the end parallel
         region.
+
+        This method is designed to be used *after* a Kern has been lowered
+        (and thus detached) and therefore does not use `self.scope`.
+
+        :param parent: the node to which to add the Loop as a child.
+        :param position: where in the parent's list of children to add
+                        the new Loop.
+        :param table: the SymbolTable to use.
 
         :raises GenerationError: for an unsupported reduction access in
                                  LFRicBuiltIn.
@@ -1161,7 +1164,7 @@ class Kern(Statement):
                     children=[])
         parent.addchild(do_loop, position+1)
         var_symbol = table.lookup_with_tag(
-            f"{self.name}:{self._reduction_arg.name}")
+            f"AlgArgs_{self._reduction_arg.name}")
         do_loop.loop_body.addchild(Assignment.create(
            lhs=Reference(var_symbol),
            rhs=BinaryOperation.create(
@@ -1201,7 +1204,7 @@ class Kern(Statement):
             return ArrayReference.create(local_var, array_dim)
         # Return a single-valued Reference for a non-reproducible reduction
         local_var = symtab.lookup_with_tag(
-            f"{self.name}:{self._reduction_arg.name}")
+            f"AlgArgs_{self._reduction_arg.name}")
         return Reference(local_var)
 
     @property
@@ -1256,17 +1259,13 @@ class Kern(Statement):
 
         '''
         if not self.is_reduction:
-            super().lower_to_language_level()
-            return
+            # If this kernel does not perform a reduction then there's
+            # no special action to take.
+            return super().lower_to_language_level()
 
-        from psyclone.psyGen import InvokeSchedule
         table = self.ancestor(InvokeSchedule).symbol_table
-        arg_sym = table.lookup(self.reduction_arg.name)
-        # TODO work out where this Symbol is first added and see if we can tag
-        # it there.
-        table.remove(arg_sym)
-        table.add(arg_sym,
-                  tag=f"{self.name}:{self._reduction_arg.name}")
+        arg_sym = table.lookup_with_tag("AlgArgs_"+self.reduction_arg.name)
+
         if self.reprod_reduction:
             # For reproducible reductions, we need a rank-2 array to store
             # the thread-local results.

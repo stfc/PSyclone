@@ -1136,10 +1136,6 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     # args[5] is a scalar of data type gh_logical
     assert call.arguments.args[5].intrinsic_type == 'logical'
     call._reduction_arg = call.arguments.args[5]
-    # The method looks up the reduction argument by tag so add a suitable
-    # tag for this symbol.
-    sym = schedule.symbol_table.lookup(call._reduction_arg.name)
-    schedule.symbol_table._tags[f"{call.name}:{sym.name}"] = sym
     with pytest.raises(GenerationError) as err:
         call.initialise_reduction_variable()
     assert ("Kern.initialise_reduction_variable() should be either a 'real' "
@@ -1149,13 +1145,9 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     # REALs and INTEGERs are fine
     assert call.arguments.args[0].intrinsic_type == 'real'
     call._reduction_arg = call.arguments.args[0]
-    sym = schedule.symbol_table.lookup(call._reduction_arg.name)
-    schedule.symbol_table._tags[f"{call.name}:{sym.name}"] = sym
     call.initialise_reduction_variable()
     assert call.arguments.args[6].intrinsic_type == 'integer'
     call._reduction_arg = call.arguments.args[6]
-    sym = schedule.symbol_table.lookup(call._reduction_arg.name)
-    schedule.symbol_table._tags[f"{call.name}:{sym.name}"] = sym
     call.initialise_reduction_variable()
 
 
@@ -1170,6 +1162,7 @@ def test_reduction_sum_error(dist_mem):
     call = schedule.kernels()[0]
     # args[1] is of type gh_field
     call._reduction_arg = call.arguments.args[1]
+    # Ensure symbol is tagged appropriately.
     sym = schedule.symbol_table.lookup(call._reduction_arg.name)
     schedule.symbol_table._tags[f"{call.name}:{sym.name}:local"] = sym
     with pytest.raises(GenerationError) as err:

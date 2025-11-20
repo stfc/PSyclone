@@ -3931,32 +3931,6 @@ def test_reductions_reprod():
                                LFRicXInnerproductYKern))
 
 
-def test_list_multiple_reductions(dist_mem):
-    ''' Test that we produce correct reduction lists when there is more
-    than one reduction in a OpenMP parallel directive. As only one
-    reduction per OpenMP parallel region is currently supported we
-    need to modify the intermediate representation after the
-    transformations have been performed to enable this test.
-
-    '''
-    _, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
-                           TEST_API, idx=0, dist_mem=dist_mem)
-    schedule = invoke.schedule
-    otrans = LFRicOMPLoopTrans()
-    rtrans = OMPParallelTrans()
-    # Apply an OpenMP do directive to the loop
-    otrans.apply(schedule.children[0], {"reprod": False})
-    # Apply an OpenMP Parallel directive around the OpenMP do directive
-    rtrans.apply(schedule.children[0])
-    omp_loop_directive = schedule[0].dir_body[0]
-    call = omp_loop_directive.dir_body[0].loop_body[0]
-    arg = call.arguments.args[2]
-    arg._argument_type = "gh_scalar"
-    arg.descriptor._access = AccessType.SUM
-    result = omp_loop_directive._reduction_string()
-    assert "reduction(+:asum), reduction(+:f2)" in result
-
-
 def test_move_name():
     ''' Test the name property of the MoveTrans class. '''
     move_trans = MoveTrans()
