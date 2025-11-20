@@ -2175,10 +2175,11 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
                     in result)
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         expected_output = (
-            "    ! Zero summation variables\n"
+            "    ALLOCATE(local_asum(8,nthreads))\n"
+            "\n"
+            "    ! Initialise reduction variables\n"
             "    asum = 0.0_r_def\n"
-            "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0_r_def\n"
+            "    local_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -2192,20 +2193,20 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "    !$omp do schedule(static)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
-            "      l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)\n"
+            "      local_asum(1,th_idx) = local_asum(1,th_idx) + f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
             "\n"
+            "    ! sum the partial results sequentially\n"
+            "    do th_idx = 1, nthreads, 1\n"
+            "      asum = asum + local_asum(1,th_idx)\n"
+            "    enddo\n"
+            "    DEALLOCATE(local_asum)\n"
+            "\n"
             "    ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
-            "\n"
-            "    ! sum the partial results sequentially\n"
-            "    do th_idx = 1, nthreads, 1\n"
-            "      asum = asum + l_asum(1,th_idx)\n"
-            "    enddo\n"
-            "    DEALLOCATE(l_asum)\n"
             "\n"
             "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
@@ -2215,10 +2216,10 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
         assert "loop0_stop = undf_aspc1_f1" in result
         assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
-            "    ! Zero summation variables\n"
+            "    ALLOCATE(local_asum(8,nthreads))\n\n"
+            "    ! Initialise reduction variables\n"
             "    asum = 0.0_r_def\n"
-            "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0_r_def\n"
+            "    local_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -2232,16 +2233,16 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "    !$omp do schedule(static)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
-            "      l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)\n"
+            "      local_asum(1,th_idx) = local_asum(1,th_idx) + f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
             "\n"
             "    ! sum the partial results sequentially\n"
             "    do th_idx = 1, nthreads, 1\n"
-            "      asum = asum + l_asum(1,th_idx)\n"
+            "      asum = asum + local_asum(1,th_idx)\n"
             "    enddo\n"
-            "    DEALLOCATE(l_asum)\n")
+            "    DEALLOCATE(local_asum)\n")
     assert expected_output in result
 
 

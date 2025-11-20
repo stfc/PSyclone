@@ -724,6 +724,33 @@ class InvokeSchedule(Routine):
         result += "End " + self.coloured_name(False) + "\n"
         return result
 
+    def lower_to_language_level(self):
+        '''
+        Lower this InvokeSchedule to language-level PSyIR.
+
+        Primarily sets-up any common OpenMP-related symbols required by
+        kernels performing reductions.
+
+        '''
+        reprod_red_call_list = self.reductions(reprod=True)
+        if reprod_red_call_list:
+            # For reproducible reductions we need to query the OMP runtime so
+            # setup some common symbols. These will be used when lowering the
+            # specific kernels that perform reductions.
+            omp_lib = self.symbol_table.find_or_create(
+                "omp_lib", symbol_type=ContainerSymbol)
+            omp_get_thread_num = self.symbol_table.find_or_create_tag(
+                "omp_get_thread_num", symbol_type=RoutineSymbol,
+                interface=ImportInterface(omp_lib))
+            self.symbol_table.find_or_create_tag("omp_num_threads",
+                                                 root_name="nthreads",
+                                                 symbol_type=DataSymbol,
+                                                 datatype=INTEGER_TYPE)
+            thread_idx = self.symbol_table.find_or_create_tag(
+                "omp_thread_index", root_name="th_idx",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        super().lower_to_language_level()
+
 
 class GlobalSum(Statement):
     '''
@@ -1089,9 +1116,8 @@ class Kern(Statement):
                 f"'{var_arg.intrinsic_type}'.")
 
         # Retrieve the variable and precision information
-        kind_str = f"(kind={var_arg.precision})" if var_arg.precision else ""
-        var_name = f"{self.name}:{var_arg.name}"
-        variable = self.scope.symbol_table.lookup_with_tag(var_name)
+        var_tag = f"{self.name}:{var_arg.name}"
+        variable = self.scope.symbol_table.lookup_with_tag(var_tag)
         # Find a safe location to initialise it.
         insert_loc = self.ancestor((Loop, Directive))
         while insert_loc:
@@ -1104,32 +1130,13 @@ class Kern(Statement):
         new_node = Assignment.create(
                         lhs=Reference(variable),
                         rhs=Literal("0", data_type))
-        new_node.append_preceding_comment("Initialise reduction variable")
+        new_node.append_preceding_comment("Initialise reduction variables")
         insert_loc.addchild(new_node, cursor)
         cursor += 1
 
         if self.reprod_reduction:
-            local_var = self.scope.symbol_table.find_or_create_tag(
-                local_var_name, symbol_type=DataSymbol,
-                datatype=UnsupportedFortranType(
-                    f"{var_data_type}{kind_str}, allocatable, "
-                    f"dimension(:,:) :: {local_var_name}"
-                ))
-            nthreads = \
-                self.scope.symbol_table.lookup_with_tag("omp_num_threads")
-            if Config.get().reprod_pad_size < 1:
-                raise GenerationError(
-                    f"REPROD_PAD_SIZE in {Config.get().filename} should be a "
-                    f"positive integer, but it is set to "
-                    f"'{Config.get().reprod_pad_size}'.")
-            pad_size = Literal(str(Config.get().reprod_pad_size), INTEGER_TYPE)
-            alloc = IntrinsicCall.create(
-                IntrinsicCall.Intrinsic.ALLOCATE,
-                [ArrayReference.create(local_var,
-                                       [pad_size, Reference(nthreads)])])
-            insert_loc.addchild(alloc, cursor)
-            cursor += 1
-
+            local_var = self.scope.symbol_table.lookup_with_tag(
+                f"{self.name}:{self._reduction_arg.name}:local")
             assign = Assignment.create(
                 lhs=Reference(local_var),
                 rhs=Literal("0", data_type)
@@ -1137,7 +1144,7 @@ class Kern(Statement):
             insert_loc.addchild(assign, cursor)
         return new_node
 
-    def reduction_sum_loop(self):
+    def reduction_sum_loop(self, parent, position, table):
         '''
         Generate the appropriate code to place after the end parallel
         region.
@@ -1145,9 +1152,8 @@ class Kern(Statement):
         :raises GenerationError: for an unsupported reduction access in
                                  LFRicBuiltIn.
         '''
-        var_name = self._reduction_arg.name
-        local_symbol = self.scope.symbol_table.lookup_with_tag(
-            f"{self.name}:{var_name}")
+        tag = f"{self.name}:{self._reduction_arg.name}:local"
+        local_symbol = table.lookup_with_tag(tag)
         reduction_access = self._reduction_arg.access
         if reduction_access not in REDUCTION_OPERATOR_MAPPING:
             api_strings = [access.api_specific_name()
@@ -1157,26 +1163,17 @@ class Kern(Statement):
                 f"'{reduction_access.api_specific_name()}' found in "
                 f"LFRicBuiltIn:reduction_sum_loop(). Expected one of "
                 f"{api_strings}.")
-        symtab = self.scope.symbol_table
-        thread_idx = symtab.find_or_create_tag(
-                                "omp_thread_index",
-                                root_name="th_idx",
-                                symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE)
-        nthreads = symtab.find_or_create_tag(
-                                "omp_num_threads",
-                                root_name="nthreads",
-                                symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE)
+        symtab = table
+        thread_idx = symtab.lookup_with_tag("omp_thread_index")
+        nthreads = symtab.lookup_with_tag("omp_num_threads")
         do_loop = Loop.create(
                     thread_idx,
                     start=Literal("1", INTEGER_TYPE),
                     stop=Reference(nthreads),
                     step=Literal("1", INTEGER_TYPE),
                     children=[])
-        directive = self.ancestor(OMPParallelDirective)
-        directive.parent.addchild(do_loop, directive.position+1)
-        var_symbol = self.scope.symbol_table.lookup(var_name)
+        parent.addchild(do_loop, position+1)
+        var_symbol = table.lookup_with_tag(f"{self.name}:{self._reduction_arg.name}")
         do_loop.loop_body.addchild(Assignment.create(
            lhs=Reference(var_symbol),
            rhs=BinaryOperation.create(
@@ -1206,15 +1203,17 @@ class Kern(Statement):
 
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
-        local_var = symtab.lookup_with_tag(
-            f"{self.name}:{self._reduction_arg.name}")
         if self.reprod_reduction:
+            local_var = symtab.lookup_with_tag(
+                f"{self.name}:{self._reduction_arg.name}:local")
             # Return a multi-valued ArrayReference for a reproducible reduction
             array_dim = [
                 Literal("1", INTEGER_TYPE),
                 Reference(symtab.lookup_with_tag("omp_thread_index"))]
             return ArrayReference.create(local_var, array_dim)
         # Return a single-valued Reference for a non-reproducible reduction
+        local_var = symtab.lookup_with_tag(
+            f"{self.name}:{self._reduction_arg.name}")
         return Reference(local_var)
 
     @property
@@ -1275,6 +1274,11 @@ class Kern(Statement):
         from psyclone.psyGen import InvokeSchedule
         table = self.ancestor(InvokeSchedule).symbol_table
         arg_sym = table.lookup(self.reduction_arg.name)
+        # TODO work out where this Symbol is first added and see if we can tag
+        # it there.
+        table.remove(arg_sym)
+        table.add(arg_sym,
+                  tag=f"{self.name}:{self._reduction_arg.name}")
         if self.reprod_reduction:
             # For reproducible reductions, we need a rank-2 array to store
             # the thread-local results.
@@ -1290,7 +1294,7 @@ class Kern(Statement):
                                    2*[ArrayType.Extent.DEFERRED])
             local_var = table.find_or_create_tag(
                 root_name="local_"+self._reduction_arg.name,
-                tag=f"{self.name}:{self._reduction_arg.name}",
+                tag=f"{self.name}:{self._reduction_arg.name}:local",
                 symbol_type=DataSymbol, datatype=array_type)
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
@@ -1306,11 +1310,6 @@ class Kern(Statement):
             cursor = insert_loc.position
             insert_loc = insert_loc.parent
             insert_loc.addchild(alloc, cursor)
-
-        else:
-            table.remove(arg_sym)
-            table.add(arg_sym,
-                      tag=f"{self.name}:{self._reduction_arg.name}")
 
         # This Kernel performs a reduction.
         # Initialise the variable that will hold the result.        

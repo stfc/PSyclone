@@ -1336,28 +1336,18 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         # partial results in an array indexed by the thread index
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
-            # Use a private thread index variable
-            omp_lib = self.scope.symbol_table.find_or_create(
-                "omp_lib", symbol_type=ContainerSymbol)
-            omp_get_thread_num = self.scope.symbol_table.find_or_create(
-                "omp_get_thread_num", symbol_type=RoutineSymbol,
-                interface=ImportInterface(omp_lib))
-            thread_idx = self.scope.symbol_table.find_or_create_tag(
-                "omp_thread_index", root_name="th_idx",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            thread_idx = self.scope.symbol_table.lookup_with_tag(
+                "omp_thread_index")
+            omp_get_thrd = self.scope.symbol_table.lookup_with_tag(
+                "omp_get_thread_num")
             assignment = Assignment.create(
                 lhs=Reference(thread_idx),
                 rhs=BinaryOperation.create(
                         BinaryOperation.Operator.ADD,
-                        Call.create(omp_get_thread_num),
+                        Call.create(omp_get_thrd),
                         Literal("1", INTEGER_TYPE))
             )
             self.dir_body.addchild(assignment, 0)
-
-        # Now finish the reproducible reductions
-        if reprod_red_call_list:
-            for call in reversed(reprod_red_call_list):
-                call.reduction_sum_loop()
 
         # Lower the first two children
         for child in self.children[:2]:
@@ -1395,6 +1385,11 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
 
         self.children[2].replace_with(private_clause)
         self.children[3].replace_with(fprivate_clause)
+
+        # Now finish the reproducible reductions
+        for call in reversed(reprod_red_call_list):
+            call.reduction_sum_loop(self.parent, self.position,
+                                    self.scope.symbol_table)
 
         return self
 
