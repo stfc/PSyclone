@@ -39,11 +39,12 @@
 
 import pytest
 
-from psyclone.core import (AccessInfo, ComponentIndices, Signature,
+from psyclone.core import (AccessInfo, Signature,
                            AccessSequence)
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Assignment, Node, Reference, Return
+from psyclone.psyir.nodes import (
+    Assignment, Node, Reference, Return, ArrayReference)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, Symbol
 
 
@@ -52,7 +53,7 @@ def test_access_info():
     '''
     access_info = AccessInfo(AccessType.READ, Node())
     assert access_info.access_type == AccessType.READ
-    assert access_info.component_indices.indices_lists == [[]]
+    assert access_info.component_indices() == tuple(tuple())
     assert not access_info.has_indices()
     assert str(access_info) == "READ"
     access_info.change_read_to_write()
@@ -63,25 +64,14 @@ def test_access_info():
     assert "Trying to change variable to 'WRITE' which does not have "\
         "'READ' access." in str(err.value)
 
-    # Test setter and getter:
-    component_indices = ComponentIndices([["i"]])
-    access_info.component_indices = component_indices
-    assert access_info.component_indices == component_indices
-    assert access_info.has_indices()
+    access_info = AccessInfo(AccessType.UNKNOWN, Node())
+    assert access_info.access_type == AccessType.UNKNOWN
 
     access_info = AccessInfo(AccessType.UNKNOWN, Node())
     assert access_info.access_type == AccessType.UNKNOWN
-    assert access_info.component_indices.indices_lists == [[]]
 
-    access_info = AccessInfo(AccessType.UNKNOWN, Node(),
-                             [["i", "j"]])
+    access_info = AccessInfo(AccessType.UNKNOWN, Node())
     assert access_info.access_type == AccessType.UNKNOWN
-    assert access_info.component_indices.indices_lists == [["i", "j"]]
-
-    access_info = AccessInfo(AccessType.UNKNOWN, Node(),
-                             ComponentIndices([["i", "j"]]))
-    assert access_info.access_type == AccessType.UNKNOWN
-    assert access_info.component_indices.indices_lists == [["i", "j"]]
 
 
 def test_access_info_is_any_read_or_write():
@@ -118,7 +108,7 @@ def test_access_info_is_any_read_or_write():
     access_info = AccessInfo(AccessType.INQUIRY, Node())
     assert not access_info.is_any_read()
     assert not access_info.is_any_write()
-    access_info = AccessInfo(AccessType.TYPE_INFO, Node())
+    access_info = AccessInfo(AccessType.CONSTANT, Node())
     assert not access_info.is_any_read()
     assert not access_info.is_any_write()
 
@@ -126,27 +116,6 @@ def test_access_info_is_any_read_or_write():
     access_info = AccessInfo(AccessType.UNKNOWN, Node())
     assert not access_info.is_any_read()
     assert not access_info.is_any_write()
-
-
-# -----------------------------------------------------------------------------
-def test_access_info_exceptions():
-    '''Test that the right exceptions are raised.
-    '''
-    with pytest.raises(InternalError) as err:
-        _ = AccessInfo(AccessType.READ, Node(), component_indices=123)
-    assert "Index object in ComponentIndices constructor must be None, " \
-           "a list or list of lists, got '123'" in str(err.value)
-
-    with pytest.raises(InternalError) as err:
-        _ = AccessInfo(AccessType.READ, Node(), component_indices=[[], 123])
-    assert "ComponentIndices: Invalid list parameter '[[], 123]'" \
-        in str(err.value)
-
-    access_info = AccessInfo(AccessType.READ, Node())
-    with pytest.raises(InternalError) as err:
-        access_info.component_indices = 123
-    assert "The component_indices object in the setter of AccessInfo must " \
-           "be an instance of ComponentIndices, got '123'" in str(err.value)
 
 
 def test_access_info_description():
@@ -185,8 +154,8 @@ def test_variable_access_sequence():
     assert accesses.all_write_accesses == []
     assert accesses.signature == Signature("var_name")
 
-    accesses.add_access(AccessType.INQUIRY, Node(), component_indices=None)
-    accesses.add_access(AccessType.READ, Node(), component_indices=None)
+    accesses.add_access(AccessType.INQUIRY, Node())
+    accesses.add_access(AccessType.READ, Node())
     assert str(accesses) == "var_name:[INQUIRY,READ]"
     assert accesses.str_access_summary() == "INQUIRY+READ"
     assert accesses.is_read()
@@ -218,14 +187,14 @@ def test_variable_access_sequence():
 
     # Add a READ access - we should not be able to
     # change this read to write as there's already a WRITE access.
-    accesses.add_access(AccessType.READ, Node(), component_indices=None)
+    accesses.add_access(AccessType.READ, Node())
     with pytest.raises(InternalError) as err:
         accesses.change_read_to_write()
     assert ("Variable 'var_name' has a 'WRITE' access. change_read_to_write() "
             "expects only inquiry accesses and a single 'READ' access."
             in str(err.value))
     # And make sure the variable is not read_only if a write is added
-    accesses.add_access(AccessType.WRITE, Node(), component_indices=None)
+    accesses.add_access(AccessType.WRITE, Node())
     assert accesses.is_read_only() is False
     assert accesses.all_read_accesses == [accesses[2]]
     assert accesses.all_write_accesses == [accesses[1], accesses[3]]
@@ -237,7 +206,7 @@ def test_variable_access_sequence():
 
     # Now do just a CALL, this will have no data accesses
     accesses = AccessSequence(Signature("var_name"))
-    accesses.add_access(AccessType.CALL, Node(), component_indices=None)
+    accesses.add_access(AccessType.CALL, Node())
     assert accesses.is_called()
     assert not accesses.is_read()
     assert not accesses.is_written()
@@ -250,10 +219,10 @@ def test_variable_access_sequence_has_indices(fortran_reader):
     '''
     vam = AccessSequence(Signature("var_name"))
     # Add non array-like access:
-    vam.add_access(AccessType.READ, Node(), component_indices=None)
+    vam.add_access(AccessType.READ, Node())
     assert not vam.has_indices()
     # Add array access:
-    vam.add_access(AccessType.READ, Node(), [[Node()]])
+    vam.add_access(AccessType.READ, ArrayReference(Symbol("a")))
     assert vam.has_indices()
 
     # Get some real nodes:
@@ -266,11 +235,9 @@ def test_variable_access_sequence_has_indices(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     scalar_assignment = psyir.walk(Assignment)[0]
     rhs = scalar_assignment.rhs
-    # Get the reference to i
-    ref_i = rhs.children[0]
 
     vam = AccessSequence(Signature("b"))
-    vam.add_access(AccessType.READ, rhs, ComponentIndices([ref_i]))
+    vam.add_access(AccessType.READ, rhs)
 
     # Check that the access to "b[i]" is considered an index
     # when testing for access using "i"
@@ -295,21 +262,21 @@ def test_variable_access_sequence_read_write():
     # Add a READ and WRITE access and make sure it is not reported as
     # READWRITE access
     node = Node()
-    accesses.add_access(AccessType.READ, node, component_indices=None)
+    accesses.add_access(AccessType.READ, node)
     assert accesses[0].node == node
     # Test a single read access:
     assert accesses.is_written_first() is False
-    accesses.add_access(AccessType.WRITE, Node(), component_indices=None)
+    accesses.add_access(AccessType.WRITE, Node())
     assert accesses.has_read_write() is False
     # This tests a read-then-write access:
     assert accesses.is_written_first() is False
 
-    accesses.add_access(AccessType.READWRITE, Node(), component_indices=None)
+    accesses.add_access(AccessType.READWRITE, Node())
     assert accesses.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
     accesses = AccessSequence(Signature("var_name"))
-    accesses.add_access(AccessType.READWRITE, Node(), component_indices=None)
+    accesses.add_access(AccessType.READWRITE, Node())
     assert accesses.has_read_write()
     assert accesses.is_read()
     assert accesses.is_written()

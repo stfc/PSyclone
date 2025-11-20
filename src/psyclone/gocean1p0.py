@@ -69,12 +69,11 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Literal, Schedule, KernelSchedule, StructureReference, IntrinsicCall,
     Reference, Call, Assignment, ACCEnterDataDirective, ACCParallelDirective,
-    ACCKernelsDirective, Container, ACCUpdateDirective, Routine,
-    BinaryOperation)
+    ACCKernelsDirective, Container, ACCUpdateDirective, Routine)
 from psyclone.psyir.symbols import (
     ImportInterface, INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol,
     ScalarType, UnresolvedType, DataTypeSymbol, UnresolvedInterface,
-    BOOLEAN_TYPE, REAL_TYPE)
+    BOOLEAN_TYPE, REAL_TYPE, StructureType, ArrayType, Symbol)
 from psyclone.psyir.tools import DependencyTools
 
 
@@ -949,36 +948,6 @@ class GOKern(CodedKern):
         # invoked by an application are using compatible index offsets.
         self._index_offset = call.ktype.index_offset
 
-    @staticmethod
-    def _create_psyir_for_access(symbol, var_value, depth):
-        '''This function creates the PSyIR of an index-expression:
-        - if `var_value` is negative, it returns 'symbol-depth'.
-        - if `var_value` is positive, it returns 'symbol+depth`
-        - otherwise it just returns a Reference to `symbol`.
-        This is used to create artificial stencil accesses for GOKernels.
-
-        :param symbol: the symbol to use.
-        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param int var_value: value of the variable, which determines the \
-            direction (adding or subtracting depth).
-        :param int depth: the depth of the access (>0).
-
-        :returns: the index expression for an access in the given direction.
-        :rtype: union[:py:class:`psyclone.psyir.nodes.Reference`,
-                      :py:class:`psyclone.psyir.nodes.BinaryOperation`]
-
-        '''
-        if var_value == 0:
-            return Reference(symbol)
-        if var_value > 0:
-            operator = BinaryOperation.Operator.ADD
-        else:
-            operator = BinaryOperation.Operator.SUB
-
-        return BinaryOperation.create(operator,
-                                      Reference(symbol),
-                                      Literal(str(depth), INTEGER_TYPE))
-
     def _record_stencil_accesses(self, signature, arg, var_accesses):
         '''This function adds accesses to a field depending on the
         meta-data declaration for this argument (i.e. accounting for
@@ -988,41 +957,27 @@ class GOKern(CodedKern):
         :type signature: :py:class:`psyclone.core.Signature`
         :param arg:  the meta-data information for this argument.
         :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
-        :param var_accesses: VariablesAccessMap instance that stores the\
+        :param var_accesses: VariablesAccessMap instance that stores the
             information about the field accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        # TODO #2530: if we parse the actual kernel code, it might not
-        # be required anymore to add these artificial accesses, instead
-        # the actual kernel accesses could be added.
-        sym_tab = self.ancestor(GOInvokeSchedule).symbol_table
-        symbol_i = sym_tab.lookup_with_tag("contiguous_kidx")
-        symbol_j = sym_tab.lookup_with_tag("noncontiguous_kidx")
+        # TODO #3219: Replace this with nodes representing the computation
+        # pattern.
+
         # Query each possible stencil direction and add corresponding
         # variable accesses. Note that if (i,j) itself is accessed, the
-        # depth will be 1, so one access to (i,j) is then added.
+        # depth will be 1, so one access using the arg.access is added
         for j in [-1, 0, 1]:
             for i in [-1, 0, 1]:
-                depth = arg.stencil.depth(i, j)
-                for current_depth in range(1, depth+1):
-                    # Create PSyIR expressions for the required
-                    # i+/- and j+/- expressions
-                    i_expr = GOKern._create_psyir_for_access(symbol_i, i,
-                                                             current_depth)
-                    j_expr = GOKern._create_psyir_for_access(symbol_j, j,
-                                                             current_depth)
-                    # Even if a GOKern argument is declared to be written, it
-                    # can only ever write to (i,j), so any other references
-                    # must be read:
-                    if i == 0 and j == 0:
-                        acc = arg.access
-                    else:
-                        acc = AccessType.READ
-
-                    var_accesses.add_access(signature, acc, self,
-                                            [i_expr, j_expr])
+                if i == 0 and j == 0:
+                    # This is not necessarely a stencil, and the access
+                    # pattern is given by the argument metadata
+                    var_accesses.add_access(signature, arg.access, self)
+                elif arg.stencil.depth(i, j) > 0:
+                    # This is a stencil access, so mark the READ accesses
+                    # to account for reading other indices of the field
+                    var_accesses.add_access(signature, AccessType.READ, self)
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''
@@ -1057,15 +1012,7 @@ class GOKern(CodedKern):
                     self._record_stencil_accesses(signature, arg,
                                                   var_accesses)
                 else:
-                    # In case of an array for now add an arbitrary array
-                    # reference to (i,j) so it is properly recognised as
-                    # an array access.
-                    sym_tab = self.ancestor(GOInvokeSchedule).symbol_table
-                    symbol_i = sym_tab.lookup_with_tag("contiguous_kidx")
-                    symbol_j = sym_tab.lookup_with_tag("noncontiguous_kidx")
-                    var_accesses.add_access(signature, arg.access,
-                                            self, [Reference(symbol_i),
-                                                   Reference(symbol_j)])
+                    var_accesses.add_access(signature, arg.access, self)
         var_accesses.update(super().reference_accesses())
         return var_accesses
 
@@ -1351,11 +1298,31 @@ class GOKernelArgument(KernelArgument):
         symtab = scope.symbol_table
         # All GOcean fields are r2d_field
         if self.argument_type == "field":
-            # r2d_field can have UnresolvedType and UnresolvedInterface because
+            # Ideally we want to resolve the algorithm layer modules, but in
+            # the meantime, we can declare a representative type
+            public = Symbol.Visibility.PUBLIC
+            region_type = StructureType()
+            region_type.add("nx", datatype=INTEGER_TYPE, visibility=public)
+            region_type.add("ny", datatype=INTEGER_TYPE, visibility=public)
+            region_type.add("xstart", datatype=INTEGER_TYPE, visibility=public)
+            region_type.add("ystart", datatype=INTEGER_TYPE, visibility=public)
+            region_type.add("xstop", datatype=INTEGER_TYPE, visibility=public)
+            region_type.add("ystop", datatype=INTEGER_TYPE, visibility=public)
+            r2d_field_type = StructureType()
+            r2d_field_type.add(
+                "data",
+                datatype=ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
+                                               ArrayType.Extent.DEFERRED]),
+                visibility=public)
+            r2d_field_type.add(
+                "internal", datatype=region_type, visibility=public)
+            r2d_field_type.add(
+                "whole", datatype=region_type, visibility=public)
+            # r2d_field can have UnresolvedInterface because
             # it is an unnamed import from a module.
             type_symbol = symtab.find_or_create_tag(
                 "r2d_field", symbol_type=DataTypeSymbol,
-                datatype=UnresolvedType(), interface=UnresolvedInterface())
+                datatype=r2d_field_type, interface=UnresolvedInterface())
             return type_symbol
 
         # Gocean scalars can be REAL or INTEGER

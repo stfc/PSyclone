@@ -58,7 +58,7 @@ env:
   NETCDF_FORTRAN_VERSION: 4.6
   NVFORTRAN_VERSION: 25.7
   OPENMPI_VERSION: 5.0
-  PYTHON_VERSION: 3.13
+  PYTHON_VERSION: 3.14
   NUM_PARALLEL: 16
 
 jobs:
@@ -104,14 +104,22 @@ jobs:
     - name: Libraries compilation - gfortran
       run: |
         . .runner_venv/bin/activate
-        make -C lib/extract clean
-        module load gcc/${GFORTRAN_VERSION}
+        module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        make -C lib allclean
+        make -C lib all
+        # There is an additional test:
         make -C lib/extract test
     - name: Libraries compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
-        make -C lib/extract clean
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        make -C lib allclean
+        # We need to overwrite F90FLAGS, since otherwise some gfortran
+        # default flags will be used
+        F90=nvfortran F90FLAGS="-g" make -C lib all
+        # There is an additional test:
         F90=nvfortran make -C lib/extract test
     - name: Examples with compilation - gfortran
       run: |
@@ -153,3 +161,8 @@ jobs:
         cd examples/nemo/eg1
         psyclone -s ./openmp_cpu_levels_trans.py --log-level DEBUG --log-file log.out ../code/tra_adv.F90
         test -f log.out
+    - name: Test reasonable psycloning times for complex files
+      run: |
+        . .runner_venv/bin/activate
+        # Fail if it takes more than 15s
+        timeout -s INT 15s psyclone /archive/psyclone-tests/latest-run/slow_files/ukca_aero_ctl.F90
