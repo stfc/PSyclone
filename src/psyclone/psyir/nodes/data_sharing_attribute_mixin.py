@@ -39,12 +39,13 @@
 import abc
 from typing import Set, Tuple
 
-from psyclone.core import AccessType, AccessSequence
+from psyclone.core import AccessType, AccessSequence, Signature
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.nodes.omp_clauses import OMPReductionClause
+from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, Symbol
 
@@ -274,3 +275,25 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
 
         # If not, it can be just 'private'
         return False
+
+    def add_reduction_clauses(self):
+        '''
+        '''
+        _, _, need_sync = self.infer_sharing_attributes()
+
+        vam = self.children[0].reference_accesses()
+        from psyclone.psyir.tools.reduction_inference import (
+            ReductionInferenceTool)
+        from psyclone.psyir.transformations.omp_loop_trans import (
+            MAP_REDUCTION_OP_TO_OMP)
+        red_tool = ReductionInferenceTool(
+            [BinaryOperation.Operator.ADD])
+
+        for sym in need_sync:
+            sig = Signature(sym.name)
+            acc_seq = vam[sig]
+            clause = red_tool.attempt_reduction(sig, acc_seq)
+            if clause:
+                self.children.append(
+                    OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[clause[0]],
+                                       children=[clause[1].copy()]))

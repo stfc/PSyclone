@@ -52,7 +52,7 @@ import logging
 from typing import List
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType, Signature
+from psyclone.core import AccessType
 from psyclone.errors import (GenerationError,
                              UnresolvedDependencyError)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -63,6 +63,7 @@ from psyclone.psyir.nodes.atomic_mixin import (
         AtomicDirectiveType,
 )
 from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
         DataSharingAttributeMixin,
 )
@@ -1384,6 +1385,9 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         self.children[2].replace_with(private_clause)
         self.children[3].replace_with(fprivate_clause)
 
+        if reduction_kernels and not reprod_red_call_list:
+            self.add_reduction_clauses()
+
         # Now finish the reproducible reductions
         for call in reversed(reprod_red_call_list):
             call.reduction_sum_loop(self.parent, self.position,
@@ -1391,21 +1395,15 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
 
         return self
 
-    def begin_string(self):
+    def begin_string(self) -> str:
         '''Returns the beginning statement of this directive, i.e.
         "omp parallel". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the opening statement of this directive.
-        :rtype: str
 
         '''
-        result = "omp parallel"
-        # TODO #514: not yet working with NEMO, so commented out for now
-        # if not self._reprod:
-        #     result += self._reduction_string()
-
-        return result
+        return "omp parallel"
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
@@ -1670,10 +1668,6 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         self._omp_schedule = omp_schedule
         self._collapse = None
         self.collapse = collapse  # Use setter with error checking
-        # TODO #514 - reductions are only implemented in LFRic, for now we
-        # store the needed clause when lowering, but this needs a better
-        # solution
-        self._lowered_reduction_string = ""
         self.nowait = nowait
 
     @staticmethod
@@ -1789,20 +1783,6 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         if self._collapse and self._collapse > 1:
             parts.append(f"collapse={self._collapse}")
         return f"{self.coloured_name(colour)}[{','.join(parts)}]"
-
-    def _reduction_string(self):
-        '''
-        :returns: the OMP reduction information.
-        :rtype: str
-        '''
-        for reduction_type in AccessType.get_valid_reduction_modes():
-            reductions = self._get_reductions_list(reduction_type)
-            parts = []
-            for reduction in reductions:
-                parts.append(f"reduction("
-                             f"{OMP_OPERATOR_MAPPING[reduction_type]}:"
-                             f"{reduction})")
-        return ", ".join(parts)
 
     @property
     def omp_schedule(self):
@@ -1934,34 +1914,16 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
 
         # Create data sharing clauses (order alphabetically to make generation
         # reproducible)
-        _, _, need_sync = self.infer_sharing_attributes()
-
-        vam = self.children[0].reference_accesses()
-        from psyclone.psyir.tools.reduction_inference import (
-            ReductionInferenceTool)
-        from psyclone.psyir.transformations.omp_loop_trans import (
-            MAP_REDUCTION_OP_TO_OMP)
-        red_tool = ReductionInferenceTool(
-            [BinaryOperation.Operator.ADD])
-
-        for sym in need_sync:
-            sig = Signature(sym.name)
-            acc_seq = vam[sig]
-            clause = red_tool.attempt_reduction(sig, acc_seq)
-            if clause:
-                self.children.append(
-                    OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[clause[0]],
-                                       children=[clause[1].copy()]))
+        self.add_reduction_clauses()
 
         return super().lower_to_language_level()
 
-    def begin_string(self):
+    def begin_string(self) -> str:
         '''Returns the beginning statement of this directive, i.e.
         "omp do ...". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the beginning statement for this directive.
-        :rtype: str
 
         '''
         string = f"omp {self._directive_string}"
@@ -1969,8 +1931,6 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
             string += f" schedule({self.omp_schedule})"
         if self._collapse:
             string += f" collapse({self._collapse})"
-        if self._lowered_reduction_string:
-            string += f" {self._lowered_reduction_string}"
         return string
 
     def end_string(self):
@@ -2052,38 +2012,33 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             return True
         return False
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> DataNode:
         '''
         In-place construction of clauses as PSyIR constructs.
         The clauses here may need to be updated if code has changed, or be
         added if not yet present.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Calling the super() explicitly to avoid confusion
         # with the multiple-inheritance
-        self._lowered_reduction_string = self._reduction_string()
         OMPParallelDirective.lower_to_language_level(self)
         self.children[4].replace_with(OMPScheduleClause(self._omp_schedule))
 
         return self
 
-    def begin_string(self):
+    def begin_string(self) -> str:
         '''Returns the beginning statement of this directive, i.e.
         "omp parallel do ...". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the beginning statement for this directive.
-        :rtype: str
 
         '''
         string = f"omp {self._directive_string}"
         if self._collapse:
             string += f" collapse({self._collapse})"
-        if self._lowered_reduction_string:
-            string += f" {self._lowered_reduction_string}"
         return string
 
     def end_string(self):

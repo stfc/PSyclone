@@ -736,7 +736,7 @@ class InvokeSchedule(Routine):
             self.symbol_table.find_or_create_tag(
                 "omp_thread_index", root_name="th_idx",
                 symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-        super().lower_to_language_level()
+        return super().lower_to_language_level()
 
 
 class GlobalSum(Statement):
