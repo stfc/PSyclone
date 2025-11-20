@@ -619,7 +619,6 @@ class SymPyWriter(FortranWriter):
 
         result = []
         for expr in expression_str_list:
-            print(expr)
             try:
                 result.append(parse_expr(expr, self.type_map))
             except SyntaxError as err:
@@ -804,9 +803,6 @@ class SymPyWriter(FortranWriter):
             if not node.parent or isinstance(node.parent, Schedule):
                 return (f"{self._nindent}call "
                         f"{self._visit(node.routine)}({args})\n")
-
-            # Otherwise it is inside-expression function call
-            return f"{self._visit(node.routine)}({args})"
 
     # -------------------------------------------------------------------------
     def reference_node(self, node: Reference) -> str:

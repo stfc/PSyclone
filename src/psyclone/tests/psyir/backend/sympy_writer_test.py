@@ -48,10 +48,10 @@ from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
-        Assignment, Literal, Node, IntrinsicCall, Reference
+        Assignment, Literal, Node, IntrinsicCall, Reference, Call
 )
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
-                                    INTEGER_TYPE)
+                                    INTEGER_TYPE, SymbolTable)
 
 
 def test_sym_writer_constructor():
@@ -671,3 +671,28 @@ def test_sym_writer_identical_variables_errors():
         sympy_writer(Node(), identical_variables={"var": 1})
     assert ("Dictionary identical_variables contains a non-string key or "
             "value" in str(err.value))
+
+
+def test_sym_writer_intrinsiccall_node(fortran_reader):
+    '''Handle unlikely edge cases for intrinsiccall node.'''
+    code = """subroutine test
+        integer :: b
+        call randomcall(b, b, b, b, b)
+    end subroutine test"""
+    # Can't create MVBITS intrinsic directly yet - create
+    # a call then replace it.
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    args = []
+    for arg in call.arguments[:]:
+        args.append(arg.detach())
+    intrinsic = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MVBITS,
+        args
+    )
+    call.replace_with(intrinsic)
+    sympy_writer = SymPyWriter()
+    # Add an arbitrary symbol table to avoid things breaking.
+    sympy_writer._symbol_table = SymbolTable()
+    res = sympy_writer.intrinsiccall_node(psyir.walk(IntrinsicCall)[0])
+    assert "call MVBITS(b, b, b, b, b)\n" == res

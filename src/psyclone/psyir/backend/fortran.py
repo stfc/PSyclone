@@ -1799,9 +1799,6 @@ class FortranWriter(LanguageWriter):
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
 
-        # Otherwise it is inside-expression function call
-        return f"{self._visit(node.routine)}({args})"
-
     def call_node(self, node: Call) -> str:
         '''Translate the PSyIR call node to Fortran.
 
