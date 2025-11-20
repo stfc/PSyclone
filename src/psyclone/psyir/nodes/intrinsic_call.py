@@ -2691,7 +2691,7 @@ class IntrinsicCall(Call):
                 max_count=0,
                 types=Reference,
                 arg_names=()),
-            optional_args={"P": DataNode, "R": DataNode, "radix": DataNode},
+            optional_args={"p": DataNode, "r": DataNode, "radix": DataNode},
             return_type=None,
             reference_accesses=None,
         )
