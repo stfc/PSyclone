@@ -154,7 +154,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
         '''
         super().stub_declarations()
         # Extract all scalar arguments
-        print(self.kernel_calls[0].arguments.args)
+        # print(self.kernel_calls[0].arguments.args)
         for arg in self.kernel_calls[0].arguments.args:
             if arg.is_scalar_array:
                 self._scalar_array_args[arg.intent].append(arg)
@@ -241,7 +241,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                                 symbol_type=DataSymbol,
                                 datatype=ArrayType(
                                     LFRicTypes("LFRicRealScalarDataType")(),
-                                    [arg._array_ndims]))
+                                    sym_list))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
@@ -251,7 +251,6 @@ class LFRicScalarArrayArgs(LFRicCollection):
         for intent in FORTRAN_INTENT_NAMES:
             if self._integer_scalar_arrays[intent]:
                 for arg in self._integer_scalar_arrays[intent]:
-                    print(self.symtab)
                     if arg._array_ndims >= 1:
                         # Create the dimensions array symbol
                         dims_array_symbol = self.symtab.find_or_create(
@@ -263,13 +262,11 @@ class LFRicScalarArrayArgs(LFRicCollection):
                         dims_array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(dims_array_symbol)
-                        print(dims_array_symbol)
                         # Create list of dims_array references
                         sym_list = [ArrayReference.create(
                             dims_array_symbol,
                             [Literal(str(idx), INTEGER_TYPE)])
                                 for idx in range(1, arg._array_ndims + 1)]
-                        print(sym_list)
                         # Find ScalarArray tag and convert it to an ArrayType
                         if not self._kernel:
                             # For code generation
@@ -285,17 +282,15 @@ class LFRicScalarArrayArgs(LFRicCollection):
                                 symbol_type=DataSymbol,
                                 datatype=ArrayType(
                                     LFRicTypes("LFRicIntegerScalarDataType")(),
-                                    [arg._array_ndims]))
+                                    sym_list))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
-                        print(array_symbol)
 
         # Logical ScalarArray arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._logical_scalar_arrays[intent]:
                 for arg in self._logical_scalar_arrays[intent]:
-                    print(self.symtab)
                     if arg._array_ndims >= 1:
                         # Create the dimensions array symbol
                         dims_array_symbol = self.symtab.find_or_create(
@@ -329,11 +324,10 @@ class LFRicScalarArrayArgs(LFRicCollection):
                                 symbol_type=DataSymbol,
                                 datatype=ArrayType(
                                     LFRicTypes("LFRicLogicalScalarDataType")(),
-                                    [arg._array_ndims]))
+                                    sym_list))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
                         self.symtab.append_argument(array_symbol)
-                        print(array_symbol)
 
 
 # ---------- Documentation utils -------------------------------------------- #
