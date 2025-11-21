@@ -287,6 +287,18 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     real(kind=r_def), pointer, dimension(:) :: m2_data => null()
     """ in code
 
+    # Check loop bounds are set correctly for the dof kernel that updates
+    # a field vector.
+    if dist_mem:
+        if annexed:
+            assert ("loop0_stop = field_vec_proxy(1)%vspace%"
+                    "get_last_dof_annexed" in code)
+        else:
+            assert ("loop0_stop = field_vec_proxy(1)%vspace%"
+                    "get_last_dof_owned" in code)
+    else:
+        assert "loop0_stop = undf_w1" in code
+
     # Check that dof kernel is called correctly
     output = (
         "    do df = loop1_start, loop1_stop, 1\n"
