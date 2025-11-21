@@ -155,7 +155,10 @@ module testkern_scalar_array_mod
   public
 
   contains
-  subroutine testkern_scalar_array_code(nlayers, field_1_w1, dims_rscalar_array_2, rscalar_array_2, dims_lscalar_array_3, lscalar_array_3, dims_iscalar_array_4, iscalar_array_4, iscalar_5, ndf_w1, undf_w1, map_w1)
+  subroutine testkern_scalar_array_code(nlayers, field_1_w1, \
+    dims_rscalar_array_2, rscalar_array_2, dims_lscalar_array_3, \
+        lscalar_array_3, dims_iscalar_array_4, iscalar_array_4, \
+            iscalar_5, ndf_w1, undf_w1, map_w1)
     use constants_mod
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_w1
@@ -163,9 +166,11 @@ module testkern_scalar_array_mod
     integer(kind=i_def), intent(in) :: undf_w1
     integer(kind=i_def), intent(in) :: iscalar_5
     integer(kind=i_def), dimension(2), intent(in) :: dims_rscalar_array_2
-    real(kind=r_def), dimension(dims_rscalar_array_2(1),dims_rscalar_array_2(2)), intent(in) :: rscalar_array_2
+    real(kind=r_def), dimension(dims_rscalar_array_2(1),dims_rscalar_array_2(2))\
+        , intent(in) :: rscalar_array_2
     integer(kind=i_def), dimension(4), intent(in) :: dims_iscalar_array_4
-    integer(kind=i_def), dimension(dims_iscalar_array_4(1),dims_iscalar_array_4(2),dims_iscalar_array_4(3),dims_iscalar_array_4(4)), intent(in) :: iscalar_array_4
+    integer(kind=i_def), dimension(dims_iscalar_array_4(1),dims_iscalar_array_4(2),\
+        dims_iscalar_array_4(3),dims_iscalar_array_4(4)), intent(in) :: iscalar_array_4
     integer(kind=i_def), dimension(1), intent(in) :: dims_lscalar_array_3
     logical(kind=l_def), dimension(dims_lscalar_array_3(1)), intent(in) :: lscalar_array_3
     real(kind=r_def), dimension(undf_w1), intent(inout) :: field_1_w1
