@@ -40,7 +40,7 @@
 ''' This module contains the implementation of the abstract ArrayMixin. '''
 
 import abc
-from typing import Tuple
+from typing import Tuple, Optional
 
 from psyclone.core import SymbolicMaths
 from psyclone.errors import InternalError
@@ -496,32 +496,39 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 return False
         return True
 
-    def is_full_range(self, index):
-        '''Returns True if the specified array index is a Range Node that
-        specifies all elements in this index. In the PSyIR this is
-        specified by using LBOUND(name,index) for the lower bound of
-        the range, UBOUND(name,index) for the upper bound of the range
-        and "1" for the range step.
+    def is_full_range(self, index: Optional[int] = None) -> bool:
+        ''' Returns whether the array access iterates over the whole
+        associated array. Can optionally be provided a single index
+        to check if it iterates over a whole dimension of the array.
 
-        :param int index: the array index to check.
+        :param index: only check the given array index.
 
-        :returns: True if the access to this array index is a range \
-            that specifies all index elements. Otherwise returns \
+        :returns: True if the access to this array (or specified array
+            dimension) iterates over all elements. Otherwise returns
             False.
-        :rtype: bool
 
         '''
-        self._validate_index(index)
+        if index is not None:
+            self._validate_index(index)
+            indices_to_check = [index]
+        else:
+            indices_to_check = range(len(self.indices))
 
-        array_dimension = self.indices[index]
-        if isinstance(array_dimension, Range):
-            if self.is_lower_bound(index) and self.is_upper_bound(index):
-                step = array_dimension.children[2]
-                if (isinstance(step, Literal) and
+        for idx in indices_to_check:
+            array_dimension = self.indices[idx]
+            # Check that it is a range going from the lower to the upper
+            # bound with step 1
+            if isinstance(array_dimension, Range):
+                if self.is_lower_bound(idx) and self.is_upper_bound(idx):
+                    step = array_dimension.children[2]
+                    if (
+                        isinstance(step, Literal) and
                         step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-                        and str(step.value) == "1"):
-                    return True
-        return False
+                        and str(step.value) == "1"
+                    ):
+                        continue
+            return False
+        return True
 
     @property
     def indices(self) -> Tuple[Node]:
@@ -548,6 +555,16 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                     f"DataNode or Range representing an array-index "
                     f"expression but found '{type(child).__name__}'")
         return tuple(self.children)
+
+    def component_indices(self) -> tuple[tuple[Node]]:
+        '''
+        :returns: a tuple of tuples of index expressions; one for every
+            component in the accessor. For example, for a scalar it
+            returns `(())`, for `a%b` it returns ((),()) - two components
+            with 0 indices in each, and for `a(i)%b(j,k+1)` it
+            returns `((i,),(j,k+1))`.
+        '''
+        return (self.indices,)
 
     def _extent(self, idx):
         '''

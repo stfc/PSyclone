@@ -41,10 +41,9 @@
 
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from psyclone.core.access_type import AccessType
-from psyclone.core.component_indices import ComponentIndices
 from psyclone.errors import InternalError
 if TYPE_CHECKING:  # pragma: no cover
     from psyclone.psyir.nodes import Node
@@ -57,20 +56,13 @@ class AccessInfo():
 
     :param access: the access type.
     :param node: Node in PSyIR in which the access happens.
-    :param component_indices: indices used in the access, defaults to None.
 
     '''
     def __init__(
         self, access_type: AccessType, node: 'Node',
-        component_indices: Optional[list[list['Node']] |
-                                    ComponentIndices] = None
     ):
         self._access_type = access_type
         self._node = node
-        if not isinstance(component_indices, ComponentIndices):
-            self.component_indices = ComponentIndices(component_indices)
-        else:
-            self.component_indices = component_indices
 
     def __str__(self):
         return f"{self._access_type}"
@@ -90,46 +82,33 @@ class AccessInfo():
                                 "which does not have 'READ' access.")
         self._access_type = AccessType.WRITE
 
-    @property
-    def component_indices(self):
+    def component_indices(self) -> tuple[tuple[Node]]:
         '''
-        This function returns the list of accesses used for each component
-        as an instance of ComponentIndices. For example, `a(i)%b(j,k)%c`
-        will return an instance of ComponentIndices representing
-        `[ [i], [j, k], [] ]`. In the case of a simple scalar variable
-        such as `a`, the `component_indices` will represent `[ [] ]`.
-
-        :returns: the indices used in this access for each component.
-        :rtype: :py:class:`psyclone.core.component_indices.ComponentIndices`
+        :returns: a tuple of tuples of index expressions; one for every
+            component in the accessor. For example, for a scalar it
+            returns `(())`, for `a%b` it returns ((),()) - two components
+            with 0 indices in each, and for `a(i)%b(j,k+1)` it
+            returns `((i,),(j,k+1))`.
         '''
-        return self._component_indices
-
-    @component_indices.setter
-    def component_indices(self, component_indices: ComponentIndices):
-        '''Sets the indices for this AccessInfo instance. The component_indices
-        contains a list of indices for each component of the signature,
-        e.g. for `a(i)%b(j,k)%c` the component_indices will be
-        `[ [i], [j, k], [] ]` (with each element being the PSyIR of the
-        index expression).
-
-        :param component_indices: indices used in the access.
-
-        :raises InternalError: if component_indices is not an instance \
-            of :py:class:`psyclone.core.component_indices.ComponentIndices`.
-
-        '''
-
-        if not isinstance(component_indices, ComponentIndices):
-            raise InternalError(f"The component_indices object in the setter "
-                                f"of AccessInfo must be an instance of "
-                                f"ComponentIndices, got '{component_indices}'")
-        self._component_indices = component_indices
+        # Only Reference has component_indices, for everything else we assume
+        # it is a scalar
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Reference
+        if not isinstance(self._node, Reference):
+            return tuple(tuple())
+        return self._node.component_indices()
 
     def has_indices(self) -> bool:
         '''
-        :returns: whether any of the access components uses an index.
+        Check if the expression is a reference that has indices in any
+        of its compoments.
         '''
-        return self._component_indices.has_indices()
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.array_mixin import ArrayMixin
+        from psyclone.psyir.nodes import Reference
+        if not isinstance(self._node, Reference):
+            return False
+        return self._node.has_descendant(ArrayMixin)
 
     @property
     def access_type(self) -> AccessType:
@@ -311,17 +290,13 @@ class AccessSequence(list):
 
     def add_access(
         self, access_type: AccessType, node: 'Node',
-        component_indices: Optional[list[list['Node']] |
-                                    ComponentIndices] = None
     ):
         '''Adds access information to this variable.
 
         :param access_type: the type of access (READ, WRITE, ....)
         :param node: Node in PSyIR in which the access happens.
-        :param component_indices: indices used for each component of the \
-            access.
         '''
-        self.append(AccessInfo(access_type, node, component_indices))
+        self.append(AccessInfo(access_type, node))
 
     def change_read_to_write(self):
         '''This function is only used when analysing an assignment statement.
