@@ -42,7 +42,8 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Loop
-from psyclone.psyir.tools import DependencyTools, DTCode
+from psyclone.psyir.tools import (
+    DependencyTools, DTCode, ArrayIndexAnalysisOptions)
 from psyclone.tests.utilities import get_invoke
 
 
@@ -1182,3 +1183,26 @@ def test_nemo_example_ranges(fortran_reader):
     # is tested in test_ranges_overlap above, here we check that this
     # overlap is indeed ignored because of the jj index).
     assert dep_tools.can_loop_be_parallelised(loops)
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.parametrize("use_bv", [True, None])
+def test_array_analysis_failure(use_bv, fortran_reader, fortran_writer):
+    '''Test that a conflicting loop is not parallelised when using the
+    SMT-based array index analysis.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+      subroutine non_injective_index(arr)
+        integer, intent(inout) :: arr(:)
+        integer :: i
+        do i = 1, size(arr)
+          arr(i/2) = 0
+        end do
+      end subroutine''')
+    if use_bv:
+        opts = ArrayIndexAnalysisOptions(use_bv=True)
+        dep_tools = DependencyTools(use_smt_array_index_analysis=opts)
+    else:
+        dep_tools = DependencyTools(use_smt_array_index_analysis=True)
+    loop = psyir.walk(Loop)[0]
+    assert not dep_tools.can_loop_be_parallelised(loop)
