@@ -2165,7 +2165,7 @@ class Argument():
                 previous_arguments = symtab.argument_list
 
                 # Find the tag to use
-                tag = "AlgArgs_" + self._text
+                tag = f"AlgArgs_{self._name}"
 
                 # Prepare the Argument Interface Access value
                 argument_access = ArgumentInterface.Access.READWRITE
