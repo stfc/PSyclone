@@ -152,7 +152,6 @@ class KernStubArgList(ArgOrdering):
             self.append(scalar_arg.name, var_accesses)
         else:
             # ScalarArray
-            super().scalar(scalar_arg, var_accesses)
             self.append("dims_" + scalar_arg.name, var_accesses)
             self.append(scalar_arg.name, var_accesses)
 

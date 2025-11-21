@@ -155,7 +155,7 @@ module testkern_scalar_array_mod
   public
 
   contains
-  subroutine testkern_scalar_array_code(nlayers, field_1_w1, dims_rscalar_array_2, rscalar_array_2, lscalar_array_3, dims_lscalar_array_3, iscalar_array_4, dims_iscalar_array_4, iscalar_5, ndf_w1, undf_w1, map_w1)
+  subroutine testkern_scalar_array_code(nlayers, field_1_w1, dims_rscalar_array_2, rscalar_array_2, dims_lscalar_array_3, lscalar_array_3, dims_iscalar_array_4, iscalar_array_4, iscalar_5, ndf_w1, undf_w1, map_w1)
     use constants_mod
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_w1
