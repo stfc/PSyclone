@@ -41,7 +41,7 @@
 
 __MAJOR__ = 3
 __MINOR__ = 2
-__MICRO__ = 1
+__MICRO__ = 2
 
-__SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}"
-__VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}"
+__SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}-rc2"
+__VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}-rc2"
