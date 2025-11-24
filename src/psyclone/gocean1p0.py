@@ -49,6 +49,8 @@
 
 import re
 
+from typing import Optional
+
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
 from fparser.two.parser import ParserFactory
 
@@ -58,7 +60,7 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
-from psyclone.parse.algorithm import Arg
+from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (
@@ -70,7 +72,7 @@ from psyclone.psyir.nodes import (
     Literal, Schedule, KernelSchedule, StructureReference, IntrinsicCall,
     Reference, Call, Assignment, ACCEnterDataDirective, ACCParallelDirective,
     ACCKernelsDirective, Container, ACCUpdateDirective, Routine,
-    BinaryOperation)
+    BinaryOperation, Node)
 from psyclone.psyir.symbols import (
     ImportInterface, INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol,
     ScalarType, UnresolvedType, DataTypeSymbol, UnresolvedInterface,
@@ -207,13 +209,11 @@ class GOLoop(PSyLoop):
         in the LFRic API.
 
         :param parent: optional parent node (default None).
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param variable: the loop iteration variable.
-        :type variable: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param str loop_type: loop type - must be 'inner' or 'outer'.
-        :param str field_name: name of the field this loop iterates on.
-        :param str field_space: space of the field this loop iterates on.
-        :param str iteration_space: iteration space of the loop.
+        :param loop_type: loop type - must be 'inner' or 'outer'.
+        :param field_name: name of the field this loop iterates on.
+        :param field_space: space of the field this loop iterates on.
+        :param iteration_space: iteration space of the loop.
 
         :raises GenerationError: if the loop is not inserted inside a \
             GOInvokeSchedule region.
@@ -221,8 +221,16 @@ class GOLoop(PSyLoop):
     '''
     _bounds_lookup = {}
 
-    def __init__(self, parent, variable, loop_type="", field_name="",
-                 field_space="", iteration_space="", index_offset=""):
+    def __init__(
+        self,
+        parent: Optional[Node],
+        variable: Symbol,
+        loop_type: str = "",
+        field_name: str = "",
+        field_space: str = "",
+        iteration_space: str = "",
+        index_offset: str = ""
+    ):
         # pylint: disable=too-many-arguments
         const = GOceanConstants()
 
@@ -246,22 +254,27 @@ class GOLoop(PSyLoop):
             GOLoop.setup_bounds()
 
     @staticmethod
-    def create(parent, variable, loop_type, field_name="", field_space="",
-               iteration_space="", index_offset=""):
+    def create(
+        parent: Optional[Node],
+        variable: Symbol,
+        loop_type: str,
+        field_name: str = "",
+        field_space: str = "",
+        iteration_space: str = "",
+        index_offset: str = ""
+    ):
         # pylint: disable=too-many-arguments,arguments-renamed
         '''
         Create a new instance of a GOLoop with the expected children to
         represent the bounds given by the loop properties.
 
         :param parent: parent node of this GOLoop.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param variable: the loop iteration variable.
-        :type variable: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param str loop_type: loop type - must be 'inner' or 'outer'.
-        :param str field_name: name of the field this loop iterates on.
-        :param str field_space: space of the field this loop iterates on.
-        :param str iteration_space: iteration space of the loop.
-        :param str index_offset: the grid index offset used by the kernel(s) \
+        :param loop_type: loop type - must be 'inner' or 'outer'.
+        :param field_name: name of the field this loop iterates on.
+        :param field_space: space of the field this loop iterates on.
+        :param iteration_space: iteration space of the loop.
+        :param index_offset: the grid index offset used by the kernel(s)
             within this loop.
 
         :returns: a new GOLoop node (with appropriate child nodes).
@@ -934,12 +947,18 @@ class GOKern(CodedKern):
 
     :param call: information on the way in which this kernel is called
         from the Algorithm layer.
-    :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param inner_symbol: symbol to access the inner data dimension.
+    :param outer_symbol: symbol to access the outer data dimension.
     :param parent: optional node where the kernel call will be inserted.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    def __init__(self, call, inner_symbol, outer_symbol, parent=None):
+    def __init__(
+        self,
+        call: KernelCall,
+        inner_symbol: Symbol,
+        outer_symbol: Symbol,
+        parent: Optional[Node] = None
+    ):
         super().__init__(GOKernelArguments, call, parent, check=False)
         # Store the name of this kernel type (i.e. the name of the
         # Fortran derived type containing its metadata).
@@ -948,32 +967,62 @@ class GOKern(CodedKern):
         # store it here. This is used to check that all of the kernels
         # invoked by an application are using compatible index offsets.
         self._index_offset = call.ktype.index_offset
-        self.addchild(
-                self.prototype_from_metadata(inner_symbol, outer_symbol)
+        # Add a representation of the kernel computation as children of
+        # this node.
+        self.children.extend(
+            self.prototype_from_metadata(inner_symbol, outer_symbol)
         )
 
     @staticmethod
-    def _validate_child(position, child):
+    def _validate_child(position: int, child: Node) -> bool:
         '''
-        :param int position: the position to be validated.
+        :param position: the position to be validated.
         :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: whether the given child and position are valid for this node.
-        :rtype: bool
 
         '''
-        return position == 0 and isinstance(child, Assignment)
+        return isinstance(child, Assignment)
 
-    def prototype_from_metadata(self, inner_symbol, outer_symbol):
+    def prototype_from_metadata(
+        self,
+        inner_symbol: Symbol,
+        outer_symbol: Symbol,
+    ) -> list[Assignment]:
         ''' Inspect the kernel metadata and produce a prototype of the
         computation pattern that this kernel uses (e.g. using the defined
-        stencil accessors) '''
+        stencil accessors)
+
+        :param inner_symbol:
+        :param outer_sybmol:
+
+        :returns: a list of Assignments representing the kernel computation.
+
+        '''
+        def offset_expression(
+            direction: int, symbol: Symbol, offset: int
+        ) -> Node:
+            '''
+            :param direction: the direction of the stencil.
+            :param symbol: the given symbol.
+            :param offset: the given offset.
+
+            :returns: an expression representing the offset applied to the
+                given symbol.
+            '''
+            if direction > 0:
+                op = BinaryOperation.Operator.ADD
+            elif direction < 0:
+                op = BinaryOperation.Operator.SUB
+            else:
+                return Reference(symbol)
+            return BinaryOperation.create(
+                op, Reference(symbol), Literal(str(offset), INTEGER_TYPE))
+
         config = Config.get().api_conf("gocean")
         field_for_grid_property = None
         symtab = self.scope.symbol_table
-        # deref_name = api_config.grid_properties[self._property_name].fortran
-        write_access = None
+        write_accesses = []
         read_accesses = []
         for arg in self.arguments.args:
             # Literals can be ignores as they don't change the acces pattern
@@ -1006,53 +1055,21 @@ class GOKern(CodedKern):
                         # until reaching the depth value
                         depth = arg.stencil.depth(i, j)
                         for offset in range(1, depth+1):
-                            if i == 0 and j == 0:
-                                # In this case it just refers to pointwise
-                                offset = 0
 
-                            inner_index = Reference(inner_symbol)
-                            outer_index = Reference(outer_symbol)
-                            if j > 0:
-                                inner_index = BinaryOperation.create(
-                                    BinaryOperation.Operator.ADD,
-                                    inner_index,
-                                    Literal(str(abs(offset)), INTEGER_TYPE))
-                            elif j < 0:
-                                inner_index = BinaryOperation.create(
-                                    BinaryOperation.Operator.SUB,
-                                    inner_index,
-                                    Literal(str(abs(offset)), INTEGER_TYPE))
-
-                            if i > 0:
-                                outer_index = BinaryOperation.create(
-                                    BinaryOperation.Operator.ADD,
-                                    outer_index,
-                                    Literal(str(abs(offset)), INTEGER_TYPE))
-                            elif i < 0:
-                                outer_index = BinaryOperation.create(
-                                    BinaryOperation.Operator.SUB,
-                                    outer_index,
-                                    Literal(str(abs(offset)), INTEGER_TYPE))
-
+                            # Generate data accessor accounting for offsets
                             access = StructureReference.create(symbol, [
-                                ("data", [inner_index, outer_index])
+                                ("data", [
+                                    offset_expression(j, inner_symbol, offset),
+                                    offset_expression(i, outer_symbol, offset)
+                                ])
                             ])
                             if arg.access in (AccessType.WRITE,
                                               AccessType.READWRITE):
-                                # if write_access is not None:
-                                #     raise InternalError(
-                                #         "This is not a valid kernel, a "
-                                #         "kernel can only write to one field"
-                                #     )
-                                write_access = access.copy()
+                                write_accesses.append(access.copy())
                             if arg.access != AccessType.WRITE:
                                 read_accesses.append(access)
 
         # Now create the assignment prototype
-        # if not write_access:
-        #     raise InternalError(
-        #         "This is not a valid kernel, a kernel must write "
-        #         "to one field.")
         if not read_accesses:
             # There can be write-only kernels, in this case we just put
             # a constant literal
@@ -1063,7 +1080,15 @@ class GOKern(CodedKern):
                 rhs = BinaryOperation.create(
                         BinaryOperation.Operator.ADD,
                         rhs, read_accesses.pop(0))
-        return Assignment.create(write_access, rhs)
+        if not write_accesses:
+            raise InternalError(
+                "This is not a valid kernel, a kernel must write to at least "
+                "one field.")
+        prototype = []
+        for write_access in write_accesses:
+            prototype.append(Assignment.create(write_access, rhs.copy()))
+
+        return prototype
 
     @property
     def index_offset(self):

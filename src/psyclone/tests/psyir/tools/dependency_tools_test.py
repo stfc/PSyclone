@@ -752,7 +752,7 @@ def test_gocean_parallel():
     if parallel is True:
         pytest.xfail(
             reason=("TODO #2531: GOcean metadata validation should not allow"
-                    " kernels with multiple write locations")
+                    " kernels writing outside pointwise location.")
         )
     assert not parallel
 

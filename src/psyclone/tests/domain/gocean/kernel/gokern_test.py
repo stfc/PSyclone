@@ -50,7 +50,7 @@ from fparser.two.utils import walk
 
 from psyclone.configuration import Config
 from psyclone.core import Signature
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.gocean1p0 import (
     GOKern, GOKernelSchedule, GOKernCallFactory)
 from psyclone.parse.algorithm import parse
@@ -122,23 +122,27 @@ def test_gok_construction():
     ref_i = schedule.symbol_table.lookup("i")
     ref_j = schedule.symbol_table.lookup("j")
     kern.arguments._args = [kern.arguments._args[0]]
-    assert kern.prototype_from_metadata(ref_i, ref_j).debug_string() == (
+    assert kern.prototype_from_metadata(ref_i, ref_j)[0].debug_string() == (
         "cu_fld%data(i,j) = 1\n"
     )
 
-    # Now add two write fields, this is not a valid
-    # kern.arguments._args = [kern.arguments._args[0], kern.arguments._args[0]]
-    # with pytest.raises(InternalError) as err:
-    #     kern.prototype_from_metadata(ref_i, ref_j)
-    # assert ("This is not a valid kernel, a kernel can only write to one "
-    #         "field" in str(err.value))
+    # Now add two write fields, this will return 2 assingments
+    kern.arguments._args = [kern.arguments._args[0], kern.arguments._args[0]]
+    prototype = kern.prototype_from_metadata(ref_i, ref_j)
+    assert len(prototype) == 2
+    assert kern.prototype_from_metadata(ref_i, ref_j)[0].debug_string() == (
+        "cu_fld%data(i,j) = 1\n"
+    )
+    assert kern.prototype_from_metadata(ref_i, ref_j)[1].debug_string() == (
+        "cu_fld%data(i,j) = 1\n"
+    )
 
     # # Now add two write fields, this is not a valid
-    # kern.arguments._args = []
-    # with pytest.raises(InternalError) as err:
-    #     kern.prototype_from_metadata(ref_i, ref_j)
-    # assert ("This is not a valid kernel, a kernel must write to one field"
-    #         in str(err.value))
+    kern.arguments._args = []
+    with pytest.raises(InternalError) as err:
+        kern.prototype_from_metadata(ref_i, ref_j)
+    assert ("This is not a valid kernel, a kernel must write to at least one "
+            "field" in str(err.value))
 
 
 def test_gok_construction_with_large_stencils():
