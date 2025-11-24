@@ -111,7 +111,7 @@ def test_gok_construction():
     assert kern._index_offset == "go_offset_sw"
 
     # This first child represents the computation pattern of the kernel
-    # This kernel has a pointwise write (cu_fld), a '000,011,000' stencil
+    # This kernel has a pointwise write (cu_fld), a '000,110,000' stencil
     # (p_fld) and a pointwise read (u_fld)
     assert kern.children[0].debug_string() == (
         "cu_fld%data(i,j) = p_fld%data(i,j) + p_fld%data(i,j + 1) + "
@@ -157,7 +157,7 @@ def test_gok_construction_with_large_stencils():
 
     # Check the computation prototype:
     # firstargument cu_fld is pointwise (and write only)
-    # secondargument p_fld is a (100, 110, 123) stencil
+    # secondargument p_fld is a (123,110,100) stencil
     # third argument u_fld is pointwise
     assert kern1.children[0].debug_string() == (
         "cu_fld%data(i,j) = p_fld%data(i - 1,j - 1) + p_fld%data(i,j - 1) + "
