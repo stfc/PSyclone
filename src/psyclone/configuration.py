@@ -235,8 +235,8 @@ class Config:
         # The Fortran standard that fparser should use
         self._fortran_standard = None
 
-        # By default, the PSyIR backends output argument names on (most)
-        # IntrinsicCalls. This option enables control of that behaviour.
+        # By default, the PSyIR backends don't output argument names on (most)
+        # IntrinsicCalls. This option controls that behaviour.
         self._backend_intrinsic_named_kwargs = False
 
     # -------------------------------------------------------------------------

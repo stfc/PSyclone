@@ -791,8 +791,9 @@ class SymPyWriter(FortranWriter):
         except KeyError:
             # This section is copied from FortranWriter IntrinsicCall,
             # but doesn't attempt to match argument names and so avoids
-            # readding optional argument names back in.
+            # re-adding optional argument names back in.
             args = self._gen_arguments(node)
+            # These routines require `call` syntax in Fortran.
             if node.routine.name not in [
                     "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS",
                     "RANDOM_NUMBER", "RANDOM_SEED"]:
@@ -800,9 +801,9 @@ class SymPyWriter(FortranWriter):
                 if not node.parent or isinstance(node.parent, Schedule):
                     return f"{self._nindent}{node.routine.name}({args})\n"
                 return f"{node.routine.name}({args})"
-            if not node.parent or isinstance(node.parent, Schedule):
-                return (f"{self._nindent}call "
-                        f"{self._visit(node.routine)}({args})\n")
+            # Otherwise we have an intrinsic that has call syntax.
+            return (f"{self._nindent}call "
+                    f"{self._visit(node.routine)}({args})\n")
 
     # -------------------------------------------------------------------------
     def reference_node(self, node: Reference) -> str:

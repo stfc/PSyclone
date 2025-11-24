@@ -674,7 +674,8 @@ def test_sym_writer_identical_variables_errors():
 
 
 def test_sym_writer_intrinsiccall_node(fortran_reader):
-    '''Handle unlikely edge cases for intrinsiccall node.'''
+    '''Handle edge cases for intrinsiccall node, i.e. when we have an
+    IntrinsicCall input that requires a call declaration (e.g. MVBITS).'''
     code = """subroutine test
         integer :: b
         call randomcall(b, b, b, b, b)

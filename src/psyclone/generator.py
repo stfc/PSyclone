@@ -651,9 +651,15 @@ def main(arguments):
 
     # Record any intrinsic output format settings.
     if "backend_add_all_intrinsic_arg_names" in args:
-        # The backend won't attempt to add names to required
+        # Tells the backend to attempt to add names to required
         # arguments to Fortran intrinsics.
         Config.get().backend_intrinsic_named_kwargs = True
+    # A command-line flag overrides the setting in the Config file (if
+    # any).
+    if "backend_disable_validation" in args:
+        Config.get().backend_checks_enabled = False
+    if "backend_disable_indentation" in args:
+        Config.get().backend_indentation_disabled = True
 
     # Record any profiling options.
     if args.profile:
@@ -662,12 +668,6 @@ def main(arguments):
         except ValueError as err:
             print(f"Invalid profiling option: {err}", file=sys.stderr)
             sys.exit(1)
-    # A command-line flag overrides the setting in the Config file (if
-    # any).
-    if "backend_disable_validation" in args:
-        Config.get().backend_checks_enabled = False
-    if "backend_disable_indentation" in args:
-        Config.get().backend_indentation_disabled = True
 
     # The Configuration manager checks that the supplied path(s) is/are
     # valid so protect with a try

@@ -34,7 +34,7 @@
 # Author A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Perform py.test tests on the psygen.psyir.symbols.intrinsicsymbol file '''
+''' Perform py.test tests on the psygen.psyir.symbols.intrinsic_symbol file '''
 
 from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.symbols import IntrinsicSymbol
@@ -53,6 +53,7 @@ def test_intrinsicsymbol_copy(fortran_reader):
     assert isinstance(intrinsic.routine.symbol, IntrinsicSymbol)
     isym = intrinsic.routine.symbol
     copy = isym.copy()
+    assert copy is not isym
     assert isym.name == copy.name
     assert isym.intrinsic == copy.intrinsic
     assert isym.datatype == copy.datatype

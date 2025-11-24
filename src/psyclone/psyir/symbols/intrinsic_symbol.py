@@ -36,6 +36,8 @@
 
 ''' This module contains the IntrinsicSymbol.'''
 
+from __future__ import annotations
+
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 
 
@@ -66,14 +68,13 @@ class IntrinsicSymbol(RoutineSymbol):
         '''
         return self._intrinsic
 
-    def copy(self):
+    def copy(self) -> IntrinsicSymbol:
         '''Create and return a copy of this object. Any references to the
         original will not be affected so the copy will not be referred
         to by any other object.
 
         :returns: A symbol object with the same properties as this
                   symbol object.
-        :rtype: :py:class:`psyclone.psyir.symbols.IntrinsicSymbol`
 
         '''
         # The constructors for all Symbol-based classes have 'name' as the

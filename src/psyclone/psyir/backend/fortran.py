@@ -1754,10 +1754,10 @@ class FortranWriter(LanguageWriter):
             # Config says to avoid outputting argument names where
             # possible.
             try:
-                # Canonicalisation handles any error checking we might
-                # otherwise want to try. Most IntrinsicCalls should already
-                # have argument names added, but we do it here to ensure that
-                # it is is possible.
+                # Argument name computation handles any error checking we
+                # might otherwise want to try. Most IntrinsicCalls should
+                # already have argument names added, but we do it here to
+                # ensure that argument name computation is possible.
                 node.compute_argument_names()
                 intrinsic_interface = node._find_matching_interface()
                 args = []
@@ -1796,8 +1796,9 @@ class FortranWriter(LanguageWriter):
                 return f"{self._nindent}{node.routine.name}({args})\n"
             return f"{node.routine.name}({args})"
 
-        if not node.parent or isinstance(node.parent, Schedule):
-            return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
+        # Otherwise we have one of the intrinsics that requires "Call X"
+        # syntax.
+        return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
 
     def call_node(self, node: Call) -> str:
         '''Translate the PSyIR call node to Fortran.
