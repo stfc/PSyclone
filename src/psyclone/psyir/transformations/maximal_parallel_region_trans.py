@@ -43,6 +43,7 @@ from psyclone.psyir.nodes import (
     Schedule,
     Loop,
     IfBlock,
+    WhileLoop,
 )
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -68,6 +69,10 @@ class MaximalParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     _parallel_transformation = None
     # Tuple of statement nodes allowed inside the _parallel_transformation
     _allowed_nodes = ()
+    # Tuple of nodes that there must be at least one of inside the block
+    # to be parallelised, else the block can be ignored (e.g. a block of
+    # only barriers doesn't need to be parallelised).
+    _required_nodes = ()
 
     def _can_be_in_parallel_region(self, node: Node) -> bool:
         '''Returns whether the provided node can be included in an
@@ -158,11 +163,29 @@ class MaximalParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                 current_block.append(child)
             else:
                 # Otherwise, if the current_block contains any children,
-                # add them to a parallel region and reset the current_block.
+                # add them to a parallel region if we should and reset
+                # the current_block.
                 if current_block:
-                    par_trans.apply(current_block)
+                    for node in current_block:
+                        if node.walk(self._required_nodes,
+                                     stop_type=self._required_nodes):
+                            par_trans.apply(current_block)
+                            break
                     current_block = []
+                # Need to recurse on some node types
+                if isinstance(child, IfBlock):
+                    self.apply(child.if_body)
+                    if child.else_body:
+                        self.apply(child.else_body)
+                if isinstance(child, Loop):
+                    self.apply(child.loop_body)
+                if isinstance(child, WhileLoop):
+                    self.apply(child.loop_body)
         # If any nodes are left in the current block at the end of the
         # node_list, then add them to a parallel region
         if current_block:
-            par_trans.apply(current_block)
+            for node in current_block:
+                if node.walk(self._required_nodes,
+                             stop_type=self._required_nodes):
+                    par_trans.apply(current_block)
+                    break

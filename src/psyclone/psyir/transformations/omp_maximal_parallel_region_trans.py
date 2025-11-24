@@ -65,3 +65,11 @@ class OMPMaximalParallelRegionTrans(MaximalParallelRegionTrans):
         OMPTaskDirective,
         DynamicOMPTaskDirective,
     )
+    _required_nodes = (
+        OMPSerialDirective,
+        OMPTaskloopDirective,
+        OMPDoDirective,
+        OMPLoopDirective,
+        OMPTaskDirective,
+        DynamicOMPTaskDirective,
+    )
