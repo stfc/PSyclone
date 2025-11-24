@@ -493,9 +493,9 @@ class InlineTrans(Transformation):
             # argument.
             actual_arg = call_node.arguments[actual_arg_idx]
 
-        # Neither the actual or local references are simple, i.e. they
-        # include array accesses and/or structure accesses.
-        new_ref = self._replace_formal_arg(
+        # Generate a expression that replaces the formal argument using
+        # the actual argument.
+        new_ref = self._generate_formal_arg_replacement(
             actual_arg, ref, call_node, formal_args,
             routine_node=routine_node,
             use_first_callee_and_no_arg_check=(
@@ -722,7 +722,7 @@ class InlineTrans(Transformation):
             local_idx_posn += 1
         return new_indices
 
-    def _replace_formal_arg(
+    def _generate_formal_arg_replacement(
         self,
         actual_arg: Reference,
         ref: Reference,
@@ -733,7 +733,7 @@ class InlineTrans(Transformation):
     ) -> Reference:
         '''
         Called by _replace_formal_args_in_expr() whenever a reference to
-        the formal argument is found. This will been to be replaced with
+        the formal argument is found. This will need to be replaced with
         the actual argument (accounting for possible index offsets between
         the two). For example:
 
@@ -796,7 +796,8 @@ class InlineTrans(Transformation):
                 Reference2ArrayRangeTrans().apply(actual_arg)
                 actual_arg = dummy.children[0]
 
-        # Local reference is not simple but the actual argument is, e.g.:
+        # If the local reference is not simple but the actual argument is
+        # guaranteed to not be an array, e.g.:
         #
         #   call my_sub(my_struc)
         #
@@ -804,6 +805,8 @@ class InlineTrans(Transformation):
         #     ...
         #     var%data(i,j) = 0.0
         #
+        # we just need to replicate the local expression but using the
+        # actual argument symbol.
         if type(actual_arg) is Reference:
             new_ref = ref.copy()
             new_ref.symbol = actual_arg.symbol
@@ -819,9 +822,9 @@ class InlineTrans(Transformation):
 
             return new_ref
 
-        # The final stage of this method creates a brand new
-        # [ArrayOf]Structure[s]Reference so we have to collect the indices and
-        # members as we walk down both the actual and local references.
+        # If we reach this point we need to create the appropriate
+        # [Array][Of][Structure][s]Reference so we have to collect the indices
+        # and members as we walk down both the actual and local references.
         local_indices = None
         members = []
 
