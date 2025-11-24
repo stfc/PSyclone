@@ -1,3 +1,5 @@
+   2) PR #3231 for #3230. Fixes a bug in upper_bound_psyir() for field vectors.
+
    1) PR #3229 for #3227. Fixes a bug with PSyAD where the wrong operator
    space was being generated.
 

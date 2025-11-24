@@ -299,7 +299,15 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     else:
         assert "loop0_stop = undf_w1" in code
 
-    # Check that dof kernel is called correctly
+    # Check that dof kernels are called correctly
+    output = (
+        "    do df = loop0_start, loop0_stop, 1\n"
+        "      call testkern_dofs_vector_write_code(field_vec_1_data(df), "
+        "field_vec_2_data(df), field_vec_3_data(df))\n"
+        "    enddo\n"
+    )
+    assert output in code
+
     output = (
         "    do df = loop1_start, loop1_stop, 1\n"
         "      call testkern_dofs_code(f1_data(df), f2_data(df), "
