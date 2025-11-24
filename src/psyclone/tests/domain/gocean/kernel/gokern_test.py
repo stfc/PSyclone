@@ -126,7 +126,7 @@ def test_gok_construction():
         "cu_fld%data(i,j) = 1\n"
     )
 
-    # Now add two write fields, this will return 2 assingments
+    # Now add two write fields, this will return 2 assignments
     kern.arguments._args = [kern.arguments._args[0], kern.arguments._args[0]]
     prototype = kern.prototype_from_metadata(ref_i, ref_j)
     assert len(prototype) == 2
