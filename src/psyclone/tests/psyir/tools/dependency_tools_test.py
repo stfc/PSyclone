@@ -262,8 +262,8 @@ def test_partition(lhs, rhs, partition, fortran_reader):
     access_lhs = access_info_lhs[sig][0]
     access_rhs = access_info_rhs[sig][0]
     partition_infos = \
-        DependencyTools._partition(access_lhs.component_indices,
-                                   access_rhs.component_indices,
+        DependencyTools._partition(access_lhs.component_indices(),
+                                   access_rhs.component_indices(),
                                    ["i", "j", "k", "l"])
     # The order of the results could be different if the code is changed,
     # so keep this test as flexible as possible:
@@ -276,7 +276,6 @@ def test_partition(lhs, rhs, partition, fortran_reader):
         # Note that the variables are stores as sets, so order does
         # not matter:
         assert correct[0] == part_info[0]
-
         # Then check that the partition indices are the same as well.
         # The partition function returns the indices as lists, so
         # convert them to sets to get an order independent comparison:
@@ -308,9 +307,8 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, fortran_reader):
     # Get all access info for the expression to 'a1'
     access_info_lhs = assign.lhs.reference_accesses()[sig][0]
     access_info_rhs = assign.rhs.reference_accesses()[sig][0]
-    index = (0, 0)
-    lhs_index0 = access_info_lhs.component_indices[index]
-    rhs_index0 = access_info_rhs.component_indices[index]
+    lhs_index0 = access_info_lhs.component_indices()[0][0]
+    rhs_index0 = access_info_rhs.component_indices()[0][0]
 
     result = DependencyTools._independent_0_var(lhs_index0, rhs_index0)
     assert result is is_dependent
@@ -379,8 +377,8 @@ def test_array_access_pairs_1_var(lhs, rhs, distance, fortran_reader):
         if access.access_type == AccessType.READ:
             access_info_rhs = access
             break
-    subscript_lhs = access_info_lhs.component_indices[(0, 0)]
-    subscript_rhs = access_info_rhs.component_indices[(0, 0)]
+    subscript_lhs = access_info_lhs.component_indices()[0][0]
+    subscript_rhs = access_info_rhs.component_indices()[0][0]
 
     result = DependencyTools._get_dependency_distance("i", subscript_lhs,
                                                       subscript_rhs)
@@ -425,8 +423,8 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, fortran_reader):
     access_lhs = access_info_lhs[sig][0]
     access_rhs = access_info_rhs[sig][0]
     partition = \
-        DependencyTools._partition(access_lhs.component_indices,
-                                   access_rhs.component_indices,
+        DependencyTools._partition(access_lhs.component_indices(),
+                                   access_rhs.component_indices(),
                                    ["i", "j", "k", "l"])
 
     # Get all access info for the expression to 'a1'
@@ -751,10 +749,8 @@ def test_gocean_parallel():
     parallel = dep_tools.can_loop_be_parallelised(loop)
     assert not parallel
 
-    assert ("The write access to 'u_fld(i,j)' in '< kern call: "
-            "stencil_not_parallel_code >' and the read access to "
-            "'u_fld(i,j - 1)' in '< kern call: stencil_not_parallel_code >' "
-            "are dependent and cannot be parallelised. Variable: 'u_fld'."
+    assert ("Variable 'u_fld' is read first, which indicates a reduction."
+            " Variable: 'u_fld'."
             in str(dep_tools.get_all_messages()[0]))
 
 

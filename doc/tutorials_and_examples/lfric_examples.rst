@@ -162,7 +162,7 @@ of the kernel launches and data transfers:
     upload CUDA data  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=183 device=0 threadid=1 variable=.attach. bytes=144
     launch CUDA kernel  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=186 device=0 threadid=1 num_gangs=5 num_workers=1 vector_length=128 grid=5 block=128
      PostEnd called for module 'main_psy' region 'invoke_2-setval_c-r2'
-    download CUDA data  file=PSyclone/src/psyclone/tests/test_files/lfric/infrastructure//field/field_r64_mod.f90 function=log_minmax line=756 device=0 threadid=1 variable=self%data(:) bytes=4312
+    download CUDA data  file=PSyclone/external/lfric_infrastructure/src/field/field_real64_mod.f90 function=log_minmax line=756 device=0 threadid=1 variable=self%data(:) bytes=4312
     20230807214504.374+0100:INFO : Min/max minmax of field1 =   0.30084014E+00  0.17067212E+01
    ...
 

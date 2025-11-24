@@ -579,3 +579,24 @@ end program test_prog
             "== 0) then" in result)
     assert ("if (verify(clname(ind1:ind2), '0123456789', kind=kind(1), "
             "back=.true.) == 0) then" in result)
+
+
+def test_get_all_accessed_symbols(fortran_reader):
+    ''' Test the get_all_accessed_symbols method of the IntrinsicCall class.'''
+
+    code = '''subroutine test_sub()
+    use other
+
+    a = SIN(COS(RESHAPE(b, SHAPE=3)))
+    end subroutine'''
+
+    assign = fortran_reader.psyir_from_source(code).walk(Assignment)[0]
+    symbol_names = [s.name for s in assign.get_all_accessed_symbols()]
+    assert "a" in symbol_names
+    # Intrinsic names and argument names are not accessed symbols. (Intrinsic
+    # names could be considered, as they are IntrinsicSymbols, but currently
+    # this are not in symbol tables, so it is easier to not consider them)
+    assert "SIN" not in symbol_names
+    assert "COS" not in symbol_names
+    assert "RESHAPE" not in symbol_names
+    assert "SHAPE" not in symbol_names

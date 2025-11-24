@@ -37,8 +37,22 @@
 ''' Process Nemo code with PSyclone but don't do any changes. This file is only
 needed to provide a FILES_TO_SKIP list. '''
 
+import os
+
+# A environment variable can inform if this is targeting NEMOv4
+NEMOV4 = os.environ.get('NEMOV4', False)
+
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = []
+if not NEMOV4:
+    # TODO #3112: These produce diverging run.stat results in gcc NEMOv5 BENCH
+    FILES_TO_SKIP = [
+        "dynhpg.f90",
+        "dynspg_ts.f90",
+        "sbcssm.f90",
+        "tramle.f90",
+        "trazdf.f90",
+    ]
 
 
 def trans(_):

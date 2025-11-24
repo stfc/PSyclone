@@ -55,6 +55,7 @@ jobs:
     outputs:
       bench_gfortran_omp_cpu: ${{ steps.bench_gfortran_omp_cpu.outputs.time }}
       bench_nvfortran_omp_offload: ${{ steps.bench_nvfortran_omp_offload.outputs.time }}
+      bench_nvfortran_omp_offload_build: ${{ steps.bench_nvfortran_omp_offload.outputs.build_time }}
       orca1_nvfortran_omp_offload: ${{ steps.orca1_nvfortran_omp_offload.outputs.time }}
       orca2_nvfortran_omp_offload: ${{ steps.orca2_nvfortran_omp_offload.outputs.time }}
       bench_nvfortran_omp_offload_async: ${{ steps.bench_nvfortran_omp_offload_async.outputs.time }}
@@ -119,8 +120,7 @@ jobs:
         mpirun -np 4 ./nemo
         tail run.stat
         # This was produced with gfortran, so we can do an exact diff
-        # TODO #3112: Fix differences with baseline result
-        # diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
 
     - name: NEMO 5.0 nvidia passthrough
       # Only bother doing passthrough if this is a re-run of a previous test.
@@ -195,6 +195,7 @@ jobs:
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
         export TEST_DIR=BENCH_OMP_THREADING_GCC
+        export REPRODUCIBLE=1
 
         # Set up FCM envvars to use psyclonefc and compile with OpenMP for CPU
         cd $NEMO_DIR
@@ -212,9 +213,7 @@ jobs:
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
-        tail run.stat
-        # TODO #3112: Fix differences with baseline result
-        # diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
@@ -254,6 +253,7 @@ jobs:
         # Run reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         # We can compare all digits for this build
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
@@ -265,14 +265,19 @@ jobs:
         unset ENABLE_PROFILING
         export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
         rm -rf tests/${TEST_DIR}
+        export BUILD_START="${SECONDS}"
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -j ${NUM_PARALLEL} -v 1
+        export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
         # Run non-reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        export NV_ACC_POOL_THRESHOLD=75
+        export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
+        echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
 
     - name: NEMO 5.0 nvidia OpenMP for GPUs (UKMO ORCA1 - managed memory)
       id: orca1_nvfortran_omp_offload
@@ -337,6 +342,7 @@ jobs:
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
         ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA2/* .
         # Uses both, threading and offloading
+        export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
@@ -378,6 +384,7 @@ jobs:
         # Run reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         # We can compare all digits for this build
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
@@ -389,6 +396,8 @@ jobs:
         unset ENABLE_PROFILING
         export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
         rm -rf tests/${TEST_DIR}
+        export NV_ACC_POOL_THRESHOLD=75
+        export CUDA_VISIBLE_DEVICES=1
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
           -j ${NUM_PARALLEL} -v 1
         # Run non-reproducible test
@@ -427,6 +436,7 @@ jobs:
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
         ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA2/* .
         # Uses both, threading and offloading
+        export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
@@ -502,6 +512,13 @@ jobs:
               nemo_version: "NEMO 5.0-RC MO patch",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_nvfortran_omp_offload}}"',
+              '"$COMMON_FIELDS"'
+            },
+            {
+              ci_test: "NEMOv5 OpenMP for GPU (BENCH) build time",
+              nemo_version: "NEMO 5.0-RC MO patch",
+              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_nvfortran_omp_offload_build}}"',
               '"$COMMON_FIELDS"'
             },
             {

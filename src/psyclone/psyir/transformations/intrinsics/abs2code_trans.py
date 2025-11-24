@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR ABS operator to
 PSyIR code. This could be useful if the ABS operator is not supported
@@ -40,13 +41,17 @@ by the back-end or if the performance in the inline code is better
 than the intrinsic.
 
 '''
+import warnings
+
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference, Literal, IfBlock, IntrinsicCall)
 from psyclone.psyir.symbols import DataSymbol
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class Abs2CodeTrans(Intrinsic2CodeTrans):
     '''Provides a transformation from a PSyIR ABS Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
@@ -85,7 +90,7 @@ class Abs2CodeTrans(Intrinsic2CodeTrans):
         super().validate(node, options=options)
         super()._validate_scalar_arg(node)
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the ABS intrinsic conversion transformation to the specified
         node. This node must be an ABS UnaryOperation. The ABS
         UnaryOperation is converted to equivalent inline code. This is
@@ -119,8 +124,12 @@ class Abs2CodeTrans(Intrinsic2CodeTrans):
         :type options: Optional[Dict[str, Any]]
 
         '''
+        # TODO 2668: options are now deprecated:
+        if options:
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+
         # pylint: disable=too-many-locals
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
@@ -163,3 +172,7 @@ class Abs2CodeTrans(Intrinsic2CodeTrans):
         # if [if_condition] then [then_body] else [else_body]
         if_stmt = IfBlock.create(if_condition, then_body, else_body)
         assignment.parent.children.insert(assignment.position, if_stmt)
+
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["Abs2CodeTrans"]
