@@ -49,7 +49,8 @@ from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import SymbolTable, SymbolError
+from psyclone.psyir.symbols import (
+    SymbolTable, SymbolError, UnresolvedInterface)
 
 
 class CodeBlock(Statement, DataNode):
@@ -127,7 +128,8 @@ class CodeBlock(Statement, DataNode):
                 symtab = self.scope.symbol_table
             except SymbolError:
                 symtab = SymbolTable()
-            symbol = symtab.find_or_create(symbol_name)
+            symbol = symtab.find_or_create(
+                symbol_name, interface=UnresolvedInterface())
             ref = Reference(symbol)
             if ref not in self.children:
                 self.addchild(Reference(symbol))
@@ -289,9 +291,11 @@ class CodeBlock(Statement, DataNode):
 
         '''
         var_accesses = VariablesAccessMap()
-        for name in self.get_symbol_names():
-            var_accesses.add_access(Signature(name), AccessType.READWRITE,
-                                    self)
+        for child in self.children:
+            var_accesses.add_access(
+                Signature(child.name),
+                AccessType.READWRITE,
+                child)
         return var_accesses
 
     def __str__(self):

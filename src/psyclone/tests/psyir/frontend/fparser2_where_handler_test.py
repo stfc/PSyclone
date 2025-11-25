@@ -134,8 +134,9 @@ def test_where_unknown_selector_type():
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2spec])
     assert isinstance(fake_parent.children[0], CodeBlock)
-    assert ("We can not get the resulting shape of the expression: "
-            "ptsu(myfunc(),:,:)" in fake_parent.children[0].preceding_comment)
+    assert ("PSyclone doesn't yet support references to imported/unresolved "
+            "symbols inside WHERE clauses: 'myfunc' is unresolved."
+            in fake_parent.children[0].preceding_comment)
 
     fake_parent, fparser2spec = process_where(
         "WHERE (ptsu(:, :, :) /= 0._wp)\n"
@@ -144,8 +145,9 @@ def test_where_unknown_selector_type():
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2spec])
     assert isinstance(fake_parent.children[0], CodeBlock)
-    assert ("We can not get the resulting shape of the expression: "
-            "z1_st(myfunc(),:,:)" in fake_parent.children[0].preceding_comment)
+    assert ("PSyclone doesn't yet support reference to imported symbols "
+            "inside WHERE clauses."
+            in fake_parent.children[0].preceding_comment)
 
 
 @pytest.mark.usefixtures("parser")
