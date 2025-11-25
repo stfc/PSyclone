@@ -47,6 +47,9 @@ from fparser.two.utils import walk
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.symbols import SymbolTable, SymbolError
 
 
 class CodeBlock(Statement, DataNode):
@@ -105,6 +108,29 @@ class CodeBlock(Statement, DataNode):
             self.ast_end = None
         # Store the structure of the code block.
         self._structure = structure
+        self._insert_representative_references()
+
+    @staticmethod
+    def _validate_child(position: int, child: Node) -> bool:
+        '''
+        :param position: the position to be validated.
+        :param child: a child to be validated.
+
+        :return: whether the given child and position are valid for this node.
+
+        '''
+        return isinstance(child, Reference)
+
+    def _insert_representative_references(self):
+        for symbol_name in self.get_symbol_names():
+            try:
+                symtab = self.scope.symbol_table
+            except SymbolError:
+                symtab = SymbolTable()
+            symbol = symtab.find_or_create(symbol_name)
+            ref = Reference(symbol)
+            if ref not in self.children:
+                self.addchild(Reference(symbol))
 
     def __eq__(self, other):
         '''
@@ -186,12 +212,26 @@ class CodeBlock(Statement, DataNode):
                         node is node.parent.children[0]):
                     result.append(node.string)
             elif not isinstance(node.parent,
+                                # We don't want labels associated with loop or
+                                # branch control.
                                 (Fortran2003.Cycle_Stmt,
                                  Fortran2003.End_Do_Stmt,
                                  Fortran2003.Exit_Stmt,
                                  Fortran2003.Else_Stmt,
                                  Fortran2003.End_If_Stmt)):
-                # We don't want labels associated with loop or branch control.
+
+                # Check if this name is a structure accessor instead of a
+                # symbol
+                if isinstance(node.parent, Fortran2003.Part_Ref):
+                    # Also account for array fields name%array(i)
+                    check = node.parent
+                else:
+                    check = node
+                if isinstance(check.parent, Fortran2003.Data_Ref):
+                    # The first child is the base reference, the others are
+                    # accessor names, which are not symbols
+                    if check.parent.children[0] is not check:
+                        continue
                 result.append(node.string)
         # Precision on literals requires special attention since they are just
         # stored in the tree as str (fparser/#456).
