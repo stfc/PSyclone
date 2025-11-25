@@ -46,7 +46,8 @@ import pytest
 
 from fparser import api as fpapi
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
-                                   LFRicKernMetadata, LFRicScalarArgs)
+                                   LFRicKernMetadata, LFRicScalarArgs,
+                                   LFRicScalarArrayArgs)
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.utils import ParseError
@@ -79,6 +80,29 @@ def test_lfricscalars_stub_err():
     const = LFRicConstants()
     assert (f"Found an unsupported data type 'gh_invalid_scalar' for the "
             f"scalar argument 'iscalar_2'. Supported types are "
+            f"{const.VALID_SCALAR_DATA_TYPES}." in str(err.value))
+
+
+def test_lfricscalararray_stub_err():
+    ''' Check that LFRicScalarArrayArgs.stub_declarations() raises the
+    expected internal error if it encounters an unrecognised data
+    type of a scalar argument when generating a kernel stub.
+
+    '''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                "testkern_scalar_array_mod.f90"),
+                    ignore_comments=False)
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
+    kernel.load_meta(metadata)
+    # Sabotage the scalar argument to make it have an invalid data type
+    arg = kernel.arguments.args[1]
+    arg.descriptor._data_type = "gh_invalid_scalar"
+    with pytest.raises(InternalError) as err:
+        LFRicScalarArrayArgs(kernel).stub_declarations()
+    const = LFRicConstants()
+    assert (f"Found an unsupported data type 'gh_invalid_scalar' for the "
+            f"ScalarArray argument 'rscalar_array_2'. Supported types are "
             f"{const.VALID_SCALAR_DATA_TYPES}." in str(err.value))
 
 
