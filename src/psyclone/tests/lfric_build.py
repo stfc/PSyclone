@@ -50,7 +50,8 @@ from psyclone.tests.utilities import (change_dir, CompileError, Compile,
 
 class LFRicBuild(Compile):
     '''Build class for compilation of test files for the LFRic api.
-    It uses the wrapper library from test_files/lfric/infrastructure.
+    It uses the infrastructure library from
+    ``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
     The very first time the constructor is called it will automatically
     compile the infrastructure library in a temporary, process-specific
     location. These files will be used by all test compilations of this

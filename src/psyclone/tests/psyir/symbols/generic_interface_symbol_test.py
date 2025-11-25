@@ -249,16 +249,14 @@ def test_gis_replace_symbols_using(table):
         assert rinfo.symbol in [ashling, newholly, birch]
 
 
-def test_gis_reference_accesses():
-    '''Tests for the reference_accesses() method.'''
+def test_gis_get_all_accessed_symbols():
+    '''Tests for the get_all_accessed_symbols() method.'''
     ash = RoutineSymbol("ash")
     holly = RoutineSymbol("holly")
     birch = RoutineSymbol("birch")
     coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False),
                                                  (birch, True)])
-    vam = coppice.reference_accesses()
-    all_names = [sig.var_name for sig in vam.all_signatures]
-    assert len(all_names) == 3
-    assert "ash" in all_names
-    assert "holly" in all_names
-    assert "birch" in all_names
+    dependent_symbols = coppice.get_all_accessed_symbols()
+    assert ash in dependent_symbols
+    assert holly in dependent_symbols
+    assert birch in dependent_symbols

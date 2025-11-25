@@ -45,7 +45,7 @@ from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Assignment, CodeBlock, IfBlock, Loop
+from psyclone.psyir.nodes import Assignment, IfBlock, Loop
 from psyclone.tests.utilities import get_invoke, get_ast
 
 # Constants
@@ -86,8 +86,8 @@ def test_assignment(fortran_reader):
     assert isinstance(array_assignment, Assignment)
     var_accesses = array_assignment.reference_accesses()
     assert (str(var_accesses) ==
-            "d: READ, e: READ, i: READ, j: READ, f: READ, x: READ, "
-            "y: READ, c: WRITE")
+            "c: WRITE, d: READ, e: READ, f: READ, i: READ, j: READ, "
+            "x: READ, y: READ")
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)
@@ -98,7 +98,7 @@ def test_assignment(fortran_reader):
     sqrt_access = schedule.children[3]
     assert isinstance(sqrt_access, Assignment)
     var_accesses = sqrt_access.reference_accesses()
-    assert str(var_accesses) == "e: READ, i: READ, j: READ, d: WRITE"
+    assert str(var_accesses) == "d: WRITE, e: READ, i: READ, j: READ"
 
 
 def test_indirect_addressing(fortran_reader):
@@ -118,18 +118,17 @@ def test_indirect_addressing(fortran_reader):
 
 
 def test_double_variable_lhs(fortran_reader):
-    ''' A variable on the LHS of an assignment must only occur once,
-    which is a restriction of PSyclone.
-
+    ''' A variable can appear more than once on the LHS of an assignment.
     '''
     psyir = fortran_reader.psyir_from_source(
         '''program test_prog
              integer :: g(10)
              g(g(1)) = 1
            end program test_prog''')
-    assert isinstance(psyir, CodeBlock)
-    assert ("The variable 'g' appears more than once on the left-hand side "
-            "of an assignment." in psyir.preceding_comment)
+    lhs = psyir.walk(Assignment)[0].lhs
+    assert lhs.symbol.name == "g"
+    assert lhs.children[0].symbol.name == "g"
+    assert lhs.symbol is lhs.children[0].symbol
 
 
 def test_if_statement(fortran_reader):
@@ -178,7 +177,7 @@ def test_do_loop(fortran_reader):
     assert isinstance(do_loop, Loop)
     var_accesses = do_loop.reference_accesses()
     assert (str(var_accesses) ==
-            "jj: WRITE+READ, n: READ, ji: WRITE+READ, s: WRITE, t: READ")
+            "ji: WRITE+READ, jj: WRITE+READ, n: READ, s: WRITE, t: READ")
 
 
 def test_nemo_array_range(fortran_reader):
@@ -200,7 +199,7 @@ def test_nemo_array_range(fortran_reader):
     assert isinstance(do_loop, Loop)
     var_accesses = do_loop.reference_accesses()
     assert (str(var_accesses) ==
-            "jj: WRITE+READ, n: READ, a: READ, s: INQUIRY+WRITE, "
+            "a: READ, jj: WRITE+READ, n: READ, s: INQUIRY+WRITE, "
             "t: INQUIRY+READ")
 
 
@@ -242,10 +241,11 @@ def test_goloop_partially():
     assert not do_loop.args[3].is_scalar
 
     var_accesses = do_loop.reference_accesses()
-    assert ("j: WRITE+READ, ssh_fld%whole%ystart: READ, ssh_fld%whole%ystop: "
-            "READ, a_scalar: READ, i: WRITE+READ, ssh_fld: READWRITE, "
-            "ssh_fld%grid%subdomain%internal%xstop: READ, ssh_fld%grid%tmask: "
-            "READ, ssh_fld%whole%xstart: READ, ssh_fld%whole%xstop: READ"
+    assert ("a_scalar: READ, i: WRITE+READ, j: WRITE+READ, ssh_fld%grid%"
+            "subdomain%internal%xstop: READ, ssh_fld%grid%tmask: READ, "
+            "ssh_fld%whole%xstart: READ, ssh_fld%whole%xstop: READ, "
+            "ssh_fld%whole%ystart: READ, ssh_fld%whole%ystop: READ, "
+            "ssh_fld: READWRITE"
             == str(var_accesses))
 
 
@@ -266,10 +266,10 @@ def test_lfric():
     schedule = invoke.schedule
     var_accesses = schedule.reference_accesses()
     assert str(var_accesses) == (
-        "field_type: TYPE_INFO, i_def: TYPE_INFO, r_def: TYPE_INFO, a: READ, "
-        "cell: WRITE+READ, f1_data: INC, f2_data: READ, m1_data: READ, "
-        "m2_data: READ, map_w1: READ, map_w2: READ, map_w3: READ, ndf_w1: "
-        "READ, ndf_w2: READ, ndf_w3: READ, nlayers_f1: READ, undf_w1: READ, "
+        "a: READ, cell: WRITE+READ, f1_data: INC, f2_data: READ, field_type: "
+        "CONSTANT, i_def: CONSTANT, m1_data: READ, m2_data: READ, map_w1: "
+        "READ, map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, "
+        "ndf_w3: READ, nlayers_f1: READ, r_def: CONSTANT, undf_w1: READ, "
         "undf_w2: READ, undf_w3: READ, uninitialised_loop0_start: READ, "
         "uninitialised_loop0_stop: READ")
 
@@ -480,7 +480,7 @@ def test_lfric_stub_args():
     assert "nlayers: READ," in var_info
     assert "undf_w1: READ," in var_info
     assert "undf_w2: READ," in var_info
-    assert "undf_w3: READ," in var_info
+    assert "undf_w3: READ" in var_info
 
 
 def test_lfric_stub_args2():

@@ -294,8 +294,8 @@ class Loop(Statement):
         if len(self.children) < 4:
             raise InternalError(
                 f"Loop is incomplete. It should have exactly 4 "
-                f"children, but found loop with "
-                f"'{', '.join([str(child) for child in self.children])}'.")
+                f"children, but found loop with {len(self.children)} children:"
+                f" '{', '.join([str(child) for child in self.children])}'.")
 
     @property
     def start_expr(self):
@@ -485,6 +485,17 @@ class Loop(Statement):
             result += str(entity) + "\n"
         result += "End " + name
         return result
+
+    def get_all_accessed_symbols(self) -> set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this Loop.
+        '''
+        symbols = super().get_all_accessed_symbols()
+        if self.variable:
+            # TODO #3124: This is needed because the loop variable reference
+            # is not part of the tree
+            symbols.add(self.variable)
+        return symbols
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''

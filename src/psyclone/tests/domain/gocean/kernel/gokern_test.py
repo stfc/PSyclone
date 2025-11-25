@@ -52,7 +52,6 @@ from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOKernelSchedule
-from psyclone.psyir.nodes import Reference
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.utilities import get_invoke
@@ -128,7 +127,7 @@ def test_gok_get_callees():
 
 
 # -----------------------------------------------------------------------------
-def test_gok_reference_accesses(fortran_writer):
+def test_gok_reference_accesses():
     '''Test that GOcean kernel information are correct, and that the index
     information are PSyIR nodes.
 
@@ -141,37 +140,24 @@ def test_gok_reference_accesses(fortran_writer):
     kern1 = schedule.walk(GOKern)[0]
     vam = kern1.reference_accesses()
     assert str(vam) == "cu_fld: WRITE, p_fld: READ, u_fld: READ"
-    p_fld = vam[Signature("p_fld")]
-    # We can't have lists in a set, so we convert the lists to string
-    # for easy comparison. Calling `fortran_writer` also ensures that the
-    # component indices are PSyIR nodes (not strings)
 
-    # Convert each PSyIR index into a string, and then also convert each
-    # index pair into a string to be added to the set (we can't have lists in
-    # in a set, so that's the easiest way to compare them)
-    result = set()
-    for access in p_fld:
-        for indices in access.component_indices:
-            result.add(str([fortran_writer(index) for index in indices]))
-
-    # The stencil is 100, 110, 123 - test that appropriate
-    # accesses were added for each direction
-    expected = {
-        # First stencil direction of 123: 1
-        "['i - 1', 'j - 1']",
-        # Second stencil direction of 123: 2
-        "['i', 'j + 1']", "['i', 'j + 2']",
-        # Third stencil direction of 123: 3
-        "['i + 1', 'j + 1']", "['i + 2', 'j + 2']", "['i + 3', 'j + 3']",
-        # First stencil direction of 110: 1
-        "['i - 1', 'j']",
-        # Second stencil direction of 110: 1
-        "['i', 'j']",
-        # First stencil direction of 100: 1
-        "['i - 1', 'j + 1']"
-        }
-
-    assert expected == result
+    # TODO #3129: Implementing the idea in this issue will add additional
+    # accesses matching the metadata specification. These would correspond
+    # to the stencils 100, 110, 123
+    # expected = {
+    #     # First stencil direction of 123: 1
+    #     "['i - 1', 'j - 1']",
+    #     # Second stencil direction of 123: 2
+    #     "['i', 'j + 1']", "['i', 'j + 2']",
+    #     # Third stencil direction of 123: 3
+    #     "['i + 1', 'j + 1']", "['i + 2', 'j + 2']", "['i + 3', 'j + 3']",
+    #     # First stencil direction of 110: 1
+    #     "['i - 1', 'j']",
+    #     # Second stencil direction of 110: 1
+    #     "['i', 'j']",
+    #     # First stencil direction of 100: 1
+    #     "['i - 1', 'j + 1']"
+    #     }
 
 
 # -----------------------------------------------------------------------------
@@ -189,19 +175,12 @@ def test_gok_access_info_scalar_and_property():
     vam = kern1.reference_accesses()
 
     # Check that we get the grid properties listed:
-    assert (str(vam) == "p_fld: READWRITE, "
+    assert (str(vam) ==
             "p_fld%grid%subdomain%internal%xstop: READ, "
-            "p_fld%grid%tmask: READ")
+            "p_fld%grid%tmask: READ, p_fld: READWRITE")
 
-    # Check that the derived type using tmask has the corresponding component
-    # indices specified. No indices for p_fld and grid:
+    # Kernel calls have the whole field provided, so no indices are given
+    # at this level.
     tmask = vam[Signature("p_fld%grid%tmask")]
-    comp_ind = tmask[0].component_indices
-    assert comp_ind[0] == []
-    assert comp_ind[1] == []
-
-    # And it should have PSyIR expressions for (i,j) as the last component:
-    assert isinstance(comp_ind[2][0], Reference)
-    assert isinstance(comp_ind[2][1], Reference)
-    assert comp_ind[2][0].symbol.name == "i"
-    assert comp_ind[2][1].symbol.name == "j"
+    comp_ind = tmask[0].component_indices()
+    assert comp_ind == tuple(tuple())
