@@ -145,10 +145,6 @@ def test_stub_generate_with_scalar_array():
         os.path.join(BASE_PATH, "testkern_scalar_array_mod.f90"),
         api=TEST_API)
 
-# I don't think this is actually correct. It doesn't seem to be adding
-# the array dimensions (or arrays to hold that information). In fact
-# this looks suspiciously like a plain scalar entry
-    print(result)
     expected = """\
 module testkern_scalar_array_mod
   implicit none
