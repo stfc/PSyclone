@@ -52,11 +52,11 @@ from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
-    ArrayReference, Reference, StructureReference, Literal)
+    ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
     ImportInterface, ScalarType, ArrayType, UnsupportedFortranType,
-    ArgumentInterface, INTEGER_TYPE)
+    ArgumentInterface)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
