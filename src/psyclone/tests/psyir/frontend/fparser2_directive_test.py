@@ -232,7 +232,7 @@ def test_multiple_directives():
     i = 1
     !$omp end parallel
     !$omp parallel
-    i = 2 
+    i = 2
     !$omp end parallel
     end subroutine x
     """
