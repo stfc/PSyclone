@@ -247,8 +247,8 @@ def test_multiple_directives():
     assert cbs[3].debug_string() == "!$omp end parallel\n"
 
 
-def test_inline_comment():
-    """Test that the FortranReaer doesn't create a CodeBlock for an inlined
+def test_inline_comment(fortran_writer):
+    """Test that the FortranReader doesn't create a CodeBlock for an inlined
     comment that looks like a directive."""
     code = """subroutine x
     integer :: j
@@ -257,6 +257,7 @@ def test_inline_comment():
     reader = FortranReader(ignore_comments=False, ignore_directives=False)
     psyir = reader.psyir_from_source(code)
     routine = psyir.children[0]
-    print(routine.debug_string())
-    print(routine.walk(CodeBlock)[0].debug_string())
+    # We shouldn't have a directive (i.e. No CodeBlock)
     assert len(routine.walk(CodeBlock)) == 0
+    # The comment should still be inline
+    assert "j = 4  ! $omp atomic" in fortran_writer(psyir)
