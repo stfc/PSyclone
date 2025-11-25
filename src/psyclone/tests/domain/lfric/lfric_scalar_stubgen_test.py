@@ -90,8 +90,8 @@ def test_lfricscalararray_stub_err():
 
     '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
-                                "testkern_scalar_array_mod.f90"),
-                    ignore_comments=False)
+                                   "testkern_scalar_array_mod.f90"),
+                      ignore_comments=False)
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
