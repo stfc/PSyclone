@@ -636,7 +636,7 @@ def test_scalar_array(tmpdir):
         "    logical(kind=l_def), dimension(dims_logical_array(1)), "
         "intent(in) :: logical_array\n"
         "    integer(kind=i_def), dimension(dims_integer_array(1),"
-        "dims_integer_array(2),dims_integer_array(3),dims_integer_array(4)), " 
+        "dims_integer_array(2),dims_integer_array(3),dims_integer_array(4)), "
         "intent(in) :: integer_array\n"
         "    integer(kind=i_def), intent(in) :: a_scalar\n"
         "    integer(kind=i_def), dimension(2), intent(in) :: "
