@@ -1088,7 +1088,7 @@ class Kern(Statement):
                 f"found '{var_arg.argument_type}'.")
         # Lookup the reduction variable
         variable = self.scope.symbol_table.lookup_with_tag(
-            f"AlgArgs_{var_arg.name}")
+            f"AlgArgs_{var_arg.text}")
         if not (isinstance(variable.datatype, ScalarType) and
                 variable.datatype.intrinsic in [ScalarType.Intrinsic.INTEGER,
                                                 ScalarType.Intrinsic.REAL]):
@@ -1164,7 +1164,7 @@ class Kern(Statement):
                     children=[])
         parent.addchild(do_loop, position+1)
         var_symbol = table.lookup_with_tag(
-            f"AlgArgs_{self._reduction_arg.name}")
+            f"AlgArgs_{self._reduction_arg.text}")
         do_loop.loop_body.addchild(Assignment.create(
            lhs=Reference(var_symbol),
            rhs=BinaryOperation.create(
@@ -1204,7 +1204,7 @@ class Kern(Statement):
             return ArrayReference.create(local_var, array_dim)
         # Return a single-valued Reference for a non-reproducible reduction
         local_var = symtab.lookup_with_tag(
-            f"AlgArgs_{self._reduction_arg.name}")
+            f"AlgArgs_{self._reduction_arg.text}")
         return Reference(local_var)
 
     @property
@@ -1264,7 +1264,7 @@ class Kern(Statement):
             return super().lower_to_language_level()
 
         table = self.ancestor(InvokeSchedule).symbol_table
-        arg_sym = table.lookup_with_tag("AlgArgs_"+self.reduction_arg.name)
+        arg_sym = table.lookup_with_tag("AlgArgs_"+self.reduction_arg.text)
 
         if self.reprod_reduction:
             # For reproducible reductions, we need a rank-2 array to store
@@ -2165,7 +2165,7 @@ class Argument():
                 previous_arguments = symtab.argument_list
 
                 # Find the tag to use
-                tag = f"AlgArgs_{self._name}"
+                tag = f"AlgArgs_{self._text}"
 
                 # Prepare the Argument Interface Access value
                 argument_access = ArgumentInterface.Access.READWRITE
