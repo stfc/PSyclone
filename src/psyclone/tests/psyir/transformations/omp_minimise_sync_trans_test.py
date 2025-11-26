@@ -48,7 +48,6 @@ from psyclone.transformations import OMPParallelTrans
 from psyclone.psyir.transformations.omp_minimise_sync_trans import (
         _eliminate_final_parallel_barrier
 )
-from psyclone.transformations import OMPParallelTrans
 
 
 def test_omp_remove_barrier_trans_str():
