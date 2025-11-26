@@ -48,7 +48,7 @@ from fparser import api as fpapi
 
 from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
                                    LFRicKern, LFRicKernMetadata,
-                                   LFRicScalarArgs)
+                                   LFRicScalarArgs, LFRicScalarArrayArgs)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -327,6 +327,30 @@ def test_lfricscalars_call_err1():
         LFRicScalarArgs(invoke).invoke_declarations()
     assert ("Found unsupported intrinsic types for the scalar arguments "
             "['a'] to Invoke 'invoke_0_testkern_three_scalars_type'. "
+            "Supported types are ['real', 'integer', 'logical']."
+            in str(err.value))
+
+
+def test_lfricscalararray_call_err1():
+    ''' Check that the LFRicScalarArrayArgs constructor raises the
+    expected internal error if it encounters an unrecognised
+    intrinsic type of ScalarArray when generating a kernel call.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "28.scalar_array_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+    # Sabotage the scalar argument to make it have an invalid intrinsic type
+    scalar_arr_arg = kernel.arguments.args[1]
+    scalar_arr_arg._intrinsic_type = "double-type"
+    with pytest.raises(InternalError) as err:
+        LFRicScalarArrayArgs(invoke).invoke_declarations()
+    assert ("Found unsupported intrinsic types for the ScalarArray arguments "
+            "['real_array'] to Invoke 'invoke_0_testkern_scalar_array_type'. "
             "Supported types are ['real', 'integer', 'logical']."
             in str(err.value))
 

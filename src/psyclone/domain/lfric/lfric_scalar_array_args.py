@@ -121,10 +121,13 @@ class LFRicScalarArrayArgs(LFRicCollection):
             # Add "real", "integer" and "logical" ScalarArray lists for checks
             decl_scal = rscalarr + iscalarr + lscalarr
             # Check for unsupported intrinsic types
+            print(decl_scal)
+            print(scal)
             scal_inv = sorted(set(scal) - set(decl_scal))
+            print(scal_inv)
             if scal_inv:
                 raise InternalError(
-                    f"Found unsupported intrinsic types for the scalar "
+                    f"Found unsupported intrinsic types for the ScalarArray "
                     f"arguments {scal_inv} to Invoke '{self._invoke.name}'. "
                     f"Supported types are {const.VALID_INTRINSIC_TYPES}.")
             # Check that the same scalar name is not found in either of
