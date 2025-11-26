@@ -5894,7 +5894,6 @@ class LFRicKernelArgument(KernelArgument):
                 # The collection datatype is not recognised or supported.
                 alg_datatype = None
 
-        # TODO: Check this is correct after is_scalar is fixed
         if self.is_scalar or self.is_scalar_array:
             self._init_scalar_properties(alg_datatype, alg_precision,
                                          check)
@@ -5936,7 +5935,6 @@ class LFRicKernelArgument(KernelArgument):
             not declared with default precision.
 
         '''
-        # TODO: Check whether this needs scalars and ScalarArray separated
         const = LFRicConstants()
         # Check the type of scalar defined in the metadata is supported.
         if self.intrinsic_type not in const.VALID_INTRINSIC_TYPES:
@@ -6272,10 +6270,7 @@ class LFRicKernelArgument(KernelArgument):
                     f"PSyIR contains one or more References.")
             return lit
 
-        # TODO: this needs altering to consider ScalarArrays
-        # Currently, this is adding a ScalarArray as a normal
-        # scalar variable
-        if self.is_scalar and not self.is_scalar_array:
+        if self.is_scalar or self.is_scalar_array:
             try:
                 scalar_sym = symbol_table.lookup(self.name)
             except KeyError:
@@ -6560,7 +6555,10 @@ class LFRicKernelArgument(KernelArgument):
                     kind_name, INTEGER_TYPE,
                     interface=ImportInterface(constants_container))
                 symtab.add(kind_symbol)
-            return ScalarType(prim_type, Reference(kind_symbol))
+            dts = ScalarType(prim_type, Reference(kind_symbol))
+            if self.is_scalar_array and self._array_ndims > 1:
+                return ArrayType(dts, [self._array_ndims])
+            return dts
 
         if self.is_field or self.is_operator:
             # Find or create the DataTypeSymbol for the appropriate
