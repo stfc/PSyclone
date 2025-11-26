@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic and L. Turner, Met Office
+# Modified I. Kavcic, L. Turner and A. Pirrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the LFric classes based on ArgOrdering.'''

@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#          I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office;
+#          I. Kavcic, A. Coughtrie, L. Turner, O. Brunt,
+#          and A. Pirrie, Met Office;
 #          C. M. Maynard, Met Office/University of Reading;
 #          J. Henrichs, Bureau of Meteorology.
 
