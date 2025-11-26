@@ -130,6 +130,38 @@ def test_tiled_matmul(fortran_reader, fortran_writer):
 
 
 # -----------------------------------------------------------------------------
+def test_chunking_loop(fortran_reader, fortran_writer):
+    '''Test that a loop with array chunking has no array conflicts
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        module chunking_example
+        contains
+
+        subroutine chunking(arr, chunk_size)
+          integer, dimension(:), intent(inout) :: arr
+          integer, intent(in) :: chunk_size
+          integer :: n, chunk_begin, chunk_end
+
+          n = size(arr)
+          do chunk_begin = 1, n, chunk_size
+            chunk_end = min(chunk_begin+chunk_size-1, n)
+            call modify(arr(chunk_begin:chunk_end))
+          end do
+        end subroutine
+
+        pure subroutine modify(a)
+          integer, intent(inout) :: a(:)
+        end subroutine
+
+      end module''')
+    opts = ArrayIndexAnalysisOptions(use_bv=False)
+    results = []
+    for loop in psyir.walk(Loop):
+        results.append(ArrayIndexAnalysis(opts).is_loop_conflict_free(loop))
+    assert results == [True]
+
+
+# -----------------------------------------------------------------------------
 def test_flatten(fortran_reader, fortran_writer):
     '''Test that an array flattening routine has no array conflicts in
     either loop.
@@ -217,7 +249,7 @@ def check_conflict_free(fortran_reader, loop_str, yesno):
     psyir = fortran_reader.psyir_from_source(f'''
               subroutine sub(arr, n)
                 integer, intent(inout) :: arr(:)
-                integer, intent(in) :: n, i, tmp, tmp2
+                integer, intent(inout) :: n, i, j, tmp, tmp2
                 logical :: ok
                 {loop_str}
               end subroutine''')
@@ -226,7 +258,7 @@ def check_conflict_free(fortran_reader, loop_str, yesno):
     for loop in psyir.walk(Loop):
         analysis = ArrayIndexAnalysis(opts)
         results.append(analysis.is_loop_conflict_free(loop))
-    assert results == [yesno]
+    assert results == yesno
 
 
 # -----------------------------------------------------------------------------
@@ -244,7 +276,7 @@ def test_ifblock_with_else(fortran_reader, fortran_writer):
                            end do
                            arr(2) = 0
                         ''',
-                        True)
+                        [True])
 
 
 # -----------------------------------------------------------------------------
@@ -255,7 +287,7 @@ def test_array_reference(fortran_reader, fortran_writer):
                              arr = arr + i
                            end do
                         ''',
-                        False)
+                        [False])
 
 
 # -----------------------------------------------------------------------------
@@ -266,7 +298,7 @@ def test_singleton_slice(fortran_reader, fortran_writer):
                              arr(i:i:) = 0
                            end do
                         ''',
-                        True)
+                        [True])
 
 
 # -----------------------------------------------------------------------------
@@ -284,7 +316,7 @@ def test_while_loop(fortran_reader, fortran_writer):
                              tmp = tmp - 1
                            end do
                         ''',
-                        True)
+                        [True])
 
 
 # -----------------------------------------------------------------------------
@@ -296,7 +328,48 @@ def test_injective_index(fortran_reader, fortran_writer):
                              arr(tmp) = 0
                            end do
                         ''',
-                        True)
+                        [True])
+
+
+# -----------------------------------------------------------------------------
+def test_invariant_if(fortran_reader, fortran_writer):
+    '''Test a do loop with an invariant if-condition'''
+    check_conflict_free(fortran_reader,
+                        '''do i = 1, size(arr)-1
+                             if (tmp >= 0) then
+                               arr(i) = 1
+                             else
+                               arr(i+1) = 2
+                             end if
+                           end do''',
+                        [True])
+
+
+# -----------------------------------------------------------------------------
+def test_last_iteration(fortran_reader, fortran_writer):
+    '''Test a do loop with special behaviour on final iteration'''
+    check_conflict_free(fortran_reader,
+                        '''n = size(arr)
+                           do i = 1, n-1
+                             arr(i) = 0
+                             if (i == n-1) then
+                               arr(i+1) = 10
+                             end if
+                           end do''',
+                        [True])
+
+
+# -----------------------------------------------------------------------------
+def test_triangular_loop(fortran_reader, fortran_writer):
+    '''Test a triangular nested loop'''
+    check_conflict_free(fortran_reader,
+                        '''n = size(arr)
+                           do i = 1, n-1
+                             do j = i+1, n
+                               arr(j) = arr(j) + arr(i)
+                             end do
+                           end do''',
+                        [False, True])
 
 
 # -----------------------------------------------------------------------------
