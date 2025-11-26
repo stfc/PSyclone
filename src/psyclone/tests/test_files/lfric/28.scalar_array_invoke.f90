@@ -48,15 +48,6 @@ program scalar_array_invoke
   integer(i_def), dimension(2, 5, 10, 8) :: integer_array
   integer(i_def)                         :: a_scalar
 
-  real_array = 666.0_r_def
-  logical_array = .false.
-  integer_array = -1
-  a_scalar = 5
-
-  write(*,*) "Driver: shape(real_array) = ", shape(real_array)
-  write(*,*) "Driver: shape(logical_array) = ", shape(logical_array)
-  write(*,*) "Driver: shape(integer_array) = ", shape(integer_array)
-
   call invoke(                                                                            &
        testkern_scalar_array_type(afield,real_array,logical_array,integer_array,a_scalar) &
           )
