@@ -83,7 +83,8 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import (
+    ContainerSymbol, DataSymbol, ImportInterface, INTEGER_TYPE, RoutineSymbol)
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -1335,10 +1336,19 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         # partial results in an array indexed by the thread index
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
-            thread_idx = self.scope.symbol_table.lookup_with_tag(
-                "omp_thread_index")
-            omp_get_thrd = self.scope.symbol_table.lookup_with_tag(
-                "omp_get_thread_num")
+            table = self.ancestor(Routine).symbol_table
+            omp_lib = table.find_or_create(
+                "omp_lib", symbol_type=ContainerSymbol)
+            omp_get_thrd = table.find_or_create_tag(
+                "omp_get_thread_num", symbol_type=RoutineSymbol,
+                interface=ImportInterface(omp_lib))
+            table.find_or_create_tag("omp_num_threads",
+                                     root_name="nthreads",
+                                     symbol_type=DataSymbol,
+                                     datatype=INTEGER_TYPE)
+            thread_idx = table.find_or_create_tag(
+                "omp_thread_index", root_name="th_idx",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
             assignment = Assignment.create(
                 lhs=Reference(thread_idx),
                 rhs=BinaryOperation.create(

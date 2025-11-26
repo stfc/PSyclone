@@ -712,33 +712,6 @@ class InvokeSchedule(Routine):
         result += "End " + self.coloured_name(False) + "\n"
         return result
 
-    def lower_to_language_level(self):
-        '''
-        Lower this InvokeSchedule to language-level PSyIR.
-
-        Primarily sets-up any common OpenMP-related symbols required by
-        kernels performing reductions.
-
-        '''
-        reprod_red_call_list = self.reductions(reprod=True)
-        if reprod_red_call_list:
-            # For reproducible reductions we need to query the OMP runtime so
-            # setup some common symbols. These will be used when lowering the
-            # specific kernels that perform reductions.
-            omp_lib = self.symbol_table.find_or_create(
-                "omp_lib", symbol_type=ContainerSymbol)
-            self.symbol_table.find_or_create_tag(
-                "omp_get_thread_num", symbol_type=RoutineSymbol,
-                interface=ImportInterface(omp_lib))
-            self.symbol_table.find_or_create_tag("omp_num_threads",
-                                                 root_name="nthreads",
-                                                 symbol_type=DataSymbol,
-                                                 datatype=INTEGER_TYPE)
-            self.symbol_table.find_or_create_tag(
-                "omp_thread_index", root_name="th_idx",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-        return super().lower_to_language_level()
-
 
 class GlobalSum(Statement):
     '''
