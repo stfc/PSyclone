@@ -537,3 +537,23 @@ def test_scalar_different_data_types_invoke():
             f"'invoke_real_and_integer_scalars' have different metadata for "
             f"data type ({const.VALID_SCALAR_DATA_TYPES}) in different "
             f"kernels. This is invalid." in str(excinfo.value))
+
+
+def test_scalar_array_different_data_types_invoke():
+    ''' Tests that the same scalar cannot have different data types
+    in different kernels within the same Invoke.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "28.1_multikernel_invokes_scalar_array_invalid.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+
+    const = LFRicConstants()
+    with pytest.raises(GenerationError) as excinfo:
+        _ = psy.gen
+    assert (f"ScalarArray argument(s) ['b'] in Invoke "
+            f"'invoke_real_and_logical_scalars' have different metadata for "
+            f"data type ({const.VALID_SCALAR_DATA_TYPES}) in different "
+            f"kernels. This is invalid." in str(excinfo.value))

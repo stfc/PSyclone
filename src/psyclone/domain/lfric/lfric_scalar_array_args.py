@@ -135,7 +135,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                                Counter(decl_scal).items() if count > 1]
             if scal_multi_type:
                 raise GenerationError(
-                    f"Scalar argument(s) {scal_multi_type} in Invoke "
+                    f"ScalarArray argument(s) {scal_multi_type} in Invoke "
                     f"'{self._invoke.name}' have different metadata for data "
                     f"type ({list(const.MAPPING_DATA_TYPES.keys())}) in "
                     f"different kernels. This is invalid.")
