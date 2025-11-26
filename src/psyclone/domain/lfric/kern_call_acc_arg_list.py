@@ -273,10 +273,7 @@ class KernCallAccArgList(KernCallArgList):
 
         '''
         # TODO: Add implementation of OpenACC data region for ScalarArrays
-        if scalar_arg.is_scalar_array:
-            # Need to add the relevant OpenACC information
-            pass
-        # Else the argument is a simple scalar value and doesn't need values
+        # If the argument is a simple scalar value then doesn't need values
         # added to OpenACC region
 
 
