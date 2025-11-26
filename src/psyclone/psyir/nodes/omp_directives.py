@@ -1396,7 +1396,7 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         self.children[3].replace_with(fprivate_clause)
 
         if reduction_kernels and not reprod_red_call_list:
-            self.add_reduction_clauses()
+            self._add_reduction_clauses()
 
         # Now finish the reproducible reductions
         for call in reversed(reprod_red_call_list):
@@ -1912,19 +1912,20 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        reductions = self.reductions()
-        if not reductions:
-            return super().lower_to_language_level()
-
         # We only attempt to *automatically* add reduction clauses if we have a
         # high-level (DSL) reduction operation.
+        reductions = self.reductions()
+        if not reductions:
+            # No high-level reduction operations.
+            return super().lower_to_language_level()
+
         self.children[0].lower_to_language_level()
+
         # Remove any existing Reduction clauses.
         self.children = [self.children[0]]
 
-        # Create data sharing clauses (order alphabetically to make generation
-        # reproducible)
-        self.add_reduction_clauses()
+        # Create data sharing clauses.
+        self._add_reduction_clauses()
 
         return super().lower_to_language_level()
 

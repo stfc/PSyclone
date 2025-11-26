@@ -276,16 +276,21 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         # If not, it can be just 'private'
         return False
 
-    def add_reduction_clauses(self):
+    def _add_reduction_clauses(self):
         '''
+        Analyses the code beneath this node and adds the necessary
+        OMPReductionClause nodes.
+
         '''
         _, _, need_sync = self.infer_sharing_attributes()
 
-        vam = self.children[0].reference_accesses()
         from psyclone.psyir.tools.reduction_inference import (
             ReductionInferenceTool)
         from psyclone.psyir.transformations.omp_loop_trans import (
             MAP_REDUCTION_OP_TO_OMP)
+
+        vam = self.children[0].reference_accesses()
+        # Currently we only support summation reductions.
         red_tool = ReductionInferenceTool(
             [BinaryOperation.Operator.ADD])
 
