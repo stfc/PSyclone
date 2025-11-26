@@ -42,8 +42,9 @@ from psyclone.psyir.nodes import (
         OMPTargetDirective, OMPParallelDirective)
 from psyclone.psyir.transformations import (
         OMPLoopTrans, OMPMinimiseSyncTrans,
-        OMPTargetTrans, TransformationError
+        OMPTargetTrans, TransformationError,
 )
+from psyclone.transformations import OMPParallelTrans
 from psyclone.psyir.transformations.omp_minimise_sync_trans import (
         _eliminate_final_parallel_barrier
 )
@@ -65,6 +66,25 @@ def test_omp_remove_barrier_validate():
 
     assert ("OMPMinimiseSyncTrans expects a Routine input but found 'str'."
            in str(excinfo.value))
+
+
+def test_omp_eliminate_uncontained_barriers(fortran_reader):
+    '''
+    Test the _eliminite_uncontained_barriers routine of the
+    OMPMinimiseSyncTrans.'''
+    code = """subroutine test
+
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    routine.addchild(OMPBarrierDirective())
+    routine.addchild(OMPBarrierDirective())
+    partrans = OMPParallelTrans()
+    partrans.apply(routine.children[1])
+    assert len(routine.walk(OMPBarrierDirective)) == 2
+    OMPMinimiseSyncTrans()._eliminate_uncontained_barriers(routine)
+    assert len(routine.walk(OMPBarrierDirective)) == 1
 
 
 def test_omp_eliminate_adjacent_barriers(fortran_reader):
