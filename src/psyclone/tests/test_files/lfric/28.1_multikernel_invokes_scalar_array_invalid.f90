@@ -35,7 +35,11 @@
 
 program multikernel_invokes_scalar_array_invalid
 
-  ! Description: single function specified in an invoke call
+  ! Description: two kernel calls with the first kernel using a real
+  ! ScalarArray and the second kernel usign a logical ScalarArray
+  ! incorrectly passing a ScalarArray that would need to be both real
+  ! and logical. This is provided from a module to stop PSyclone's type
+  ! checking from raising an exception.
   use constants_mod,             only: i_def, r_def, l_def
   use field_mod,                 only: field_type
   use testkern_scalar_array_mod, only: testkern_scalar_array_type
