@@ -56,6 +56,8 @@ class MaxParTrans(MaximalParallelRegionTrans):
     _parallel_transformation = OMPParallelTrans
     # We're only allowing assignment because its straightforward to test with.
     _allowed_nodes = (Assignment, )
+    # Should parallelise any found region that contains an assignment.
+    _required_nodes = (Assignment, )
 
 
 @pytest.mark.parametrize(
