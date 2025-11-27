@@ -111,40 +111,6 @@ class OMPRegionDirective(OMPDirective, RegionDirective, metaclass=abc.ABCMeta):
     Base class for all OpenMP region-related directives.
 
     '''
-    def _get_reductions_list(self, reduction_type):
-        '''
-        Returns the names of all scalars within this region that require a
-        reduction of type 'reduction_type'. Returned names will be unique.
-
-        TODO #514 - this only works for the PSyKAl APIs currently. It needs
-        extending/replacing with the use of the PSyIR Dependence Analysis.
-
-        :param reduction_type: the reduction type (e.g. AccessType.SUM) to
-                               search for.
-        :type reduction_type: :py:class:`psyclone.core.access_type.AccessType`
-
-        :returns: names of scalar arguments with reduction access.
-        :rtype: list[str]
-
-        '''
-        result = []
-
-        # TODO #514: not yet working with generic PSyIR, so skip for now
-        if Config.get().api not in ('gocean', 'lfric'):
-            return result
-
-        const = Config.get().api_conf().get_constants()
-        for call in self.kernels():
-            for arg in call.arguments.args:
-                if call.reprod_reduction:
-                    # In this case we do the reduction serially instead of
-                    # using an OpenMP clause
-                    continue
-                if arg.argument_type in const.VALID_SCALAR_NAMES:
-                    if arg.descriptor.access == reduction_type:
-                        if arg.name not in result:
-                            result.append(arg.name)
-        return result
 
 
 class OMPStandaloneDirective(OMPDirective, StandaloneDirective,
