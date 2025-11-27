@@ -301,11 +301,11 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
         # Create language-level PSyIR from the Algorithm file
-        reader = FortranReader(ignore_comments=not keep_comments,
-                               ignore_directives=not keep_directives,
-                               conditional_openmp_statements=\
-                                   keep_conditional_openmp_statements,
-                               free_form=free_form)
+        reader = FortranReader(
+            ignore_comments=not keep_comments,
+            ignore_directives=not keep_directives,
+            conditional_openmp_statements=keep_conditional_openmp_statements,
+            free_form=free_form)
         if api in LFRIC_API_NAMES:
             # avoid undeclared builtin errors in PSyIR by adding a
             # wildcard use statement.
@@ -695,15 +695,16 @@ def main(arguments):
                 )
 
     if not args.psykal_dsl:
-        code_transformation_mode(input_file=args.filename,
-                                 recipe_file=args.script,
-                                 output_file=args.o,
-                                 keep_comments=args.keep_comments,
-                                 keep_directives=args.keep_directives,
-                                 keep_conditional_openmp_statements=\
-                                     args.keep_conditional_openmp_statements,
-                                 line_length=args.limit,
-                                 free_form=free_form)
+        code_transformation_mode(
+            input_file=args.filename,
+            recipe_file=args.script,
+            output_file=args.o,
+            keep_comments=args.keep_comments,
+            keep_directives=args.keep_directives,
+            keep_conditional_openmp_statements=args.
+            keep_conditional_openmp_statements,
+            line_length=args.limit,
+            free_form=free_form)
     else:
         # PSyKAl-DSL mode
 
@@ -724,18 +725,19 @@ def main(arguments):
             kern_out_path = os.getcwd()
 
         try:
-            alg, psy = generate(args.filename, api=api,
-                                kernel_paths=args.directory,
-                                script_name=args.script,
-                                line_length=(args.limit == 'all'),
-                                distributed_memory=args.dist_mem,
-                                kern_out_path=kern_out_path,
-                                kern_naming=args.kernel_renaming,
-                                keep_comments=args.keep_comments,
-                                keep_directives=args.keep_directives,
-                                keep_conditional_openmp_statements=\
-                                    args.keep_conditional_openmp_statements,
-                                free_form=free_form)
+            alg, psy = generate(
+                args.filename, api=api,
+                kernel_paths=args.directory,
+                script_name=args.script,
+                line_length=(args.limit == 'all'),
+                distributed_memory=args.dist_mem,
+                kern_out_path=kern_out_path,
+                kern_naming=args.kernel_renaming,
+                keep_comments=args.keep_comments,
+                keep_directives=args.keep_directives,
+                keep_conditional_openmp_statements=args.
+                keep_conditional_openmp_statements,
+                free_form=free_form)
         except NoInvokesError:
             _, exc_value, _ = sys.exc_info()
             print(f"Warning: {exc_value}")
@@ -895,12 +897,13 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                     sys.exit(1)
 
         # Parse file
-        reader = FortranReader(resolve_modules=resolve_mods,
-                               ignore_comments=not keep_comments,
-                               ignore_directives=not keep_directives,
-                               conditional_openmp_statements=\
-                                   keep_conditional_openmp_statements,
-                               free_form=free_form)
+        reader = FortranReader(
+            resolve_modules=resolve_mods,
+            ignore_comments=not keep_comments,
+            ignore_directives=not keep_directives,
+            conditional_openmp_statements=keep_conditional_openmp_statements,
+            free_form=free_form
+        )
         try:
             psyir = reader.psyir_from_file(input_file)
         except (InternalError, ValueError, IOError) as err:

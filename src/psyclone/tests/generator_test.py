@@ -949,7 +949,6 @@ end subroutine x
     assert output == correct
 
 
-
 def test_keep_comments_lfric(capsys, monkeypatch):
     '''Test that the LFRic API correctly keeps comments and directives
     when applied the appropriate arguments.'''
@@ -1368,7 +1367,8 @@ def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
         my_file.write(code)
     with caplog.at_level(logging.ERROR):
         with pytest.raises(SystemExit):
-            code_transformation_mode(inputfile, None, None, False, False, False)
+            code_transformation_mode(inputfile, None, None, False, False,
+                                     False)
         _, err = capsys.readouterr()
         assert "Failed to create PSyIR from file '" in err
         assert "Is the input valid Fortran" in caplog.text
