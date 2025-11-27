@@ -419,9 +419,9 @@ class ArrayIndexAnalysis:
         self._add_constraint(z3.And(
           var_step != zero,
           z3.Implies(var_step > zero,
-            z3.And(var >= var_begin, var <= var_end)),
+                     z3.And(var >= var_begin, var <= var_end)),
           z3.Implies(var_step < zero,
-            z3.And(var <= var_begin, var >= var_end)),
+                     z3.And(var <= var_begin, var >= var_end)),
           var == var_begin + i * var_step,
           i >= zero))
         # Prohibit overflow/underflow of "i * var_step"
