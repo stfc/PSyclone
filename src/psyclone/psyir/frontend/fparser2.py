@@ -50,6 +50,9 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, BlockBase, StmtBase, Base
+from fparser.common.sourceinfo import FortranFormat
+from fparser.two.symbol_table import SYMBOL_TABLES
+from fparser.two.utils import FortranSyntaxError, NoMatchError
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
@@ -903,6 +906,8 @@ class Fparser2Reader():
     :raises TypeError: if the constructor argument is not of the expected type.
 
     '''
+    _parser = None
+
     unary_operators = OrderedDict([
         ('+', UnaryOperation.Operator.PLUS),
         ('-', UnaryOperation.Operator.MINUS),
@@ -1046,6 +1051,47 @@ class Fparser2Reader():
         self._ignore_directives = ignore_directives
         # Whether to keep the last comments in a given block as CodeBlocks
         self._last_comments_as_codeblocks = last_comments_as_codeblocks
+
+    @classmethod
+    def text_to_parse_tree(cls, source_code, ignore_comments, free_form,
+                           partial_code=None):
+        # self._free_form = free_form
+        # self._ignore_comments = ignore_comments
+
+        string_reader = FortranStringReader(
+            source_code, include_dirs=Config.get().include_paths,
+            ignore_comments=ignore_comments)
+        # Set reader to free format.
+        string_reader.set_format(FortranFormat(free_form, False))
+
+        SYMBOL_TABLES.clear()
+        if partial_code == "expression":
+            try:
+                parse_tree = Fortran2003.Expr(source_code)
+            except NoMatchError as err:
+                raise ValueError(
+                    f"Supplied source does not represent a Fortran "
+                    f"expression: '{source_code}'") from err
+        elif partial_code == "statement":
+            try:
+                parse_tree = Fortran2003.Execution_Part(string_reader)
+            except NoMatchError as err:
+                raise ValueError(
+                    f"Supplied source does not represent a Fortran "
+                    f"statement: '{source_code}'") from err
+        else:
+            try:
+                std = Config.get().fortran_standard
+                if not cls._parser:
+                    cls._parser = ParserFactory().create(std=std)
+                parse_tree = cls._parser(string_reader)
+            except (FortranSyntaxError, NoMatchError) as err:
+                raise ValueError(
+                    f"Failed to parse the provided source code:\n{source_code}"
+                    "\nError was: {err}\nIs the input valid Fortran (note that"
+                    f"CPP directives must be handled by a pre-processor)?"
+                ) from err
+        return parse_tree
 
     @staticmethod
     def nodes_to_code_block(parent, fp2_nodes, message=None):

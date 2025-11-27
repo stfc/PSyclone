@@ -68,6 +68,25 @@ class FortranTreeSitterReader():
             'translation_unit': self._translation_unit
         }
 
+    @staticmethod
+    def text_to_parse_tree(source_code, ignore_comments, free_form):
+        def report_errors(node):
+            ''' Recursively find and report errors '''
+            if node.type == 'ERROR':
+                raise ValueError(
+                    f"Syntax Error found at line {node.start_point[0] + 1}: "
+                    f"{node.text.decode('utf8')}")
+            for child in node.children:
+                report_errors(child)
+
+        import tree_sitter_fortran
+        from tree_sitter import Language, Parser
+        language = Language(tree_sitter_fortran.language())
+        parser = Parser(language)
+        parse_tree = parser.parse(bytes(source_code, "utf8"))
+        report_errors(parse_tree.root_node)
+        return parse_tree.root_node
+
     def generate_psyir(self, parse_tree, filename=""):
         '''Translate the supplied treesitter node to PSyIR.
 

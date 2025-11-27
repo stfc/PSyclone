@@ -89,7 +89,6 @@ def test_fortran_reader_constructor():
     ''' Test that the constructor initialises the _parser and _processor
     attributes. '''
     freader = FortranReader()
-    assert freader._parser is Fortran2003.Program
     assert isinstance(freader._processor, Fparser2Reader)
 
     # Check that the initialised parser can parse Fortran 2008 standard,

@@ -258,7 +258,7 @@ def test_codeblock_invalid(monkeypatch):
     invoke = psyir.children[0][0]
     code_block = invoke.arguments[0]
     assert isinstance(code_block, CodeBlock)
-    monkeypatch.setattr(code_block, "_fp2_nodes", [None])
+    monkeypatch.setattr(code_block, "_parse_tree", [None])
 
     invoke_trans = RaisePSyIR2AlgTrans()
 

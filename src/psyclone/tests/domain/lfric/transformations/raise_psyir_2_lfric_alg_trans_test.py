@@ -198,7 +198,7 @@ def test_codeblock_invalid(monkeypatch, fortran_reader):
     subroutine = psyir.children[0]
     code_block = subroutine[0].arguments[0]
     assert isinstance(code_block, CodeBlock)
-    monkeypatch.setattr(code_block, "_fp2_nodes", [None])
+    monkeypatch.setattr(code_block, "_parse_tree", [None])
 
     lfric_invoke_trans = RaisePSyIR2LFRicAlgTrans()
 

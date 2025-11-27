@@ -37,26 +37,17 @@
 
 ''' This module provides the PSyIR Fortran front-end.'''
 
-import os
+import re
 
 from typing import Optional, Union, List
-from fparser.common.readfortran import FortranStringReader, FortranFileReader
-from fparser.common.sourceinfo import FortranFormat
-from fparser.two import Fortran2003, pattern_tools
-from fparser.two.parser import ParserFactory
-from fparser.two.symbol_table import SYMBOL_TABLES
-from fparser.two.utils import FortranSyntaxError, NoMatchError
 from psyclone.configuration import Config
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Assignment, Node, Routine, Schedule
 from psyclone.psyir.symbols import SymbolTable
-from psyclone.psyir.frontend.fortran_treesitter_reader import (
-    FortranTreeSitterReader)
 
 
 class FortranReader():
     ''' PSyIR Fortran frontend. This frontend translates Fortran from a string
-    or a file into PSyIR using the fparser2 utilities.
+    or a file into PSyIR.
 
     :param free_form: If parsing free-form code or not (default True).
     :param ignore_comments: If comments should be ignored or not
@@ -79,36 +70,34 @@ class FortranReader():
                         ignore_comments is set to True.
 
     '''
-    # Save parser object across instances to reduce the initialisation time
-    _parser = None
-
-    def __init__(self, free_form: bool = True, ignore_comments: bool = True,
+    def __init__(self,
+                 free_form: bool = True,
+                 ignore_comments: bool = True,
                  ignore_directives: bool = True,
                  last_comments_as_codeblocks: bool = False,
                  resolve_modules: Union[bool, List[str]] = False):
+
+        if ignore_comments and not ignore_directives:
+            raise ValueError(
+                "Setting ignore_directives to False in the FortranReader "
+                "will only have an effect if ignore_comments is also set "
+                "to False."
+            )
+        self._ignore_comments = ignore_comments
+        self._free_form = free_form
+
+        # The frontend reader imports are intentionally inside this method
+        # to only lazily import them if they are requested
+        # pylint: disable=import-outside-toplevel
         if Config.get().frontend == 'treesitter':
-            import tree_sitter_fortran
-            from tree_sitter import Language, Parser
-            language = Language(tree_sitter_fortran.language())
-            self._parser = Parser(language)
+            from psyclone.psyir.frontend.fortran_treesitter_reader import (
+                FortranTreeSitterReader)
             self._processor = FortranTreeSitterReader()
         else:
-
-            if not self._parser:
-                std = Config.get().fortran_standard
-                self._parser = ParserFactory().create(std=std)
-            self._free_form = free_form
-            if ignore_comments and not ignore_directives:
-                raise ValueError(
-                    "Setting ignore_directives to False in the FortranReader "
-                    "will only have an effect if ignore_comments is also set "
-                    "to False."
-                )
-            self._ignore_comments = ignore_comments
+            from psyclone.psyir.frontend.fparser2 import Fparser2Reader
             self._processor = Fparser2Reader(ignore_directives,
                                              last_comments_as_codeblocks,
                                              resolve_modules)
-            SYMBOL_TABLES.clear()
 
     @staticmethod
     def validate_name(name: str):
@@ -126,7 +115,7 @@ class FortranReader():
             raise TypeError(
                 f"A name should be a string, but found "
                 f"'{type(name).__name__}'.")
-        if not pattern_tools.abs_name.match(name):
+        if not re.match(r"^[A-Z]\w*$", name, flags=re.I):
             raise ValueError(
                 f"Invalid Fortran name '{name}' found.")
 
@@ -140,26 +129,9 @@ class FortranReader():
         :raises ValueError: if the supplied Fortran cannot be parsed.
 
         '''
-        if Config.get().frontend == 'treesitter':
-            tree = self._parser.parse(bytes(source_code, "utf8"))
-            psyir = self._processor.generate_psyir(tree.root_node)
-            return psyir
-        SYMBOL_TABLES.clear()
-        string_reader = FortranStringReader(
-            source_code, include_dirs=Config.get().include_paths,
-            ignore_comments=self._ignore_comments)
-        # Set reader to free format.
-        string_reader.set_format(FortranFormat(self._free_form, False))
-
-        try:
-            parse_tree = self._parser(string_reader)
-        except (FortranSyntaxError, NoMatchError) as err:
-            raise ValueError(
-                f"Failed to parse the provided source code:\n{source_code}\n"
-                f"Error was: {err}\nIs the input valid Fortran (note that CPP "
-                f"directives must be handled by a pre-processor)?") from err
-
-        psyir = self._processor.generate_psyir(parse_tree)
+        tree = self._processor.text_to_parse_tree(
+                source_code, self._ignore_comments, self._free_form)
+        psyir = self._processor.generate_psyir(tree)
         return psyir
 
     def psyir_from_expression(self, source_code: str,
@@ -186,12 +158,9 @@ class FortranReader():
             raise TypeError(f"Must be supplied with a valid SymbolTable but "
                             f"got '{type(symbol_table).__name__}'")
 
-        try:
-            parse_tree = Fortran2003.Expr(source_code)
-        except NoMatchError as err:
-            raise ValueError(
-                f"Supplied source does not represent a Fortran "
-                f"expression: '{source_code}'") from err
+        tree = self._processor.text_to_parse_tree(
+                source_code, self._ignore_comments, self._free_form,
+                partial_code="expression")
 
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the expression and lookup any symbols that it
@@ -203,7 +172,7 @@ class FortranReader():
         # pylint: disable=protected-access
         fake_parent._symbol_table = symbol_table
         fake_parent.addchild(Assignment())
-        self._processor.process_nodes(fake_parent[0], [parse_tree])
+        self._processor.process_nodes(fake_parent[0], [tree])
         return fake_parent[0].children[0].detach()
 
     def psyir_from_statement(self, source_code: str,
@@ -229,15 +198,10 @@ class FortranReader():
         elif not isinstance(symbol_table, SymbolTable):
             raise TypeError(f"Must be supplied with a valid SymbolTable but "
                             f"got '{type(symbol_table).__name__}'")
-        string_reader = FortranStringReader(source_code)
-        # Set reader to free format.
-        string_reader.set_format(FortranFormat(True, False))
-        try:
-            exec_part = Fortran2003.Execution_Part(string_reader)
-        except NoMatchError as err:
-            raise ValueError(f"Supplied source does not represent a Fortran "
-                             f"statement: '{source_code}'") from err
 
+        tree = self._processor.text_to_parse_tree(
+                source_code, self._ignore_comments, self._free_form,
+                partial_code="statement")
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the statement and lookup any symbols that it
         # references.
@@ -249,7 +213,7 @@ class FortranReader():
 
         # Process the statement, giving the Routine we've just
         # created as the parent.
-        self._processor.process_nodes(fake_parent, exec_part.children)
+        self._processor.process_nodes(fake_parent, tree.children)
         return fake_parent[0].detach()
 
     def psyir_from_file(self, file_path):
@@ -264,34 +228,8 @@ class FortranReader():
         :raises ValueError: if the parser fails to parse the contents of
                             the supplied file.
         '''
-        if Config.get().frontend == 'treesitter':
-            with open(file_path, encoding="utf-8") as fortran_file:
-                return self.psyir_from_source(fortran_file.read())
-
-        SYMBOL_TABLES.clear()
-
-        # Note that this is the main performance hotspot in PSyclone, taking
-        # more than 90% of the runtime in some cases. Therefore this is a good
-        # place to implement caching in order to avoid repeating parsing steps
-        # that have already been done before.
-
-        # Using the FortranFileReader instead of manually open the file allows
-        # fparser to keep the filename information in the tree
-        reader = FortranFileReader(file_path,
-                                   include_dirs=Config.get().include_paths,
-                                   ignore_comments=self._ignore_comments)
-        reader.set_format(FortranFormat(self._free_form, False))
-        try:
-            parse_tree = self._parser(reader)
-        except (FortranSyntaxError, NoMatchError) as err:
-            raise ValueError(
-                f"Failed to parse source in file '{file_path}'.\n"
-                f"Error was: {err}\nIs the input valid Fortran (note that CPP "
-                f"directives must be handled by a pre-processor)?") from err
-        _, filename = os.path.split(file_path)
-
-        psyir = self._processor.generate_psyir(parse_tree, filename)
-        return psyir
+        with open(file_path, encoding="utf-8") as fortran_file:
+            return self.psyir_from_source(fortran_file.read())
 
 
 # For Sphinx AutoAPI documentation generation
