@@ -99,6 +99,7 @@ class FortranReader():
             )
         self._ignore_comments = ignore_comments
         self._ignore_directives = ignore_directives
+        self._conditional_openmp_statements = conditional_openmp_statements
         self._processor = Fparser2Reader(ignore_directives,
                                          last_comments_as_codeblocks,
                                          resolve_modules)
@@ -200,7 +201,7 @@ class FortranReader():
     def psyir_from_statement(self, source_code: str,
                              symbol_table: Optional[SymbolTable] = None):
         '''Generate the PSyIR tree for the supplied Fortran statement. The
-        symbolt table is expected to provide all symbols found in the
+        symbol table is expected to provide all symbols found in the
         statement.
 
         :param source_code: text of the statement to be parsed.
@@ -268,7 +269,9 @@ class FortranReader():
             file_path,
             include_dirs=Config.get().include_paths,
             ignore_comments=self._ignore_comments,
-            process_directives=not self._ignore_directives
+            process_directives=not self._ignore_directives,
+            include_omp_conditional_lines=\
+                    self._conditional_openmp_statements
         )
         reader.set_format(FortranFormat(self._free_form, False))
         try:

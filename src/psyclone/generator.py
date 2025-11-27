@@ -305,7 +305,6 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                                ignore_directives=not keep_directives,
                                conditional_openmp_statements=\
                                    keep_conditional_openmp_statements,
-                               keep_conditional_openmp_statements
                                free_form=free_form)
         if api in LFRIC_API_NAMES:
             # avoid undeclared builtin errors in PSyIR by adding a
@@ -559,7 +558,7 @@ def main(arguments):
     parser.add_argument(
         "--keep-conditional-openmp-statements", default=False,
         action="store_true",
-        help="Keeps conditional OpenMP statements, see "
+        help="keeps conditional OpenMP statements, see "
              "https://www.openmp.org/spec-html/5.0/openmpsu24.html for more "
              "details."
     )
@@ -676,8 +675,6 @@ def main(arguments):
         logger.warning("keep_directives requires keep_comments so "
                        "PSyclone enabled keep_comments.")
         args.keep_comments = True
-    if args.keep_conditional_openmp_statements:
-        assert False
 
     # If free_form or fixed_form is set in the arguments then it overrides
     # default behaviour.
