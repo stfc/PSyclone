@@ -1,3 +1,12 @@
+   3) PR #3210 for #3203. Removes outstanding references to the old,
+   pared-down LFRic infrastructure.
+
+   2) PR #3164 for #1320. Refactors the AccessSequence.component_indices
+   property into a method to remove internal state.
+ 
+   1) PR #3218 for #2705. Adds explicit type information for the r2d_field
+   type in GOcean so that kernel inlining succeeds.
+
 Release 3.2.2 26th of November 2025
 
    2) PR #3231 for #3230. Fixes a bug in upper_bound_psyir() for field vectors.
