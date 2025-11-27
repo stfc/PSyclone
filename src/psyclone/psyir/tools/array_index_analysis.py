@@ -415,12 +415,19 @@ class ArrayIndexAnalysis:
         if step is None:
             step = Literal("1", INTEGER_TYPE)  # pragma: no cover
         var_step = self._translate_integer_expr_with_subst(step)
+        i = self._fresh_integer_var()
         self._add_constraint(z3.And(
-          ((var - var_begin) % var_step) == zero,
-          z3.Implies(var_step > zero, var >= var_begin),
-          z3.Implies(var_step < zero, var <= var_begin),
-          z3.Implies(var_step > zero, var <= var_end),
-          z3.Implies(var_step < zero, var >= var_end)))
+          var_step != zero,
+          z3.Implies(var_step > zero,
+            z3.And(var >= var_begin, var <= var_end)),
+          z3.Implies(var_step < zero,
+            z3.And(var <= var_begin, var >= var_end)),
+          var == var_begin + i * var_step,
+          i >= zero))
+        # Prohibit overflow/underflow of "i * var_step"
+        if self.opts.use_bv and self.opts.prohibit_overflow:
+            self._add_constraint(z3.BVMulNoOverflow(i, var_step, True))
+            self._add_constraint(z3.BVMulNoUnderflow(i, var_step))
 
     def _add_array_access(self, array_name: str, access: ArrayAccess):
         '''Add an array access to the current access dict.'''
