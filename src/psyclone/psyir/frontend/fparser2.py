@@ -894,6 +894,9 @@ class Fparser2Reader():
     :param ignore_directives: Whether directives should be ignored or not
         (default True). Only has an effect if comments were not ignored when
         creating the fparser2 AST.
+    :param conditional_openmp_statements: Whether statements with
+    OpenMP conditional compilation prefixes should be included (default
+    False).
     :param last_comments_as_codeblocks: Whether the last comments in the a
         given block (e.g. subroutine, do, if-then body, etc.) should be kept as
         CodeBlocks or lost (default False). Only has an effect if comments
@@ -985,6 +988,7 @@ class Fparser2Reader():
         default_idx: int = -1
 
     def __init__(self, ignore_directives: bool = True,
+                 conditional_openmp_statements: bool = False,
                  last_comments_as_codeblocks: bool = False,
                  resolve_modules: bool = False):
         if isinstance(resolve_modules, bool):
@@ -1047,6 +1051,9 @@ class Fparser2Reader():
         self._last_psyir_parsed_and_span = None
         # Whether to ignore directives when processing the fparser2 AST
         self._ignore_directives = ignore_directives
+        # Whether to keep statements with the conditional compiled openMP
+        # prefix.
+        self._conditional_openmp_statements = conditional_openmp_statements
         # Whether to keep the last comments in a given block as CodeBlocks
         self._last_comments_as_codeblocks = last_comments_as_codeblocks
 

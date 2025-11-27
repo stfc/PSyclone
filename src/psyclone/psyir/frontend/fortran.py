@@ -62,6 +62,9 @@ class FortranReader():
     :param ignore_directives: If directives should be ignored or not
                             (default True). Only has an effect
                             if ignore_comments is False.
+    :param conditional_openmp_statements: whether to keep statements with the
+                                          OpenMP conditional compilation
+                                          prefix.
     :param last_comments_as_codeblocks: If the last comments in the
                                         a given block (e.g. subroutine,
                                         do, if-then body, etc.) should
@@ -82,6 +85,7 @@ class FortranReader():
 
     def __init__(self, free_form: bool = True, ignore_comments: bool = True,
                  ignore_directives: bool = True,
+                 conditional_openmp_statements: bool = False,
                  last_comments_as_codeblocks: bool = False,
                  resolve_modules: Union[bool, List[str]] = False):
         if not self._parser:
