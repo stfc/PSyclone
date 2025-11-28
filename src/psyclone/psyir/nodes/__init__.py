@@ -103,6 +103,7 @@ from psyclone.psyir.nodes.omp_clauses import (
     OMPGrainsizeClause, OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause,
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause, OMPScheduleClause,
     OMPFirstprivateClause, OMPSharedClause, OMPDependClause)
+from psyclone.psyir.nodes.omp_critical_directive import OMPCriticalDirective
 from psyclone.psyir.nodes.omp_task_directive import OMPTaskDirective
 from psyclone.psyir.nodes.while_loop import WhileLoop
 
@@ -194,6 +195,7 @@ __all__ = [
         'OMPSimdDirective',
         'OMPTeamsDistributeParallelDoDirective',
         'OMPTeamsLoopDirective',
+        'OMPCriticalDirective',
         # OMP Clause Nodes
         'OMPGrainsizeClause',
         'OMPNogroupClause',
@@ -205,5 +207,5 @@ __all__ = [
         'OMPScheduleClause',
         'OMPFirstprivateClause',
         'OMPSharedClause',
-        'OMPDependClause'
+        'OMPDependClause',
         ]
