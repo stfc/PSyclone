@@ -288,7 +288,8 @@ def _refine_symbols_with_usage_location(
     direct_refnames_in_exprs = {
         x.string.lower() for x in walk(execution_part, Fortran2003.Name)
         if isinstance(x.parent, (Fortran2003.BinaryOpBase,
-                                 Fortran2003.UnaryOpBase))
+                                 Fortran2003.UnaryOpBase,
+                                 Fortran2003.Actual_Arg_Spec_List))
     }
     # Traverse all part_ref, in fparser these are <name>(<list>) expressions,
     # and specialise their names as DataSymbols if some of the following
