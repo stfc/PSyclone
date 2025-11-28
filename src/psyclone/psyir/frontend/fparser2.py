@@ -5840,17 +5840,23 @@ class Fparser2Reader():
         :type preceding_comments: List[:py:class:`fparser.two.utils.Comment`]
 
         '''
-        _directive_formats = [
-            r"\!\$[a-z]",  # Generic directive
-            r"c\$[a-z]",  # Generic directive
-            r"\*\$[a-z]",  # Generic directive
-            r"\!dir\$",  # flang, ifx, ifort directives.
-            r"cdir\$",  # flang, ifx, ifort fixed format directive.
-            r"\!gcc\$",  # GCC compiler directive
-        ]
         if len(comment.tostr()) == 0:
             return
         if self._ignore_directives:
+            # When directive detection is disabled in fparser, but we still
+            # request comments the directive will be part of the comments. This
+            # is typically not an issue because current psyir backends add an
+            # space between the comment character and the start of the comment,
+            # effectively disabling the directive. However, for clarity, we
+            # still try to clean them up using the regex below.
+            _directive_formats = [
+                r"\!\$[a-z]",  # Generic directive
+                r"c\$[a-z]",  # Generic directive
+                r"\*\$[a-z]",  # Generic directive
+                r"\!dir\$",  # flang, ifx, ifort directives.
+                r"cdir\$",  # flang, ifx, ifort fixed format directive.
+                r"\!gcc\$",  # GCC compiler directive
+            ]
             comment_str = comment.tostr().lower()
             for dir_form in _directive_formats:
                 if re.match(dir_form, comment_str):
