@@ -687,7 +687,8 @@ def test_get_effective_shape(fortran_reader):
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
-    assert shape[0].debug_string() == "UBOUND(b, 2) - LBOUND(b, 1) + 1"
+    assert (shape[0].debug_string() ==
+            "UBOUND(b, dim=2) - LBOUND(b, dim=1) + 1")
     # Indirect array slice.
     #   b(indices(2:3,1), 2:5) = 2.0
     child_idx += 1
