@@ -54,7 +54,6 @@ if not NEMOV4:
         "trazdf.f90",
         # These fail with nvfortran
         "icefrm.f90",  # Has unsupported implicit symbol declaration
-        "icerst.f90",
     ]
 
 
