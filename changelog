@@ -7,6 +7,13 @@
    1) PR #3218 for #2705. Adds explicit type information for the r2d_field
    type in GOcean so that kernel inlining succeeds.
 
+Release 3.2.2 26th of November 2025
+
+   2) PR #3231 for #3230. Fixes a bug in upper_bound_psyir() for field vectors.
+
+   1) PR #3229 for #3227. Fixes a bug with PSyAD where the wrong operator
+   space was being generated.
+
 Release 3.2.1 12th of November 2025
 
    17) PR #3214 for #3188. Improves the validation when doing automatic
