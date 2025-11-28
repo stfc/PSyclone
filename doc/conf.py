@@ -413,7 +413,9 @@ linkcheck_ignore = [
     # the links to anchors to the main README.
     r'^https://github.com/stfc/PSyclone#',
     # Requires authentication.
-    r'^https://code.metoffice.gov.uk/trac'
+    r'^https://code.metoffice.gov.uk/trac',
+    # This often fails, but the link exists
+    r'^https://www.khronos.org'
 ]
 
 # -- Autodoc configuration ---------------------------------------------------
