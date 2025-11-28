@@ -1,3 +1,5 @@
+   4) PR #3178 for #3196. Improves fparser2 reader directive handling.
+
    3) PR #3210 for #3203. Removes outstanding references to the old,
    pared-down LFRic infrastructure.
 
