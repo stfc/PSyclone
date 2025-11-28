@@ -73,7 +73,6 @@ def test_directive_in_decls():
     psyir = reader.psyir_from_source(code)
     routine = psyir.children[0]
     out = routine.debug_string()
-    print(out)
     assert """  ! $omp firstprivate
   integer, dimension(100) :: i ! dir$ aligned""" in out
 
