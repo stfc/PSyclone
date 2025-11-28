@@ -372,7 +372,7 @@ def _refine_symbols_with_usage_location(
     :param execution_part: fparser nodes to analyse for symbol usage.
 
     '''
-    # The top-reference of the assignment lhs is guaranteed to be a DataSymbol
+    # The top-reference of an assignment lhs is guaranteed to be a DataSymbol
     # This is not true for statement functions, but fparser and psyclone
     # currently don't support them.
     for assignment in walk(execution_part, Fortran2003.Assignment_Stmt):
