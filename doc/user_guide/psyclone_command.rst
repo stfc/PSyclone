@@ -537,6 +537,9 @@ some limitations:
      nodes. Also PSyclone will not know any details about these nodes
      (including that they contain directives) but this functionality will
      be improved over time.
+  3. Directives that appear before or inside the declaration section of a
+     Subroutine, Program or Module are converted to comments (the default
+     output add a space after the ``!``, effectively disabling the directive.
 
-Note that using the ``keep-comments`` option alone means that any comments
-that PSyclone interprets as directives will be lost from the input.
+Note that using the ``--keep-comments`` option without the ``--keep-directives``
+option means that any comments that PSyclone interprets as directives will be excluded.
