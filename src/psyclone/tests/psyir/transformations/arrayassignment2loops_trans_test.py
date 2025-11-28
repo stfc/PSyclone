@@ -79,7 +79,8 @@ def test_str():
           "x(:,:,:) = y(:,:,:)\n",
           "  do idx = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
           "    do idx_1 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
-          "      do idx_2 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "      do idx_2 = LBOUND(x, dim=1), "
+          "UBOUND(x, dim=1), 1\n"
           "        x(idx_2,idx_1,idx) = y(idx_2,idx_1,idx)\n"),
 
          # Multiple arrays on RHS
@@ -126,7 +127,8 @@ def test_str():
           "x(:,jpj,:,ndim,:) = y(jpi,:,:,:,ndim) + 1.0\n",
           "  do idx = LBOUND(x, dim=5), UBOUND(x, dim=5), 1\n"
           "    do idx_1 = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
-          "      do idx_2 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "      do idx_2 = LBOUND(x, dim=1), "
+          "UBOUND(x, dim=1), 1\n"
           "        x(idx_2,jpj,idx_1,ndim,idx) = y(jpi,idx_2,idx_1,"
           "idx,ndim) + 1.0\n"
           "      enddo\n"
@@ -184,7 +186,8 @@ def test_str():
           "x(:,:,:) = 3 + mystruct%soa%array(:,:,:)",
           "  do idx = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
           "    do idx_1 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
-          "      do idx_2 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "      do idx_2 = LBOUND(x, dim=1), "
+          "UBOUND(x, dim=1), 1\n"
           # Ignore offset for this test, it is tested below
           "        x(idx_2,idx_1,idx) = 3 + mystruct%soa%array(idx_2 + "),
 
@@ -283,15 +286,17 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
 
     # The bounds are not known, so L/UBOUND expressions are used
     output_test1 = fortran_writer(psyir.walk(Assignment)[0])
-    assert ("x1(idx_1,idx) = y1(idx_1 + (LBOUND(y1, dim=1) - LBOUND(x1, "
-            "dim=1)),idx + (LBOUND(y1, dim=2) - LBOUND(x1, dim=2)))"
+    assert ("x1(idx_1,idx) = y1(idx_1 + (LBOUND(y1, dim=1) "
+            "- LBOUND(x1, dim=1)),idx + "
+            "(LBOUND(y1, dim=2) - LBOUND(x1, dim=2)))"
             in output_test1)
 
     # When we know the bounds we can see they are different, we also
     # need the offsets (and can also use L/UBOUND)
     output_test2 = fortran_writer(psyir.walk(Assignment)[1])
-    assert ("x2(idx_3,idx_2) = y2(idx_3 + (LBOUND(y2, dim=1) - LBOUND(x2, "
-            "dim=1)),idx_2 + (LBOUND(y2, dim=2) - LBOUND(x2, dim=2)))"
+    assert ("x2(idx_3,idx_2) = y2(idx_3 + (LBOUND(y2, dim=1) "
+            "- LBOUND(x2, dim=1)),idx_2 + "
+            "(LBOUND(y2, dim=2) - LBOUND(x2, dim=2)))"
             in output_test2)
 
     # If the bounds are implicit, the offset should also use the implicit
@@ -307,7 +312,8 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
     output_test4 = fortran_writer(psyir.walk(Assignment)[3])
     assert (" struct%values(idx_6 + (LBOUND(struct%values, dim=1) - "
             "LBOUND(x, dim=1))) + struct%array(idx_6 + ("
-            "LBOUND(struct%array, dim=1) - LBOUND(x, dim=1)))%value"
+            "LBOUND(struct%array, dim=1) - "
+            "LBOUND(x, dim=1)))%value"
             in output_test4)
 
 

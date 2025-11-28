@@ -471,7 +471,8 @@ end
     with pytest.raises(TransformationError) as err:
         acc_trans.validate(sub.children[1], options={"allow_strings": True})
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
-            " region but found 'assumed_size_char(:LEN(explicit_size_char)) = "
+            " region but found 'assumed_size_char(:LEN("
+            "explicit_size_char)) = "
             in str(err.value))
     with pytest.raises(TransformationError) as err:
         acc_trans.validate(sub.children[2], options={"allow_strings": True})
