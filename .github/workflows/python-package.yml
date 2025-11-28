@@ -47,9 +47,11 @@ name: PSyclone tests and examples
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
+      - 'release_candidate_*'
   workflow_dispatch:
 
 jobs:
@@ -60,18 +62,18 @@ jobs:
     env:
       GITHUB_PR_NUMBER: ${{ github.event.number }}
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.14'
-    - run: sudo apt-get install -y graphviz doxygen
-    - run: python -m pip install --upgrade pip
-    - run: pip install .[doc]
-    # Now we can check for warnings and broken links
-    - run: cd doc; make html SPHINXOPTS="-W --keep-going"
-    - run: cd doc; make linkcheck
-    # TODO #2936: There are many doctest issues, so commenting out for now
-    # - run: cd doc; make doctest
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: sudo apt-get install -y graphviz doxygen
+      - run: python -m pip install --upgrade pip
+      - run: pip install .[doc]
+      # Now we can check for warnings and broken links
+      - run: cd doc; make html SPHINXOPTS="-W --keep-going"
+      - run: cd doc; make linkcheck
+      # TODO #2936: There are many doctest issues, so commenting out for now
+      # - run: cd doc; make doctest
   build:
     if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
     runs-on: ubuntu-latest
@@ -79,63 +81,63 @@ jobs:
       matrix:
         python-version: ['3.9', '3.14']
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        # This is required to get the commit history for merge commits for
-        # the ci-skip check below.
-        fetch-depth: '0'
-    - name: Check for [skip ci] in commit message
-      uses: mstachniuk/ci-skip@v1
-      with:
-        # This setting causes the tests to 'fail' if [skip ci] is specified
-        fail-fast: true
-        commit-filter: '[skip ci]'
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        # Some of the examples use Jupyter.
-        pip install jupyter
-        # We need to install sphinx to get correct doc testing
-        # Uncomment the below to use the submodule version of fparser rather
-        # than the latest release from pypi.
-        pip install external/fparser
-        pip install .[doc]
-        pip install .[test]
-    - name: Lint with flake8
-      run: |
-        # Stop the build if there are Python syntax errors or undefined names.
-        # See PSyclone/setup.cfg for configuration of this check.
-        flake8 --count --show-source --statistics .
-    - name: Run examples
-      run: |
-        ( make -j 2 -C examples transform > /dev/null )
-        ( make -C examples notebook )
-    - name: Run tutorials
-      run: |
-        ( make -C tutorial/practicals transform > /dev/null )
-        # Jupyter notebooks are out-of-date
-        # ( make -C tutorial/notebooks notebook )
-    - name: Test with pytest
-      if: ${{ !(matrix.python-version == '3.9') }}
-      run: |
-        locale
-        pytest -n auto --cov=psyclone --cov-report=xml src/psyclone/tests
-    - name: Test with pytest and C Locale
-      if: ${{ matrix.python-version == '3.9' }}
-      run: |
-        locale
-        pytest -n auto --cov=psyclone --cov-report=xml src/psyclone/tests
-      env:
-        LC_ALL: C
-        LANG: C
-    - name: Upload coverage to Codecov with GitHub Action
-      uses: codecov/codecov-action@v4
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      with:
-        verbose: true
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          # This is required to get the commit history for merge commits for
+          # the ci-skip check below.
+          fetch-depth: '0'
+      - name: Check for [skip ci] in commit message
+        uses: mstachniuk/ci-skip@v1
+        with:
+          # This setting causes the tests to 'fail' if [skip ci] is specified
+          fail-fast: true
+          commit-filter: '[skip ci]'
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Some of the examples use Jupyter.
+          pip install jupyter
+          # We need to install sphinx to get correct doc testing
+          # Uncomment the below to use the submodule version of fparser rather
+          # than the latest release from pypi.
+          pip install external/fparser
+          pip install .[doc]
+          pip install .[test]
+      - name: Lint with flake8
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names.
+          # See PSyclone/setup.cfg for configuration of this check.
+          flake8 --count --show-source --statistics .
+      - name: Run examples
+        run: |
+          ( make -j 2 -C examples transform > /dev/null )
+          ( make -C examples notebook )
+      - name: Run tutorials
+        run: |
+          ( make -C tutorial/practicals transform > /dev/null )
+          # Jupyter notebooks are out-of-date
+          # ( make -C tutorial/notebooks notebook )
+      - name: Test with pytest
+        if: ${{ !(matrix.python-version == '3.9') }}
+        run: |
+          locale
+          pytest -n auto --cov=psyclone --cov-report=xml src/psyclone/tests
+      - name: Test with pytest and C Locale
+        if: ${{ matrix.python-version == '3.9' }}
+        run: |
+          locale
+          pytest -n auto --cov=psyclone --cov-report=xml src/psyclone/tests
+        env:
+          LC_ALL: C
+          LANG: C
+      - name: Upload coverage to Codecov with GitHub Action
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          verbose: true
