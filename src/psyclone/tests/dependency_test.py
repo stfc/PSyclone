@@ -242,7 +242,7 @@ def test_goloop_partially():
 
     var_accesses = do_loop.reference_accesses()
     assert ("a_scalar: READ, i: WRITE+READ, j: WRITE+READ, ssh_fld%data: "
-            "READ+WRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "
+            "WRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "
             "ssh_fld%grid%tmask: READ, ssh_fld%whole%xstart: READ, "
             "ssh_fld%whole%xstop: READ, ssh_fld%whole%ystart: READ, "
             "ssh_fld%whole%ystop: READ" == str(var_accesses))

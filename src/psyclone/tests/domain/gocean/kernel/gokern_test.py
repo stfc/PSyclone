@@ -225,14 +225,14 @@ def test_gok_access_info_scalar_and_property():
     # Literals are ignored and properties are accesses without indices
     # (because they can only be accessed as pointwise reads anyway)
     assert kern1.children[0].debug_string() == (
-        "p_fld%data(i,j) = p_fld%data(i,j) + "
+        "p_fld%data(i,j) = "
         "p_fld%grid%subdomain%internal%xstop + p_fld%grid%tmask\n"
     )
 
     # Check that we get the grid properties listed:
     vam = kern1.reference_accesses()
     assert (str(vam) ==
-            "i: READ, j: READ, p_fld%data: READ+WRITE, "
+            "i: READ, j: READ, p_fld%data: WRITE, "
             "p_fld%grid%subdomain%internal%xstop: READ, "
             "p_fld%grid%tmask: READ")
 

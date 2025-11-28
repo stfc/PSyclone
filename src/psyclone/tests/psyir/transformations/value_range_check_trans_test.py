@@ -101,10 +101,10 @@ def test_value_range_check_options(fortran_writer):
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
     value_range_check = ValueRangeCheckTrans()
-    value_range_check.apply(invoke.schedule[0].loop_body[0],
+    value_range_check.apply(invoke.schedule[0],
                             options={"region_name": ("a", "b")})
     code = fortran_writer(invoke.schedule)
-    assert 'CALL value_range_check_psy_data % PreStart("a", "b", 5, 2)' in code
+    assert 'CALL value_range_check_psy_data % PreStart("a", "b", 6, 3)' in code
 
 
 # -----------------------------------------------------------------------------
