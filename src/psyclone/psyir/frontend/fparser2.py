@@ -3016,7 +3016,8 @@ class Fparser2Reader():
             (e.g. allocate(character(len=10) :: my_var)).
 
         '''
-        # Canonicalise doesn't do anything for ALLOCATE so we don't need to.
+        # Computing argument names doesn't do anything for ALLOCATE so we
+        # don't call it.
         call = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE, parent=parent)
 
         type_spec = node.children[0]
@@ -3172,7 +3173,8 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
-        # Canonicalise doesn't do anything for DEALLOCATE so we don't need to.
+        # Computing argument names doesn't do anything for DEALLOCATE so we
+        # don't call it.
         call = IntrinsicCall(
             IntrinsicCall.Intrinsic.DEALLOCATE, parent=parent)
         dealloc_list = node.children[0].children
@@ -5208,7 +5210,7 @@ class Fparser2Reader():
                           Fortran2003.Intrinsic_Function_Reference
                       ],
                       call: Union[Call, IntrinsicCall],
-                      canonicalise: bool = False) -> Union[
+                      check_valid_argument_ordering: bool = False) -> Union[
                               Call, IntrinsicCall]:
         '''Processes fparser2 call or intrinsic arguments contained in the
         node argument and adds them to the PSyIR Call or IntrinsicCall
@@ -5230,8 +5232,10 @@ class Fparser2Reader():
             an intrinsic call.
         :param call: a PSyIR call argument representing a call or an
             intrinsic call.
-        :param canonicalise: whether to canonicalise the call (for
-            IntrinsicCalls).
+        :param check_valid_argument_ordering: whether to check the order
+            of the arguments provided to the call are valid (currently just for
+            IntrinsicCalls). This check ensures that all unnamed arguments
+            appear before any named arguments.
 
         :returns: the PSyIR call argument with the PSyIR
             representation of the fparser2 node arguments.
@@ -5248,13 +5252,11 @@ class Fparser2Reader():
 
         # Sanity check that all named arguments follow all positional
         # arguments. This should be the case but fparser does not
-        # currently check and this ordering is assumed by the
-        # canonicalise function. LFRic invokes can cause this
-        # exception (as they often use name=xxx before the end of the
-        # argument list), so to avoid this we only check when a
-        # canonicalise function is supplied (which we know is not the
-        # case for invokes as they are calls).
-        if canonicalise:
+        # currently check and this ordering is assumed. LFRic invokes can
+        # cause this exception (as they often use name=xxx before the end of
+        # the argument list), so to avoid this we only check when the option
+        # is enabled.
+        if check_valid_argument_ordering:
             index = 0
             while index < len(arg_names) and not arg_names[index]:
                 index += 1

@@ -60,7 +60,8 @@ by the command:
                     [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--log-file LOG_FILE]
                     [--keep-comments] [--keep-directives] [-I INCLUDE] [-d DIRECTORY]
                     [--modman-file-ignore IGNORE_PATTERN] [--free-form | --fixed-form]
-                    [--backend {disable-validation,disable-indentation}] [--disable-named-intrinsic-args]
+                    [--backend-disable-validation] [--backend-disable-indentation]
+                    [--backend-add-all-intrinsic-arg-names]
                     filename
 
     Transform a file using the PSyclone source-to-source Fortran compiler
@@ -122,14 +123,14 @@ by the command:
     Fortran backend control options.:
         These settings control how PSyclone outputs Fortran.
 
-        --backend {disable-validation,disable-indentation}
-                        options to control the PSyIR backend used for code generation.
-                        Use 'disable-validation' to disable the validation checks that are performed by
-                        default. Use 'disable-indentation' to turn off all indentation in the generated code.
-        --disable-named-intrinsic-args
-                        By default, the backend names any required arguments to intrinsic calls. This option
-                        disables this feature (in case the processed code has overridden a Fortran intrinsic),
-                        i.e. SUM(arr, mask=maskarr) instead of SUM(array=arr, mask=maskarr).
+        --backend-disable-validation
+                        Disables validation checks that PSyclone backends perform by default.
+        --backend-disable-indentation
+                        Disables all indentation in the generated output code.
+        --backend-add-all-intrinsic-arg-names
+                        By default, the backend outputs the names of only optional arguments to intrinsic calls.
+                        This option enables all argument names on intrinsic
+                        calls, i.e. SUM(array=arr, mask=maskarr) instead of SUM(arr, mask=maskarr).
 
 Basic Use
 ---------
@@ -328,11 +329,12 @@ command-line setting always takes precedence.
 Overriding Fortran Intrinsics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-PSyclone attempts to canonicalise Fortran Intrinsics, which involves adding
-argument names to each argument in the ``IntrinsicCall`` PSyIR node. This can
+PSyclone internally computes the argument names for each argument provided to
+a Fortran IntrinsicCall PSyIR node. This can
 cause problems with code that overrides Fortran intrinsics. To ensure correct
-behaviour of the output, the ``--disable-named-intrinsic-args`` option must
-be passed to PSyclone, else the resultant code may not compile or run correctly.
+behaviour of the output, the ``--backend-add-all-intrinsic-arg-names`` option
+must **not** be passed to PSyclone, else the resultant code may not compile or
+run correctly.
 
 Automatic Profiling Instrumentation
 -----------------------------------
