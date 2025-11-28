@@ -42,9 +42,10 @@
 
 from collections import OrderedDict
 from dataclasses import dataclass, field
+import re
 import os
 import sys
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
@@ -1098,6 +1099,7 @@ class Fparser2Reader():
             Fortran2003.Module: self._module_handler,
             Fortran2003.Main_Program: self._main_program_handler,
             Fortran2003.Program: self._program_handler,
+            Fortran2003.Directive: self._directive_handler,
         }
         # Used to attach inline comments to the PSyIR symbols and nodes
         self._last_psyir_parsed_and_span = None
@@ -2490,7 +2492,8 @@ class Fparser2Reader():
         preceding_comments = []
         for node in nodes:
             if isinstance(node, Fortran2003.Implicit_Part):
-                for comment in walk(node, Fortran2003.Comment):
+                for comment in walk(node, (Fortran2003.Comment,
+                                           Fortran2003.Directive)):
                     self.process_comment(comment, preceding_comments)
             elif isinstance(node, Fortran2003.Derived_Type_Def):
                 sym = self._process_derived_type_decln(parent, node,
@@ -2518,7 +2521,8 @@ class Fparser2Reader():
         for node in nodes:
 
             if isinstance(node, Fortran2003.Implicit_Part):
-                for comment in walk(node, Fortran2003.Comment):
+                for comment in walk(node, (Fortran2003.Comment,
+                                           Fortran2003.Directive)):
                     self.process_comment(comment, preceding_comments)
                     continue
                 # Anything other than a PARAMETER statement or an
@@ -2949,24 +2953,6 @@ class Fparser2Reader():
         :type preceding_comments: list[:py:class:`fparser.two.utils.Base`]
         :param psy_child: The current PSyIR node being constructed.
         '''
-        for comment in preceding_comments[:]:
-            # If the comment is a directive and we
-            # keep_directives then create a CodeBlock for
-            # the directive.
-
-            # TODO: fparser #469. This only captures some free-form
-            # directives.
-            if (not self._ignore_directives and
-                    comment.tostr().startswith("!$")):
-                block = self.nodes_to_code_block(parent, [comment])
-                # Attach any comments that came before this directive to this
-                # CodeBlock node.
-                if comment is not preceding_comments[0]:
-                    index = preceding_comments.index(comment)
-                    block.preceding_comment += self._comments_list_to_string(
-                        preceding_comments[0:index])
-                    preceding_comments = preceding_comments[index:]
-                preceding_comments.remove(comment)
         # Leftover comments are added to the provided PSyIR node.
         psy_child.preceding_comment += self._comments_list_to_string(
             preceding_comments
@@ -3076,7 +3062,9 @@ class Fparser2Reader():
             # there), so we have to examine the first statement within it. We
             # must allow for the case where the block is empty though.
             if (child.content and child.content[0] and
-                    (not isinstance(child.content[0], Fortran2003.Comment)) and
+                    (not isinstance(child.content[0],
+                                    (Fortran2003.Comment,
+                                     Fortran2003.Directive))) and
                     child.content[0].item and child.content[0].item.label):
                 raise NotImplementedError("Unsupported labelled statement")
         elif isinstance(child, StmtBase):
@@ -3428,13 +3416,18 @@ class Fparser2Reader():
             raise NotImplementedError("Unsupported Loop")
 
         # Process loop body (ignore 'do' and 'end do' statements)
-        # Keep track of the comments before the 'do' statement
+        # Keep track of the comments and directives before the 'do' statement
         loop_body_nodes = []
         preceding_comments = []
         found_do_stmt = False
         for child in node.content:
             if isinstance(child, Fortran2003.Comment) and not found_do_stmt:
                 self.process_comment(child, preceding_comments)
+                continue
+            if isinstance(child, Fortran2003.Directive) and not found_do_stmt:
+                directive = self._directive_handler(child, None)
+                # Add the directive before the loop.
+                loop.parent.addchild(directive)
                 continue
             if isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
                 found_do_stmt = True
@@ -3488,6 +3481,10 @@ class Fparser2Reader():
         for child in node.content[:clause_indices[0]]:
             if isinstance(child, Fortran2003.Comment):
                 self.process_comment(child, preceding_comments)
+            if isinstance(child, Fortran2003.Directive):
+                direc = self._directive_handler(child, None)
+                parent.addchild(direc)
+
         # NOTE: The comments are added to the IfBlock node.
         # NOTE: Comments before the 'else[if]' statements are not handled.
 
@@ -5463,9 +5460,9 @@ class Fparser2Reader():
 
         return call
 
-    def _get_lost_declaration_comments(self, decl_list,
-                                       attach_trailing_symbol: bool = True)\
-            -> list[Fortran2003.Comment]:
+    def _get_lost_declaration_comments_and_directives(
+        self, decl_list, attach_trailing_symbol: bool = True
+    ) -> list[Union[Fortran2003.Comment, Fortran2003.Directive]]:
         '''Finds comments from the variable declaration that the default
         declaration handler doesn't keep. Any comments that appear after
         the final declaration but before the first PSyIR node created are
@@ -5479,14 +5476,16 @@ class Fparser2Reader():
                                        the last symbol to the tree or not.
                                        Defaults to True
 
-        :returns: a list of comments that have been missed.
+        :returns: a list of comments and directives that have been
+                  missed.
         '''
         lost_comments = []
         if len(decl_list) != 0 and isinstance(decl_list[-1],
                                               Fortran2003.Implicit_Part):
             # fparser puts all comments after the end of the last declaration
             # in the tree of the last declaration.
-            for comment in walk(decl_list[-1], Fortran2003.Comment):
+            for comment in walk(decl_list[-1], (Fortran2003.Comment,
+                                                Fortran2003.Directive)):
                 if len(comment.tostr()) == 0:
                     continue
                 if self._last_psyir_parsed_and_span is not None:
@@ -5621,7 +5620,8 @@ class Fparser2Reader():
             # declarations as part of the declarations, but in PSyclone
             # they need to be a preceding_comment unless it's an inline
             # comment on the last declaration.
-            lost_comments = self._get_lost_declaration_comments(decl_list)
+            lost_comments = \
+                self._get_lost_declaration_comments_and_directives(decl_list)
 
             # Check whether the function-stmt has a prefix specifying the
             # return type (other prefixes are handled in
@@ -5779,7 +5779,9 @@ class Fparser2Reader():
         # fparser puts comments at the end of the declarations
         # whereas as preceding comments they belong in the execution part
         # except if it's an inline comment on the last declaration.
-        lost_comments = self._get_lost_declaration_comments(decl_list, False)
+        lost_comments = \
+            self._get_lost_declaration_comments_and_directives(decl_list,
+                                                               False)
 
         try:
             prog_exec = _first_type_match(node.content,
@@ -5915,8 +5917,25 @@ class Fparser2Reader():
         '''
         if len(comment.tostr()) == 0:
             return
-        if self._ignore_directives and comment.tostr().startswith("!$"):
-            return
+        if self._ignore_directives:
+            # When directive detection is disabled in fparser, but we still
+            # request comments the directive will be part of the comments. This
+            # is typically not an issue because current psyir backends add an
+            # space between the comment character and the start of the comment,
+            # effectively disabling the directive. However, for clarity, we
+            # still try to clean them up using the regex below.
+            _directive_formats = [
+                r"\!\$[a-z]",  # Generic directive
+                r"c\$[a-z]",  # Generic directive
+                r"\*\$[a-z]",  # Generic directive
+                r"\!dir\$",  # flang, ifx, ifort directives.
+                r"cdir\$",  # flang, ifx, ifort fixed format directive.
+                r"\!gcc\$",  # GCC compiler directive
+            ]
+            comment_str = comment.tostr().lower()
+            for dir_form in _directive_formats:
+                if re.match(dir_form, comment_str):
+                    return
         if self._last_psyir_parsed_and_span is not None:
             last_psyir, last_span = self._last_psyir_parsed_and_span
             if (last_span[1] is not None
@@ -5925,6 +5944,25 @@ class Fparser2Reader():
                 return
 
         preceding_comments.append(comment)
+
+    def _directive_handler(
+        self, node: Fortran2003.Directive, parent: Node
+    ) -> CodeBlock:
+        '''
+        Process a directive and add it to the tree. The current behaviour
+        places the directive into a CodeBlock.
+
+        :param node: Directive to process.
+        :param parent: The parent to add the PSyIR node to.
+
+        :returns: a CodeBlock containing the input Directive.
+        '''
+        code_block = CodeBlock(
+            [node],
+            CodeBlock.Structure.STATEMENT,
+            parent=parent
+        )
+        return code_block
 
 
 # For Sphinx AutoAPI documentation generation
