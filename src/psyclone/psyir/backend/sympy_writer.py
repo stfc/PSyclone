@@ -46,13 +46,14 @@ from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.core import (Signature, AccessSequence,
                            VariablesAccessMap)
+from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, ArrayReference, BinaryOperation, Call,
     DataNode, IntrinsicCall, Literal, Node,
-    Range, Reference, StructureReference)
+    Range, Reference, StructureReference, Schedule)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, RoutineSymbol, ScalarType, Symbol,
     SymbolError, SymbolTable, UnresolvedType)
@@ -759,20 +760,26 @@ class SymPyWriter(FortranWriter):
         :returns: the SymPy representation for the Intrinsic.
 
         '''
+        # Add argument names to the intrinsic
+        try:
+            node.compute_argument_names()
+        except (GenerationError, NotImplementedError) as err:
+            raise VisitorError(
+                f"Sympy handler can't handle an IntrinsicCall that "
+                f"can't have argument names automatically added. Use "
+                f"explicit argument names instead. "
+                f"Failing node was "
+                f"'{node.debug_string()}'.") from err
+
         # Sympy does not support argument names, remove them for now
         if any(node.argument_names):
-            # TODO #2302: This is not totally right without canonical intrinsic
-            # positions for arguments. One alternative is to refuse it with:
-            # raise VisitorError(
-            #     f"Named arguments are not supported by SymPy but found: "
-            #     f"'{node.debug_string()}'.")
-            # but this leaves sympy comparisons almost always giving false when
-            # out of order arguments are rare, so instead we ignore it for now.
-
             # It makes a copy (of the parent because if matters to the call
             # visitor) because we don't want to delete the original arg names
-            parent = node.parent.copy()
-            node = parent.children[node.position]
+            if node.parent:
+                parent = node.parent.copy()
+                node = parent.children[node.position]
+            else:
+                node = node.copy()
             for idx in range(len(node.argument_names)):
                 # pylint: disable=protected-access
                 node._argument_names[idx] = (node._argument_names[idx][0],
@@ -782,7 +789,21 @@ class SymPyWriter(FortranWriter):
             args = self._gen_arguments(node)
             return f"{self._nindent}{name}({args})"
         except KeyError:
-            return super().call_node(node)
+            # This section is copied from FortranWriter IntrinsicCall,
+            # but doesn't attempt to match argument names and so avoids
+            # re-adding optional argument names back in.
+            args = self._gen_arguments(node)
+            # These routines require `call` syntax in Fortran.
+            if node.routine.name not in [
+                    "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS",
+                    "RANDOM_NUMBER", "RANDOM_SEED"]:
+                # Most intrinsics are functions and so don't have 'call'.
+                if not node.parent or isinstance(node.parent, Schedule):
+                    return f"{self._nindent}{node.routine.name}({args})\n"
+                return f"{node.routine.name}({args})"
+            # Otherwise we have an intrinsic that has call syntax.
+            return (f"{self._nindent}call "
+                    f"{self._visit(node.routine)}({args})\n")
 
     # -------------------------------------------------------------------------
     def reference_node(self, node: Reference) -> str:

@@ -318,7 +318,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                                 f"The write-write dependency in '{var_name}'"
                                 f" cannot be solved by automatic array "
                                 f"privatisation. Use 'loop.explictly_private"
-                                f"_sybmols.add(sybmol)' if *YOU* can guarantee"
+                                f"_symbols.add(symbol)' if *YOU* can guarantee"
                                 f" that it is private.")
                     continue
                 # See if the scalar in question allows parallelisation of
