@@ -1,3 +1,6 @@
+   4) PR #3223 for #3219.  Add a prototype of the kernel computation
+   pattern as its children
+
    3) PR #3210 for #3203. Removes outstanding references to the old,
    pared-down LFRic infrastructure.
 
