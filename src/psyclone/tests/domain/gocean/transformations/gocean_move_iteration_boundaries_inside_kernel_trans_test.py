@@ -195,18 +195,18 @@ def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice(
   xstop = cu_fld%internal%xstop
   ystart = cu_fld%internal%ystart
   ystop = cu_fld%internal%ystop
-  do j = 1, SIZE(cu_fld%data, 2), 1
-    do i = 1, SIZE(cu_fld%data, 1), 1
+  do j = 1, SIZE(cu_fld%data, dim=2), 1
+    do i = 1, SIZE(cu_fld%data, dim=1), 1
       call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data, xstart, \
 xstop, ystart, ystop)
     enddo
   enddo
   xstart_1 = 1
-  xstop_1 = SIZE(uold_fld%data, 1)
+  xstop_1 = SIZE(uold_fld%data, dim=1)
   ystart_1 = 1
-  ystop_1 = SIZE(uold_fld%data, 2)
-  do j = 1, SIZE(uold_fld%data, 2), 1
-    do i = 1, SIZE(uold_fld%data, 1), 1
+  ystop_1 = SIZE(uold_fld%data, dim=2)
+  do j = 1, SIZE(uold_fld%data, dim=2), 1
+    do i = 1, SIZE(uold_fld%data, dim=1), 1
       call time_smooth_code(i, j, u_fld%data, unew_fld%data, uold_fld%data, \
 xstart_1, xstop_1, ystart_1, ystop_1)
     enddo

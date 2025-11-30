@@ -101,7 +101,7 @@ def test_preprocess_reference2arrayrange(tmpdir, fortran_reader,
         "      a(idx_1,idx) = b(idx_1,idx) * c(idx_1,idx)\n"
         "    enddo\n"
         "  enddo\n"
-        "  do i = LBOUND(d, 1), UBOUND(d, 1), 1\n"
+        "  do i = LBOUND(d, dim=1), UBOUND(d, dim=1), 1\n"
         "    d(i) = 0.0\n"
         "  enddo\n"
         "  e(:,:) = f(:,:)\n\n"
