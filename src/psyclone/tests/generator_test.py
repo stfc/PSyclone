@@ -993,21 +993,16 @@ def test_main_directory_arg(capsys):
 def test_main_backend_arg(capsys):
     '''Test the --backend options in main().'''
     filename = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
-    with pytest.raises(SystemExit):
-        main([filename, "-api", "lfric", "--backend", "invalid"])
-    _, output = capsys.readouterr()
-    assert "--backend: invalid choice: 'invalid'" in output
-
     # Make sure we get a default config instance
     Config._instance = None
     # Default is to have checks enabled.
     assert Config.get().backend_checks_enabled is True
-    main([filename, "-api", "lfric", "--backend", "disable-validation"])
+    main([filename, "-api", "lfric", "--backend-disable-validation"])
     assert Config.get().backend_checks_enabled is False
     assert Config.get().backend_indentation_disabled is False
     Config._instance = None
     filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
-    main([filename, "--backend", "disable-indentation"])
+    main([filename, "--backend-disable-indentation"])
     output, _ = capsys.readouterr()
     # None of the three DO loops should be indented.
     assert len(re.findall(r"^do j", output, re.MULTILINE)) == 3
@@ -1305,7 +1300,7 @@ def test_code_transformation_backend_validation(validate: bool,
     if validate:
         options = []
     else:
-        options = ["--backend", "disable-validation"]
+        options = ["--backend-disable-validation"]
     main([str(input_file)] + options)
     # The actual assert is in the dummy_fortran_writer function above
 
@@ -2048,3 +2043,16 @@ def test_ignore_pattern():
 
     mod_man = ModuleManager.get()
     assert mod_man._ignore_files == set(["abc1", "abc2"])
+
+
+def test_intrinsic_control_settings(tmpdir, caplog):
+    '''Checks that the intrinsic output control settings update the config
+    correctly'''
+    # Create dummy piece of code.
+    code = """program test
+    end program"""
+    filename = str(tmpdir.join("test.f90"))
+    with open(filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([filename, "--backend-add-all-intrinsic-arg-names"])
+    assert Config.get().backend_intrinsic_named_kwargs is True

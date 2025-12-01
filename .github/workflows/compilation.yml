@@ -87,7 +87,7 @@ jobs:
         python -m pip install --upgrade pip
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
-        # pip install external/fparser
+        pip install external/fparser
         pip install .[test,psydata,doc]
     - name: Unit tests with compilation - gfortran
       run: |
