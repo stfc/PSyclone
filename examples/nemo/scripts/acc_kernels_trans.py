@@ -57,7 +57,7 @@ Tested with the NVIDIA HPC SDK version 23.7.
 '''
 
 import logging
-from utils import (add_profiling, enhance_tree_information, inline_calls,
+from utils import (add_profiling, inline_calls,
                    NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
@@ -386,7 +386,6 @@ def trans(psyir):
         # Attempt to add OpenACC directives unless we are ignoring this routine
         if subroutine.name.lower() not in ACC_IGNORE:
             print(f"Transforming {subroutine.name} with acc kernels")
-            enhance_tree_information(subroutine)
             inline_calls(subroutine)
             have_kernels = add_kernels(subroutine.children)
             if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:

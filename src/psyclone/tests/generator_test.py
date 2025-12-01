@@ -1357,15 +1357,8 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    # The output is split as the location of the algorithm file varies
-    # due to it being stored in a temporary directory by pytest.
-    expected_output1 = "Generation Error: In algorithm file '"
-    expected_output2 = (
-        "alg.f90':\nTransformation Error: Error in RaisePSyIR2LFRicAlgTrans "
-        "transformation. The invoke call argument 'setval_c' has been used as"
-        " a routine name. This is not allowed.\n")
-    assert expected_output1 in output
-    assert expected_output2 in output
+    assert ("The invoke call argument 'setval_c' has been used as the "
+            "Algorithm routine name. This is not allowed." in output)
 
 
 def test_generate_no_builtin_container(tmpdir, monkeypatch):

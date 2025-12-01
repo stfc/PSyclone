@@ -45,7 +45,7 @@ import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.core import (Signature, AccessSequence,
-                           VariablesAccessMap)
+                           VariablesAccessMap, AccessType)
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -55,8 +55,7 @@ from psyclone.psyir.nodes import (
     DataNode, IntrinsicCall, Literal, Node,
     Range, Reference, StructureReference, Schedule)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, RoutineSymbol, ScalarType, Symbol,
-    SymbolError, SymbolTable, UnresolvedType)
+    ArrayType, RoutineSymbol, ScalarType, SymbolError, SymbolTable)
 
 
 class SymPyWriter(FortranWriter):
@@ -307,35 +306,6 @@ class SymPyWriter(FortranWriter):
             max_dims.append(max(dims[i] for dims in num_dims_for_access))
         return max_dims
 
-    @staticmethod
-    def _specialise_array_symbol(sym: Symbol, sva: AccessSequence):
-        '''
-        If we can be confident that the supplied Symbol should be of ArrayType
-        due to the way it is accessed then we specialise it in place.
-
-        :param sym: the Symbol to specialise.
-        :param sva: information on the ways in which the Symbol is accessed.
-
-        '''
-        if all(acs.has_indices() for acs in sva):
-            return
-        if not sym or isinstance(sym, (DataSymbol, RoutineSymbol)):
-            return
-        # Find an access that has indices.
-        for acs in sva:
-            if not acs.has_indices():
-                continue
-            ndims = None
-            for indices in acs.component_indices():
-                if indices:
-                    ndims = len(indices)
-            if ndims is not None:
-                sym.specialise(
-                    DataSymbol,
-                    datatype=ArrayType(UnresolvedType(),
-                                       [ArrayType.Extent.DEFERRED]*ndims))
-            return
-
     # -------------------------------------------------------------------------
     def _create_type_map(self, list_of_expressions: Iterable[Node],
                          identical_variables: Optional[dict[str, str]] = None,
@@ -428,7 +398,13 @@ class SymPyWriter(FortranWriter):
                 if isinstance(sva[0].node, Reference):
                     orig_sym = sva[0].node.symbol
 
-            is_fn_call = isinstance(orig_sym, RoutineSymbol)
+            is_fn_call = (
+                isinstance(orig_sym, RoutineSymbol) or
+                # Calls to generic symbols give an UNKNOWN type as they can
+                # actually be miscategorised array READS, but here we will
+                # consider all them as functions.
+                any(x.access_type in [AccessType.CALL, AccessType.UNKNOWN]
+                    for x in sva))
 
             if (sva.has_indices() or
                     (orig_sym and (orig_sym.is_array or is_fn_call))):
@@ -447,9 +423,6 @@ class SymPyWriter(FortranWriter):
                     self._sympy_type_map[unique_sym.name] = \
                         self._create_sympy_array_function(sig.var_name,
                                                           is_call=is_fn_call)
-                    # To avoid confusion in sympy_reader, we specialise any
-                    # Symbol that we are now confident is an array.
-                    self._specialise_array_symbol(orig_sym, sva)
             else:
                 # A scalar access.
                 if sig.is_structure:
@@ -828,19 +801,29 @@ class SymPyWriter(FortranWriter):
             # been re-named, and we can use it as is.
             name = node.name
 
-        if not node.symbol.is_array:
-            # This reference is not an array, just return the name
-            return name
+        if name in self.type_map:
+            sympy_representation = self.type_map[name]
+            if isinstance(sympy_representation,
+                          (sympy.Function,
+                           sympy.core.function.UndefinedFunction)):
+                # This is represented by a sympy.Function, since this is just a
+                # Reference, it must be an array expression without
+                # parentheses. For consistency, we still treat it as a Sympy
+                # function call and therefore add the triple array indices to
+                # represent `lower:upper:1` for each dimension:
+                if node.symbol.is_array:
+                    shape = node.symbol.shape
+                else:
+                    # If we don't know the dimension we make it look like a
+                    # function call without arguments, this will make it not
+                    # fall over, but still be distinct to any array access to
+                    # a particular item
+                    shape = []
+                result = [f"{self.no_bounds},{self.no_bounds},1"]*len(shape)
 
-        # Now this must be an array expression without parentheses. For
-        # consistency, we still treat it as a Sympy function call and therefore
-        # add the triple array indices to represent `lower:upper:1` for each
-        # dimension:
-        shape = node.symbol.shape
-        result = [f"{self.no_bounds},{self.no_bounds},1"]*len(shape)
-
-        return (f"{name}{self.array_parenthesis[0]}"
-                f"{','.join(result)}{self.array_parenthesis[1]}")
+                return (f"{name}{self.array_parenthesis[0]}"
+                        f"{','.join(result)}{self.array_parenthesis[1]}")
+        return name
 
     # ------------------------------------------------------------------------
     def binaryoperation_node(self, node: BinaryOperation) -> str:
