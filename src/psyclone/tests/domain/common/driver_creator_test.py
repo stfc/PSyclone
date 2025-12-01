@@ -37,6 +37,8 @@
 
 ''' This module tests the driver creation for extracted kernels.'''
 
+import re
+
 import pytest
 
 from psyclone.domain.common import DriverCreator
@@ -113,6 +115,7 @@ def test_lfric_driver_simple_test():
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
+    driver = driver.lower()
     for line in [
         "if (ALLOCATED(psydata_filename)) then",
         "call extract_psy_data%OpenReadFileName(psydata_filename)",
@@ -138,11 +141,14 @@ def test_lfric_driver_simple_test():
         "call extract_psy_data%ReadVariable('x_ptr_vector_data', "
         "x_ptr_vector_data)",
     ]:
-        assert line.lower() in driver.lower(), line
+        assert line.lower() in driver, line
 
-    # Loop variables should be removed:
-    assert ("call extract_psy_data%readvariable('cell_post', cell_post)"
-            not in driver.lower())
+    print("XX", driver)
+    # Loop variables should be removed. Test that the loop variable
+    # is indeed called `cell`:
+    assert re.search("do *cell *=", driver) is not None
+    # Then make sure that the output variable is not stored:
+    assert re.search("readvariable.*cell_post", driver) is None
 
     # A read-write/inc variable should not be allocated (since it will
     # be allocated as part of reading in its value):

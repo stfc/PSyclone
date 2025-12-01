@@ -104,7 +104,6 @@ class ReadWriteInfo:
     def signatures_written(self) -> List[Signature]:
         '''
         :returns: the list of all signatures written.
-        :rtype: List[:py:class:`psyclone.core.Signature`]
 
         '''
         return [sig for _, sig in self.write_list]
@@ -115,7 +114,6 @@ class ReadWriteInfo:
         '''
         :returns: the sorted list of container_name,signature pairs that
             are used.
-        :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
         '''
         all_vars = list(set(self._read_list) | set(self._write_list))
@@ -132,9 +130,7 @@ class ReadWriteInfo:
         from an external container (i.e. a module in Fortran).
 
         :param signature: the signature of the access.
-        :type signature: :py:class:`psyclone.core.Signature`
         :param container_name: the container name (optional)
-        :type container_name: Optional[str]
 
         '''
         if container_name:
@@ -153,9 +149,7 @@ class ReadWriteInfo:
         from an external container (i.e. a module in Fortran).
 
         :param signature: the signature of the access.
-        :type signature: :py:class:`psyclone.core.Signature`
         :param container_name: the container name (optional)
-        :type container_name: Optional[str]
 
         '''
         if container_name:
@@ -169,7 +163,7 @@ class ReadWriteInfo:
         '''
         Checks if the given signature is in the read list.
 
-        :param signature: the signature to remove
+        :param signature: the signature to check
 
         :returns: whether the signature is in the read list (independent
             of the container name).
@@ -178,10 +172,14 @@ class ReadWriteInfo:
         return any(signature == sig for _, sig in self._read_list)
 
     # -------------------------------------------------------------------------
-    def remove(self, signature: Signature, container_name: str = "") -> None:
+    def remove(self,
+               signature: Signature,
+               container_name: Optional[str] = "") -> None:
         '''
         This function removes a signature (if required with the corresponding
-        module name specified) from the read and/or write list. A warning
+        module name specified) from the read and/or write list. If no
+        `container_name` is specified, the signature is expected to be
+        local (i.e. it will use "" as container name). A warning
         will be logged if the specified name is not found in any of the
         two lists.
 

@@ -40,6 +40,7 @@
 ''' Module containing tests for PSyclone LFRicExtractTrans
 transformations and ExtractNode.
 '''
+import re
 
 import pytest
 
@@ -604,12 +605,10 @@ def test_extract_single_builtin_lfric():
     for line in output.splitlines():
         assert line in code, line
 
-    # Check that loop variables are not included:
-    for line in ['PreDeclareVariable("df", df)',
-                 'ProvideVariable("df", df)',
-                 'PreDeclareVariable("df_post", df)',
-                 'ProvideVariable("df_post", df)']:
-        assert line not in output
+    # The above has verified that `df` is indeed the loop variable.
+    # Now make sure they (df or df_post) are not provided to the
+    # psydata API calls. Note that the regex will test for df and df_post.
+    assert re.search("extract_psy.*df", code) is None
 
     # Test extract with OMP Parallel optimisation
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
@@ -723,7 +722,7 @@ undf_w2, map_w2(:,cell))
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_extract_colouring_omp_lfric(tmpdir):
+def test_extract_colouring_omp_lfric():
     ''' Test that extraction of a Kernel in an Invoke after applying
     colouring and OpenMP optimisations produces the correct result
     in LFRic API. '''
@@ -885,10 +884,9 @@ diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
             in code)
 
     # Verify that loop variables are not extracted:
-    assert ('CALL extract_psy_data % ProvideVariable("cell_post", cell)'
-            not in code)
-    assert ('CALL extract_psy_data % ProvideVariable("colour_post", colour)'
-            not in code)
+    assert re.search("extract_psy_data.*cell\"", code) is None
+    assert re.search("extract_psy_data.*cell_post\"", code) is None
+
     # Currently the following fields are also compared, even if DSL info tells
     # they are only read. If we take advantage of this information, these
     # and the associated _post declarations would be gone

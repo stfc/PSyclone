@@ -35,6 +35,8 @@
 
 '''This module tests the ReadWriteInfo class.'''
 
+import logging
+
 from psyclone.core import Signature
 from psyclone.psyir.tools import ReadWriteInfo
 
@@ -113,7 +115,7 @@ def test_add_write() -> None:
     assert rwi.is_read(sig_a) is False
 
 
-def test_remove_var() -> None:
+def test_remove_var(caplog) -> None:
     '''Tests removing accesses to a variable.
     '''
 
@@ -146,7 +148,11 @@ def test_remove_var() -> None:
 
     # sig_b must have the module name specified,
     # otherwise it must not be removed, and a warning must be logged:
-    rwi.remove(sig_b)
+    with caplog.at_level(logging.WARNING):
+        rwi.remove(sig_b)
+    assert ("Variable 'b' is to be removed, but it's neither in the list of "
+            "read variables" in caplog.text)
+
     assert rwi.read_list == [("", sig_c), ("my_mod", sig_b)]
     assert rwi.write_list == [("", sig_c), ("other_mod", sig_e)]
     # We should test for the warning, but caplog does not

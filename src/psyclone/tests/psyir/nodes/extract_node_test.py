@@ -104,7 +104,6 @@ def test_get_unique_region_name():
     ''' Test the get_unique_region_name utility method. '''
     etrans = GOceanExtractTrans()
 
-    # Test a Loop nested within the OMP Parallel DO Directive
     _, invoke = get_invoke("single_invoke_three_kernels.f90",
                            "gocean", idx=0, dist_mem=False)
     etrans.apply(invoke.schedule.children[0])
@@ -148,7 +147,6 @@ def test_extract_node_lower_to_language_level():
 
     etrans = GOceanExtractTrans()
 
-    # Test a Loop nested within the OMP Parallel DO Directive
     psy, invoke = get_invoke("single_invoke_three_kernels.f90",
                              "gocean", idx=0, dist_mem=False)
     etrans.apply(invoke.schedule.children[0])
@@ -510,7 +508,6 @@ def test_extract_node_multi_node():
 
     etrans = GOceanExtractTrans()
 
-    # Test a Loop nested within the OMP Parallel DO Directive
     psy, invoke = get_invoke("single_invoke_three_kernels.f90",
                              "gocean", idx=0, dist_mem=False)
     etrans.apply(invoke.schedule.children[0:3])

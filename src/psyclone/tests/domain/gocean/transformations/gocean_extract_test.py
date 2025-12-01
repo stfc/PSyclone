@@ -40,6 +40,8 @@
 transformations.
 '''
 
+import re
+
 from pathlib import Path
 
 import pytest
@@ -494,18 +496,12 @@ def test_driver_loop_variables():
     etrans.apply(schedule.children[0], {'create_driver': True})
     # We are only interested in the driver, so ignore results.
     code = str(psy.gen)
-    unexpected_code = [
-        'PreDeclareVariable("i", i)',
-        'PreDeclareVariable("j", j)',
-        'PreDeclareVariable("i_post", i)',
-        'PreDeclareVariable("j_post", j)',
-        'ProvideVariable("i", i)',
-        'ProvideVariable("j", j)',
-        'ProvideVariable("i_post", i)',
-        'ProvideVariable("j_post", j)',
-    ]
-    for line in unexpected_code:
-        assert line not in code, line
+    # Verify that the name of the extract object is as expected:
+    assert re.search("extract_psy_data.*dx_data", code) is not None
+    # Now test the variables. Make sure to include `)` (since
+    # other variable names do contain e.g. an `i`)
+    assert re.search(r"extract_psy_data.*i\)", code) is None
+    assert re.search(r"extract_psy_data.*j\)", code) is None
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
@@ -516,10 +512,7 @@ def test_driver_loop_variables():
     with open(driver, "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
-    # Loop variables are not be stored, so should not be read:
-    # Since atm types are not handled, scalars are actually considered
-    # to be arrays. Once this is fixed, none of those lines should be
-    # in the code anymore (j_post should be declared as scalar):
+    # Loop variables are not be stored, so should not be read or compared:
     unexpected_code = ["j_post", "i_post", "ReadVariable('j', j)",
                        "ReadVariable('i', i)", "compare('i', i, i_post)",
                        "compare('j', j, j_post)"]
