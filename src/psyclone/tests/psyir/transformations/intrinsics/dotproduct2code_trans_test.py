@@ -171,8 +171,8 @@ def test_validate_references_structure(fortran_reader):
     expected = (
         "The DotProduct2CodeTrans transformation only supports the "
         "transformation of a dotproduct intrinsic if its arguments are plain "
-        "arrays, but found grid%var1(:) in DOT_PRODUCT(grid%var1(:), "
-        "grid%var2(:)).")
+        "arrays, but found grid%var1(:) in DOT_PRODUCT(grid%var1(:)"
+        ", grid%var2(:)).")
     check_validate(code, expected, fortran_reader)
 
 
@@ -192,7 +192,8 @@ def test_validate_1d_array(fortran_reader):
         "The DotProduct2CodeTrans transformation only supports the "
         "transformation of a dotproduct intrinsic with an argument not "
         "containing an array slice if the argument is a 1D array, but "
-        "found a1 with 2 dimensions in DOT_PRODUCT(a1, a2).")
+        "found a1 with 2 dimensions in DOT_PRODUCT(a1, "
+        "a2).")
     check_validate(code, expected, fortran_reader)
 
 
@@ -254,7 +255,8 @@ def test_validate_real(fortran_reader):
         "end subroutine\n")
     expected = (
         "The DotProduct2CodeTrans transformation only supports arrays of "
-        "real data, but found v1 of type INTEGER in DOT_PRODUCT(v1, v2).")
+        "real data, but found v1 of type INTEGER in DOT_PRODUCT(v1, "
+        "v2).")
     check_validate(code, expected, fortran_reader)
 
 

@@ -261,8 +261,8 @@ def test_validate_query(fortran_reader):
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
             assert (f"supplied node is passed as an argument to a Call to a "
-                    f"non-elemental routine ({text}(a, 1)) and should not be "
-                    f"transformed." in str(info.value))
+                    f"non-elemental routine ({text}(a, dim=1)) and "
+                    f"should not be transformed." in str(info.value))
 
     # Check the references to 'b' in the hidden lbound and ubound
     # intrinsics within 'b(:)' do not get modified.

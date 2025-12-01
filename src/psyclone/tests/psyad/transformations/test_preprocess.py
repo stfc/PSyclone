@@ -101,7 +101,7 @@ def test_preprocess_reference2arrayrange(tmpdir, fortran_reader,
         "      a(idx_1,idx) = b(idx_1,idx) * c(idx_1,idx)\n"
         "    enddo\n"
         "  enddo\n"
-        "  do i = LBOUND(d, 1), UBOUND(d, 1), 1\n"
+        "  do i = LBOUND(d, dim=1), UBOUND(d, dim=1), 1\n"
         "    d(i) = 0.0\n"
         "  enddo\n"
         "  e(:,:) = f(:,:)\n\n"
@@ -239,8 +239,8 @@ def test_preprocess_arrayassign2loop_failure(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(TransformationError) as err:
         preprocess_trans(psyir, ["a", "c"])
-    assert (" ArrayAssignment2LoopsTrans does not accept calls which are "
-            "not guaranteed" in str(err.value))
+    assert ("ArrayAssignment2LoopsTrans does not accept calls which are not "
+            "guaranteed to be elemental" in str(err.value))
 
 
 @pytest.mark.parametrize("operation", ["+", "-"])

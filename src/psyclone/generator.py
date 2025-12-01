@@ -498,13 +498,6 @@ def main(arguments):
     parser.add_argument(
         '-p', '--profile', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="add profiling hooks for 'kernels', 'invokes' or 'routines'")
-    parser.add_argument(
-        '--backend', dest='backend', action="append",
-        choices=['disable-validation', 'disable-indentation'],
-        help=("options to control the PSyIR backend used for code generation. "
-              "Use 'disable-validation' to disable the validation checks that "
-              "are performed by default. Use 'disable-indentation' to turn off"
-              " all indentation in the generated code."))
 
     # Code-transformation mode flags
     parser.add_argument('-o', metavar='OUTPUT_FILE',
@@ -592,6 +585,31 @@ def main(arguments):
              "(default is to look at the input file extension)."
     )
 
+    backend_group = parser.add_argument_group(
+            "Fortran backend control options.",
+            "These settings control how PSyclone outputs Fortran. "
+    )
+    backend_group.add_argument(
+        "--backend-disable-validation", default=argparse.SUPPRESS,
+        action="store_true",
+        help=("Disables validation checks that PSyclone backends perform by "
+              "default.")
+    )
+    backend_group.add_argument(
+        "--backend-disable-indentation", default=argparse.SUPPRESS,
+        action="store_true",
+        help="Disables all indentation in the generated output code."
+    )
+    backend_group.add_argument(
+        "--backend-add-all-intrinsic-arg-names",
+        default=argparse.SUPPRESS,
+        action="store_true",
+        help="By default, the backend outputs the names of only optional "
+             "arguments to intrinsic calls. This option enables all argument "
+             "names on intrinsic calls, i.e. SUM(array=arr, mask=maskarr) "
+             "instead of SUM(arr, mask=maskarr)."
+    )
+
     args = parser.parse_args(arguments)
 
     # Set the logging system up.
@@ -643,6 +661,18 @@ def main(arguments):
         api = args.psykal_dsl
     Config.get().api = api
 
+    # Record any intrinsic output format settings.
+    if "backend_add_all_intrinsic_arg_names" in args:
+        # Tells the backend to attempt to add names to required
+        # arguments to Fortran intrinsics.
+        Config.get().backend_intrinsic_named_kwargs = True
+    # A command-line flag overrides the setting in the Config file (if
+    # any).
+    if "backend_disable_validation" in args:
+        Config.get().backend_checks_enabled = False
+    if "backend_disable_indentation" in args:
+        Config.get().backend_indentation_disabled = True
+
     # Record any profiling options.
     if args.profile:
         try:
@@ -650,13 +680,6 @@ def main(arguments):
         except ValueError as err:
             print(f"Invalid profiling option: {err}", file=sys.stderr)
             sys.exit(1)
-    if args.backend:
-        # A command-line flag overrides the setting in the Config file (if
-        # any).
-        if "disable-validation" in args.backend:
-            Config.get().backend_checks_enabled = False
-        if "disable-indentation" in args.backend:
-            Config.get().backend_indentation_disabled = True
 
     # The Configuration manager checks that the supplied path(s) is/are
     # valid so protect with a try
