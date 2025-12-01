@@ -92,7 +92,7 @@ These methods currently use two distinct implementations, the new
 :ref:`variable access API<variable_accesses>` (which also provides the
 :ref:`DefinitionUseChains<defusechain>` and the
 :ref:`Loop Dependency Tools<deptools>` for deeper analysis), and the older
-:ref:`PSyKAl halo exchange dependency analysis<old_dependency_analysis>`.
+:ref:`PSyKAl dependency analysis<old_dependency_analysis>`.
 There is a certain overlap between these two methods, and it is expected that
 the old PSyKAl dependency analysis will be integrated with the variable access
 API in the future (see
@@ -139,8 +139,44 @@ PSyKAl analysis methods:
 PSyKAl Dependence Analysis
 ==========================
 
-Dependence Analysis in PSyclone produces ordering constraints between
-instances of the `Argument` class within a PSyIR tree.
+The PSyKAl Kernel objects have additional dependency considerations that
+we can infer by knowing which specific parts of the provided fields they
+access. This information is given by the kernel metadata. Currently, how
+we use this information differs between the GOcean and LFRic DSLs.
+
+In Gocean, CodedKern have assignments as children (automatically generated
+in the instance creation) that represent the computation pattern given
+the kernel metadata. We call these assignment the kernel prototype. For
+instance, a kernel with the following meta_args:
+
+.. code-block:: fortran
+
+     type(go_arg), dimension(3) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),            & ! cu
+             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,110,000)), & ! p
+             go_arg(GO_READ,  GO_CU, GO_POINTWISE)             & ! u
+           /)
+
+and called with:
+
+.. code-block:: fortran
+
+    call invoke( compute_cu(cu_fld, p_fld, u_fld) )
+
+will have the following prototype assignment as child:
+
+.. code-block:: fortran
+
+    cu_fld%data(i,j) = p_fld%data(i,j) + p_fld%data(i,j + 1) + u_fld%data(i,j)
+
+This assignment will not be generated to code because the lowering method
+replaces the entire CodedKern with the appropriate call. But this child is
+sufficient to provide the `VariablesAccessMap` used by generic PSyIR the
+necessary access information to perform the needed depenency checks.
+
+LFric does not currently use this virtual assignments, instead it uses
+information provided by the `Argument` class attached to the CodedKern to
+evaluate the ordering constraints between between kernels.
 
 The `Argument` class is used to specify the data being passed into and
 out of instances of the `Kern` class, `HaloExchange` class and
