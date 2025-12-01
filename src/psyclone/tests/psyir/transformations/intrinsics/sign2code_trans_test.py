@@ -312,8 +312,8 @@ def test_sign_of_unknown_type(fortran_reader):
                  if call.intrinsic.name == "SIGN"]
     with pytest.raises(TransformationError) as err:
         trans.validate(sgn_calls[0])
-    assert ("Sign2CodeTrans cannot be applied to 'SIGN(MAX(ABS(ztmp1), "
-            "1.e-6_wp), ztmp1) because the type of the argument"
+    assert ("Sign2CodeTrans cannot be applied to 'SIGN(thing, "
+            "ztmp1) because the type of the argument"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
         trans.validate(sgn_calls[1])

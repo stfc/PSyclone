@@ -65,12 +65,12 @@ def test_access_info():
         "'READ' access." in str(err.value)
     access_info2 = AccessInfo(AccessType.READ, Node())
     assert str(access_info2) == "READ"
-    access_info2.change_read_to_type_info()
-    assert str(access_info2) == "TYPE_INFO"
-    assert access_info2.access_type == AccessType.TYPE_INFO
+    access_info2.change_read_to_constant()
+    assert str(access_info2) == "CONSTANT"
+    assert access_info2.access_type == AccessType.CONSTANT
     with pytest.raises(InternalError) as err:
-        access_info2.change_read_to_type_info()
-    assert ("Trying to change variable to 'TYPE_INFO' which does not have "
+        access_info2.change_read_to_constant()
+    assert ("Trying to change variable to 'CONSTANT' which does not have "
             "'READ' access." in str(err.value))
 
     access_info = AccessInfo(AccessType.UNKNOWN, Node())
@@ -222,40 +222,40 @@ def test_variable_access_sequence():
     assert not accesses.has_data_access()
 
 
-def test_variable_access_sequence_read_to_type_info():
+def test_variable_access_sequence_read_to_constant():
     '''
-    Test the read_to_type_info functionality of AccessSequence
+    Test the read_to_constant functionality of AccessSequence
     '''
     accesses = AccessSequence(Signature("var_name"))
-    accesses.add_access(AccessType.INQUIRY, Node(), component_indices=None)
-    accesses.add_access(AccessType.READ, Node(), component_indices=None)
-    accesses.change_read_to_type_info()
+    accesses.add_access(AccessType.INQUIRY, Node())
+    accesses.add_access(AccessType.READ, Node())
+    accesses.change_read_to_constant()
     assert not accesses.is_read()
     assert not accesses.is_written()
     assert not accesses.has_data_access()
 
     with pytest.raises(InternalError) as err:
-        accesses.change_read_to_type_info()
+        accesses.change_read_to_constant()
     assert ("Trying to change variable 'var_name' to "
-            "'TYPE_INFO' but it does not have a 'READ' access."
+            "'CONSTANT' but it does not have a 'READ' access."
             in str(err.value))
 
-    accesses.add_access(AccessType.WRITE, Node(), component_indices=None)
+    accesses.add_access(AccessType.WRITE, Node())
     with pytest.raises(InternalError) as err:
-        accesses.change_read_to_type_info()
+        accesses.change_read_to_constant()
     assert ("Variable 'var_name' has a 'WRITE' access. "
-            "change_read_to_type_info() "
+            "change_read_to_constant() "
             "expects only inquiry accesses and a single 'READ' access."
             in str(err.value))
 
     accesses = AccessSequence(Signature("var_name"))
-    accesses.add_access(AccessType.READ, Node(), component_indices=None)
-    accesses.add_access(AccessType.READ, Node(), component_indices=None)
+    accesses.add_access(AccessType.READ, Node())
+    accesses.add_access(AccessType.READ, Node())
 
     with pytest.raises(InternalError) as err:
-        accesses.change_read_to_type_info()
+        accesses.change_read_to_constant()
     assert ("Trying to change variable 'var_name' to "
-            "'TYPE_INFO' but it has more than one 'READ' access."
+            "'CONSTANT' but it has more than one 'READ' access."
             in str(err.value))
 
 
