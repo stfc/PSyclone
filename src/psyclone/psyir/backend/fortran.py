@@ -40,6 +40,7 @@
 from a PSyIR tree. '''
 
 # pylint: disable=too-many-lines
+from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -1739,7 +1740,67 @@ class FortranWriter(LanguageWriter):
                 result_list.append(self._visit(child))
         return ", ".join(result_list)
 
-    def call_node(self, node) -> str:
+    def intrinsiccall_node(self, node: IntrinsicCall) -> str:
+        '''Translate the PSyIR IntrinsicCall node to Fortran.
+
+        :param node: an IntrinsicCall PSyIR node.
+
+        :returns: the equivalent Fortran code.
+
+        '''
+        # Check the config to determine if we're outputting all argument
+        # names.
+        if not Config.get().backend_intrinsic_named_kwargs:
+            # Config says to avoid outputting argument names where
+            # possible.
+            try:
+                # Argument name computation handles any error checking we
+                # might otherwise want to try. Most IntrinsicCalls should
+                # already have argument names added, but we do it here to
+                # ensure that argument name computation is possible.
+                node.compute_argument_names()
+                intrinsic_interface = node._find_matching_interface()
+                args = []
+                correct_names = True
+                for idx, arg_name in enumerate(node.argument_names):
+                    if idx < len(intrinsic_interface) and correct_names:
+                        # This is a potential required argument.
+                        if arg_name == intrinsic_interface[idx]:
+                            args.append(self._visit(node.arguments[idx]))
+                            continue
+                        # Otherwise it didn't match, so we can't remove any
+                        # more argument names, and fall back to the default
+                        # behaviour from here.
+                        correct_names = False
+                    # Otherwise, use the default behaviour.
+                    if node.argument_names[idx]:
+                        args.append(
+                             f"{node.argument_names[idx]}="
+                             f"{self._visit(node.arguments[idx])}"
+                        )
+                    else:
+                        args.append(f"{self._visit(node.arguments[idx])}")
+                args = ", ".join(args)
+            except NotImplementedError:
+                # If the Intrinsic fails to have argument names added, or to
+                # match to an interface, then use the default behaviour.
+                args = self._gen_arguments(node)
+        else:
+            args = self._gen_arguments(node)
+
+        if node.routine.name not in [
+                "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS", "RANDOM_NUMBER",
+                "RANDOM_SEED"]:
+            # Most intrinsics are functions and so don't have 'call'.
+            if not node.parent or isinstance(node.parent, Schedule):
+                return f"{self._nindent}{node.routine.name}({args})\n"
+            return f"{node.routine.name}({args})"
+
+        # Otherwise we have one of the intrinsics that requires "Call X"
+        # syntax.
+        return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
+
+    def call_node(self, node: Call) -> str:
         '''Translate the PSyIR call node to Fortran.
 
         :param node: a Call PSyIR node.
@@ -1749,13 +1810,6 @@ class FortranWriter(LanguageWriter):
 
         '''
         args = self._gen_arguments(node)
-        if isinstance(node, IntrinsicCall) and node.routine.name not in [
-                "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS", "RANDOM_NUMBER",
-                "RANDOM_SEED"]:
-            # Most intrinsics are functions and so don't have 'call'.
-            if not node.parent or isinstance(node.parent, Schedule):
-                return f"{self._nindent}{node.routine.name}({args})\n"
-            return f"{node.routine.name}({args})"
 
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {self._visit(node.routine)}({args})\n"

@@ -67,7 +67,7 @@ compile: transform $(NAME)
 
 run: compile
 	./read_only_test 2>&1 | \
-		grep "Double precision field b_fld has been modified in main : update"
+		grep "2d Double array b_fld%data has been modified in main : update"
 
 alg.f90 psy.f90: transform
 
