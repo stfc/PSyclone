@@ -59,13 +59,6 @@ def test_goloop_create(monkeypatch):
     ''' Test that the GOLoop create method populates the relevant attributes
     and creates the loop children. '''
 
-    # The parent must be a GOInvokeSchedule
-    with pytest.raises(GenerationError) as err:
-        goloop = GOLoop(loop_type="inner", parent=Schedule())
-    assert ("GOLoops must always be constructed with a parent which is inside"
-            " (directly or indirectly) of a GOInvokeSchedule"
-            in str(err.value))
-
     # Monkeypatch the called GOLoops methods as this will be tested separately
     monkeypatch.setattr(GOLoop, "lower_bound",
                         lambda x: Literal("10", INTEGER_TYPE))
@@ -75,6 +68,7 @@ def test_goloop_create(monkeypatch):
     # Call the create method
     gosched = GOInvokeSchedule.create('name')
     goloop = GOLoop.create(parent=gosched,
+                           variable=DataSymbol("i", INTEGER_TYPE),
                            loop_type="inner",
                            field_name="cv_fld",
                            iteration_space="go_internal_pts",
@@ -86,6 +80,7 @@ def test_goloop_create(monkeypatch):
     assert goloop.field_name == "cv_fld"
     assert goloop.iteration_space == "go_internal_pts"
     assert goloop.field_space == "go_cv"
+    assert goloop.variable.name == "i"
 
     # Check that the created children correspond to the expected values
     assert len(goloop.children) == 4
@@ -100,6 +95,7 @@ def test_goloop_create(monkeypatch):
     # Try with an invalid loop type
     with pytest.raises(TypeError) as err:
         goloop = GOLoop.create(parent=gosched,
+                               variable=DataSymbol("i", INTEGER_TYPE),
                                loop_type="invalid",
                                field_name="cv_fld",
                                iteration_space="go_internal_pts",
@@ -114,6 +110,7 @@ def test_goloop_create(monkeypatch):
                         ["inner", "outer", "other"])
     with pytest.raises(InternalError) as err:
         goloop = GOLoop.create(parent=gosched,
+                               variable=DataSymbol("i", INTEGER_TYPE),
                                loop_type="other",
                                field_name="cv_fld",
                                iteration_space="go_internal_pts",
@@ -126,7 +123,8 @@ def test_goloop_properties_getters_and_setters():
     ''' Test that the GOLoop getters and setters, retrieve and set the
     expected attributes. '''
     gosched = GOInvokeSchedule.create('name')
-    goloop = GOLoop(loop_type="inner", parent=gosched)
+    goloop = GOLoop(variable=DataSymbol("i", INTEGER_TYPE),
+                    loop_type="inner", parent=gosched)
 
     # Set and get iteration_space
     goloop.iteration_space = "it_space"
@@ -178,7 +176,8 @@ def test_goloop_bounds_invalid_iteration_space():
     ''' Check that the _upper/lower_bound() methods raise the expected error
     if the iteration space is not recognised. '''
     gosched = GOInvokeSchedule.create('name')
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
+    gojloop = GOLoop(variable=DataSymbol("j", INTEGER_TYPE),
+                     parent=gosched, loop_type="outer")
 
     # Set the iteration space to something invalid
     gojloop.iteration_space = "broken"
@@ -237,7 +236,8 @@ def test_goloop_validate_loop():
     # We need a parent in order to create the node, but then we detach it to
     # check that the validation works as expected.
     schedule = GOInvokeSchedule.create('name')
-    goloop = GOLoop(loop_type="inner", parent=schedule)
+    goloop = GOLoop(variable=DataSymbol("i", INTEGER_TYPE),
+                    loop_type="inner", parent=schedule)
     goloop.addchild(Literal("1", INTEGER_TYPE))
     goloop.addchild(Literal("1", INTEGER_TYPE))
     goloop.addchild(Literal("1", INTEGER_TYPE))
@@ -315,7 +315,8 @@ def test_loop_bound_when_fparser_not_initialised():
 def test_independent_iterations(monkeypatch):
     '''Test the independent_iterations method of GOLoop.'''
     schedule = GOInvokeSchedule.create('name')
-    goloop = GOLoop(loop_type="inner", parent=schedule)
+    goloop = GOLoop(variable=DataSymbol("i", INTEGER_TYPE),
+                    loop_type="inner", parent=schedule)
 
     # Add dummy children
     goloop.addchild(Literal("1", INTEGER_TYPE))

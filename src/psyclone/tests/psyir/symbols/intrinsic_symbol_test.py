@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,20 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+# Author A. B. G. Chalk, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-''' Single location for the current version number of PSyclone. This is
-    used in setup.py and
-    doc/{user_guide,developer_guide,reference_guide/source}/conf.py '''
+''' Perform py.test tests on the psygen.psyir.symbols.intrinsic_symbol file '''
 
-__MAJOR__ = 3
-__MINOR__ = 2
-__MICRO__ = 2
+from psyclone.psyir.nodes import IntrinsicCall
+from psyclone.psyir.symbols import IntrinsicSymbol
 
-# Version suffix (e.g. -rc1 or -dev)
-_VERSION_SUFFIX = "-dev"
 
-__SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}{_VERSION_SUFFIX}"
-__VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}{_VERSION_SUFFIX}"
+def test_intrinsicsymbol_copy(fortran_reader):
+    '''Test the copy function on the IntrinsicSymbol class.
+    '''
+    # Create an IntrinsicCall
+    code = """subroutine x
+    integer :: a
+    a = INT(1.0)
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic = psyir.walk(IntrinsicCall)[0]
+    assert isinstance(intrinsic.routine.symbol, IntrinsicSymbol)
+    isym = intrinsic.routine.symbol
+    copy = isym.copy()
+    assert copy is not isym
+    assert isym.name == copy.name
+    assert isym.intrinsic == copy.intrinsic
+    assert isym.datatype == copy.datatype
+    assert isym.visibility == copy.visibility
+    assert isym.interface == copy.interface
+    assert isym.is_pure == copy.is_pure
+    assert isym.is_elemental == copy.is_elemental
