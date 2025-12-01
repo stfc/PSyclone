@@ -215,6 +215,8 @@ def test_translate_expr(use_bv,
 
     test("+1 == 1")
     test("abs(-1) == 1")
+    # TODO: when fparser supports shift operations (#428), we can uncomment
+    # these tests and remove "no cover" blocks in ArrayIndexAnalysis
     # test("shiftl(2,1) == 4")
     # test("shiftr(2,1) == 1")
     # test("shifta(-2,1) == -1")

@@ -685,7 +685,8 @@ class ArrayIndexAnalysis:
             self._add_all_array_accesses(stmt, cond)
         self._kill_all_written_vars(stmt)
 
-    def _sweep_solve(self, sum_of_prods: list[list[z3.BoolRef]]):
+    def _sweep_solve(self, sum_of_prods: list[list[z3.BoolRef]]) -> \
+            z3.CheckSatResult:
         '''The solver is quite sensitive to the order of constraints.
         This sweeper runs multiple solvers in parallel, with each one
         using a different constraint order. As soon as one solver completes,
@@ -859,7 +860,7 @@ def translate_integer_expr(expr_root: Node,
 
                 if opts.use_bv:
                     # TODO: when fparser supports shift operations (#428),
-                    # we can remove the "no cover" block
+                    # we can uncomment tests and remove the "no cover" block
                     if True:  # pragma: no cover
                         if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTL:
                             return left_smt << right_smt
@@ -875,7 +876,7 @@ def translate_integer_expr(expr_root: Node,
                         return left_smt ^ right_smt
                 else:
                     # TODO: when fparser supports shift operations (#428),
-                    # we can remove the "no cover" block
+                    # we can uncomment tests and remove the "no cover" block
                     if True:  # pragma: no cover
                         if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTL:
                             return z3.BV2Int(
