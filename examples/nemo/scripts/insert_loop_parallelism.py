@@ -41,7 +41,7 @@ import os
 import sys
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
-    normalise_loops, enhance_tree_information, NEMO_MODULES_TO_IMPORT)
+    normalise_loops, NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import (
     OMPTargetTrans, OMPDeclareTargetTrans)
@@ -284,8 +284,6 @@ def trans(psyir):
                 subroutine.name == 'dom_zgr' or
                 subroutine.name == 'dom_ngb'):
             continue
-
-        enhance_tree_information(subroutine)
 
         normalise_loops(
                 subroutine,
