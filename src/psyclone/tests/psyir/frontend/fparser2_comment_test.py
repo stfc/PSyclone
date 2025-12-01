@@ -606,18 +606,30 @@ def test_lost_program_comments():
     assert assignment.preceding_comment == "Comment here"
 
 
-def test_directive_at_end():
-    """Test that the FortranReader stores a directive after all
-    other code in a subroutine."""
+@pytest.mark.parametrize("directive", ["$omp target",
+                                       "$acc kernels",
+                                       "dir$ vector",
+                                       "DIR$ VECTOR",
+                                       "$pos dir"])
+def test_directives_not_comments(directive):
+    """Test that the FortranReader doesn't keep directives when only
+    comments are requested."""
+    code = f"""module A
+  implicit none
+  integer, public :: a
+  public
 
-    code = """subroutine x
-    integer :: i
-    i = i + 1
-    !$omp barrier
-    end subroutine"""
-    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+  contains
+  subroutine test()
+
+    !$ a = 0 +     &
+    !$&  0
+    !{directive}
+    a = 1
+
+  end subroutine test
+
+end module A"""
+    reader = FortranReader(ignore_comments=False)
     psyir = reader.psyir_from_source(code)
-    routine = psyir.children[0]
-    # The directive is a codeblock
-    assert isinstance(routine.children[-1], CodeBlock)
-    assert routine.children[-1].debug_string() == "!$omp barrier\n"
+    assert directive not in psyir.debug_string()

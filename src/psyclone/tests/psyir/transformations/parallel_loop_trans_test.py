@@ -116,8 +116,8 @@ def test_paralooptrans_validate_pure_calls(fortran_reader, fortran_writer):
         trans.validate(loop, {"verbose": True})
     assert ("Loop cannot be parallelised because psyclone cannot guarantee "
             "that the accesses to ['my_sub2'] are arrays or pure calls. If "
-            "they are but the symbol is imported, try adding the module in "
-            "RESOLVE_IMPORTS." in str(err.value))
+            "they are but the symbol is imported, try adding the module name "
+            "to RESOLVE_IMPORTS." in str(err.value))
 
     # Check that forcing the transformation or setting it to "pure" let the
     # validation pass

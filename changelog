@@ -1,8 +1,26 @@
+   6) PR #3223 for #3219.  Add a prototype of the kernel computation
+   pattern as its children
+
+   5) PR #3150 towards #2302. Adds functionality to map arguments to
+   Fortran intrinsics to the corresponding named arguments.   
+
+   4) PR #3178 for #3196. Improves fparser2 reader directive handling.
+
+   3) PR #3210 for #3203. Removes outstanding references to the old,
+   pared-down LFRic infrastructure.
+
    2) PR #3164 for #1320. Refactors the AccessSequence.component_indices
    property into a method to remove internal state.
  
    1) PR #3218 for #2705. Adds explicit type information for the r2d_field
    type in GOcean so that kernel inlining succeeds.
+
+Release 3.2.2 26th of November 2025
+
+   2) PR #3231 for #3230. Fixes a bug in upper_bound_psyir() for field vectors.
+
+   1) PR #3229 for #3227. Fixes a bug with PSyAD where the wrong operator
+   space was being generated.
 
 Release 3.2.1 12th of November 2025
 

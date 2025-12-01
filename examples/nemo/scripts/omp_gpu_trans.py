@@ -75,7 +75,6 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = [
     "icefrm.f90",  # Has an unsupported implicit symbol declaration
-    "icerst.f90",
 ]
 
 NEMOV5_EXCLUSIONS = []

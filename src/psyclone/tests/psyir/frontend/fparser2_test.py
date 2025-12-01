@@ -2687,7 +2687,7 @@ def test_intrinsiccall_args(f2008_parser):
     intrinsic_node = psyir.walk(IntrinsicCall)[0]
     assert isinstance(intrinsic_node, IntrinsicCall)
     assert len(intrinsic_node._argument_names) == len(intrinsic_node.arguments)
-    arg_names = [None, "dim", "mask"]
+    arg_names = ["array", "dim", "mask"]
     for idx, child in enumerate(intrinsic_node.arguments):
         assert intrinsic_node._argument_names[idx] == (
             id(child), arg_names[idx])

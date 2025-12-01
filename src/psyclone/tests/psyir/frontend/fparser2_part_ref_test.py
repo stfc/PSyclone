@@ -115,25 +115,40 @@ def test_handling_part_ref_without_symbol_type(fortran_reader):
 
              ! If it is used as a part_ref and as a regular ref
              tmp = array4 * array4(3)
+
+             ! Again used as a part_ref and as a regular ref
+             tmp = array5(sum(array5))
+
+             ! The previous is only true because functions must have
+             ! parenthesis (in contrast to calls where they are optional)
+             ! Make sure the one below is not miscategorised as an array
+             tmp = notarray(sum(notarray()))
           end subroutine
         end module
     """)
     psyir = fortran_reader.psyir_from_source(code)
     st = psyir.children[0].children[0].symbol_table
 
-    # 'unknown' hasn't match any rule, so we don't know what type of symbol
-    # it is, and therefore its part_ref are parsed as Calls
+    # 'unknown' and 'notarray' have not exactly match any rule, so we don't
+    # know what type of symbol they are, and therefore are Calls to generic
+    # Symbols
     # pylint: disable=unidiomatic-typecheck
-    assert type(st.lookup("unknown")) is Symbol
-    assert all(call.symbol.name in ("unknown", "LBOUND", "UBOUND")
+    for name in ["unknown", "notarray"]:
+        assert type(st.lookup(name)) is Symbol
+        assert not any(ref.name.startswith(name)
+                       for ref in psyir.walk(ArrayReference))
+    assert all(call.symbol.name in ("unknown", "LBOUND", "UBOUND",
+                                    "notarray", "SUM")
                for call in psyir.walk(Call))
 
     # 'array*' are DataSymbols of UnresolvedType, and therefore ArrayReference
-    for name in ["array1", "array2", "array3", "array4"]:
+    for name in ["array1", "array2", "array3", "array4", "array5"]:
         assert isinstance(st.lookup(name), DataSymbol)
         assert isinstance(st.lookup(name).datatype, UnresolvedType)
     assert all(ref.name.startswith("array")
                for ref in psyir.walk(ArrayReference))
+
+    assert not isinstance(st.lookup("notarray"), DataSymbol)
 
 
 def test_handling_part_ref_function(fortran_reader):
