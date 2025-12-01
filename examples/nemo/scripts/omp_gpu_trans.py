@@ -175,8 +175,8 @@ def trans(psyir):
         if not NEMOV4 and psyir.name in NEMOV5_EXCLUSIONS:
             continue
         # ICE routines do not perform well on GPU, so we skip them
-        if psyir.name.startswith("ice"):
-            continue
+#        if psyir.name.startswith("ice"):
+#            continue
         # Many of the obs_ files have problems to be offloaded to the GPU
         if psyir.name.startswith("obs_"):
             continue

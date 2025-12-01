@@ -52,7 +52,7 @@ from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
-    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice", "sbc_oce", "trc",
+    "oce", "par_oce", "par_kind", "dom_oce", "phycst", "ice", "par_ice", "sbc_oce", "trc",
     "obs_fbm", "flo_oce", "sbc_ice", "wet_dry", "ldfslp", "zdfiwm", "zdfmxl",
     "bdy_oce", "zdf_oce", "zdfdrg", "ldftra", "crs", "sbcapr", "tideini",
     "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
@@ -77,7 +77,7 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
                     # to create OpenACC regions with calls to them)
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
                     "sum", "sign_", "ddpdd", "solfrac", "psyclone_cmp_int",
-                    "psyclone_cmp_char", "psyclone_cmp_logical"]
+                    "psyclone_cmp_char", "psyclone_cmp_logical", "ice_var_vremap"]
 
 # Currently fparser has no way of distinguishing array accesses from statement
 # functions, the following subroutines contains known statement functions
@@ -135,6 +135,9 @@ def inline_calls(schedule):
                  "fatal_error"  # TODO #2846 - is brought into scope via
                                 # multiple wildcard imports
                  ]
+
+    including = ["ice_var_vremap", "snw_ent"] #, "ice_perm_eff"] # CDe inlining ice_perm_eff causes symbol error for epsi06
+
     ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
                          "bdy_dyn3d_zgrad"]
     mod_inline_trans = KernelModuleInlineTrans()
@@ -144,20 +147,23 @@ def inline_calls(schedule):
             continue
         rsym = call.routine.symbol
         name = rsym.name.lower()
-        if any(name.startswith(excl_name) for excl_name in excluding):
+        if (name not in including):
             print(f"Inlining of routine '{name}' is disabled.")
+            call.append_preceding_comment(f"Inlining of routine '{name}' is disabled.")
             continue
         if rsym.is_import or rsym.is_unresolved:
             try:
                 mod_inline_trans.apply(call)
                 print(f"Module-inlined routine '{name}'")
+                call.append_preceding_comment(f"Module-inlined routine '{name}'")
             except TransformationError as err:
                 print(f"Module inline of '{name}' failed:\n{err}")
+                call.append_preceding_comment(f"Module inline of '{name}' failed:\n{err}")
                 continue
 
         # TODO #924 - SKIP ACTUAL INLINING FOR NOW. Currently this causes
         # failures when processing NEMO and this needs further work.
-        continue
+#        continue
 
         try:
             options = {}
@@ -384,6 +390,14 @@ def insert_explicit_loop_parallelism(
 
     # Add the parallel directives in each loop
     for loop in schedule.walk(Loop):
+
+        routine_name = loop.ancestor(Routine).name
+
+        loop_variable = loop.variable.name if hasattr(loop, 'variable') else None
+        if ('rdgrft_shift' in routine_name and loop_variable == "jl2"):
+            # Skip if outer loop is jl2 within rdgrft_shift
+            continue
+
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
@@ -440,9 +454,27 @@ def insert_explicit_loop_parallelism(
             # in order to parallelise the outer loop
             if routine_name == "ice_thd_zdf_BL99":
                 if isinstance(loop.stop_expr, Reference):
-                    if loop.stop_expr.symbol.name == "npti":
+                    if loop.stop_expr.symbol.name == "npti" or (loop.stop_expr.walk(Reference)[0].symbol.name).startswith("loop_stop"):
                         for variable in ['zdiagbis', 'zindtbis', 'zindterm',
                                          'ztib', 'ztrid', 'ztsb']:
+                            st = loop.scope.symbol_table
+                            sym = st.lookup(variable, otherwise=None)
+                            if sym is not None:
+                                loop.explicitly_private_symbols.add(sym)
+
+#            if routine_name == "ice_thd_dh":
+#                if isinstance(loop.stop_expr, Reference):
+#                    if loop.stop_expr.symbol.name == "npti" or (loop.stop_expr.walk(Reference)[0].symbol.name).startswith("loop_stop"):
+#                        for variable in ['icount', 'zs_i']:
+#                            st = loop.scope.symbol_table
+#                            sym = st.lookup(variable, otherwise=None)
+#                            if sym is not None:
+#                                loop.explicitly_private_symbols.add(sym)
+
+            if routine_name == "ice_thd_da":
+                if isinstance(loop.stop_expr, Reference):
+                    if loop.stop_expr.symbol.name == "npti" or (loop.stop_expr.walk(Reference)[0].symbol.name).startswith("loop_stop"):
+                        for variable in ['zs_i']:
                             st = loop.scope.symbol_table
                             sym = st.lookup(variable, otherwise=None)
                             if sym is not None:
