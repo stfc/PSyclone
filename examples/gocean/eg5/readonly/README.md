@@ -37,7 +37,7 @@ Allocating C-T field with bounds: (1: 12,1:  6)
 Internal region is:(2:  4,2:  4)
 Grid has bounds:  (1: 12,1:  6)
  ------------------- PSyData -------------------
- Double precision field b_fld has been modified in main : update
+ 2d Double array b_fld%data has been modified in main : update
  Original checksum:   4611686018427387904
  New checksum:        4638355772470722560
  ------------------- PSyData -------------------
