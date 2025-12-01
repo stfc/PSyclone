@@ -1,3 +1,7 @@
+   7) PR #3041 for #2823.  Changes the frontend for existing code so
+   that unresolved symbols with parentheses are identified as calls
+   rather than array accesses.
+
    6) PR #3223 for #3219.  Add a prototype of the kernel computation
    pattern as its children
 
