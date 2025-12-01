@@ -615,5 +615,5 @@ def test_extract_ignore_wrong_vars(fortran_reader: FortranReader,
         code = fortran_writer(psyir)
 
     assert 'PreStart("test", "test-r0", 3, 2)' in code
-    assert ("Variable 'xx' is to be removed, but it's neither in the list "
-            "of read variables" in caplog.text)
+    assert ("Variable 'xx' is to be removed from ReadWriteInfo, but it's "
+            "neither in the list of read variables" in caplog.text)
