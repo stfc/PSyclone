@@ -41,6 +41,8 @@ problem as a set of SMT constraints over array indices which are then
 are passed to the Z3 solver.'''
 
 import z3
+import random
+import threading
 from psyclone.psyir.nodes import Loop, DataNode, Literal, Assignment, \
     Reference, UnaryOperation, BinaryOperation, IntrinsicCall, \
     Routine, Node, IfBlock, Schedule, ArrayReference, Range, WhileLoop
@@ -179,18 +181,31 @@ class ArrayIndexAnalysisOptions:
        occurences of 'size(arr)' will be assumed to return the same value,
        provided that those occurrences are not separated by a statement
        that may modify the size/bounds of 'arr'.
+
+    :param num_sweep_threads: when larger than one, this option enables the
+       sweeper, which runs multiple solvers across multiple threads with each
+       one using a different constraint ordering (and potentially different
+       solver parameters in future). This reduces the solver's sensitivity
+       to the order of constraints.
+
+    :param sweep_seed: the seed for the random number generator used
+      by the sweeper.
     '''
     def __init__(self,
                  int_width: int = 32,
                  use_bv: bool = None,
                  smt_timeout_ms: int = 5000,
                  prohibit_overflow: bool = False,
-                 handle_array_intrins: bool = True):
+                 handle_array_intrins: bool = True,
+                 num_sweep_threads: int = 4,
+                 sweep_seed: int = 1):
         self.smt_timeout = smt_timeout_ms
         self.int_width = int_width
         self.use_bv = use_bv
         self.prohibit_overflow = prohibit_overflow
         self.handle_array_intrins = handle_array_intrins
+        self.num_sweep_threads = num_sweep_threads
+        self.sweep_seed = sweep_seed
 
 
 # Analysis
@@ -416,14 +431,15 @@ class ArrayIndexAnalysis:
             step = Literal("1", INTEGER_TYPE)  # pragma: no cover
         var_step = self._translate_integer_expr_with_subst(step)
         i = self._fresh_integer_var()
-        self._add_constraint(z3.And(
-          var_step != zero,
+        self._add_constraint(var_step != zero)
+        self._add_constraint(
           z3.Implies(var_step > zero,
-                     z3.And(var >= var_begin, var <= var_end)),
+                     z3.And(var >= var_begin, var <= var_end)))
+        self._add_constraint(
           z3.Implies(var_step < zero,
-                     z3.And(var <= var_begin, var >= var_end)),
-          var == var_begin + i * var_step,
-          i >= zero))
+                     z3.And(var <= var_begin, var >= var_end)))
+        self._add_constraint(var == var_begin + i * var_step)
+        self._add_constraint(i >= zero)
         # Prohibit overflow/underflow of "i * var_step"
         if self.opts.use_bv and self.opts.prohibit_overflow:
             self._add_constraint(z3.BVMulNoOverflow(i, var_step, True))
@@ -517,10 +533,12 @@ class ArrayIndexAnalysis:
         if not (self.finished and len(self.saved_access_dicts) == 2):
             return None  # pragma: no cover
 
+        # A list of lists holding a sum (OR) of products (AND) of constraints
+        sum_of_prods = []
+
         # Forumlate constraints for solving, considering the two iterations
         iter_i = self.saved_access_dicts[0]
         iter_j = self.saved_access_dicts[1]
-        conflicts = []
         for (i_arr_name, i_accesses) in iter_i.items():
             for (j_arr_name, j_accesses) in iter_j.items():
                 if (i_arr_name == j_arr_name or
@@ -537,22 +555,20 @@ class ArrayIndexAnalysis:
                                                             j_access.indices):
                                     for (i_idx, j_idx) in zip(i_idxs, j_idxs):
                                         indices_equal.append(i_idx == j_idx)
-                                conflicts.append(z3.And(
-                                  *indices_equal,
-                                  i_access.cond,
-                                  j_access.cond))
+                                sum_of_prods.append(indices_equal +
+                                                    [i_access.cond] +
+                                                    [j_access.cond])
 
-        # Invoke Z3 solver with a timeout
-        solver = z3.Solver()
-        solver.set("timeout", self.opts.smt_timeout)
-        solver.add(z3.And(*self.constraints, z3.Or(*conflicts)))
-        result = solver.check()
-        if result == z3.unsat:
-            return True
-        elif result == z3.sat:
-            return False
+        # Solve the constraints
+        if self.opts.num_sweep_threads <= 1:
+            s = z3.Solver()
+            s.set("timeout", self.opts.smt_timeout)
+            s.add(z3.And(self.constraints))
+            s.add(z3.Or([z3.And(prod) for prod in sum_of_prods]))
+            result = s.check()
         else:
-            return None  # pragma: no cover
+            result = self._sweep_solve(sum_of_prods)
+        return result == z3.unsat
 
     def _step(self, stmt: Node, cond: z3.BoolRef):
         '''Analyse the given statement in recursive-descent fashion.'''
@@ -668,6 +684,76 @@ class ArrayIndexAnalysis:
         if self.in_loop_to_parallelise:
             self._add_all_array_accesses(stmt, cond)
         self._kill_all_written_vars(stmt)
+
+    def _sweep_solve(self, sum_of_prods: list[list[z3.BoolRef]]):
+        '''The solver is quite sensitive to the order of constraints.
+        This sweeper runs multiple solvers in parallel, with each one
+        using a different constraint order. As soon as one solver completes,
+        the others are cancelled. This reduces the aforementioned sensitivity.
+        In future, the sweeper could also run solvers with different
+        paramters in parallel, or solve each product list in
+        'sum_of_prods' in parallel (OR parallelism).
+
+        :param sum_of_prods: a sum of products of constraints to solve.
+           These constraints are implicitly ANDed with the global
+           constraint set.
+        '''
+        result = []
+        result_lock = threading.Lock()
+        done_event = threading.Event()
+
+        # Function that runs in each thread
+        def wrapper(solver):
+            out = solver.check()
+            with result_lock:
+                if not done_event.is_set():
+                    result.append(out)
+                    done_event.set()
+
+        # Random number generator for shuffling constraints
+        rnd = random.Random(self.opts.sweep_seed)
+
+        # Create a solver per thread
+        solvers = []
+        threads = []
+        for i in range(0, self.opts.num_sweep_threads):
+            # Create a solver for the problem
+            ctx = z3.Context()
+            s = z3.Solver(ctx=ctx)
+            s.set("timeout", self.opts.smt_timeout)
+            s.add(z3.And(self.constraints).translate(ctx))
+            sum_constraint = z3.Or([z3.And(prod) for prod in sum_of_prods])
+            s.add(sum_constraint.translate(ctx))
+            solvers.append(s)
+
+            # Create a thread for this solver and start it
+            t = threading.Thread(target=wrapper, args=(s,))
+            threads.append(t)
+            t.start()
+
+            # Shuffle the constraints for the next thread
+            rnd.shuffle(self.constraints)
+            for prod in sum_of_prods:
+                rnd.shuffle(prod)
+            if done_event.is_set():
+                break
+
+        # Wait for first thread to complete
+        done_event.wait()
+
+        # Interrupt all solvers and wait for all threads to complete.
+        # This loop appears more complex than necessary, but we want to
+        # handle the possibility that we may interrupt a solver before
+        # it has started, in which case the interrupt would have no effect
+        # and we'd have to wait for that solver's timeout to expire.
+        for (s, t) in zip(solvers, threads):
+            while True:
+                s.interrupt()
+                t.join(timeout=0.1)
+                if not t.is_alive():
+                    break
+
+        return result[0]
 
 # Translating Fortran expressions to SMT formulae
 # ===============================================

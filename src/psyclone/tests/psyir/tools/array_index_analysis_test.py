@@ -46,7 +46,8 @@ import z3
 
 # -----------------------------------------------------------------------------
 @pytest.mark.parametrize("use_bv", [True, False])
-def test_reverse(use_bv, fortran_reader, fortran_writer):
+@pytest.mark.parametrize("num_sweep_threads", [1, 4])
+def test_reverse(use_bv, num_sweep_threads, fortran_reader, fortran_writer):
     '''Test that an array reversal routine has no array conflicts
     '''
     psyir = fortran_reader.psyir_from_source('''
@@ -61,7 +62,8 @@ def test_reverse(use_bv, fortran_reader, fortran_writer):
             arr(n+1-i) = tmp
           end do
         end subroutine''')
-    opts = ArrayIndexAnalysisOptions(use_bv=use_bv, prohibit_overflow=True)
+    opts = ArrayIndexAnalysisOptions(use_bv=use_bv,
+                                     num_sweep_threads=num_sweep_threads)
     results = []
     for loop in psyir.walk(Loop):
         results.append(ArrayIndexAnalysis(opts).is_loop_conflict_free(loop))
