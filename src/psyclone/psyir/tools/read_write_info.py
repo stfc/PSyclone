@@ -203,7 +203,7 @@ class ReadWriteInfo:
         if not_found_counter == 2:
             logger = logging.getLogger(__name__)
             logger.warning(f"ExtractNode: Variable '{var_info[1]}' is to "
-                           f"be removed, but it's neither in the list of "
-                           f"read variables ({self._read_list}), nor "
-                           f"in the list of write variables "
+                           f"be removed from ReadWriteInfo, but it's neither "
+                           f"in the list of read variables ({self._read_list})"
+                           f", nor in the list of write variables "
                            f"({self._write_list}).")

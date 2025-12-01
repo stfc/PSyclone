@@ -150,8 +150,8 @@ def test_remove_var(caplog) -> None:
     # otherwise it must not be removed, and a warning must be logged:
     with caplog.at_level(logging.WARNING):
         rwi.remove(sig_b)
-    assert ("Variable 'b' is to be removed, but it's neither in the list of "
-            "read variables" in caplog.text)
+    assert ("Variable 'b' is to be removed from ReadWriteInfo, but it's "
+            "neither in the list of read variables" in caplog.text)
 
     assert rwi.read_list == [("", sig_c), ("my_mod", sig_b)]
     assert rwi.write_list == [("", sig_c), ("other_mod", sig_e)]
