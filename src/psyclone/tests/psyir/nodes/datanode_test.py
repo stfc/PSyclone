@@ -40,18 +40,50 @@
 '''
 import pytest
 
-from psyclone.psyir.nodes import DataNode, Reference, BinaryOperation
-from psyclone.psyir.symbols import (CHARACTER_TYPE, DataSymbol, UnresolvedType,
-                                    INTEGER_SINGLE_TYPE, REAL_TYPE)
+from psyclone.psyir.nodes import (
+    DataNode, Reference, BinaryOperation, Loop, Call, ArrayReference, Range)
+from psyclone.psyir.symbols import (
+    CHARACTER_TYPE, DataSymbol, UnresolvedType, INTEGER_SINGLE_TYPE, REAL_TYPE,
+    RoutineSymbol, INTEGER_TYPE)
 
 
 def test_datanode_datatype():
     '''
-    Test that the base implementation of datatype just returns UnresolvedType.
+    Test that the base implementation of datatype returns UnresolvedType,
+    unless it is in a place where we can infer the type from its context.
 
     '''
     dnode = DataNode()
     assert isinstance(dnode.datatype, UnresolvedType)
+
+    # If it is a Loop we can infer the type of the bounds
+    loop = Loop.create(
+                    DataSymbol("a", INTEGER_SINGLE_TYPE),
+                    Call.create(RoutineSymbol("get_start")),
+                    Call.create(RoutineSymbol("get_stop")),
+                    Call.create(RoutineSymbol("get_step")),
+                    []
+    )
+
+    assert loop.start_expr.datatype == INTEGER_TYPE
+    assert loop.stop_expr.datatype == INTEGER_TYPE
+    assert loop.step_expr.datatype == INTEGER_TYPE
+
+    # If it is a Range we can infer the type of the bounds
+    ref1 = Reference(DataSymbol("i", UnresolvedType()))
+    ref2 = Reference(DataSymbol("lb", UnresolvedType()))
+    ref3 = Reference(DataSymbol("ub", UnresolvedType()))
+    arrayref = ArrayReference.create(
+        DataSymbol("a", UnresolvedType()),
+        indices=[ref1, Range.create(ref2, ref3, None)]
+    )
+
+    # We cannot infer the type of an index because it could be an
+    # integer, or an array of integers.
+    assert arrayref.indices[0].datatype == UnresolvedType()
+    # But the Range bounds can only be integers
+    assert arrayref.indices[1].children[0].datatype == INTEGER_TYPE
+    assert arrayref.indices[1].children[1].datatype == INTEGER_TYPE
 
 
 def test_datanode_is_character():

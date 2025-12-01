@@ -1,3 +1,7 @@
+   7) PR #3041 for #2823.  Changes the frontend for existing code so
+   that unresolved symbols with parentheses are identified as calls
+   rather than array accesses.
+
    6) PR #3223 for #3219.  Add a prototype of the kernel computation
    pattern as its children
 
@@ -169,7 +173,7 @@ Release 3.2.0 1st of October 2025
    65) PR #3077 for #3076. Small optimisation to avoid computing depth in
    node.walk() unless it is required.
 
-   64) PR #3023 for #3012. Initial version of psyclonefc command
+   64) PR #3023 towards #3012. Initial version of psyclonefc command
 
    63) PR #2907 for #2878. Improves Extraction library output stats.
 
