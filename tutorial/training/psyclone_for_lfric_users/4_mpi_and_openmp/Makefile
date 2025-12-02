@@ -35,28 +35,12 @@
 
 include ../common.mk
 
-# The compiler to use may be specified via the F90 environment
-#
-# export F90=gfortran
-# export F90FLAGS="-Wall -g -fcheck=bound"
-F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
-
 OBJ = main_alg_psy.o main_alg.o summation_w0_to_w3_kernel_mod.o
 
 EXEC = example
-# Path of the included LFRic infrastructure files:
-LFRIC_PATH=$(ROOT_DIR)/external/lfric_infrastructure/src
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-
-# This sets up LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.mk
-F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 # Various targets
 # ---------------
-.PHONY: transform compile run clean allclean test
 
 # Default target: run PSyclone (even if the output file should already exist)
 transform:
@@ -66,7 +50,7 @@ transform:
 compile: $(EXEC)
 
 run: compile
-	./example
+	./$(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) \
@@ -89,19 +73,9 @@ main_alg_psy.f90: main_alg.x90
 # For PSyclone CI:
 test: transform
 
-# External libraries - LFRic infrastructure
-# -----------------------------------------
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
-
 # Dependencies
 # ------------
 main_alg.f90: main_alg_psy.f90
 main_alg_psy.o:	summation_w0_to_w3_kernel_mod.o
 main_alg.o:	main_alg_psy.o
 summation_w0_to_w3_kernel_mod.o: $(LFRIC_LIB)
-
-# File creation rules
-# -------------------
-%.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<

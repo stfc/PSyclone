@@ -33,45 +33,46 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-include ../common.mk
-
-# The compiler to use may be specified via the F90 environment
-#
-# export F90=gfortran
-# export F90FLAGS="-Wall -g -fcheck=bound"
-F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound -fopenmp
-
-OBJ = main_alg_psy.o main_alg.o summation_w0_to_w0_kernel_mod.o
-
-EXEC = example
-# Path of the included LFRic infrastructure files:
-LFRIC_PATH=$(ROOT_DIR)/external/lfric_infrastructure/src
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-
-# This sets up LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.mk
-F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
-
-# Various targets
-# ---------------
-.PHONY: transform compile run clean allclean test
-
+# We need to add the default target for this Makefile before the
+# include statement (which will add 'test' as default).
 # Default target: run PSyclone (even if the output file should already exist)
 transform:
 	$(PSYCLONE) -s ./omp_transformation.py -dm -l output \
 		     -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
-compile: $(EXEC)
+include ../common.mk
+
+
+OBJ = main_alg_psy.o main_alg.o summation_w0_to_w0_kernel_mod.o
+
+EXEC = example
+
+# Various targets
+# ---------------
+
+# For PSyclone CI: Test that we get the expected error message
+test:
+	$(MAKE) transform 2>&1 | grep " The kernel has an argument with INC "\
+	"access but the loop is of type ''. Colouring is required." >/dev/null
+
+# The compile target will first run the original failing script (to make
+# sure it still works/fails as expected), then trigger an internal compile:
+compile: test internal_compile
+
+# This target enforces the use of omp_colour_transformation, before
+# then triggering the exec target (which will use the now working
+# transformed source code)
+internal_compile:
+	$(PSYCLONE) -s ./omp_colour_transformation.py -nodm -l output \
+		-opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+	$(MAKE) $(EXEC)
 
 run: compile
-	@# If OMP_NUM_THREADS is not define, set it to 3:
-	OMP_NUM_THREADS=$${OMP_NUM_THREADS:-3} ./example
+	./$(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) \
-		$$(nf-config --flibs)
+		   $$(nf-config --flibs)
 
 # Only required in case the optional colouring transformation is used
 clean:
@@ -88,24 +89,9 @@ allclean: clean
 main_alg_psy.f90: main_alg.x90 omp_transformation.py
 	$(PSYCLONE) -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
-# For PSyclone CI:
-test:
-	$(MAKE) transform 2>&1 | grep " The kernel has an argument with INC "\
-	"access but the loop is of type ''. Colouring is required." >/dev/null
-
-# External libraries - LFRic infrastructure
-# -----------------------------------------
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
-
 # Dependencies
 # ------------
 main_alg.f90: main_alg_psy.f90
 main_alg_psy.o:	summation_w0_to_w0_kernel_mod.o
 main_alg.o:	main_alg_psy.o
 summation_w0_to_w0_kernel_mod.o: $(LFRIC_LIB)
-
-# File creation rules
-# -------------------
-%.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<

@@ -38,29 +38,35 @@
 # directories (otherwise we would also get __pycache__)
 EXAMPLES=$(sort $(patsubst %/Makefile,%,$(wildcard */Makefile)))
 
-test_EXAMPLES=$(addprefix test_,$(EXAMPLES))
-clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
 allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
+clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
+compile_EXAMPLES=$(addprefix test_,$(EXAMPLES))
+run_EXAMPLES=$(addprefix test_,$(EXAMPLES))
+test_EXAMPLES=$(addprefix test_,$(EXAMPLES))
 
-.PHONY: $(test_EXAMPLES) $(clean_EXAMPLES) $(allclean_EXAMPLES)
+.PHONY: $(test_EXAMPLES) $(clean_EXAMPLES) $(allclean_EXAMPLES) \
+		$(run_EXAMPLES) compile run
 
-test: $(test_EXAMPLES)
-clean: $(clean_EXAMPLES)
 allclean: $(allclean_EXAMPLES)
+clean: $(clean_EXAMPLES)
+compile: $(compile_EXAMPLES)
+run: $(run_EXAMPLES)
+test: $(test_EXAMPLES)
 
-# Only some of the examples can be compiled:
-compile:
-	$(MAKE) -C 1_using_psyclone compile
-	$(MAKE) -C 2_supporting_mpi compile
-	$(MAKE) -C 3_applying_openmp compile
-	$(MAKE) -C 4_mpi_and_openmp compile
-
-
-$(test_EXAMPLES):
-	$(MAKE) -C $(patsubst test_%,%,$@) test
+# Note that not all examples in the user training compile (since some
+# shows errors), they will all run the 'test' target if compile or
+# run is selected (so everything is tested as far as possible).
+$(allclean_EXAMPLES):
+	$(MAKE) -C $(patsubst allclean_%,%,$@) allclean
 
 $(clean_EXAMPLES):
 	$(MAKE) -C $(patsubst clean_%,%,$@) clean
 
-$(allclean_EXAMPLES):
-	$(MAKE) -C $(patsubst allclean_%,%,$@) allclean
+$(compile_EXAMPLES):
+	$(MAKE) -C $(patsubst test_%,%,$@) compile
+
+$(run_EXAMPLES):
+	$(MAKE) -C $(patsubst test_%,%,$@) run
+
+$(test_EXAMPLES):
+	$(MAKE) -C $(patsubst test_%,%,$@) test

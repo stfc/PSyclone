@@ -33,8 +33,10 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-
-test compile clean:
+# The test target runs tests on the gitlab CI (i.e. without
+# compilation), the run target will compile and execute the binary
+# (if supported, some examples can't be compiled)
+allclean clean compile run test:
 	$(MAKE) -C psyclone_for_lfric_users $@
 	$(MAKE) -C gocean $@
 	$(MAKE) -C lfric $@
