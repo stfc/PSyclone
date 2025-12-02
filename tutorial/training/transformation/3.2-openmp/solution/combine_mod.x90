@@ -15,7 +15,6 @@ contains
     !> @param[in]  born    The field with 1 iff a new cell is born
 
     subroutine combine(current, die, born)
-        USE field_mod, only            : r2d_field
 
         implicit none
         real(kind=8), dimension(:,:), allocatable, intent(inout) :: current

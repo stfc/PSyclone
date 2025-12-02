@@ -6,10 +6,6 @@ module output_field_mod
 contains
 
     subroutine output_field(field)
-        USE field_mod, only      : r2d_field
-        USE kind_params_mod, only: go_wp
-        USE parallel_mod, only: on_master
-
         implicit none
         real(kind=8), dimension(:,:), allocatable :: field
 

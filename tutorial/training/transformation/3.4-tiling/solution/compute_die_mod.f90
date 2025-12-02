@@ -6,8 +6,6 @@ module compute_die_mod
 
   contains
   subroutine compute_die(die, current, neighbours)
-    use grid_mod, only : grid_type
-    use field_mod, only : r2d_field
     real(kind=8), allocatable, dimension(:,:), intent(in) :: current
     real(kind=8), allocatable, dimension(:,:), intent(in) :: neighbours
     real(kind=8), allocatable, dimension(:,:), intent(inout) :: die

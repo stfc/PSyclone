@@ -13,11 +13,8 @@ contains
     !> @param[in]  current    The current state.
 
     subroutine count_neighbours(neighbours, current)
-        USE field_mod, only            : r2d_field
 
         implicit none
-        ! It has to be declared inout - even though the data is only written,
-        ! the r2d_field type exists, so it's input as well
         real(kind=8), dimension(:,:), allocatable, intent(inout) :: neighbours
         real(kind=8), dimension(:,:), allocatable, intent(in) :: current
 

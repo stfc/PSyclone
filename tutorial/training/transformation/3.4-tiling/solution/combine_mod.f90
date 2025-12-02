@@ -6,7 +6,6 @@ module combine_mod
 
   contains
   subroutine combine(current, die, born)
-    use field_mod, only : r2d_field
     real(kind=8), allocatable, dimension(:,:), intent(inout) :: current
     real(kind=8), allocatable, dimension(:,:), intent(in) :: die
     real(kind=8), allocatable, dimension(:,:), intent(in) :: born

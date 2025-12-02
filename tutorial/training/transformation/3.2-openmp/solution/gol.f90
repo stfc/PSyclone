@@ -2,12 +2,9 @@ program GameOfLife
 
     use read_config_mod, only: read_config
     use time_step_mod, only  : time_step
-    USE grid_mod, only       : grid_type
-    USE field_mod, only      : r2d_field
 
     implicit none
 
-    TYPE(grid_type), target  :: grid
     real(kind=8), dimension(:,:), allocatable :: initial
 
     integer                  :: time_steps
@@ -19,7 +16,7 @@ program GameOfLife
 
     ! Read in the initial condition into the field 'current',
     ! and initialise dl_esm_inf.
-    call read_config(grid, initial, time_steps) 
+    call read_config(initial, time_steps)
 
-    call time_step(grid, initial, time_steps)
+    call time_step(initial, time_steps)
 end program GameOfLife

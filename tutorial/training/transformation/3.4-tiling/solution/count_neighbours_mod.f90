@@ -6,7 +6,6 @@ module count_neighbours_mod
 
   contains
   subroutine count_neighbours(neighbours, current)
-    use field_mod, only : r2d_field
     real(kind=8), allocatable, dimension(:,:), intent(inout) :: neighbours
     real(kind=8), allocatable, dimension(:,:), intent(in) :: current
     integer :: xstart
