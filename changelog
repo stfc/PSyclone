@@ -1,3 +1,19 @@
+   9) PR #3235 for #3234 and #3232. Add support for OpenMP conditional
+   compilation statements.
+
+   8) PR #3152 for #3111. Ensure loop variables are excluded when
+   performing kernel extraction.
+
+   7) PR #3041 for #2823.  Changes the frontend for existing code so
+   that unresolved symbols with parentheses are identified as calls
+   rather than array accesses.
+
+   6) PR #3223 for #3219.  Add a prototype of the kernel computation
+   pattern as its children
+
+   5) PR #3150 towards #2302. Adds functionality to map arguments to
+   Fortran intrinsics to the corresponding named arguments.   
+
    4) PR #3178 for #3196. Improves fparser2 reader directive handling.
 
    3) PR #3210 for #3203. Removes outstanding references to the old,
@@ -163,7 +179,7 @@ Release 3.2.0 1st of October 2025
    65) PR #3077 for #3076. Small optimisation to avoid computing depth in
    node.walk() unless it is required.
 
-   64) PR #3023 for #3012. Initial version of psyclonefc command
+   64) PR #3023 towards #3012. Initial version of psyclonefc command
 
    63) PR #2907 for #2878. Improves Extraction library output stats.
 

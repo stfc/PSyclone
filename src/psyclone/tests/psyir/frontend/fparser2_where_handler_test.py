@@ -498,8 +498,8 @@ def test_where_containing_sum_no_dim(fortran_reader, fortran_writer):
     routine = psyir.walk(Routine)[0]
     assert isinstance(routine[0], Loop)
     output = fortran_writer(psyir)
-    assert ("SUM(a_i_last_couple) / picefr(LBOUND(picefr, dim=1) + widx1 - 1,"
-            "LBOUND(picefr, dim=2) + widx2 - 1)" in output)
+    assert ("SUM(a_i_last_couple) / picefr(LBOUND(picefr, dim=1) "
+            "+ widx1 - 1,LBOUND(picefr, dim=2) + widx2 - 1)" in output)
 
 
 def test_where_mask_containing_sum_with_dim(fortran_reader):
@@ -810,7 +810,8 @@ def test_where_derived_type(fortran_reader, code, size_arg):
     loops = psyir.walk(Loop)
     assert len(loops) == 2
     assert isinstance(loops[1].stop_expr, IntrinsicCall)
-    assert loops[1].stop_expr.debug_string() == f"SIZE({size_arg}, dim=1)"
+    assert (loops[1].stop_expr.debug_string() ==
+            f"SIZE({size_arg}, dim=1)")
     assert isinstance(loops[1].loop_body[0], IfBlock)
     # All Range nodes should have been replaced
     assert not loops[0].walk(Range)

@@ -40,13 +40,19 @@ import pytest
 from psyclone.psyclonefc_cli import compiler_wrapper
 
 
-def test_psyclonefc_errors():
+def test_psyclonefc_errors(monkeypatch):
     ''' Test the cli error exits. '''
     with pytest.raises(SystemExit) as err:
         compiler_wrapper([])
     assert ("psyclonefc error: PSYCLONE_COMPILER environment variable not "
             "found! This environment variable must be set to the Fortran "
             "compiler to use." in str(err.value))
+    monkeypatch.setattr(os, 'environ', {'PSYCLONE_COMPILER': 'psyclonefc'})
+    with pytest.raises(SystemExit) as err:
+        compiler_wrapper([])
+    assert ("PSYCLONE_COMPILER environment variable must not be set to "
+            "psyclonefc. This environment variable must be set to the "
+            "Fortran compiler to use." in str(err.value))
 
 
 def test_psyclonefc(monkeypatch, capsys):
@@ -76,7 +82,9 @@ def test_psyclonefc(monkeypatch, capsys):
     assert err.value.code == 0
     stdout, _ = capsys.readouterr()
     # This will execute:
-    assert "psyclone -o source.psycloned.f90 source.f90" in stdout
+    # What comes after -I is pytest dependent, so we skip it
+    assert "psyclone -I " in stdout
+    assert "-o source.psycloned.f90 source.f90" in stdout
     assert "true source.psycloned.f90 -c -o source.o" in stdout
 
     # Now with PSYCONE_OPTS and multiple files
@@ -90,7 +98,8 @@ def test_psyclonefc(monkeypatch, capsys):
     assert err.value.code == 0
     stdout, _ = capsys.readouterr()
     # This will execute:
-    assert "psyclone -l output -o source1.psycloned.f90 source1.f90" in stdout
-    assert "psyclone -l output -o source2.psycloned.f90 source2.f90" in stdout
+    assert "psyclone -l output -I " in stdout
+    assert "-o source1.psycloned.f90 source1.f90" in stdout
+    assert "-o source2.psycloned.f90 source2.f90" in stdout
     assert ("true source1.psycloned.f90 source2.psycloned.f90 -c -o app.exe"
             in stdout)

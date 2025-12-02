@@ -110,104 +110,6 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
 SUPPORTED_ROUTINE_PREFIXES = ["ELEMENTAL", "PURE", "IMPURE"]
 
 
-# TODO #2302: It may be that this method could be made more general so
-# that it works for more intrinsics, to help minimise the number of
-# canonicalise_* functions.
-def _canonicalise_minmaxsum(arg_nodes, arg_names, node):
-    '''Canonicalise the arguments to any of the minval, maxval or sum
-    intrinsics. These three intrinsics can use the same function as
-    they have the same argument rules:
-
-    RESULT = [MINVAL, MAXVAL, SUM](ARRAY[, MASK])
-    RESULT = [MINVAL, MAXVAL, SUM](ARRAY, DIM[, MASK])
-
-    This function re-orderes and modifies the supplied arguments a
-    canonical form so that the PSyIR does not need to support the
-    different forms that are allowed in Fortran.
-
-    In general Fortran supports all arguments being named, all
-    arguments being positional and everything in-between, as long as
-    all named arguments follow all positional arguments.
-
-    For example, both SUM(A, DIM, MASK) and SUM(DIM=DIM, MASK=MASK,
-    ARRAY=A) are equivalent in Fortran.
-
-    The PSyIR canonical form has all required arguments as positional
-    arguments and all optional arguments as named arguments, which
-    would result in SUM(A, DIM=DIM, MASK=MASK) in this case. Note that
-    the canonical form does not constrain the order of named
-    arguments.
-
-    In the case where the argument type needs to be determined in
-    order to create the PSyIR canonical form a CodeBlock is used (by
-    raising NotImplementedError).
-
-    :param arg_nodes: a list of fparser2 arguments.
-    :type arg_nodes: List[:py:class:`fparser.two.utils.Base`]
-    :param arg_names: a list of named-argument names.
-    :type arg_names: List[Union[str, None]]
-    :param node: the PSyIR Call or IntrinsicCall node.
-    :type node: :py:class:`psyclone.psyir.nodes.Call` or \
-        :py:class:`psyclone.psyir.nodes.IntrinsicCall`
-
-    :raises InternalError: if the array argument is not found in the \
-        argument list.
-    :raises NotImplementedError: if there are two arguments and both \
-        of them are not named as the second argument could be a \
-        dimension or a mask and it is not currently possible to \
-        determine which.
-
-    '''
-    # if the array argument is named then make it the first positional
-    # argument. Simply checking arg_names[0] is OK as, if the first
-    # argument is named, then all arguments must be named (to be valid
-    # Fortran).
-    if arg_names[0]:
-        arg_name_index = 0
-        for name in arg_names:
-            if name.lower() == "array":
-                break
-            arg_name_index += 1
-        else:
-            raise InternalError(
-                f"Invalid intrinsic arguments found. Expecting one "
-                f"of the named arguments to be 'array', but found "
-                f"'{node}'.")
-        # Remove the argument name and add an empty argument name to
-        # the start of the list.
-        _ = arg_names.pop(arg_name_index)
-        arg_names.insert(0, None)
-        # Move the array argument to the start of the list.
-        node = arg_nodes.pop(arg_name_index)
-        arg_nodes.insert(0, node)
-        return
-
-    num_arg_names = len([arg_name for arg_name in arg_names
-                         if arg_name])
-
-    # If there are two arguments and they are both not
-    # named then the second argument could be a dim
-    # (integer) or mask (logical) argument. We could
-    # attempt to determine the datatype of the argument
-    # but for the moment give up and return a CodeBlock.
-    if len(arg_nodes) == 2 and num_arg_names == 0:
-        raise NotImplementedError(
-            f"In '{node}' there are two arguments that are not named. "
-            f"The second could be a dim or a mask so we need datatype "
-            f"information to determine which and we do not determine "
-            f"this information at the moment.")
-
-    # If there are three arguments, and fewer than two are
-    # named, then the argument order is known, so we can just
-    # add any missing named arguments.
-    if len(arg_nodes) == 3 and num_arg_names < 2:
-        # Update the existing list otherwise changes are
-        # local to this function.
-        arg_names[0] = None
-        arg_names[1] = "dim"
-        arg_names[2] = "mask"
-
-
 def _first_type_match(nodelist, typekind):
     '''Returns the first instance of the specified type in the given
     node list.
@@ -358,6 +260,65 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     # imported with a wildcard import.
     return symbol_table.new_symbol(
         name, interface=UnresolvedInterface(), **kargs)
+
+
+def _refine_symbols_with_usage_location(
+    location: Node,
+    execution_part: Fortran2003.Execution_Part
+):
+    ''' Refine the symbol information that we obtained from parsing
+    the declarations sections by knowledge inferred by looking at the
+    usage location of the symbols in the execution_part
+
+    :param location: scope to enhance information for.
+    :param execution_part: fparser nodes to analyse for symbol usage.
+
+    '''
+    # The top-reference of an assignment lhs is guaranteed to be a DataSymbol
+    # This is not true for statement functions, but fparser and psyclone
+    # currently don't support them.
+    for assignment in walk(execution_part, Fortran2003.Assignment_Stmt):
+        if isinstance(assignment.items[0], Fortran2003.Part_Ref):
+            name = assignment.items[0].items[0].string.lower()
+            _find_or_create_unresolved_symbol(
+                location, name,
+                symbol_type=DataSymbol,
+                datatype=UnresolvedType())
+    # Get a set of all names used directly as children of Expressions
+    direct_refnames_in_exprs = {
+        x.string.lower() for x in walk(execution_part, Fortran2003.Name)
+        if isinstance(x.parent, (Fortran2003.BinaryOpBase,
+                                 Fortran2003.UnaryOpBase,
+                                 Fortran2003.Actual_Arg_Spec_List))
+    }
+    # Traverse all part_ref, in fparser these are <name>(<list>) expressions,
+    # and specialise their names as DataSymbols if some of the following
+    # conditions is found:
+    for part_ref in walk(execution_part, Fortran2003.Part_Ref):
+        name = part_ref.items[0].string.lower()
+        if isinstance(part_ref.parent, Fortran2003.Data_Ref):
+            # If it's part of an accessor "a%b(:)", we don't continue, as 'b'
+            # is not something that we have a symbol for and cannot specialise
+            continue
+        for child in part_ref.items:
+            if isinstance(child, Fortran2003.Section_Subscript_List):
+                # If any of its direct children is a triplet "<lb>:<up>:<step>"
+                # we know its a DataSymbol, for now of UnresolvedType, as we
+                # don't know enough to infer the whole shape.
+                if any(isinstance(subchild, Fortran2003.Subscript_Triplet)
+                       for subchild in child.items):
+                    _find_or_create_unresolved_symbol(
+                        location, name,
+                        symbol_type=DataSymbol,
+                        datatype=UnresolvedType())
+        if name in direct_refnames_in_exprs:
+            # If any other expression has the same reference name without
+            # parenthesis, e.g.: a + a(3), we know a is an array and not a
+            # function call, as the latter have mandatory parenthesis.
+            _find_or_create_unresolved_symbol(
+                location, name,
+                symbol_type=DataSymbol,
+                datatype=UnresolvedType())
 
 
 def _find_or_create_psyclone_internal_cmp(node):
@@ -3102,6 +3063,8 @@ class Fparser2Reader():
             (e.g. allocate(character(len=10) :: my_var)).
 
         '''
+        # Computing argument names doesn't do anything for ALLOCATE so we
+        # don't call it.
         call = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE, parent=parent)
 
         type_spec = node.children[0]
@@ -3257,6 +3220,8 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
+        # Computing argument names doesn't do anything for DEALLOCATE so we
+        # don't call it.
         call = IntrinsicCall(
             IntrinsicCall.Intrinsic.DEALLOCATE, parent=parent)
         dealloc_list = node.children[0].children
@@ -4990,21 +4955,10 @@ class Fparser2Reader():
         try:
             intrinsic = IntrinsicCall.Intrinsic[node.items[0].string.upper()]
 
-            if not intrinsic.optional_args:
-                # Intrinsics with no optional arguments
-                call = IntrinsicCall(intrinsic, parent=parent)
-                return self._process_args(node, call)
-            if intrinsic.name.lower() in ["minval", "maxval", "sum"]:
-                # Intrinsics with optional arguments require a
-                # canonicalise function
-                call = IntrinsicCall(intrinsic, parent=parent)
-                return self._process_args(
-                    node, call, canonicalise=_canonicalise_minmaxsum)
-            # TODO #2302: We do not canonicalise the order of the
-            # arguments of the remaining intrinsics, but this means
-            # PSyIR won't be able to guarantee what each child is.
             call = IntrinsicCall(intrinsic, parent=parent)
-            return self._process_args(node, call)
+            call = self._process_args(node, call, True)
+            call.compute_argument_names()
+            return call
         except KeyError as err:
             raise NotImplementedError(
                 f"Intrinsic '{node.items[0].string}' is not supported"
@@ -5058,9 +5012,16 @@ class Fparser2Reader():
 
     def _part_ref_handler(self, node, parent):
         '''
-        Transforms an fparser2 Part_Ref to the PSyIR representation. If the
-        node is connected to a SymbolTable, it checks the reference has been
-        previously declared.
+        Transforms an fparser2 Part_Ref to the PSyIR representation.
+
+        fparser2 cannot always disambiguate between Array Accessors, Calls and
+        DerivedType constructors, and it falls back to Part_Ref when unknown.
+        PSyclone has a better chance of properly categorising them because we
+        can follow 'use' statements to retrieve symbol information. If
+        psyclone does not find the definition it falls back to a Call. The
+        reason for this is that it is the safest option. Constructors and
+        accessors can be considered calls (of unknown purity and elemental
+        attributes) but the opposite is not true.
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
@@ -5076,16 +5037,20 @@ class Fparser2Reader():
 
         '''
         reference_name = node.items[0].string.lower()
-        # We can't say for sure that the symbol we create here should be a
-        # DataSymbol as fparser2 often identifies function calls as
-        # part-references instead of function-references.
+        # Even if refining symbols is already/better done at the top of the
+        # routine scope, before any occurrence of this symbol, psyclone's
+        # Fortran frontend has entry points to parse single statements/
+        # expressions, so we have to repeat it here
+        _refine_symbols_with_usage_location(parent, node)
         symbol = _find_or_create_unresolved_symbol(parent, reference_name)
 
-        if isinstance(symbol, RoutineSymbol):
+        if isinstance(symbol, DataSymbol):
+            call_or_array = ArrayReference(symbol, parent=parent)
+        else:
+            # Generic Symbols (unresolved), RoutineSymbols and DataTypeSymbols
+            # (constructors) are all processed as Calls
             call_or_array = Call(parent=parent)
             call_or_array.addchild(Reference(symbol))
-        else:
-            call_or_array = ArrayReference(symbol, parent=parent)
         self.process_nodes(parent=call_or_array, nodes=node.items[1].items)
         return call_or_array
 
@@ -5307,7 +5272,13 @@ class Fparser2Reader():
 
         return self._process_args(node, call)
 
-    def _process_args(self, node, call, canonicalise=None):
+    def _process_args(self, node: Union[
+                          Fortran2003.Call_Stmt,
+                          Fortran2003.Intrinsic_Function_Reference
+                      ],
+                      call: Union[Call, IntrinsicCall],
+                      check_valid_argument_ordering: bool = False) -> Union[
+                              Call, IntrinsicCall]:
         '''Processes fparser2 call or intrinsic arguments contained in the
         node argument and adds them to the PSyIR Call or IntrinsicCall
         contained in the call argument, respectively.
@@ -5324,23 +5295,19 @@ class Fparser2Reader():
         all optional arguments as named arguments, which would result
         in sum(a, dim=dim, mask=mask) in this case.
 
-        :param node: an fparser call node representing a call or \
+        :param node: an fparser call node representing a call or
             an intrinsic call.
-        :type node: :py:class:`fparser.two.Fortran2003.Call_Stmt` or \
-            :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
-        :param call: a PSyIR call argument representing a call or an \
+        :param call: a PSyIR call argument representing a call or an
             intrinsic call.
-        :type call: :py:class:`psyclone.psyir.nodes.Call` or \
-            :py:class:`psyclone.psyir.nodes.IntrinsicCall`
-        :param function canonicalise: a function that canonicalises \
-            the call arguments.
+        :param check_valid_argument_ordering: whether to check the order
+            of the arguments provided to the call are valid (currently just for
+            IntrinsicCalls). This check ensures that all unnamed arguments
+            appear before any named arguments.
 
-        :returns: the PSyIR call argument with the PSyIR \
+        :returns: the PSyIR call argument with the PSyIR
             representation of the fparser2 node arguments.
-        :rtype: :py:class:`psyclone.psyir.nodes.Call` or \
-                :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
-        :raises GenerationError: if all named arguments do not follow \
+        :raises GenerationError: if all named arguments do not follow
             all positional arguments.
 
         '''
@@ -5352,13 +5319,11 @@ class Fparser2Reader():
 
         # Sanity check that all named arguments follow all positional
         # arguments. This should be the case but fparser does not
-        # currently check and this ordering is assumed by the
-        # canonicalise function. LFRic invokes can cause this
-        # exception (as they often use name=xxx before the end of the
-        # argument list), so to avoid this we only check when a
-        # canonicalise function is supplied (which we know is not the
-        # case for invokes as they are calls).
-        if canonicalise:
+        # currently check and this ordering is assumed. LFRic invokes can
+        # cause this exception (as they often use name=xxx before the end of
+        # the argument list), so to avoid this we only check when the option
+        # is enabled.
+        if check_valid_argument_ordering:
             index = 0
             while index < len(arg_names) and not arg_names[index]:
                 index += 1
@@ -5367,14 +5332,6 @@ class Fparser2Reader():
                     raise GenerationError(
                         f"In Fortran, all named arguments should follow all "
                         f"positional arguments, but found '{node}'.")
-
-        # Call the canonicalise function if it is supplied. This
-        # re-orders arg_nodes and renames arg_names appropriately for
-        # the particular call to make a canonical version. This is
-        # required because intrinsics can be written with and without
-        # named arguments (or combinations thereof) in Fortran.
-        if canonicalise:
-            canonicalise(arg_nodes, arg_names, node)
 
         self.process_nodes(parent=call, nodes=arg_nodes)
 
@@ -5642,6 +5599,9 @@ class Fparser2Reader():
                 # valid.
                 pass
             else:
+                # We found an 'execution_part', before processing it we try
+                # to refine the symbol information
+                _refine_symbols_with_usage_location(routine, sub_exec)
                 # Put the comments from the end of the declarations part
                 # at the start of the execution part manually
                 self.process_nodes(routine, lost_comments + sub_exec.content)
@@ -5719,6 +5679,9 @@ class Fparser2Reader():
             # valid.
             pass
         else:
+            # We found an 'execution_part', before processing it we try
+            # to refine the symbol information
+            _refine_symbols_with_usage_location(routine, prog_exec)
             self.process_nodes(routine, lost_comments + prog_exec.content)
 
         return routine

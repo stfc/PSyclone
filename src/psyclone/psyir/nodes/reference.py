@@ -230,9 +230,13 @@ class Reference(DataNode):
         '''
         # pylint: disable=unidiomatic-typecheck
         # Use type() directly as we need to ignore inheritance.
-        if type(self.symbol) is Symbol:
-            # We don't even have a DataSymbol
-            return UnresolvedType()
+        if (
+            type(self.symbol) is Symbol or
+            isinstance(self.symbol.datatype, UnresolvedType)
+        ):
+            # We don't know the type of the symbol, but maybe we can infer
+            # it from its location.
+            return super().datatype
         return self.symbol.datatype
 
     def previous_accesses(self):

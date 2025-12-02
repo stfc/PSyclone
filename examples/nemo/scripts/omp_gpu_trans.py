@@ -40,9 +40,8 @@ directives into Nemo code. '''
 import os
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
-    normalise_loops, enhance_tree_information, PARALLELISATION_ISSUES,
-    NEMO_MODULES_TO_IMPORT)
-from psyclone.psyir.nodes import Routine
+    normalise_loops, PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
+from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import (
     OMPTargetTrans, OMPDeclareTargetTrans)
 from psyclone.transformations import (
@@ -108,19 +107,23 @@ OFFLOADING_ISSUES = [
     "trczdf.f90",
     "trcice_pisces.f90",
     "dtatsd.f90",
-    # Runtime Error: Illegal address during kernel execution with
-    # asynchronicity.
-    "fldread.f90",
     "trcatf.f90",
-    "zdfiwm.f90",
-    "zdfsh2.f90",
+    "stp2d.f90",
 ]
 
-if ASYNC_PARALLEL:
+ASYNC_ISSUES = [
+    # TODO #3220: Explore the cause of the async issues
     # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
     # (often invalid pointer dereference) in get_cstrgsurf
-    OFFLOADING_ISSUES.append("sbcclo.f90")
-    OFFLOADING_ISSUES.append("trcldf.f90")
+    "sbcclo.f90",
+    "trcldf.f90",
+    # Runtime Error: Illegal address during kernel execution with
+    # asynchronicity.
+    "zdfiwm.f90",
+    "zdfsh2.f90",
+    # Diverging results with asynchronicity
+    "traadv_fct.f90",
+]
 
 
 def trans(psyir):
@@ -132,13 +135,17 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    # The two options below are useful for file-by-file exhaustive tests.
     # If the environemnt has ONLY_FILE defined, only process that one file and
-    # known-good files that need a "declare target" inside. This is useful for
-    # file-by-file exhaustive tests.
+    # known-good files that need a "declare target" inside.
     only_do_file = os.environ.get('ONLY_FILE', False)
-    if only_do_file and psyir.name not in (only_do_file,
-                                           "lib_fortran.f90",
-                                           "solfrac_mod.f90"):
+    only_do_files = (only_do_file, "lib_fortran.f90", "solfrac_mod.f90")
+    if only_do_file and psyir.name not in only_do_files:
+        return
+    # If the environemnt has ALL_BUT_FILE defined, process all files but
+    # the one named file.
+    all_but_file = os.environ.get('ALL_BUT_FILE', False)
+    if all_but_file and psyir.name == all_but_file:
         return
 
     omp_target_trans = OMPTargetTrans()
@@ -153,6 +160,7 @@ def trans(psyir):
     omp_cpu_loop_trans.omp_directive = "paralleldo"
 
     disable_profiling_for = []
+    enable_async = ASYNC_PARALLEL and psyir.name not in ASYNC_ISSUES
 
     for subroutine in psyir.walk(Routine):
 
@@ -182,7 +190,6 @@ def trans(psyir):
                 subroutine.name == 'dom_ngb'):
             continue
 
-        enhance_tree_information(subroutine)
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,
@@ -202,8 +209,7 @@ def trans(psyir):
         if (
             subroutine.name.lower().startswith("sign_")
             or subroutine.name.lower() == "solfrac"
-            # Important for performance but causes SIGNAL 11 in some cases
-            # or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
+            or (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
         ):
             try:
                 OMPDeclareTargetTrans().apply(subroutine)
@@ -224,7 +230,7 @@ def trans(psyir):
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
                     privatise_arrays=False,
-                    asynchronous_parallelism=ASYNC_PARALLEL,
+                    asynchronous_parallelism=enable_async,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     enable_reductions=not REPRODUCIBLE
             )
@@ -235,8 +241,8 @@ def trans(psyir):
                     region_directive_trans=omp_target_trans,
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
+                    asynchronous_parallelism=enable_async,
                     privatise_arrays=True,
-                    asynchronous_parallelism=ASYNC_PARALLEL,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     enable_reductions=not REPRODUCIBLE
             )
@@ -251,8 +257,8 @@ def trans(psyir):
             insert_explicit_loop_parallelism(
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
+                    asynchronous_parallelism=enable_async,
                     privatise_arrays=True,
-                    asynchronous_parallelism=ASYNC_PARALLEL
             )
 
     # Iterate again and add profiling hooks when needed
