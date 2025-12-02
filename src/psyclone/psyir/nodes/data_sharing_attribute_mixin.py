@@ -37,7 +37,7 @@
 '''This module contains the DataSharingAttributeMixin.'''
 
 import abc
-from typing import Set, Tuple
+from typing import Optional, Set, Tuple
 
 from psyclone.core import AccessType, AccessSequence, Signature
 from psyclone.psyir.nodes.codeblock import CodeBlock
@@ -276,17 +276,26 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         # If not, it can be just 'private'
         return False
 
-    def _add_reduction_clauses(self):
+    def _add_reduction_clauses(self,
+                               need_sync: Optional[list[Symbol]] = None
+                               ) -> None:
         '''
         Analyses the code beneath this node and adds the necessary
         OMPReductionClause nodes.
 
+        :param need_sync: optional list of Symbols that require
+            synchronisation (to avoid the expensive call to
+            infer_sharing_attributes).
+
         '''
-        _, _, need_sync = self.infer_sharing_attributes()
+        if need_sync is None:
+            # infer_sharing_attributes() is expensive so only call it
+            # when necessary.
+            _, _, need_sync = self.infer_sharing_attributes()
 
         from psyclone.psyir.tools.reduction_inference import (
             ReductionInferenceTool)
-        from psyclone.psyir.transformations.omp_loop_trans import (
+        from psyclone.psyir.nodes.omp_directives import (
             MAP_REDUCTION_OP_TO_OMP)
 
         vam = self.children[0].reference_accesses()

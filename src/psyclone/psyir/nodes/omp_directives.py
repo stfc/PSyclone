@@ -52,7 +52,6 @@ import logging
 from typing import List
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
 from psyclone.errors import (GenerationError,
                              UnresolvedDependencyError)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -67,8 +66,8 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
         DataSharingAttributeMixin,
 )
-from psyclone.psyir.nodes.directive import StandaloneDirective, \
-    RegionDirective
+from psyclone.psyir.nodes.directive import (
+    StandaloneDirective, RegionDirective)
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
@@ -86,9 +85,33 @@ from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, ImportInterface, INTEGER_TYPE, RoutineSymbol)
 
-# OMP_OPERATOR_MAPPING is used to determine the operator to use in the
-# reduction clause of an OpenMP directive.
-OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
+#: Mapping from PSyIR reduction operator to OMP reduction operator.
+MAP_REDUCTION_OP_TO_OMP = {
+    BinaryOperation.Operator.ADD:
+        OMPReductionClause.ReductionClauseTypes.ADD,
+    BinaryOperation.Operator.SUB:
+        OMPReductionClause.ReductionClauseTypes.SUB,
+    BinaryOperation.Operator.MUL:
+        OMPReductionClause.ReductionClauseTypes.MUL,
+    BinaryOperation.Operator.AND:
+        OMPReductionClause.ReductionClauseTypes.AND,
+    BinaryOperation.Operator.OR:
+        OMPReductionClause.ReductionClauseTypes.OR,
+    BinaryOperation.Operator.EQV:
+        OMPReductionClause.ReductionClauseTypes.EQV,
+    BinaryOperation.Operator.NEQV:
+        OMPReductionClause.ReductionClauseTypes.NEQV,
+    IntrinsicCall.Intrinsic.MAX:
+        OMPReductionClause.ReductionClauseTypes.MAX,
+    IntrinsicCall.Intrinsic.MIN:
+        OMPReductionClause.ReductionClauseTypes.MIN,
+    IntrinsicCall.Intrinsic.IAND:
+        OMPReductionClause.ReductionClauseTypes.IAND,
+    IntrinsicCall.Intrinsic.IOR:
+        OMPReductionClause.ReductionClauseTypes.IOR,
+    IntrinsicCall.Intrinsic.IEOR:
+        OMPReductionClause.ReductionClauseTypes.IEOR
+}
 
 
 class OMPDirective(metaclass=abc.ABCMeta):
@@ -1362,7 +1385,7 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         self.children[3].replace_with(fprivate_clause)
 
         if reduction_kernels and not reprod_red_call_list:
-            self._add_reduction_clauses()
+            self._add_reduction_clauses(need_sync=need_sync)
 
         # Now finish the reproducible reductions
         for call in reversed(reprod_red_call_list):
