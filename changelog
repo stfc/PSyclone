@@ -1,3 +1,6 @@
+   9) PR #3235 for #3234 and #3232. Add support for OpenMP conditional
+   compilation statements.
+
    8) PR #3152 for #3111. Ensure loop variables are excluded when
    performing kernel extraction.
 
