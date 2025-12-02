@@ -225,7 +225,7 @@ jobs:
         export MPIF90=psyclonefc
         export PARALLEL_DIRECTIVES="omp_threading"
         export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
-        export FCFLAGS="-i4 -r8 -O2 -heap-arrays -fp-model=precise -g -qopenmp"
+        export FCFLAGS="-i4 -r8 -O2 -heap-arrays -fp-model=precise -g -qopenmp -I ${MPI_HOME}/include"
         export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
 
         # Compile
