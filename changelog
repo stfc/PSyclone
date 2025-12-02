@@ -1,3 +1,6 @@
+   8) PR #3152 for #3111. Ensure loop variables are excluded when
+   performing kernel extraction.
+
    7) PR #3041 for #2823.  Changes the frontend for existing code so
    that unresolved symbols with parentheses are identified as calls
    rather than array accesses.

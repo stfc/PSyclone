@@ -37,6 +37,11 @@
 ''' This module provides the class to store information about which variables
 are written, and which ones are read.'''
 
+import logging
+from typing import List, Optional, Tuple
+
+from psyclone.core import Signature
+
 
 class ReadWriteInfo:
     '''This class stores signature and container name of variables read or
@@ -51,14 +56,14 @@ class ReadWriteInfo:
     read the variables in the same order.
     '''
 
-    def __init__(self):
-        self._read_list = []
-        self._write_list = []
+    def __init__(self) -> None:
+        self._read_list: list[Tuple[str, Signature]] = []
+        self._write_list: list[Tuple[str, Signature]] = []
         self._sorted = True
 
     # -------------------------------------------------------------------------
     @property
-    def read_list(self):
+    def read_list(self) -> List[Tuple[str, Signature]]:
         '''
         :returns: the sorted list of container_name,signature pairs that
             are read.
@@ -73,21 +78,19 @@ class ReadWriteInfo:
 
     # -------------------------------------------------------------------------
     @property
-    def signatures_read(self):
+    def signatures_read(self) -> List[Signature]:
         '''
         :returns: the list of all signatures read.
-        :rtype: List[:py:class:`psyclone.core.Signature`]
 
         '''
         return [sig for _, sig in self.read_list]
 
     # -------------------------------------------------------------------------
     @property
-    def write_list(self):
+    def write_list(self) -> List[Tuple[str, Signature]]:
         '''
         :returns: the sorted list of container_name,signature pairs that
             are written.
-        :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
         '''
         if not self._sorted:
@@ -98,21 +101,19 @@ class ReadWriteInfo:
 
     # -------------------------------------------------------------------------
     @property
-    def signatures_written(self):
+    def signatures_written(self) -> List[Signature]:
         '''
         :returns: the list of all signatures written.
-        :rtype: List[:py:class:`psyclone.core.Signature`]
 
         '''
         return [sig for _, sig in self.write_list]
 
     # -------------------------------------------------------------------------
     @property
-    def all_used_vars_list(self):
+    def all_used_vars_list(self) -> List[Tuple[str, Signature]]:
         '''
         :returns: the sorted list of container_name,signature pairs that
             are used.
-        :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
         '''
         all_vars = list(set(self._read_list) | set(self._write_list))
@@ -120,16 +121,16 @@ class ReadWriteInfo:
         return all_vars
 
     # -------------------------------------------------------------------------
-    def add_read(self, signature, container_name=None):
+    def add_read(self,
+                 signature: Signature,
+                 container_name: Optional[str] = None) -> None:
         '''This function adds a read access to the specified signature and
         container name. The container_name is optional and defaults to "",
         indicating that this signature is not based on importing a symbol
         from an external container (i.e. a module in Fortran).
 
         :param signature: the signature of the access.
-        :type signature: :py:class:`psyclone.core.Signature`
         :param container_name: the container name (optional)
-        :type container_name: Optional[str]
 
         '''
         if container_name:
@@ -139,16 +140,16 @@ class ReadWriteInfo:
         self._sorted = False
 
     # -------------------------------------------------------------------------
-    def add_write(self, signature, container_name=None):
+    def add_write(self,
+                  signature: Signature,
+                  container_name: Optional[str] = None) -> None:
         '''This function adds a write access to the specified signature and
         container name. The container_name is optional and defaults to "",
         indicating that this signature is not based on importing a symbol
         from an external container (i.e. a module in Fortran).
 
         :param signature: the signature of the access.
-        :type signature: :py:class:`psyclone.core.Signature`
         :param container_name: the container name (optional)
-        :type container_name: Optional[str]
 
         '''
         if container_name:
@@ -158,10 +159,51 @@ class ReadWriteInfo:
         self._sorted = False
 
     # -------------------------------------------------------------------------
-    def is_read(self, signature):
-        ''':returns: whether the signature is in the read list (independent \
+    def is_read(self, signature: Signature) -> bool:
+        '''
+        Checks if the given signature is in the read list.
+
+        :param signature: the signature to check
+
+        :returns: whether the signature is in the read list (independent
             of the container name).
-        :rtype: bool
 
         '''
         return any(signature == sig for _, sig in self._read_list)
+
+    # -------------------------------------------------------------------------
+    def remove(self,
+               signature: Signature,
+               container_name: Optional[str] = "") -> None:
+        '''
+        This function removes a signature (if required with the corresponding
+        module name specified) from the read and/or write list. If no
+        `container_name` is specified, the signature is expected to be
+        local (i.e. it will use "" as container name). A warning
+        will be logged if the specified name is not found in any of the
+        two lists.
+
+        :param signature: the signature to remove.
+        :param container_name: the optional container name if the variable is
+            imported.
+
+        '''
+        var_info = (container_name, signature)
+        not_found_counter = 0
+        try:
+            self._read_list.remove(var_info)
+        except ValueError:
+            # If the variable is not in that list, ignore it
+            not_found_counter += 1
+        try:
+            self._write_list.remove(var_info)
+        except ValueError:
+            # If the variable is not in that list, ignore it
+            not_found_counter += 1
+        if not_found_counter == 2:
+            logger = logging.getLogger(__name__)
+            logger.warning(f"ExtractNode: Variable '{var_info[1]}' is to "
+                           f"be removed from ReadWriteInfo, but it's neither "
+                           f"in the list of read variables ({self._read_list})"
+                           f", nor in the list of write variables "
+                           f"({self._write_list}).")
