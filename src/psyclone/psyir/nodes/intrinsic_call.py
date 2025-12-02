@@ -90,6 +90,18 @@ IAttr = namedtuple(
 ArgDesc = namedtuple('ArgDesc', 'min_count max_count types arg_names')
 
 
+def _get_first_argument_type(node) -> DataType:
+    """
+    Helper function for MIN and MAX where named arguments aren't supported.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+    :returns: the datatype of the first argument of the IntrinsicCall.
+    """
+    return node.arguments[0].datatype
+
+
 def _get_named_argument_type(node, argument_name: str) -> DataType:
     """Helper function for the common IntrinsicCall case where
     the return type matches exactly the datatype of the first argument.
@@ -98,7 +110,7 @@ def _get_named_argument_type(node, argument_name: str) -> DataType:
     :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
     :param argument_name: The name of the argument whose datatype to return.
 
-    :returns: the datatype of the first argument of the IntrinsicCall.
+    :returns: the datatype of the named argument of the IntrinsicCall.
     """
     return node.argument_by_name(argument_name).datatype
 
@@ -158,7 +170,7 @@ def _get_named_argument_specified_kind_with_optional_dim(
         intrinsic: ScalarType.Intrinsic = ScalarType.Intrinsic.BOOLEAN
         ) -> DataType:
     """Helper function for the common IntrinsicCall case where the
-    return type is a Scalar with the kind of the first argument,
+    return type is a Scalar with the kind of a named argument,
     unless an option dim parameter is given in which case an array with
     rank is given instead.
 
@@ -180,7 +192,7 @@ def _get_named_argument_specified_kind_with_optional_dim(
         # don't necessarily know the dimensions of the resulting array
         # at compile time. It will have one fewer dimension than the
         # input.
-        arg = node.argumet_name
+        arg = node.argument_by_name(argument_name)
         shape = arg.datatype.shape
         if len(shape) == 1:
             return dtype
@@ -194,7 +206,7 @@ def _get_intrinsic_with_optional_arg_kind(
         arg_name: str
 ) -> DataType:
     """Helper function for the common case where the return type is a
-    Scalar integer with an optional kind argument.
+    scalar intrinsic type with an optional kind argument.
 
     :param node: The IntrinsicCall whose return type to compute.
     :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
@@ -216,7 +228,7 @@ def _get_intrinsic_with_optional_arg_kind(
 
 
 def _get_intrinsic_of_argname_kind_with_optional_dim(
-        node, intrinsic: ScalarType.INTRINSIC,
+        node, intrinsic: ScalarType.Intrinsic,
         array_arg_name: str, kind_arg_name: str) -> DataType:
     """Helper function for a datatype of type intrinsic with optional dim and
     optional arg_name kind option.
@@ -236,7 +248,7 @@ def _get_intrinsic_of_argname_kind_with_optional_dim(
         (
             ScalarType.Precision.UNDEFINED
             if kind_arg_name not in node.argument_names
-            else node.argument_by_name(kind_arg_name).datatype.precision
+            else node.argument_by_name(kind_arg_name)
         ),
     )
     if "dim" not in node.argument_names:
@@ -2629,7 +2641,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=((None,),)),
             optional_args={},
-            return_type=UnresolvedType,  # _get_first_argument_type,  # FIXME
+            return_type=_get_first_argument_type,
             reference_accesses=None,
         )
         MAXEXPONENT = IAttr(
@@ -2733,7 +2745,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=((None,),)),
             optional_args={},
-            return_type=UnresolvedType,  # _get_first_argument_type,  # FIXME
+            return_type=_get_first_argument_type,
             reference_accesses=None,
         )
         MINEXPONENT = IAttr(
@@ -3731,7 +3743,7 @@ class IntrinsicCall(Call):
             return_type=lambda node: (
                 node.arguments[1].datatype if
                 ("size" not in node.argument_names and
-                 not isinstance(node.arguments_by_name("mold").datatype,
+                 not isinstance(node.argument_by_name("mold").datatype,
                                 ArrayType))
                 else ArrayType(
                     ScalarType(

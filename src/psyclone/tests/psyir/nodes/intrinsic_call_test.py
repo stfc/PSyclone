@@ -50,22 +50,22 @@ from psyclone.psyir.nodes import (
     Reference,
     Schedule,
     Assignment,
+    Routine
 )
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
     IAttr,
     _get_first_argument_type,
-    _get_first_argument_specified_kind_with_optional_dim,
-    _get_real_with_argone_kind,
-    _get_real_with_x_kind,
-    _get_integer_of_kind_with_optional_dim,
+    _get_named_argument_type,
+    _get_named_argument_intrinsic_with_optional_kind_and_dim,
+    _get_named_argument_specified_kind_with_optional_dim,
+    _get_intrinsic_with_optional_arg_kind,
+    _get_intrinsic_of_argname_kind_with_optional_dim,
+    _get_intrinsic_with_named_arg_kind,
     _findloc_return_type,
-    _get_integer_with_optional_kind,
     _int_return_type,
     _iparity_return_type,
     _get_bound_function_return_type,
-    _get_first_argument_type_with_optional_kind,
-    _get_first_argument_intrinsic_with_optional_kind_and_dim,
     _matmul_return_type,
     _maxval_return_type,
     _reduce_return_type
@@ -912,36 +912,87 @@ def test_get_first_argument_type(fortran_reader):
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
 
-def test__get_first_argument_specified_kind_with_optional_dim(fortran_reader):
-    """Test the _get_first_argument_specified_kind_with_optional_dim helper
-    function."""
+def test_get_named_argument_type(fortran_reader):
+    """Test the _get_named_argument_type helper function."""
+    code = """subroutine x
+    integer :: a, b
+    a = 1
+    b = ABS(a)
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    abs_call = psyir.walk(IntrinsicCall)[0]
+    dtype = _get_named_argument_type(abs_call, "a")
+    assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert dtype.precision == ScalarType.Precision.UNDEFINED
+
+
+def test_get_named_argument_intrinsic_with_optional_kind_and_dim(
+        fortran_reader
+):
+    """Test the _get_named_argument_intrinsic_with_optional_kind_and_dim
+    helper function."""
     code = """subroutine x
     logical, dimension(100,100) :: a
     logical, dimension(100) :: b
     logical :: c
-    c = ALL(a)
-    b = ALL(a, dim=1)
-    c = ALL(b, dim=1)
+    c = MAXLOC(a)
+    b = MAXLOC(a, dim=1)
+    c = MAXLOC(b, dim=1, kind=8)
     end subroutine x
     """
     psyir = fortran_reader.psyir_from_source(code)
     all_calls = psyir.walk(IntrinsicCall)
-    dtype = _get_first_argument_specified_kind_with_optional_dim(all_calls[0])
+    dtype = _get_named_argument_intrinsic_with_optional_kind_and_dim(
+            all_calls[0], "array"
+    )
     assert dtype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert dtype.precision == ScalarType.Precision.UNDEFINED
-    dtype = _get_first_argument_specified_kind_with_optional_dim(all_calls[1])
+    dtype = _get_named_argument_intrinsic_with_optional_kind_and_dim(
+            all_calls[1], "array"
+    )
     assert isinstance(dtype, ArrayType)
     assert len(dtype.shape) == 1
     assert dtype.shape[0] == ArrayType.Extent.DEFERRED
     assert dtype.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert dtype.datatype.precision == ScalarType.Precision.UNDEFINED
-    dtype = _get_first_argument_specified_kind_with_optional_dim(all_calls[2])
+    dtype = _get_named_argument_intrinsic_with_optional_kind_and_dim(
+            all_calls[2], "array"
+    )
     assert dtype.intrinsic == ScalarType.Intrinsic.BOOLEAN
+    assert dtype.precision.value == "8"
+
+
+def test_get_named_argument_specified_kind_with_optional_dim(fortran_reader):
+    """Test the _get_named_argument_specified_kind_with_optional_dim
+    helper function."""
+    code = """subroutine test
+    integer, dimension(100, 100) :: x
+    integer :: y
+    y = PRODUCT(x)
+    y = PRODUCT(x, dim=2)
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsics = psyir.walk(IntrinsicCall)
+
+    dtype = _get_named_argument_specified_kind_with_optional_dim(
+        intrinsics[0], "array", ScalarType.Intrinsic.INTEGER,
+    )
+    assert isinstance(dtype, ScalarType)
+    assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert dtype.precision == ScalarType.Precision.UNDEFINED
+
+    dtype = _get_named_argument_specified_kind_with_optional_dim(
+        intrinsics[1], "array", ScalarType.Intrinsic.INTEGER,
+    )
+    assert isinstance(dtype, ArrayType)
+    assert len(dtype.shape) == 1
+    assert dtype.shape[0] == ArrayType.Extent.DEFERRED
+    assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
 
-def test_get_real_with_argone_kind(fortran_reader):
-    """Test the _get_real_with_argone_kind helper function."""
+def test_get_intrinsic_with_named_arg_kind(fortran_reader):
+    """Test the _get_intrinsic_with_named_arg_kind helper function."""
     code = """subroutine y
     real*8 :: x
     x = BESSEL_J0(x)
@@ -951,38 +1002,39 @@ def test_get_real_with_argone_kind(fortran_reader):
     intr = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.BESSEL_J0, [bessel_call.indices[0].copy()]
     )
-    dtype = _get_real_with_argone_kind(intr)
+    dtype = _get_intrinsic_with_named_arg_kind(
+            intr, ScalarType.Intrinsic.REAL, "x"
+    )
     assert dtype.intrinsic == ScalarType.Intrinsic.REAL
     assert dtype.precision == 8
 
 
-def test_get_real_with_x_kind(fortran_reader):
-    """Test the _get_real_with_x_kind helper function."""
+def test_get_intrinsic_with_optional_arg_kind(fortran_reader):
+    """Test the _get_intrinsic_with_optional_arg_kind function."""
     code = """subroutine y
-    real*8 :: x
-    x = BESSEL_JN(1, 2, x)
-    x = BESSEL_JN(1, x)
-    end subroutine y"""
+    real :: i
+    integer :: j
+    j = CEILING(i)
+    j = CEILING(i, kind=8)
+    end subroutine y
+    """
     psyir = fortran_reader.psyir_from_source(code)
-    bessel_calls = psyir.walk(ArrayReference)
-    intr = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.BESSEL_JN,
-        [x.copy() for x in bessel_calls[0].indices],
+    intrs = psyir.walk(IntrinsicCall)
+
+    dtype = _get_intrinsic_with_optional_arg_kind(
+            intrs[0], ScalarType.Intrinsic.INTEGER, "kind"
     )
-    dtype = _get_real_with_x_kind(intr)
-    assert dtype.intrinsic == ScalarType.Intrinsic.REAL
-    assert dtype.precision == 8
-    intr = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.BESSEL_JN,
-        [x.copy() for x in bessel_calls[1].indices],
+    assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert dtype.precision == ScalarType.Precision.UNDEFINED
+    dtype = _get_intrinsic_with_optional_arg_kind(
+            intrs[1], ScalarType.Intrinsic.INTEGER, "kind"
     )
-    dtype = _get_real_with_x_kind(intr)
-    assert dtype.intrinsic == ScalarType.Intrinsic.REAL
-    assert dtype.precision == 8
+    assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert dtype.precision.value == "8"
 
 
-def test_get_integer_of_kind_with_optional_dim(fortran_reader):
-    """Test the _get_integer_of_kind_with_optional_dim helper function."""
+def test_get_intrinsic_of_argname_kind_with_optional_dim(fortran_reader):
+    """Test the _get_intrinsic_of_argname_kind_with_optional_dim function."""
     code = """
     subroutine y
     logical, dimension(100,100) :: a
@@ -996,19 +1048,25 @@ def test_get_integer_of_kind_with_optional_dim(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     intrs = psyir.walk(IntrinsicCall)
 
-    res = _get_integer_of_kind_with_optional_dim(intrs[0])
+    res = _get_intrinsic_of_argname_kind_with_optional_dim(
+            intrs[0], ScalarType.Intrinsic.INTEGER,
+            "mask", "kind")
     assert isinstance(res, ScalarType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
     assert res.precision == ScalarType.Precision.UNDEFINED
 
-    res = _get_integer_of_kind_with_optional_dim(intrs[1])
+    res = _get_intrinsic_of_argname_kind_with_optional_dim(
+            intrs[1], ScalarType.Intrinsic.INTEGER,
+            "mask", "kind")
     assert isinstance(res, ArrayType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
     assert res.precision.value == "8"
     assert len(res.shape) == 1
     assert res.shape[0] == ArrayType.Extent.DEFERRED
 
-    res = _get_integer_of_kind_with_optional_dim(intrs[2])
+    res = _get_intrinsic_of_argname_kind_with_optional_dim(
+            intrs[2], ScalarType.Intrinsic.INTEGER,
+            "mask", "kind")
     assert isinstance(res, ScalarType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
     assert res.precision == ScalarType.Precision.UNDEFINED
@@ -1036,33 +1094,6 @@ def test_findloc_return_type(fortran_reader):
     assert res.shape[0].lower.value == "1"
 
     # TODO #2823 adding namedargs makes this a CodeBlock so can't test yet.
-
-
-def test_get_integer_with_optional_kind(fortran_reader):
-    """Test the _get_integer_with_optional_kind helper function."""
-    code = """subroutine z
-    real*4 :: x
-    integer :: y
-    y = FLOOR(x)
-    end subroutine z"""
-    psyir = fortran_reader.psyir_from_source(code)
-    intrinsic = psyir.walk(IntrinsicCall)[0]
-    assert _get_integer_with_optional_kind(intrinsic) == INTEGER_TYPE
-
-    code = """subroutine z
-    real*4 :: x
-    integer :: y
-    y = FLOOR(x, kind=4)
-    end subroutine z"""
-
-    psyir = fortran_reader.psyir_from_source(code)
-    intrinsic = psyir.walk(IntrinsicCall)[0]
-    res = _get_integer_with_optional_kind(intrinsic)
-    assert (
-        res.intrinsic == ScalarType.Intrinsic.INTEGER
-        and isinstance(res.precision, Literal)
-        and res.precision.value == "4"
-    )
 
 
 def test_int_return_type(fortran_reader):
@@ -1101,7 +1132,7 @@ def test_iparity_return_type(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     intrinsic = psyir.walk(ArrayReference)[0]
     intrinsic = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.PARITY, [x.copy() for x in intrinsic.indices]
+        IntrinsicCall.Intrinsic.IPARITY, [x.copy() for x in intrinsic.indices]
     )
 
     assert _iparity_return_type(intrinsic) == INTEGER_TYPE
@@ -1111,8 +1142,8 @@ def test_iparity_return_type(fortran_reader):
     k_sym = psyir.children[0].symbol_table.lookup("k")
     intrinsic = psyir.walk(ArrayReference)[0]
     intrinsic = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.PARITY,
-        [intrinsic.indices[0].copy(), Reference(k_sym)],
+        IntrinsicCall.Intrinsic.IPARITY,
+        [("array", intrinsic.indices[0].copy()), ("dim", Reference(k_sym))],
     )
     res = _iparity_return_type(intrinsic)
     assert isinstance(res, ArrayType)
@@ -1143,71 +1174,6 @@ def test_get_bound_function_return_type(fortran_reader):
     assert isinstance(res, ScalarType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
     assert res.precision.value == "8"
-
-
-def test_get_first_argument_type_with_optional_kind(fortran_reader):
-    """Test the _get_first_arguemnt_type_with_optional_kind helper
-    function."""
-    code = """subroutine x
-    logical*4 :: a
-    logical*8 :: b
-    b = LOGICAL(a, kind=8)
-    b = LOGICAL(a)
-    end subroutine x"""
-    psyir = fortran_reader.psyir_from_source(code)
-    intrinsics = psyir.walk(IntrinsicCall)
-
-    res = _get_first_argument_type_with_optional_kind(intrinsics[0])
-    assert isinstance(res, ScalarType)
-    assert res.intrinsic == ScalarType.Intrinsic.BOOLEAN
-    assert res.precision.value == "8"
-    res = _get_first_argument_type_with_optional_kind(intrinsics[1])
-    assert isinstance(res, ScalarType)
-    assert res.intrinsic == ScalarType.Intrinsic.BOOLEAN
-    assert res.precision == 4
-
-
-def test_get_first_argument_intrinsic_with_optional_kind_and_dim(
-    fortran_reader,
-):
-    """Test the _get_first_argument_intrinsic_with_optional_kind_and_dim
-    helper function."""
-    code = """subroutine w
-    integer, dimension(100, 100) :: x
-    integer, dimension(100) :: y
-    integer, dimension(:) :: res
-    integer :: res2
-    res = MAXLOC(x)
-    res = MAXLOC(x, dim=1, kind=8)
-    res2 = MAXLOC(y, dim=1)
-    end subroutine w"""
-    psyir = fortran_reader.psyir_from_source(code)
-    intrinsics = psyir.walk(IntrinsicCall)
-    res = _get_first_argument_intrinsic_with_optional_kind_and_dim(
-        intrinsics[0]
-    )
-    assert isinstance(res, ArrayType)
-    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert res.precision == ScalarType.Precision.UNDEFINED
-    assert len(res.shape) == 1
-    assert res.shape[0].lower.value == "1"
-    assert res.shape[0].upper.value == "2"
-
-    res = _get_first_argument_intrinsic_with_optional_kind_and_dim(
-        intrinsics[1]
-    )
-    assert isinstance(res, ArrayType)
-    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert res.precision.value == "8"
-    assert len(res.shape) == 1
-    assert res.shape[0] == ArrayType.Extent.DEFERRED
-
-    res = _get_first_argument_intrinsic_with_optional_kind_and_dim(
-        intrinsics[2]
-    )
-    assert isinstance(res, ScalarType)
-    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert res.precision == ScalarType.Precision.UNDEFINED
 
 
 def test_matmul_return_type(fortran_reader):
@@ -1312,11 +1278,11 @@ def test_reduce_return_type(fortran_reader):
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
     assert res.precision == 8
 
-    intrinsic = psyir.walk(ArrayReference)[1]
+    intrinsic = psyir.walk(ArrayReference)[0]
     intrinsic = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.REDUCE,
         [intrinsic.indices[0].copy(), intrinsic.indices[1].copy(),
-         intrinsic.indices[2].copy()],
+         ("dim", Literal("2", INTEGER_TYPE))],
     )
     res = _reduce_return_type(intrinsic)
     assert isinstance(res, ArrayType)
@@ -1325,11 +1291,12 @@ def test_reduce_return_type(fortran_reader):
     assert len(res.shape) == 1
     assert res.shape[0] == ArrayType.Extent.DEFERRED
 
-    intrinsic = psyir.walk(ArrayReference)[2]
+    intrinsic = psyir.walk(ArrayReference)[0]
+    zsym = psyir.walk(Routine)[0].symbol_table.lookup("z")
     intrinsic = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.REDUCE,
-        [intrinsic.indices[0].copy(), intrinsic.indices[1].copy(),
-         intrinsic.indices[2].copy()],
+        [Reference(zsym), intrinsic.indices[1].copy(),
+         ("dim", Literal("2", INTEGER_TYPE))],
     )
     res = _reduce_return_type(intrinsic)
     assert isinstance(res, ScalarType)
