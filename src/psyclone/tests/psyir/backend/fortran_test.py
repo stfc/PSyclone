@@ -42,6 +42,7 @@
 
 from collections import OrderedDict
 import pytest
+from psyclone.configuration import Config
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import (
         gen_intent,  FortranWriter, precedence
@@ -1424,7 +1425,8 @@ def test_fw_range_structureref(fortran_writer):
     assert (result ==
             "field(LBOUND(field%first, dim=1):"
             "UBOUND(field%first, dim=1))%first%second("
-            "LBOUND(field%first, dim=1):UBOUND(field%first, dim=1))")
+            "LBOUND(field%first, dim=1):"
+            "UBOUND(field%first, dim=1))")
 
     data_ref = Reference(array_symbol)
     start = IntrinsicCall.create(
@@ -1695,9 +1697,9 @@ def test_fw_query_intrinsics(fortran_reader, fortran_writer, tmpdir):
 
     # Generate Fortran from the PSyIR
     result = fortran_writer(psyir).lower()
-    assert "mysize = size(a, 2)" in result
-    assert "lb = lbound(a, 2)" in result
-    assert "ub = ubound(a, 2)" in result
+    assert "mysize = size(a, dim=2)" in result
+    assert "lb = lbound(a, dim=2)" in result
+    assert "ub = ubound(a, dim=2)" in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -1842,6 +1844,33 @@ def test_fw_call_node(fortran_writer):
     assert expected in result
 
 
+def test_fw_intrinsic_output_control(fortran_writer):
+    '''Test the config controls the output of IntrinsicCall nodes correctly.
+    '''
+    args = [Reference(DataSymbol("arg1", REAL_TYPE)),
+            Reference(DataSymbol("arg2", REAL_TYPE))]
+    call = IntrinsicCall.create(IntrinsicCall.Intrinsic.ISHFT,
+                                args)
+
+    # Default behaviour is to remove the names of required arguments
+    result = fortran_writer(call)
+    assert "ISHFT(arg1, arg2)" in result
+    # Enable output of all arguments' names.
+    Config.get().backend_intrinsic_named_kwargs = True
+    result = fortran_writer(call)
+    assert "ISHFT(i=arg1, shift=arg2)" in result
+
+    Config.get().backend_intrinsic_named_kwargs = False
+    # Check that optional arguments are always output.
+    args = [Reference(DataSymbol("arg1", REAL_TYPE)),
+            Reference(DataSymbol("arg2", REAL_TYPE)),
+            Reference(DataSymbol("arg3", REAL_TYPE))]
+    call = IntrinsicCall.create(IntrinsicCall.Intrinsic.ISHFTC,
+                                args)
+    result = fortran_writer(call)
+    assert "ISHFTC(arg1, arg2, size=arg3)" in result
+
+
 def test_fw_call_node_namedargs(fortran_writer):
     '''Test the PSyIR call node is translated to the required Fortran code
     when there are named arguments and that the expected exception is
@@ -1905,10 +1934,22 @@ def test_fw_intrinsic_call_node(fortran_writer):
     gen = fortran_writer(rcall)
     assert gen == "call RANDOM_NUMBER(var)\n"
 
+    # Test an intrinsic with no cap on arguments.
+    rcall = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                 [Reference(sym), Reference(sym),
+                                  Reference(sym), Reference(sym)])
+    gen = fortran_writer(rcall)
+    assert gen == "MAX(var, var, var, var)\n"
+
     for intrinsic_function in [IntrinsicCall.Intrinsic.MINVAL,
                                IntrinsicCall.Intrinsic.MAXVAL,
-                               IntrinsicCall.Intrinsic.SUM,
-                               IntrinsicCall.Intrinsic.TINY,
+                               IntrinsicCall.Intrinsic.SUM]:
+        intrinsic_call = IntrinsicCall.create(
+            intrinsic_function, [Reference(sym)])
+        assignment = Assignment.create(Reference(sym), intrinsic_call)
+        gen = fortran_writer(assignment)
+        assert gen == f"var = {intrinsic_function.name}(var)\n"
+    for intrinsic_function in [IntrinsicCall.Intrinsic.TINY,
                                IntrinsicCall.Intrinsic.HUGE]:
         intrinsic_call = IntrinsicCall.create(
             intrinsic_function, [Reference(sym)])
@@ -2143,3 +2184,62 @@ def test_fw_schedule(fortran_reader, fortran_writer):
         schedule.addchild(child.copy().detach())
     result = fortran_writer(schedule)
     assert result == test_code
+
+
+def test_fw_intrinsiccall(fortran_reader, fortran_writer):
+    ''' Test that the FortranWriter correctly handles IntrinsicCall nodes,
+    and respects the config setting where possible.'''
+    # Test a piece of code where argument names are always required.
+    code = """subroutine foo()
+    real :: a, b, c
+    a = cshift(dim=1, shift=b, array=c)
+    end subroutine foo"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert "a = CSHIFT(dim=1, shift=b, array=c)" in output
+    # Disable argument names in the config, we should get the same output.
+    Config.get().backend_intrinsic_named_kwargs = False
+    output = fortran_writer(psyir)
+    assert "a = CSHIFT(dim=1, shift=b, array=c)" in output
+
+    # Test a piece of code where we can only remove the first argument name.
+    code = """subroutine foo()
+    real :: a, b, c
+    a = cshift(array=c, dim=1, shift=b)
+    end subroutine foo"""
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert "a = CSHIFT(c, dim=1, shift=b)" in output
+
+    # Test a piece of code where can remove all required argument names.
+    code = """subroutine foo()
+    real :: a, b, c
+    a = cshift(aRRay=c, SHIFT=b, dim=1)
+    end subroutine foo"""
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert "a = CSHIFT(c, b, dim=1)" in output
+    # Check the config is respected
+    Config.get().backend_intrinsic_named_kwargs = True
+    output = fortran_writer(psyir)
+    assert "a = CSHIFT(array=c, shift=b, dim=1)" in output
+
+    # Test if we have an intrinsic that can't have argument names computed
+    # that it outputs
+    # all argument names (this is not a common use case, as most
+    # intrinsics like this result in a code block, however
+    # its possible to obtain one during PSyIR creation).
+    Config.get().backend_intrinsic_named_kwargs = False
+
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATED)
+    IntrinsicCall._add_args(
+            intrinsic, [("scalar",
+                         Reference(DataSymbol("b", INTEGER_TYPE)))])
+    # Ensure this cannot have argument names computed.
+    with pytest.raises(NotImplementedError) as err:
+        intrinsic.compute_argument_names()
+    assert ("Cannot add argument names to 'ALLOCATED' as non-optional "
+            "argument name 'scalar' found" in str(err.value))
+    output = fortran_writer(intrinsic)
+    assert "ALLOCATED(scalar=b)" in output

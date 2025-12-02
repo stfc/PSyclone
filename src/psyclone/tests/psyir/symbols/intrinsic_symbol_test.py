@@ -1,8 +1,7 @@
-#!/usr/bin/env python
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,30 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: S. Siso, STFC Daresbury Lab
+# Author A. B. G. Chalk, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-''' Process Nemo code with PSyclone but don't do any changes. This file is only
-needed to provide a FILES_TO_SKIP list. '''
+''' Perform py.test tests on the psygen.psyir.symbols.intrinsic_symbol file '''
 
-import os
-
-# A environment variable can inform if this is targeting NEMOv4
-NEMOV4 = os.environ.get('NEMOV4', False)
-
-# List of all files that psyclone will skip processing
-FILES_TO_SKIP = []
-if not NEMOV4:
-    # TODO #3112: These produce diverging run.stat results in gcc NEMOv5 BENCH
-    FILES_TO_SKIP = [
-        "dynhpg.f90",
-        "dynspg_ts.f90",
-        "sbcssm.f90",
-        "tramle.f90",
-        "trazdf.f90",
-        # These fail with nvfortran
-        "icefrm.f90",  # Has unsupported implicit symbol declaration
-    ]
+from psyclone.psyir.nodes import IntrinsicCall
+from psyclone.psyir.symbols import IntrinsicSymbol
 
 
-def trans(_):
-    ''' Don't do any changes. '''
+def test_intrinsicsymbol_copy(fortran_reader):
+    '''Test the copy function on the IntrinsicSymbol class.
+    '''
+    # Create an IntrinsicCall
+    code = """subroutine x
+    integer :: a
+    a = INT(1.0)
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic = psyir.walk(IntrinsicCall)[0]
+    assert isinstance(intrinsic.routine.symbol, IntrinsicSymbol)
+    isym = intrinsic.routine.symbol
+    copy = isym.copy()
+    assert copy is not isym
+    assert isym.name == copy.name
+    assert isym.intrinsic == copy.intrinsic
+    assert isym.datatype == copy.datatype
+    assert isym.visibility == copy.visibility
+    assert isym.interface == copy.interface
+    assert isym.is_pure == copy.is_pure
+    assert isym.is_elemental == copy.is_elemental
