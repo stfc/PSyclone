@@ -155,8 +155,6 @@ def test_remove_var(caplog) -> None:
 
     assert rwi.read_list == [("", sig_c), ("my_mod", sig_b)]
     assert rwi.write_list == [("", sig_c), ("other_mod", sig_e)]
-    # We should test for the warning, but caplog does not
-    # work when testing is done in parallel
 
     # Remove from read list with the correct module name:
     rwi.remove(sig_b, "my_mod")

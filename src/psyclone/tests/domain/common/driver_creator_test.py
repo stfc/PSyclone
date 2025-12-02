@@ -143,7 +143,6 @@ def test_lfric_driver_simple_test():
     ]:
         assert line.lower() in driver, line
 
-    print("XX", driver)
     # Loop variables should be removed. Test that the loop variable
     # is indeed called `cell`:
     assert re.search("do *cell *=", driver) is not None
