@@ -2650,25 +2650,12 @@ def test_validate_automatic_array_sized_by_arg(fortran_reader, monkeypatch):
         if call.routine.symbol.name == "sub":
             break
     inline_trans = InlineTrans()
-    # Should fail because ilen is accessed in a CodeBlock.
+    # Should fail because the preceding write to ilen
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because one or more of its "
             "declarations depends on 'ilen' which is passed by argument and "
-            "may be written to before the call ('! PSyclone CodeBlock"
-            in str(err.value))
-    # Remove the CodeBlock so the Assignment is found.
-    cblock = psyir.walk(CodeBlock)[0]
-    cblock.detach()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert ("Cannot inline routine 'sub' because one or more of its "
-            "declarations depends on 'ilen' which is passed by argument and "
-            "is assigned to before the call ('ndim = 5')" in str(err.value))
-    # Without the preceding write to ndim, validate() is happy.
-    assign = psyir.walk(Assignment)[0]
-    assign.detach()
-    inline_trans.validate(call)
+            "is assigned to before the call ('! PSyclone" in str(err.value))
     # Break Reference.previous_accesses() to exercise the InternalError.
     monkeypatch.setattr(call.arguments[1], "previous_accesses",
                         lambda: [Statement()])

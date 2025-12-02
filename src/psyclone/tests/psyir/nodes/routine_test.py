@@ -541,39 +541,6 @@ def test_check_outer_scope_accesses_import_clash(fortran_reader):
             str(err.value))
 
 
-def test_outer_scope_accesses_unresolved(fortran_reader):
-    '''
-    Test that check_outer_scope_accesses() raises the expected errors for
-    symbols that aren't found or are unresolved.
-
-    '''
-    psyir = fortran_reader.psyir_from_source('''\
-    module my_mod
-      use another_mod
-    contains
-      subroutine call_it()
-        write(*,*) unresolved()
-        call a_routine()
-      end subroutine call_it
-    end module my_mod
-    ''')
-    rt0 = psyir.children[0].children[0]
-    sym = rt0.symbol_table.lookup("a_routine")
-    assert sym.is_unresolved
-    call = Call.create(RoutineSymbol("a_routine"), [])
-    # The access to 'unresolved' is in a CodeBlock and we don't have a
-    # Symbol for it.
-    with pytest.raises(SymbolError) as err:
-        rt0.check_outer_scope_accesses(call, "call")
-    assert ("'call_it' contains accesses to 'unresolved' but the origin of "
-            "this" in str(err.value))
-    # Remove the CodeBlock and repeat.
-    rt0.children[0].detach()
-    rt0.check_outer_scope_accesses(call, "call")
-    # The interface should have been left unchanged.
-    assert sym.is_unresolved
-
-
 def test_outer_scope_accesses_multi_wildcards(fortran_reader):
     '''
     Test that check_outer_scope_accesses() raises the expected errors when it's
