@@ -1257,53 +1257,6 @@ def test_maxval_return_type(fortran_reader):
     assert res.shape[0] == ArrayType.Extent.DEFERRED
 
 
-def test_reduce_return_type(fortran_reader):
-    """Test the _reduce_return_type function."""
-    code = """subroutine test
-    integer*8, dimension(100,100) :: x
-    integer, dimension(100) :: z
-    integer :: y
-    y = REDUCE(x, test)
-    end subroutine test
-    """
-    psyir = fortran_reader.psyir_from_source(code)
-
-    intrinsic = psyir.walk(Call)[0]
-    intrinsic = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.REDUCE,
-        [intrinsic.arguments[0].copy(), intrinsic.arguments[1].copy()],
-    )
-    res = _reduce_return_type(intrinsic)
-    assert isinstance(res, ScalarType)
-    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert res.precision == 8
-
-    intrinsic = psyir.walk(Call)[0]
-    intrinsic = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.REDUCE,
-        [intrinsic.arguments[0].copy(), intrinsic.arguments[1].copy(),
-         ("dim", Literal("2", INTEGER_TYPE))],
-    )
-    res = _reduce_return_type(intrinsic)
-    assert isinstance(res, ArrayType)
-    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert res.precision == 8
-    assert len(res.shape) == 1
-    assert res.shape[0] == ArrayType.Extent.DEFERRED
-
-    intrinsic = psyir.walk(Call)[0]
-    zsym = psyir.walk(Routine)[0].symbol_table.lookup("z")
-    intrinsic = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.REDUCE,
-        [Reference(zsym), intrinsic.arguments[1].copy(),
-         ("dim", Literal("2", INTEGER_TYPE))],
-    )
-    res = _reduce_return_type(intrinsic)
-    assert isinstance(res, ScalarType)
-    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert res.precision == ScalarType.Precision.UNDEFINED
-
-
 # FIXME Do we need ANINT (also REAL) tests (Reviewer/codecov decision).
 @pytest.mark.parametrize(
     "code, expected",
