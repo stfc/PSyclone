@@ -731,7 +731,7 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
             "    enddo\n"
             "    a(1,1,:) = 3.0 * a(1,1,:)\n"
             "    a(:,1,:) = 2.0 * a(:,1,:)\n"
-            "    b(:,:) = 2.0 * b(:,:)\n"
+            "    b = 2.0 * b\n"
             "    do i_4 = 1, 10, 1\n"
             "      b(i_4,:5) = 2.0 * b(i_4,:5)\n" in output)
     assert Compile(tmpdir).string_compiles(output)
