@@ -262,6 +262,65 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
         name, interface=UnresolvedInterface(), **kargs)
 
 
+def _refine_symbols_with_usage_location(
+    location: Node,
+    execution_part: Fortran2003.Execution_Part
+):
+    ''' Refine the symbol information that we obtained from parsing
+    the declarations sections by knowledge inferred by looking at the
+    usage location of the symbols in the execution_part
+
+    :param location: scope to enhance information for.
+    :param execution_part: fparser nodes to analyse for symbol usage.
+
+    '''
+    # The top-reference of an assignment lhs is guaranteed to be a DataSymbol
+    # This is not true for statement functions, but fparser and psyclone
+    # currently don't support them.
+    for assignment in walk(execution_part, Fortran2003.Assignment_Stmt):
+        if isinstance(assignment.items[0], Fortran2003.Part_Ref):
+            name = assignment.items[0].items[0].string.lower()
+            _find_or_create_unresolved_symbol(
+                location, name,
+                symbol_type=DataSymbol,
+                datatype=UnresolvedType())
+    # Get a set of all names used directly as children of Expressions
+    direct_refnames_in_exprs = {
+        x.string.lower() for x in walk(execution_part, Fortran2003.Name)
+        if isinstance(x.parent, (Fortran2003.BinaryOpBase,
+                                 Fortran2003.UnaryOpBase,
+                                 Fortran2003.Actual_Arg_Spec_List))
+    }
+    # Traverse all part_ref, in fparser these are <name>(<list>) expressions,
+    # and specialise their names as DataSymbols if some of the following
+    # conditions is found:
+    for part_ref in walk(execution_part, Fortran2003.Part_Ref):
+        name = part_ref.items[0].string.lower()
+        if isinstance(part_ref.parent, Fortran2003.Data_Ref):
+            # If it's part of an accessor "a%b(:)", we don't continue, as 'b'
+            # is not something that we have a symbol for and cannot specialise
+            continue
+        for child in part_ref.items:
+            if isinstance(child, Fortran2003.Section_Subscript_List):
+                # If any of its direct children is a triplet "<lb>:<up>:<step>"
+                # we know its a DataSymbol, for now of UnresolvedType, as we
+                # don't know enough to infer the whole shape.
+                if any(isinstance(subchild, Fortran2003.Subscript_Triplet)
+                       for subchild in child.items):
+                    _find_or_create_unresolved_symbol(
+                        location, name,
+                        symbol_type=DataSymbol,
+                        datatype=UnresolvedType())
+        if name in direct_refnames_in_exprs:
+            # If any other expression has the same reference name without
+            # parenthesis, e.g.: a + a(3), we know a is an array and not a
+            # function call, as the latter have mandatory parenthesis.
+            _find_or_create_unresolved_symbol(
+                location, name,
+                symbol_type=DataSymbol,
+                datatype=UnresolvedType())
+
+
 def _find_or_create_psyclone_internal_cmp(node):
     '''
     Utility routine to return a symbol of the generic psyclone comparison
@@ -4953,9 +5012,16 @@ class Fparser2Reader():
 
     def _part_ref_handler(self, node, parent):
         '''
-        Transforms an fparser2 Part_Ref to the PSyIR representation. If the
-        node is connected to a SymbolTable, it checks the reference has been
-        previously declared.
+        Transforms an fparser2 Part_Ref to the PSyIR representation.
+
+        fparser2 cannot always disambiguate between Array Accessors, Calls and
+        DerivedType constructors, and it falls back to Part_Ref when unknown.
+        PSyclone has a better chance of properly categorising them because we
+        can follow 'use' statements to retrieve symbol information. If
+        psyclone does not find the definition it falls back to a Call. The
+        reason for this is that it is the safest option. Constructors and
+        accessors can be considered calls (of unknown purity and elemental
+        attributes) but the opposite is not true.
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
@@ -4971,16 +5037,20 @@ class Fparser2Reader():
 
         '''
         reference_name = node.items[0].string.lower()
-        # We can't say for sure that the symbol we create here should be a
-        # DataSymbol as fparser2 often identifies function calls as
-        # part-references instead of function-references.
+        # Even if refining symbols is already/better done at the top of the
+        # routine scope, before any occurrence of this symbol, psyclone's
+        # Fortran frontend has entry points to parse single statements/
+        # expressions, so we have to repeat it here
+        _refine_symbols_with_usage_location(parent, node)
         symbol = _find_or_create_unresolved_symbol(parent, reference_name)
 
-        if isinstance(symbol, RoutineSymbol):
+        if isinstance(symbol, DataSymbol):
+            call_or_array = ArrayReference(symbol, parent=parent)
+        else:
+            # Generic Symbols (unresolved), RoutineSymbols and DataTypeSymbols
+            # (constructors) are all processed as Calls
             call_or_array = Call(parent=parent)
             call_or_array.addchild(Reference(symbol))
-        else:
-            call_or_array = ArrayReference(symbol, parent=parent)
         self.process_nodes(parent=call_or_array, nodes=node.items[1].items)
         return call_or_array
 
@@ -5529,6 +5599,9 @@ class Fparser2Reader():
                 # valid.
                 pass
             else:
+                # We found an 'execution_part', before processing it we try
+                # to refine the symbol information
+                _refine_symbols_with_usage_location(routine, sub_exec)
                 # Put the comments from the end of the declarations part
                 # at the start of the execution part manually
                 self.process_nodes(routine, lost_comments + sub_exec.content)
@@ -5606,6 +5679,9 @@ class Fparser2Reader():
             # valid.
             pass
         else:
+            # We found an 'execution_part', before processing it we try
+            # to refine the symbol information
+            _refine_symbols_with_usage_location(routine, prog_exec)
             self.process_nodes(routine, lost_comments + prog_exec.content)
 
         return routine
