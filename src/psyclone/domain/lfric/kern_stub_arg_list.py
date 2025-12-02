@@ -44,6 +44,7 @@ from typing import Optional
 from psyclone.core import VariablesAccessMap
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.lfric import LFRicKernelArgument
 from psyclone.errors import InternalError
 
 
@@ -133,17 +134,16 @@ class KernStubArgList(ArgOrdering):
         _local_args += [bandwidth, alpha, beta, gamma_m, gamma_p]
         self.extend(_local_args, var_accesses)
 
-    def scalar(self, scalar_arg, var_accesses=None):
+    def scalar(self,
+               scalar_arg: LFRicKernelArgument,
+               var_accesses: Optional[VariablesAccessMap] = None):
         '''Add the name associated with the scalar argument to the argument
         list and optionally add this scalar to the variable access
         information.
 
         :param scalar_arg: the kernel argument.
-        :type scalar_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance that \
+        :param var_accesses: optional VariablesAccessMap instance that
             stores information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises InternalError: if the argument is not a recognised scalar type.
 

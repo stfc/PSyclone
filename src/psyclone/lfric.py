@@ -1480,7 +1480,7 @@ class LFRicProxies(LFRicCollection):
         '''
         init_cursor = cursor
         for arg in self._invoke.psy_unique_vars:
-            # We don't have proxies for scalars
+            # We don't have proxies for scalars or arrays of scalars.
             if arg.is_scalar or arg.is_scalar_array:
                 continue
 
@@ -5682,6 +5682,7 @@ class LFRicKernelArgument(KernelArgument):
         # any-space function spaces.
         self._kernel_args = kernel_args
         self._vector_size = arg_meta_data.vector_size
+        # The number of dimensions (for a ScalarArray)
         self._array_ndims = arg_meta_data.array_ndims
         self._argument_type = arg_meta_data.argument_type
         self._stencil = None
@@ -6155,11 +6156,10 @@ class LFRicKernelArgument(KernelArgument):
         return self._argument_type in const.VALID_SCALAR_NAMES
 
     @property
-    def is_scalar_array(self):
+    def is_scalar_array(self) -> bool:
         '''
-        :returns: True if this kernel argument represents a \
+        :returns: True if this kernel argument represents a
                   ScalarArray, False otherwise.
-        :rtype: bool
         '''
         const = LFRicConstants()
         return self._argument_type in const.VALID_ARRAY_NAMES

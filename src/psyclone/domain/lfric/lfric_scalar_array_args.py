@@ -41,32 +41,29 @@ an Invoke or a Kernel stub.
 
 # Imports
 from collections import Counter
+from typing import Union
 
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
-from psyclone.domain.lfric import LFRicCollection, LFRicConstants, LFRicTypes
+from psyclone.domain.lfric import (LFRicCollection, LFRicConstants, LFRicTypes,
+                                   LFRicKern, LFRicInvoke)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import FORTRAN_INTENT_NAMES
 from psyclone.psyir.nodes import Literal, ArrayReference
 from psyclone.psyir.symbols import (DataSymbol, ArrayType,
                                     INTEGER_TYPE, ArgumentInterface)
 
-# pylint: disable=too-many-lines
-# pylint: disable=too-many-locals
 # pylint: disable=too-many-branches
-
 
 class LFRicScalarArrayArgs(LFRicCollection):
     '''
     Handles the declarations of ScalarArray kernel arguments appearing in
     either an Invoke or a Kernel stub.
 
-    :param node: the Invoke or Kernel stub for which to manage the \
-                 ScalarArray arguments.
-    :type node: :py:class:`psyclone.domain.lfric.LFRicKern` or \
-                :py:class:`psyclone.domain.lfric.LFRicInvoke`
+    :param node: the Invoke or Kernel stub for which to manage the
+-                 ScalarArray arguments.
 
     '''
-    def __init__(self, node):
+    def __init__(self, node: Union[LFRicKern, LFRicInvoke]):
         super().__init__(node)
 
         # Initialise dictionaries of 'real', 'integer' and 'logical'
@@ -86,10 +83,9 @@ class LFRicScalarArrayArgs(LFRicCollection):
         Create argument lists and declarations for all ScalarArray arguments
         in an Invoke.
 
-
         :raises InternalError: for unsupported argument intrinsic types.
-        :raises GenerationError: if the same ScalarArray argument has \
-                                 different data types in different Kernel \
+        :raises GenerationError: if the same ScalarArray argument has
+                                 different data types in different Kernel
                                  calls within the same Invoke.
 
         '''
@@ -181,7 +177,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
 
     def _create_declarations(self):
         '''
-        Add declarations for the ScalarArray arguments.
+        Create the symbols for the ScalarArray arguments.
 
         '''
         # Real ScalarArray arguments
