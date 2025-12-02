@@ -270,8 +270,7 @@ class FortranReader():
             include_dirs=Config.get().include_paths,
             ignore_comments=self._ignore_comments,
             process_directives=not self._ignore_directives,
-            include_omp_conditional_lines=self.
-            _conditional_openmp_statements
+            include_omp_conditional_lines=self._conditional_openmp_statements
         )
         reader.set_format(FortranFormat(self._free_form, False))
         try:

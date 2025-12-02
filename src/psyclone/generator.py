@@ -230,9 +230,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         Tuple[:py:class:`fparser.one.block_statements.BeginSource`, str]
     :param keep_comments: whether to keep comments from the original source.
     :param keep_directives: whether to keep directives from the original
-                            source.
-    :param keep_conditional_openmp_statements: whether to keep conditional
-                                               compiled statements.
+        source.
+    :param keep_conditional_openmp_statements: whether to keep OpenMP
+        conditional compilation statements.
     :param free_form: whether the original source is free form Fortran.
 
     :raises GenerationError: if an invalid API is specified.
@@ -888,9 +888,9 @@ def code_transformation_mode(input_file, recipe_file, output_file,
     :type output_file: Optional[str | os.PathLike]
     :param keep_comments: whether to keep comments from the original source.
     :param keep_directives: whether to keep directives from the original
-                            source.
-    :param keep_conditional_openmp_statements: whether to keep conditional
-                                               compiled statements.
+        source.
+    :param keep_conditional_openmp_statements: whether to keep OpenMP
+        conditional compilation statements.
     :param str line_length: set to "output" to break the output into lines
         of 123 chars, and to "all", to additionally check the input code.
     :param free_form: whether the original source is free form Fortran or

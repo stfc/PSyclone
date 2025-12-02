@@ -909,6 +909,9 @@ end subroutine a
 
 
 def test_conditional_openmp_statements(capsys, tmpdir_factory):
+    ''' Check that the Conditional OpenMP statements are ignored
+    or parser depending on the flags provided to psyclone.
+    '''
     code = """subroutine x
     !$ use omp_lib
 
