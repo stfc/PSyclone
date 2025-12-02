@@ -2,8 +2,8 @@
 
 This directory contains a copy of the very first
 version of the Game of Life, written in standard Fortran
-without any DSL-specific features (though it is still
-using dl_esm_inf).
+without any DSL-specific features. It does follow the
+GOcean DSL design closely though.
 
 In this exercise you will first add OpenMP directives
 around the four compute kernels. These files have been
@@ -13,7 +13,8 @@ easily use the standard .f90 extension (but then you have
 to create new output files for the processed files, and
 these names then need to be used in the Makefile).
 
-Using OMP Parallel Do
+## Using OMP Parallel Do
+
 Similarly to exercise 2.8, you can start with just adding
 OpenMP Parallel Do statements. The script ``omp_trans.py``
 is available, but you need to specify the loop-type inference
@@ -28,7 +29,8 @@ aligned to typical options used by a compiler:
               count_neighbours_mod.x90
 
 
-Using OMP Parallel and OpenMP Do
+## Using OMP Parallel and OpenMP Do
+
 Again, using a single OpenMP parallel statement, and include
 several OMP Do loops should in general result in better performance,
 since the overhead of starting and synchronising threads is
