@@ -319,7 +319,7 @@ def _findloc_return_type(node: IntrinsicCall) -> DataType:
         return ArrayType(
             dtype,
             [ArrayType.Extent.DEFERRED]
-            * (len(node.arguments[0].datatype.shape) - 1),
+            * (len(node.argument_by_name("array").datatype.shape) - 1),
         )
     # Otherwise return an array with same rank as the "array"
     # argument.

@@ -1077,7 +1077,9 @@ def test_findloc_return_type(fortran_reader):
     subroutine y
     integer, dimension(100) :: a
     integer, dimension(1) :: b
+    integer, dimension(10, 10, 10) :: c
     b = FINDLOC(a, 1)
+    b = FINDLOC(c, 1)
     end subroutine y"""
     psyir = fortran_reader.psyir_from_source(code)
     intrs = psyir.walk(Call)
@@ -1119,6 +1121,22 @@ def test_findloc_return_type(fortran_reader):
     assert isinstance(res, ScalarType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
     assert res.precision.value == "8"
+
+    # Test multidimensional array input with dim specified
+    intr = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.FINDLOC, [
+            ("array", intrs[1].arguments[0].copy()),
+            ("value", intrs[1].arguments[1].copy()),
+            ("dim", Literal("1", INTEGER_TYPE)),
+        ]
+    )
+    res = _findloc_return_type(intr)
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision == ScalarType.Precision.UNDEFINED
+    assert len(res.shape) == 2
+    assert res.shape[0] == ArrayType.Extent.DEFERRED
+    assert res.shape[1] == ArrayType.Extent.DEFERRED
 
     # TODO #2823 adding namedargs makes this a CodeBlock so can't test yet via
     # fortran_reader.
