@@ -40,12 +40,12 @@ EXAMPLES=$(sort $(patsubst %/Makefile,%,$(wildcard */Makefile)))
 
 allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
 clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
-compile_EXAMPLES=$(addprefix test_,$(EXAMPLES))
-run_EXAMPLES=$(addprefix test_,$(EXAMPLES))
+compile_EXAMPLES=$(addprefix compile_,$(EXAMPLES))
+run_EXAMPLES=$(addprefix run_,$(EXAMPLES))
 test_EXAMPLES=$(addprefix test_,$(EXAMPLES))
 
-.PHONY: $(test_EXAMPLES) $(clean_EXAMPLES) $(allclean_EXAMPLES) \
-		$(run_EXAMPLES) compile run
+.PHONY:  $(allclean_EXAMPLES) $(clean_EXAMPLES) $(compile_EXAMPLES)  \
+		$(run_EXAMPLES) $(test_EXAMPLES)
 
 allclean: $(allclean_EXAMPLES)
 clean: $(clean_EXAMPLES)
