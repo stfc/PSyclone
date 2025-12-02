@@ -1477,7 +1477,6 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("coarray",),)),
             optional_args={"kind": DataNode},
-            # FIXME Return type
             return_type=lambda node: ArrayType(
                 ScalarType(
                     ScalarType.Intrinsic.INTEGER,
