@@ -138,7 +138,9 @@ jobs:
         module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         make -C tutorial/practicals compile
-        make -C tutorial/training/ run
+        # Required, since othewise the openacc example would try to
+        # use nvfortran
+        F90=gfortran F90FLAGS=-g make -C tutorial/training/ run
     - name: Examples with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
@@ -155,7 +157,7 @@ jobs:
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/LFRic compile
         F90=nvfortran F90FLAGS="-acc -Minfo=all -Mnofma -O2" make -C tutorial/practicals/generic run
-        F90=nvfortran F90FLAGS="" make -C tutorial/training run
+        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training run
         make -C tutorial/practicals/generic/4_openacc acc_test
     - name: Test logfile creation.
       run: |
