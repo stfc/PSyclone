@@ -908,6 +908,50 @@ end subroutine a
     output, _ = capsys.readouterr()
 
 
+def test_conditional_openmp_statements(capsys, tmpdir_factory):
+    ''' Check that the Conditional OpenMP statements are ignored
+    or parser depending on the flags provided to psyclone.
+    '''
+    code = """subroutine x
+    !$ use omp_lib
+
+    integer :: i
+    !$ integer :: omp_threads
+
+    i = 1
+    !$ omp_threads = omp_get_num_threads()
+    end subroutine x"""
+    filename = str(tmpdir_factory.mktemp('psyclone_test').join("test.f90"))
+    with open(filename, "w", encoding='utf-8') as wfile:
+        wfile.write(code)
+    main([filename])
+    output, _ = capsys.readouterr()
+    correct = """subroutine x()
+  integer :: i
+
+  i = 1
+
+end subroutine x
+
+"""
+    assert output == correct
+
+    main([filename, "--keep-conditional-openmp-statements"])
+    output, _ = capsys.readouterr()
+    correct = """subroutine x()
+  use omp_lib
+  integer :: i
+  integer :: omp_threads
+
+  i = 1
+  omp_threads = omp_get_num_threads()
+
+end subroutine x
+
+"""
+    assert output == correct
+
+
 def test_keep_comments_lfric(capsys, monkeypatch):
     '''Test that the LFRic API correctly keeps comments and directives
     when applied the appropriate arguments.'''
@@ -1321,7 +1365,8 @@ def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
         my_file.write(code)
     with caplog.at_level(logging.ERROR):
         with pytest.raises(SystemExit):
-            code_transformation_mode(inputfile, None, None, False, False)
+            code_transformation_mode(inputfile, None, None, False, False,
+                                     False)
         _, err = capsys.readouterr()
         assert "Failed to create PSyIR from file '" in err
         assert "Is the input valid Fortran" in caplog.text
@@ -1357,15 +1402,8 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    # The output is split as the location of the algorithm file varies
-    # due to it being stored in a temporary directory by pytest.
-    expected_output1 = "Generation Error: In algorithm file '"
-    expected_output2 = (
-        "alg.f90':\nTransformation Error: Error in RaisePSyIR2LFRicAlgTrans "
-        "transformation. The invoke call argument 'setval_c' has been used as"
-        " a routine name. This is not allowed.\n")
-    assert expected_output1 in output
-    assert expected_output2 in output
+    assert ("The invoke call argument 'setval_c' has been used as the "
+            "Algorithm routine name. This is not allowed." in output)
 
 
 def test_generate_no_builtin_container(tmpdir, monkeypatch):

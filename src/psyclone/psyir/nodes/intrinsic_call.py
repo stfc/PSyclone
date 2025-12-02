@@ -49,7 +49,7 @@ from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import IntrinsicSymbol, Symbol
+from psyclone.psyir.symbols import IntrinsicSymbol, INTEGER_TYPE, Symbol
 
 # pylint: disable=too-many-branches
 
@@ -3524,6 +3524,25 @@ class IntrinsicCall(Call):
             var_accesses.update(child.reference_accesses())
         return var_accesses
 
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of the result of this IntrinsicCall.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        '''
+        if self.intrinsic in (
+            IntrinsicCall.Intrinsic.LBOUND,
+            IntrinsicCall.Intrinsic.UBOUND,
+        ):
+            if "dim" in self.argument_names:
+                return INTEGER_TYPE
+        # TODO #2303. Ideally we want the return type details of all
+        # intrinsics (encoded in the Intrinisc map?) and how each argument
+        # affects them. E.g. L/UBOUND without "dim" returns an array and
+        # with 'kind' changes the precision of the INTEGER
+        return super().datatype
+
     # TODO #2102: Maybe the three properties below can be removed if intrinsic
     # is a symbol, as they would act as the super() implementation.
     @property
@@ -3580,7 +3599,8 @@ NVFORTRAN_UNIFORM = (
     IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
     IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
     IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.MINVAL,
-    IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE
+    IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE,
+    IntrinsicCall.Intrinsic.CEILING,
 )
 # MATMUL can fail at link time depending on the precision of
 # its arguments.
@@ -3595,7 +3615,8 @@ DEFAULT_DEVICE_INTRINISCS = NVFORTRAN_ALL
 
 # TODO #658 this can be removed once we have support for determining the
 # type of a PSyIR expression.
-# Intrinsics that perform a reduction on an array.
+# Intrinsics that perform operations on an array.
 REDUCTION_INTRINSICS = [
     IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.MINVAL,
-    IntrinsicCall.Intrinsic.MAXVAL]
+    IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.PACK,
+    IntrinsicCall.Intrinsic.COUNT]
