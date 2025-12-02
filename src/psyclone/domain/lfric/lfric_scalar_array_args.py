@@ -54,6 +54,7 @@ from psyclone.psyir.symbols import (DataSymbol, ArrayType,
 
 # pylint: disable=too-many-branches
 
+
 class LFRicScalarArrayArgs(LFRicCollection):
     '''
     Handles the declarations of ScalarArray kernel arguments appearing in

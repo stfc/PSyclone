@@ -246,7 +246,7 @@ def test_lfric_field():
 def test_lfric_scalar():
     '''Check that the scalar method throws a NotImplementedError for
     ScalarArrays.
-    
+
     '''
     # Use the OpenACC transforms to create the required kernels
     acc_par_trans = ACCParallelTrans()
@@ -264,5 +264,5 @@ def test_lfric_scalar():
     var_accesses = VariablesAccessMap()
     with pytest.raises(NotImplementedError) as excinfo:
         create_acc_arg_list.generate(var_accesses=var_accesses)
-    assert (f"OpenACC data regions are not currently supported for arrays"
-            f" of scalars.") in str(excinfo)
+    assert ("OpenACC data regions are not currently supported for arrays"
+            " of scalars.") in str(excinfo)
