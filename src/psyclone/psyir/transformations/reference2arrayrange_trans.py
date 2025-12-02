@@ -44,8 +44,8 @@
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (ArrayReference, Assignment, Call,
-                                  Literal, Range, Reference)
-from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType, Symbol
+                                  IntrinsicCall, Literal, Range, Reference)
+from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
@@ -119,15 +119,6 @@ class Reference2ArrayRangeTrans(Transformation):
                 f"Call to a non-elemental routine ("
                 f"{node.parent.debug_string().strip()}) and should not be "
                 f"transformed."))
-        if (isinstance(node.parent, Reference) and (
-                type(node.parent.symbol) is Symbol
-                or not isinstance(node.parent.symbol.datatype, ArrayType))):
-            raise TransformationError(LazyString(
-                lambda: f"References to arrays that *may* be routine arguments"
-                f" should not be transformed but found:\n "
-                f"{node.parent.debug_string()} and {node.parent.symbol.name} "
-                f"is not known to be of ArrayType (and therefore may be a "
-                f"call)."))
         assignment = node.ancestor(Assignment)
         if assignment and assignment.is_pointer:
             raise TransformationError(
@@ -145,7 +136,8 @@ class Reference2ArrayRangeTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
-        self.validate(node, **kwargs)
+        self.validate(node, allow_call_arguments=allow_call_arguments,
+                      **kwargs)
 
         symbol = node.symbol
         indices = []

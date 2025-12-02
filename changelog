@@ -1,3 +1,18 @@
+   8) PR #3152 for #3111. Ensure loop variables are excluded when
+   performing kernel extraction.
+
+   7) PR #3041 for #2823.  Changes the frontend for existing code so
+   that unresolved symbols with parentheses are identified as calls
+   rather than array accesses.
+
+   6) PR #3223 for #3219.  Add a prototype of the kernel computation
+   pattern as its children
+
+   5) PR #3150 towards #2302. Adds functionality to map arguments to
+   Fortran intrinsics to the corresponding named arguments.   
+
+   4) PR #3178 for #3196. Improves fparser2 reader directive handling.
+
    3) PR #3210 for #3203. Removes outstanding references to the old,
    pared-down LFRic infrastructure.
 
@@ -6,6 +21,13 @@
  
    1) PR #3218 for #2705. Adds explicit type information for the r2d_field
    type in GOcean so that kernel inlining succeeds.
+
+Release 3.2.2 26th of November 2025
+
+   2) PR #3231 for #3230. Fixes a bug in upper_bound_psyir() for field vectors.
+
+   1) PR #3229 for #3227. Fixes a bug with PSyAD where the wrong operator
+   space was being generated.
 
 Release 3.2.1 12th of November 2025
 
@@ -154,7 +176,7 @@ Release 3.2.0 1st of October 2025
    65) PR #3077 for #3076. Small optimisation to avoid computing depth in
    node.walk() unless it is required.
 
-   64) PR #3023 for #3012. Initial version of psyclonefc command
+   64) PR #3023 towards #3012. Initial version of psyclonefc command
 
    63) PR #2907 for #2878. Improves Extraction library output stats.
 

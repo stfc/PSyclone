@@ -50,10 +50,12 @@ from fparser.two.utils import walk
 
 from psyclone.configuration import Config
 from psyclone.core import Signature
-from psyclone.errors import GenerationError
-from psyclone.gocean1p0 import GOKern, GOKernelSchedule
+from psyclone.errors import GenerationError, InternalError
+from psyclone.gocean1p0 import (
+    GOKern, GOKernelSchedule, GOKernCallFactory)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import Schedule
 from psyclone.tests.utilities import get_invoke
 
 API = "gocean"
@@ -67,6 +69,27 @@ BASE_PATH = os.path.join(
 def setup():
     '''Make sure that all tests here use gocean as API.'''
     Config.get().api = API
+
+
+def test_gok_factory(monkeypatch):
+    '''
+    Test that the GOKernCallFactory only creates a GOKern inside
+    GOInvokeSchedule.
+    '''
+    # Do not test GOKern here, this is done below, and needs valid metadata
+    # which is difficult to assemble
+    monkeypatch.setattr(GOKern, "__init__",
+                        lambda _1, _2, _3, _4, parent: None)
+    call = None
+
+    with pytest.raises(GenerationError) as err:
+        GOKernCallFactory.create(call)
+    assert ("GOKern must always be constructed with a parent inside a "
+            "GOInvokeSchedule" in str(err.value))
+    with pytest.raises(GenerationError) as err:
+        GOKernCallFactory.create(call, parent=Schedule())
+    assert ("GOKern must always be constructed with a parent inside a "
+            "GOInvokeSchedule" in str(err.value))
 
 
 def test_gok_construction():
@@ -86,6 +109,66 @@ def test_gok_construction():
     assert kern._metadata_name == "compute_cu"
     assert kern.name == "compute_cu_code"
     assert kern._index_offset == "go_offset_sw"
+
+    # This first child represents the computation pattern of the kernel
+    # This kernel has a pointwise write (cu_fld), a '000,110,000' stencil
+    # (p_fld) and a pointwise read (u_fld)
+    assert kern.children[0].debug_string() == (
+        "cu_fld%data(i,j) = p_fld%data(i,j) + p_fld%data(i,j + 1) + "
+        "u_fld%data(i,j)\n")
+
+    # Now remove all read accesses (this is still a valid kernel), it could
+    # be just assigning a value
+    ref_i = schedule.symbol_table.lookup("i")
+    ref_j = schedule.symbol_table.lookup("j")
+    kern.arguments._args = [kern.arguments._args[0]]
+    assert kern.prototype_from_metadata(ref_i, ref_j)[0].debug_string() == (
+        "cu_fld%data(i,j) = 1\n"
+    )
+
+    # Now add two write fields, this will return 2 assignments
+    kern.arguments._args = [kern.arguments._args[0], kern.arguments._args[0]]
+    prototype = kern.prototype_from_metadata(ref_i, ref_j)
+    assert len(prototype) == 2
+    assert kern.prototype_from_metadata(ref_i, ref_j)[0].debug_string() == (
+        "cu_fld%data(i,j) = 1\n"
+    )
+    assert kern.prototype_from_metadata(ref_i, ref_j)[1].debug_string() == (
+        "cu_fld%data(i,j) = 1\n"
+    )
+
+    # # Now add two write fields, this is not a valid
+    kern.arguments._args = []
+    with pytest.raises(InternalError) as err:
+        kern.prototype_from_metadata(ref_i, ref_j)
+    assert ("This is not a valid kernel, a kernel must write to at least one "
+            "field" in str(err.value))
+
+
+def test_gok_construction_with_large_stencils():
+    '''Test that GOcean kernel information when the metadata includes
+    a stencil expanding to multiple depths in multiple directions.
+    '''
+    _, invoke = get_invoke("large_stencil.f90", "gocean", idx=0)
+    schedule = invoke.schedule
+
+    # Get the first kernel
+    kern1 = schedule.walk(GOKern)[0]
+
+    # Check the computation prototype:
+    # firstargument cu_fld is pointwise (and write only)
+    # secondargument p_fld is a (123,110,100) stencil
+    # third argument u_fld is pointwise
+    assert kern1.children[0].debug_string() == (
+        "cu_fld%data(i,j) = p_fld%data(i - 1,j - 1) + p_fld%data(i,j - 1) + "
+        "p_fld%data(i,j) + p_fld%data(i + 1,j - 1) + p_fld%data(i + 1,j) + "
+        "p_fld%data(i + 2,j) + p_fld%data(i + 1,j + 1) + "
+        "p_fld%data(i + 2,j + 2) + p_fld%data(i + 3,j + 3) + "
+        "u_fld%data(i,j)\n")
+
+    vam = kern1.reference_accesses()
+    assert str(vam) == ("cu_fld%data: WRITE, i: READ, j: READ, "
+                        "p_fld%data: READ, u_fld%data: READ")
 
 
 def test_gok_get_callees():
@@ -127,42 +210,8 @@ def test_gok_get_callees():
 
 
 # -----------------------------------------------------------------------------
-def test_gok_reference_accesses():
-    '''Test that GOcean kernel information are correct, and that the index
-    information are PSyIR nodes.
-
-    '''
-    # Large stencil has 100, 110, 123 as stencil
-    _, invoke = get_invoke("large_stencil.f90", "gocean", idx=0)
-    schedule = invoke.schedule
-
-    # Get the first kernel
-    kern1 = schedule.walk(GOKern)[0]
-    vam = kern1.reference_accesses()
-    assert str(vam) == "cu_fld: WRITE, p_fld: READ, u_fld: READ"
-
-    # TODO #3129: Implementing the idea in this issue will add additional
-    # accesses matching the metadata specification. These would correspond
-    # to the stencils 100, 110, 123
-    # expected = {
-    #     # First stencil direction of 123: 1
-    #     "['i - 1', 'j - 1']",
-    #     # Second stencil direction of 123: 2
-    #     "['i', 'j + 1']", "['i', 'j + 2']",
-    #     # Third stencil direction of 123: 3
-    #     "['i + 1', 'j + 1']", "['i + 2', 'j + 2']", "['i + 3', 'j + 3']",
-    #     # First stencil direction of 110: 1
-    #     "['i - 1', 'j']",
-    #     # Second stencil direction of 110: 1
-    #     "['i', 'j']",
-    #     # First stencil direction of 100: 1
-    #     "['i - 1', 'j + 1']"
-    #     }
-
-
-# -----------------------------------------------------------------------------
 def test_gok_access_info_scalar_and_property():
-    '''Test  GOcean kernel information when using a grid property and scalar
+    '''Test GOcean kernel information when using a grid property and scalar
     variables.
 
     '''
@@ -170,17 +219,33 @@ def test_gok_access_info_scalar_and_property():
                            "gocean", idx=0)
     schedule = invoke.schedule
 
-    # Get the first kernel
+    # Get the first kernel (the scalar is a literal)
     kern1 = schedule.walk(GOKern)[0]
-    vam = kern1.reference_accesses()
+
+    # Literals are ignored and properties are accesses without indices
+    # (because they can only be accessed as pointwise reads anyway)
+    assert kern1.children[0].debug_string() == (
+        "p_fld%data(i,j) = "
+        "p_fld%grid%subdomain%internal%xstop + p_fld%grid%tmask\n"
+    )
 
     # Check that we get the grid properties listed:
+    vam = kern1.reference_accesses()
     assert (str(vam) ==
+            "i: READ, j: READ, p_fld%data: WRITE, "
             "p_fld%grid%subdomain%internal%xstop: READ, "
-            "p_fld%grid%tmask: READ, p_fld: READWRITE")
+            "p_fld%grid%tmask: READ")
 
     # Kernel calls have the whole field provided, so no indices are given
     # at this level.
     tmask = vam[Signature("p_fld%grid%tmask")]
     comp_ind = tmask[0].component_indices()
-    assert comp_ind == tuple(tuple())
+    assert comp_ind == (tuple(), tuple(), tuple())
+
+    # In the second invoke the scalar is a symbol reference
+    _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
+                           "gocean", idx=1)
+    schedule = invoke.schedule
+    kern1 = schedule.walk(GOKern)[0]
+    assert "real_val: READ" in str(kern1.reference_accesses())
+    assert "= real_val +" in kern1.children[0].debug_string()
