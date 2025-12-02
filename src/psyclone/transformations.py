@@ -1196,7 +1196,7 @@ class ACCParallelTrans(ParallelRegionTrans):
 
         '''
         node_list = self.get_node_list(node_list)
-        verbose = options.get("allow_strings", False) if options else False
+        verbose = options.get("verbose", False) if options else False
         device_string = options.get("device_string", "") if options else ""
         allow_strings = options.get("allow_strings", "") if options else False
         super().validate(node_list, options)
@@ -1216,9 +1216,11 @@ class ACCParallelTrans(ParallelRegionTrans):
                     if hasattr(dtype, "intrinsic"):
                         if dtype.intrinsic == ScalarType.Intrinsic.CHARACTER:
                             message = (
-                                f"OpenACC Parallel cannot enclose a region "
+                                f"ACCParallelTrans doesn't enclose regions "
                                 f"that uses characters, but found: "
-                                f"{datanode.debug_string()}"
+                                f"{datanode.debug_string()}, use the "
+                                f"'allow_strings' transformation option to "
+                                f"offload this region."
                             )
                             if verbose:
                                 node.preceding_comment = message
