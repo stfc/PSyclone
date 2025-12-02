@@ -44,8 +44,8 @@
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (ArrayReference, Assignment, Call,
-                                  IntrinsicCall, Literal, Range, Reference)
-from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType
+                                  Literal, Range, Reference)
+from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
@@ -136,8 +136,7 @@ class Reference2ArrayRangeTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
-        self.validate(node, allow_call_arguments=allow_call_arguments,
-                      **kwargs)
+        self.validate(node, **kwargs)
 
         symbol = node.symbol
         indices = []
