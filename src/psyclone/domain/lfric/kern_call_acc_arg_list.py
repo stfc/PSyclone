@@ -275,6 +275,10 @@ class KernCallAccArgList(KernCallArgList):
         # TODO: Add implementation of OpenACC data region for ScalarArrays
         # If the argument is a simple scalar value then doesn't need values
         # added to OpenACC region
+        if scalar_arg.is_scalar_array:
+            raise NotImplementedError(
+                f"OpenACC data regions are not currently supported for arrays"
+                f" of scalars.")
 
 
 # ============================================================================
