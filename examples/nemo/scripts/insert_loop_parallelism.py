@@ -87,7 +87,6 @@ FILES_TO_SKIP = []
 NEMOV5_EXCLUSIONS = [
     # Fail in nvfortran when enabling seaice
     "icefrm.f90",  # Has unsupported implicit symbol declaration
-    "icerst.f90"
 ]
 
 NEMOV4_EXCLUSIONS = [
@@ -129,6 +128,7 @@ if not NEMOV4:
         # Runtime Error: Illegal address during kernel execution
         "trcrad.f90",
         # nvhpc > 24.11 - Signal 11 issues
+        "icerst.f90",  # When enabling ice* parallelisation
         "trcbbl.f90",
         "bdyice.f90",
         "sedfunc.f90",

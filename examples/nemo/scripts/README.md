@@ -37,14 +37,14 @@ Author S. Siso, STFC Daresbury Lab
 
 # PSyclone NEMO Examples
 
-This directory contains various examples of the use of PSyclone to transform
-source code from the NEMO ocean model.
+This directory contains various examples showing how to apply PSyclone to
+transform the source code of the NEMO ocean model.
 
 > [!Important]
 > The NEMO build system, `makenemo`, has the ability to apply psyclone
 > scripts that come with the NEMO repository with the `-p` flag (see
 > [the NEMO user guide](https://sites.nemo-ocean.io/user-guide/psyclone.html)),
-> but these are pinned to a particular release of PSyclone and have constrains
+> but these are pinned to a particular release of PSyclone and have constraints
 > defined in `mk/sct_psyclone.sh` script. By contrast, the process presented in
 > this README uses the experimental `psyclonefc` compiler wrapper command which
 > bypases the `makenemo -p` and instead intercepts any compilation command and
@@ -72,16 +72,15 @@ please report to the authors.
 
 In order to provide a flexible system that works with different directives and
 compilers we provide a parameterised transformation script
-`insert_loop_parallelism.py` and an example NEMO arch file `KGO/arch-linux_spack.fcm`
-with multiple environment variables. These, together with the `psyclonefc`
-environment variables have to be set up appropriately depending on the desired
-output.
+`insert_loop_parallelism.py` and a parameterised NEMO arch file
+`KGO/arch-linux_spack.fcm`, both with multiple environment variables that need
+to be adjusted depending on your desired optimisation target.
 
 First of all, the arch file has a `MPIF90` to choose the compiler, this
 needs to be set to `psyclonefc`. This is a compiler wrapper utility that
-substitutes its call with: an invocation to psyclone to process the given
-source file (using the options provided in `PSYCLONE_OPTS`) and then send the
-output to a compiler (provided by `PSYCLONE_COMPILER`).
+substitutes its calls with: an invocation to psyclone to process the given
+source file (using the options provided in `PSYCLONE_OPTS`) followed by an
+invocation to a compiler (provided by `PSYCLONE_COMPILER`).
 
 For example, to apply the `insert_loop_parallelism.py` and compile it with
 `mpif90` we can use the following set up:
@@ -92,8 +91,8 @@ export PSYCLONE_COMPILER=mpif90
 export PSYCLONE_OPTS="-l output -s ${PSYCLONE_NEMO_EXAMPLES_DIR}/insert_loop_parallelism.py"
 ```
 
-As mentioned, the transformation script is parameterised with a `PARALLEL_DIRECTIVES`
-variable that have to be consistent with the chosen Fortran flags.
+This transformation script is in turn parameterised with a `PARALLEL_DIRECTIVES`
+variable that have to be consistently set up with the chosen `FCFLAGS` flags.
 
 For instance, for the `nvfortran` compiler, you can choose between:
 - Serial transformations with no parallel directives
@@ -122,7 +121,7 @@ export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -acc=gpu -mp=gpu -gpu=mem:manag
 export REPRODUCIBLE=1
 ```
 
-- A fast GPU build flags
+- Hybrid directives (what cannot be offloaded fallsback to threading) and fast GPU flags
 ```bash
 unset REPRODUCIBLE
 export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
@@ -131,7 +130,7 @@ export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
 
 > [!Note]
 > Currently, NEMOv4 and NEMOv5 take different optimisation paths, so it is
-> imporant to also set:
+> important to also set:
 >
 > ```bash
 > export NEMOv4=1
@@ -149,10 +148,13 @@ the desired NEMO configuration and keys. For example:
 ./makenemo -r ORCA2_ICE_PISCES -m arch-linux_spack -n ORCA2_psycloned ...
 ```
 
-If everything worked you can see the generated files in the
-`<configuration>/BLD/tmp` directory. And you can run the binary from the
-EXP00 directory. For example, for a hybrid MPI+OMP offloading+OMP threading
-we can do:
+If everything worked you will see psyclone generated files in the
+`<configuration>/BLD/tmp` directory and the final binary in the
+`<configuration>/EXP00` directory.
+
+You can run this binary using the appropriate command from the configuration
+and inserted programming model. For example, for a hybrid
+MPI+OMP offloading+OMP threading you can do:
 
 ```bash
 # Prepare problem
@@ -170,22 +172,25 @@ OMP_NUM_THREADS=4 CUDA_VISIBLE_DEVICES=1,2 mpirun -n 2 ./nemo
 
 A difficulty of working with code-transformation scripts is that it is possible
 to incorrectly transform a file semantics while still creating valid Fortran.
+
 This means that the transformation will succeed and the generated code will
 compile, but the results will diverge. This gets more complicated with parallel
 programming because certain operations like reductions or atomics are not
-always reproducible. For NEMO we typically compare the generated `run.stat` field
-values. To do that we recommend:
+always reproducible. Therefore, to understand what causes the results divergence
+it is usefulk to apply the transformations step-by-step while checking if the
+`run.stat` values change. Some useful steps are:
 
 - Starting building NEMO *without* `psyclonefc` and conservative optimisation flags
-  and run it serially. Then store the generated `run.stat`.
-- Then switch to using `psyclonefc` with the `PSYCLONE_OTPS="-s passthrough.py"`,
-  this will make all files pass through psyclone but without applying any
+  and run it serially (O2, no vectorisation, no-fma). Then store the generated `run.stat`.
+- Then switch to using `psyclonefc` with the `PSYCLONE_OPTS="-s passthrough.py"`,
+  this will make psyclone process all files but without applying any
   transformations. Check if the results still match.
-- Then build it with `PARALLEL_DIRECTIVES="" PSYCLONE_OTPS="-s insert_loop_parallelism.py"`
-  and check if the results still match
-- Then run it `REPRODUCIBLE=1 PARALLEL_DIRECTIVES="omp_threading" PSYCLONE_OTPS="-s insert_loop_parallelism.py"`
+- Then build it with `PSYCLONE_OPTS="-s insert_loop_parallelism.py"` but keeping
+  the `PARALLEL_DIRECTIVES=""` empty. This will apply serial transformations but
+  no directives yet.
+- Then run it `REPRODUCIBLE=1 PARALLEL_DIRECTIVES="omp_threading" PSYCLONE_OPTS="-s insert_loop_parallelism.py"`
   and see if the results still match.
-- Finally, run it with `REPRODUCIBLE=1 PARALLEL_DIRECTIVES="omp_offloading" PSYCLONE_OTPS="-s insert_loop_parallelism.py"`
+- Finally, run it with `REPRODUCIBLE=1 PARALLEL_DIRECTIVES="omp_offloading" PSYCLONE_OPTS="-s insert_loop_parallelism.py"`
 
 Orthogonally to finding which step is causing the divergence we may want to find
 which file/s are causing it. This folder also contains a `do_file_by_file.sh`

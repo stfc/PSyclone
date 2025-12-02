@@ -232,11 +232,13 @@ def normalise_loops(
                 except TransformationError as err:
                     print(err.value)
 
-    # TODO #2951: fldread has a bug in ArrayAssignment2LoopsTrans
-    if convert_range_loops and filename != "fldread.f90":
+    if convert_range_loops:
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
+            if filename == "fldread.f90":
+                # TODO #2951: This file has issues converting SturctureRefs
+                continue
             try:
                 explicit_loops.apply(
                     assignment, options={'verbose': True})
@@ -272,6 +274,10 @@ def normalise_loops(
                     HoistTrans().apply(statement)
                 except TransformationError:
                     pass
+
+    # TODO #1928: In order to perform better on the GPU, nested loops with two
+    # sibling inner loops need to be fused or apply loop fission to the
+    # top level. This would allow the collapse clause to be applied.
 
 
 def increase_rank_and_reorder_nemov5_loops(routine: Routine):
