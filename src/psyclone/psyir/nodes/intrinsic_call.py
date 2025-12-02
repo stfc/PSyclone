@@ -39,6 +39,8 @@
 
 """This module contains the IntrinsicCall node implementation."""
 
+from __future__ import annotations
+
 from collections import namedtuple
 from collections.abc import Iterable
 from enum import Enum
@@ -90,25 +92,24 @@ IAttr = namedtuple(
 ArgDesc = namedtuple('ArgDesc', 'min_count max_count types arg_names')
 
 
-def _get_first_argument_type(node) -> DataType:
+def _get_first_argument_type(node: IntrinsicCall) -> DataType:
     """
     Helper function for MIN and MAX where named arguments aren't supported.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
     :returns: the datatype of the first argument of the IntrinsicCall.
     """
     return node.arguments[0].datatype
 
 
-def _get_named_argument_type(node, argument_name: str) -> DataType:
+def _get_named_argument_type(node: IntrinsicCall,
+                             argument_name: str) -> DataType:
     """Helper function for the common IntrinsicCall case where
     the return type matches exactly the datatype of the
     argument with the provided argument_name.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
     :param argument_name: The name of the argument whose datatype to return.
 
     :returns: the datatype of the named argument of the IntrinsicCall.
@@ -117,14 +118,13 @@ def _get_named_argument_type(node, argument_name: str) -> DataType:
 
 
 def _get_named_argument_intrinsic_with_optional_kind_and_dim(
-        node, arg_name: str
+        node: IntrinsicCall, arg_name: str
 ) -> DataType:
     """Helper function for IntrinsicCalls like MAXLOC where they have optional
     Kind and Dim options but the intrinsic is that of the argument with the
     provided arg_name.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
     :param arg_name: The name of the argument to use the datatype intrinsic
                      of.
 
@@ -133,7 +133,7 @@ def _get_named_argument_intrinsic_with_optional_kind_and_dim(
     if "kind" in node.argument_names:
         dtype = ScalarType(
             node.argument_by_name(arg_name).datatype.intrinsic,
-            node.argument_by_name("kind"),
+            node.argument_by_name("kind").copy(),
         )
     else:
         # PSyclone has the UNDEFINED Precision as the default kind for all
@@ -142,33 +142,33 @@ def _get_named_argument_intrinsic_with_optional_kind_and_dim(
             node.argument_by_name(arg_name).datatype.intrinsic,
             ScalarType.Precision.UNDEFINED,
         )
+    # If "dim" argument isn't present then the result is an array of the same
+    # dimension as the arg_name argument.
     if "dim" not in node.argument_names:
         return ArrayType(
             dtype,
             [
-                ArrayType.ArrayBounds(
-                    Literal("1", INTEGER_TYPE),
-                    Literal(
-                        str(len(
-                            node.argument_by_name(arg_name).datatype.shape)),
-                        INTEGER_TYPE,
-                    ),
-                )
+                Literal(
+                    str(len(
+                        node.argument_by_name(arg_name).datatype.shape)),
+                    INTEGER_TYPE,
+                ),
             ],
         )
-    # Always have dim from here.
+    # Always have dim argument from here.
     # If array has rank 1, the result is scalar.
     arg = node.argument_by_name(arg_name)
     shape = arg.datatype.shape
     if len(shape) == 1:
         return dtype
-    # For now we don't attempt to work out the shape.
+    # Otherwise the result is an array with rank one less than the
+    # arg_name argument.
     new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
     return ArrayType(dtype, new_shape)
 
 
 def _get_named_argument_specified_kind_with_optional_dim(
-        node, argument_name: str,
+        node: IntrinsicCall, argument_name: str,
         intrinsic: ScalarType.Intrinsic = ScalarType.Intrinsic.BOOLEAN
         ) -> DataType:
     """Helper function for the common IntrinsicCall case where the
@@ -177,7 +177,6 @@ def _get_named_argument_specified_kind_with_optional_dim(
     rank n-1 is given instead.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
     :param argument_name: The name of the argument whose kind to be used.
     :param intrinsic: The type of the intrinsic of the resulting datatype.
                       Default is ScalarType.Intrinsic.BOOLEAN
@@ -187,31 +186,29 @@ def _get_named_argument_specified_kind_with_optional_dim(
     dtype = ScalarType(
         intrinsic, node.argument_by_name(argument_name).datatype.precision
     )
-    if "dim" not in node.argument_names:
+    # If dim is not present, or the rank of the
+    # array argument is 1 then this returns a scalar.
+    arg = node.argument_by_name(argument_name)
+    shape = arg.datatype.shape
+    if "dim" not in node.argument_names or len(shape) == 1:
         return dtype
-    else:
-        # If dim is given then this should return an array, but we
-        # don't necessarily know the dimensions of the resulting array
-        # at compile time. It will have one fewer dimension than the
-        # input.
-        arg = node.argument_by_name(argument_name)
-        shape = arg.datatype.shape
-        if len(shape) == 1:
-            return dtype
-        # For now we don't attempt to work out the shape.
-        new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
-        return ArrayType(dtype, new_shape)
+    # If dim is given then this should return an array, but we
+    # don't necessarily know the dimensions of the resulting array
+    # at compile time. It will have one fewer dimension than the
+    # input.
+    # For now we don't attempt to work out the shape.
+    new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
+    return ArrayType(dtype, new_shape)
 
 
 def _get_intrinsic_with_optional_arg_kind(
-        node, intrinsic: ScalarType.Intrinsic,
+        node: IntrinsicCall, intrinsic: ScalarType.Intrinsic,
         arg_name: str
 ) -> DataType:
     """Helper function for the common case where the return type is a
     scalar intrinsic type with an optional kind argument.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
     :param intrinsic: The intrinsic type for the datatype.
     :param arg_name: The name of the optional argument to use for the kind.
 
@@ -230,7 +227,7 @@ def _get_intrinsic_with_optional_arg_kind(
 
 
 def _get_intrinsic_of_argname_kind_with_optional_dim(
-        node, intrinsic: ScalarType.Intrinsic,
+        node: IntrinsicCall, intrinsic: ScalarType.Intrinsic,
         array_arg_name: str, kind_arg_name: str) -> DataType:
     """Helper function for a datatype of type intrinsic with optional dim and
     optional arg_name kind option. If the dim argument exists, then the
@@ -238,7 +235,6 @@ def _get_intrinsic_of_argname_kind_with_optional_dim(
     array_arg_name.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
     :param intrinsic: The intrinsic type of the resultant datatype.
     :param array_arg_name: The name of the array type to use to compute
                            dimensionality if dim is requested.
@@ -255,6 +251,7 @@ def _get_intrinsic_of_argname_kind_with_optional_dim(
             else node.argument_by_name(kind_arg_name)
         ),
     )
+    # If dim is not present then we return a scalar.
     if "dim" not in node.argument_names:
         return dtype
     else:
@@ -273,14 +270,13 @@ def _get_intrinsic_of_argname_kind_with_optional_dim(
 
 
 def _get_intrinsic_with_named_arg_kind(
-        node, intrinsic: ScalarType.Intrinsic,
+        node: IntrinsicCall, intrinsic: ScalarType.Intrinsic,
         argument_name: str
 ) -> DataType:
     """Helper function for the common IntrinsicCall case where the
     return type is a Scalar REAL with the kind of the first argument.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
     :param intrinsic: The datatype intrinsic type to use.
     :param argument_name: The name of the argument to use for the precision
                           of the datatype.
@@ -292,8 +288,9 @@ def _get_intrinsic_with_named_arg_kind(
     )
 
 
-def _findloc_return_type(node) -> DataType:
+def _findloc_return_type(node: IntrinsicCall) -> DataType:
     """Helper function for the FINDLOC case.
+
     The datatype of FINDLOC is a rank-one array of dimension equal to
     the "array" named argument, unless dim is present in which case
     the datatype is an N-1 dimension array.
@@ -309,39 +306,37 @@ def _findloc_return_type(node) -> DataType:
     if "kind" in node.argument_names:
         dtype = ScalarType(
             node.argument_by_name("array").datatype.intrinsic,
-            node.argument_by_name("kind"),
+            node.argument_by_name("kind").copy(),
         )
     else:
         dtype = node.argument_by_name("array").datatype.copy()
+    # If dim argument is given.
     if "dim" in node.argument_names:
+        # Return a scalar if the array has rank 1.
         if len(node.argument_by_name("array").datatype.shape) == 1:
             return dtype
-        else:
-            # We can't get the sizes correct since we don't know
-            # dim, so use deferred.
-            return ArrayType(
-                dtype,
-                [ArrayType.Extent.DEFERRED]
-                * (len(node.arguments[0].datatype.shape) - 1),
-            )
-    else:
+        # Otherwise return an array of rank n-1.
         return ArrayType(
             dtype,
-            [
-                ArrayType.ArrayBounds(
-                    Literal("1", INTEGER_TYPE),
-                    Literal(
-                        str(len(node.argument_by_name(
-                                    "array"
-                                ).datatype.shape)),
-                        INTEGER_TYPE,
-                    ),
-                )
-            ],
+            [ArrayType.Extent.DEFERRED]
+            * (len(node.arguments[0].datatype.shape) - 1),
         )
+    # Otherwise return an array with same rank as the "array"
+    # argument.
+    return ArrayType(
+        dtype,
+        [
+            Literal(
+                str(len(node.argument_by_name(
+                            "array"
+                        ).datatype.shape)),
+                INTEGER_TYPE,
+            ),
+        ],
+    )
 
 
-def _int_return_type(node) -> DataType:
+def _int_return_type(node: IntrinsicCall) -> DataType:
     """Helper function for the INT case.
 
     The resulting datatype is an scalar integer of default kind
@@ -353,14 +348,13 @@ def _int_return_type(node) -> DataType:
     the previous paragraph.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
     :returns: the computed datatype for the IntrinsicCall.
     """
     if "kind" in node.argument_names:
         dtype = ScalarType(
             ScalarType.Intrinsic.INTEGER,
-            node.argument_by_name("kind"),
+            node.argument_by_name("kind").copy(),
         )
     else:
         dtype = INTEGER_TYPE
@@ -381,7 +375,7 @@ def _int_return_type(node) -> DataType:
         return dtype
 
 
-def _iparity_return_type(node) -> DataType:
+def _iparity_return_type(node: IntrinsicCall) -> DataType:
     """Helper function for the IPARITY case.
 
     The result is the same type as the "array" argument. If the
@@ -390,7 +384,6 @@ def _iparity_return_type(node) -> DataType:
     that type is returned instead.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
     :returns: the computed datatype for the IntrinsicCall.
     """
@@ -398,6 +391,7 @@ def _iparity_return_type(node) -> DataType:
         node.argument_by_name("array").datatype.intrinsic,
         node.argument_by_name("array").datatype.precision,
     )
+    # If dim is not present then we return a scalar.
     if "dim" not in node.argument_names:
         return dtype
     # We have a dimension specified. We don't know the resultant shape
@@ -409,50 +403,54 @@ def _iparity_return_type(node) -> DataType:
     )
 
 
-def _get_bound_function_return_type(node) -> DataType:
+def _get_bound_function_return_type(node: IntrinsicCall) -> DataType:
     """Helper function for the return types of functions like LBOUND and
     LCOBOUND etc.
 
     The return type is of type integer and of the kind specified by the
-    "kind" argument if present, of the default 
+    "kind" argument if present, of the default
     (ScalarType.Precision.UNDEFINED) otherwise.
     If the "dim" argument is present, then the result is that ScalarType.
     Otherwise, its an array that ScalarType with extent equal to the
     rank of the "array" argument.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
     :returns: the computed datatype for the IntrinsicCall.
     """
     if "kind" in node.argument_names:
         dtype = ScalarType(
             ScalarType.Intrinsic.INTEGER,
-            node.argument_by_name("kind"),
+            node.argument_by_name("kind").copy(),
         )
     else:
         dtype = INTEGER_TYPE
+    # If "dim" is in the arguments, then return a Scalar.
     if "dim" in node.argument_names:
         return dtype
+    # Otherwise return an array with rank equal to the "array" argument.
     return ArrayType(
         dtype,
         [
-            ArrayType.ArrayBounds(
-                Literal("1", INTEGER_TYPE),
-                Literal(
-                    str(len(node.argument_by_name("array").datatype.shape)),
-                    INTEGER_TYPE
-                ),
-            )
+            Literal(
+                str(len(node.argument_by_name("array").datatype.shape)),
+                INTEGER_TYPE
+            ),
         ],
     )
 
 
-def _matmul_return_type(node) -> DataType:
+def _matmul_return_type(node: IntrinsicCall) -> DataType:
     """Helper function for the return type of MATMUL.
 
+    If matrix_a is a vector and matrix_b is a matrix, then the
+    result is an array of shape of the first dimension of matrix_b.
+    If matrix_b is a vector and matrix_a is a matrix, then the
+    result is an array of shape of the first dimension of matrix_a.
+    If matrix_a and matrix_b are both matrices, then the result
+    is an array of shape [matrix_a dim 1, matrix_b dim 2].
+
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
     :returns: the computed datatype for the IntrinsicCall.
     """
@@ -467,19 +465,20 @@ def _matmul_return_type(node) -> DataType:
     arg2 = Reference(DataSymbol("b", stype2))
     binop = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                    arg1, arg2)
-    # TODO - make this a public method?
-    stype = binop._get_result_scalar_type([stype1, stype2])
+    stype = binop.get_result_scalar_type([stype1, stype2])
     #  a11 a12 x b1 = a11*b1 + a12*b2
     #  a21 a22   b2   a21*b1 + a22*b2
     #  a31 a32        a31*b1 + a32*b2
     #  3 x 2 * 2 x 1 = 3 x 1
     #  rank 2  rank 1  rank 1
+    # Vector-matrix case.
     if len(shape1) == 1:
         extent = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.SIZE,
             [node.argument_by_name("matrix_b").copy(),
              ("dim", Literal("1", INTEGER_TYPE))])
         shape = [extent]
+    # Matrix-vector case.
     elif len(shape2) == 1:
         extent = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.SIZE,
@@ -500,10 +499,10 @@ def _matmul_return_type(node) -> DataType:
     return ArrayType(stype, shape)
 
 
-def _maxval_return_type(node) -> DataType:
+def _maxval_return_type(node: IntrinsicCall) -> DataType:
     """ Helper function for the MAXVAL (and similar) intrinsic return
     types.
-    
+
     If the "dim" argument is absent, or the "array" argument has rank one
     then the result is a ScalarType of the type of the "array" argument.
     Otherwise the result is an ArrayType of rank n-1 (where n is the rank of
@@ -1483,7 +1482,7 @@ class IntrinsicCall(Call):
                     (
                         node.argument_by_name("coarray").datatype.precision
                         if "kind" not in node.argument_names
-                        else node.argument_by_name("kind")
+                        else node.argument_by_name("kind").copy()
                     ),
                 ),
                 [
@@ -3214,7 +3213,7 @@ class IntrinsicCall(Call):
                 ScalarType(
                     ScalarType.Intrinsic.REAL,
                     (
-                        node.argument_by_name("kind")
+                        node.argument_by_name("kind").copy()
                         if "kind" in node.argument_names
                         else node.argument_by_name("a").datatype.precision
                     ),
@@ -3404,12 +3403,10 @@ class IntrinsicCall(Call):
                     ScalarType.Intrinsic.INTEGER,
                     (ScalarType.Precision.UNDEFINED if "kind" not in
                      node.argument_names else
-                     node.argument_by_name("kind"))),
-                    [ArrayType.ArrayBounds(
-                        Literal("1", INTEGER_TYPE),
-                        Literal(str(len(
-                            node.argument_by_name("source").datatype.shape)),
-                                INTEGER_TYPE))])
+                     node.argument_by_name("kind").copy())),
+                    [Literal(str(len(
+                        node.argument_by_name("source").datatype.shape)),
+                            INTEGER_TYPE)])
             ),
             reference_accesses=None,
         )

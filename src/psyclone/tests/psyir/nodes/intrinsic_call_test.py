@@ -50,7 +50,6 @@ from psyclone.psyir.nodes import (
     Reference,
     Schedule,
     Assignment,
-    Routine,
     Call
 )
 from psyclone.psyir.nodes.intrinsic_call import (
@@ -69,7 +68,6 @@ from psyclone.psyir.nodes.intrinsic_call import (
     _get_bound_function_return_type,
     _matmul_return_type,
     _maxval_return_type,
-    _reduce_return_type
 )
 from psyclone.psyir.symbols import (
     ArrayType,
@@ -1094,7 +1092,36 @@ def test_findloc_return_type(fortran_reader):
     assert res.shape[0].upper.value == "1"
     assert res.shape[0].lower.value == "1"
 
-    # TODO #2823 adding namedargs makes this a CodeBlock so can't test yet.
+    intr = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.FINDLOC, [
+            ("array", intrs[0].arguments[0].copy()),
+            ("value", intrs[0].arguments[1].copy()),
+            ("kind", Literal("8", INTEGER_TYPE))
+        ]
+    )
+    res = _findloc_return_type(intr)
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision.value == "8"
+    assert len(res.shape) == 1
+    assert res.shape[0].upper.value == "1"
+    assert res.shape[0].lower.value == "1"
+
+    intr = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.FINDLOC, [
+            ("array", intrs[0].arguments[0].copy()),
+            ("value", intrs[0].arguments[1].copy()),
+            ("kind", Literal("8", INTEGER_TYPE)),
+            ("dim", Literal("1", INTEGER_TYPE)),
+        ]
+    )
+    res = _findloc_return_type(intr)
+    assert isinstance(res, ScalarType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision.value == "8"
+
+    # TODO #2823 adding namedargs makes this a CodeBlock so can't test yet via
+    # fortran_reader.
 
 
 def test_int_return_type(fortran_reader):
