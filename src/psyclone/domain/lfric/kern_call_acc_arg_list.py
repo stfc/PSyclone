@@ -277,8 +277,8 @@ class KernCallAccArgList(KernCallArgList):
         # added to OpenACC region
         if scalar_arg.is_scalar_array:
             raise NotImplementedError(
-                f"OpenACC data regions are not currently supported for arrays"
-                f" of scalars.")
+                "OpenACC data regions are not currently supported for arrays"
+                " of scalars.")
 
 
 # ============================================================================
