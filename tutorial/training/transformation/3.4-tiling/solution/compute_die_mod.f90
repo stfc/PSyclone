@@ -1,50 +1,38 @@
 module compute_die_mod
+  implicit none
+  private
 
-    private
-    public compute_die
+  public :: compute_die
 
-contains
+  contains
+  subroutine compute_die(die, current, neighbours)
+    use grid_mod, only : grid_type
+    use field_mod, only : r2d_field
+    real(kind=8), allocatable, dimension(:,:), intent(in) :: current
+    real(kind=8), allocatable, dimension(:,:), intent(in) :: neighbours
+    real(kind=8), allocatable, dimension(:,:), intent(inout) :: die
+    integer :: xstart
+    integer :: xstop
+    integer :: ystart
+    integer :: ystop
+    integer :: i
+    integer :: j
 
-    !> @brief Computes which cells die.
-    !>
-    !> This subroutine computes a field 'die' which has the value '1'
-    !> for each cell that is currently alive, but should die. Otherwise
-    !> the cell is 0.
-    !>
-    !> @param[out] die  The output field with 1 iff the cell dies.
-    !> @param[in]  current The current state.
-    !> @param[in]  neighbours The number of live neighbours for each cell.
+    xstart = LBOUND(current, dim=1) + 1
+    xstop = UBOUND(current, dim=1) - 1
+    ystart = LBOUND(current, dim=2) + 1
+    ystop = UBOUND(current, dim=2) - 1
+    do j = ystart, ystop, 1
+      do i = xstart, xstop, 1
+        die(i,j) = 0.0
+        if (current(i,j) > 0.0) then
+          if (neighbours(i,j) < 2.0 .OR. neighbours(i,j) > 3.0) then
+            die(i,j) = 1.0
+          end if
+        end if
+      enddo
+    enddo
 
-    subroutine compute_die(die, current, neighbours)
-        USE field_mod, only            : r2d_field
-
-        implicit none
-        ! It has to be declared inout - even though the data is only written,
-        ! the r2d_field type exists, so it's input as well
-        TYPE(r2d_field), intent(inout) :: die
-        TYPE(r2d_field), intent(in)    :: current, neighbours
-
-        integer                        :: xstart, xstop, ystart, ystop
-        integer                        :: i, j
-
-        xstart = current%internal%xstart
-        xstop  = current%internal%xstop
-        ystart = current%internal%ystart
-        ystop  = current%internal%ystop
-
-        do j=ystart, ystop
-            do i=xstart, xstop
-                die%data(i, j) = 0.0
-                if (current%data(i, j) > 0.0) then
-                    ! A cell dies by underpopulation if it has less than 2
-                    ! neighbours or by overpopulation if it has more than 3
-                    if (neighbours%data(i, j) < 2.0 .or. &
-                        neighbours%data(i, j) > 3.0       ) die%data(i, j) = 1.0
-                endif
-            enddo
-        enddo
-
-
-    end subroutine compute_die
+  end subroutine compute_die
 
 end module compute_die_mod

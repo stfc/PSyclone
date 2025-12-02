@@ -19,28 +19,25 @@ contains
         USE field_mod, only            : r2d_field
 
         implicit none
-        ! It has to be declared inout - even though the data is only written,
-        ! the r2d_field type exists, so it's input as well
-        TYPE(r2d_field), intent(inout) :: born
-        ! Sorry for the short name, it keeps the line length below shorter
-        TYPE(r2d_field), intent(in)    :: current, neighbours
+        real(kind=8), dimension(:,:), allocatable, intent(inout) :: born
+        real(kind=8), dimension(:,:), allocatable, intent(in) :: current, neighbours
 
         integer                        :: xstart, xstop, ystart, ystop
         integer                        :: i, j
 
-        xstart = current%internal%xstart
-        xstop  = current%internal%xstop
-        ystart = current%internal%ystart
-        ystop  = current%internal%ystop
+        xstart = lbound(current, 1)+1
+        xstop = ubound(current, 1)-1
+        ystart = lbound(current, 2)+1
+        ystop = ubound(current, 2)-1
 
         do j=ystart, ystop
             do i=xstart, xstop
-                born%data(i, j) = 0.0
-                if (current%data(i, j) == 0.0 .and.       &
-                    neighbours%data(i, j) == 3.0   ) then
+                born(i, j) = 0.0
+                if (current(i, j) == 0.0 .and.       &
+                    neighbours(i, j) == 3.0   ) then
                     ! A new cell is born in an empty location if
                     ! it has exactly three neighbours.
-                    born%data(i, j) = 1.0
+                    born(i, j) = 1.0
                 endif
             enddo
         enddo

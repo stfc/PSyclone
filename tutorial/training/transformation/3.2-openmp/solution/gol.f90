@@ -8,7 +8,7 @@ program GameOfLife
     implicit none
 
     TYPE(grid_type), target  :: grid
-    TYPE(r2d_field)          :: initial
+    real(kind=8), dimension(:,:), allocatable :: initial
 
     integer                  :: time_steps
 

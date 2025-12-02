@@ -43,7 +43,8 @@ from psyclone.transformations import MoveTrans, TransformationError
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 from psyclone.psyir.transformations import (InlineTrans, LoopFuseTrans,
                                             LoopTiling2DTrans)
-from psyclone.psyir.nodes import Assignment, Call, Loop, Reference, Routine
+from psyclone.psyir.nodes import (Assignment, Call, IntrinsicCall, Loop,
+                                  Reference, Routine)
 
 
 def trans(psyir):
@@ -62,7 +63,8 @@ def trans(psyir):
     kmit = KernelModuleInlineTrans()
     inline = InlineTrans()
     for call in psyir.walk(Call):
-        if call.routine.name != "output_field":
+        if (not isinstance(call, IntrinsicCall) and
+                call.routine.name != "output_field"):
             kmit.apply(call)
             inline.apply(call)
 

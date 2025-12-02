@@ -18,25 +18,25 @@ contains
         implicit none
         ! It has to be declared inout - even though the data is only written,
         ! the r2d_field type exists, so it's input as well
-        TYPE(r2d_field), intent(inout) :: neighbours
-        TYPE(r2d_field), intent(in)    :: current
+        real(kind=8), dimension(:,:), allocatable, intent(inout) :: neighbours
+        real(kind=8), dimension(:,:), allocatable, intent(in) :: current
 
         integer                        :: xstart, xstop, ystart, ystop
         integer                        :: i, j
 
         ! The outer elements is the 'boundary' area, which is set to 0.
         ! We only loop over the internal points
-        xstart = current%internal%xstart
-        xstop  = current%internal%xstop
-        ystart = current%internal%ystart
-        ystop  = current%internal%ystop
+        xstart = lbound(current, 1)+1
+        xstop = ubound(current, 1)-1
+        ystart = lbound(current, 2)+1
+        ystop = ubound(current, 2)-1
 
         do j=ystart, ystop
             do i=xstart, xstop
-                neighbours%data(i, j) = &
-                      current%data(i-1, j-1) + current%data(i, j-1) + current%data(i+1, j-1) &
-                    + current%data(i-1, j  )                        + current%data(i+1, j  ) &
-                    + current%data(i-1, j+1) + current%data(i, j+1) + current%data(i+1, j+1)
+                neighbours(i, j) = &
+                      current(i-1, j-1) + current(i, j-1) + current(i+1, j-1) &
+                    + current(i-1, j  )                   + current(i+1, j  ) &
+                    + current(i-1, j+1) + current(i, j+1) + current(i+1, j+1)
             enddo
         enddo
 

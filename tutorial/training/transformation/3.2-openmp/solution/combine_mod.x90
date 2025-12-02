@@ -18,22 +18,20 @@ contains
         USE field_mod, only            : r2d_field
 
         implicit none
-        TYPE(r2d_field), intent(inout) :: current
-        TYPE(r2d_field), intent(in)    :: die, born
+        real(kind=8), dimension(:,:), allocatable, intent(inout) :: current
+        real(kind=8), dimension(:,:), allocatable, intent(in) :: die, born
 
         integer                        :: xstart, xstop, ystart, ystop
         integer                        :: i, j
 
-        xstart = current%internal%xstart
-        xstop  = current%internal%xstop
-        ystart = current%internal%ystart
-        ystop  = current%internal%ystop
+        xstart = lbound(current, 1)+1
+        xstop = ubound(current, 1)-1
+        ystart = lbound(current, 2)+1
+        ystop = ubound(current, 2)-1
 
         do j=ystart, ystop
             do i=xstart, xstop
-                current%data(i, j) = current%data(i, j)  &
-                                   - die%data(i, j)      &
-                                   + born%data(i, j)
+                current(i, j) = current(i, j) - die(i, j) + born(i, j)
             enddo
         enddo
 

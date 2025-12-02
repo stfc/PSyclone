@@ -16,12 +16,11 @@ subroutine read_config(grid, initial, time_steps)
     implicit none
     TYPE(grid_type), intent(out), target &
                                  :: grid
-    TYPE(r2d_field), intent(out) :: initial
+    real(kind=8), dimension(:,:), intent(inout), allocatable :: initial
     integer, intent(out)         :: time_steps
 
     character(len=256)           :: filename
     integer                      :: n_rows, n_cols
-    real(kind=8), dimension(:,:), allocatable :: initial_state
 
     call getarg(1, filename)
 
@@ -55,13 +54,10 @@ subroutine read_config(grid, initial, time_steps)
 
     ! Now we can use the grid to create the field that stores the
     ! initial data.
-    allocate(initial_state(n_rows, n_cols))
-    initial_state = 0.0
+    allocate(initial(1:n_rows+2, 1:n_cols+2))
+    initial = 0.0
 
-    call get_initial_state(initial_state, n_rows, n_cols)
-
-    initial = r2d_field(grid, grid_points = GO_T_POINTS,   &
-                        init_global_data = initial_state)
+    call get_initial_state(initial, n_rows, n_cols)
 
     close(15)
 
@@ -85,7 +81,7 @@ subroutine get_initial_state(initial_state, n_rows, n_cols)
             exit
         endif
         if (x>=1 .and. x<=n_cols .and. y>=1 .and. y<=n_rows) then
-            initial_state(x, y) = 1.0_8
+            initial_state(x+1, y+1) = 1.0_8
         else
             print *,"Ignoring line ",line_count,": ",x, y
         endif
