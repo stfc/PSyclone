@@ -56,7 +56,8 @@ NEMOV4 = os.environ.get('NEMOV4', False)
 
 # This environment variable informs which parallelisation directives to use
 # It supports acc_offloading, omp_offloading and omp_threading
-# They can be combined, e.g PARALLEL_DIRECTIVES='omp_offloading+omp_threading'
+# They can be combined, e.g PARALLEL_DIRECTIVES='omp_offloading+omp_threading',
+# or use none to just apply the serial transformations
 PARALLEL_DIRECTIVES = os.environ.get('PARALLEL_DIRECTIVES', '')
 
 # By default, allow optimisations that may change the results, e.g. reductions,
@@ -84,12 +85,6 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 FILES_TO_SKIP = []
 
 NEMOV5_EXCLUSIONS = [
-    # Fail in gcc NEMOv5 BENCH
-    "dynhpg.f90",
-    "dynspg_ts.f90",
-    "sbcssm.f90",
-    "tramle.f90",
-    "trazdf.f90",
     # Fail in nvfortran when enabling seaice
     "icefrm.f90",  # Has unsupported implicit symbol declaration
     "icerst.f90"

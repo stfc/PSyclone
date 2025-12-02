@@ -107,7 +107,7 @@ jobs:
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-fdefault-real-8 -O2 -fcray-pointer -ffree-line-length-none -g"
+        export FCFLAGS="-fdefault-real-8 -O2 -mno-fma -fno-tree-vectorize -fcray-pointer -ffree-line-length-none -g"
 
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
@@ -204,7 +204,7 @@ jobs:
         export MPIF90=psyclonefc
         export PARALLEL_DIRECTIVES="omp_threading"
         export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
-        export FCFLAGS="-fdefault-real-8 -O2 -fcray-pointer -ffree-line-length-none -g -fopenmp"
+        export FCFLAGS="-fdefault-real-8 -O2 -mno-fma -fno-tree-vectorize -fcray-pointer -ffree-line-length-none -g -fopenmp"
 
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
