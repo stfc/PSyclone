@@ -50,7 +50,8 @@ from psyclone.psyir.nodes import (
     Reference,
     Schedule,
     Assignment,
-    Routine
+    Routine,
+    Call
 )
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
@@ -566,7 +567,7 @@ def test_reference_accesses_bounds(operator, fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     schedule = psyir.walk(Assignment)[0]
 
-    # The access to 'a' should be reported as 'NO_DATA_ACCESS' as its
+    # The access to 'a' should be reported as 'INQUIRY' as its
     # actual data is not accessed.
     vam = schedule.reference_accesses()
     assert str(vam) == "a: INQUIRY, b: READ, n: WRITE"
@@ -998,9 +999,9 @@ def test_get_intrinsic_with_named_arg_kind(fortran_reader):
     x = BESSEL_J0(x)
     end subroutine y"""
     psyir = fortran_reader.psyir_from_source(code)
-    bessel_call = psyir.walk(ArrayReference)[0]
+    bessel_call = psyir.walk(Call)[0]
     intr = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.BESSEL_J0, [bessel_call.indices[0].copy()]
+        IntrinsicCall.Intrinsic.BESSEL_J0, [bessel_call.arguments[0].copy()]
     )
     dtype = _get_intrinsic_with_named_arg_kind(
             intr, ScalarType.Intrinsic.REAL, "x"
@@ -1081,9 +1082,9 @@ def test_findloc_return_type(fortran_reader):
     b = FINDLOC(a, 1)
     end subroutine y"""
     psyir = fortran_reader.psyir_from_source(code)
-    intrs = psyir.walk(ArrayReference)
+    intrs = psyir.walk(Call)
     intr = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.FINDLOC, [x.copy() for x in intrs[0].indices]
+        IntrinsicCall.Intrinsic.FINDLOC, [x.copy() for x in intrs[0].arguments]
     )
     res = _findloc_return_type(intr)
     assert isinstance(res, ArrayType)
@@ -1130,9 +1131,10 @@ def test_iparity_return_type(fortran_reader):
     end subroutine x
     """
     psyir = fortran_reader.psyir_from_source(code)
-    intrinsic = psyir.walk(ArrayReference)[0]
+    intrinsic = psyir.walk(Call)[0]
     intrinsic = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.IPARITY, [x.copy() for x in intrinsic.indices]
+        IntrinsicCall.Intrinsic.IPARITY,
+        [x.copy() for x in intrinsic.arguments]
     )
 
     assert _iparity_return_type(intrinsic) == INTEGER_TYPE
@@ -1140,10 +1142,10 @@ def test_iparity_return_type(fortran_reader):
     # Can't test the other case with fortran reader, so need to
     # create it manually.
     k_sym = psyir.children[0].symbol_table.lookup("k")
-    intrinsic = psyir.walk(ArrayReference)[0]
+    intrinsic = psyir.walk(Call)[0]
     intrinsic = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.IPARITY,
-        [("array", intrinsic.indices[0].copy()), ("dim", Reference(k_sym))],
+        [("array", intrinsic.arguments[0].copy()), ("dim", Reference(k_sym))],
     )
     res = _iparity_return_type(intrinsic)
     assert isinstance(res, ArrayType)
@@ -1262,26 +1264,24 @@ def test_reduce_return_type(fortran_reader):
     integer, dimension(100) :: z
     integer :: y
     y = REDUCE(x, test)
-    z = REDUCE(x, test, dim=2)
-    y = REDUCE(z, test, dim=2)
     end subroutine test
     """
     psyir = fortran_reader.psyir_from_source(code)
 
-    intrinsic = psyir.walk(ArrayReference)[0]
+    intrinsic = psyir.walk(Call)[0]
     intrinsic = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.REDUCE,
-        [intrinsic.indices[0].copy(), intrinsic.indices[1].copy()],
+        [intrinsic.arguments[0].copy(), intrinsic.arguments[1].copy()],
     )
     res = _reduce_return_type(intrinsic)
     assert isinstance(res, ScalarType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
     assert res.precision == 8
 
-    intrinsic = psyir.walk(ArrayReference)[0]
+    intrinsic = psyir.walk(Call)[0]
     intrinsic = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.REDUCE,
-        [intrinsic.indices[0].copy(), intrinsic.indices[1].copy(),
+        [intrinsic.arguments[0].copy(), intrinsic.arguments[1].copy(),
          ("dim", Literal("2", INTEGER_TYPE))],
     )
     res = _reduce_return_type(intrinsic)
@@ -1291,11 +1291,11 @@ def test_reduce_return_type(fortran_reader):
     assert len(res.shape) == 1
     assert res.shape[0] == ArrayType.Extent.DEFERRED
 
-    intrinsic = psyir.walk(ArrayReference)[0]
+    intrinsic = psyir.walk(Call)[0]
     zsym = psyir.walk(Routine)[0].symbol_table.lookup("z")
     intrinsic = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.REDUCE,
-        [Reference(zsym), intrinsic.indices[1].copy(),
+        [Reference(zsym), intrinsic.arguments[1].copy(),
          ("dim", Literal("2", INTEGER_TYPE))],
     )
     res = _reduce_return_type(intrinsic)
@@ -1753,7 +1753,7 @@ def test_specific_return_types_incorrect_parsed(
     """Test the specific return types of IntrisicCalls that aren't recognised
     correctly by fparser."""
     psyir = fortran_reader.psyir_from_source(code)
-    parsed = psyir.walk(ArrayReference)[0]
-    indices = [x.copy() for x in parsed.indices]
+    parsed = psyir.walk(Call)[0]
+    indices = [x.copy() for x in parsed.arguments]
     intr = IntrinsicCall.create(intrinsic, indices)
     assert expected(intr.intrinsic.return_type(intr))

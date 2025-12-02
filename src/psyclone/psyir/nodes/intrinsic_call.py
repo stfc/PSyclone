@@ -4325,44 +4325,26 @@ class IntrinsicCall(Call):
 # Intrinsics available on nvidia gpus with uniform (CPU and GPU) results when
 # compiled with the nvfortran "-gpu=uniform_math" flag
 NVFORTRAN_UNIFORM = (
-    IntrinsicCall.Intrinsic.ABS,
-    IntrinsicCall.Intrinsic.ACOS,
-    IntrinsicCall.Intrinsic.AINT,
-    IntrinsicCall.Intrinsic.ANINT,
-    IntrinsicCall.Intrinsic.ASIN,
-    IntrinsicCall.Intrinsic.ATAN,
-    IntrinsicCall.Intrinsic.ATAN2,
-    IntrinsicCall.Intrinsic.COS,
-    IntrinsicCall.Intrinsic.COSH,
-    IntrinsicCall.Intrinsic.DBLE,
-    IntrinsicCall.Intrinsic.DPROD,
-    IntrinsicCall.Intrinsic.EXP,
-    IntrinsicCall.Intrinsic.IAND,
-    IntrinsicCall.Intrinsic.IEOR,
-    IntrinsicCall.Intrinsic.INT,
-    IntrinsicCall.Intrinsic.IOR,
-    IntrinsicCall.Intrinsic.LOG,
-    IntrinsicCall.Intrinsic.NOT,
-    IntrinsicCall.Intrinsic.MAX,
-    IntrinsicCall.Intrinsic.MIN,
-    IntrinsicCall.Intrinsic.MOD,
-    IntrinsicCall.Intrinsic.NINT,
-    IntrinsicCall.Intrinsic.SIGN,
-    IntrinsicCall.Intrinsic.SIN,
-    IntrinsicCall.Intrinsic.SINH,
-    IntrinsicCall.Intrinsic.SQRT,
-    IntrinsicCall.Intrinsic.TAN,
-    IntrinsicCall.Intrinsic.TANH,
-    IntrinsicCall.Intrinsic.UBOUND,
-    IntrinsicCall.Intrinsic.MERGE,
-    IntrinsicCall.Intrinsic.PRODUCT,
-    IntrinsicCall.Intrinsic.SIZE,
-    IntrinsicCall.Intrinsic.SUM,
-    IntrinsicCall.Intrinsic.LBOUND,
-    IntrinsicCall.Intrinsic.MAXVAL,
-    IntrinsicCall.Intrinsic.MINVAL,
-    IntrinsicCall.Intrinsic.TINY,
-    IntrinsicCall.Intrinsic.HUGE,
+    IntrinsicCall.Intrinsic.ABS,  IntrinsicCall.Intrinsic.ACOS,
+    IntrinsicCall.Intrinsic.AINT, IntrinsicCall.Intrinsic.ANINT,
+    IntrinsicCall.Intrinsic.ASIN, IntrinsicCall.Intrinsic.ATAN,
+    IntrinsicCall.Intrinsic.ATAN2, IntrinsicCall.Intrinsic.COS,
+    IntrinsicCall.Intrinsic.COSH, IntrinsicCall.Intrinsic.DBLE,
+    IntrinsicCall.Intrinsic.DPROD, IntrinsicCall.Intrinsic.EXP,
+    IntrinsicCall.Intrinsic.IAND, IntrinsicCall.Intrinsic.IEOR,
+    IntrinsicCall.Intrinsic.INT, IntrinsicCall.Intrinsic.IOR,
+    IntrinsicCall.Intrinsic.LOG, IntrinsicCall.Intrinsic.NOT,
+    IntrinsicCall.Intrinsic.MAX, IntrinsicCall.Intrinsic.MIN,
+    IntrinsicCall.Intrinsic.MOD, IntrinsicCall.Intrinsic.NINT,
+    IntrinsicCall.Intrinsic.SIGN, IntrinsicCall.Intrinsic.SIN,
+    IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
+    IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH,
+    IntrinsicCall.Intrinsic.UBOUND, IntrinsicCall.Intrinsic.MERGE,
+    IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
+    IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
+    IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.MINVAL,
+    IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE,
+    IntrinsicCall.Intrinsic.CEILING,
 )
 # MATMUL can fail at link time depending on the precision of
 # its arguments.
@@ -4379,9 +4361,9 @@ DEFAULT_DEVICE_INTRINISCS = NVFORTRAN_ALL
 
 # TODO #658 this can be removed once we have support for determining the
 # type of a PSyIR expression.
-# Intrinsics that perform a reduction on an array.
+# Intrinsics that perform operations on an array.
 REDUCTION_INTRINSICS = [
-    IntrinsicCall.Intrinsic.SUM,
-    IntrinsicCall.Intrinsic.MINVAL,
-    IntrinsicCall.Intrinsic.MAXVAL,
+    IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.MINVAL,
+    IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.PACK,
+    IntrinsicCall.Intrinsic.COUNT
 ]

@@ -52,6 +52,8 @@ if not NEMOV4:
         "sbcssm.f90",
         "tramle.f90",
         "trazdf.f90",
+        # These fail with nvfortran
+        "icefrm.f90",  # Has unsupported implicit symbol declaration
     ]
 
 

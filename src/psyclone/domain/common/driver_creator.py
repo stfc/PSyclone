@@ -41,10 +41,11 @@ implementations.
 from abc import abstractmethod
 from typing import Optional
 
+from psyclone.core import Signature
 from psyclone.line_length import FortLineLength
+from psyclone.parse import ModuleManager
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.language_writer import LanguageWriter
-from psyclone.parse import ModuleManager
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Call, ExtractNode, FileContainer, Literal, Node, Reference, Routine,
@@ -155,7 +156,7 @@ class DriverCreator:
     # -------------------------------------------------------------------------
     @staticmethod
     def add_result_tests(program: Routine,
-                         output_symbols: list[tuple[Symbol, Symbol]]):
+                         output_symbols: list[tuple[Symbol, Symbol]]) -> None:
         '''Adds tests to check that all output variables have the expected
         value.
 
@@ -255,9 +256,14 @@ class DriverCreator:
         return (sym, post_sym)
 
     def _create_read_in_code(
-            self, program: Routine, psy_data: DataSymbol,
-            original_symtab: SymbolTable, read_write_info: ReadWriteInfo,
-            postfix: str) -> list[tuple[Symbol, Symbol]]:
+            self,
+            program: Routine,
+            psy_data: DataSymbol,
+            original_symtab: SymbolTable,
+            read_write_info: ReadWriteInfo,
+            postfix: str,
+            vars_to_ignore: list[tuple[str, Signature]],
+            ) -> list[tuple[Symbol, Symbol]]:
         '''This function creates the code that reads in the data file
         produced during extraction. For each:
 
@@ -276,6 +282,10 @@ class DriverCreator:
         :param postfix: a postfix that is added to a variable name to
             create the corresponding variable that stores the output
             value from the kernel data file.
+        :param vars_to_ignore: a list of tuples containing signatures and
+            the container name of variables that were not written to the
+            kernel data file (and as such should not be read in, though
+            they still need to be declared).
 
         :returns: all output variables. Each entry is a 2-tuple containing the
             symbol of the output variable, and the symbol that contains the
@@ -296,15 +306,18 @@ class DriverCreator:
                 sym = orig_sym.copy()
                 sym.interface = AutomaticInterface()
                 symbol_table.add(sym)
-                name_lit = Literal(str(signature), CHARACTER_TYPE)
-                read_stmts.append((name_lit, sym))
+                # Only add the variable if it is not to be ignored
+                if (module_name, signature) not in vars_to_ignore:
+                    name_lit = Literal(str(signature), CHARACTER_TYPE)
+                    read_stmts.append((name_lit, sym))
 
         # Now do the input external variables. These are done after the locals
         # so that they match the literal tags of the extracting psy-layer
         ExtractNode.bring_external_symbols(read_write_info, symbol_table)
         mod_man = ModuleManager.get()
         for module_name, signature in read_write_info.all_used_vars_list:
-            if module_name:
+            # Only add if a variable is not supposed to be ignored
+            if module_name and (module_name, signature) not in vars_to_ignore:
                 mod_info = mod_man.get_module_info(module_name)
                 orig_sym = mod_info.get_symbol(signature[0])
                 tag = f"{signature[0]}@{module_name}"
@@ -319,6 +332,8 @@ class DriverCreator:
         # to a stored _post variable)
         output_symbols = []
         for module_name, signature in read_write_info.write_list:
+            if (module_name, signature) in vars_to_ignore:
+                continue
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
@@ -350,7 +365,7 @@ class DriverCreator:
         return name.replace("-", "")[:63]
 
     @staticmethod
-    def import_modules(program: Routine):
+    def import_modules(program: Routine) -> None:
         '''This function adds all the import statements required for the
         actual kernel calls. It finds all calls in the PSyIR tree and
         checks for calls with a ImportInterface. Any such call will
@@ -529,7 +544,8 @@ class DriverCreator:
                read_write_info: ReadWriteInfo,
                prefix: str,
                postfix: str,
-               region_name: tuple[str, str]) -> FileContainer:
+               region_name: tuple[str, str],
+               vars_to_ignore: list[tuple[str, Signature]]) -> FileContainer:
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
@@ -553,6 +569,10 @@ class DriverCreator:
             use for this PSyData area, provided as a 2-tuple containing a
             location name followed by a local name. The pair of strings
             should uniquely identify a region.
+        :param vars_to_ignore: a list of tuples containing signatures and
+            the container name of variables that were not written to the
+            kernel data file (and as such should not be read in, though
+            they still need to be declared).
 
         :returns: the program PSyIR for a stand-alone driver.
 
@@ -594,7 +614,8 @@ class DriverCreator:
         self.verify_and_cleanup_psyir(extract_region)
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
-                                                   read_write_info, postfix)
+                                                   read_write_info, postfix,
+                                                   vars_to_ignore)
 
         # Copy the nodes that are part of the extraction
         program.children.extend(extract_region.pop_all_children())
@@ -624,6 +645,7 @@ class DriverCreator:
                              prefix: str,
                              postfix: str,
                              region_name: tuple[str, str],
+                             vars_to_ignore: list[tuple[str, Signature]],
                              writer: LanguageWriter = FortranWriter()) -> str:
         # pylint: disable=too-many-arguments, too-many-locals
         '''This function uses the `create()` function to get the PSyIR of a
@@ -650,6 +672,10 @@ class DriverCreator:
             use for this PSyData area, provided as a 2-tuple containing a
             location name followed by a local name. The pair of strings
             should uniquely identify a region.
+        :param vars_to_ignore: a list of tuples containing signatures and
+            the container name of variables that were not written to the
+            kernel data file (and as such should not be read in, though
+            they still need to be declared).
         :param language_writer: a backend visitor to convert PSyIR
             representation to the selected language. It defaults to
             the FortranWriter.
@@ -658,7 +684,7 @@ class DriverCreator:
 
         '''
         file_container = self.create(nodes, read_write_info, prefix,
-                                     postfix, region_name)
+                                     postfix, region_name, vars_to_ignore)
 
         # Inline all required modules into the driver source file so that
         # it is stand-alone.
@@ -689,6 +715,7 @@ class DriverCreator:
                      prefix: str,
                      postfix: str,
                      region_name: tuple[str, str],
+                     vars_to_ignore: list[tuple[str, Signature]],
                      writer: LanguageWriter = FortranWriter()) -> None:
         # pylint: disable=too-many-arguments
         '''This function uses the `get_driver_as_string()` function to get a
@@ -712,6 +739,10 @@ class DriverCreator:
             use for this PSyData area, provided as a 2-tuple containing a
             location name followed by a local name. The pair of strings
             should uniquely identify a region.
+        :param vars_to_ignore: a list of tuples containing signatures and
+            the container name of variables that were not written to the
+            kernel data file (and as such should not be read in, though
+            they still need to be declared).
         :param writer: a backend visitor to convert PSyIR
             representation to the selected language. It defaults to
             the FortranWriter.
@@ -720,7 +751,8 @@ class DriverCreator:
         if self._region_name is not None:
             region_name = self._region_name
         code = self.get_driver_as_string(nodes, read_write_info, prefix,
-                                         postfix, region_name, writer=writer)
+                                         postfix, region_name,
+                                         vars_to_ignore, writer=writer)
         fll = FortLineLength()
         code = fll.process(code)
         module_name, local_name = region_name

@@ -474,8 +474,8 @@ def test_symbolic_math_use_range(fortran_reader, expressions):
     ("(a*b)+c", "a * b + c"),
     ("a*(b+c)", "a * b + a * c"),
     ("a*((b+c)/d)", "a * b / d + a * c / d"),
-    ("a(i)*((b(i,j)+c(j))/d)",
-     "a(i) * b(i,j) / d + a(i) * c(j) / d"),
+    ("a(i)*((b(i, j)+c(j))/d)",
+     "a(i) * b(i, j) / d + a(i) * c(j) / d"),
     # 'a' is unresolved so we don't know from the first occurrence whether or
     # not it is a scalar.
     ("a / a(i)", "a / a(i)"),
@@ -486,7 +486,7 @@ def test_symbolic_math_use_range(fortran_reader, expressions):
      "zh_cum0(jk0) >= zh_cum1(jk1) .AND. zh_cum1(jk1) > zh_cum0(jk0 - 1)"),
     ("zh_cum1(jk1) == zh_cum0(jk0) .AND. zh_cum1(jk1) == zh_cum0(jk0 - 1)",
      "zh_cum0(jk0) == zh_cum1(jk1) .AND. zh_cum1(jk1) == zh_cum0(jk0 - 1)"),
-    ("i == i .and. c(i,i) == 5", "c(i,i) == 5"),
+    ("i == i .and. c(i,i) == 5", "c(i, i) == 5"),
     ])
 def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     '''Test the expand method works as expected.'''
@@ -561,7 +561,7 @@ def test_symbolic_maths_expand_function(fortran_reader, fortran_writer):
     assigns = psyir.walk(Assignment)
     sym_maths.expand(assigns[0].rhs)
     result = fortran_writer(psyir).lower()
-    assert "a(i) * b(i,j) / d +" in result
+    assert "a(i) * b(i, j) / d +" in result
 
 
 def test_symbolic_maths_expand_function_no_arg(fortran_reader, fortran_writer):
@@ -588,7 +588,7 @@ def test_symbolic_maths_expand_function_no_arg(fortran_reader, fortran_writer):
     assigns = psyir.walk(Assignment)
     sym_maths.expand(assigns[0].rhs)
     result = fortran_writer(psyir).lower()
-    assert "x = a() * b(i,j) / d + a() *" in result
+    assert "x = a() * b(i, j) / d + a() *" in result
 
 
 def test_symbolic_maths_array_and_array_index(fortran_reader):

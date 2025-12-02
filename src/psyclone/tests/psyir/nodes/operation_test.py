@@ -540,6 +540,8 @@ def test_binaryoperation_intrinsic_fn_datatype():
     arg2 = Reference(DataSymbol("scalar", INTEGER_SINGLE_TYPE))
     oper = BinaryOperation.Operator.ADD
     binop = BinaryOperation.create(oper, arg1, arg2)
+    print(binop.view())
+    print(binop.datatype)
     assert isinstance(binop.datatype, ScalarType)
     assert binop.datatype == REAL_SINGLE_TYPE
 
