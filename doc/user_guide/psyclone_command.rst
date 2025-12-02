@@ -58,7 +58,8 @@ by the command:
                     [-okern OUTPUT_KERNEL_PATH] [-dm] [-nodm]
                     [--kernel-renaming {multiple,single}]
                     [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--log-file LOG_FILE]
-                    [--keep-comments] [--keep-directives] [-I INCLUDE] [-d DIRECTORY]
+                    [--keep-comments] [--keep-directives] [--keep-conditional-openmp-statements]
+                    [-I INCLUDE] [-d DIRECTORY]
                     [--modman-file-ignore IGNORE_PATTERN] [--free-form | --fixed-form]
                     [--backend-disable-validation] [--backend-disable-indentation]
                     [--backend-add-all-intrinsic-arg-names]
@@ -105,6 +106,9 @@ by the command:
       --keep-comments       keeps comments from the original code (defaults to False). Directives
                             are not kept with this option (use --keep-directives).
       --keep-directives     keeps directives from the original code (defaults to False).
+      --keep-conditional-openmp-statements
+                            keeps conditional OpenMP statements, see
+                            https://www.openmp.org/spec-html/5.0/openmpsu24.html for more details.
       --free-form           forces PSyclone to parse this file as free format (default is to look
                             at the input file extension).
       --fixed-form          forces PSyclone to parse this file as fixed format (default is to
