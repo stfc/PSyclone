@@ -69,6 +69,8 @@ $(OBJ): $(GOL_LIB)
 run-default: $(EXE)
 	./$(EXE) $(GOL_DIR)/config.glider
 
+compile-default: $(EXE)
+
 test-default: $(EXE)
 	make --no-print-directory  run | tail -n 12 | diff -b - $(GOL_DIR)/glider.correct
 

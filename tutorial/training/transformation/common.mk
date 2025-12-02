@@ -27,6 +27,8 @@ default: $(EXE)
 
 .PHONY: run-default allclean-default clean-default test-default
 
+compile-default: $(EXE)
+
 run-default: $(EXE)
 	./$(EXE) $(GOL_DIR)/config.glider
 

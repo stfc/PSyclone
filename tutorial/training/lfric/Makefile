@@ -1,18 +1,22 @@
 
 EXAMPLES=$(sort $(wildcard 4.*))
-clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
 allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
+clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
+compile_EXAMPLES=$(addprefix compile_,$(EXAMPLES))
+run_EXAMPLES=$(addprefix run_,$(EXAMPLES))
+test_EXAMPLES=$(addprefix test_,$(EXAMPLES))
 
-.PHONY: test $(EXAMPLES) $(clean_EXAMPLES) $(allclean_EXAMPLES)
+.PHONY: $(allclean_EXAMPLES) $(clean_EXAMPLES) $(compile_EXAMPLES) \
+        $(run_EXAMPLES) $(test_EXAMPLES)
 
-default: $(EXAMPLES)
+default: $(test_EXAMPLES)
 clean: $(clean_EXAMPLES)
 allclean: $(allclean_EXAMPLES)
 
-test: $(EXAMPLES)
+test: $(test_EXAMPLES)
 
-$(EXAMPLES):
-	$(MAKE) -C $@/solution test
+$(test_EXAMPLES):
+	$(MAKE) -C $(patsubst clean_%,%,$@)/solution test
 
 $(clean_EXAMPLES):
 	$(MAKE) -C $(patsubst clean_%,%,$@) clean

@@ -47,6 +47,8 @@ $(OBJ): $(LFRIC_LIB)
 
 .PHONY: run-default allclean-default clean-default test-default transform
 
+compile-default: $(EXE)
+
 run-default: $(EXE)
 	./$(EXE) $(GOL_DIR)/config.glider
 
