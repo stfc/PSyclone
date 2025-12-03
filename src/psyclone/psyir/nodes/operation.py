@@ -370,7 +370,7 @@ class BinaryOperation(Operation):
         # We can't reason about the precision of the result.
         return ScalarType.Precision.UNDEFINED
 
-    def _get_result_scalar_type(self, argtypes):
+    def get_result_scalar_type(self, argtypes):
         '''
         Examines the two operand types to determine the base type of the
         operation using the rules in Section 7.2 of the Fortran2008 standard.
@@ -482,7 +482,7 @@ class BinaryOperation(Operation):
             argtypes.append(dtype)
 
         # Determine the base (scalar) type of the result.
-        base_type = self._get_result_scalar_type(argtypes)
+        base_type = self.get_result_scalar_type(argtypes)
         if (isinstance(base_type, UnresolvedType) or
                 all(isinstance(atype, ScalarType) for atype in argtypes)):
             # Both operands are of scalar type.
