@@ -254,6 +254,7 @@ class KernCallArgList(ArgOrdering):
         else:
             sym = self._symtab.lookup(scalar_arg.name)
             self.psyir_append(Reference(sym))
+
     # TODO uncomment this method when ensuring we only pass ncell3d once
     # to any given kernel.
     # def mesh_ncell3d(self):
