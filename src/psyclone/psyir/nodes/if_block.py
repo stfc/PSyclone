@@ -207,8 +207,6 @@ class IfBlock(Statement):
         '''
         if self.else_body is None:
             branches = []
-        elif isinstance(self.else_body, IfBlock):
-            branches = self.else_body.flat()
         elif (isinstance(self.else_body, Schedule) and
               len(self.else_body.children) == 1 and
               isinstance(self.else_body.children[0], IfBlock)):
