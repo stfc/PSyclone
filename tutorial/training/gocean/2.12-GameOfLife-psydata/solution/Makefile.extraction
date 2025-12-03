@@ -61,6 +61,7 @@ $(PSY_DATA_LIB): $(INF_LIB)
 clean:
 	rm -f $(OBJ) $(EXE) *.mod time_step_alg_mod.f90 time_step_alg_mod_psy.f90
 	rm -f $(DRIVER_NAME) $(DRIVER_NAME).mod $(DRIVER_NAME).F90
+	rm -f psy_time_step_alg_mod-invoke_compute-r0.nc
 
 allclean:
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
