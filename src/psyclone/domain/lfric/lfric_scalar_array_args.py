@@ -41,7 +41,6 @@ an Invoke or a Kernel stub.
 
 # Imports
 from collections import Counter
-from typing import Union
 
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants, LFRicTypes
