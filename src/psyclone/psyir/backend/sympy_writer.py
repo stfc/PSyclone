@@ -392,7 +392,7 @@ class SymPyWriter(FortranWriter):
                 # Depending on the situation, we won't always
                 # have a scope, hence the try...except.
                 orig_sym = sva[0].node.scope.symbol_table.lookup(sig.var_name)
-            except SymbolError:
+            except (SymbolError, KeyError):
                 # If we can't find it, use the symbol associated to the sva
                 orig_sym = None
                 if isinstance(sva[0].node, Reference):

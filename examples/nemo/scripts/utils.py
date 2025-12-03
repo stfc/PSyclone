@@ -136,7 +136,7 @@ def inline_calls(schedule):
                                 # multiple wildcard imports
                  ]
 
-    including = ["ice_var_vremap", "snw_ent"] #, "ice_perm_eff"] # CDe inlining ice_perm_eff causes symbol error for epsi06
+    including = ["ice_var_vremap", "snw_ent", "ice_perm_eff"]
 
     ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
                          "bdy_dyn3d_zgrad"]
