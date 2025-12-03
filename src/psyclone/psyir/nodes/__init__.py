@@ -46,6 +46,10 @@ from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
 from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.atomic_mixin import (
+    AtomicDirectiveType,
+    AtomicDirectiveMixin,
+)
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.node import colored, Node
@@ -75,7 +79,7 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.structure_member import StructureMember
-from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.call import Call, CallMatchingArgumentsNotFound
 from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.nodes.directive import (
     Directive, StandaloneDirective, RegionDirective)
@@ -111,8 +115,11 @@ __all__ = [
         'ArrayOfStructuresMember',
         'ArrayOfStructuresReference',
         'Assignment',
+        'AtomicDirectiveType',
+        'AtomicDirectiveMixin',
         'BinaryOperation',
         'Call',
+        'CallMatchingArgumentsNotFound',
         'Clause',
         'CodeBlock',
         'Container',

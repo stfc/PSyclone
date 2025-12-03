@@ -43,12 +43,15 @@ import pytest
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Assignment, Literal, Node
+from psyclone.psyir.nodes import (
+        Assignment, Literal, Node, IntrinsicCall, Reference, Call
+)
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
-                                    INTEGER_TYPE)
+                                    INTEGER_TYPE, SymbolTable)
 
 
 def test_sym_writer_constructor():
@@ -196,7 +199,7 @@ def test_sym_writer_functions(fortran_reader, expressions):
                           ("c + c(1)", {'c': Function('c')}),
                           ("a%b + a%b(1)", {'a_b': Function('a_b')}),
                           # iptr will be of UnknownFortranType
-                          ("LBOUND(iptr)", {'iptr': Function('iptr')})
+                          ("LBOUND(iptr)", {'iptr': Function('iptr')}),
                           ])
 def test_sympy_writer_create_type_map(expr, sym_map, fortran_reader):
     '''Tests that the static create_type_map creates a dictionary
@@ -256,7 +259,7 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize(
-    "expr, positive, sym_map",
+    "expr, positive, expected_sym_map",
     [("a%x", False, {"a_x": Symbol("a%x")}),
      ("a%x", True, {"a_x": Symbol("a%x", **{"positive": True})}),
      ("a%x(i)", False, {"a_x": Function("a_x"), "i": Symbol("i")}),
@@ -269,11 +272,15 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
                             "b_c": Function("b_c"),
                             "i": Symbol("i", **{"positive": True})}),
      ])
-def test_sym_writer_symbol_types(fortran_reader, expr, positive, sym_map):
+def test_sym_writer_symbol_types(fortran_reader: FortranReader,
+                                 expr: str,
+                                 positive: bool,
+                                 expected_sym_map: dict[str, Symbol]):
     '''Tests that arrays are detected as SymPy functions, and scalars
     as SymPy symbols. The 'expr' parameter contains the expression to parse,
     'positive' is whether or not to flag symbols as positive definite and
-    'sym_map' is the expected mapping of names to SymPy functions or symbols.
+    'expected_sym_map' is the expected mapping of names to SymPy functions
+    or symbols.
 
     '''
     # A dummy program to easily create the PSyIR for the
@@ -286,12 +293,12 @@ def test_sym_writer_symbol_types(fortran_reader, expr, positive, sym_map):
                 end program test_prog '''
 
     psyir = fortran_reader.psyir_from_source(source)
-    expr = psyir.children[0].children[0].rhs
+    expr_psyir = psyir.children[0].children[0].rhs
     sympy_writer = SymPyWriter()
-    _ = sympy_writer(expr, all_variables_positive=positive)
-    assert len(sympy_writer.type_map) == len(sym_map)
-    for key in sympy_writer.type_map.keys():
-        assert sympy_writer.type_map[key] == sym_map[key]
+    _ = sympy_writer(expr_psyir, all_variables_positive=positive)
+    assert len(sympy_writer.type_map) == len(expected_sym_map)
+    for key, sym_map in sympy_writer.type_map.items():
+        assert sym_map == expected_sym_map[key]
 
 
 @pytest.mark.parametrize("expr, sym_map",
@@ -323,6 +330,33 @@ def test_sympy_writer_type_map(expr, sym_map, fortran_reader):
     expr.detach()
     _ = writer([expr])
     assert writer._sympy_type_map.keys() == sym_map.keys()
+
+
+def test_sympy_writer_type_map_non_canonical(fortran_reader):
+    ''' Test we get an error when the intrinsic can't have argument names
+    computed.'''
+    source = """program test_prog
+    use my_mod
+    integer :: i, j, k
+    end program test_prog"""
+    psyir = fortran_reader.psyir_from_source(source)
+    # Create an ambigious intrinsic.
+    routine = psyir.children[0]
+    ref_i = Reference(routine.symbol_table.lookup("i"))
+    ref_j = Reference(routine.symbol_table.lookup("j"))
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
+    intrinsic.addchild(ref_i)
+    intrinsic.addchild(ref_j)
+    assign = Assignment.create(ref_i.copy(), intrinsic)
+    routine.addchild(assign)
+
+    writer = SymPyWriter()
+    with pytest.raises(VisitorError) as err:
+        _ = writer([assign.rhs])
+    assert ("Sympy handler can't handle an IntrinsicCall that can't have "
+            "argument names automatically added. Use explicit argument names "
+            "instead. Failing node was 'SUM(i, j)'."
+            in str(err.value))
 
 
 def test_sym_writer_parse_expr(fortran_reader):
@@ -517,14 +551,13 @@ def test_sympy_writer_user_types(fortran_reader, fortran_writer,
                           ("a .or. b", "Or(a, b)"),
                           ("a .eqv. b", "Equivalent(a, b)"),
                           ("a .neqv. b", "Xor(a, b)"),
+                          ("a == b", "Eq(a, b)"),
                           ])
-def test_sympy_writer_logicals(fortran_reader, fortran_writer,
-                               fortran_expr, sympy_str):
-    '''Test handling of user-defined types, e.g. conversion of
-    ``a(i)%b(j)`` to ``a_b(i,i,1,j,j,1)``. Each Fortran expression
-    ``fortran_expr`` is first converted to a string ``sympy_str`` to be
-    parsed by SymPy. The sympy expression is then converted back to PSyIR.
-    This string must be the same as the original ``fortran_expr``.
+def test_sympy_writer_logicals(fortran_reader: FortranReader,
+                               fortran_expr: str,
+                               sympy_str: str):
+    '''Test writing of logical expressions, i.e. that the Fortran
+    logical expressions are correctly converted to SymPy expressions.
 
     '''
     source = f'''program test_prog
@@ -638,3 +671,30 @@ def test_sym_writer_identical_variables_errors():
         sympy_writer(Node(), identical_variables={"var": 1})
     assert ("Dictionary identical_variables contains a non-string key or "
             "value" in str(err.value))
+
+
+def test_sym_writer_intrinsiccall_node(fortran_reader):
+    '''Handle edge cases for intrinsiccall node, i.e. when we have an
+    IntrinsicCall input that requires an explicit 'call' (e.g. MVBITS).
+    '''
+    code = """subroutine test
+        integer :: b
+        call randomcall(b, b, b, b, b)
+    end subroutine test"""
+    # Can't create MVBITS intrinsic directly yet - create
+    # a call then replace it.
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    args = []
+    for arg in call.arguments[:]:
+        args.append(arg.detach())
+    intrinsic = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MVBITS,
+        args
+    )
+    call.replace_with(intrinsic)
+    sympy_writer = SymPyWriter()
+    # Add an arbitrary symbol table to avoid things breaking.
+    sympy_writer._symbol_table = SymbolTable()
+    res = sympy_writer.intrinsiccall_node(psyir.walk(IntrinsicCall)[0])
+    assert "call MVBITS(b, b, b, b, b)\n" == res

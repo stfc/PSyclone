@@ -52,7 +52,7 @@ import sys
 import traceback
 import importlib
 import shutil
-from typing import Union, Callable, List, Tuple
+from typing import Union, Callable, List, Tuple, Iterable
 import logging
 
 from fparser.api import get_reader
@@ -103,6 +103,14 @@ LOG_LEVELS = {"OFF": sys.maxsize,
               logging.getLevelName(logging.WARNING): logging.WARNING,
               logging.getLevelName(logging.ERROR): logging.ERROR,
               logging.getLevelName(logging.CRITICAL): logging.CRITICAL}
+
+# Default free format file extensions. We've chosen to follow the gfortran
+# specification, with some extensions as requested.
+FREE_FORM = (".f90", ".f95", ".f03", ".f08", ".F90", ".F95", ".F03", ".F08",
+             ".x90", ".xu90")
+# Default fixed format file extensions. We've chosen to follow the gfortran
+# specification.
+FIXED_FORM = (".f", ".for", ".fpp", ".ftn", ".F", ".FOR", ".FPP", ".FTN")
 
 
 def load_script(
@@ -156,6 +164,12 @@ def load_script(
 
     if hasattr(recipe_module, "RESOLVE_IMPORTS"):
         imports_to_resolve = recipe_module.RESOLVE_IMPORTS
+        # If the imports_to_resolve has the list of explicit filenames, respect
+        # these while resolving the imports.
+        # TODO #1540: We still don't transfer the imports_to_resolve=True to
+        # the ModuleManager for performance reasons (but we could).
+        if isinstance(imports_to_resolve, Iterable):
+            ModuleManager.get().resolve_indirect_imports = imports_to_resolve
     else:
         imports_to_resolve = []
 
@@ -178,7 +192,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
              kern_out_path="",
              kern_naming="multiple",
              keep_comments: bool = False,
-             keep_directives: bool = False):
+             keep_directives: bool = False,
+             keep_conditional_openmp_statements: bool = False,
+             free_form: bool = True):
     # pylint: disable=too-many-arguments, too-many-statements
     # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
@@ -214,7 +230,10 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         Tuple[:py:class:`fparser.one.block_statements.BeginSource`, str]
     :param keep_comments: whether to keep comments from the original source.
     :param keep_directives: whether to keep directives from the original
-                            source.
+        source.
+    :param keep_conditional_openmp_statements: whether to keep OpenMP
+        conditional compilation statements.
+    :param free_form: whether the original source is free form Fortran.
 
     :raises GenerationError: if an invalid API is specified.
     :raises GenerationError: if an invalid kernel-renaming scheme is specified.
@@ -282,8 +301,11 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
         # Create language-level PSyIR from the Algorithm file
-        reader = FortranReader(ignore_comments=not keep_comments,
-                               ignore_directives=not keep_directives)
+        reader = FortranReader(
+            ignore_comments=not keep_comments,
+            ignore_directives=not keep_directives,
+            conditional_openmp_statements=keep_conditional_openmp_statements,
+            free_form=free_form)
         if api in LFRIC_API_NAMES:
             # avoid undeclared builtin errors in PSyIR by adding a
             # wildcard use statement.
@@ -461,9 +483,6 @@ def main(arguments):
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation recipe')
     parser.add_argument(
-        '-I', '--include', default=[], action="append",
-        help='path to Fortran INCLUDE or module files')
-    parser.add_argument(
         '--enable-cache', action="store_true", default=False,
         help='whether to enable caching of imported module dependencies (if '
              'enabled, it will generate a .psycache file of each imported '
@@ -479,12 +498,6 @@ def main(arguments):
     parser.add_argument(
         '-p', '--profile', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="add profiling hooks for 'kernels', 'invokes' or 'routines'")
-    parser.add_argument(
-        '--backend', dest='backend',
-        choices=['enable-validation', 'disable-validation'],
-        help=("options to control the PSyIR backend used for code generation. "
-              "Use 'disable-validation' to disable the validation checks that "
-              "are performed by default."))
 
     # Code-transformation mode flags
     parser.add_argument('-o', metavar='OUTPUT_FILE',
@@ -504,10 +517,6 @@ def main(arguments):
                         help='(psykal mode) directory in which to put '
                         'transformed kernels, default is the current working'
                         ' directory')
-    parser.add_argument(
-        '-d', '--directory', default=[], action="append", help='(psykal mode) '
-        'path to a root directory structure containing kernel source code. '
-        'Multiple roots can be specified by using multiple -d arguments.')
     parser.add_argument(
         '-dm', '--dist_mem', dest='dist_mem', action='store_true',
         help='(psykal mode) generate distributed memory code')
@@ -539,6 +548,67 @@ def main(arguments):
         "--keep-directives", default=False, action="store_true",
         help="keeps directives from the original code (defaults to False)."
     )
+    parser.add_argument(
+        "--keep-conditional-openmp-statements", default=False,
+        action="store_true",
+        help="keeps conditional OpenMP statements, see "
+             "https://www.openmp.org/spec-html/5.0/openmpsu24.html for more "
+             "details."
+    )
+    group = parser.add_argument_group("Directory management")
+    group.add_argument(
+        '-I', '--include', default=[], action="append",
+        help='path to Fortran INCLUDE or module files'
+    )
+    group.add_argument(
+        '-d', '--directory', default=[], action="append",
+        help='(psykal mode) path to a root directory structure containing '
+             'kernel source code. Multiple roots can be specified by using '
+             'multiple -d arguments. These directories will be searched'
+             'recursively.'
+    )
+    group.add_argument(
+        '--modman-file-ignore', default=[], action="append",
+        metavar='IGNORE_PATTERN',
+        help='Ignore files that contain the specified pattern.'
+    )
+
+    fortran_format_group = parser.add_mutually_exclusive_group()
+    fortran_format_group.add_argument(
+        "--free-form", default=argparse.SUPPRESS, action="store_true",
+        help="forces PSyclone to parse this file as free format "
+             "(default is to look at the input file extension)."
+    )
+    fortran_format_group.add_argument(
+        "--fixed-form", default=argparse.SUPPRESS, action="store_true",
+        help="forces PSyclone to parse this file as fixed format "
+             "(default is to look at the input file extension)."
+    )
+
+    backend_group = parser.add_argument_group(
+            "Fortran backend control options.",
+            "These settings control how PSyclone outputs Fortran. "
+    )
+    backend_group.add_argument(
+        "--backend-disable-validation", default=argparse.SUPPRESS,
+        action="store_true",
+        help=("Disables validation checks that PSyclone backends perform by "
+              "default.")
+    )
+    backend_group.add_argument(
+        "--backend-disable-indentation", default=argparse.SUPPRESS,
+        action="store_true",
+        help="Disables all indentation in the generated output code."
+    )
+    backend_group.add_argument(
+        "--backend-add-all-intrinsic-arg-names",
+        default=argparse.SUPPRESS,
+        action="store_true",
+        help="By default, the backend outputs the names of only optional "
+             "arguments to intrinsic calls. This option enables all argument "
+             "names on intrinsic calls, i.e. SUM(array=arr, mask=maskarr) "
+             "instead of SUM(arr, mask=maskarr)."
+    )
 
     args = parser.parse_args(arguments)
 
@@ -567,9 +637,11 @@ def main(arguments):
                   "specify the output destination of each psykal layer.")
             sys.exit(1)
 
-    # This has to be before the Config.get, because otherwise that creates a
-    # ModuleManager Singleton without caching
-    _ = ModuleManager.get(cache_active=args.enable_cache)
+    # Set ModuleManager properties from flags
+    mod_manager = ModuleManager.get()
+    mod_manager.cache_active = args.enable_cache
+    for pattern in args.modman_file_ignore:
+        mod_manager.add_ignore_file(pattern)
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
@@ -589,6 +661,18 @@ def main(arguments):
         api = args.psykal_dsl
     Config.get().api = api
 
+    # Record any intrinsic output format settings.
+    if "backend_add_all_intrinsic_arg_names" in args:
+        # Tells the backend to attempt to add names to required
+        # arguments to Fortran intrinsics.
+        Config.get().backend_intrinsic_named_kwargs = True
+    # A command-line flag overrides the setting in the Config file (if
+    # any).
+    if "backend_disable_validation" in args:
+        Config.get().backend_checks_enabled = False
+    if "backend_disable_indentation" in args:
+        Config.get().backend_indentation_disabled = True
+
     # Record any profiling options.
     if args.profile:
         try:
@@ -596,11 +680,6 @@ def main(arguments):
         except ValueError as err:
             print(f"Invalid profiling option: {err}", file=sys.stderr)
             sys.exit(1)
-    if args.backend:
-        # A command-line flag overrides the setting in the Config file (if
-        # any).
-        Config.get().backend_checks_enabled = (
-            str(args.backend) == "enable-validation")
 
     # The Configuration manager checks that the supplied path(s) is/are
     # valid so protect with a try
@@ -620,13 +699,35 @@ def main(arguments):
                        "PSyclone enabled keep_comments.")
         args.keep_comments = True
 
+    # If free_form or fixed_form is set in the arguments then it overrides
+    # default behaviour.
+    if "free_form" in args:
+        free_form = True
+    elif "fixed_form" in args:
+        free_form = False
+    else:
+        fname = args.filename
+        if fname.endswith(FIXED_FORM):
+            free_form = False
+        else:
+            free_form = True
+            if not fname.endswith(FREE_FORM):
+                logger.info(
+                    f"Filename '{fname}' doesn't end with a recognised file "
+                    f"extension. Assuming free form."
+                )
+
     if not args.psykal_dsl:
-        code_transformation_mode(input_file=args.filename,
-                                 recipe_file=args.script,
-                                 output_file=args.o,
-                                 keep_comments=args.keep_comments,
-                                 keep_directives=args.keep_directives,
-                                 line_length=args.limit)
+        code_transformation_mode(
+            input_file=args.filename,
+            recipe_file=args.script,
+            output_file=args.o,
+            keep_comments=args.keep_comments,
+            keep_directives=args.keep_directives,
+            keep_conditional_openmp_statements=args.
+            keep_conditional_openmp_statements,
+            line_length=args.limit,
+            free_form=free_form)
     else:
         # PSyKAl-DSL mode
 
@@ -647,15 +748,19 @@ def main(arguments):
             kern_out_path = os.getcwd()
 
         try:
-            alg, psy = generate(args.filename, api=api,
-                                kernel_paths=args.directory,
-                                script_name=args.script,
-                                line_length=(args.limit == 'all'),
-                                distributed_memory=args.dist_mem,
-                                kern_out_path=kern_out_path,
-                                kern_naming=args.kernel_renaming,
-                                keep_comments=args.keep_comments,
-                                keep_directives=args.keep_directives)
+            alg, psy = generate(
+                args.filename, api=api,
+                kernel_paths=args.directory,
+                script_name=args.script,
+                line_length=(args.limit == 'all'),
+                distributed_memory=args.dist_mem,
+                kern_out_path=kern_out_path,
+                kern_naming=args.kernel_renaming,
+                keep_comments=args.keep_comments,
+                keep_directives=args.keep_directives,
+                keep_conditional_openmp_statements=args.
+                keep_conditional_openmp_statements,
+                free_form=free_form)
         except NoInvokesError:
             _, exc_value, _ = sys.exc_info()
             print(f"Warning: {exc_value}")
@@ -766,7 +871,8 @@ def add_builtins_use(fp2_tree, name):
 
 def code_transformation_mode(input_file, recipe_file, output_file,
                              keep_comments: bool, keep_directives: bool,
-                             line_length="off"):
+                             keep_conditional_openmp_statements: bool,
+                             free_form: bool = True, line_length="off"):
     ''' Process the input_file with the recipe_file instructions and
     store it in the output_file.
 
@@ -782,9 +888,13 @@ def code_transformation_mode(input_file, recipe_file, output_file,
     :type output_file: Optional[str | os.PathLike]
     :param keep_comments: whether to keep comments from the original source.
     :param keep_directives: whether to keep directives from the original
-                            source.
+        source.
+    :param keep_conditional_openmp_statements: whether to keep OpenMP
+        conditional compilation statements.
     :param str line_length: set to "output" to break the output into lines
         of 123 chars, and to "all", to additionally check the input code.
+    :param free_form: whether the original source is free form Fortran or
+                      not.
 
     '''
     logger = logging.getLogger(__name__)
@@ -810,14 +920,20 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                     sys.exit(1)
 
         # Parse file
-        reader = FortranReader(resolve_modules=resolve_mods,
-                               ignore_comments=not keep_comments,
-                               ignore_directives=not keep_directives)
+        reader = FortranReader(
+            resolve_modules=resolve_mods,
+            ignore_comments=not keep_comments,
+            ignore_directives=not keep_directives,
+            conditional_openmp_statements=keep_conditional_openmp_statements,
+            free_form=free_form
+        )
         try:
             psyir = reader.psyir_from_file(input_file)
         except (InternalError, ValueError, IOError) as err:
+            form = "free form" if free_form else "fixed form"
             print(f"Failed to create PSyIR from file '{input_file}' due "
-                  f"to:\n{str(err)}", file=sys.stderr)
+                  f"to:\n{str(err)}. File was treated as {form}.",
+                  file=sys.stderr)
             logger.error(err, exc_info=True)
             sys.exit(1)
 
@@ -832,7 +948,10 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         # Generate Fortran (We can disable the backend copy because at this
         # point we also drop the PSyIR and we don't need to guarantee that
         # is left unmodified)
-        output = FortranWriter(disable_copy=True)(psyir)
+        writer = FortranWriter(
+            check_global_constraints=Config.get().backend_checks_enabled,
+            disable_copy=True)
+        output = writer(psyir)
         # Fix line_length if requested
         if line_length in ("output", "all"):
             output = fll.process(output)

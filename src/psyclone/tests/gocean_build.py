@@ -38,10 +38,14 @@
 for the GOcean1.0 API '''
 
 import os
+from pathlib import Path
 import subprocess
 import sys
+from typing import Optional
 
-from psyclone.tests.utilities import change_dir, Compile, CompileError
+from psyclone.psyGen import PSy
+from psyclone.tests.utilities import (change_dir, Compile, CompileError,
+                                      get_base_path, get_infrastructure_path)
 
 
 class GOceanBuild(Compile):
@@ -57,7 +61,7 @@ class GOceanBuild(Compile):
     '''
     # A class variable to make sure we compile the infrastructure
     # file only once per process.
-    _infrastructure_built = False
+    _infrastructure_built: bool = False
 
     # The temporary path in which the compiled infrastructure files
     # (.o and .mod) are stored for this process.
@@ -67,12 +71,15 @@ class GOceanBuild(Compile):
     # allows testing to modify this to trigger exceptions.
     _make_command = "make"
 
-    def __init__(self, tmpdir=None):
+    # The path to the infrastructure source files.
+    _infrastructure_path: Path
+
+    def __init__(self, tmpdir=None) -> None:
         super().__init__(tmpdir)
 
-        base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "gocean1p0")
-        self.base_path = base_path
+        self.base_path = get_base_path("gocean")
+        GOceanBuild._infrastructure_path = \
+            Path(get_infrastructure_path("gocean"))
 
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.
@@ -80,18 +87,28 @@ class GOceanBuild(Compile):
                 not GOceanBuild._infrastructure_built:
             self._build_infrastructure()
 
-    def get_infrastructure_flags(self):
+    def get_infrastructure_flags(self) -> list[str]:
         '''Returns the required flag to use the infrastructure library
         dl_esm_inf for gocean1p0. Each parameter must be a separate entry
         in the list, e.g.: ["-I", "/some/path"] and not ["-I /some/path"].
 
         :returns: a list of strings with the compiler flags required.
-        :rtype: list
 
         '''
-        return ["-I", self._compilation_path]
+        if Compile.TEST_COMPILE:
+            # If we are compiling, point to the compilation path, which
+            # contain the compiled mod files.
+            root = GOceanBuild._compilation_path
+        else:
+            # If we are not compiling, point to the external infrastructure
+            # directory, which allows tests (that uses the flags) to pass
+            # even when compilation is disabled (and it will pick up if
+            # the infrastructure should change as well).
+            root = str(self._infrastructure_path)
 
-    def _build_infrastructure(self):
+        return ["-I", str(root)]
+
+    def _build_infrastructure(self) -> None:
         '''Compiles dl_esm_inf.
         :raises CompileError: If the compilation of dl_esm_inf fails.
         '''
@@ -152,7 +169,8 @@ class GOceanOpenCLBuild(GOceanBuild):
     only compile OpenCL code.
     '''
 
-    def code_compiles(self, psy_ast, dependencies=None):
+    def code_compiles(self, psy_ast: PSy,
+                      dependencies: Optional[list[str]] = None) -> bool:
         '''
         Use the given GOcean PSy class to generate the necessary PSyKAl
         components to compile the OpenCL version of the psy-layer. Returns True
@@ -161,16 +179,13 @@ class GOceanOpenCLBuild(GOceanBuild):
         produced are deleted.
 
         :param psy_ast: the AST of the generated PSy layer.
-        :type psy_ast: instance of :py:class:`psyclone.psyGen.PSy`
 
         :param dependencies: optional module- or file-names on which one or
             more of the kernels/PSy-layer depend (and that are not part of the
             GOcean infrastructure, dl_esm_inf).  These dependencies will be
             built in the order they occur in this list.
-        :type dependencies: list of str or NoneType
 
         :return: True if generated code compiles, False otherwise.
-        :rtype: bool
 
         '''
         if not Compile.TEST_COMPILE_OPENCL:

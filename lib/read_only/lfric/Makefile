@@ -49,10 +49,10 @@
 # Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?=
-# Path to the LFRic infrastructure library. It defaults to the pared-down
+# Path to the LFRic infrastructure library. It defaults to the included
 # version of the LFRic infrastructure distributed with PSyclone.
 # Overwrite for a different infrastructure version.
-LFRIC_INF_DIR ?= ./../../../src/psyclone/tests/test_files/lfric/infrastructure
+LFRIC_PATH ?= ./../../../external/lfric_infrastructure/src
 # Paths to the PSyclone wrapper libraries and required templates. They default
 # to the relative paths to the top-level 'lib' and 'lib/read_only'
 # directories. Overwrite for a custom location.
@@ -60,11 +60,13 @@ PSYDATA_LIB_DIR ?= ./../..
 LIB_TMPLT_DIR ?= ./..
 # -----------------------------------------------------------------------------
 
-INF_INC = $(LFRIC_INF_DIR)
 INF_LIB_NAME = lfric
-INF_LIB = $(LFRIC_INF_DIR)/lib$(INF_LIB_NAME).a
+INF_LIB = $(LFRIC_PATH)/lib$(INF_LIB_NAME).a
 
-F90FLAGS += -I$(INF_INC)/field
+include $(LFRIC_PATH)/lfric_include_flags.mk
+
+F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
+
 PSYDATA_LIB_NAME = _read_only
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
@@ -113,10 +115,10 @@ read_only_base.f90: $(LIB_TMPLT_DIR)/read_only_base.jinja Makefile
 
 # Create LFRic infrastructure library
 $(INF_LIB):
-	$(MAKE) -C $(LFRIC_INF_DIR)
+	$(MAKE) -C $(LFRIC_PATH)
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.* read_only_base.*
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.* read_only.f90 read_only_base.*
 
 allclean: clean
-	$(MAKE) -C $(LFRIC_INF_DIR) allclean
+	$(MAKE) -C $(LFRIC_PATH) allclean

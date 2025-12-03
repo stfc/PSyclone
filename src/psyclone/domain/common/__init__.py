@@ -35,8 +35,6 @@
 
 '''A package module for domain/common.'''
 
-from psyclone.domain.common.base_driver_creator import BaseDriverCreator
-from psyclone.domain.common.extract_driver_creator import ExtractDriverCreator
+from psyclone.domain.common.driver_creator import DriverCreator
 
-__all__ = ["BaseDriverCreator",
-           "ExtractDriverCreator"]
+__all__ = ["DriverCreator"]

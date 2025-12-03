@@ -45,12 +45,13 @@
 # pylint: disable=too-many-lines
 import abc
 
+from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
     FieldVectorArgMetadata)
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
@@ -126,17 +127,19 @@ class LFRicBuiltInCallFactory():
         builtin = BUILTIN_MAP[call.func_name]()
 
         # Create the loop over the appropriate entity.
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import LFRicLoop
 
-        if call.ktype.iterates_over == "dof":
+        if (call.ktype.iterates_over in
+                LFRicConstants().DOF_ITERATION_SPACES):
             loop_type = "dof"
         else:
             raise InternalError(
-                f"An LFRic built-in must iterate over DoFs but kernel "
+                f"An LFRic built-in must iterate over one of "
+                f"{LFRicConstants().DOF_ITERATION_SPACES} but kernel "
                 f"'{call.func_name}' iterates over "
                 f"'{call.ktype.iterates_over}'")
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric import LFRicLoop
         dofloop = LFRicLoop(parent=parent, loop_type=loop_type)
 
         # Use the call object (created by the parser) to set-up the state
@@ -281,25 +284,27 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         Check that this built-in conforms to the LFRic API.
 
         :raises ParseError: if a built-in call does not iterate over DoFs.
-        :raises ParseError: if an argument to a built-in kernel is not \
+        :raises ParseError: if an argument to a built-in kernel is not
                             one of valid argument types.
-        :raises ParseError: if an argument to a built-in kernel has \
+        :raises ParseError: if an argument to a built-in kernel has
                             an invalid data type.
-        :raises ParseError: if a built-in kernel writes to more than \
+        :raises ParseError: if a built-in kernel writes to more than
                             one argument.
-        :raises ParseError: if a built-in kernel does not have at least \
+        :raises ParseError: if a built-in kernel does not have at least
                             one field argument.
         :raises ParseError: if all field arguments are not on the same space.
-        :raises ParseError: if all field arguments of a non-conversion \
+        :raises ParseError: if all field arguments of a non-conversion
                             built-in do not have the same data type.
+        :raises GenerationError: if this kernel does not support redundant
+            computation and COMPUTE_ANNEXED_DOFS is True.
 
         '''
         const = LFRicConstants()
         # Check that our assumption that we're looping over DoFs is valid
-        if self.iterates_over not in const.BUILTIN_ITERATION_SPACES:
+        if self.iterates_over not in const.DOF_ITERATION_SPACES:
             raise ParseError(
                 f"In the LFRic API built-in calls must operate on one of "
-                f"{const.BUILTIN_ITERATION_SPACES} but found "
+                f"{const.DOF_ITERATION_SPACES} but found "
                 f"'{self.iterates_over}' for {self}.")
         # Check write count, field arguments and spaces
         write_count = 0  # Only one argument must be written to
@@ -359,6 +364,14 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 f"{conversion_builtins} are allowed to have field arguments of"
                 f" different data types. However, found different data types "
                 f"{data_types_str} for field arguments to '{self.name}'.")
+
+        api_config = Config.get().api_conf("lfric")
+        if (api_config.compute_annexed_dofs and
+                self.iterates_over in const.NO_RC_ITERATION_SPACES):
+            raise GenerationError(
+                f"Built-in '{self.name}' cannot perform redundant computation "
+                f"(has OPERATES_ON={self.iterates_over}) but the 'COMPUTE_"
+                f"ANNEXED_DOFS' configuration option is set to True.")
 
     @property
     def halo_depth(self):
@@ -2736,13 +2749,10 @@ class LFRicRealToIntXKern(LFRicBuiltIn):
         datatype = arg_refs[0].symbol.datatype
         if isinstance(datatype, UnsupportedFortranType):
             datatype = datatype.partial_datatype
-        precision = datatype.precision
-        if isinstance(precision, Reference):
-            precision = precision.symbol
 
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.INT,
-            [arg_refs[1], ("kind", Reference(precision))])
+            [arg_refs[1], ("kind", datatype.precision.copy())])
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)
@@ -2797,13 +2807,10 @@ class LFRicRealToRealXKern(LFRicBuiltIn):
         datatype = arg_refs[0].symbol.datatype
         if isinstance(datatype, UnsupportedFortranType):
             datatype = datatype.partial_datatype
-        precision = datatype.precision
-        if isinstance(precision, Reference):
-            precision = precision.symbol
 
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,
-            [arg_refs[1], ("kind", Reference(precision))])
+            [arg_refs[1], ("kind", datatype.precision.copy())])
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)
@@ -3143,10 +3150,9 @@ class LFRicIntToRealXKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         # proxy0%data(df) = REAL(proxy1%data, kind=r_<prec>)
         lhs = arg_refs[0]
-        r_precision = arg_refs[0].datatype.precision.symbol
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,
-            [arg_refs[1], ("kind", Reference(r_precision))])
+            [arg_refs[1], ("kind", arg_refs[0].datatype.precision.copy())])
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)

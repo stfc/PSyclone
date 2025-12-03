@@ -41,8 +41,10 @@ from psyclone.domain.common.transformations import RaisePSyIR2AlgTrans
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Call, Routine, Container
 from psyclone.psyir.transformations import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class AlgTrans(Transformation):
     '''Transform a generic PSyIR representation of the Algorithm layer to
     a PSyclone version with specialised domain-specific nodes.
@@ -51,7 +53,7 @@ class AlgTrans(Transformation):
     def __init__(self):
         self._invoke_trans = RaisePSyIR2AlgTrans()
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''Validate the supplied PSyIR tree.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
@@ -66,6 +68,9 @@ class AlgTrans(Transformation):
             a parent.
 
         '''
+        if not options:
+            self.validate_options(**kwargs)
+
         if not isinstance(node, (Routine, Container)):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied call "
@@ -77,7 +82,7 @@ class AlgTrans(Transformation):
                 f"should be the root of a PSyIR tree but this node has a "
                 f"parent.")
 
-    def apply(self, psyir, options=None):
+    def apply(self, node, options=None, **kwargs):
         ''' Apply transformation to the supplied PSyIR node.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
@@ -87,11 +92,11 @@ class AlgTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(psyir, options=options)
+        self.validate(node, options=options, **kwargs)
         idx = 0
-        for call in psyir.walk(Call):
+        for call in node.walk(Call, stop_type=Call):
             if call.routine.name.lower() == "invoke":
-                self._invoke_trans.apply(call, idx, options=options)
+                self._invoke_trans.apply(call, idx, options=options, **kwargs)
                 idx += 1
 
 

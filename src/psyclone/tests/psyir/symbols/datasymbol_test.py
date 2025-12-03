@@ -43,7 +43,6 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
-from psyclone.core import Signature
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, Symbol, DataTypeSymbol, AutomaticInterface,
     ImportInterface, ArgumentInterface, StaticInterface, UnresolvedInterface,
@@ -482,18 +481,23 @@ def test_datasymbol_copy_properties():
     new_symbol = DataSymbol("other_name", INTEGER_SINGLE_TYPE,
                             initial_value=7)
 
-    symbol.copy_properties(new_symbol)
+    # Copy properties excluding the interface.
+    symbol.copy_properties(new_symbol, exclude_interface=True)
 
     assert symbol.name == "myname"
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
-    assert symbol.is_automatic
+    # Interface should be unchanged.
+    assert not symbol.is_automatic
     assert isinstance(symbol.initial_value, Literal)
     assert symbol.initial_value.value == "7"
     assert (symbol.initial_value.datatype.intrinsic ==
             symbol.datatype.intrinsic)
     assert (symbol.initial_value.datatype.precision ==
             symbol.datatype.precision)
+    # Repeat but this time include the interface.
+    symbol.copy_properties(new_symbol)
+    assert symbol.is_automatic
 
 
 def test_datasymbol_resolve_type(monkeypatch):
@@ -572,18 +576,18 @@ def test_datasymbol_replace_symbols_using():
     assert sym4.datatype.precision.symbol is new_kind
 
 
-def test_datasymbol_reference_accesses():
+def test_datasymbol_get_all_accessed_symbols():
     '''
-    Test that the reference_accesses() specialisation for this class checks
-    the initialisation expression.
+    Test that the get_all_accessed_symbols() specialisation for this class
+    checks the initialisation expression.
 
     '''
     kind = DataSymbol("i_def", INTEGER_SINGLE_TYPE)
     int_kind_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(kind))
     sym3 = DataSymbol("c", REAL_SINGLE_TYPE,
                       initial_value=Literal("1", int_kind_type))
-    vai3 = sym3.reference_accesses()
-    assert vai3.all_signatures == [Signature("i_def")]
+    dependent_symbols = sym3.get_all_accessed_symbols()
+    assert kind in dependent_symbols
 
 
 def test_datasymbol_get_bounds():

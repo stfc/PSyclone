@@ -41,9 +41,9 @@
 
 import re
 
-from psyclone.core import VariablesAccessMap
+from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import ScalarType, ArrayType
+from psyclone.psyir.symbols import ScalarType, ArrayType, Symbol
 
 
 class Literal(DataNode):
@@ -171,6 +171,15 @@ class Literal(DataNode):
         return (f"{self.coloured_name(colour)}"
                 f"[value:'{self._value}', {self.datatype}]")
 
+    def get_all_accessed_symbols(self) -> set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this Literal.
+        '''
+        symbols = super().get_all_accessed_symbols()
+        if isinstance(self.datatype.precision, DataNode):
+            symbols.update(self.datatype.get_all_accessed_symbols())
+        return symbols
+
     def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
@@ -181,8 +190,10 @@ class Literal(DataNode):
         '''
         access_info = VariablesAccessMap()
         if isinstance(self.datatype.precision, DataNode):
-            subaccesses = self.datatype.reference_accesses()
-            access_info.update(subaccesses)
+            precision_symbols = self.datatype.get_all_accessed_symbols()
+            for symbol in precision_symbols:
+                access_info.add_access(
+                    Signature(symbol.name), AccessType.CONSTANT, self)
         return access_info
 
     def replace_symbols_using(self, table_or_symbol):

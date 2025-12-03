@@ -33,17 +33,18 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter, R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
+#           M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 ''' This module provides tools that are based on the code
     dependency analysis.'''
 
 from enum import IntEnum
-
 import sympy
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType, Signature, SymbolicMaths, AccessInfo
+from psyclone.core import (AccessType, Signature, SymbolicMaths,
+                           AccessInfo, AccessSequence)
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -89,15 +90,21 @@ class Message:
     :param int code: error or warning code.
     :param var_names: list of variable names (defaults to []).
     :type var_names: List[str]
+    :param var_infos: list of Signature/AccessSequence pairs (defaults
+       to None). If not None, each list element contains the info pair for
+       corresponding variable in the var_names list.
+    :type var_infos: List[Tuple[:py:class:`psyclone.core.Signature`,
+                                :py:class:`psyclone.core.AccessSequence`]]
 
     '''
-    def __init__(self, message, code, var_names=None):
+    def __init__(self, message, code, var_names=None, var_infos=None):
         self._message = message
         self._code = code
         if var_names:
             self._var_names = var_names
         else:
             self._var_names = []
+        self._var_infos = var_infos
 
     # ------------------------------------------------------------------------
     def __str__(self):
@@ -126,6 +133,18 @@ class Message:
         # We convert each expression into a string to support LazyStrings
         # inside of 'var_names'
         return [str(i) for i in self._var_names]
+
+    # ------------------------------------------------------------------------
+    @property
+    def var_infos(self):
+        ''':returns: the Signature/AccessSequence pair for each variable to
+        which the message applies, or None if this information does not exist.
+
+        :rtype: List[Tuple[:py:class:`psyclone.core.Signature`,
+                           :py:class:`psyclone.core.AccessSequence`]]
+
+        '''
+        return self._var_infos
 
 
 # ============================================================================
@@ -170,7 +189,7 @@ class DependencyTools():
         self._messages = []
 
     # -------------------------------------------------------------------------
-    def _add_message(self, message, code, var_names=None):
+    def _add_message(self, message, code, var_names=None, var_infos=None):
         '''Adds an informational message to the internal message
         handling system.
 
@@ -178,6 +197,11 @@ class DependencyTools():
         :param int code: error or warning code.
         :param var_names: list of variable names (defaults to []).
         :type var_names: List[str]
+        :param var_infos: list of Signature/AccessSequence pairs (defaults to
+           None). If not None, each list element contains the info pair for
+           corresponding variable in the var_names list.
+        :type var_infos: List[Tuple[:py:class:`psyclone.core.Signature`,
+                                    :py:class:`psyclone.core.AccessSequence`]]
 
         '''
         if DTCode.INFO_MIN <= code <= DTCode.INFO_MAX:
@@ -189,8 +213,22 @@ class DependencyTools():
         else:
             raise InternalError(f"Unknown message code {code}.")
 
+        if var_infos is not None:
+            if var_names is None or len(var_names) != len(var_infos):
+                raise InternalError("The var_names and var_infos arguments "
+                                    "to _add_message must have the same "
+                                    "length")
+            for info in var_infos:
+                if not (isinstance(info, tuple) and
+                        len(info) == 2 and
+                        isinstance(info[0], Signature) and
+                        isinstance(info[1], AccessSequence)):
+                    raise TypeError(
+                              "The var_infos argument to _add_message must "
+                              "be a list of Signature/AccessSequence pairs")
+
         self._messages.append(Message(f"{message_type}: {message}", code,
-                                      var_names))
+                                      var_names, var_infos))
 
     # -------------------------------------------------------------------------
     def get_all_messages(self):
@@ -204,7 +242,11 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _partition(comp_ind1, comp_ind2, loop_variables):
+    def _partition(
+        comp_ind1: tuple[tuple[Node]],
+        comp_ind2: tuple[tuple[Node]],
+        loop_variables: list[str]
+    ) -> list[tuple[set[str], list[int]]]:
         '''This method partitions the subscripts of the component indices
         into sets of minimal coupled groups. For example:
         `a(i)` and `a(i+3)` results in one partition with the variable `i`,
@@ -216,41 +258,67 @@ class DependencyTools():
         variables used, and the list of subscript indices.
 
         :param comp_ind1: component_indices of the first array access.
-        :type comp_ind1:
-            :py:class:`psyclone.core.component_indices.ComponentIndices`
         :param comp_ind2: component_indices of the first array access.
-        :type comp_ind2:
-            :py:class:`psyclone.core.component_indices.ComponentIndices`
         :param loop_variables: list with name of all loop variables.
-        :type loop_variables: List[str]
 
         :return: partition information.
-        :rtype: List[Tuple[Set[str], List[int]]]
 
         '''
+        def get_subscripts_of(
+                component_indices, set_of_vars: set[str]
+        ) -> list[list[set[str]]]:
+            '''This function returns nested list of sets, one for each index
+            expression within the access. Each set holds the intersection of
+            the set of variables used in that index expression with the input
+            set of variables.
+            For example, the access `a(i+i2)%b(j*j+k,k)%c(l,5)` would have the
+            component_indices `[[i+i2], [j*j+k,k], [l,5]]`. If the set of
+            variables is `(i,j,k)`, then `get_subscripts_of` would return
+            `[[{i}],[{j,k},{k}],[{l},{}]`.
+
+            :param set_of_vars: set with name of all variables.
+
+            :return: sets with all variables of the given set used in the
+                corresponding array subscripts for each index, inside each
+                index component.
+
+            '''
+            components = []
+            for component in component_indices:
+                indices = []
+                for idx in component:
+                    index_vars = idx.reference_accesses()
+                    unique_vars = set(str(sig) for sig in index_vars.keys())
+                    unique_vars = unique_vars.intersection(set_of_vars)
+                    indices.append(unique_vars)
+                components.append(indices)
+            return components
         # Get the (string) name of all variables used in each subscript
-        # of the two accesses. E.g. `a(i,j+k)` --> [ {"i"}, {"j","k"}]
+        # of the two accesses. E.g. `a(i,j+k)` --> [[{"i"}, {"j","k"}]]
         set_of_loop_vars = set(loop_variables)
-        indices_1 = comp_ind1.get_subscripts_of(set_of_loop_vars)
-        indices_2 = comp_ind2.get_subscripts_of(set_of_loop_vars)
-        # This list stores the partition information, which
-        # is a pair consisting of:
+        indices_1 = get_subscripts_of(comp_ind1, set_of_loop_vars)
+        indices_2 = get_subscripts_of(comp_ind2, set_of_loop_vars)
+        # Compute the partition_info, this will be a nested list of
+        # subscripts (components, indices in each component), each with:
         # - a set of all loop variables used in the subscript of
         #   both accesses
-        # - list of all subscripts. Initially these lists contain
-        #   only one subscript, but they will be modified later
+        # - the pair of (component index, index inside the component) to
+        #   access the specific subscript
         # Example: `a(i,j)` and `a(i,k)` -->
-        #          [ ({"i"}, [(0,0)]), ({"j","k"}, [(0,1)])]
+        #          [[{"i"}, (0,0)], [{"j","k"}, (0,1)]]
         partition_infos = []
-        for i, indx in enumerate(comp_ind1.iterate()):
-            # This can happen if there is a mixture of accesses to an array
-            # with and without indices, e.g.: a(i) = a*a
-            # In this case we don't add this to the partition, which will
-            # result in an empty partition (which in turns will disable
-            # parallelisation).
-            if i < len(indices_2):
-                partition_infos.append((indices_1[i].union(indices_2[i]),
-                                        [indx]))
+        for i1, idx_exprs in enumerate(comp_ind1):
+            for i2, _ in enumerate(idx_exprs):
+                try:
+                    partition_infos.append(
+                        (indices_1[i1][i2].union(indices_2[i1][i2]),
+                         [(i1, i2)]))
+                except IndexError:
+                    # This can happend if the access have a different amount of
+                    # index_components, e.g.: a(i) = a*a
+                    # This will result in an empty partition and prevent
+                    # parallelisation
+                    pass
 
         # Check each loop variable to find subscripts in which they are used:
         for loop_var in loop_variables:
@@ -500,13 +568,17 @@ class DependencyTools():
         :type: bool
 
         '''
+        # Get the component indices
+        write_comp_indices = write_access.component_indices()
+        other_comp_indices = other_access.component_indices()
+
         # If we find one subscript that is independent, the loop can be
         # parallelised. E.g. `a(i, index(i)) = a(i, 5)`. The fact that
         # the first subscript is i, means that each different iteration
         # will access a different column, even if index(i) is 5.
-        for ind in subscripts:
-            index_written = write_access.component_indices[ind]
-            index_other = other_access.component_indices[ind]
+        for i1, i2 in subscripts:
+            index_written = write_comp_indices[i1][i2]
+            index_other = other_comp_indices[i1][i2]
             distance = DependencyTools._get_dependency_distance(var_name,
                                                                 index_written,
                                                                 index_other)
@@ -543,14 +615,18 @@ class DependencyTools():
         :rtype: bool
 
         '''
+        # Get the component indices
+        write_comp_indices = write_access.component_indices()
+        other_comp_indices = other_access.component_indices()
+
         # Partition all subscripts to create sets of subscripts that can
         # be analysed independently of others. For example, `a(i,j+k,k,l)`
         # and `a(i,j,k,l)` would create three partitions:
         # 1) subscript 0: only variable i is used.
         # 2) subscript 1+2: uses the variables j and k
         # 3) subscript 3: only uses l
-        partitions = self._partition(write_access.component_indices,
-                                     other_access.component_indices,
+        partitions = self._partition(write_comp_indices,
+                                     other_comp_indices,
                                      loop_variables)
         # Get the name of the loop variable that is to be parallelised:
         loop_var = loop_variables[0]
@@ -565,9 +641,9 @@ class DependencyTools():
             if len(subscripts) == 1:
                 # There is only one subscript involved in this test.
                 # Get its index of its component_index:
-                subscript = subscripts[0]
-                index_write = write_access.component_indices[subscript]
-                index_other = other_access.component_indices[subscript]
+                i1, i2 = subscripts[0]
+                index_write = write_comp_indices[i1][i2]
+                index_other = other_comp_indices[i1][i2]
                 if len(set_of_vars) == 0:
                     # No loop variable used, constant access (which might
                     # still be using unknown non-loop variables).
@@ -676,39 +752,8 @@ class DependencyTools():
                             DTCode.ERROR_WRITE_WRITE_RACE,
                             [var_info.var_name])
                     else:
-                        # Circular dependency:
-                        # pylint: disable-next=import-outside-toplevel
-                        from psyclone.gocean1p0 import GOKern
-
-                        # If the node is a GOKern, the node.debug_string()
-                        # only contains '< kern call: NAME >', so no
-                        # information about the variable and its indices is
-                        # available. For GOKerns, 'reference_accesses' adds
-                        # artificial accesses to the component indices
-                        # depending on the declared stencil. Use these indices
-                        # and the signature to add additional info to the
-                        # error message that indicates which access exactly is
-                        # causing the problem:
-
-                        if isinstance(write_access.node, GOKern):
-                            comp_ind = write_access.component_indices
-                            write_str = var_info.signature.to_language(
-                                component_indices=comp_ind)
-                            write_info = (f"The write access to '{write_str}'"
-                                          " in")
-                        else:
-                            write_info = "The write access to"
-
                         # Get 'read' or 'write' etc
                         access_type = str(other_access.access_type).lower()
-                        if isinstance(other_access.node, GOKern):
-                            comp_ind = other_access.component_indices
-                            write_str = var_info.signature.to_language(
-                                component_indices=comp_ind)
-                            other_info = (f"{access_type} access to "
-                                          f"'{write_str}' in")
-                        else:
-                            other_info = f"{access_type} access to"
 
                         # We need to use default parameters for wnode and
                         # onode, since otherwise the value of a variable might
@@ -720,9 +765,9 @@ class DependencyTools():
                         self._add_message(LazyString(
                             lambda wnode=write_access.node,
                             onode=other_access.node:
-                                (f"{write_info} "
+                                (f"The write access to "
                                  f"'{wnode.debug_string().strip()}' and the "
-                                 f"{other_info} "
+                                 f"{access_type} access to "
                                  f"'{onode.debug_string().strip()}' "
                                  f"are dependent and cannot be "
                                  f"parallelised.")),
@@ -733,10 +778,12 @@ class DependencyTools():
         return True
 
     # -------------------------------------------------------------------------
-    def _is_scalar_parallelisable(self, access_info: AccessInfo):
+    def _is_scalar_parallelisable(self, sig: Signature,
+                                  access_info: AccessInfo):
         '''Checks if the accesses to the given scalar variable can be
         parallelised, i.e. it is not a reduction.
 
+        :param sig: the signature for the variable to test.
         :param access_info: the access information for the variable to test.
         :return: True if the scalar variable is not a reduction, i.e. it
             can be parallelised.
@@ -775,7 +822,7 @@ class DependencyTools():
         self._add_message(f"Variable '{access_info.var_name}' is read "
                           f"first, which indicates a reduction.",
                           DTCode.WARN_SCALAR_REDUCTION,
-                          [access_info.var_name])
+                          [access_info.var_name], [(sig, access_info)])
         return False
 
     # -------------------------------------------------------------------------
@@ -848,7 +895,7 @@ class DependencyTools():
                                                              var_info)
             else:
                 # Handle scalar variable
-                par_able = self._is_scalar_parallelisable(var_info)
+                par_able = self._is_scalar_parallelisable(signature, var_info)
             if not par_able:
                 if not test_all_variables:
                     return False
@@ -1010,13 +1057,14 @@ class DependencyTools():
         # Compare all accesses with the first one. If the loop variable
         # is used in a different subscript, raise an error. We test this
         # by computing the partition of the indices:
-        comp_1 = all_accesses[0].component_indices
+        first_comp_indices = all_accesses[0].component_indices()
         # Note that we compare an access with itself, this will
         # help us detecting if an array is accessed without using
         # the loop variable (which would indicate a kind of reduction):
         for other_access in all_accesses:
-            comp_other = other_access.component_indices
-            partitions = self._partition(comp_1, comp_other,
+            other_comp_indices = other_access.component_indices()
+            partitions = self._partition(first_comp_indices,
+                                         other_comp_indices,
                                          [loop_var_name1])
             for (set_of_vars, index) in partitions:
                 # Find the partition that contains the loop variable:
@@ -1045,8 +1093,10 @@ class DependencyTools():
                                   DTCode.ERROR_DIFFERENT_INDEX_LOCATIONS,
                                   [var_info1.signature[0]])
                 return False
-            first_index = all_accesses[0].component_indices[index[0]]
-            other_index = other_access.component_indices[index[0]]
+
+            i1, i2 = index[0]
+            first_index = first_comp_indices[i1][i2]
+            other_index = other_comp_indices[i1][i2]
             if not SymbolicMaths.equal(
                     first_index, other_index,
                     identical_variables={loop_var_name1: loop_variable2.name}):

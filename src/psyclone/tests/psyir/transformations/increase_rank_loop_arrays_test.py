@@ -157,7 +157,7 @@ def test_irla_validate_bounds(fortran_reader):
 
 def test_irla_validate_multiple_loops_using_array(fortran_reader):
     ''' Check that the validation does not permit multiple loops that use the
-    same array in anything other than writing array assingments.'''
+    same array in anything other than writing array assignments.'''
     trans = IncreaseRankLoopArraysTrans()
     psyir = fortran_reader.psyir_from_source("""
         program test

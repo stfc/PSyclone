@@ -2533,10 +2533,10 @@ def test_omp_task_directive_sub_shift_indirection_if(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,a,b) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,a,b) \
 depend(in: boundary(:,i),b(:,i),k) depend(out: a(:,i + 32),a(:,i),a(:,i - 32))
     do j = 1, 32, 1
       if (boundary(j,i) > 1) then
@@ -2595,10 +2595,10 @@ def test_omp_task_directive_sub_shift_indirection_if_readonly(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,a,b) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,a,b) \
 depend(in: boundary(:,i),k,b(:,i + 32),b(:,i),b(:,i - 32)) depend(out: a(:,i))
     do j = 1, 32, 1
       if (boundary(j,i) > 1) then
@@ -2656,10 +2656,10 @@ def test_omp_task_directive_array_member_if_indirection_readonly(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,b,aa) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,b,aa) \
 depend(in: boundary(:,i),aa%A(1:10,i + 32),aa%A(1:10,i - 32),aa%A(1:10,i))\
  depend(out: b(:,i))
     do j = 1, 10, 1
@@ -2717,10 +2717,10 @@ def test_omp_task_directive_array_member_if_indirection_write(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,aa,b) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,aa,b) \
 depend(in: boundary(:,i),b(:,i)) \
 depend(out: aa%A(1:10,i + 32),aa%A(1:10,i - 32),aa%A(1:10,i))
     do j = 1, 10, 1
@@ -2803,13 +2803,12 @@ sshn_v(i,jiv))
     ptrans.apply(loops[0].parent.parent)
 
     correct = '''\
-  !$omp parallel default(shared) private(i,j,j_el_inner,j_out_var) \
-firstprivate(jiv)
+  !$omp parallel default(shared) private(i,j,j_el_inner,j_out_var,jiv)
   !$omp single
   do j_out_var = ystart, ystop, 32
     j_el_inner = MIN(j_out_var + (32 - 1), ystop)
-    !$omp task private(j,i) firstprivate(j_out_var,j_el_inner,xstart,\
-xstop,jiv) shared(boundary,va,hv,sshn_v) depend(in: boundary(:,j_out_var),\
+    !$omp task private(j,i,jiv) firstprivate(j_out_var,j_el_inner,xstart,\
+xstop) shared(boundary,va,hv,sshn_v) depend(in: boundary(:,j_out_var),\
 boundary(:,j_out_var + 32),g,hv(:,j_out_var),va(:,j_out_var + 32),\
 va(:,j_out_var),sshn_v(:,j_out_var),sshn_v(:,j_out_var + 32),\
 va(:,j_out_var - 32),sshn_v(:,j_out_var - 32)) depend(out: va(:,j_out_var))
@@ -2889,10 +2888,10 @@ def test_omp_task_directive_multi_step_if_indirection(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-!$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+!$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,a,b) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,a,b) \
 depend(in: boundary(:,i),b(:,i),k) depend(out: a(:,i + 32),a(:,i))
     do j = 1, 32, 1
       if (boundary(j,i) > 1) then
@@ -3272,8 +3271,8 @@ def test_omp_task_directive_intrinsic_loop_bound(fortran_reader,
     ptrans.apply(parent.children)
     correct = '''\
 !$omp task private(i,j) shared(a,b) depend(in: b(:,:)) depend(out: a(:,:))
-  do i = LBOUND(a, 2), UBOUND(a, 2), 1
-    do j = LBOUND(a, 1), UBOUND(a, 1), 1
+  do i = LBOUND(a, dim=2), UBOUND(a, dim=2), 1
+    do j = LBOUND(a, dim=1), UBOUND(a, dim=1), 1
       a(i,j) = b(i,j) + 1
     enddo
   enddo
@@ -3320,7 +3319,7 @@ def test_omp_task_directive_intrinsic_loop_step(fortran_reader):
         tdir.lower_to_language_level()
     assert ("IntrinsicCall not supported in the step variable of a Loop"
             " in an OMPTaskDirective node. The step expression is "
-            "'LBOUND(a, 2)'." in str(excinfo.value))
+            "'LBOUND(a, dim=2)'." in str(excinfo.value))
 
 
 def test_evaluate_write_reference_failcase():

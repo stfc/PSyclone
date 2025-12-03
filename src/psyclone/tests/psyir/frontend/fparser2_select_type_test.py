@@ -407,7 +407,6 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "    end if\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir).lower()
-    print(result)
     assert expected1 in result
     assert expected2 in result
     assert Compile(tmpdir).string_compiles(result)

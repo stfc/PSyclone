@@ -40,7 +40,7 @@
 from a PSyIR tree. '''
 
 # pylint: disable=too-many-lines
-from psyclone.core import Signature
+from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -49,7 +49,7 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.nodes import (
     BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
     Literal, Node, OMPDependClause, OMPReductionClause, Operation, Range,
-    Reference, Routine, Schedule, UnaryOperation)
+    Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
@@ -333,9 +333,13 @@ class FortranWriter(LanguageWriter):
             # machine specific or is specified via the compiler. Fortran
             # only distinguishes relative precision for single and double
             # precision reals.
-            if fortrantype.lower() == "real" and \
-               precision == ScalarType.Precision.DOUBLE:
-                return "double precision"
+            if precision == ScalarType.Precision.DOUBLE:
+                if fortrantype.lower() == "real":
+                    return "double precision"
+                raise VisitorError(
+                    f"ScalarType.Precision.DOUBLE is not supported for "
+                    f"datatypes other than floating point numbers in "
+                    f"Fortran, found '{fortrantype}'")
             return fortrantype
 
         if isinstance(precision, DataNode):
@@ -850,18 +854,20 @@ class FortranWriter(LanguageWriter):
 
         :param symbol_table: the SymbolTable instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool is_module_scope: whether or not the declarations are in \
+        :param bool is_module_scope: whether or not the declarations are in
                                      a module scoping unit. Default is False.
 
         :returns: Fortran code declaring all parameters.
         :rtype: str
 
-        :raises VisitorError: if there is no way of resolving \
+        :raises VisitorError: if there is no way of resolving
                               interdependencies between parameter declarations.
 
         '''
         declarations = ""
         local_constants = []
+
+        # First add the local constants
         for sym in symbol_table.datasymbols:
             if sym.is_import or sym.is_unresolved:
                 continue  # Skip, these don't need declarations
@@ -869,45 +875,31 @@ class FortranWriter(LanguageWriter):
                 local_constants.append(sym)
 
         # There may be dependencies between these constants so setup a dict
-        # listing the required inputs for each one.
+        # holding a set of all their dependencies. The checks have to be done
+        # with case-insensitive name comparisons because the dependent symbols
+        # are not always created in the same scope.
+        local_lowered_names = [sym.name.lower() for sym in local_constants]
         decln_inputs = {}
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.read_write_info import ReadWriteInfo
         for symbol in local_constants:
-            decln_inputs[symbol.name] = set()
-            read_write_info = ReadWriteInfo()
-            self._call_tree_utils.get_input_parameters(read_write_info,
-                                                       [symbol.initial_value])
-            # The dependence analysis tools do not include symbols used to
-            # define precision so check for those here.
-            for lit in symbol.initial_value.walk(Literal):
-                if isinstance(lit.datatype.precision, DataNode):
-                    refs = lit.datatype.precision.walk(Reference)
-                    for ref in refs:
-                        read_write_info.add_read(
-                            Signature(ref.symbol.name))
-            # If the precision of the Symbol being declared is itself defined
-            # by a Symbol then include that as an 'input'.
-            if isinstance(symbol.datatype.precision, DataNode):
-                for ref in symbol.datatype.precision.walk(Reference):
-                    read_write_info.add_read(
-                        Signature(ref.symbol.name))
-            # Remove any 'inputs' that are not local since these do not affect
-            # the ordering of local declarations.
-            for sig in read_write_info.signatures_read:
-                if symbol_table.lookup(sig.var_name) in local_constants:
-                    decln_inputs[symbol.name].add(sig)
+            dependencies = symbol.get_all_accessed_symbols()
+            dependencies = {sym for sym in dependencies
+                            # Discard self-dependencies: e.g. "a :: HUGE(a)"
+                            if sym.name.lower() != symbol.name.lower() and
+                            # Discard dependencies that are not local
+                            sym.name.lower() in local_lowered_names}
+            decln_inputs[symbol] = dependencies
+
         # We now iterate over the declarations, declaring those that have their
         # inputs satisfied. Creating a declaration for a given symbol removes
-        # that symbol as a dependence from any outstanding declarations.
-        declared = set()
+        # that symbol as a dependence from any outstanding declarations and
+        # adds it to the 'declared' set.
+        declared: set[Symbol] = set()
         while local_constants:
             for symbol in local_constants[:]:
-                inputs = decln_inputs[symbol.name]
+                inputs = decln_inputs[symbol]
                 if inputs.issubset(declared):
                     # All inputs are satisfied so this declaration can be added
-                    declared.add(Signature(symbol.name))
+                    declared.add(symbol)
                     local_constants.remove(symbol)
                     declarations += self.gen_vardecl(
                         symbol, include_visibility=is_module_scope)
@@ -1748,7 +1740,67 @@ class FortranWriter(LanguageWriter):
                 result_list.append(self._visit(child))
         return ", ".join(result_list)
 
-    def call_node(self, node) -> str:
+    def intrinsiccall_node(self, node: IntrinsicCall) -> str:
+        '''Translate the PSyIR IntrinsicCall node to Fortran.
+
+        :param node: an IntrinsicCall PSyIR node.
+
+        :returns: the equivalent Fortran code.
+
+        '''
+        # Check the config to determine if we're outputting all argument
+        # names.
+        if not Config.get().backend_intrinsic_named_kwargs:
+            # Config says to avoid outputting argument names where
+            # possible.
+            try:
+                # Argument name computation handles any error checking we
+                # might otherwise want to try. Most IntrinsicCalls should
+                # already have argument names added, but we do it here to
+                # ensure that argument name computation is possible.
+                node.compute_argument_names()
+                intrinsic_interface = node._find_matching_interface()
+                args = []
+                correct_names = True
+                for idx, arg_name in enumerate(node.argument_names):
+                    if idx < len(intrinsic_interface) and correct_names:
+                        # This is a potential required argument.
+                        if arg_name == intrinsic_interface[idx]:
+                            args.append(self._visit(node.arguments[idx]))
+                            continue
+                        # Otherwise it didn't match, so we can't remove any
+                        # more argument names, and fall back to the default
+                        # behaviour from here.
+                        correct_names = False
+                    # Otherwise, use the default behaviour.
+                    if node.argument_names[idx]:
+                        args.append(
+                             f"{node.argument_names[idx]}="
+                             f"{self._visit(node.arguments[idx])}"
+                        )
+                    else:
+                        args.append(f"{self._visit(node.arguments[idx])}")
+                args = ", ".join(args)
+            except NotImplementedError:
+                # If the Intrinsic fails to have argument names added, or to
+                # match to an interface, then use the default behaviour.
+                args = self._gen_arguments(node)
+        else:
+            args = self._gen_arguments(node)
+
+        if node.routine.name not in [
+                "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS", "RANDOM_NUMBER",
+                "RANDOM_SEED"]:
+            # Most intrinsics are functions and so don't have 'call'.
+            if not node.parent or isinstance(node.parent, Schedule):
+                return f"{self._nindent}{node.routine.name}({args})\n"
+            return f"{node.routine.name}({args})"
+
+        # Otherwise we have one of the intrinsics that requires "Call X"
+        # syntax.
+        return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
+
+    def call_node(self, node: Call) -> str:
         '''Translate the PSyIR call node to Fortran.
 
         :param node: a Call PSyIR node.
@@ -1758,13 +1810,6 @@ class FortranWriter(LanguageWriter):
 
         '''
         args = self._gen_arguments(node)
-        if isinstance(node, IntrinsicCall) and node.routine.name not in [
-                "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS", "RANDOM_NUMBER",
-                "RANDOM_SEED"]:
-            # Most intrinsics are functions and so don't have 'call'.
-            if not node.parent or isinstance(node.parent, Schedule):
-                return f"{self._nindent}{node.routine.name}({args})\n"
-            return f"{node.routine.name}({args})"
 
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {self._visit(node.routine)}({args})\n"

@@ -33,10 +33,12 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
 #          T. Vockerodt, Met Office
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing tests for the matmul2code transformation.'''
 
 import pytest
+import warnings
 from psyclone.psyir.transformations import Matmul2CodeTrans, \
     TransformationError
 from psyclone.psyir.transformations.intrinsics.matmul2code_trans import (
@@ -256,8 +258,8 @@ def test_validate_arg_not_ref():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Expected result and operands of MATMUL IntrinsicCall to be "
-            "references, but found: 'x(10) = MATMUL(x(10) * x(10), x(10) * "
-            "x(10))\n'." in str(excinfo.value))
+            "references, but found: 'x(10) = MATMUL(x(10) * x(10), "
+            "x(10) * x(10))\n'." in str(excinfo.value))
 
 
 def test_validate_arg_not_arr():
@@ -957,3 +959,32 @@ def test_apply_matvec_varexpr_index(tmpdir, fortran_reader, fortran_writer):
         "    enddo\n"
         "  enddo\n" in out)
     assert Compile(tmpdir).string_compiles(out)
+
+
+# TODO #2668 Remove this test.
+def test_apply_deprecation(fortran_reader):
+    '''Test that the apply gives the deprecation warning when provided an
+    options dict.'''
+
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,4,6) :: jac\n"
+        "  real, dimension(4,6,3) :: jac_inv\n"
+        "  real, dimension(2) :: result\n"
+        "  integer, parameter :: arg = 0\n"
+        "  result = matmul(jac(:,1,:), jac_inv(2,:,arg+3))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to be triggered.
+        warnings.simplefilter("always")
+        trans.apply(assign.rhs, options={"a": "test"})
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in str(w[0].message))

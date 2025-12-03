@@ -39,11 +39,13 @@
 import abc
 from typing import Set, Tuple
 
-from psyclone.core import AccessType
+from psyclone.core import AccessType, AccessSequence
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.while_loop import WhileLoop
+from psyclone.psyir.nodes.omp_clauses import OMPReductionClause
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, Symbol
 
 
@@ -106,17 +108,25 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         fprivate = set()
         need_sync = set()
 
+        # Collate reduction variables
+        # TODO #2446 Ensure this behaves correctly for OpenACC when
+        # OpenACC reductions are supported.
+        red_vars = []
+        for clause in self.children:
+            if isinstance(clause, OMPReductionClause):
+                for ref in clause.children:
+                    red_vars.append(ref.name)
+
+        n_cblocks = len(self.walk(CodeBlock))
+
         # Determine variables that must be private, firstprivate or need_sync
         var_accesses = self.reference_accesses()
         for signature in var_accesses.all_signatures:
             if not var_accesses[signature].has_data_access():
                 continue
-            # Skip those that are TYPE_INFO accesses.
-            # TODO #3060: This should be all instead of any if we correctly
-            # have TYPE_INFO (or another access type) to handle kind
-            # expressions in IntrinsicCalls labelled correctly.
-            if any([x.access_type == AccessType.TYPE_INFO
-                    for x in var_accesses[signature]]):
+            # Skip those that are CONSTANT accesses.
+            if any(x.access_type == AccessType.CONSTANT
+                    for x in var_accesses[signature]):
                 continue
             accesses = var_accesses[signature]
             # TODO #2094: var_name only captures the top-level
@@ -124,23 +134,33 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             # only apply to a sub-component, this won't be captured
             # appropriately.
             name = signature.var_name
+            if name in red_vars:
+                continue
             symbol = accesses[0].node.scope.symbol_table.lookup(
                 name, otherwise=None)
+            if symbol is None:
+                # The signature does not match any symbol! This is probably a
+                # structure, we will consider them shared
+                continue
+
+            # A parallel loop variable is always private
+            if (isinstance(self.dir_body[0], Loop) and
+                    self.dir_body[0].variable is symbol):
+                private.add(symbol)
+                continue
 
             # If it is manually marked as a local symbol, add it to private or
             # firstprivate set
             if (isinstance(symbol, DataSymbol) and
                     isinstance(self.dir_body[0], Loop) and
                     symbol in self.dir_body[0].explicitly_private_symbols):
-                if any(ref.symbol is symbol for ref in self.preceding()
-                       if isinstance(ref, Reference)):
-                    # If it's used before the loop, make it firstprivate
+                if self._should_it_be_fprivate(accesses, n_cblocks):
                     fprivate.add(symbol)
                 else:
                     private.add(symbol)
                 continue
 
-            # All arrays not explicitly marked as threadprivate are shared
+            # All arrays not explicitly marked as explicitly_private are shared
             if any(accs.has_indices() for accs in accesses):
                 continue
 
@@ -165,11 +185,11 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             has_been_read = False
             last_read_position = 0
             for access in accesses:
-                if access.access_type == AccessType.READ:
+                if access.is_any_read():
                     has_been_read = True
                     last_read_position = access.node.abs_position
 
-                if access.access_type == AccessType.WRITE:
+                if access.is_any_write():
                     # Check if the write access is outside a loop. In this case
                     # it will be marked as shared. This is done because it is
                     # likely to be re-used later. e.g:
@@ -182,19 +202,13 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                         limit=self,
                         include_self=True)
                     if not loop_ancestor:
-                        # If we find it at least once outside a loop we keep it
-                        # as shared
+                        # If we find it at least one WRITE outside a loop we
+                        # keep it as shared
                         break
 
                     # Otherwise, the assignment to this variable is inside a
                     # loop (and it will be repeated for each iteration), so
-                    # we declare it as private or need_synch
-                    name = signature.var_name
-                    # TODO #2094: var_name only captures the top-level
-                    # component in the derived type accessor. If the attributes
-                    # only apply to a sub-component, this won't be captured
-                    # appropriately.
-                    symbol = access.node.scope.symbol_table.lookup(name)
+                    # we declare it as [first]private or need_sync
 
                     # If it has been read before we have to check if ...
                     if has_been_read:
@@ -207,20 +221,56 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                             need_sync.add(symbol)
                         break
 
-                    # If the write is not guaranteed, we make it firstprivate
-                    # so that in the case that the write doesn't happen we keep
-                    # the original value
+                    # If the write is not guaranteed (because it is inside a
+                    # conditional), make it firstprivate to keep the original
+                    # value when the branch is never taken. Unless this never
+                    # had a value before the loop (as some compilers don't
+                    # like uninitialised firstprivates)
                     conditional_write = access.node.ancestor(
                         IfBlock,
                         limit=loop_ancestor,
                         include_self=True)
                     if conditional_write:
-                        fprivate.add(symbol)
-                        break
-
-                    # Already found the first write and decided if it is
-                    # shared, private or firstprivate. We can stop looking.
-                    private.add(symbol)
+                        if self._should_it_be_fprivate(accesses, n_cblocks):
+                            fprivate.add(symbol)
+                    # Otherwise it is just 'private'
+                    if symbol not in fprivate:
+                        private.add(symbol)
                     break
 
         return private, fprivate, need_sync
+
+    def _should_it_be_fprivate(
+        self, accesses: AccessSequence, num_of_codeblocks: int
+    ) -> bool:
+        '''
+        :param accesses: the sequence of accesses to the analysed variable.
+        :param num_of_codeblocs: number of codeblocks in the analysed regrion.
+
+        :returns: whether the variable represented by the provided accesses
+        should be firstprivate (because there is the possibility that one of
+        the accesses gets the value that the symbol had before the loop).
+
+        '''
+        if num_of_codeblocks > 10:
+            # Any codeblock would make the involved variables firstprivate
+            # and we found that loops with many codeblocks are slow to
+            # process, so if we have more than a certain number of codeblocks
+            # we skip the analysis and just return firstprivate for all symbols
+            # TODO #3183: If enters_scope gets faster we can get rid of this
+            return True
+
+        # Check if it gets a value from before the loop
+        visited_nodes = set()  # Store visited nodes to reduce repetitions
+        for access in accesses:
+            if not isinstance(access.node, Reference):
+                # TODO #3124: Remove this special-case
+                # Nodes that are not References do not have
+                # 'enters_scope', so the analysis below can't
+                # be done and we defensively use 'firstprivate'
+                return True
+            if access.node.enters_scope(self, visited_nodes):
+                return True
+
+        # If not, it can be just 'private'
+        return False

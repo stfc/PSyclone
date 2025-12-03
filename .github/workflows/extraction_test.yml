@@ -74,7 +74,7 @@ jobs:
         python -m pip install --upgrade pip
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
-        # pip install external/fparser
+        pip install external/fparser
         pip install .[test]
         # Install BAF, and its version of Fab:
         # ------------------------------------
@@ -92,10 +92,6 @@ jobs:
 
         # Create the new Fortran files, i.e. processing with Jinja2
         pushd lib/extract/netcdf/lfric
-        # We need to use the new field types, so copy the newer version over
-        # the old version
-        # TODO 2623 - this will remove the old field types
-        cp kernel_data_netcdf.jinja-new-field-types kernel_data_netcdf.jinja
         make read_kernel_data_mod.f90 compare_variables_mod.F90 extract_netcdf_base.F90 \
              kernel_data_netcdf.f90 psy_data_base.f90 read_kernel_data_mod.f90
         popd
@@ -126,9 +122,8 @@ jobs:
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
         spack load lfric-build-environment%gcc@14
         source .runner_venv/bin/activate
-        export LFRIC_DIR=/archive/psyclone-tests/latest-run/extraction/lfric_apps_${LFRIC_APPS_REV}
-        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export COMPILER_PROFILE=fast-debug
         export NUM_PROCS=6
         export MAX_PROC=$((NUM_PROCS-1))

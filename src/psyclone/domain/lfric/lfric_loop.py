@@ -268,11 +268,14 @@ class LFRicLoop(PSyLoop):
         # Loop bounds
         self.set_lower_bound("start")
         const = LFRicConstants()
-        if kern.iterates_over == "dof":
+        if kern.iterates_over in const.DOF_ITERATION_SPACES:
             # This loop must be over DoFs
-            if Config.get().api_conf("lfric").compute_annexed_dofs \
-               and Config.get().distributed_memory \
-               and not kern.is_reduction:
+            if (Config.get().api_conf("lfric").compute_annexed_dofs
+                    and Config.get().distributed_memory
+                    and not kern.is_reduction
+                    and kern.iterates_over != "owned_dof"):
+                # If we're generating DM code and the compute-annexed dofs
+                # option is set then we include annexed dofs in the loop.
                 self.set_upper_bound("nannexed")
             else:
                 self.set_upper_bound("ndofs")
@@ -563,18 +566,11 @@ class LFRicLoop(PSyLoop):
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
-                    method = "get_last_dof_owned"
-                else:
-                    method = "get_last_dof_annexed"
-                result = Call.create(
-                    StructureReference.create(
-                        sym_tab.lookup(self.field.proxy_name_indexed),
-                        [self.field.ref_name(), method]
-                    )
-                )
-            else:
-                result = Reference(sym_tab.lookup(self._kern.undf_name))
-            return result
+                    return self.field.generate_method_call(
+                        "get_last_dof_owned")
+                return self.field.generate_method_call("get_last_dof_annexed")
+            return Reference(sym_tab.lookup(self._kern.undf_name))
+
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:
                 result = Call.create(
@@ -602,12 +598,7 @@ class LFRicLoop(PSyLoop):
                 "sequential/shared-memory code")
         if self._upper_bound_name == "dof_halo":
             if Config.get().distributed_memory:
-                result = Call.create(
-                    StructureReference.create(
-                        sym_tab.lookup(self.field.proxy_name_indexed),
-                        [self.field.ref_name(), "get_last_dof_halo"]
-                    )
-                )
+                result = self.field.generate_method_call("get_last_dof_halo")
                 if halo_index:
                     result.addchild(halo_index.copy())
                 return result

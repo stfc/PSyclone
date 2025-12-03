@@ -25,7 +25,6 @@
 #          J. Dendy, Met Office
 
 
-from psyclone.core.access_type import AccessType
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import (Call, CodeBlock, Routine,
                                   IntrinsicCall)
@@ -59,7 +58,7 @@ class MarkRoutineForGPUMixin:
         :param str options["device_string"]: provide a compiler-platform
             identifier.
 
- :raises TransformationError: if the node is not a kernel or a routine.
+        :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
         :raises TransformationError: if it is a kernel but without an
                                      associated PSyIR.
@@ -103,7 +102,7 @@ class MarkRoutineForGPUMixin:
             kernel_schedules = [node]
             k_or_r = "routine"
 
-        # Check that the routine(s) do(oes) not access any data that is
+        # Check that the routine(s) do(es) not access any data that is
         # imported via a 'use' statement.
         for sched in kernel_schedules:
             vam = sched.reference_accesses()
@@ -111,8 +110,7 @@ class MarkRoutineForGPUMixin:
             for sig in vam.all_signatures:
                 name = sig.var_name
                 first = vam[sig][0].node
-                if (isinstance(first, Reference)
-                        and vam[sig][0].access_type == AccessType.TYPE_INFO):
+                if isinstance(first, Reference):
                     table = ktable
                 else:
                     try:

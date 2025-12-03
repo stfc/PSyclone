@@ -43,17 +43,20 @@ and move it to psyir/transformations/.
 
 '''
 from typing import List
+import warnings
 
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
+    ContainerSymbol, ImportInterface,
     GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError, SymbolTable)
 from psyclone.psyir.nodes import (
-    Call, Container, DataNode, FileContainer, Routine, ScopingNode,
-    IntrinsicCall, Reference)
+    Call, Container, FileContainer, Routine, ScopingNode,
+    IntrinsicCall, )
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class KernelModuleInlineTrans(Transformation):
     ''' Brings the routine being called into the same Container as the call
     site. For example:
@@ -81,7 +84,7 @@ class KernelModuleInlineTrans(Transformation):
                 "Container of the call site.")
 
     # pylint: disable=too-many-branches
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Checks that the supplied node is a Kernel or Call and that it is
         possible to inline its PSyIR into the parent Container.
@@ -106,6 +109,9 @@ class KernelModuleInlineTrans(Transformation):
             already module inlined.
 
         '''
+        if not options:
+            self.validate_options(**kwargs)
+
         if isinstance(node, CodedKern):
             routine_sym = None
             kname = node.name
@@ -233,7 +239,6 @@ class KernelModuleInlineTrans(Transformation):
                 # Compare the routine to be inlined with the one that
                 # is already present.
                 new_rts = self._prepare_code_to_inline([kernel_schedule])
-                print(new_rts[0] == routine, len(new_rts))
                 if len(new_rts) == 1 and routine == new_rts[0]:
                     # It's the same so we can proceed (although all we need to
                     # do is update the RoutineSymbol referenced by the Call.)
@@ -291,15 +296,6 @@ class KernelModuleInlineTrans(Transformation):
                     # bring into the subroutine all modules that it could come
                     # from.
                     symbols_to_bring_in.add(symbol)
-                if isinstance(symbol, DataSymbol):
-                    # DataTypes can reference other symbols
-                    if isinstance(symbol.datatype, DataTypeSymbol):
-                        symbols_to_bring_in.add(symbol.datatype)
-                    elif hasattr(symbol.datatype, 'precision'):
-                        if isinstance(symbol.datatype.precision, DataNode):
-                            for ref in symbol.datatype.precision.walk(
-                                    Reference):
-                                symbols_to_bring_in.add(ref.symbol)
 
             # Bring the selected symbols inside the subroutine
             for symbol in symbols_to_bring_in:
@@ -422,7 +418,7 @@ class KernelModuleInlineTrans(Transformation):
             interface=ImportInterface(
                 csym, orig_name=name))
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         ''' Bring the implementation of this kernel/call into this Container.
 
         NOTE: when applying this transformation to a Kernel in a PSyKAl invoke,
@@ -441,10 +437,13 @@ class KernelModuleInlineTrans(Transformation):
             # This PSyKal Kernel is already module inlined.
             return
 
+        if options:
+            # TODO 2668 - options dict is deprecated.
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
         if not options:
             options = {}
 
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         external_callee_name = None
         if isinstance(node, CodedKern):

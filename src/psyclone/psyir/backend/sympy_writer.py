@@ -45,18 +45,17 @@ import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.core import (Signature, AccessSequence,
-                           VariablesAccessMap)
-from psyclone.core.access_type import AccessType
+                           VariablesAccessMap, AccessType)
+from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, ArrayReference, BinaryOperation, Call,
     DataNode, IntrinsicCall, Literal, Node,
-    Range, Reference, StructureReference)
+    Range, Reference, StructureReference, Schedule)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, RoutineSymbol, ScalarType, Symbol,
-    SymbolError, SymbolTable, UnresolvedType)
+    ArrayType, RoutineSymbol, ScalarType, SymbolError, SymbolTable)
 
 
 class SymPyWriter(FortranWriter):
@@ -112,7 +111,9 @@ class SymPyWriter(FortranWriter):
         {BinaryOperation.Operator.AND: "And({lhs}, {rhs})",
          BinaryOperation.Operator.OR: "Or({lhs}, {rhs})",
          BinaryOperation.Operator.EQV: "Equivalent({lhs}, {rhs})",
-         BinaryOperation.Operator.NEQV: "Xor({lhs}, {rhs})"}
+         BinaryOperation.Operator.NEQV: "Xor({lhs}, {rhs})",
+         BinaryOperation.Operator.EQ: "Eq({lhs}, {rhs})"
+         }
 
     def __init__(self):
         super().__init__()
@@ -291,7 +292,7 @@ class SymPyWriter(FortranWriter):
         #  a%b => [0,0] and  a(2)%b => [1,0]
         num_dims_for_access = []
         for access in sva:
-            indices = access.component_indices
+            indices = access.component_indices()
             # Create the list of number of indices on each component for
             # this access.
             num_dims = []
@@ -304,35 +305,6 @@ class SymPyWriter(FortranWriter):
         for i in range(len(sig)):
             max_dims.append(max(dims[i] for dims in num_dims_for_access))
         return max_dims
-
-    @staticmethod
-    def _specialise_array_symbol(sym: Symbol, sva: AccessSequence):
-        '''
-        If we can be confident that the supplied Symbol should be of ArrayType
-        due to the way it is accessed then we specialise it in place.
-
-        :param sym: the Symbol to specialise.
-        :param sva: information on the ways in which the Symbol is accessed.
-
-        '''
-        if all(acs.has_indices() for acs in sva):
-            return
-        if not sym or isinstance(sym, (DataSymbol, RoutineSymbol)):
-            return
-        # Find an access that has indices.
-        for acs in sva:
-            if not acs.has_indices():
-                continue
-            ndims = None
-            for indices in acs.component_indices:
-                if indices:
-                    ndims = len(indices)
-            if ndims is not None:
-                sym.specialise(
-                    DataSymbol,
-                    datatype=ArrayType(UnresolvedType(),
-                                       [ArrayType.Extent.DEFERRED]*ndims))
-            return
 
     # -------------------------------------------------------------------------
     def _create_type_map(self, list_of_expressions: Iterable[Node],
@@ -421,13 +393,18 @@ class SymPyWriter(FortranWriter):
                 # have a scope, hence the try...except.
                 orig_sym = sva[0].node.scope.symbol_table.lookup(sig.var_name)
             except SymbolError:
-                if (isinstance(sva[0].node, Reference) and
-                        sva[0].access_type != AccessType.TYPE_INFO):
+                # If we can't find it, use the symbol associated to the sva
+                orig_sym = None
+                if isinstance(sva[0].node, Reference):
                     orig_sym = sva[0].node.symbol
-                else:
-                    orig_sym = None
 
-            is_fn_call = isinstance(orig_sym, RoutineSymbol)
+            is_fn_call = (
+                isinstance(orig_sym, RoutineSymbol) or
+                # Calls to generic symbols give an UNKNOWN type as they can
+                # actually be miscategorised array READS, but here we will
+                # consider all them as functions.
+                any(x.access_type in [AccessType.CALL, AccessType.UNKNOWN]
+                    for x in sva))
 
             if (sva.has_indices() or
                     (orig_sym and (orig_sym.is_array or is_fn_call))):
@@ -446,14 +423,11 @@ class SymPyWriter(FortranWriter):
                     self._sympy_type_map[unique_sym.name] = \
                         self._create_sympy_array_function(sig.var_name,
                                                           is_call=is_fn_call)
-                    # To avoid confusion in sympy_reader, we specialise any
-                    # Symbol that we are now confident is an array.
-                    self._specialise_array_symbol(orig_sym, sva)
             else:
                 # A scalar access.
                 if sig.is_structure:
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
-                        sig.to_language(), **assumptions)
+                        str(sig), **assumptions)
                 else:
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
                         sig.var_name, **assumptions)
@@ -759,20 +733,26 @@ class SymPyWriter(FortranWriter):
         :returns: the SymPy representation for the Intrinsic.
 
         '''
+        # Add argument names to the intrinsic
+        try:
+            node.compute_argument_names()
+        except (GenerationError, NotImplementedError) as err:
+            raise VisitorError(
+                f"Sympy handler can't handle an IntrinsicCall that "
+                f"can't have argument names automatically added. Use "
+                f"explicit argument names instead. "
+                f"Failing node was "
+                f"'{node.debug_string()}'.") from err
+
         # Sympy does not support argument names, remove them for now
         if any(node.argument_names):
-            # TODO #2302: This is not totally right without canonical intrinsic
-            # positions for arguments. One alternative is to refuse it with:
-            # raise VisitorError(
-            #     f"Named arguments are not supported by SymPy but found: "
-            #     f"'{node.debug_string()}'.")
-            # but this leaves sympy comparisons almost always giving false when
-            # out of order arguments are rare, so instead we ignore it for now.
-
             # It makes a copy (of the parent because if matters to the call
             # visitor) because we don't want to delete the original arg names
-            parent = node.parent.copy()
-            node = parent.children[node.position]
+            if node.parent:
+                parent = node.parent.copy()
+                node = parent.children[node.position]
+            else:
+                node = node.copy()
             for idx in range(len(node.argument_names)):
                 # pylint: disable=protected-access
                 node._argument_names[idx] = (node._argument_names[idx][0],
@@ -782,7 +762,21 @@ class SymPyWriter(FortranWriter):
             args = self._gen_arguments(node)
             return f"{self._nindent}{name}({args})"
         except KeyError:
-            return super().call_node(node)
+            # This section is copied from FortranWriter IntrinsicCall,
+            # but doesn't attempt to match argument names and so avoids
+            # re-adding optional argument names back in.
+            args = self._gen_arguments(node)
+            # These routines require `call` syntax in Fortran.
+            if node.routine.name not in [
+                    "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS",
+                    "RANDOM_NUMBER", "RANDOM_SEED"]:
+                # Most intrinsics are functions and so don't have 'call'.
+                if not node.parent or isinstance(node.parent, Schedule):
+                    return f"{self._nindent}{node.routine.name}({args})\n"
+                return f"{node.routine.name}({args})"
+            # Otherwise we have an intrinsic that has call syntax.
+            return (f"{self._nindent}call "
+                    f"{self._visit(node.routine)}({args})\n")
 
     # -------------------------------------------------------------------------
     def reference_node(self, node: Reference) -> str:
@@ -807,19 +801,29 @@ class SymPyWriter(FortranWriter):
             # been re-named, and we can use it as is.
             name = node.name
 
-        if not node.symbol.is_array:
-            # This reference is not an array, just return the name
-            return name
+        if name in self.type_map:
+            sympy_representation = self.type_map[name]
+            if isinstance(sympy_representation,
+                          (sympy.Function,
+                           sympy.core.function.UndefinedFunction)):
+                # This is represented by a sympy.Function, since this is just a
+                # Reference, it must be an array expression without
+                # parentheses. For consistency, we still treat it as a Sympy
+                # function call and therefore add the triple array indices to
+                # represent `lower:upper:1` for each dimension:
+                if node.symbol.is_array:
+                    shape = node.symbol.shape
+                else:
+                    # If we don't know the dimension we make it look like a
+                    # function call without arguments, this will make it not
+                    # fall over, but still be distinct to any array access to
+                    # a particular item
+                    shape = []
+                result = [f"{self.no_bounds},{self.no_bounds},1"]*len(shape)
 
-        # Now this must be an array expression without parentheses. For
-        # consistency, we still treat it as a Sympy function call and therefore
-        # add the triple array indices to represent `lower:upper:1` for each
-        # dimension:
-        shape = node.symbol.shape
-        result = [f"{self.no_bounds},{self.no_bounds},1"]*len(shape)
-
-        return (f"{name}{self.array_parenthesis[0]}"
-                f"{','.join(result)}{self.array_parenthesis[1]}")
+                return (f"{name}{self.array_parenthesis[0]}"
+                        f"{','.join(result)}{self.array_parenthesis[1]}")
+        return name
 
     # ------------------------------------------------------------------------
     def binaryoperation_node(self, node: BinaryOperation) -> str:

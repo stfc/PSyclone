@@ -112,7 +112,7 @@ after the kernel call. Any change in the checksum causes a message to
 be printed at runtime, e.g.::
 
     --------------------------------------
-    Double precision field b_fld has been modified in main : update
+    2d Double array b_fld%data has been modified in main : update
     Original checksum:   4611686018427387904
     New checksum:        4638355772470722560
     --------------------------------------
@@ -163,7 +163,7 @@ The ``Makefile`` uses the variable ``LFRIC_INF_DIR`` to point to the
 location where LFRic's ``field_mod`` and ``integer_field_mod`` have been
 compiled. It defaults to the path to location of the pared-down LFRic
 infrastructure located in a clone of PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``,
+``<PSYCLONEHOME>/external/lfric_infrastructure``,
 but this will certainly need to be changed for any user (for instance with
 PSyclone installation). The LFRic infrastructure library is not used in
 linking the verification library. The application which uses the

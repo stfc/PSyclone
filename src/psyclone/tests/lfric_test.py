@@ -188,9 +188,9 @@ def test_ad_invalid_iteration_space():
     arg_type = field_descriptor._arg_type
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours", 0)
-    assert ("Expected operates_on in the kernel metadata to be one of "
-            "['cell_column', 'domain', 'dof', 'halo_cell_column', "
-            "'owned_and_halo_cell_column'] but got "
+    assert ("Expected operates_on in the kernel metadata to be one of ["
+            "'domain', 'dof', 'owned_dof', 'cell_column', 'owned_cell_column',"
+            " 'halo_cell_column', 'owned_and_halo_cell_column'] but got "
             "'colours'." in str(excinfo.value))
 
 
@@ -321,10 +321,10 @@ def test_kernel_call_invalid_iteration_space():
     with pytest.raises(GenerationError) as excinfo:
         kernel.validate_global_constraints()
     assert ("The LFRic API supports calls to user-supplied kernels that "
-            "operate on one of ['cell_column', 'domain', 'dof', "
-            "'halo_cell_column', 'owned_and_halo_cell_column'], but "
-            "kernel 'testkern_dofs_code' operates on 'vampires'."
-            in str(excinfo.value))
+            "operate on one of ['domain', 'dof', 'owned_dof', 'cell_column', "
+            "'owned_cell_column', 'halo_cell_column', "
+            "'owned_and_halo_cell_column'], but kernel 'testkern_dofs_code' "
+            "operates on 'vampires'." in str(excinfo.value))
 
 
 def test_any_space_1(tmpdir):
@@ -838,9 +838,6 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
     produced.
 
     '''
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
                            api=TEST_API)
@@ -1873,8 +1870,7 @@ def test_lfrickernelargument_idtp_vector_field():
 @pytest.mark.parametrize("filename,kind_name", [
     ("26.6.2_mixed_precision_rsolver_vector.f90", "r_solver"),
     ("26.6.3_mixed_precision_rtran_vector.f90", "r_tran"),
-    ("26.6.4_mixed_precision_rbl_vector.f90", "r_bl"),
-    ("26.6.5_mixed_precision_rphys_vector.f90", "r_phys")])
+    ("26.6.4_mixed_precision_rbl_vector.f90", "r_bl")])
 def test_lfrickernelargument_idtp_vector_field_kind(filename, kind_name):
     '''Test the '_init_data_type_properties' method in the
     LFRicKernelArgument class for a field that is part of a
@@ -2508,16 +2504,13 @@ def test_halo_exchange(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_halo_exchange_inc(monkeypatch, annexed):
+def test_halo_exchange_inc(annexed):
     '''test that appropriate halo exchange calls are added if we have a
     gh_inc operation and that the loop bounds included computation in
     the l1 halo. Test when annexed is False and True as a different
     number of halo exchanges are produced.
 
     '''
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
                            api=TEST_API)
@@ -2603,16 +2596,12 @@ def test_halo_exchange_different_spaces(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_halo_exchange_vectors_1(monkeypatch, annexed, tmpdir):
+def test_halo_exchange_vectors_1(annexed, tmpdir):
     ''' Test that halo exchange produces correct code for vector fields
     including a field with a gh_inc access. Test when annexed = False
     and True as halo exchanges are only produced when annexed = False.
 
     '''
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
-
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4.1_halo_vector.f90"),
                            api=TEST_API)
@@ -2635,16 +2624,13 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed, tmpdir):
         assert expected in result
 
 
-def test_halo_exchange_vectors(monkeypatch, annexed):
+def test_halo_exchange_vectors(annexed):
     '''Test that halo exchange produces correct code for vector
     fields. Test both a field with a stencil and a field with
     gh_inc. Test when annexed = False and True as a different number
     of halo exchanges are produced.
 
     '''
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)
@@ -2694,7 +2680,7 @@ def test_halo_exchange_depths(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
+def test_halo_exchange_depths_gh_inc(tmpdir, annexed):
     ''' Test that halo exchange includes the correct halo depth when we
     have a gh_inc as this increases the required depth by 1 (as
     redundant computation is performed in the l1 halo). Test when
@@ -2702,10 +2688,6 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
     are produced.
 
     '''
-
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.6_halo_depth_2.f90"),
                            api=TEST_API)
@@ -3612,8 +3594,7 @@ def test_halo_req_no_read_deps(monkeypatch):
             "dependence for a halo exchange" in str(excinfo.value))
 
 
-def test_no_halo_exchange_annex_dofs(tmpdir, monkeypatch,
-                                     annexed):
+def test_no_halo_exchange_annex_dofs(tmpdir, annexed):
     ''' If a kernel writes to a discontinuous field and also reads from a
     continuous field then that fields annexed dofs are read (but not
     the rest of its level1 halo). If the previous modification of this
@@ -3629,8 +3610,6 @@ def test_no_halo_exchange_annex_dofs(tmpdir, monkeypatch,
     fewer halo exchange call generated.
 
     '''
-    api_config = Config.get().api_conf(TEST_API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.7.1_halo_annexed.f90"),
                            api=TEST_API)
@@ -4079,8 +4058,8 @@ def test_lfricruntimechecks_multikern(tmpdir, monkeypatch):
     generated_code = str(psy.gen)
     assert "use testkern_mod, only : testkern_code" in generated_code
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use fs_continuity_mod"
     assert "use mesh_mod, only : mesh_type" in generated_code
+    assert "use fs_continuity_mod, only" in generated_code
     expected2 = (
         "    f3_proxy = f3%get_proxy()\n"
         "    f3_data => f3_proxy%data\n"
@@ -4155,7 +4134,6 @@ def test_lfricruntimechecks_builtins(tmpdir, monkeypatch):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use fs_continuity_mod\n"
     assert "use mesh_mod, only : mesh_type" in generated_code
     assert "type(field_type), intent(in) :: f3" in generated_code
     expected_code2 = (
@@ -4335,7 +4313,6 @@ def test_mixed_precision_args(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    print(generated_code)
     assert "use constants_mod\n" in generated_code
     assert """
   use field_mod, only : field_proxy_type, field_type
@@ -4347,15 +4324,13 @@ r_solver_operator_type
   use r_tran_operator_mod, only : r_tran_operator_proxy_type, \
 r_tran_operator_type
   use r_bl_field_mod, only : r_bl_field_proxy_type, r_bl_field_type
-  use r_phys_field_mod, only : r_phys_field_proxy_type, r_phys_field_type
   implicit none
   public
 
   contains
   subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, \
 scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, \
-field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl, scalar_r_phys, \
-field_r_phys)
+field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
     use mesh_mod, only : mesh_type
     use mixed_kernel_mod, only : mixed_code
     real(kind=r_def), intent(in) :: scalar_r_def
@@ -4369,8 +4344,6 @@ field_r_phys)
     type(r_tran_operator_type), intent(in) :: operator_r_tran
     real(kind=r_bl), intent(in) :: scalar_r_bl
     type(r_bl_field_type), intent(in) :: field_r_bl
-    real(kind=r_phys), intent(in) :: scalar_r_phys
-    type(r_phys_field_type), intent(in) :: field_r_phys
     integer(kind=i_def) :: cell
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
@@ -4378,7 +4351,6 @@ field_r_phys)
     real(kind=r_solver), pointer, dimension(:) :: field_r_solver_data => null()
     real(kind=r_tran), pointer, dimension(:) :: field_r_tran_data => null()
     real(kind=r_bl), pointer, dimension(:) :: field_r_bl_data => null()
-    real(kind=r_phys), pointer, dimension(:) :: field_r_phys_data => null()
     real(kind=r_def), pointer, dimension(:,:,:) :: \
 operator_r_def_local_stencil => null()
     real(kind=r_solver), pointer, dimension(:,:,:) :: \
@@ -4389,7 +4361,6 @@ operator_r_tran_local_stencil => null()
     integer(kind=i_def) :: nlayers_field_r_solver
     integer(kind=i_def) :: nlayers_field_r_tran
     integer(kind=i_def) :: nlayers_field_r_bl
-    integer(kind=i_def) :: nlayers_field_r_phys
     integer(kind=i_def) :: ndf_w3
     integer(kind=i_def) :: undf_w3
     integer(kind=i_def) :: ndf_w0
@@ -4398,7 +4369,6 @@ operator_r_tran_local_stencil => null()
     type(r_solver_field_proxy_type) :: field_r_solver_proxy
     type(r_tran_field_proxy_type) :: field_r_tran_proxy
     type(r_bl_field_proxy_type) :: field_r_bl_proxy
-    type(r_phys_field_proxy_type) :: field_r_phys_proxy
     type(operator_proxy_type) :: operator_r_def_proxy
     type(r_solver_operator_proxy_type) :: operator_r_solver_proxy
     type(r_tran_operator_proxy_type) :: operator_r_tran_proxy
@@ -4410,8 +4380,6 @@ operator_r_tran_local_stencil => null()
     integer(kind=i_def) :: loop2_stop
     integer(kind=i_def) :: loop3_start
     integer(kind=i_def) :: loop3_stop
-    integer(kind=i_def) :: loop4_start
-    integer(kind=i_def) :: loop4_stop
 """ in generated_code
 
     # Test compilation

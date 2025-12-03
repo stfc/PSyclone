@@ -48,7 +48,7 @@ env:
   NVFORTRAN_VERSION: 25.7
   ONEAPI_VERSION: 2025.0
   PERL_VERSION: 5.42
-  PYTHON_VERSION: 3.13
+  PYTHON_VERSION: 3.14
   NUM_PARALLEL: 16
   PREFIX: /archive/psyclone-tests/latest-run/
 
@@ -85,7 +85,7 @@ jobs:
         python -m pip install --upgrade pip
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
-        # pip install external/fparser
+        pip install external/fparser
         pip install .[test]
         # Compile nvidia profiling tools
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
@@ -106,6 +106,7 @@ jobs:
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${PREFIX}/UKMO-NEMOv4
+        export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
         cd $PSYCLONE_NEMO_DIR
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
@@ -132,6 +133,7 @@ jobs:
         make -j ${NUM_PARALLEL} openmp_gpu
         make -j ${NUM_PARALLEL} compile-openmp_gpu
         export NV_ACC_POOL_THRESHOLD=75
+        export CUDA_VISIBLE_DEVICES=1
         make run-openmp_gpu
         # Check for full numerical reproducibility with KGO results
         diff <(make -s output-openmp_gpu)  KGOs/run.stat.nemo4.spitz12.nvhpc.10steps
@@ -154,6 +156,7 @@ jobs:
         make -j ${NUM_PARALLEL} openacc_kernels
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j ${NUM_PARALLEL} compile-openacc_kernels
         export NV_ACC_POOL_THRESHOLD=75
+        export CUDA_VISIBLE_DEVICES=1
         make run-openacc_kernels
         # Check the output is as expected (TODO #2895: improve numerical reproducibility)
         make output-openacc_kernels | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
@@ -180,6 +183,7 @@ jobs:
         make -j ${NUM_PARALLEL} openacc_loops
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j ${NUM_PARALLEL} compile-openacc_loops
         export NV_ACC_POOL_THRESHOLD=75
+        export CUDA_VISIBLE_DEVICES=1
         make run-openacc_loops
         # Check the output is as expected (TODO #2895: improve numerical reproducibility)
         make output-openacc_loops | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
@@ -240,6 +244,7 @@ jobs:
         make -j ${NUM_PARALLEL} openmp_gpu
         make -j ${NUM_PARALLEL} compile-openmp_gpu
         export NV_ACC_POOL_THRESHOLD=75
+        export CUDA_VISIBLE_DEVICES=1
         make run-openmp_gpu
         # Check for full numerical reproducibility with KGO results
         diff <(make -s output-openmp_gpu)  KGOs/run.stat.nemo4.spitz12.nvhpc.10steps

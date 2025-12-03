@@ -781,8 +781,6 @@ def test_acc_atomics_is_valid_atomic_statement(fortran_reader):
         integer :: i, j, val
 
         A(1,1) = A(1,1) ** 2  ! Operator is not supported
-        A(1,1) = A(2,1) * 2   ! The operands are different that the lhs
-        A(1,1) = A(1,1) / 2 + 3 - 5  ! A(1,1) is not a top-level operand
         A(:,1) = A(:,1) / 2      ! It is not a scalar expression
         A(1,1) = MOD(A(1,1), 3)  ! Intrinsic is not supported
     end subroutine

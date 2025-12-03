@@ -138,8 +138,8 @@ def test_apply_multi_dim_imported_limits(fortran_reader, fortran_writer):
     # We cannot test the compilation of the generated code because of
     # the 'use some_mod'.
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
-    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= jpi .or. "
-            "ubound(a, dim=2) /= jpj) then\n"
+    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= jpi "
+            ".or. ubound(a, dim=2) /= jpj) then\n"
             "      if (allocated(a)) then\n"
             "        deallocate(a)\n"
             "      end if\n"
@@ -167,8 +167,8 @@ def test_apply_arg_limits(fortran_reader, fortran_writer, tmpdir):
     hoist_trans.apply(routine)
     code = fortran_writer(psyir).lower()
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
-    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx .or. "
-            "ubound(a, dim=2) /= ny) then\n"
+    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx "
+            ".or. ubound(a, dim=2) /= ny) then\n"
             "      if (allocated(a)) then\n"
             "        deallocate(a)\n"
             "      end if\n"
@@ -199,16 +199,16 @@ def test_apply_runtime_checks(fortran_reader, fortran_writer, tmpdir):
     hoist_trans.apply(routine)
     code = fortran_writer(psyir).lower()
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
-    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx .or. "
-            "ubound(a, dim=2) /= ny) then\n"
+    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx "
+            ".or. ubound(a, dim=2) /= ny) then\n"
             "      if (allocated(a)) then\n"
             "        deallocate(a)\n"
             "      end if\n"
             "      allocate(a(1:nx,1:ny))\n"
             "    end if\n" in code)
-    assert ("    if (.not.allocated(b) .or. lbound(b, dim=1) /= nx .or. "
-            "ubound(b, dim=1) /= ny .or. lbound(b, dim=2) /= nx .or. "
-            "ubound(b, dim=2) /= ny) then\n"
+    assert ("    if (.not.allocated(b) .or. lbound(b, dim=1) /= nx "
+            ".or. ubound(b, dim=1) /= ny .or. lbound(b, dim=2) "
+            "/= nx .or. ubound(b, dim=2) /= ny) then\n"
             "      if (allocated(b)) then\n"
             "        deallocate(b)\n"
             "      end if\n"
@@ -244,8 +244,8 @@ def test_apply_multi_arrays(fortran_reader, fortran_writer):
     assert "real, allocatable, dimension(:,:), private :: a" in code
     assert "integer, allocatable, dimension(:,:), private :: mask" in code
     assert (
-        "    if (.not.allocated(mask) .or. ubound(mask, dim=1) /= jpi .or. "
-        "ubound(mask, dim=2) /= jpj) then\n"
+        "    if (.not.allocated(mask) .or. ubound(mask, dim=1) /= jpi "
+        ".or. ubound(mask, dim=2) /= jpj) then\n"
         "      if (allocated(mask)) then\n"
         "        deallocate(mask)\n"
         "      end if\n"
@@ -283,8 +283,8 @@ def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
     code = fortran_writer(psyir).lower()
     assert ("  real, allocatable, dimension(:,:), private :: a\n"
             "  real, allocatable, dimension(:,:), private :: a_2\n" in code)
-    assert ("    if (.not.allocated(a_2) .or. ubound(a_2, dim=1) /= nx .or. "
-            "ubound(a_2, dim=2) /= ny) then\n"
+    assert ("    if (.not.allocated(a_2) .or. ubound(a_2, dim=1) /= nx "
+            ".or. ubound(a_2, dim=2) /= ny) then\n"
             "      if (allocated(a_2)) then\n"
             "        deallocate(a_2)\n"
             "      end if\n"
@@ -415,25 +415,33 @@ def test_get_local_arrays_codeblock(fortran_reader):
     local arrays if they are accessed within a CodeBlock (since they
     may get renamed as part of the hoisting process). We check for the
     situation where we have more than one CodeBlock and the same symbol
-    is referenced in both. '''
+    is referenced in both, with different capitalisation. '''
     code = (
         "module my_mod\n"
         "contains\n"
         "subroutine test\n"
         "  integer :: i\n"
         "  real :: a(10), b(10)\n"
-        "  a(:) = 1.0\n"
+        "  A(:) = 1.0\n"
         "  write(*,*) a(10)\n"
         "  b(:) = 1.0\n"
-        "  write(*,*) b(1),a(1)\n"
+        "  write(*,*) B(1),a(1)\n"
         "end subroutine test\n"
         "end module my_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     hoist_trans = HoistLocalArraysTrans()
+    # _get_local_arrays only returns local arrays that are eligible for
+    # hoisting.
     assert hoist_trans._get_local_arrays(routine) == []
-    # TODO #11. Once logging is implemented check that the exclusion of 'a'
-    # and 'b' has been logged.
+    asym = routine.symbol_table.lookup("a")
+    assert asym.preceding_comment == (
+        "PSyclone warning: cannot hoist 'a' to global scope as it is "
+        "accessed in a CodeBlock")
+    bsym = routine.symbol_table.lookup("b")
+    assert bsym.preceding_comment == (
+        "PSyclone warning: cannot hoist 'b' to global scope as it is "
+        "accessed in a CodeBlock")
 
 
 def test_get_local_arrays_not_parameters(fortran_reader):
@@ -648,7 +656,7 @@ def test_apply_with_hoist_with_dependent_symbols(fortran_reader,
         "subroutine test\n"
         "  use other_mod2\n"
         "  integer :: i\n"
-        "  real(kind=wp) :: a(10)\n"
+        "  real(kind=1*wp) :: a(10)\n"
         "  type(my_type) :: b(N)\n"
         "  do i=1,10\n"
         "    a(i) = 1.0\n"
@@ -660,10 +668,9 @@ def test_apply_with_hoist_with_dependent_symbols(fortran_reader,
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
     code = fortran_writer(psyir)
-    print(code)
     assert ("! PSyclone warning: 'a' cannot be hoisted to the global scope "
             "as 'wp' is not guaranteed to be a global symbol" in code)
-    assert "real(kind=wp), dimension(10) :: a" in code
+    assert "real(kind=1 * wp), dimension(10) :: a" in code
     assert ("! PSyclone warning: 'b' cannot be hoisted to the global scope"
             " as 'my_type' is not guaranteed to be a global symbol" in code)
     assert "type(my_type), dimension(N) :: b" in code
@@ -760,7 +767,7 @@ UBOUND(c, dim=1) /= var + 5) then
 
       ! PSyclone warning: HoistLocalArraysTrans found an ALLOCATE with \
 alloc-options, this is not supported
-      ALLOCATE(d(1:10), MOLD=arg)
+      ALLOCATE(d(1:10), mold=arg)
 
       ! PSyclone warning: HoistLocalArraysTrans found more than one ALLOCATE \
 for this variable, but currently it just supports cases with single allocations

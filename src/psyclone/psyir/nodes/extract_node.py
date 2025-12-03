@@ -49,21 +49,27 @@ wrapping up settings for generating driver for the extracted code, will
 be added in Issue #298.
 '''
 
-from typing import List
+from typing import cast, List, Tuple, TYPE_CHECKING
 
 from psyclone.configuration import Config
-from psyclone.core import Signature
+from psyclone.core import AccessSequence, Signature
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.directive import Directive
+from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.routine import Routine
+from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL8_TYPE, ArrayType, ContainerSymbol,
-    ImportInterface, DataType, SymbolTable)
-from psyclone.errors import InternalError
+    ArrayType, ContainerSymbol, DataSymbol, DataType, ImportInterface,
+    INTEGER_TYPE, REAL8_TYPE, Symbol, SymbolTable)
+
+if TYPE_CHECKING:
+    from psyclone.psyir.tools import ReadWriteInfo
 
 
 class ExtractNode(PSyDataNode):
@@ -107,7 +113,7 @@ class ExtractNode(PSyDataNode):
     # used. For each key (which is module_name+"|"+region_name) it contains
     # how many regions with that name have been created. This number will
     # then be added as an index to create unique region identifiers.
-    _used_kernel_names = {}
+    _used_kernel_names: dict[str, int] = {}
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
         super().__init__(ast=ast, children=children,
@@ -149,7 +155,7 @@ class ExtractNode(PSyDataNode):
         return is_eq
 
     @property
-    def extract_body(self):
+    def extract_body(self) -> Node:
         '''
         :returns: the Schedule associated with this ExtractNode.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
@@ -158,12 +164,73 @@ class ExtractNode(PSyDataNode):
         return super().psy_data_body
 
     @property
-    def post_name(self):
+    def post_name(self) -> str:
         '''
         :returns: the _post_name member of this ExtractNode.
         :rtype: str
         '''
         return self._post_name
+
+    def get_ignored_variables(self) -> list[tuple[str, Signature]]:
+        '''
+        This function is used to create a list of variables that
+        should not be written to a kernel data file (or read in the
+        driver). The current implementation removes all loop
+        variables (as long as the variables are only used in loops).
+        The main reason for this is that using OpenMP parallelism
+        means that loop variables are undefined when exiting the
+        loop, so comparing them results in errors.
+
+        Detect all loop variables that do not need to be added to
+        a kernel data file. This function tests that a loop variable
+        is not used for anything else (a code might 're-use' a loop
+        variable for some other reasons, in which case the variable
+        should still be added), and also takes into account that
+        a loop variable might be used in more than one loop.
+
+        This is done by collecting all accesses to a loop variable
+        under this ExtractNode, and then collecting all accesses to
+        the same variable under any loop using this variable. If
+        the union of the accesses under all loops is identical to
+        all accesses to this variable, the variable is only used
+        inside loop, and does not need to be stored.
+
+        '''
+        ignore_list: list[tuple[str, Signature]] = []
+        all_accesses = self.reference_accesses()
+
+        # First collect all accesses to loop variables from all loops
+        # into a dictionary. We update the accesses if a loop variable
+        # is used in more than one loop
+        all_loop_var_accesses: dict[Signature, AccessSequence] = {}
+        for loop in self.walk(Loop):
+            loop_var_sig = Signature(loop.variable.name)
+            accesses_in_loop = loop.reference_accesses()
+            if loop_var_sig in all_loop_var_accesses:
+                all_loop_var_accesses[loop_var_sig].update(
+                    accesses_in_loop[loop_var_sig])
+            else:
+                all_loop_var_accesses[loop_var_sig] = (
+                    accesses_in_loop[loop_var_sig])
+
+        # Now check all loop variables, and if all accesses to this variable
+        # are from loops only (i.e. the final value of the loop variable is
+        # not used outside of a loop), the variable does not need to be stored.
+        # As a complication, any variable usage in a directive must be
+        # discarded (e.g. a loop variable might be declared as omp private).
+        # We do this by counting how many directive nodes are in the list, and
+        # then subtracting this number from all accesses:
+        for var_sig, accesses in all_loop_var_accesses.items():
+            directive_count = 0
+            for access in all_accesses[var_sig]:
+                statement = access.node.ancestor(Statement, include_self=True)
+                if isinstance(statement, Directive):
+                    directive_count += 1
+
+            if len(accesses) == len(all_accesses[var_sig]) - directive_count:
+                ignore_list.append(('', var_sig))
+
+        return ignore_list
 
     def lower_to_language_level(self):
         # pylint: disable=arguments-differ
@@ -172,7 +239,6 @@ class ExtractNode(PSyDataNode):
         PSyIR tree is modified in-place.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Avoid circular dependency
@@ -193,16 +259,15 @@ class ExtractNode(PSyDataNode):
         ctu = CallTreeUtils()
         read_write_info = ctu.get_in_out_parameters(
             self, include_non_data_accesses=False)
+        vars_to_ignore = self.get_ignored_variables()
+
         # Use the copy of the dsl_tree to get the external symbols
         ctu.get_non_local_read_write_info(copy_dsl_tree.children,
                                           read_write_info)
 
-        # TODO #3024: We could be more data efficint by better selecting
+        # TODO #3024: We could be more data efficient by better selecting
         # which don't need to be copied in (because the extraction region
         # will only write to them)
-        options = {'pre_var_list': read_write_info.all_used_vars_list,
-                   'post_var_list': read_write_info.write_list,
-                   'post_var_postfix': self._post_name}
 
         if self._driver_creator:
             nodes = self.children
@@ -222,13 +287,25 @@ class ExtractNode(PSyDataNode):
                                               read_write_info,
                                               postfix=postfix,
                                               prefix=prefix,
-                                              region_name=region_name_tuple)
+                                              region_name=region_name_tuple,
+                                              vars_to_ignore=vars_to_ignore)
+
+        # Remove the variables to be ignored from the read_write_info object,
+        # so they will not be extracted.
+        for var_info in vars_to_ignore:
+            read_write_info.remove(signature=var_info[1],
+                                   container_name=var_info[0])
+
+        options = {'pre_var_list': read_write_info.all_used_vars_list,
+                   'post_var_list': read_write_info.write_list,
+                   'post_var_postfix': self._post_name}
 
         return super().lower_to_language_level(options)
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def determine_postfix(read_write_info, postfix: str = "_post") -> str:
+    def determine_postfix(read_write_info: "ReadWriteInfo",
+                          postfix: str = "_post") -> str:
         '''
         This function prevents any name clashes that can occur when adding
         the postfix to output variable names. For example, if there is an
@@ -242,8 +319,7 @@ class ExtractNode(PSyDataNode):
 
         :param read_write_info: information about all input and output
             parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str postfix: the postfix to append to each output variable.
+        :param postfix: the postfix to append to each output variable.
 
         :returns: a postfix that can be added to each output variable without
             generating a name clash.
@@ -258,13 +334,14 @@ class ExtractNode(PSyDataNode):
         all_vars_string = [str(input_var) for _, input_var in all_vars]
         while any(str(out_sig)+postfix+str(suffix) in all_vars_string
                   for out_sig in read_write_info.signatures_written):
+            suffix = cast(int, suffix)
             if suffix == "":
                 suffix = 0
             else:
                 suffix += 1
         return postfix+str(suffix)
 
-    def get_unique_region_name(self, nodes: List[Node]):
+    def get_unique_region_name(self, nodes: List[Node]) -> Tuple[str, str]:
         '''This function returns the region and module name. If they are
         specified in the user options, these names will just be returned (it
         is then up to the user to guarantee uniqueness). Otherwise a name
@@ -298,12 +375,12 @@ class ExtractNode(PSyDataNode):
         return str(signature).replace("%", "_")
 
     # -------------------------------------------------------------------------
-    def flatten_references(self):
+    def flatten_references(self) -> None:
         '''Replace StructureReferencces with a simple Reference and a flattened
         name (replacing all % with _).
 
         '''
-        already_flattened = {}  # dict of name: symbol
+        already_flattened: dict[str, Symbol] = {}  # dict of name: symbol
 
         for structure_ref in self.walk(StructureReference)[:]:
             if isinstance(structure_ref.parent, Call):
@@ -371,7 +448,8 @@ class ExtractNode(PSyDataNode):
         return INTEGER_TYPE
 
     @staticmethod
-    def bring_external_symbols(read_write_info, symbol_table: SymbolTable):
+    def bring_external_symbols(read_write_info: "ReadWriteInfo",
+                               symbol_table: SymbolTable) -> None:
         '''
         Use the ModuleManager to explore external dependencies and bring
         symbols used in other modules into scope (with ImportInterface). The
@@ -379,7 +457,6 @@ class ExtractNode(PSyDataNode):
 
         :param read_write_info: information about the symbols usage in the
             scope.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param symbol_table: the associated symbol table.
 
         '''

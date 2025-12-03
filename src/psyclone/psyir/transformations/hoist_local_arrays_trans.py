@@ -48,9 +48,9 @@ from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   IntrinsicCall, BinaryOperation, Reference,
                                   DataNode)
 from psyclone.psyir.symbols import (
-    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol)
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+    ArrayType, DataSymbol, DataTypeSymbol, INTEGER_TYPE, Symbol)
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 
 
 class HoistLocalArraysTrans(Transformation):
@@ -357,9 +357,8 @@ then
             # Precision could include multiple symbols - handle in the same
             # way as for DataSymbol but check all of them.
             if isinstance(sym.datatype.precision, DataNode):
-                refs = sym.datatype.precision.walk(Reference)
                 failed = False
-                for ref in refs:
+                for ref in sym.datatype.precision.walk(Reference):
                     if isinstance(ref.symbol, DataSymbol):
                         if ref.symbol.name in node.symbol_table:
                             sym.append_preceding_comment(
@@ -384,14 +383,19 @@ then
         # Exclude any arrays that are accessed within a CodeBlock (as they
         # may get renamed as part of the transformation).
         cblocks = node.walk(CodeBlock)
+        all_names_in_cblock = set()
         for cblock in cblocks:
-            cblock_names = set(cblock.get_symbol_names())
-            array_names = set(local_arrays.keys())
+            cblock_names = set(nm.lower() for nm in cblock.get_symbol_names())
+            array_names = set(nm.lower() for nm in local_arrays.keys())
             names_in_cblock = cblock_names.intersection(array_names)
-            # TODO #11 - log the fact that we can't hoist the arrays
-            # listed in 'names_in_cblock'.
+            all_names_in_cblock.update(names_in_cblock)
             for name in names_in_cblock:
                 del local_arrays[name]
+        for name in all_names_in_cblock:
+            sym = node.symbol_table.lookup(name)
+            sym.append_preceding_comment(
+                f"PSyclone warning: cannot hoist '{name}' to global "
+                f"scope as it is accessed in a CodeBlock")
 
         for intrinsic in node.walk(IntrinsicCall):
             # Exclude arrays that are used in a RESHAPE expression
