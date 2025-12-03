@@ -384,27 +384,36 @@ class ArrayIndexAnalysis:
         smt_var = z3.Bool(var)
         self.subst[smt_var] = fresh_sym
 
+    def _apply_subst(self, expr: z3.ExprRef) -> z3.ExprRef:
+        '''Apply the current substitution to the given expression.'''
+        # The Z3 substitute() function takes a list of pairs rather
+        # than a dict and, as the substitution can get quite large,
+        # this can be inefficient. Therefore, we first narrow down
+        # the substitution to cover only the free variables present
+        # in the expression, and then apply it.
+        subst_pairs = []
+        for fv in _free_vars(expr):
+            if fv in self.subst:
+                subst_pairs.append((fv, self.subst[fv]))
+        return z3.substitute(expr, *subst_pairs)
+
     def _translate_integer_expr_with_subst(self, expr: Node):
         '''Translate the given integer expresison to SMT, and apply the
         current substitution.'''
         (smt_expr, prohibit_overflow) = translate_integer_expr(
             expr, self.opts)
-        subst_pairs = list(self.subst.items())
         if self.opts.prohibit_overflow:
-            self._add_constraint(
-              z3.substitute(prohibit_overflow, *subst_pairs))
-        return z3.substitute(smt_expr, *subst_pairs)
+            self._add_constraint(self._apply_subst(prohibit_overflow))
+        return self._apply_subst(smt_expr)
 
     def _translate_logical_expr_with_subst(self, expr: Node):
         '''Translate the given logical expresison to SMT, and apply the
         current substitution.'''
         (smt_expr, prohibit_overflow) = translate_logical_expr(
             expr, self.opts)
-        subst_pairs = list(self.subst.items())
         if self.opts.prohibit_overflow:
-            self._add_constraint(
-              z3.substitute(prohibit_overflow, *subst_pairs))
-        return z3.substitute(smt_expr, *subst_pairs)
+            self._add_constraint(self._apply_subst(prohibit_overflow))
+        return self._apply_subst(smt_expr)
 
     def _translate_cond_expr_with_subst(self, expr: Node):
         '''Translate the given conditional expresison to SMT, and apply
@@ -415,8 +424,7 @@ class ArrayIndexAnalysis:
             expr, self.opts)
         if self.opts.prohibit_overflow:
             smt_expr = z3.And(smt_expr, prohibit_overflow)
-        subst_pairs = list(self.subst.items())
-        return z3.substitute(smt_expr, *subst_pairs)
+        return self._apply_subst(smt_expr)
 
     def _constrain_loop_var(self,
                             var:   z3.ExprRef,
@@ -447,9 +455,10 @@ class ArrayIndexAnalysis:
 
     def _add_array_access(self, array_name: str, access: ArrayAccess):
         '''Add an array access to the current access dict.'''
-        if array_name not in self.access_dict:
-            self.access_dict[array_name] = []
-        self.access_dict[array_name].append(access)
+        if array_name in self.access_dict:
+            self.access_dict[array_name].append(access)
+        else:
+            self.access_dict[array_name] = [access]
 
     def _add_all_array_accesses(self, node: Node, cond: z3.BoolRef):
         '''Add all array accesses in the given node to the current
@@ -458,7 +467,7 @@ class ArrayIndexAnalysis:
         for sig, access_seq in var_accesses.items():
             for access_info in access_seq:
                 if isinstance(access_info.node, Reference):
-                    (_, indices) = access_info.node.get_signature_and_indices()
+                    (s, indices) = access_info.node.get_signature_and_indices()
                     indices_flat = [i for inds in indices for i in inds]
                     is_array_access = (
                       access_info.is_data_access and
@@ -480,7 +489,7 @@ class ArrayIndexAnalysis:
                                         ind))
                             smt_indices.append(smt_inds)
                         self._add_array_access(
-                            str(sig),
+                            str(s),
                             ArrayIndexAnalysis.ArrayAccess(
                               cond, access_info.is_any_write(),
                               smt_indices, access_info.node))
@@ -606,26 +615,24 @@ class ArrayIndexAnalysis:
 
         # IfBlock
         if isinstance(stmt, IfBlock):
-            if self.in_loop_to_parallelise:
-                self._add_all_array_accesses(stmt.condition, cond)
-            # Translate condition to SMT
-            smt_cond = self._translate_cond_expr_with_subst(stmt.condition)
-            # Recursively step into 'then'
-            if stmt.if_body:
+            # Loop over each condition/body pair in the list of branches
+            for (if_cond, if_body) in stmt.flat():
+                # Translate condition to SMT
+                if if_cond is None:
+                    smt_cond = z3.BoolVal(True)
+                else:
+                    smt_cond = self._translate_cond_expr_with_subst(if_cond)
+                    if self.in_loop_to_parallelise:
+                        self._add_all_array_accesses(if_cond, cond)
+                # Recursively step into body
                 self._save_subst()
-                self._step(stmt.if_body, z3.And(cond, smt_cond))
+                self._step(if_body, z3.And(cond, smt_cond))
                 self._restore_subst()
-            # Recursively step into 'else'
-            if stmt.else_body:
-                self._save_subst()
-                self._step(stmt.else_body,
-                           z3.And(cond, z3.Not(smt_cond)))
-                self._restore_subst()
+                # Accumulate the condition for the next branch
+                cond = z3.And(cond, z3.Not(smt_cond))
             # Kill vars written by each branch
-            if stmt.if_body:
-                self._kill_all_written_vars(stmt.if_body)
-            if stmt.else_body:
-                self._kill_all_written_vars(stmt.else_body)
+            for (_, if_body) in stmt.flat():
+                self._kill_all_written_vars(if_body)
             return
 
         # Loop
@@ -1075,3 +1082,15 @@ def _is_scalar_logical(dt: DataType) -> bool:
     '''Check that type is a scalar logical.'''
     return (isinstance(dt, ScalarType) and
             dt.intrinsic == ScalarType.Intrinsic.BOOLEAN)
+
+
+def _free_vars(expr: z3.ExprRef) -> list[z3.ExprRef]:
+    '''Return all the free variables (uninterpreted constants) in the
+    given expression.'''
+    if z3.is_const(expr):
+        if expr.decl().kind() == z3.Z3_OP_UNINTERPRETED:
+            return {expr}
+        else:
+            return {}
+    else:
+        return {fv for child in expr.children() for fv in _free_vars(child)}
