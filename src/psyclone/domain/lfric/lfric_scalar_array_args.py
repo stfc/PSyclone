@@ -60,9 +60,6 @@ class LFRicScalarArrayArgs(LFRicCollection):
     Handles the declarations of ScalarArray kernel arguments appearing in
     either an Invoke or a Kernel stub.
 
-    :param node: the Invoke or Kernel stub for which to manage the
--                 ScalarArray arguments.
-
     '''
     def __init__(self, node: Union[LFRicKern, LFRicInvoke]):
         super().__init__(node)
