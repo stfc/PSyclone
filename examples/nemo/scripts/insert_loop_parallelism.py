@@ -90,7 +90,7 @@ NEMOV5_EXCLUSIONS = [
 ]
 
 NEMOV4_EXCLUSIONS = [
-    "dynspg_ts.f90",
+    # "dynspg_ts.f90",
 ]
 
 if NEMOV4:
@@ -103,7 +103,7 @@ SKIP_FOR_PERFORMANCE = [
     "iom_nf90.f90",
     "iom_def.f90",
     "timing.f90",
-    "lbclnk.f90",
+    # "lbclnk.f90",
     "histcom.f90",
 ]
 
