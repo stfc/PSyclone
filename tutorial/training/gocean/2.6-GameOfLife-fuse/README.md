@@ -82,10 +82,9 @@ Obviously, just inlining one kernel is not enough, all
 kernels should be inlined. Modify the inline script to
 find all invokes and all kernels in each invoke, and
 apply the inline transformation to
-them. As shown in the presentation, you can use
-`psy.invokes.invoke_list` to get a list of all `invoke`
-objects, and then use `invoke.schedule.walk(GOKern)` to
-get an iterator over all kernels in a schedule.
+them. As shown in the presentation, there are various
+way in which this can be achieved - using `walk`, 
+or `kernels`.
 
 What is performance with the GNU Fortran compiler after
 inlining all kernels?

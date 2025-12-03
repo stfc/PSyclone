@@ -53,9 +53,9 @@ def trans(psyir: FileContainer) -> None:
     # TODO: Create an instance of the inline transformation
 
     km_inline = ...
-    for sched in psyir.walk(InvokeSchedule):
-        print("invoke", sched.name)
-        for kern in sched.kernels():
+    for invoke_sched in psyir.walk(InvokeSchedule):
+        print("invoke", invoke_sched.name)
+        for kern in invoke_sched.kernels():
             print("  kern", kern.name)
 
     # TODO: Look at the schedule representation, i.e. print

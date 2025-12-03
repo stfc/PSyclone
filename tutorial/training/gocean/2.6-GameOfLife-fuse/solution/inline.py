@@ -51,9 +51,9 @@ def trans(psyir: FileContainer) -> None:
     '''
     km_inline = KernelModuleInlineTrans()
 
-    for sched in psyir.walk(InvokeSchedule):
-        print("invoke", sched.name)
-        for kern in sched.kernels():
+    for invoke_sched in psyir.walk(InvokeSchedule):
+        print("invoke", invoke_sched.name)
+        for kern in invoke_sched.kernels():
             print("  kern", kern.name)
 
     # Or to show that InvokesSchedule are Routines:
