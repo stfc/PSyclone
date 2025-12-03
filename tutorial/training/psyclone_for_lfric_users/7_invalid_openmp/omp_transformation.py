@@ -36,20 +36,21 @@
 '''This script applies OpenMP parallelisation to each loop.
 '''
 
-from psyclone.psyir.nodes import Loop
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import Loop, Node
 from psyclone.transformations import LFRicOMPParallelLoopTrans
 
 
-def trans(psy):
+def trans(psyir: Node):
     '''PSyclone transformation script for the dynamo0p3 api to apply
     OpenMP parallel to all loops.'''
 
     otrans = LFRicOMPParallelLoopTrans()
 
     # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
+    for invoke in psyir.walk(InvokeSchedule):
         print(f"Transforming invoke '{invoke.name}':")
-        schedule = invoke.schedule
         # Apply OpenMP to each of the loops
-        for loop in schedule.walk(Loop):
+        for loop in invoke.walk(Loop):
+            print("LOOP", loop)
             otrans.apply(loop)

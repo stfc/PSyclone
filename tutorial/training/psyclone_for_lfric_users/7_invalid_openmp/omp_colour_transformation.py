@@ -36,13 +36,14 @@
 '''This script applies OpenMP parallelisation to each loop.
 '''
 
-from psyclone.psyir.nodes import Loop
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import Loop, Node
 from psyclone.transformations import (LFRicOMPParallelLoopTrans,
                                       LFRicColourTrans)
 
 
-def trans(psy):
+def trans(psyir: Node):
     '''PSyclone transformation script for the dynamo0p3 api to apply
     OpenMP parallel to all loops.'''
 
@@ -52,10 +53,9 @@ def trans(psy):
 
     # Loop over all of the Invokes in the PSy object to see if
     # colouring needs to be applied:
-    for invoke in psy.invokes.invoke_list:
+    for invoke in psyir.walk(InvokeSchedule):
         print(f"Transforming invoke '{invoke.name}':")
-        schedule = invoke.schedule
-        for loop in schedule.walk(Loop):
+        for loop in invoke.walk(Loop):
             if loop.field_space.orig_name \
                     not in const.VALID_DISCONTINUOUS_NAMES \
                     and loop.iteration_space == "cell_column":
@@ -63,7 +63,7 @@ def trans(psy):
 
         # Check all outer loop - if there is a coloured loop,
         # its inner loop must be omp-parallelised:
-        for child in schedule.children:
+        for child in invoke.children:
             if isinstance(child, Loop):
                 if child.loop_type == "colours":
                     otrans.apply(child.loop_body[0])
