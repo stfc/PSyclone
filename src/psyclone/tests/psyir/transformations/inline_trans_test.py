@@ -46,7 +46,8 @@ from psyclone.errors import InternalError
 from psyclone.psyGen import Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    Call, IntrinsicCall, Loop, Node, Reference, Routine, Statement)
+    Assignment, Call, CodeBlock, IntrinsicCall, Loop, Node, Reference,
+    Routine, Statement)
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType)
 from psyclone.psyir.transformations import (
@@ -2633,7 +2634,8 @@ def test_validate_automatic_array_sized_by_arg(fortran_reader, monkeypatch):
         "  ndim = 5\n"
         "  ! A read access to ndim is fine.\n"
         "  zdim = ndim + mdim\n"
-        "  write(*,*) ndim\n"
+        "  do ndim = 1, 10\n"
+        "  enddo\n"
         "  call sub(var, ndim, ndim)\n"
         "end subroutine main\n"
         "subroutine sub(x, ilen, jlen)\n"
@@ -2649,12 +2651,24 @@ def test_validate_automatic_array_sized_by_arg(fortran_reader, monkeypatch):
         if call.routine.symbol.name == "sub":
             break
     inline_trans = InlineTrans()
-    # Should fail because the preceding write to ilen
+    # Should fail because ilen is accessed in a CodeBlock.
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because one or more of its "
             "declarations depends on 'ilen' which is passed by argument and "
-            "is assigned to before the call ('! PSyclone" in str(err.value))
+            "may be written to before the call ('do ndim ="
+            in str(err.value))
+    # Remove the Loop so the Assignment is found.
+    psyir.walk(Loop)[0].detach()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Cannot inline routine 'sub' because one or more of its "
+            "declarations depends on 'ilen' which is passed by argument and "
+            "is assigned to before the call ('ndim = 5')" in str(err.value))
+    # Without the preceding write to ndim, validate() is happy.
+    assign = psyir.walk(Assignment)[0]
+    assign.detach()
+    inline_trans.validate(call)
     # Break Reference.previous_accesses() to exercise the InternalError.
     monkeypatch.setattr(call.arguments[1], "previous_accesses",
                         lambda: [Statement()])

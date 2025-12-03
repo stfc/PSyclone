@@ -1164,7 +1164,7 @@ class InlineTrans(Transformation):
                         continue
                     exprn = prev.ancestor(Statement, include_self=True)
                     stmt = exprn.debug_string().strip()
-                    if isinstance(prev, (CodeBlock, Call, Kern, Loop)):
+                    if isinstance(prev, (Kern, Loop)):
                         raise TransformationError(
                             f"Cannot inline routine '{routine.name}' "
                             f"because one or more of its declarations "
