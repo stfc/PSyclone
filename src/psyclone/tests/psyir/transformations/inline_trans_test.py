@@ -46,7 +46,7 @@ from psyclone.errors import InternalError
 from psyclone.psyGen import Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    Assignment, Call, CodeBlock, IntrinsicCall, Loop, Node, Reference,
+    Assignment, Call, IntrinsicCall, Loop, Node, Reference,
     Routine, Statement)
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType)
