@@ -53,7 +53,8 @@ from psyclone.psyir.nodes import (
         BinaryOperation, IntrinsicCall
 )
 from psyclone.psyir.tools import (
-        DependencyTools, DTCode, ReductionInferenceTool
+        DependencyTools, DTCode, ReductionInferenceTool,
+        ArrayIndexAnalysisOptions
 )
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
@@ -210,6 +211,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             reduction_ops = self.get_option("reduction_ops", **kwargs)
             if reduction_ops is None:
                 reduction_ops = []
+            use_smt_array_index_analysis = self.get_option(
+                "use_smt_array_index_analysis", **kwargs)
         else:
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
@@ -220,6 +223,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             sequential = options.get("sequential", False)
             privatise_arrays = options.get("privatise_arrays", False)
             reduction_ops = options.get("reduction_ops", [])
+            use_smt_array_index_analysis = options.get(
+                "use_smt_array_index_analysis", False)
 
         # Check type of reduction_ops (not handled by validate_options)
         if not isinstance(reduction_ops, list):
@@ -296,7 +301,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     f" object containing str representing the "
                     f"symbols to ignore, but got '{ignore_dependencies_for}'.")
 
-        dep_tools = DependencyTools()
+        dep_tools = DependencyTools(
+            use_smt_array_index_analysis=use_smt_array_index_analysis)
 
         signatures = [Signature(name) for name in ignore_dependencies_for]
 
@@ -363,6 +369,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
               nowait: bool = False,
               reduction_ops: List[Union[BinaryOperation.Operator,
                                         IntrinsicCall.Intrinsic]] = None,
+              use_smt_array_index_analysis:
+                  Union[bool, ArrayIndexAnalysisOptions] = False,
               **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
@@ -407,6 +415,11 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         :param reduction_ops: if non-empty, attempt parallelisation
             of loops by inferring reduction clauses involving any of
             the reduction operators in the list.
+        :param use_smt_array_index_analysis: if True, the SMT-based
+            array index analysis will be used for detecting array access
+            conflicts. An ArrayIndexAnalysisOptions value can also be given,
+            instead of a bool, in which case the analysis will be invoked
+            with the given options.
 
         '''
         if not options:
@@ -415,7 +428,9 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     ignore_dependencies_for=ignore_dependencies_for,
                     privatise_arrays=privatise_arrays,
                     sequential=sequential, nowait=nowait,
-                    reduction_ops=reduction_ops, **kwargs
+                    reduction_ops=reduction_ops,
+                    use_smt_array_index_analysis=use_smt_array_index_analysis,
+                    **kwargs
             )
             # Rename the input options that are renamed in this apply method.
             # TODO 2668, rename options to be consistent.
@@ -436,16 +451,22 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             privatise_arrays = options.get("privatise_arrays", False)
             nowait = options.get("nowait", False)
             reduction_ops = options.get("reduction_ops", [])
+            use_smt_array_index_analysis = options.get(
+                "use_smt_array_index_analysis", False)
 
         self.validate(node, options=options, verbose=verbose,
                       collapse=collapse, force=force,
                       ignore_dependencies_for=ignore_dependencies_for,
                       privatise_arrays=privatise_arrays,
                       sequential=sequential, nowait=nowait,
-                      reduction_ops=reduction_ops, **kwargs)
+                      reduction_ops=reduction_ops,
+                      use_smt_array_index_analysis=(
+                          use_smt_array_index_analysis),
+                      **kwargs)
 
         list_of_signatures = [Signature(name) for name in list_of_names]
-        dtools = DependencyTools()
+        dtools = DependencyTools(
+                   use_smt_array_index_analysis=use_smt_array_index_analysis)
 
         # Add all reduction variables inferred by 'validate' to the list
         # of signatures to ignore

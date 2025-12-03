@@ -43,6 +43,8 @@ from psyclone.psyir.tools.dependency_tools import DTCode, DependencyTools
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
 from psyclone.psyir.tools.reduction_inference import ReductionInferenceTool
+from psyclone.psyir.tools.array_index_analysis import (ArrayIndexAnalysis,
+    ArrayIndexAnalysisOptions)
 
 # For AutoAPI documentation generation.
 __all__ = ['CallTreeUtils',
@@ -50,4 +52,6 @@ __all__ = ['CallTreeUtils',
            'DependencyTools',
            'DefinitionUseChain', 
            'ReadWriteInfo',
-           'ReductionInferenceTool']
+           'ReductionInferenceTool',
+           'ArrayIndexAnalysis',
+           'ArrayIndexAnalysisOptions']

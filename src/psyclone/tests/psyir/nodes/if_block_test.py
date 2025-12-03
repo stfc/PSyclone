@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+#         M. Naylor, University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the IfBlock PSyIR node. '''
@@ -282,3 +283,72 @@ def test_ifblock_children_validation():
         ifblock.addchild(else_body)
     assert ("Item 'Schedule' can't be child 3 of 'If'. The valid format is: "
             "'DataNode, Schedule [, Schedule]'." in str(excinfo.value))
+
+
+def test_if_block_flat_full(fortran_reader, fortran_writer):
+    '''Test the IfBlock's flat() method on a fully flattenable chain
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+      subroutine sub(a, b, c, result)
+        logical, intent(in) :: a, b, c
+        integer, intent(out) :: result
+        if (a) then
+          result = 1
+        else if (b) then
+          result = 2
+        else if (c) then
+          result = 3
+        else
+          result = 4
+        end if
+      end subroutine''')
+    if_block = psyir.walk(IfBlock)[0]
+    branches = if_block.flat()
+    # The flat view of the IfBlock should give 4 branches
+    assert len(branches) == 4
+    # The condition of the final 'else' branch should be 'None'
+    assert branches[3][0] is None
+    # Check the other conditions
+    assert (fortran_writer(branches[0][0]) == "a")
+    assert (fortran_writer(branches[1][0]) == "b")
+    assert (fortran_writer(branches[2][0]) == "c")
+    # Check the bodies
+    assert (fortran_writer(branches[0][1]).startswith("result = 1"))
+    assert (fortran_writer(branches[1][1]).startswith("result = 2"))
+    assert (fortran_writer(branches[2][1]).startswith("result = 3"))
+    assert (fortran_writer(branches[3][1]).startswith("result = 4"))
+
+
+def test_if_block_flat_partial(fortran_reader, fortran_writer):
+    '''Test the IfBlock's flat() method on a partially flattenable chain
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+      subroutine sub(a, b, c, result)
+        logical, intent(in) :: a, b, c
+        integer, intent(out) :: result
+        if (a) then
+          result = 1
+        else if (b) then
+          result = 2
+        else
+          if (c) then
+            result = 3
+          else
+            result = 4
+          end if
+          result = result + 1
+        end if
+      end subroutine''')
+    if_block = psyir.walk(IfBlock)[0]
+    branches = if_block.flat()
+    # The flat view of the IfBlock should give 3 branches
+    assert len(branches) == 3
+    # The condition of the final 'else' branch should be 'None'
+    assert branches[2][0] is None
+    # Check the other conditions
+    assert (fortran_writer(branches[0][0]) == "a")
+    assert (fortran_writer(branches[1][0]) == "b")
+    # Check the bodies
+    assert (fortran_writer(branches[0][1]).startswith("result = 1"))
+    assert (fortran_writer(branches[1][1]).startswith("result = 2"))
+    assert (fortran_writer(branches[2][1]).startswith("if (c)"))

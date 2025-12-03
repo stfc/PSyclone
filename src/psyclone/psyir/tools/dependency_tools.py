@@ -49,6 +49,8 @@ from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Loop, Node, Range
+from psyclone.psyir.tools.array_index_analysis import (
+    ArrayIndexAnalysis, ArrayIndexAnalysisOptions)
 
 
 # pylint: disable=too-many-lines
@@ -161,11 +163,20 @@ class DependencyTools():
         specified in the PSyclone config file. This can be used to
         exclude for example 1-dimensional loops.
     :type loop_types_to_parallelise: Optional[List[str]]
+    :param use_smt_array_index_analysis: if True, the SMT-based
+        array index analysis will be used for detecting array access
+        conflicts. An ArrayIndexAnalysisOptions value can also be given,
+        instead of a bool, in which case the analysis will be invoked
+        with the given options.
+    :type use_smt_array_index_analysis: Union[
+        bool, ArrayIndexAnalysisOptions]
 
     :raises TypeError: if an invalid loop type is specified.
 
     '''
-    def __init__(self, loop_types_to_parallelise=None):
+    def __init__(self,
+                 loop_types_to_parallelise=None,
+                 use_smt_array_index_analysis=False):
         if loop_types_to_parallelise:
             # Verify that all loop types specified are valid:
             config = Config.get()
@@ -182,6 +193,7 @@ class DependencyTools():
         else:
             self._loop_types_to_parallelise = []
         self._clear_messages()
+        self._use_smt_array_index_analysis = use_smt_array_index_analysis
 
     # -------------------------------------------------------------------------
     def _clear_messages(self):
@@ -890,9 +902,15 @@ class DependencyTools():
             # TODO #1270 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info)
             if is_array:
-                # Handle arrays
-                par_able = self._array_access_parallelisable(loop_vars,
-                                                             var_info)
+                # If using the SMT-based array index analysis then do
+                # nothing for now. This analysis is run after the loop.
+                if self._use_smt_array_index_analysis:
+                    # This analysis runs after the loop
+                    par_able = True
+                else:
+                    # Handle arrays
+                    par_able = self._array_access_parallelisable(loop_vars,
+                                                                 var_info)
             else:
                 # Handle scalar variable
                 par_able = self._is_scalar_parallelisable(signature, var_info)
@@ -902,6 +920,23 @@ class DependencyTools():
                 # The user might have requested to continue in order to get
                 # all messages for all variables preventing parallelisation,
                 # not just the first one
+                result = False
+
+        # Apply the SMT-based array index analysis, if enabled
+        if self._use_smt_array_index_analysis:
+            if isinstance(self._use_smt_array_index_analysis,
+                          ArrayIndexAnalysisOptions):
+                options = self._use_smt_array_index_analysis
+            else:
+                options = ArrayIndexAnalysisOptions()
+            analysis = ArrayIndexAnalysis(options)
+            conflict_free = analysis.is_loop_conflict_free(loop)
+            if not conflict_free:
+                self._add_message(
+                    "The ArrayIndexAnalysis has determined that the"
+                    "array accesses in the loop may be conflicting "
+                    "and hence cannot be parallelised.",
+                    DTCode.ERROR_DEPENDENCY)
                 result = False
 
         return result
