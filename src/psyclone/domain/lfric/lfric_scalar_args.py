@@ -111,7 +111,8 @@ class LFRicScalarArgs(LFRicCollection):
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_logical"])
 
         for intent in FORTRAN_INTENT_NAMES:
-            scal = [arg.declaration_name for arg in self._scalar_args[intent]]
+            scal = [arg.declaration_name for
+                    arg in self._scalar_args[intent]]
             rscal = [arg.declaration_name for
                      arg in self._real_scalars[intent]]
             iscal = [arg.declaration_name for
@@ -171,8 +172,9 @@ class LFRicScalarArgs(LFRicCollection):
                     raise InternalError(
                         f"Found an unsupported data type "
                         f"'{arg.descriptor.data_type}' for the scalar "
-                        f"argument '{arg.declaration_name}'. Supported types "
-                        f"are {const.VALID_SCALAR_DATA_TYPES}.")
+                        f"argument '{arg.declaration_name}'. "
+                        f"Supported types are "
+                        f"{const.VALID_SCALAR_DATA_TYPES}.")
 
         # Create declarations
         self._create_declarations()
