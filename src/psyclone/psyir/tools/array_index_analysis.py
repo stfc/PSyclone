@@ -171,6 +171,7 @@ class ArrayIndexAnalysisOptions:
        the SMT solver to find a solution. If the solver does not
        return within this time, the analysis will conservatively return
        that a conflict exists even though it has not yet found one.
+       This can be set to 'None' to disable the timeout.
 
     :param prohibit_overflow: if True, the analysis will tell the solver
        to ignore the possibility of integer overflow. Integer overflow is
@@ -571,7 +572,8 @@ class ArrayIndexAnalysis:
         # Solve the constraints
         if self.opts.num_sweep_threads <= 1:
             s = z3.Solver()
-            s.set("timeout", self.opts.smt_timeout)
+            if self.opts.smt_timeout is not None:
+                s.set("timeout", self.opts.smt_timeout)
             s.add(z3.And(self.constraints))
             s.add(z3.Or([z3.And(prod) for prod in sum_of_prods]))
             result = s.check()
@@ -728,7 +730,8 @@ class ArrayIndexAnalysis:
             # Create a solver for the problem
             ctx = z3.Context()
             s = z3.Solver(ctx=ctx)
-            s.set("timeout", self.opts.smt_timeout)
+            if self.opts.smt_timeout is not None:
+                s.set("timeout", self.opts.smt_timeout)
             s.add(z3.And(self.constraints).translate(ctx))
             sum_constraint = z3.Or([z3.And(prod) for prod in sum_of_prods])
             s.add(sum_constraint.translate(ctx))
