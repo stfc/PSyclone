@@ -3,8 +3,9 @@
 The measurement at the end of the previous training module showed
 that there can be a significant performance loss with the initial
 version of the PSyclone Game of Life. In this module we will
-apply some transformations to improve the performance of the
-code.
+apply kernel module inlining to improve the performance
+(for other compilers like Intel, which can inline across
+modules, no benefit will be achieved by this transformation).
 
 ## Inlining
 As is obvious from the code being able to inline the kernel calls
