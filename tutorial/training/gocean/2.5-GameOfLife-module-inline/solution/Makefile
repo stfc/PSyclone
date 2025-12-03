@@ -3,7 +3,7 @@ API = gocean
 
 OBJ = time_step_alg_mod.o time_step_alg_mod_psy.o
 
-include ../common.mk
+include ../../common.mk
 
 $(EXE): $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
@@ -15,6 +15,6 @@ time_step_alg_mod_psy.f90: time_step_alg_mod.f90
 time_step_alg_mod.o: time_step_alg_mod_psy.o
 
 # PSyclone: create alg and psy layer files:
-%.f90: %.x90 Makefile fuse_loops.py
-	$(PSYCLONE) -s ./fuse_loops.py -oalg $*.f90 \
+%.f90: %.x90 Makefile inline.py
+	$(PSYCLONE) -s ./inline.py -oalg $*.f90 \
 		        -opsy $*_psy.f90 $<
