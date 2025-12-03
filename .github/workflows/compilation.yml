@@ -153,6 +153,7 @@ jobs:
       run: |
         . .runner_venv/bin/activate
         make -C tutorial/practicals allclean
+        make -C tutorial/training allclean
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/LFRic compile
