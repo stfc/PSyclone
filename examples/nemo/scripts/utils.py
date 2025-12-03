@@ -202,6 +202,7 @@ def normalise_loops(
         statements out of the loop nest.
     '''
     filename = schedule.root.name
+    nemo_v4 = os.environ.get('NEMOV4', False)
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
         # to files with statement functions because it will attempt to put the
@@ -233,17 +234,20 @@ def normalise_loops(
                     print(err.value)
 
     if convert_range_loops:
-        # Convert all array implicit loops to explicit loops
-        explicit_loops = ArrayAssignment2LoopsTrans()
-        for assignment in schedule.walk(Assignment):
-            if filename == "fldread.f90":
-                # TODO #2951: This file has issues converting SturctureRefs
-                continue
-            try:
-                explicit_loops.apply(
-                    assignment, options={'verbose': True})
-            except TransformationError:
-                pass
+        if filename == "fldread.f90":
+            # TODO #2951: This file has issues converting SturctureRefs
+            pass
+        elif nemo_v4 and filename == "dynspg_ts.f90":
+            pass
+        else:
+            # Convert all array implicit loops to explicit loops
+            explicit_loops = ArrayAssignment2LoopsTrans()
+            for assignment in schedule.walk(Assignment):
+                try:
+                    explicit_loops.apply(
+                        assignment, options={'verbose': True})
+                except TransformationError:
+                    pass
 
     if scalarise_loops:
         # Apply scalarisation to every loop. Execute this in reverse order

@@ -84,43 +84,39 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = []
 
-NEMOV5_EXCLUSIONS = [
-    # Fail in nvfortran when enabling seaice
-    "icefrm.f90",  # Has unsupported implicit symbol declaration
-]
-
-NEMOV4_EXCLUSIONS = [
-    # "dynspg_ts.f90",
-]
-
-if NEMOV4:
-    FILES_TO_SKIP.extend(NEMOV4_EXCLUSIONS)
-else:
-    FILES_TO_SKIP.extend(NEMOV5_EXCLUSIONS)
-
+# There files are skipped because transforming them degrade the performance
 SKIP_FOR_PERFORMANCE = [
     "iom.f90",
     "iom_nf90.f90",
     "iom_def.f90",
     "timing.f90",
-    # "lbclnk.f90",
     "histcom.f90",
 ]
 
 # These files change the results from the baseline when psyclone adds
 # parallelisation dirctives
 PARALLELISATION_ISSUES = []
+
+# These files change the results from the baseline when psyclone adds
+# offloading dirctives
+OFFLOADING_ISSUES = []
+
 if not NEMOV4:
+    FILES_TO_SKIP.extend([
+        # Fail in nvfortran when enabling seaice
+        "icefrm.f90",  # Has unsupported implicit symbol declaration
+    ])
+
+    SKIP_FOR_PERFORMANCE.extend([
+        "lbclnk.f90",
+    ])
+
     PARALLELISATION_ISSUES.extend([
         "ldfc1d_c2d.f90",
         "tramle.f90",
         "traqsr.f90",
     ])
 
-# These files change the results from the baseline when psyclone adds
-# offloading dirctives
-OFFLOADING_ISSUES = []
-if not NEMOV4:
     OFFLOADING_ISSUES.extend([
         # Produces different output results
         "zdftke.f90",
@@ -141,14 +137,14 @@ if not NEMOV4:
         "stp2d.f90",
     ])
 
-if not NEMOV4 and "acc_offloading" in PARALLEL_DIRECTIVES:
-    OFFLOADING_ISSUES.extend([
-        # Fail in OpenACC ORCA2_ICE_PISCES
-        "dynzdf.f90",
-        "trabbl.f90",
-        "trazdf.f90",
-        "zdfsh2.f90",
-    ])
+    if "acc_offloading" in PARALLEL_DIRECTIVES:
+        OFFLOADING_ISSUES.extend([
+            # Fail in OpenACC ORCA2_ICE_PISCES
+            "dynzdf.f90",
+            "trabbl.f90",
+            "trazdf.f90",
+            "zdfsh2.f90",
+        ])
 
 ASYNC_ISSUES = [
     # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
