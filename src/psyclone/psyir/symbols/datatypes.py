@@ -38,6 +38,8 @@
 
 ''' This module contains the datatype definitions.'''
 
+from __future__ import annotations
+
 import abc
 import copy
 from collections import OrderedDict
@@ -651,6 +653,16 @@ class ArrayType(DataType):
             # setattr necessary to bypass frozen dataclass restrictions
             object.__setattr__(self, 'lower', _dangling_parent(self.lower))
             object.__setattr__(self, 'upper', _dangling_parent(self.upper))
+
+        def copy(self) -> ArrayType.ArrayBounds:
+            '''Creates a copy of this ArrayBounds object'''
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.psyir.nodes import DataNode
+            lower_copy = (self.lower.copy() if isinstance(
+                self.lower, DataNode) else self.lower)
+            upper_copy = (self.upper.copy() if isinstance(
+                self.upper, DataNode) else self.upper)
+            return ArrayType.ArrayBounds(lower_copy, upper_copy)
 
     def __init__(self, datatype, shape):
 
