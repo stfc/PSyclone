@@ -38,15 +38,14 @@
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import (
-    Directive, Schedule,
-    Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
+from psyclone.psyir.nodes import Directive, Schedule, Routine
+from psyclone.psyir.nodes.omp_directives import (
+    OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
     OMPScheduleClause, OMPBarrierDirective, OMPParallelDirective,
-    OMPReductionClause, BinaryOperation, IntrinsicCall
-)
-from psyclone.psyir.transformations.parallel_loop_trans import \
-    ParallelLoopTrans
+    OMPReductionClause, MAP_REDUCTION_OP_TO_OMP)
+from psyclone.psyir.transformations.parallel_loop_trans import (
+    ParallelLoopTrans)
 from psyclone.utils import transformation_documentation_wrapper
 
 #: Mapping from simple string to actual directive class.
@@ -64,34 +63,6 @@ MAP_STR_TO_BARRIER_DIRECTIVE = {
 }
 #: List containing the valid names for OMP directives.
 VALID_OMP_DIRECTIVES = list(MAP_STR_TO_LOOP_DIRECTIVES.keys())
-
-#: Mapping from PSyIR reduction operator to OMP reduction operator.
-MAP_REDUCTION_OP_TO_OMP = {
-    BinaryOperation.Operator.ADD:
-        OMPReductionClause.ReductionClauseTypes.ADD,
-    BinaryOperation.Operator.SUB:
-        OMPReductionClause.ReductionClauseTypes.SUB,
-    BinaryOperation.Operator.MUL:
-        OMPReductionClause.ReductionClauseTypes.MUL,
-    BinaryOperation.Operator.AND:
-        OMPReductionClause.ReductionClauseTypes.AND,
-    BinaryOperation.Operator.OR:
-        OMPReductionClause.ReductionClauseTypes.OR,
-    BinaryOperation.Operator.EQV:
-        OMPReductionClause.ReductionClauseTypes.EQV,
-    BinaryOperation.Operator.NEQV:
-        OMPReductionClause.ReductionClauseTypes.NEQV,
-    IntrinsicCall.Intrinsic.MAX:
-        OMPReductionClause.ReductionClauseTypes.MAX,
-    IntrinsicCall.Intrinsic.MIN:
-        OMPReductionClause.ReductionClauseTypes.MIN,
-    IntrinsicCall.Intrinsic.IAND:
-        OMPReductionClause.ReductionClauseTypes.IAND,
-    IntrinsicCall.Intrinsic.IOR:
-        OMPReductionClause.ReductionClauseTypes.IOR,
-    IntrinsicCall.Intrinsic.IEOR:
-        OMPReductionClause.ReductionClauseTypes.IEOR
-}
 
 
 @transformation_documentation_wrapper

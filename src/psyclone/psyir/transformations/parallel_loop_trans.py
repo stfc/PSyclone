@@ -324,6 +324,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     continue
                 # See if the scalar in question allows parallelisation of
                 # the loop using reduction clauses.
+                red_msg = ""
                 if (reduction_ops and
                         message.code == DTCode.WARN_SCALAR_REDUCTION):
                     if (len(message.var_infos) == 1):
@@ -333,7 +334,13 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                         if clause:
                             self.inferred_reduction_clauses.append(clause)
                             continue
+                        red_msg = (
+                            f"Failed to automatically generate reduction "
+                            f"clause for '{sig}' - unsupported form of "
+                            f"reduction")
                 errors.append(str(message))
+                if red_msg:
+                    errors.append(red_msg)
 
             if errors:
                 error_lines = "\n".join(errors)

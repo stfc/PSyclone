@@ -778,18 +778,19 @@ class DependencyTools():
         return True
 
     # -------------------------------------------------------------------------
-    def _is_scalar_parallelisable(self, sig: Signature,
-                                  access_info: AccessInfo):
+    def _is_scalar_parallelisable(self,
+                                  sig: Signature,
+                                  access_info: AccessInfo) -> bool:
         '''Checks if the accesses to the given scalar variable can be
         parallelised, i.e. it is not a reduction.
 
         :param sig: the signature for the variable to test.
         :param access_info: the access information for the variable to test.
+
         :return: True if the scalar variable is not a reduction, i.e. it
             can be parallelised.
-        :rtype: bool
-        '''
 
+        '''
         # Read only scalar variables can be parallelised
         if access_info.is_read_only():
             return True
@@ -800,7 +801,6 @@ class DependencyTools():
             # be used outside of the loop (or it is bad code). Read-only access
             # has already been tested above, so it must be a write access here,
             # which prohibits parallelisation.
-            # We could potentially use lastprivate here?
             self._add_message(f"Scalar variable '{access_info.var_name}' "
                               "is only written once.",
                               DTCode.WARN_SCALAR_WRITTEN_ONCE,
