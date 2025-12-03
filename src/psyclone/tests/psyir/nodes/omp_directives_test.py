@@ -5274,7 +5274,6 @@ def test_reduction_struct_member(fortran_reader, fortran_writer, caplog):
             "supported for reductions" in caplog.text)
 
 
-
 def test_reduction_private_clash(fortran_reader, fortran_writer):
     '''Test that a variable does not occur in both a reduction clause
        and a private clause.'''
