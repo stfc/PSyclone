@@ -1281,7 +1281,7 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         '''
         return self.children[2]
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         In-place construction of clauses as PSyIR constructs.
         At the higher level these clauses rely on dynamic variable dependence
@@ -1290,14 +1290,20 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         explicitly in the lower-level tree to be processed by the backend
         visitor.
 
+        DSL reductions (given by self.reductions) also need to be handled
+        during the lowering step. (Any generic code reductions will already
+        have been added as directive clauses when applying the corresponding
+        parallelisation transformation.)
+
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
-        :raises GenerationError: if the OpenMP directive needs some
-                                 synchronisation mechanism to create valid
-                                 code. These are not implemented yet.
+        :raises GenerationError: if there are multiple Kernels performing
+            reductions into the same variable.
+        :raises GenerationError: if there are different types of Node within
+            the parallel region - this guards against including
+            GlobalSum nodes within a threaded region.
+
         '''
-
         # first check whether we have more than one reduction with the same
         # name in this Schedule. If so, raise an error as this is not
         # supported for a parallel region.

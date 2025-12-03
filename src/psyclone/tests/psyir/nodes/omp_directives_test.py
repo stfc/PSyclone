@@ -5044,7 +5044,8 @@ def test_multiple_reduction_same_var(fortran_reader, fortran_writer):
     assert "reduction(+: acc)" in output
 
 
-def test_multiple_reduction_same_var_diff_op(fortran_reader, fortran_writer):
+def test_multiple_reduction_same_var_diff_op(fortran_reader, fortran_writer,
+                                             caplog):
     ''' Test that a loop containing multiple reductions of the same
     variable, but involve different operators, is not parallelised.
     '''
@@ -5063,11 +5064,15 @@ def test_multiple_reduction_same_var_diff_op(fortran_reader, fortran_writer):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with pytest.raises(TransformationError) as err:
-        omplooptrans.apply(loop, enable_reductions=True)
-    # TODO #2446 and #514: improve this error message in future
+    with caplog.at_level(logging.INFO):
+        with pytest.raises(TransformationError) as err:
+            omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'acc' is read first, which indicates a reduction"
             in str(err.value))
+    assert ("Failed to automatically generate reduction clause for 'acc' - "
+            "unsupported form of reduction" in str(err.value))
+    assert ("Cannot generate a reduction clause for 'acc' because it has "
+            "accesses involving different operators: [" in caplog.text)
 
 
 def test_nested_reductions(fortran_reader, fortran_writer):
@@ -5093,7 +5098,7 @@ def test_nested_reductions(fortran_reader, fortran_writer):
     assert "collapse(2)" in output
 
 
-def test_non_reduction1(fortran_reader, fortran_writer):
+def test_non_reduction1(fortran_reader, fortran_writer, caplog):
     ''' Test that a loop that looks like it contains a reduction (but
     doesn't), is not parallelised.
     '''
@@ -5113,14 +5118,18 @@ def test_non_reduction1(fortran_reader, fortran_writer):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with pytest.raises(TransformationError) as err:
-        omplooptrans.apply(loop, enable_reductions=True)
-    # TODO #2446 and #514: improve this error message in future
+    with caplog.at_level(logging.INFO):
+        with pytest.raises(TransformationError) as err:
+            omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'count' is read first, which indicates a reduction"
             in str(err.value))
+    assert ("Failed to automatically generate reduction clause for 'count' - "
+            "unsupported form of reduction" in str(err.value))
+    assert ("The read accesses of 'count' are not in a form that is "
+            "supported for reductions" in caplog.text)
 
 
-def test_non_reduction2(fortran_reader, fortran_writer):
+def test_non_reduction2(fortran_reader, fortran_writer, caplog):
     ''' Test that x = x + x does not lead to a reduction clause.
     '''
     psyir = fortran_reader.psyir_from_source('''
@@ -5135,14 +5144,18 @@ def test_non_reduction2(fortran_reader, fortran_writer):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with pytest.raises(TransformationError) as err:
-        omplooptrans.apply(loop, enable_reductions=True)
-    # TODO #2446 and #514: improve this error message in future
+    with caplog.at_level(logging.INFO):
+        with pytest.raises(TransformationError) as err:
+            omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'count' is read first, which indicates a reduction"
             in str(err.value))
+    assert ("Failed to automatically generate reduction clause for 'count' - "
+            "unsupported form of reduction" in str(err.value))
+    assert ("The write accesses of 'count' are not in a form that is "
+            "supported for reductions" in caplog.text)
 
 
-def test_non_reduction3(fortran_reader, fortran_writer):
+def test_non_reduction3(fortran_reader, fortran_writer, caplog):
     ''' Test that x = x / 2 does not lead to a reduction clause.
     '''
     psyir = fortran_reader.psyir_from_source('''
@@ -5157,11 +5170,15 @@ def test_non_reduction3(fortran_reader, fortran_writer):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with pytest.raises(TransformationError) as err:
-        omplooptrans.apply(loop, enable_reductions=True)
-    # TODO #2446 and #514: improve this error message in future
+    with caplog.at_level(logging.INFO):
+        with pytest.raises(TransformationError) as err:
+            omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'count' is read first, which indicates a reduction"
             in str(err.value))
+    assert ("Failed to automatically generate reduction clause for 'count' - "
+            "unsupported form of reduction" in str(err.value))
+    assert ("The read accesses of 'count' are not in a form that is "
+            "supported for reductions" in caplog.text)
 
 
 @pytest.mark.parametrize("d", ["teamsdistributeparalleldo", "teamsloop"])
@@ -5228,7 +5245,7 @@ def test_reduction_omp_parallel_loop_trans(fortran_reader, fortran_writer):
     assert "reduction(+: acc)" in output
 
 
-def test_reduction_struct_member(fortran_reader, fortran_writer):
+def test_reduction_struct_member(fortran_reader, fortran_writer, caplog):
     ''' Test that reduction loops involving struct members are
     not parallelised. This is not yet supported by OpenMP.
     '''
@@ -5246,11 +5263,16 @@ def test_reduction_struct_member(fortran_reader, fortran_writer):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with pytest.raises(TransformationError) as err:
-        omplooptrans.apply(loop, enable_reductions=True)
-    # TODO #2446 and #514: improve this error message in future
+    with caplog.at_level(logging.INFO):
+        with pytest.raises(TransformationError) as err:
+            omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'struct%acc' is read first, which indicates a reduction"
             in str(err.value))
+    assert ("Failed to automatically generate reduction clause for "
+            "'struct%acc' - unsupported form of reduction" in str(err.value))
+    assert ("The read accesses of 'struct%acc' are not in a form that is "
+            "supported for reductions" in caplog.text)
+
 
 
 def test_reduction_private_clash(fortran_reader, fortran_writer):
