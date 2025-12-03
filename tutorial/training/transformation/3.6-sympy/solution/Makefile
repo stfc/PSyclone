@@ -11,3 +11,6 @@ compile:
 
 clean:
 	# Nothing to clean here
+	
+allclean:
+	# Nothing to clean here
