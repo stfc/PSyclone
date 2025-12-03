@@ -40,7 +40,6 @@ clean-default:
 
 # The target allclean cleans all also all remote dependencies
 allclean-default: clean
-	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR) clean
 
 # A sneaky way to allow a Makefile including this one to override
