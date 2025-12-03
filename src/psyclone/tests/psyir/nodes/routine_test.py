@@ -541,6 +541,32 @@ def test_check_outer_scope_accesses_import_clash(fortran_reader):
             str(err.value))
 
 
+def test_outer_scope_accesses_unresolved(fortran_reader):
+    '''
+    Test that check_outer_scope_accesses() raises the expected errors for
+    symbols that aren't found or are unresolved.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+    contains
+      subroutine call_it()
+        call a_routine()
+      end subroutine call_it
+    end module my_mod
+    ''')
+    rt0 = psyir.children[0].children[0]
+    call = rt0.children[0]
+
+    # Mistakenly add symbols without adding them to the symbol table
+    rt0.addchild(Assignment.create(Reference(Symbol("a")),
+                                   Reference(Symbol("b"))))
+    with pytest.raises(SymbolError) as err:
+        rt0.check_outer_scope_accesses(call, "call")
+    assert ("'call_it' contains accesses to 'a' but the origin of "
+            "this" in str(err.value))
+
+
 def test_outer_scope_accesses_multi_wildcards(fortran_reader):
     '''
     Test that check_outer_scope_accesses() raises the expected errors when it's
