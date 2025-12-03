@@ -7,16 +7,25 @@ run_EXAMPLES=$(addprefix run_,$(EXAMPLES))
 test_EXAMPLES=$(addprefix test_,$(EXAMPLES))
 
 .PHONY: $(allclean_EXAMPLES) $(clean_EXAMPLES) $(compile_EXAMPLES) \
-        $(run_EXAMPLES) $(test_EXAMPLES)
+        $(run_EXAMPLES) $(test_EXAMPLES) \
+        allclean clean compile run test
 
-default: $(test_EXAMPLES)
-clean: $(clean_EXAMPLES)
+default: test
 allclean: $(allclean_EXAMPLES)
-
+clean: $(clean_EXAMPLES)
+test: $(test_EXAMPLES)
+compile: $(compile_EXAMPLES)
+run: $(run_EXAMPLES)
 test: $(test_EXAMPLES)
 
+$(compile_EXAMPLES):
+	$(MAKE) -C $(patsubst compile_%,%,$@)/solution test
+
+$(run_EXAMPLES):
+	$(MAKE) -C $(patsubst run_%,%,$@)/solution test
+
 $(test_EXAMPLES):
-	$(MAKE) -C $(patsubst clean_%,%,$@)/solution test
+	$(MAKE) -C $(patsubst test_%,%,$@)/solution test
 
 $(clean_EXAMPLES):
 	$(MAKE) -C $(patsubst clean_%,%,$@) clean

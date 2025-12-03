@@ -63,10 +63,10 @@ $(clean_EXAMPLES):
 	$(MAKE) -C $(patsubst clean_%,%,$@) clean
 
 $(compile_EXAMPLES):
-	$(MAKE) -C $(patsubst test_%,%,$@) compile
+	$(MAKE) -C $(patsubst compile_%,%,$@) compile
 
 $(run_EXAMPLES):
-	$(MAKE) -C $(patsubst test_%,%,$@) run
+	$(MAKE) -C $(patsubst run_%,%,$@) run
 
 $(test_EXAMPLES):
 	$(MAKE) -C $(patsubst test_%,%,$@) test
