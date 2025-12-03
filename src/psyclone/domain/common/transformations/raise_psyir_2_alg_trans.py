@@ -91,31 +91,6 @@ class RaisePSyIR2AlgTrans(Transformation):
         return dummy_call.pop_all_children()[1:]
 
     @staticmethod
-    def _get_symbol(call, fp2_node):
-        '''Return the name of a Structure Constructor stored as a CodeBlock
-        containing an fparser2 ast.
-
-        :param code_block: the CodeBlock containing a StructureConstructor.
-        :type code_block: :py:class:`psyclone.psyir.nodes.CodeBlock`
-        :param fp2_node: the fparser2 Structure Constructor node.
-        :type fp2_node: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-
-        :returns: the symbol capturing the name and type of the \
-            StructureConstructor.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
-
-        '''
-        name = fp2_node.children[0].string
-        symbol_table = call.scope.symbol_table
-        try:
-            type_symbol = symbol_table.lookup(name)
-        except KeyError:
-            type_symbol = DataTypeSymbol(name, StructureType())
-            symbol_table.add(type_symbol)
-        return type_symbol
-
-    @staticmethod
     def _specialise_symbol(symbol):
         '''If the symbol argument is a Symbol then change it into a
         DataTypeSymbol.
@@ -243,6 +218,7 @@ class RaisePSyIR2AlgTrans(Transformation):
 
         call_name = None
         calls = []
+        symtab = node.scope.symbol_table
         for idx, call_arg in enumerate(node.arguments):
 
             # pylint: disable=protected-access
@@ -261,7 +237,8 @@ class RaisePSyIR2AlgTrans(Transformation):
                 # a StructureConstructor fparser2 node inside
                 for fp2_node in call_arg.get_ast_nodes:
                     # This child is a kernel
-                    type_symbol = self._get_symbol(node, fp2_node)
+                    name = fp2_node.children[0].string
+                    type_symbol = symtab.lookup(name)
                     args = self._parse_args(call_arg, fp2_node)
                     arg_info.append((type_symbol, args))
 

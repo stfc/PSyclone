@@ -95,8 +95,7 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
                     except KeyError:
                         # No match for a builtin so create a user-defined
                         # kernel.
-                        type_symbol = RaisePSyIR2AlgTrans._get_symbol(
-                            call, fp2_node)
+                        type_symbol = table.lookup(name)
                         self._specialise_symbol(type_symbol)
                         calls.append(LFRicKernelFunctor.create(type_symbol,
                                                                args))
