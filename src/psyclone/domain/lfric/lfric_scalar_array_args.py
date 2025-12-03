@@ -41,9 +41,11 @@ an Invoke or a Kernel stub.
 
 # Imports
 from collections import Counter
+from typing import Union
 
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
-from psyclone.domain.lfric import LFRicCollection, LFRicConstants, LFRicTypes
+from psyclone.domain.lfric import (LFRicCollection, LFRicConstants, LFRicTypes,
+                                   LFRicKern, LFRicInvoke)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import FORTRAN_INTENT_NAMES
 from psyclone.psyir.nodes import Literal, ArrayReference
@@ -62,7 +64,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
 -                 ScalarArray arguments.
 
     '''
-    def __init__(self, node):
+    def __init__(self, node: Union[LFRicKern, LFRicInvoke]):
         super().__init__(node)
 
         # Initialise dictionaries of 'real', 'integer' and 'logical'
