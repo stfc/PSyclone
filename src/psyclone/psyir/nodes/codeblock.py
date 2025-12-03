@@ -123,6 +123,9 @@ class CodeBlock(Statement, DataNode):
         return isinstance(child, Reference)
 
     def _insert_representative_references(self):
+        ''' Insert Reference children under this codeblock that
+        represent each of the symbols used inside the CodeBlock.
+        '''
         for symbol_name in self.get_symbol_names():
             try:
                 symtab = self.scope.symbol_table
