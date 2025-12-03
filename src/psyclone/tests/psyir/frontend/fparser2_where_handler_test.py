@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import (
     Call, CodeBlock, Container, IfBlock, IntrinsicCall, Literal, Loop, Range,
     Reference, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
-    DataSymbol, ScalarType, INTEGER_TYPE)
+    DataSymbol, ScalarType, INTEGER_TYPE, UnresolvedType)
 
 
 def process_where(code, fparser_cls, symbols=None):
@@ -75,6 +75,9 @@ def process_where(code, fparser_cls, symbols=None):
                                   datatype=INTEGER_TYPE,
                                   initial_value=Literal("8", INTEGER_TYPE),
                                   is_constant=True)
+    # Also add an unresolved symbol for some tests.
+    sched.symbol_table.new_symbol("unres", symbol_type=DataSymbol,
+                                  datatype=UnresolvedType())
     if symbols:
         for sym_name in symbols:
             sched.symbol_table.new_symbol(sym_name)
@@ -128,26 +131,24 @@ def test_where_unknown_selector_type():
 
     '''
     fake_parent, fparser2spec = process_where(
-        "WHERE (ptsu(myfunc(), :, :) /= 0._wp)\n"
+        "WHERE (ptsu(unres, :, :) /= 0._wp)\n"
         "  z1_st(myfunc(), :, :) = 1._wp / ptsu(myfunc(), :, :)\n"
         "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "z1_st"])
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2spec])
     assert isinstance(fake_parent.children[0], CodeBlock)
-    assert ("PSyclone doesn't yet support references to imported/unresolved "
-            "symbols inside WHERE clauses: 'myfunc' is unresolved."
-            in fake_parent.children[0].preceding_comment)
+    assert ("We can not get the resulting shape of the expression: "
+            "ptsu(unres,:,:)" in fake_parent.children[0].preceding_comment)
 
     fake_parent, fparser2spec = process_where(
         "WHERE (ptsu(:, :, :) /= 0._wp)\n"
-        "  z1_st(myfunc(), :, :) = 1._wp / ptsu(myfunc(), :, :)\n"
+        "  z1_st(unres, :, :) = 1._wp / ptsu(unres, :, :)\n"
         "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "z1_st"])
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2spec])
     assert isinstance(fake_parent.children[0], CodeBlock)
-    assert ("PSyclone doesn't yet support reference to imported symbols "
-            "inside WHERE clauses."
-            in fake_parent.children[0].preceding_comment)
+    assert ("We can not get the resulting shape of the expression: "
+            "z1_st(unres,:,:)" in fake_parent.children[0].preceding_comment)
 
 
 @pytest.mark.usefixtures("parser")

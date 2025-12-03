@@ -677,8 +677,8 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
 
 
 @pytest.mark.parametrize("code, loop_idx", [
-   ("write(*,*) scalar1, scalar2\n", 0),
-   ("do scalar1 = 1,2\nenddo\ndo scalar2 = 1,2\nenddo\n", 2)
+   (lambda x, y: f"write(*,*) {x}, {y}\n", 0),
+   (lambda x, y: f"do {x} = 1,2\nenddo\ndo {y} = 1,2\nenddo\n", 2)
 ])
 def test_infer_sharing_attributes_with_hidden_references(
         code, loop_idx, fortran_reader, fortran_writer):
@@ -692,19 +692,21 @@ def test_infer_sharing_attributes_with_hidden_references(
             use other, only: mystruct
             integer :: i, j, scalar1 = 1, scalar2 = 2
             real, dimension(10) :: array, array2
-            {code}
+            {code("scalar2", "scalar2")}
             do j = 1, 10
                do i = 1, size(array, 1)
-                   write(*,*) scalar2, mystruct(i)%field2
+                   {code("scalar2", "scalar2")}
+                   write(*,*) mystruct(i)%field2
                    if (.true.) then
                        scalar1 = 1
-                       write(*,*) scalar1, mystruct(i)%field1
+                       {code("scalar1", "scalar1")}
+                       write(*,*) mystruct(i)%field1
                    end if
                    scalar2 = scalar1 + 1
-                   write(*,*) scalar1, scalar2
+                   {code("scalar1", "scalar2")}
                enddo
             enddo
-            {code}
+            {code("scalar1", "scalar2")}
         end subroutine''')
     omplooptrans = OMPLoopTrans()
     omplooptrans.omp_directive = "paralleldo"
