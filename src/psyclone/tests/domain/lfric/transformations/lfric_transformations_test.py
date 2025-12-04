@@ -46,13 +46,14 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
+from psyclone.domain.common.psylayer.global_reduction import GlobalReduction
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.domain.lfric import LFRicLoop
 from psyclone.lfric import (LFRicHaloExchangeStart,
                             LFRicHaloExchangeEnd, LFRicHaloExchange)
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
+from psyclone.psyGen import InvokeSchedule, BuiltIn
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
     colored, Loop, Schedule, Literal, Directive, OMPDoDirective,
@@ -3750,7 +3751,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     ompdefault = colored("OMPDefaultClause", Directive._colour)
     ompprivate = colored("OMPPrivateClause", Directive._colour)
     ompfprivate = colored("OMPFirstprivateClause", Directive._colour)
-    gsum = colored("GlobalSum", GlobalSum._colour)
+    gsum = colored("GlobalReduction", GlobalReduction._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)
     sched = colored("Schedule", Schedule._colour)
@@ -3789,7 +3790,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
             2*indent + ompfprivate + "[]\n" +
-            indent + "1: " + gsum + "[scalar='asum']\n" +
+            indent + "1: " + gsum + "[SUM, operand='asum']\n" +
             indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
             3*indent + "0: " + ompdo + "[omp_schedule=static]\n" +
@@ -3820,7 +3821,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
             2*indent + ompfprivate + "[]\n" +
-            indent + "4: " + gsum + "[scalar='bsum']\n")
+            indent + "4: " + gsum + "[SUM, operand='bsum']\n")
         if not annexed:
             expected = expected.replace("nannexed", "ndofs")
     else:  # not dist_mem. annexed can be True or False
