@@ -31,15 +31,15 @@ psyir = reader.psyir_from_source(CODE)
 # Get and print variable access info:
 # -----------------------------------
 # Use the `reference_accesses` method to get all info of the psyir
-var_info = psyir.reference_accesses()
+var_access_map = psyir.reference_accesses()
 
-print("Variable Access Info - Summary:")
-print(var_info)
+print("Variable Access Map - Summary:")
+print(var_access_map)
 print("===============================")
-for signature in var_info:
+for signature in var_access_map:
     print()
-    print(signature, ":", var_info[signature])
+    print(signature, ":", var_access_map[signature])
     print("----------------------------")
-    for access in var_info[signature]:
+    for access in var_access_map[signature]:
         print(f"Type: {access.access_type} - node {access.node}")
 print("===============================")
