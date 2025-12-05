@@ -39,10 +39,11 @@
 for a kernel subroutine.
 '''
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from psyclone.core import VariablesAccessMap
-from psyclone.lfric import LFRicKernelArgument
+if TYPE_CHECKING:
+    from psyclone.lfric import LFRicKernelArgument
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
