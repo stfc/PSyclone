@@ -43,7 +43,7 @@ from typing import Optional, TYPE_CHECKING
 
 from psyclone.core import VariablesAccessMap
 if TYPE_CHECKING:
-    from psyclone.domain.lfric import LFRicKernelArgument
+    from psyclone.lfric import LFRicKernelArgument
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
