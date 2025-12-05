@@ -60,7 +60,7 @@ from psyclone.domain.lfric import (
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
-from psyclone.domain.lfric.lfric)symbol_table import LFRicSymbolTable
+from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.kernel import getkerneldescriptors
