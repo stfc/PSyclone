@@ -10,14 +10,14 @@ Start with using ``handle_fortran.py``. Add the code that converts
 Fortran source code to PSyir, and then convert the PSyIR back to
 a string.
 
-## Collecting Variable Access Information
+## Collecting Variable Access Map
 
-This exercise shows the usage of the ``VariableAccessInformation`` class. Use
+This exercise shows the usage of the ``VariablesAccessMap`` class. Use
 the program ``var_access.py``, and fill in the code to collect access information
 for the whole PSyIR. It already contains code to print out the accesses for
 all variables. Example output:
 
-	Variable Access Info - Summary:
+	Variable Access Map - Summary:
 	a: READ, b: WRITE+READWRITE+READ, bar: CALL, c: WRITE+READ+READWRITE, d: WRITE+READ, e: WRITE+READ, f: WRITE
 	===============================
 
@@ -48,7 +48,7 @@ information about the subroutine (without doing additional work).
 
 The solution directory contains a program ``dataflow.py``, which uses this
 information to create graphviz code to show a dataflow diagram. It is
-a small wrapper around the `VariableAccessInformation` class, and uses
+a small wrapper around the ``VariablesAccessMap`` class, and uses
 PSyclone's `DefinitionUseChain` to find all previous write accesses to
 a `Reference`.
 

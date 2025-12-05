@@ -32,9 +32,9 @@ psyir = reader.psyir_from_source(CODE)
 # Get and print variable access info:
 # -----------------------------------
 # Use the `reference_accesses` method to get all info of the psyir
-var_access_map = 
+var_access_map =
 
-print("Variable Access Map - Summary:")
+print("Variable Accesses Map - Summary:")
 print(var_access_map)
 print("===============================")
 for signature in var_access_map:
