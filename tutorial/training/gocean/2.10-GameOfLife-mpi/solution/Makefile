@@ -1,7 +1,7 @@
 EXE = gol
 API = gocean
 MPI?= yes
-F90 = mpif90
+F90? = mpif90
 
 OBJ = time_step_alg_mod.o time_step_alg_mod_psy.o
 
@@ -13,9 +13,7 @@ $(EXE): $(OBJ)
 run: $(EXE)
 	mpirun -np 4 ./$(EXE) ../../gol-lib/config.glider
 
-# By default, MPI is disabled (to pass github CI). It needs to
-# be enabled using the environment variable `MPI=yes`.
-
+# MPI is disabled (to pass github CI), so test both with and without MPI
 ifeq ($(MPI), yes)
 # ****************
 

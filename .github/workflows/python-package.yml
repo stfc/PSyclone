@@ -122,7 +122,8 @@ jobs:
           ( make -C tutorial/practicals transform > /dev/null )
           # Jupyter notebooks are out-of-date
           # ( make -C tutorial/notebooks notebook )
-          (make -C tutorial/training test)
+          # Disable MPI since 2.10 otherwise uses mpif90
+          (MPI=no make -C tutorial/training test)
       - name: Test with pytest
         if: ${{ !(matrix.python-version == '3.9') }}
         run: |
