@@ -56,10 +56,11 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, SymbolicMaths
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (
-    FunctionSpace, LFRicCollection, LFRicConstants,
-    LFRicSymbolTable, LFRicKern, LFRicTypes, LFRicLoop)
+    FunctionSpace, LFRicConstants, LFRicSymbolTable, LFRicKern,
+    LFRicTypes, LFRicLoop)
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
+from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.kernel import getkerneldescriptors
