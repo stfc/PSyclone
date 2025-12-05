@@ -42,7 +42,7 @@ for a kernel subroutine.
 from typing import Optional, TYPE_CHECKING
 
 from psyclone.core import VariablesAccessMap
-if TYPE_CHECKING:
+if not TYPE_CHECKING:
     from psyclone.lfric import LFRicKernelArgument
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
