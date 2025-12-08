@@ -114,8 +114,8 @@ program main
 
     vector_space_ptr_0 => vector_space_0
     vector_space_ptr_3 => vector_space_3
-    call field_0%initialise( vector_space = vector_space_ptr_0, name="field_3" )
-    call field_3%initialise( vector_space = vector_space_ptr_3, name="field_0" )
+    call field_0%initialise( vector_space = vector_space_ptr_0, name="field_0" )
+    call field_3%initialise( vector_space = vector_space_ptr_3, name="field_3" )
     call invoke( name = 'Initialise_fields',         &
                  setval_c( field_3,     0.0_r_def ), &
                  setval_c( field_0,     1.0_r_def )  &
