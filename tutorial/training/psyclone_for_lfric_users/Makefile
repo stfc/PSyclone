@@ -74,8 +74,9 @@ $(test_EXAMPLES):
 	$(MAKE) -C $(patsubst test_%,%,$@) test
 
 # In the PSyclone user training, the default target is `transform`
-# but this is expected to fail (to show users the error messages).
-# So, if 'transform' is called at the top level, we instead invoke
-# `make test` for all subdirectories.
+# but this is expected to fail in examples 5 and later (to show users
+# the error messages). So, if 'transform' is called at the top level,
+# we instead invoke `make test` for all subdirectories (which will
+# also test that the expected error messages are printed).
 $(transform_EXAMPLES):
 	$(MAKE) -C $(patsubst transform_%,%,$@) test
