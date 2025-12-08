@@ -293,13 +293,16 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             # when necessary.
             _, _, need_sync = self.infer_sharing_attributes()
 
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools.reduction_inference import (
             ReductionInferenceTool)
         from psyclone.psyir.nodes.omp_directives import (
             MAP_REDUCTION_OP_TO_OMP)
 
         vam = self.children[0].reference_accesses()
-        # Currently we only support summation reductions.
+        # Currently we only support *summation* reductions in DSL code. More
+        # operations are supported for generic code but these are inserted
+        # during the transformation.
         red_tool = ReductionInferenceTool(
             [BinaryOperation.Operator.ADD])
 
