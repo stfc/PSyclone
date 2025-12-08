@@ -1,7 +1,7 @@
 EXE = gol
 API = gocean
-MPI? = yes
-F90? = mpif90
+MPI ?= yes
+F90 ?= mpif90
 
 OBJ = time_step_alg_mod.o time_step_alg_mod_psy.o
 
