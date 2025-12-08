@@ -43,6 +43,7 @@ clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
 compile_EXAMPLES=$(addprefix compile_,$(EXAMPLES))
 run_EXAMPLES=$(addprefix run_,$(EXAMPLES))
 test_EXAMPLES=$(addprefix test_,$(EXAMPLES))
+transform_EXAMPLES=$(addprefix transform_,$(EXAMPLES))
 
 .PHONY:  $(allclean_EXAMPLES) $(clean_EXAMPLES) $(compile_EXAMPLES)  \
 		$(run_EXAMPLES) $(test_EXAMPLES)
@@ -52,6 +53,7 @@ clean: $(clean_EXAMPLES)
 compile: $(compile_EXAMPLES)
 run: $(run_EXAMPLES)
 test: $(test_EXAMPLES)
+transform: $(transform_EXAMPLES)
 
 # Note that not all examples in the user training compile (since some
 # shows errors), they will all run the 'test' target if compile or
@@ -70,3 +72,10 @@ $(run_EXAMPLES):
 
 $(test_EXAMPLES):
 	$(MAKE) -C $(patsubst test_%,%,$@) test
+
+# In the PSyclone user training, the default target is `transform`
+# but this is expected to fail (to show users the error messages).
+# So, if 'transform' is called at the top level, we instead invoke
+# `make test` for all subdirectories.
+$(transform_EXAMPLES):
+	$(MAKE) -C $(patsubst transform_%,%,$@) test

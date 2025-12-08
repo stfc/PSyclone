@@ -13,10 +13,10 @@ LFRIC_PATH=$(ROOT_DIR)/external/lfric_infrastructure/src
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-.PHONY: allclean clean compile default run test
+.PHONY: allclean clean compile default run test transform
 
 # Add a default target for all examples to run `make test`
-default: test
+default: transform
 
 # The compiler to use may be specified via the F90 environment
 #

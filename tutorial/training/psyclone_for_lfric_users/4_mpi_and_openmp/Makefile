@@ -52,6 +52,9 @@ compile: $(EXEC)
 run: compile
 	./$(EXEC)
 
+test:
+	$(MAKE) run | grep " minmax of field1"
+
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) \
 		   $$(nf-config --flibs)

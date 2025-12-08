@@ -234,10 +234,28 @@ and look at the error message provided by PSyclone.
 
 The explanation can be found [here](#explanation-for-incorrect-naming-scheme).
 
+# Top Level Makefile
+The top level makefile can be used to test all modules of the PSyclone
+for user trainings. The following target are supported:
+- `transform`: This will only run transformations (i.e. no compilation).
+  This will internally call `make test` in each section, which will
+  also test that the expected errors are printed (if `make transform`)
+  would be called, examples 5 and later would all fail, but this
+  is expected behaviour for the user training).
+- `compile`: Transforms all files, and the compiles the examples.
+  For the failing examples (5 and later), it will again only call
+  `make test` (i.e. testing that the expected error messages are
+  printed).
+- `run`: like `compile`, except all examples that can be compiled
+  will also be executed, and are checked for the expected outcome.
+  Examples that cannot be compiled will check that the expected
+  error messages are printed.
+- `clean`: will clean all examples
+- `allclean`: like `clean`, but will also clean the LFRic infrastructure
+  library. This is required if a different compiler is being used.
 
 # Explanations
 This section contains the explanations for all hands-on tasks.
-
 
 ## Explanation for Using PSyclone
 The file `main_alg.f90` contains two calls to a PSy layer:

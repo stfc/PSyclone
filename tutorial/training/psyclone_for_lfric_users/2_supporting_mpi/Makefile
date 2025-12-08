@@ -42,7 +42,7 @@ EXEC = example
 # ---------------
 
 # Default target: run PSyclone (even if the output file should already exist)
-test:
+transform:
 	$(PSYCLONE) -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 compile: $(EXEC)
@@ -55,6 +55,10 @@ run: $(EXEC)
 	@echo Warning: this example does not run as MPI job
 	@echo =============================================
 	./$(EXEC)
+
+test:
+	$(MAKE) run | grep " minmax of field1"
+
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) \
