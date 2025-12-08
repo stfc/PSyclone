@@ -2246,7 +2246,8 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
     assert expected_output in result
 
 
-def test_two_reductions_real_do(tmpdir, dist_mem):
+@pytest.mark.parametrize("fuse", [True, False])
+def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
     ''' Test that we produce correct code when we have more than one
     built-in with a reduction, with each reduction using a different
     variable, and we use OpenMP DO loops for parallelisation with a
@@ -2263,6 +2264,13 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
                      {"position": "after"})
     otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
+    ftrans = LFRicLoopFuseTrans()
+    if fuse:
+        with pytest.raises(TransformationError) as err:
+            ftrans.apply(schedule[0], schedule[1],
+                         options={"same_space": True})
+        assert ("Cannot fuse loops when each loop already contains a "
+                "reduction" in str(err.value))
     # Apply an OpenMP do to the loop
     for child in schedule.children:
         if isinstance(child, Loop):
@@ -3764,6 +3772,56 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
             assert expected in code
 
 
+def test_repr_reductions_fused(tmpdir, dist_mem):
+    '''
+    Check that the functionality for doing a reproducible (OMP) reduction
+    works OK after two dof loops have been fused.
+    '''
+    file_name = "15.19.1_three_builtins_two_reductions.f90"
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    rtrans = OMPParallelTrans()
+    otrans = LFRicOMPLoopTrans()
+    fuse = LFRicLoopFuseTrans()
+    if dist_mem:
+        # Have to allow for the GlobalSum Node.
+        loop_idx = 2
+    else:
+        loop_idx = 1
+    # The 2nd loop uses the result of the reduction from the 1st loop
+    # so we can only fuse the 2nd and 3rd. Since both are any-space we
+    # have to claim that they are on the same space for this to work.
+    fuse.apply(schedule[loop_idx], schedule[loop_idx+1],
+               options={"same_space": True})
+    for child in schedule.children:
+        if isinstance(child, LFRicLoop):
+            otrans.apply(child, {"reprod": True})
+    for child in schedule.children:
+        if isinstance(child, OMPDoDirective):
+            rtrans.apply(child)
+    code = str(psy.gen)
+    expected = '''\
+    !$omp parallel default(shared) private(df,th_idx)
+    th_idx = omp_get_thread_num() + 1
+    !$omp do schedule(static)
+    do df = loop1_start, loop1_stop, 1
+      ! Built-in: inc_a_times_X (scale a real-valued field)
+      f1_data(df) = asum * f1_data(df)
+
+      ! Built-in: sum_X (sum a real-valued field)
+      local_bsum(1,th_idx) = local_bsum(1,th_idx) + f2_data(df)
+    enddo
+    !$omp end do
+    !$omp end parallel
+
+    ! sum the partial results sequentially
+    do th_idx = 1, nthreads, 1
+      bsum = bsum + local_bsum(1,th_idx)
+    enddo'''
+    assert expected in code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
 def test_reprod_view(monkeypatch, annexed, dist_mem):
     '''test that we generate a correct view() for OpenMP do
     reductions. Also test with and without annexed dofs being computed
@@ -3909,26 +3967,26 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
         assert 0
 
 
-def test_reductions_reprod():
+@pytest.mark.parametrize("reprod", [True, False])
+def test_reductions_reprod(tmpdir, dist_mem, reprod):
     ''' Check that the optional reprod argument to reductions() method
     works as expected. '''
     file_name = "15.9.1_X_innerproduct_Y_builtin.f90"
-    for reprod in [False, True]:
-        for distmem in [True, False]:
-            _, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                   dist_mem=distmem)
-            schedule = invoke.schedule
-            otrans = LFRicOMPLoopTrans()
-            rtrans = OMPParallelTrans()
-            # Apply an OpenMP do directive to the loop
-            otrans.apply(schedule.children[0], {"reprod": reprod})
-            # Apply an OpenMP Parallel directive around the OpenMP do directive
-            rtrans.apply(schedule.children[0])
-            assert len(schedule.reductions(reprod=reprod)) == 1
-            assert not schedule.reductions(reprod=not reprod)
-            assert len(schedule.reductions()) == 1
-            assert (isinstance(schedule.reductions(reprod=reprod)[0],
-                               LFRicXInnerproductYKern))
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0,
+                             dist_mem=dist_mem)
+    schedule = invoke.schedule
+    otrans = LFRicOMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do directive to the loop
+    otrans.apply(schedule.children[0], {"reprod": reprod})
+    # Apply an OpenMP Parallel directive around the OpenMP do directive
+    rtrans.apply(schedule.children[0])
+    assert len(schedule.reductions(reprod=reprod)) == 1
+    assert not schedule.reductions(reprod=not reprod)
+    assert len(schedule.reductions()) == 1
+    assert (isinstance(schedule.reductions(reprod=reprod)[0],
+                       LFRicXInnerproductYKern))
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_move_name():
