@@ -67,14 +67,8 @@ class LFRicScalarArrayArgs(LFRicCollection):
         # Initialise dictionaries of 'real', 'integer' and 'logical'
         # ScalarArray arguments by data type and intent
         self._scalar_array_args = {}
-        self._real_scalar_arrays = {}
-        self._integer_scalar_arrays = {}
-        self._logical_scalar_arrays = {}
         for intent in FORTRAN_INTENT_NAMES:
             self._scalar_array_args[intent] = []
-            self._real_scalar_arrays[intent] = []
-            self._integer_scalar_arrays[intent] = []
-            self._logical_scalar_arrays[intent] = []
 
     def invoke_declarations(self):
         '''
@@ -88,32 +82,33 @@ class LFRicScalarArrayArgs(LFRicCollection):
 
         '''
         super().invoke_declarations()
-        # Create dictionary of all ScalarArray arguments for checks
+        # Create dictionary of all ScalarArray arguments for validation.
+        # The dictionary keys are intent values, i.e., 'in', 'out', and
+        # 'inout', with the values being arrays of ScalarArray arguments.
         const = LFRicConstants()
         self._scalar_array_args = self._invoke.unique_declns_by_intent(
             const.VALID_ARRAY_NAMES)
         # Filter ScalarArray arguments by intent and intrinsic type
-        self._real_scalar_arrays = self._invoke.unique_declns_by_intent(
+        real_scalar_arrays = self._invoke.unique_declns_by_intent(
             const.VALID_ARRAY_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
-        self._integer_scalar_arrays = self._invoke.unique_declns_by_intent(
+        integer_scalar_arrays = self._invoke.unique_declns_by_intent(
             const.VALID_ARRAY_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
-        self._logical_scalar_arrays = self._invoke.unique_declns_by_intent(
+        logical_scalar_arrays = self._invoke.unique_declns_by_intent(
             const.VALID_ARRAY_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_logical"])
 
         for intent in FORTRAN_INTENT_NAMES:
             scal = [arg.declaration_name
                     for arg in self._scalar_array_args[intent]]
-            rscalarr = [arg.declaration_name for
-                        arg in self._real_scalar_arrays[intent]]
-            iscalarr = [arg.declaration_name for
-                        arg in self._integer_scalar_arrays[intent]]
-            lscalarr = [arg.declaration_name for
-                        arg in self._logical_scalar_arrays[intent]]
-            # Add "real", "integer" and "logical" ScalarArray lists for checks
-            decl_scal = rscalarr + iscalarr + lscalarr
+            decl_scal = [arg.declaration_name for arg in
+                         real_scalar_arrays[intent]]
+            decl_scal += [arg.declaration_name for arg in
+                          integer_scalar_arrays[intent]]
+            decl_scal += [arg.declaration_name for arg in
+                          logical_scalar_arrays[intent]]
+
             # Check for unsupported intrinsic types
             scal_inv = sorted(set(scal) - set(decl_scal))
             if scal_inv:
@@ -156,13 +151,8 @@ class LFRicScalarArrayArgs(LFRicCollection):
         for intent in FORTRAN_INTENT_NAMES:
             for arg in self._scalar_array_args[intent]:
                 # Distinguish whether they are ScalarArrays
-                if arg.descriptor.data_type == "gh_real":
-                    self._real_scalar_arrays[intent].append(arg)
-                elif arg.descriptor.data_type == "gh_integer":
-                    self._integer_scalar_arrays[intent].append(arg)
-                elif arg.descriptor.data_type == "gh_logical":
-                    self._logical_scalar_arrays[intent].append(arg)
-                else:
+                if (arg.descriptor.data_type not in
+                        const.VALID_SCALAR_DATA_TYPES):
                     raise InternalError(
                         f"Found an unsupported data type "
                         f"'{arg.descriptor.data_type}' for the "
