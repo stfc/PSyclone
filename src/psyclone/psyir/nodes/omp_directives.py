@@ -1363,19 +1363,18 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
             for call in reversed(reprod_red_call_list):
                 call.reduction_sum_loop()
 
-        # Lower the first two children
-        for child in self.children[:2]:
-            child.lower_to_language_level()
-
-        # Create data sharing clauses (order alphabetically to make generation
-        # reproducible)
+        # Create data sharing clauses (before lowering, so the CodedKern
+        # semantics are taken into account)
         private, fprivate, need_sync = self.infer_sharing_attributes()
+
+        # Order the clause variables alphabetically (to facilitate comparisons)
         if reprod_red_call_list:
             private.add(thread_idx)
         private_clause = OMPPrivateClause.create(
                             sorted(private, key=lambda x: x.name))
         fprivate_clause = OMPFirstprivateClause.create(
                             sorted(fprivate, key=lambda x: x.name))
+
         # Check all of the need_sync nodes are synchronized in children.
         # unless it has reduction_kernels which are handled separately
         sync_clauses = self.walk(OMPDependClause)
@@ -1399,6 +1398,10 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
 
         self.children[2].replace_with(private_clause)
         self.children[3].replace_with(fprivate_clause)
+
+        # Continue lowering children (but not the clauses we just added)
+        for child in self.children[:2]:
+            child.lower_to_language_level()
 
         return self
 
