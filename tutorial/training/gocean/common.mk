@@ -3,7 +3,11 @@ ifeq ($(MPI), yes)
 else
 	F90 ?= gfortran
 endif
-F90FLAGS ?= -Wall -g -O0
+
+# While only some examples use openmp, it is important that they
+# are actually compiled with openmp (since errors in threading might
+# otherwise not show up), and it doesn't affect non-threaded code.
+F90FLAGS ?= -Wall -g -O0 -fopenmp
 
 # MAKEFILE_LIST is a Gnu-make variable that contains all of the
 # arguments passed to the first invocation of Make. The last entry
