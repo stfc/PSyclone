@@ -178,9 +178,9 @@ class LFRicScalarArrayArgs(LFRicCollection):
         Create the symbols for the ScalarArray arguments.
 
         '''
-        type_map = {"gh_real": LFRicTypes("LFRicRealScalarDataType")(),
-                    "gh_integer": LFRicTypes("LFRicIntegerScalarDataType")(),
-                    "gh_logical": LFRicTypes("LFRicLogicalScalarDataType")()}
+        type_map = {"real": LFRicTypes("LFRicRealScalarDataType")(),
+                    "integer": LFRicTypes("LFRicIntegerScalarDataType")(),
+                    "logical": LFRicTypes("LFRicLogicalScalarDataType")()}
         # ScalarArray arguments
         for intent in FORTRAN_INTENT_NAMES:
             for arg in self._scalar_array_args[intent]:
@@ -207,7 +207,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                             array_symbol = self.symtab.lookup_with_tag(
                                 "AlgArgs_" + arg.name)
                             array_symbol.datatype = ArrayType(
-                                type_map[arg.intent],
+                                type_map[arg.intrinsic_type],
                                 sym_list)
                         else:
                             # For stub generation, create the symbol
@@ -215,7 +215,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                                 arg.name,
                                 symbol_type=DataSymbol,
                                 datatype=ArrayType(
-                                    type_map[arg.intent],
+                                    type_map[arg.intrinsic_type],
                                     sym_list))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
