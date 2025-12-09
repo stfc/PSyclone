@@ -40,7 +40,7 @@ kernels.
 '''
 
 from psyclone.gocean1p0 import GOLoop
-from psyclone.psyir.transformations import ValueRangeCheck
+from psyclone.psyir.transformations import ValueRangeCheckTrans
 
 
 def trans(psyir):
@@ -51,7 +51,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    value_range_check = ValueRangeCheck()
+    value_range_check = ValueRangeCheckTrans()
 
     for loop in psyir.walk(GOLoop):
         # Apply nan-testing to all loops that are outer loops:
