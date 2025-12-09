@@ -6,9 +6,6 @@ compile_EXAMPLES=$(addprefix compile_,$(EXAMPLES))
 run_EXAMPLES=$(addprefix run_,$(EXAMPLES))
 test_EXAMPLES=$(addprefix test_,$(EXAMPLES))
 
-dummy:
-	echo $(run_EXAMPLES)
-
 .PHONY: $(allclean_EXAMPLES) $(clean_EXAMPLES) $(compile_EXAMPLES) \
 	    $(run_EXAMPLES) $(test_EXAMPLES)
 
