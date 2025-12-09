@@ -450,9 +450,8 @@ def insert_explicit_loop_parallelism(
                 continue
 
         else:
-            # In NEMOv5 add the necessary explicit private symbols in icethd
-            # in order to parallelise the outer loop
-            if routine_name == "ice_thd_zdf_BL99":
+            # In NEMOv5 add the necessary explicit private symbols in icethd routines in order to parallelise outer loops
+            if routine_name == "ice_thd_zdf_BL99": # Without this, the model is v. slow, and eventually blows up on second timestep
                 if isinstance(loop.stop_expr, Reference):
                     if loop.stop_expr.symbol.name == "npti" or (loop.stop_expr.walk(Reference)[0].symbol.name).startswith("loop_stop"):
                         for variable in ['zdiagbis', 'zindtbis', 'zindterm',
@@ -471,6 +470,7 @@ def insert_explicit_loop_parallelism(
 #                            if sym is not None:
 #                                loop.explicitly_private_symbols.add(sym)
 
+            # This is safe (doesn't change results on GPU)
             if routine_name == "ice_thd_da":
                 if isinstance(loop.stop_expr, Reference):
                     if loop.stop_expr.symbol.name == "npti" or (loop.stop_expr.walk(Reference)[0].symbol.name).startswith("loop_stop"):
@@ -479,6 +479,17 @@ def insert_explicit_loop_parallelism(
                             sym = st.lookup(variable, otherwise=None)
                             if sym is not None:
                                 loop.explicitly_private_symbols.add(sym)
+
+            # This is safe (doesn't change results on GPU)
+            if routine_name == "pnd_LEV":
+                if isinstance(loop.stop_expr, Reference):
+                    if loop.stop_expr.symbol.name == "npti" or (loop.stop_expr.walk(Reference)[0].symbol.name).startswith("loop_stop"):
+                        for variable in ['zv_br']:
+                            st = loop.scope.symbol_table
+                            sym = st.lookup(variable, otherwise=None)
+                            if sym is not None:
+                                loop.explicitly_private_symbols.add(sym)
+
 
         try:
             # First check that the region_directive is feasible for this region
