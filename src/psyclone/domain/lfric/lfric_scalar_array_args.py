@@ -178,10 +178,13 @@ class LFRicScalarArrayArgs(LFRicCollection):
         Create the symbols for the ScalarArray arguments.
 
         '''
-        # Real ScalarArray arguments
+        type_map = {"gh_real": LFRicTypes("LFRicRealScalarDataType")(),
+                    "gh_integer": LFRicTypes("LFRicIntegerScalarDataType")(),
+                    "gh_logical": LFRicTypes("LFRicLogicalScalarDataType")()}
+        # ScalarArray arguments
         for intent in FORTRAN_INTENT_NAMES:
-            if self._real_scalar_arrays[intent]:
-                for arg in self._real_scalar_arrays[intent]:
+            for arg in self._scalar_array_args[intent]:
+                if arg.intent in FORTRAN_INTENT_NAMES:
                     if arg._array_ndims >= 1:
                         # Create the dimensions array symbol
                         dims_array_symbol = self.symtab.find_or_create(
@@ -204,7 +207,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                             array_symbol = self.symtab.lookup_with_tag(
                                 "AlgArgs_" + arg.name)
                             array_symbol.datatype = ArrayType(
-                                LFRicTypes("LFRicRealScalarDataType")(),
+                                type_map[arg.intent],
                                 sym_list)
                         else:
                             # For stub generation, create the symbol
@@ -212,89 +215,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                                 arg.name,
                                 symbol_type=DataSymbol,
                                 datatype=ArrayType(
-                                    LFRicTypes("LFRicRealScalarDataType")(),
-                                    sym_list))
-                        array_symbol.interface = ArgumentInterface(
-                                            INTENT_MAPPING[intent])
-                        self.symtab.append_argument(array_symbol)
-
-        # Integer ScalarArray arguments
-        for intent in FORTRAN_INTENT_NAMES:
-            if self._integer_scalar_arrays[intent]:
-                for arg in self._integer_scalar_arrays[intent]:
-                    if arg._array_ndims >= 1:
-                        # Create the dimensions array symbol
-                        dims_array_symbol = self.symtab.find_or_create(
-                            "dims_" + arg.name,
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
-                                LFRicTypes("LFRicIntegerScalarDataType")(),
-                                [arg._array_ndims]))
-                        dims_array_symbol.interface = ArgumentInterface(
-                                            INTENT_MAPPING[intent])
-                        self.symtab.append_argument(dims_array_symbol)
-                        # Create list of dims_array references
-                        sym_list = [ArrayReference.create(
-                            dims_array_symbol,
-                            [Literal(str(idx), INTEGER_TYPE)])
-                                for idx in range(1, arg._array_ndims + 1)]
-                        if not self._kernel:
-                            # For code generation, find ScalarArray tag
-                            # and convert it to an ArrayType
-                            array_symbol = self.symtab.lookup_with_tag(
-                                "AlgArgs_" + arg.name)
-                            array_symbol.datatype = ArrayType(
-                                LFRicTypes("LFRicIntegerScalarDataType")(),
-                                sym_list)
-                        else:
-                            # For stub generation, create the symbol
-                            array_symbol = self.symtab.find_or_create(
-                                arg.name,
-                                symbol_type=DataSymbol,
-                                datatype=ArrayType(
-                                    LFRicTypes("LFRicIntegerScalarDataType")(),
-                                    sym_list))
-                        array_symbol.interface = ArgumentInterface(
-                                            INTENT_MAPPING[intent])
-                        self.symtab.append_argument(array_symbol)
-
-        # Logical ScalarArray arguments
-        for intent in FORTRAN_INTENT_NAMES:
-            if self._logical_scalar_arrays[intent]:
-                for arg in self._logical_scalar_arrays[intent]:
-                    if arg._array_ndims >= 1:
-                        # Create the dimensions array symbol
-                        dims_array_symbol = self.symtab.find_or_create(
-                            "dims_" + arg.name,
-                            symbol_type=DataSymbol,
-                            datatype=ArrayType(
-                                LFRicTypes("LFRicIntegerScalarDataType")(),
-                                [arg._array_ndims]))
-                        dims_array_symbol.interface = ArgumentInterface(
-                                            INTENT_MAPPING[intent])
-                        self.symtab.append_argument(dims_array_symbol)
-
-                        # Create list of dims_array references
-                        sym_list = [ArrayReference.create(
-                            dims_array_symbol,
-                            [Literal(str(idx), INTEGER_TYPE)])
-                                for idx in range(1, arg._array_ndims + 1)]
-
-                        if not self._kernel:
-                            # For code generation, find ScalarArray tag
-                            # and convert it to an ArrayType
-                            array_symbol = self.symtab.lookup_with_tag(
-                                "AlgArgs_" + arg.name)
-                            array_symbol.datatype = ArrayType(
-                                LFRicTypes("LFRicLogicalScalarDataType")(),
-                                sym_list)
-                        else:
-                            # For stub generation, create the symbol
-                            array_symbol = self.symtab.find_or_create(
-                                arg.name,
-                                symbol_type=DataSymbol,
-                                datatype=ArrayType(
-                                    LFRicTypes("LFRicLogicalScalarDataType")(),
+                                    type_map[arg.intent],
                                     sym_list))
                         array_symbol.interface = ArgumentInterface(
                                             INTENT_MAPPING[intent])
