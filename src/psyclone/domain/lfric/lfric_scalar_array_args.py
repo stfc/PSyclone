@@ -100,6 +100,9 @@ class LFRicScalarArrayArgs(LFRicCollection):
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_logical"])
 
         for intent in FORTRAN_INTENT_NAMES:
+            # scal contains all ScalarArray arguments of all intents and
+            # intrinsic types whereas decl_scal contains all ScalarArray
+            # arguments of all intents with valid intrinsic types.
             scal = [arg.declaration_name
                     for arg in self._scalar_array_args[intent]]
             decl_scal = [arg.declaration_name for arg in
