@@ -235,9 +235,11 @@ def normalise_loops(
 
     if convert_range_loops:
         if filename == "fldread.f90":
-            # TODO #2951: This file has issues converting SturctureRefs
+            # TODO #2951: This file has issues converting StructureRefs
             pass
         elif nemo_v4 and filename == "dynspg_ts.f90":
+            # TODO #3256: Is there an issue with the L/UBOUND intrinsics
+            # that this transformation adds?
             pass
         else:
             # Convert all array implicit loops to explicit loops

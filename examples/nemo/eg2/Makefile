@@ -43,8 +43,8 @@ transform: omp_levels
 
 omp_levels:
 	${PSYCLONE} -s ./omp_levels_trans.py ../code/traldf_iso.F90
-	PARALLEL_DIRECTICVES="omp_threading" ${PSYCLONE} -s ../scripts/insert_loop_parallelism.py ../code/traldf_iso.F90
-	PARALLEL_DIRECTICVES="omp_offloading" ${PSYCLONE} -s ../scripts/insert_loop_parallelism.py ../code/traldf_iso.F90
+	PARLLEL_DIRECTIVES="omp_threading" ${PSYCLONE} -s ../scripts/insert_loop_parallelism.py ../code/traldf_iso.F90
+	PARLLEL_DIRECTIVES="omp_offloading" ${PSYCLONE} -s ../scripts/insert_loop_parallelism.py ../code/traldf_iso.F90
 
 
 compile: transform

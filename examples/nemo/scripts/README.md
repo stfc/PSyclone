@@ -41,15 +41,15 @@ This directory contains various examples showing how to apply PSyclone to
 transform the source code of the NEMO ocean model.
 
 > [!Important]
-> The NEMO build system, `makenemo`, has the ability to apply psyclone
+> The NEMO build system, `makenemo`, has the ability to apply PSyclone
 > scripts that come with the NEMO repository with the `-p` flag (see
 > [the NEMO user guide](https://sites.nemo-ocean.io/user-guide/psyclone.html)),
 > but these are pinned to a particular release of PSyclone and have constraints
 > defined in `mk/sct_psyclone.sh` script. By contrast, the process presented in
 > this README uses the experimental `psyclonefc` compiler wrapper command which
-> bypases the `makenemo -p` and instead intercepts any compilation command and
-> wraps it with a psyclone call followed by a compiler call.
-> This is the recommended way to apply upstream psyclone transformations, as it
+> bypasses the `makenemo -p` and instead intercepts any compilation command and
+> wraps it with a PSyclone call followed by a compiler call.
+> This is the recommended way to apply upstream PSyclone transformations, as it
 > is not constrained by the file-exclusions and backward compatibility guarantees
 > of the scripts inside the NEMO repository.
 
@@ -78,7 +78,7 @@ to be adjusted depending on your desired optimisation target.
 
 First of all, the arch file has a `MPIF90` to choose the compiler, this
 needs to be set to `psyclonefc`. This is a compiler wrapper utility that
-substitutes its calls with: an invocation to psyclone to process the given
+substitutes its calls with: an invocation to PSyclone to process the given
 source file (using the options provided in `PSYCLONE_OPTS`) followed by an
 invocation to a compiler (provided by `PSYCLONE_COMPILER`).
 
@@ -148,7 +148,7 @@ the desired NEMO configuration and keys. For example:
 ./makenemo -r ORCA2_ICE_PISCES -m arch-linux_spack -n ORCA2_psycloned ...
 ```
 
-If everything worked you will see psyclone generated files in the
+If everything worked you will see PSyclone generated files in the
 `<configuration>/BLD/tmp` directory and the final binary in the
 `<configuration>/EXP00` directory.
 
@@ -177,13 +177,13 @@ This means that the transformation will succeed and the generated code will
 compile, but the results will diverge. This gets more complicated with parallel
 programming because certain operations like reductions or atomics are not
 always reproducible. Therefore, to understand what causes the results divergence
-it is usefulk to apply the transformations step-by-step while checking if the
+it is useful to apply the transformations step-by-step while checking if the
 `run.stat` values change. Some useful steps are:
 
 - Starting building NEMO *without* `psyclonefc` and conservative optimisation flags
   and run it serially (O2, no vectorisation, no-fma). Then store the generated `run.stat`.
 - Then switch to using `psyclonefc` with the `PSYCLONE_OPTS="-s passthrough.py"`,
-  this will make psyclone process all files but without applying any
+  this will make PSyclone process all files but without applying any
   transformations. Check if the results still match.
 - Then build it with `PSYCLONE_OPTS="-s insert_loop_parallelism.py"` but keeping
   the `PARALLEL_DIRECTIVES=""` empty. This will apply serial transformations but
@@ -192,7 +192,7 @@ it is usefulk to apply the transformations step-by-step while checking if the
   and see if the results still match.
 - Finally, run it with `REPRODUCIBLE=1 PARALLEL_DIRECTIVES="omp_offloading" PSYCLONE_OPTS="-s insert_loop_parallelism.py"`
 
-Orthogonally to finding which step is causing the divergence we may want to find
+Alongside finding which step is causing the divergence we may want to find
 which file/s are causing it. This folder also contains a `do_file_by_file.sh`
 script that build NEMO many times, each with only one file being transformed,
 and compares the results with the stores `run.stat`
@@ -209,15 +209,15 @@ that allow to point to a directory with patched source files:
 ./makenemo -e <directory> ...
 ```
 
-In addition to the source, you can also modify the recipe that psyclone uses to
+In addition to the source, you can also modify the recipe that PSyclone uses to
 transform the code. In this example you can do so by changing any detail of the
 `insert_loop_parallelism.py` transformation script, but the `FILES_TO_SKIP`
-global variable is particularly relevant as it allows psyclone skip processing
+global variable is particularly relevant as it allows PSyclone skip processing
 the listed files. If modifying a particular file is known to cause problems or
 performance regressions, include it in this list.
 
 You can also do both. For example if you want to provide a modified file that
 already includes directives, you need to reference it with the `-e <path>`
-and in the FILES_TO_SKIP (otherwise Psyclone would ignore the given directives
+and in the FILES_TO_SKIP (otherwise PSyclone would ignore the given directives
 and try to insert its own). This is currently the optimal approach for `seaice`
 and `lbclnk.f90` GPU offloading.
