@@ -738,8 +738,10 @@ class DependencyTools():
                 if not self._is_loop_carried_dependency(loop_variables,
                                                         write_access,
                                                         other_access):
-                    # We can store the loop variable in the lambdas because
-                    # we immidiately return after them.
+                    # We can capture the loop variable 'write_access' and
+                    # 'other_access' in the lambdas because we immidiately
+                    # return after creating the lambdas, not allowing the
+                    # variables to be redefined anymore.
                     # pylint: disable=cell-var-from-loop
 
                     # There is a dependency. Try to give precise error
