@@ -566,18 +566,11 @@ class LFRicLoop(PSyLoop):
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
-                    method = "get_last_dof_owned"
-                else:
-                    method = "get_last_dof_annexed"
-                result = Call.create(
-                    StructureReference.create(
-                        sym_tab.lookup(self.field.proxy_name_indexed),
-                        [self.field.ref_name(), method]
-                    )
-                )
-            else:
-                result = Reference(sym_tab.lookup(self._kern.undf_name))
-            return result
+                    return self.field.generate_method_call(
+                        "get_last_dof_owned")
+                return self.field.generate_method_call("get_last_dof_annexed")
+            return Reference(sym_tab.lookup(self._kern.undf_name))
+
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:
                 result = Call.create(
@@ -605,12 +598,7 @@ class LFRicLoop(PSyLoop):
                 "sequential/shared-memory code")
         if self._upper_bound_name == "dof_halo":
             if Config.get().distributed_memory:
-                result = Call.create(
-                    StructureReference.create(
-                        sym_tab.lookup(self.field.proxy_name_indexed),
-                        [self.field.ref_name(), "get_last_dof_halo"]
-                    )
-                )
+                result = self.field.generate_method_call("get_last_dof_halo")
                 if halo_index:
                     result.addchild(halo_index.copy())
                 return result

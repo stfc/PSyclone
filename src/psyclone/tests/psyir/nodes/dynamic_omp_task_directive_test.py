@@ -3271,8 +3271,8 @@ def test_omp_task_directive_intrinsic_loop_bound(fortran_reader,
     ptrans.apply(parent.children)
     correct = '''\
 !$omp task private(i,j) shared(a,b) depend(in: b(:,:)) depend(out: a(:,:))
-  do i = LBOUND(a, 2), UBOUND(a, 2), 1
-    do j = LBOUND(a, 1), UBOUND(a, 1), 1
+  do i = LBOUND(a, dim=2), UBOUND(a, dim=2), 1
+    do j = LBOUND(a, dim=1), UBOUND(a, dim=1), 1
       a(i,j) = b(i,j) + 1
     enddo
   enddo
@@ -3319,7 +3319,7 @@ def test_omp_task_directive_intrinsic_loop_step(fortran_reader):
         tdir.lower_to_language_level()
     assert ("IntrinsicCall not supported in the step variable of a Loop"
             " in an OMPTaskDirective node. The step expression is "
-            "'LBOUND(a, 2)'." in str(excinfo.value))
+            "'LBOUND(a, dim=2)'." in str(excinfo.value))
 
 
 def test_evaluate_write_reference_failcase():
