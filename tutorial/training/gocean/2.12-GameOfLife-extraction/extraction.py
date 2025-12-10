@@ -52,10 +52,11 @@ def trans(psyir):
     '''
     extract = GOceanExtractTrans()
 
-    # We know that there is only one schedule
-    schedule = psyir.walk(InvokeSchedule)[0]
-
-    extract.apply(schedule,
-                  # INSERT OPTIONS HERE
-                  )
-    print(schedule.view())
+    # Now loop over all Invoke schedules to apply the transformation.
+    # You have to provide the option `'create_driver': True` to
+    # create a driver
+    for inv_schedule in psyir.walk(InvokeSchedule):
+        extract.apply(inv_schedule,
+                    # INSERT OPTIONS HERE to create the driver
+                    )
+    print(psyir.view())

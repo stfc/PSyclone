@@ -51,10 +51,8 @@ def trans(psyir):
     '''
     extract = GOceanExtractTrans()
 
-    # We know that there is only one schedule
-    schedule = psyir.walk(InvokeSchedule)[0]
-
-    extract.apply(schedule,
-                  options={"create_driver": True,
-                           # "region_name": ("timestep", "combine")
-                           })
+    for inv_schedule in psyir.walk(InvokeSchedule):
+        # You can also add "region_name": ("timestep", "combine")
+        # as additional optional parameter to create nicer names
+        # Though changing the name would require an update of the Makefile
+        extract.apply(inv_schedule, {"create_driver": True})
