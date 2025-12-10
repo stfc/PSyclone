@@ -50,9 +50,10 @@ class OMPCriticalTrans(RegionTrans):
     '''
     Adds an OpenMP critical directive around a region of code.
 
-    PSyclone does not currently do any analysis about critical regions, and
-    their correct usage is up to the user. In the future, we may try to
-    improve this (after issues like #3238).
+    .. note:: This transformation does not currently do any validation
+              about critical regions, and their correct usage is up to the
+              user. In the future, we may try to improve this (after issues
+              like #3238 are resolved).
     '''
     # A critical region is not allowed to contain another OpenMP directive.
     excluded_node_types = (OMPDirective,)

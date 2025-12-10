@@ -60,7 +60,6 @@ def test_omp_critical_apply(fortran_reader, fortran_writer):
     assert isinstance(routine.children[0], OMPCriticalDirective)
 
     output = fortran_writer(psyir)
-    print(output)
     correct = """subroutine x()
   integer :: i
   integer :: j

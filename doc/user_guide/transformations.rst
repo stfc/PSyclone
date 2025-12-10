@@ -386,9 +386,6 @@ can be found in the API-specific sections).
     :members: apply
     :no-index:
 
-.. note:: PSyclone does not perform any checks on code generated with
-          OMPCriticalTrans, and it's correct usage is up to the user.
-
 ####
 
 .. autoclass:: psyclone.psyir.transformations.OMPDeclareTargetTrans

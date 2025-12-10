@@ -97,13 +97,13 @@ from psyclone.psyir.nodes.omp_directives import (
     OMPStandaloneDirective, OMPRegionDirective, OMPTargetDirective,
     OMPLoopDirective, OMPDeclareTargetDirective,
     OMPTeamsDistributeParallelDoDirective, OMPAtomicDirective,
-    OMPSimdDirective, OMPTeamsLoopDirective, OMPBarrierDirective)
+    OMPSimdDirective, OMPTeamsLoopDirective, OMPBarrierDirective,
+    OMPCriticalDirective)
 from psyclone.psyir.nodes.clause import Clause, OperatorClause
 from psyclone.psyir.nodes.omp_clauses import (
     OMPGrainsizeClause, OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause,
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause, OMPScheduleClause,
     OMPFirstprivateClause, OMPSharedClause, OMPDependClause)
-from psyclone.psyir.nodes.omp_critical_directive import OMPCriticalDirective
 from psyclone.psyir.nodes.omp_task_directive import OMPTaskDirective
 from psyclone.psyir.nodes.while_loop import WhileLoop
 
