@@ -655,7 +655,9 @@ class ArrayType(DataType):
             object.__setattr__(self, 'upper', _dangling_parent(self.upper))
 
         def copy(self) -> ArrayType.ArrayBounds:
-            '''Creates a copy of this ArrayBounds object'''
+            '''
+            :returns: a copy of this ArrayBounds object.
+            '''
             return ArrayType.ArrayBounds(
                     self.lower.copy(), self.upper.copy()
             )
