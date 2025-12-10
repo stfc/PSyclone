@@ -656,13 +656,9 @@ class ArrayType(DataType):
 
         def copy(self) -> ArrayType.ArrayBounds:
             '''Creates a copy of this ArrayBounds object'''
-            # pylint: disable-next=import-outside-toplevel
-            from psyclone.psyir.nodes import DataNode
-            lower_copy = (self.lower.copy() if isinstance(
-                self.lower, DataNode) else self.lower)
-            upper_copy = (self.upper.copy() if isinstance(
-                self.upper, DataNode) else self.upper)
-            return ArrayType.ArrayBounds(lower_copy, upper_copy)
+            return ArrayType.ArrayBounds(
+                    self.lower.copy(), self.upper.copy()
+            )
 
     def __init__(self, datatype, shape):
 
