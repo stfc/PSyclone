@@ -686,7 +686,8 @@ def test_scalar_array(tmpdir):
         "    end if\n"
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_scalar_array_code(nlayers_afield, "
-        "afield_data, real_array, logical_array, integer_array, a_scalar, "
+        "afield_data, dims_real_array, real_array, dims_logical_array, "
+        "logical_array, dims_integer_array, integer_array, a_scalar, "
         "ndf_w1, undf_w1, map_w1(:,cell))\n"
     )
     assert expected in generated_code
