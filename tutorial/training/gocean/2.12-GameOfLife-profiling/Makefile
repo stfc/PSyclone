@@ -38,7 +38,3 @@ allclean:
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR) clean
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(PSY_DATA_DIR) clean
-
-clean:
-	$(MAKE) -f Makefile.extraction clean
-	$(MAKE) -f Makefile.value_range_check clean
