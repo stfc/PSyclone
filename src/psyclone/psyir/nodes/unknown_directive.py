@@ -34,12 +34,12 @@
 # Authors A. B. G. Chalk, STFC Daresbury Lab.
 # -----------------------------------------------------------------------------
 
-''' This module contains the PSyDirective node implementation.'''
+''' This module contains the UnknownDirective node implementation.'''
 
 from psyclone.psyir.nodes.directive import StandaloneDirective
 
 
-class PSyDirective(StandaloneDirective):
+class UnknownDirective(StandaloneDirective):
     '''
     Directive representing PSyclone-specific directives in the tree.
 
@@ -68,11 +68,11 @@ class PSyDirective(StandaloneDirective):
     @property
     def directive_string(self) -> str:
         '''
-        :returns: The content of this PSyDirective node.
+        :returns: The content of this UnknownDirective node.
         '''
         return self._directive_string
 
     def begin_string(self) -> str:
-        '''Returns the code string representing this PSyDirective.'''
+        '''Returns the code string representing this UnknownDirective.'''
 
-        return f"psy {self.directive_string}"
+        return f"{self.directive_string}"

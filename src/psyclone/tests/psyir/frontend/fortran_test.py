@@ -43,7 +43,8 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Routine, FileContainer, UnaryOperation, BinaryOperation, Literal,
-    Assignment, CodeBlock, IntrinsicCall, Loop, Reference)
+    Assignment, CodeBlock, IntrinsicCall, Loop, Reference,
+    UnknownDirective)
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols import (
     SymbolTable, DataSymbol, ScalarType, UnresolvedType)
@@ -310,7 +311,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
     assert assignment.preceding_comment == "Comment on assignment"
     # When keeping directives a comment before the directive
     # goes on the directive.
-    par_direc = file_container.walk(CodeBlock)[0]
+    par_direc = file_container.walk(UnknownDirective)[0]
     assert par_direc.preceding_comment == "Comment on do loop"
     for node in file_container.walk(CommentableMixin):
         if node not in (assignment, par_direc):

@@ -34,18 +34,18 @@
 # Authors A. B. G. Chalk, STFC Daresbury Lab.
 # -----------------------------------------------------------------------------
 
-''' This module contains the test for the PSyDirective node.'''
+''' This module contains the test for the UnknownDirective node.'''
 
-from psyclone.psyir.nodes import PSyDirective
+from psyclone.psyir.nodes import UnknownDirective
 
 
 def test_psydirective():
-    '''Tests the functionality of the PSyDirective.'''
+    '''Tests the functionality of the UnknownDirective.'''
 
-    direc = PSyDirective("info")
-    assert direc._directive_string == "info"
-    assert direc.directive_string == "info"
+    direc = UnknownDirective("psy info")
+    assert direc._directive_string == "psy info"
+    assert direc.directive_string == "psy info"
 
-    assert not PSyDirective._validate_child(None, None)
+    assert not UnknownDirective._validate_child(None, None)
 
     assert direc.begin_string() == "psy info"
