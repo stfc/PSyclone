@@ -1867,11 +1867,9 @@ class Arguments():
             if arg.access in AccessType.all_write_accesses() and \
                     arg.access not in AccessType.get_valid_reduction_modes():
                 return arg
-        raise GenerationError(
-                "psyGen:Arguments:iteration_space_arg Error, "
-                "we assume there is at least one writer, "
-                "reader/writer, or increment as an argument"
-        )  # pragma: no-cover
+        raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
+                              "we assume there is at least one writer, "
+                              "reader/writer, or increment as an argument")
 
     @property
     def acc_args(self):

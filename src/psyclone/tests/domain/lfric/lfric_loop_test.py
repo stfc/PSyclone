@@ -821,7 +821,17 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     loop.independent_iterations(dep_tools=dtools)
     msgs = dtools.get_all_messages()
     assert msgs[0].code == DTCode.ERROR_WRITE_WRITE_RACE
-    # Colour the loop.
+    # Check if the loop does not have INC arguments, we consider it the
+    # iterations independent
+    for arg in loop.coded_kernels()[0].arguments.args:
+        arg.access = AccessType.READ
+    assert loop.independent_iterations()
+
+    # Restart but now colour the loop (the loop over colours is not
+    # independent, but the inner is)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.walk(LFRicLoop)[0]
     trans = LFRicColourTrans()
     trans.apply(loop)
     loops = schedule.walk(LFRicLoop)
