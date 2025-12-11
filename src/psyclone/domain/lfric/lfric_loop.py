@@ -46,8 +46,7 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants, LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import (
-    InvokeSchedule, HaloExchange, zero_reduction_variables)
+from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, StructureReference,
     Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode,
@@ -158,11 +157,6 @@ class LFRicLoop(PSyLoop):
             # only operate on halo cells => nothing to do.
             self.detach()
             return None
-
-        # Get the list of calls (to kernels) that need reduction variables
-        if not self.is_openmp_parallel():
-            calls = self.reductions()
-            zero_reduction_variables(calls)
 
         # Set halo clean/dirty for all fields that are modified
         if Config.get().distributed_memory:

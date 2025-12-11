@@ -38,6 +38,8 @@
 
 ''' This module contains the datatype definitions.'''
 
+from __future__ import annotations
+
 import abc
 import copy
 from collections import OrderedDict
@@ -651,6 +653,14 @@ class ArrayType(DataType):
             # setattr necessary to bypass frozen dataclass restrictions
             object.__setattr__(self, 'lower', _dangling_parent(self.lower))
             object.__setattr__(self, 'upper', _dangling_parent(self.upper))
+
+        def copy(self) -> ArrayType.ArrayBounds:
+            '''
+            :returns: a copy of this ArrayBounds object.
+            '''
+            return ArrayType.ArrayBounds(
+                    self.lower.copy(), self.upper.copy()
+            )
 
     def __init__(self, datatype, shape):
 
