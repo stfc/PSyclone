@@ -2139,7 +2139,7 @@ class ACCEnterDataTrans(Transformation):
         qval = ACCAsyncMixin.convert_queue(async_queue)
         directive_cls = (ACCParallelDirective, ACCKernelsDirective)
         for dirv in sched.walk(directive_cls):
-            if qval != dirv.async_queue:
+            if qval != dirv.async_queue:  # pragma: no-cover
                 raise TransformationError(
                     'Try to make an ACCEnterDataTrans with async_queue '
                     'different than the one in child kernels !')
@@ -2475,7 +2475,7 @@ class KernelImportsToArguments(Transformation):
         # Check that there are no unqualified imports or undeclared symbols
         try:
             kernels = node.get_callees()
-        except SymbolError as err:
+        except SymbolError as err:  # pragma: no-cover
             raise TransformationError(
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err

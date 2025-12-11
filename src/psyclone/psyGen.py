@@ -425,17 +425,6 @@ class Invoke():
                     # literals have no name
                     pass
 
-        # work out the unique dofs required in this subroutine
-        self._dofs = {}
-        for kern_call in self._schedule.coded_kernels():
-            dofs = kern_call.arguments.dofs
-            for dof in dofs:
-                if dof not in self._dofs:
-                    # Only keep the first occurrence for the moment. We will
-                    # need to change this logic at some point as we need to
-                    # cope with writes determining the dofs that are used.
-                    self._dofs[dof] = [kern_call, dofs[dof][0]]
-
     def __str__(self):
         return self._name+"("+", ".join([str(arg) for arg in
                                          self._alg_unique_args])+")"
@@ -844,7 +833,7 @@ class HaloExchange(Statement):
         base method and simply return our argument. '''
         return [self._field]
 
-    def check_vector_halos_differ(self, node):
+    def check_vector_halos_differ(self, node):  # pragma: no-cover
         '''Helper method which checks that two halo exchange nodes (one being
         self and the other being passed by argument) operating on the
         same field, both have vector fields of the same size and use
@@ -1878,9 +1867,11 @@ class Arguments():
             if arg.access in AccessType.all_write_accesses() and \
                     arg.access not in AccessType.get_valid_reduction_modes():
                 return arg
-        raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
-                              "we assume there is at least one writer, "
-                              "reader/writer, or increment as an argument")
+        raise GenerationError(
+                "psyGen:Arguments:iteration_space_arg Error, "
+                "we assume there is at least one writer, "
+                "reader/writer, or increment as an argument"
+        )  # pragma: no-cover
 
     @property
     def acc_args(self):
