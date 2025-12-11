@@ -1008,7 +1008,6 @@ class IntrinsicCall(Call):
                     ),
                 )
             ),
-            reference_accesses=None,
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
