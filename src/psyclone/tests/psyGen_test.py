@@ -1104,7 +1104,7 @@ def test_args_filter2():
 
 
 def test_reduction_var_error(dist_mem):
-    ''' Check that we raise an exception if the zero_reduction_variable()
+    ''' Check that we raise an exception if the initialise_reduction_variable()
     method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="lfric")
@@ -1115,13 +1115,13 @@ def test_reduction_var_error(dist_mem):
     # args[1] is of type gh_field
     call._reduction_arg = call.arguments.args[1]
     with pytest.raises(GenerationError) as err:
-        call.zero_reduction_variable()
-    assert ("Kern.zero_reduction_variable() should be a scalar but "
+        call.initialise_reduction_variable()
+    assert ("Kern.initialise_reduction_variable() should be a scalar but "
             "found 'gh_field'." in str(err.value))
 
 
 def test_reduction_var_invalid_scalar_error(dist_mem):
-    ''' Check that we raise an exception if the zero_reduction_variable()
+    ''' Check that we raise an exception if the initialise_reduction_variable()
     method is provided with an incorrect intrinsic type of scalar
     argument (other than 'real' or 'integer').
 
@@ -1137,18 +1137,18 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     assert call.arguments.args[5].intrinsic_type == 'logical'
     call._reduction_arg = call.arguments.args[5]
     with pytest.raises(GenerationError) as err:
-        call.zero_reduction_variable()
-    assert ("Kern.zero_reduction_variable() should be either a 'real' "
+        call.initialise_reduction_variable()
+    assert ("Kern.initialise_reduction_variable() should be either a 'real' "
             "or an 'integer' scalar but found scalar of type 'logical'."
             in str(err.value))
 
     # REALs and INTEGERs are fine
     assert call.arguments.args[0].intrinsic_type == 'real'
     call._reduction_arg = call.arguments.args[0]
-    call.zero_reduction_variable()
+    call.initialise_reduction_variable()
     assert call.arguments.args[6].intrinsic_type == 'integer'
     call._reduction_arg = call.arguments.args[6]
-    call.zero_reduction_variable()
+    call.initialise_reduction_variable()
 
 
 def test_reduction_sum_error(dist_mem):
@@ -1162,8 +1162,11 @@ def test_reduction_sum_error(dist_mem):
     call = schedule.kernels()[0]
     # args[1] is of type gh_field
     call._reduction_arg = call.arguments.args[1]
+    # Ensure symbol is tagged appropriately.
+    sym = schedule.symbol_table.lookup(call._reduction_arg.name)
+    schedule.symbol_table._tags[f"{call.name}:{sym.name}:local"] = sym
     with pytest.raises(GenerationError) as err:
-        call.reduction_sum_loop()
+        call.reduction_sum_loop(call.parent, 1, schedule.symbol_table)
     assert ("Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
             "reduction_sum_loop(). Expected one of ['gh_sum']."
             in str(err.value))
