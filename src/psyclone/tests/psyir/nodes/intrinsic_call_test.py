@@ -55,11 +55,10 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
     IAttr,
-    _get_first_argument_type,
     _get_named_argument_type,
-    _get_named_argument_intrinsic_with_optional_kind_and_dim,
-    _get_named_argument_specified_kind_with_optional_dim,
-    _get_intrinsic_with_optional_arg_kind,
+    _type_of_named_arg_with_optional_kind_and_dim,
+    _type_with_specified_kind_and_optional_dim,
+    _type_of_scalar_with_optional_kind,
     _get_intrinsic_of_argname_kind_with_optional_dim,
     _get_intrinsic_with_named_arg_kind,
     _findloc_return_type,
@@ -897,20 +896,6 @@ def test_get_all_accessed_symbols(fortran_reader):
     assert "SHAPE" not in symbol_names
 
 
-def test_get_first_argument_type(fortran_reader):
-    """Test the _get_first_argument_type helper function."""
-    code = """subroutine x
-    integer :: a, b
-    a = 1
-    b = ABS(a)
-    end subroutine x"""
-    psyir = fortran_reader.psyir_from_source(code)
-    abs_call = psyir.walk(IntrinsicCall)[0]
-    dtype = _get_first_argument_type(abs_call)
-    assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert dtype.precision == ScalarType.Precision.UNDEFINED
-
-
 def test_get_named_argument_type(fortran_reader):
     """Test the _get_named_argument_type helper function."""
     code = """subroutine x
@@ -925,10 +910,10 @@ def test_get_named_argument_type(fortran_reader):
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
 
-def test_get_named_argument_intrinsic_with_optional_kind_and_dim(
+def test_type_of_named_arg_with_optional_kind_and_dim(
         fortran_reader
 ):
-    """Test the _get_named_argument_intrinsic_with_optional_kind_and_dim
+    """Test the _type_of_named_arg_with_optional_kind_and_dim
     helper function."""
     code = """subroutine x
     logical, dimension(100,100) :: a
@@ -941,12 +926,12 @@ def test_get_named_argument_intrinsic_with_optional_kind_and_dim(
     """
     psyir = fortran_reader.psyir_from_source(code)
     all_calls = psyir.walk(IntrinsicCall)
-    dtype = _get_named_argument_intrinsic_with_optional_kind_and_dim(
+    dtype = _type_of_named_arg_with_optional_kind_and_dim(
             all_calls[0], "array"
     )
     assert dtype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert dtype.precision == ScalarType.Precision.UNDEFINED
-    dtype = _get_named_argument_intrinsic_with_optional_kind_and_dim(
+    dtype = _type_of_named_arg_with_optional_kind_and_dim(
             all_calls[1], "array"
     )
     assert isinstance(dtype, ArrayType)
@@ -954,15 +939,15 @@ def test_get_named_argument_intrinsic_with_optional_kind_and_dim(
     assert dtype.shape[0] == ArrayType.Extent.DEFERRED
     assert dtype.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert dtype.datatype.precision == ScalarType.Precision.UNDEFINED
-    dtype = _get_named_argument_intrinsic_with_optional_kind_and_dim(
+    dtype = _type_of_named_arg_with_optional_kind_and_dim(
             all_calls[2], "array"
     )
     assert dtype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert dtype.precision.value == "8"
 
 
-def test_get_named_argument_specified_kind_with_optional_dim(fortran_reader):
-    """Test the _get_named_argument_specified_kind_with_optional_dim
+def test_type_with_specified_kind_and_optional_dim(fortran_reader):
+    """Test the _type_with_specified_kind_and_optional_dim
     helper function."""
     code = """subroutine test
     integer, dimension(100, 100) :: x
@@ -973,14 +958,14 @@ def test_get_named_argument_specified_kind_with_optional_dim(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     intrinsics = psyir.walk(IntrinsicCall)
 
-    dtype = _get_named_argument_specified_kind_with_optional_dim(
+    dtype = _type_with_specified_kind_and_optional_dim(
         intrinsics[0], "array", ScalarType.Intrinsic.INTEGER,
     )
     assert isinstance(dtype, ScalarType)
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
-    dtype = _get_named_argument_specified_kind_with_optional_dim(
+    dtype = _type_with_specified_kind_and_optional_dim(
         intrinsics[1], "array", ScalarType.Intrinsic.INTEGER,
     )
     assert isinstance(dtype, ArrayType)
@@ -1008,8 +993,8 @@ def test_get_intrinsic_with_named_arg_kind(fortran_reader):
     assert dtype.precision == 8
 
 
-def test_get_intrinsic_with_optional_arg_kind(fortran_reader):
-    """Test the _get_intrinsic_with_optional_arg_kind function."""
+def test_type_of_scalar_with_optional_kind(fortran_reader):
+    """Test the _type_of_scalar_with_optional_kind function."""
     code = """subroutine y
     real :: i
     integer :: j
@@ -1020,12 +1005,12 @@ def test_get_intrinsic_with_optional_arg_kind(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     intrs = psyir.walk(IntrinsicCall)
 
-    dtype = _get_intrinsic_with_optional_arg_kind(
+    dtype = _type_of_scalar_with_optional_kind(
             intrs[0], ScalarType.Intrinsic.INTEGER, "kind"
     )
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert dtype.precision == ScalarType.Precision.UNDEFINED
-    dtype = _get_intrinsic_with_optional_arg_kind(
+    dtype = _type_of_scalar_with_optional_kind(
             intrs[1], ScalarType.Intrinsic.INTEGER, "kind"
     )
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
@@ -1626,6 +1611,30 @@ def test_maxval_return_type(fortran_reader):
                 and res.shape[0].upper.value == "10"
                 and res.shape[1].lower.value == "1"
                 and res.shape[1].upper.value == "100"
+            )
+        ),
+        (
+            """subroutine z
+        integer*8 :: i, j, k
+        k = MAX(i,j)
+        end subroutine z""",
+            # Result is an integer*8.
+            lambda res: (
+                isinstance(res, ScalarType) and
+                res.intrinsic == ScalarType.Intrinsic.INTEGER and
+                res.precision == 8
+            )
+        ),
+        (
+            """subroutine z
+        integer*8 :: i, j, k
+        k = MIN(i,j)
+        end subroutine z""",
+            # Result is an integer*8.
+            lambda res: (
+                isinstance(res, ScalarType) and
+                res.intrinsic == ScalarType.Intrinsic.INTEGER and
+                res.precision == 8
             )
         ),
     ],

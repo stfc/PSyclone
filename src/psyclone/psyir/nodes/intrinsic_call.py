@@ -76,11 +76,6 @@ IAttr = namedtuple(
     "name is_pure is_elemental is_inquiry required_args optional_args"
     " return_type reference_accesses",
 )
-# Alternatively we could use an Enum to decrive the intrinsic types
-# IntrinsicType = Enum('IntrinsicType',
-#    'Atomic Collective Elemental Inquiry Pure Impure Transformational'
-# )
-# And let the IntrinsicCall is_pure, is_elemental, ... do the conversion
 
 # Named tuple for describing the properties of the required arguments to
 # a particular intrinsic. If there's no limit on the number of arguments
@@ -90,17 +85,6 @@ IAttr = namedtuple(
 # be a tuple containing None to ensure the argument name computation logic
 # still works.
 ArgDesc = namedtuple('ArgDesc', 'min_count max_count types arg_names')
-
-
-def _get_first_argument_type(node: IntrinsicCall) -> DataType:
-    """
-    Helper function for MIN and MAX where named arguments aren't supported.
-
-    :param node: The IntrinsicCall whose return type to compute.
-
-    :returns: the datatype of the first argument of the IntrinsicCall.
-    """
-    return node.arguments[0].datatype
 
 
 def _get_named_argument_type(node: IntrinsicCall,
@@ -117,29 +101,30 @@ def _get_named_argument_type(node: IntrinsicCall,
     return node.argument_by_name(argument_name).datatype
 
 
-def _get_named_argument_intrinsic_with_optional_kind_and_dim(
+def _type_of_named_arg_with_optional_kind_and_dim(
         node: IntrinsicCall, arg_name: str
 ) -> DataType:
     """Helper function for IntrinsicCalls like MAXLOC where they have optional
-    Kind and Dim options but the intrinsic is that of the argument with the
-    provided arg_name.
+    Kind and Dim options but the intrinsic type is that of the argument with
+    the provided arg_name.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :param arg_name: The name of the argument to use the datatype intrinsic
-                     of.
+    :param arg_name: The name of the argument that provides the intrinsic
+                     type.
 
     :returns: the computed datatype for the IntrinsicCall.
     """
+    arg = node.argument_by_name(arg_name)
     if "kind" in node.argument_names:
         dtype = ScalarType(
-            node.argument_by_name(arg_name).datatype.intrinsic,
+            arg,
             node.argument_by_name("kind").copy(),
         )
     else:
         # PSyclone has the UNDEFINED Precision as the default kind for all
         # supported inbuilt datatypes.
         dtype = ScalarType(
-            node.argument_by_name(arg_name).datatype.intrinsic,
+            arg,
             ScalarType.Precision.UNDEFINED,
         )
     # If "dim" argument isn't present then the result is an array of the same
@@ -150,14 +135,13 @@ def _get_named_argument_intrinsic_with_optional_kind_and_dim(
             [
                 Literal(
                     str(len(
-                        node.argument_by_name(arg_name).datatype.shape)),
+                        arg.shape)),
                     INTEGER_TYPE,
                 ),
             ],
         )
     # Always have dim argument from here.
     # If array has rank 1, the result is scalar.
-    arg = node.argument_by_name(arg_name)
     shape = arg.datatype.shape
     if len(shape) == 1:
         return dtype
@@ -167,14 +151,14 @@ def _get_named_argument_intrinsic_with_optional_kind_and_dim(
     return ArrayType(dtype, new_shape)
 
 
-def _get_named_argument_specified_kind_with_optional_dim(
+def _type_with_specified_kind_and_optional_dim(
         node: IntrinsicCall, argument_name: str,
         intrinsic: ScalarType.Intrinsic = ScalarType.Intrinsic.BOOLEAN
         ) -> DataType:
     """Helper function for the common IntrinsicCall case where the
     return type is a Scalar with the kind of a named argument,
-    unless an optional dim named argument exists, in which case an array with
-    rank n-1 is given instead.
+    unless an optional argument named 'dim' exists, in which case an array
+    with rank one less than the input node is given instead.
 
     :param node: The IntrinsicCall whose return type to compute.
     :param argument_name: The name of the argument whose kind to be used.
@@ -201,7 +185,7 @@ def _get_named_argument_specified_kind_with_optional_dim(
     return ArrayType(dtype, new_shape)
 
 
-def _get_intrinsic_with_optional_arg_kind(
+def _type_of_scalar_with_optional_kind(
         node: IntrinsicCall, intrinsic: ScalarType.Intrinsic,
         arg_name: str
 ) -> DataType:
@@ -248,25 +232,23 @@ def _get_intrinsic_of_argname_kind_with_optional_dim(
         (
             ScalarType.Precision.UNDEFINED
             if kind_arg_name not in node.argument_names
-            else node.argument_by_name(kind_arg_name)
+            else node.argument_by_name(kind_arg_name).copy()
         ),
     )
     # If dim is not present then we return a scalar.
     if "dim" not in node.argument_names:
         return dtype
-    else:
-        # If dim is given then this should return an array, but we
-        # don't necessarily know the dimensions of the resulting array
-        # at compile time. It will have one fewer dimension than the
-        # input.
-        arg = node.argument_by_name(array_arg_name)
-        shape = arg.datatype.shape
-        if len(shape) == 1:
-            return dtype
-        else:
-            # For now we don't attempt to work out the shape.
-            new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
-            return ArrayType(dtype, new_shape)
+    # If dim is given then this should return an array, but we
+    # don't necessarily know the dimensions of the resulting array
+    # at compile time. It will have one fewer dimension than the
+    # input.
+    arg = node.argument_by_name(array_arg_name)
+    shape = arg.datatype.shape
+    if len(shape) == 1:
+        return dtype
+    # For now we don't attempt to work out the shape.
+    new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
+    return ArrayType(dtype, new_shape)
 
 
 def _get_intrinsic_with_named_arg_kind(
@@ -274,7 +256,8 @@ def _get_intrinsic_with_named_arg_kind(
         argument_name: str
 ) -> DataType:
     """Helper function for the common IntrinsicCall case where the
-    return type is a Scalar REAL with the kind of the first argument.
+    return type is a scalar of the type of the supplied intrinsic,
+    with the kind of the first argument.
 
     :param node: The IntrinsicCall whose return type to compute.
     :param intrinsic: The datatype intrinsic type to use.
@@ -299,7 +282,6 @@ def _findloc_return_type(node: IntrinsicCall) -> DataType:
     is equal to the kind argument.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
     :returns: the computed datatype for the IntrinsicCall.
     """
@@ -359,20 +341,14 @@ def _int_return_type(node: IntrinsicCall) -> DataType:
     else:
         dtype = INTEGER_TYPE
 
-    if isinstance(node.argument_by_name("a").datatype, ArrayType):
-        return ArrayType(
-            dtype,
-            [
-                (
-                    index.copy()
-                    if not isinstance(index, ArrayType.ArrayBounds)
-                    else ArrayType.ArrayBounds(index.lower, index.upper)
-                )
-                for index in node.argument_by_name("a").datatype.shape
-            ],
-        )
-    else:
+    if not isinstance(node.argument_by_name("a").datatype, ArrayType):
         return dtype
+    return ArrayType(
+        dtype,
+        [   index.copy()
+            for index in node.argument_by_name("a").datatype.shape
+        ],
+    )
 
 
 def _iparity_return_type(node: IntrinsicCall) -> DataType:
@@ -408,10 +384,10 @@ def _get_bound_function_return_type(node: IntrinsicCall) -> DataType:
     LCOBOUND etc.
 
     The return type is of type integer and of the kind specified by the
-    "kind" argument if present, of the default
+    "kind" argument if present, or the default
     (ScalarType.Precision.UNDEFINED) otherwise.
     If the "dim" argument is present, then the result is that ScalarType.
-    Otherwise, its an array that ScalarType with extent equal to the
+    Otherwise, it's an array of that ScalarType with extent equal to the
     rank of the "array" argument.
 
     :param node: The IntrinsicCall whose return type to compute.
@@ -509,7 +485,6 @@ def _maxval_return_type(node: IntrinsicCall) -> DataType:
     the "array" argument) with the same datatype of the "array" argument.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
     :returns: the computed datatype for the IntrinsicCall.
     """
@@ -569,7 +544,8 @@ class IntrinsicCall(Call):
 
         # Fortran special-case statements (technically not Fortran intrinsics
         # but in PSyIR they are represented as Intrinsics)
-        # TODO 3060 reference_accesses
+        # TODO 3060 reference_accesses NYI on Intrinsics, they are currently
+        # all set to None.
         ALLOCATE = IAttr(
             name="ALLOCATE",
             is_pure=False,
@@ -733,13 +709,9 @@ class IntrinsicCall(Call):
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node: (
-                ScalarType(
-                    ScalarType.Intrinsic.REAL,
-                    (
-                        node.arguments[node.argument_names.index("kind")]
-                        if "kind" in node.argument_names
-                        else node.argument_by_name("a").datatype.precision
-                    ),
+                _type_with_specified_kind_and_optional_dim(
+                    node, ScalarType.Intrinsic.REAL,
+                    "kind" if "kind" in node.argument_names else "a"
                 )
             ),
             reference_accesses=None,
@@ -757,7 +729,7 @@ class IntrinsicCall(Call):
             optional_args={"dim": DataNode},
             return_type=(
                 lambda node:
-                _get_named_argument_specified_kind_with_optional_dim(
+                _type_with_specified_kind_and_optional_dim(
                     node, "mask"
                 )
             ),
@@ -790,13 +762,9 @@ class IntrinsicCall(Call):
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node: (
-                ScalarType(
-                    ScalarType.Intrinsic.REAL,
-                    (
-                        node.arguments[node.argument_names.index("kind")]
-                        if "kind" not in node.argument_names
-                        else node.argument_by_bname("a").datatype.precision
-                    ),
+                _type_with_specified_kind_and_optional_dim(
+                    node, ScalarType.Intrinsic.REAL,
+                    "kind" if "kind" in node.argument_names else "a"
                 )
             ),
             reference_accesses=None,
@@ -814,7 +782,7 @@ class IntrinsicCall(Call):
             optional_args={"dim": DataNode},
             return_type=(
                 lambda node:
-                _get_named_argument_specified_kind_with_optional_dim(
+                _type_with_specified_kind_and_optional_dim(
                     node, "mask"
                 )
             ),
@@ -1289,7 +1257,7 @@ class IntrinsicCall(Call):
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -1486,11 +1454,7 @@ class IntrinsicCall(Call):
                     ),
                 ),
                 [
-                    (
-                        index.copy()
-                        if not isinstance(index, ArrayType.ArrayBounds)
-                        else ArrayType.ArrayBounds(index.lower, index.upper)
-                    )
+                    index.copy()
                     for index in node.argument_by_name(
                         "coarray"
                     ).datatype.shape
@@ -1617,10 +1581,12 @@ class IntrinsicCall(Call):
                 arg_names=(("vector_a", "vector_b"),)
             ),
             optional_args={},
-            return_type=lambda node: ScalarType(
-                node.argument_by_name("vector_a").datatype.intrinsic,
-                node.argument_by_name("vector_a").datatype.precision,
-            ),
+            return_type=lambda node:
+                _type_of_scalar_with_optional_kind(
+                    node,
+                    node.argument_by_name("vector_a").datatype.intrinsic,
+                    "vector_a"
+                ),
             reference_accesses=None,
         )
         DPROD = IAttr(
@@ -1842,7 +1808,7 @@ class IntrinsicCall(Call):
                 arg_names=()),
             optional_args={"team": DataNode, "kind": DataNode},
             return_type=lambda node: ArrayType(
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -1898,7 +1864,7 @@ class IntrinsicCall(Call):
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -2045,7 +2011,7 @@ class IntrinsicCall(Call):
                 arg_names=(("c",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -2173,7 +2139,7 @@ class IntrinsicCall(Call):
                 arg_names=(("c",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -2239,7 +2205,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string", "substring"),)),
             optional_args={"back": DataNode, "kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -2436,7 +2402,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -2454,7 +2420,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -2574,7 +2540,7 @@ class IntrinsicCall(Call):
                 arg_names=(("l",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node: (
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, node.argument_by_name("l").datatype.intrinsic,
                     "kind",
                 ) if "kind" in node.argument_names else
@@ -2594,7 +2560,7 @@ class IntrinsicCall(Call):
                 arg_names=(("i",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -2612,7 +2578,7 @@ class IntrinsicCall(Call):
                 arg_names=(("i",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -2646,7 +2612,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=((None,),)),
             optional_args={},
-            return_type=_get_first_argument_type,
+            return_type=lambda node: node.arguments[0].datatype,
             reference_accesses=None,
         )
         MAXEXPONENT = IAttr(
@@ -2683,7 +2649,7 @@ class IntrinsicCall(Call):
                 "back": DataNode,
             },
             return_type=lambda node: (
-                _get_named_argument_intrinsic_with_optional_kind_and_dim(
+                _type_of_named_arg_with_optional_kind_and_dim(
                     node, "array"
                 )
             ),
@@ -2750,7 +2716,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=((None,),)),
             optional_args={},
-            return_type=_get_first_argument_type,
+            return_type=lambda node: node.arguments[0].datatype,
             reference_accesses=None,
         )
         MINEXPONENT = IAttr(
@@ -2787,7 +2753,7 @@ class IntrinsicCall(Call):
                 "back": DataNode,
             },
             return_type=lambda node: (
-                _get_named_argument_intrinsic_with_optional_kind_and_dim(
+                _type_of_named_arg_with_optional_kind_and_dim(
                     node, "array"
                 )
             ),
@@ -2929,7 +2895,7 @@ class IntrinsicCall(Call):
             optional_args={},
             # No kind on NORM2 but this function works for return type.
             return_type=lambda node: (
-                _get_named_argument_intrinsic_with_optional_kind_and_dim(
+                _type_of_named_arg_with_optional_kind_and_dim(
                     node, "x"
                 )
             ),
@@ -3106,7 +3072,7 @@ class IntrinsicCall(Call):
             optional_args={"mask": DataNode},
             return_type=(
                 lambda node:
-                _get_named_argument_specified_kind_with_optional_dim(
+                _type_with_specified_kind_and_optional_dim(
                     node, "array",
                     node.argument_by_name("array").datatype.intrinsic
                 )
@@ -3325,7 +3291,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string", "set"),)),
             optional_args={"back": DataNode, "kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -3506,7 +3472,7 @@ class IntrinsicCall(Call):
                 arg_names=(("array",),)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -3576,7 +3542,7 @@ class IntrinsicCall(Call):
                 arg_names=()),
             optional_args={"team": DataNode, "kind": DataNode},
             return_type=lambda node: ArrayType(
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 )
@@ -3596,7 +3562,7 @@ class IntrinsicCall(Call):
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -3619,7 +3585,7 @@ class IntrinsicCall(Call):
             optional_args={"mask": DataNode},
             return_type=(
                 lambda node:
-                _get_named_argument_specified_kind_with_optional_dim(
+                _type_with_specified_kind_and_optional_dim(
                     node, "array",
                     node.argument_by_name("array").datatype.intrinsic
                 )
@@ -3700,6 +3666,10 @@ class IntrinsicCall(Call):
                 )
             ),
             optional_args={"team": DataNode},
+            # Support for this is not currentl implemented, however it is
+            # an integer or array of integer's depending on arguments, so
+            # could be added later. See
+            # https://gcc.gnu.org/onlinedocs/gfortran/THIS_005fIMAGE.html
             return_type=lambda node: UnresolvedType(),
             reference_accesses=None,
         )
@@ -3744,7 +3714,7 @@ class IntrinsicCall(Call):
                 arg_names=(("source", "mold"),)),
             optional_args={"size": DataNode},
             return_type=lambda node: (
-                node.arguments[1].datatype if
+                node.arguments[1].datatype.copy() if
                 ("size" not in node.argument_names and
                  not isinstance(node.argument_by_name("mold").datatype,
                                 ArrayType))
@@ -3845,7 +3815,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string", "set"),)),
             optional_args={"back": DataNode, "kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
