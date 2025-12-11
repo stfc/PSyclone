@@ -1092,7 +1092,7 @@ class LFRicLoop(PSyLoop):
                     f"Kernel '{self.kernel.name}' performs an INC update",
                     DTCode.ERROR_WRITE_WRITE_RACE)
                 return False
-            return True
+            return True  # pragma: no-cover
 
         raise InternalError(f"independent_iterations: loop of type "
                             f"'{self.loop_type}' is not supported.")
