@@ -190,7 +190,6 @@ class LFRicTypes:
                           LFRicTypes("R_DEF")),
             GenericScalar("LFRicLogicalScalar", ScalarType.Intrinsic.BOOLEAN,
                           LFRicTypes("L_DEF"))]
-        # TODO: Consider adding ScalarArrays as a generic data type
 
         # Generate generic LFRic scalar datatypes and symbols from definitions
         for info in generic_scalar_datatypes:
