@@ -6557,7 +6557,7 @@ class LFRicKernelArgument(KernelArgument):
                     interface=ImportInterface(constants_container))
                 symtab.add(kind_symbol)
             dts = ScalarType(prim_type, Reference(kind_symbol))
-            if self.is_scalar_array and self._array_ndims > 1:
+            if self.is_scalar_array and self._array_ndims >= 1:
                 return ArrayType(dts, [self._array_ndims])
             return dts
 
