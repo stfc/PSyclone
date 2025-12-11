@@ -6558,6 +6558,8 @@ class LFRicKernelArgument(KernelArgument):
                 symtab.add(kind_symbol)
             dts = ScalarType(prim_type, Reference(kind_symbol))
             if self.is_scalar_array and self._array_ndims >= 1:
+                # ScalarArray needs to have a number of dimensions
+                # greater than or equal to one
                 return ArrayType(dts, [self._array_ndims])
             return dts
 
