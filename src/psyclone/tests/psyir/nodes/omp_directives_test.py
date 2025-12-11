@@ -62,7 +62,7 @@ from psyclone.psyir.nodes import (
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
     OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective,
     StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective,
-    AtomicDirectiveType)
+    AtomicDirectiveType, OMPCriticalDirective)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
@@ -5378,3 +5378,9 @@ def test_firstprivate_with_uninitialised(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     assert "firstprivate(a)" in output
     assert "firstprivate(b)" in output
+
+
+def test_critical_begin_and_end_string():
+    directive = OMPCriticalDirective()
+    assert directive.begin_string() == "omp critical"
+    assert directive.end_string() == "omp end critical"

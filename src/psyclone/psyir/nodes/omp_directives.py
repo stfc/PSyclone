@@ -2462,10 +2462,29 @@ class OMPSimdDirective(OMPRegionDirective):
                 f" associated loop, but found: '{self.debug_string()}'")
 
 
+class OMPCriticalDirective(OMPRegionDirective):
+    '''
+    OpenMP directive to inform that the contained region must only be executed
+    by a single thread at any time.
+    '''
+    def begin_string(self) -> str:
+        '''
+        :returns: the opening string statement of this directive.
+        '''
+        return "omp critical"
+
+    def end_string(self) -> str:
+        '''
+        :returns: the ending string statement of this directive.
+        '''
+        return "omp end critical"
+
+
 # For automatic API documentation generation
 __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
            "OMPSerialDirective", "OMPTaskloopDirective", "OMPTargetDirective",
            "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective",
            "OMPLoopDirective", "OMPDeclareTargetDirective",
-           "OMPAtomicDirective", "OMPSimdDirective", "OMPBarrierDirective"]
+           "OMPAtomicDirective", "OMPSimdDirective", "OMPBarrierDirective",
+           "OMPCriticalDirective"]
