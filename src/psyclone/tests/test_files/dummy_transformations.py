@@ -35,6 +35,7 @@
 
 import abc
 
+# pragma: no-cover
 
 class LocalTransformation():
     '''abstract baseclass for a transformation. Use of abc means it can

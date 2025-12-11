@@ -91,7 +91,7 @@ def have_graphviz():
         graphviz.version()
     except graphviz.ExecutableNotFound:
         return False
-    return True
+    return True  # pragma: no-cover
 
 
 @pytest.fixture(scope="session", autouse=True)

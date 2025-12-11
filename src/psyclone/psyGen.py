@@ -232,9 +232,6 @@ class PSy():
         '''
         return self._container
 
-    def __str__(self):
-        return "PSy"
-
     @property
     def invokes(self):
         ''':returns: the list of invokes.
@@ -309,9 +306,6 @@ class Invokes():
             my_invoke = invoke_cls(alg_invocation, idx, self)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
-
-    def __str__(self):
-        return "Invokes object containing "+str(self.names)
 
     @property
     def psy(self):

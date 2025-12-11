@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 try:
     # pylint disable=import-outside-toplevel
     from termcolor import colored
-except ImportError:
+except ImportError:  # pragma: no-cover
     # We don't have the termcolor package available (e.g. installing from)
     # Spack) so provide alternative routine
     def colored(text, _):

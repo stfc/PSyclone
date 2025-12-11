@@ -117,7 +117,7 @@ def test_fw_unsupportedtype_routine_symbols_error(fortran_writer):
     '''
     class OtherType(UnsupportedType):
         ''' UnsupportedType is abstract so sub-class it for this test '''
-        def __str__(self):
+        def __str__(self):  # pragma: no-cover
             return "OtherType"
 
     container = Container("my_mod")
