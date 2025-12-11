@@ -52,7 +52,6 @@ import logging
 from typing import List
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
 from psyclone.errors import (GenerationError,
                              UnresolvedDependencyError)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -63,11 +62,12 @@ from psyclone.psyir.nodes.atomic_mixin import (
         AtomicDirectiveType,
 )
 from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
         DataSharingAttributeMixin,
 )
-from psyclone.psyir.nodes.directive import StandaloneDirective, \
-    RegionDirective
+from psyclone.psyir.nodes.directive import (
+    StandaloneDirective, RegionDirective)
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
@@ -83,12 +83,35 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, DataSymbol, ImportInterface, ContainerSymbol,
-    RoutineSymbol)
+    ContainerSymbol, DataSymbol, ImportInterface, INTEGER_TYPE, RoutineSymbol)
 
-# OMP_OPERATOR_MAPPING is used to determine the operator to use in the
-# reduction clause of an OpenMP directive.
-OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
+#: Mapping from PSyIR reduction operator to OMP reduction operator.
+MAP_REDUCTION_OP_TO_OMP = {
+    BinaryOperation.Operator.ADD:
+        OMPReductionClause.ReductionClauseTypes.ADD,
+    BinaryOperation.Operator.SUB:
+        OMPReductionClause.ReductionClauseTypes.SUB,
+    BinaryOperation.Operator.MUL:
+        OMPReductionClause.ReductionClauseTypes.MUL,
+    BinaryOperation.Operator.AND:
+        OMPReductionClause.ReductionClauseTypes.AND,
+    BinaryOperation.Operator.OR:
+        OMPReductionClause.ReductionClauseTypes.OR,
+    BinaryOperation.Operator.EQV:
+        OMPReductionClause.ReductionClauseTypes.EQV,
+    BinaryOperation.Operator.NEQV:
+        OMPReductionClause.ReductionClauseTypes.NEQV,
+    IntrinsicCall.Intrinsic.MAX:
+        OMPReductionClause.ReductionClauseTypes.MAX,
+    IntrinsicCall.Intrinsic.MIN:
+        OMPReductionClause.ReductionClauseTypes.MIN,
+    IntrinsicCall.Intrinsic.IAND:
+        OMPReductionClause.ReductionClauseTypes.IAND,
+    IntrinsicCall.Intrinsic.IOR:
+        OMPReductionClause.ReductionClauseTypes.IOR,
+    IntrinsicCall.Intrinsic.IEOR:
+        OMPReductionClause.ReductionClauseTypes.IEOR
+}
 
 
 class OMPDirective(metaclass=abc.ABCMeta):
@@ -111,40 +134,6 @@ class OMPRegionDirective(OMPDirective, RegionDirective, metaclass=abc.ABCMeta):
     Base class for all OpenMP region-related directives.
 
     '''
-    def _get_reductions_list(self, reduction_type):
-        '''
-        Returns the names of all scalars within this region that require a
-        reduction of type 'reduction_type'. Returned names will be unique.
-
-        TODO #514 - this only works for the PSyKAl APIs currently. It needs
-        extending/replacing with the use of the PSyIR Dependence Analysis.
-
-        :param reduction_type: the reduction type (e.g. AccessType.SUM) to
-                               search for.
-        :type reduction_type: :py:class:`psyclone.core.access_type.AccessType`
-
-        :returns: names of scalar arguments with reduction access.
-        :rtype: list[str]
-
-        '''
-        result = []
-
-        # TODO #514: not yet working with generic PSyIR, so skip for now
-        if Config.get().api not in ('gocean', 'lfric'):
-            return result
-
-        const = Config.get().api_conf().get_constants()
-        for call in self.kernels():
-            for arg in call.arguments.args:
-                if call.reprod_reduction:
-                    # In this case we do the reduction serially instead of
-                    # using an OpenMP clause
-                    continue
-                if arg.argument_type in const.VALID_SCALAR_NAMES:
-                    if arg.descriptor.access == reduction_type:
-                        if arg.name not in result:
-                            result.append(arg.name)
-        return result
 
 
 class OMPStandaloneDirective(OMPDirective, StandaloneDirective,
@@ -1292,7 +1281,7 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         '''
         return self.children[2]
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         In-place construction of clauses as PSyIR constructs.
         At the higher level these clauses rely on dynamic variable dependence
@@ -1301,14 +1290,20 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         explicitly in the lower-level tree to be processed by the backend
         visitor.
 
+        DSL reductions (given by self.reductions) also need to be handled
+        during the lowering step. (Any generic code reductions will already
+        have been added as directive clauses when applying the corresponding
+        parallelisation transformation.)
+
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
-        :raises GenerationError: if the OpenMP directive needs some
-                                 synchronisation mechanism to create valid
-                                 code. These are not implemented yet.
+        :raises GenerationError: if there are multiple Kernels performing
+            reductions into the same variable.
+        :raises GenerationError: if there are different types of Node within
+            the parallel region - this guards against including
+            GlobalSum nodes within a threaded region.
+
         '''
-
         # first check whether we have more than one reduction with the same
         # name in this Schedule. If so, raise an error as this is not
         # supported for a parallel region.
@@ -1332,36 +1327,31 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
                         " region with reductions and containing children of "
                         "different types.")
 
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables
-        zero_reduction_variables(reduction_kernels)
-
         # Reproducible reduction will be done serially by accumulating the
         # partial results in an array indexed by the thread index
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
-            # Use a private thread index variable
-            omp_lib = self.scope.symbol_table.find_or_create(
+            table = self.ancestor(Routine).symbol_table
+            omp_lib = table.find_or_create(
                 "omp_lib", symbol_type=ContainerSymbol)
-            omp_get_thread_num = self.scope.symbol_table.find_or_create(
+            omp_get_thrd = table.find_or_create_tag(
                 "omp_get_thread_num", symbol_type=RoutineSymbol,
                 interface=ImportInterface(omp_lib))
-            thread_idx = self.scope.symbol_table.find_or_create_tag(
+            table.find_or_create_tag("omp_num_threads",
+                                     root_name="nthreads",
+                                     symbol_type=DataSymbol,
+                                     datatype=INTEGER_TYPE)
+            thread_idx = table.find_or_create_tag(
                 "omp_thread_index", root_name="th_idx",
                 symbol_type=DataSymbol, datatype=INTEGER_TYPE)
             assignment = Assignment.create(
                 lhs=Reference(thread_idx),
                 rhs=BinaryOperation.create(
                         BinaryOperation.Operator.ADD,
-                        Call.create(omp_get_thread_num),
+                        Call.create(omp_get_thrd),
                         Literal("1", INTEGER_TYPE))
             )
             self.dir_body.addchild(assignment, 0)
-
-        # Now finish the reproducible reductions
-        if reprod_red_call_list:
-            for call in reversed(reprod_red_call_list):
-                call.reduction_sum_loop()
 
         # Create data sharing clauses (before lowering, so the CodedKern
         # semantics are taken into account)
@@ -1403,23 +1393,25 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         for child in self.children[:2]:
             child.lower_to_language_level()
 
+        # Now finish the LFRic reductions (which need lowering first)
+        if reduction_kernels and not reprod_red_call_list:
+            self._add_reduction_clauses()
+
+        for call in reversed(reprod_red_call_list):
+            call.reduction_sum_loop(self.parent, self.position,
+                                    self.scope.symbol_table)
+
         return self
 
-    def begin_string(self):
+    def begin_string(self) -> str:
         '''Returns the beginning statement of this directive, i.e.
         "omp parallel". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the opening statement of this directive.
-        :rtype: str
 
         '''
-        result = "omp parallel"
-        # TODO #514: not yet working with NEMO, so commented out for now
-        # if not self._reprod:
-        #     result += self._reduction_string()
-
-        return result
+        return "omp parallel"
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
@@ -1684,10 +1676,6 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         self._omp_schedule = omp_schedule
         self._collapse = None
         self.collapse = collapse  # Use setter with error checking
-        # TODO #514 - reductions are only implemented in LFRic, for now we
-        # store the needed clause when lowering, but this needs a better
-        # solution
-        self._lowered_reduction_string = ""
         self.nowait = nowait
 
     @staticmethod
@@ -1803,20 +1791,6 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         if self._collapse and self._collapse > 1:
             parts.append(f"collapse={self._collapse}")
         return f"{self.coloured_name(colour)}[{','.join(parts)}]"
-
-    def _reduction_string(self):
-        '''
-        :returns: the OMP reduction information.
-        :rtype: str
-        '''
-        for reduction_type in AccessType.get_valid_reduction_modes():
-            reductions = self._get_reductions_list(reduction_type)
-            parts = []
-            for reduction in reductions:
-                parts.append(f"reduction("
-                             f"{OMP_OPERATOR_MAPPING[reduction_type]}:"
-                             f"{reduction})")
-        return ", ".join(parts)
 
     @property
     def omp_schedule(self):
@@ -1936,16 +1910,29 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        self._lowered_reduction_string = self._reduction_string()
+        # We only attempt to *automatically* add reduction clauses if we have a
+        # high-level (DSL) reduction operation.
+        reductions = self.reductions()
+        if not reductions:
+            # No high-level reduction operations.
+            return super().lower_to_language_level()
+
+        self.children[0].lower_to_language_level()
+
+        # Remove any existing Reduction clauses.
+        self.children = [self.children[0]]
+
+        # Create data sharing clauses.
+        self._add_reduction_clauses()
+
         return super().lower_to_language_level()
 
-    def begin_string(self):
+    def begin_string(self) -> str:
         '''Returns the beginning statement of this directive, i.e.
         "omp do ...". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the beginning statement for this directive.
-        :rtype: str
 
         '''
         string = f"omp {self._directive_string}"
@@ -1953,8 +1940,6 @@ class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
             string += f" schedule({self.omp_schedule})"
         if self._collapse:
             string += f" collapse({self._collapse})"
-        if self._lowered_reduction_string:
-            string += f" {self._lowered_reduction_string}"
         return string
 
     def end_string(self):
@@ -2036,38 +2021,33 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             return True
         return False
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> DataNode:
         '''
         In-place construction of clauses as PSyIR constructs.
         The clauses here may need to be updated if code has changed, or be
         added if not yet present.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Calling the super() explicitly to avoid confusion
         # with the multiple-inheritance
-        self._lowered_reduction_string = self._reduction_string()
         OMPParallelDirective.lower_to_language_level(self)
         self.children[4].replace_with(OMPScheduleClause(self._omp_schedule))
 
         return self
 
-    def begin_string(self):
+    def begin_string(self) -> str:
         '''Returns the beginning statement of this directive, i.e.
         "omp parallel do ...". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the beginning statement for this directive.
-        :rtype: str
 
         '''
         string = f"omp {self._directive_string}"
         if self._collapse:
             string += f" collapse({self._collapse})"
-        if self._lowered_reduction_string:
-            string += f" {self._lowered_reduction_string}"
         return string
 
     def end_string(self):
@@ -2485,10 +2465,29 @@ class OMPSimdDirective(OMPRegionDirective):
                 f" associated loop, but found: '{self.debug_string()}'")
 
 
+class OMPCriticalDirective(OMPRegionDirective):
+    '''
+    OpenMP directive to inform that the contained region must only be executed
+    by a single thread at any time.
+    '''
+    def begin_string(self) -> str:
+        '''
+        :returns: the opening string statement of this directive.
+        '''
+        return "omp critical"
+
+    def end_string(self) -> str:
+        '''
+        :returns: the ending string statement of this directive.
+        '''
+        return "omp end critical"
+
+
 # For automatic API documentation generation
 __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
            "OMPSerialDirective", "OMPTaskloopDirective", "OMPTargetDirective",
            "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective",
            "OMPLoopDirective", "OMPDeclareTargetDirective",
-           "OMPAtomicDirective", "OMPSimdDirective", "OMPBarrierDirective"]
+           "OMPAtomicDirective", "OMPSimdDirective", "OMPBarrierDirective",
+           "OMPCriticalDirective"]
