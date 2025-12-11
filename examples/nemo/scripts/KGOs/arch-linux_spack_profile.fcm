@@ -12,9 +12,7 @@
 %PROFILE_INC         -I${PROFILING_DIR}
 %PROFILE_LIB         -L${PROFILING_DIR} -lnvtx_prof -L${CUDA_HOME}/lib64 -cuda -lnvToolsExt
 
-
-
-%CPP	             cpp -Dkey_nosignedzero
+%CPP	             cpp -Dkey_nosignedzero -I${MPI_HOME}/include
 %FC	                 ${MPIF90} -c
 %FCFLAGS             ${FCFLAGS}
 %FFLAGS              %FCFLAGS
