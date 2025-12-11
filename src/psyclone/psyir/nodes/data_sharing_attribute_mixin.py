@@ -37,14 +37,15 @@
 '''This module contains the DataSharingAttributeMixin.'''
 
 import abc
-from typing import Set, Tuple
+from typing import Optional, Set, Tuple
 
-from psyclone.core import AccessType, AccessSequence
+from psyclone.core import AccessType, AccessSequence, Signature
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.nodes.omp_clauses import OMPReductionClause
+from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, Symbol
 
@@ -274,3 +275,42 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
 
         # If not, it can be just 'private'
         return False
+
+    def _add_reduction_clauses(self,
+                               need_sync: Optional[list[Symbol]] = None
+                               ) -> None:
+        '''
+        Analyses the code beneath this node and adds the necessary
+        OMPReductionClause nodes.
+
+        :param need_sync: optional list of Symbols that require
+            synchronisation (to avoid the expensive call to
+            infer_sharing_attributes).
+
+        '''
+        if need_sync is None:
+            # infer_sharing_attributes() is expensive so only call it
+            # when necessary.
+            _, _, need_sync = self.infer_sharing_attributes()
+
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.reduction_inference import (
+            ReductionInferenceTool)
+        from psyclone.psyir.nodes.omp_directives import (
+            MAP_REDUCTION_OP_TO_OMP)
+
+        vam = self.children[0].reference_accesses()
+        # Currently we only support *summation* reductions in DSL code. More
+        # operations are supported for generic code but these are inserted
+        # during the transformation.
+        red_tool = ReductionInferenceTool(
+            [BinaryOperation.Operator.ADD])
+
+        for sym in need_sync:
+            sig = Signature(sym.name)
+            acc_seq = vam[sig]
+            clause = red_tool.attempt_reduction(sig, acc_seq)
+            if clause:
+                self.children.append(
+                    OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[clause[0]],
+                                       children=[clause[1].copy()]))
