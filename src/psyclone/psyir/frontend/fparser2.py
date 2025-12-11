@@ -5758,9 +5758,6 @@ class Fparser2Reader():
         # one) so this can't be provided as the name of the
         # FileContainer.
         file_container = FileContainer("None", parent=parent)
-        if len(node.children) == 1 and node.children[0] is None:
-            # We have an empty file
-            return file_container
         self.process_nodes(file_container, node.children)
         return file_container
 

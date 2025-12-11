@@ -368,7 +368,20 @@ def test_list_valid_return_object():
 def test_list_return_data():
     ''' check the list method returns sensible information '''
     trans = TransInfo()
+    assert trans.list.find("are") != -1
     assert trans.list.find("available") != -1
+
+    # If there is only one, say 'is' instead of 'are'
+    class DummyObj:
+        ''' Dummy object '''
+        name = "name"
+
+        def __str__(self):
+            return "str"
+
+    trans._objects = [DummyObj()]
+    assert trans.list.find("are") == -1
+    assert trans.list.find("is") != -1
 
 
 def test_invalid_low_number():

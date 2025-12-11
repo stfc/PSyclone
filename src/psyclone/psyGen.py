@@ -232,9 +232,6 @@ class PSy():
         '''
         return self._container
 
-    def __str__(self):
-        return "PSy"
-
     @property
     def invokes(self):
         ''':returns: the list of invokes.
@@ -309,9 +306,6 @@ class Invokes():
             my_invoke = invoke_cls(alg_invocation, idx, self)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
-
-    def __str__(self):
-        return "Invokes object containing "+str(self.names)
 
     @property
     def psy(self):
@@ -430,17 +424,6 @@ class Invoke():
                 else:
                     # literals have no name
                     pass
-
-        # work out the unique dofs required in this subroutine
-        self._dofs = {}
-        for kern_call in self._schedule.coded_kernels():
-            dofs = kern_call.arguments.dofs
-            for dof in dofs:
-                if dof not in self._dofs:
-                    # Only keep the first occurrence for the moment. We will
-                    # need to change this logic at some point as we need to
-                    # cope with writes determining the dofs that are used.
-                    self._dofs[dof] = [kern_call, dofs[dof][0]]
 
     def __str__(self):
         return self._name+"("+", ".join([str(arg) for arg in
@@ -850,7 +833,7 @@ class HaloExchange(Statement):
         base method and simply return our argument. '''
         return [self._field]
 
-    def check_vector_halos_differ(self, node):
+    def check_vector_halos_differ(self, node):  # pragma: no-cover
         '''Helper method which checks that two halo exchange nodes (one being
         self and the other being passed by argument) operating on the
         same field, both have vector fields of the same size and use
