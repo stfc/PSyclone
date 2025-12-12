@@ -3886,7 +3886,7 @@ class IntrinsicCall(Call):
                 # return an UnresolvedType and not error.
                 if (("has no attribute 'precision'" or
                      "has no attribute 'intrinsic'" in str(err))
-                    and "NoneType" not in 
+                    and "NoneType" not in
                         str(err)):
                     return UnresolvedType()
                 # Can't use debug string due to this being a potentially
