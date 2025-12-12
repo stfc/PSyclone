@@ -57,10 +57,10 @@ from psyclone.psyir.nodes.intrinsic_call import (
     IAttr,
     _get_named_argument_type,
     _type_of_named_arg_with_optional_kind_and_dim,
-    _type_with_specified_kind_and_optional_dim,
+    _type_with_specified_precision_and_optional_dim,
     _type_of_scalar_with_optional_kind,
     _get_intrinsic_of_argname_kind_with_optional_dim,
-    _get_intrinsic_with_named_arg_kind,
+    _get_intrinsic_with_named_arg_precision,
     _findloc_return_type,
     _int_return_type,
     _iparity_return_type,
@@ -78,6 +78,7 @@ from psyclone.psyir.symbols import (
     CHARACTER_TYPE,
     ScalarType,
     UnresolvedType,
+    UnsupportedFortranType,
     NoType
 )
 
@@ -946,8 +947,8 @@ def test_type_of_named_arg_with_optional_kind_and_dim(
     assert dtype.precision.value == "8"
 
 
-def test_type_with_specified_kind_and_optional_dim(fortran_reader):
-    """Test the _type_with_specified_kind_and_optional_dim
+def test_type_with_specified_precision_and_optional_dim(fortran_reader):
+    """Test the _type_with_specified_precision_and_optional_dim
     helper function."""
     code = """subroutine test
     integer, dimension(100, 100) :: x
@@ -958,14 +959,14 @@ def test_type_with_specified_kind_and_optional_dim(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     intrinsics = psyir.walk(IntrinsicCall)
 
-    dtype = _type_with_specified_kind_and_optional_dim(
+    dtype = _type_with_specified_precision_and_optional_dim(
         intrinsics[0], "array", ScalarType.Intrinsic.INTEGER,
     )
     assert isinstance(dtype, ScalarType)
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
-    dtype = _type_with_specified_kind_and_optional_dim(
+    dtype = _type_with_specified_precision_and_optional_dim(
         intrinsics[1], "array", ScalarType.Intrinsic.INTEGER,
     )
     assert isinstance(dtype, ArrayType)
@@ -975,8 +976,8 @@ def test_type_with_specified_kind_and_optional_dim(fortran_reader):
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
 
-def test_get_intrinsic_with_named_arg_kind(fortran_reader):
-    """Test the _get_intrinsic_with_named_arg_kind helper function."""
+def test_get_intrinsic_with_named_arg_precision(fortran_reader):
+    """Test the _get_intrinsic_with_named_arg_precision helper function."""
     code = """subroutine y
     real*8 :: x
     x = BESSEL_J0(x)
@@ -986,7 +987,7 @@ def test_get_intrinsic_with_named_arg_kind(fortran_reader):
     intr = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.BESSEL_J0, [bessel_call.arguments[0].copy()]
     )
-    dtype = _get_intrinsic_with_named_arg_kind(
+    dtype = _get_intrinsic_with_named_arg_precision(
             intr, ScalarType.Intrinsic.REAL, "x"
     )
     assert dtype.intrinsic == ScalarType.Intrinsic.REAL
@@ -1297,8 +1298,8 @@ def test_maxval_return_type(fortran_reader):
      real :: result
      result = aimag(z4)
      end subroutine x""",
-            # AIMAG return type is UnresolvedType
-            lambda res: isinstance(res, UnresolvedType),
+            # AIMAG return type is UnsupportedFortranType
+            lambda res: isinstance(res, UnsupportedFortranType),
         ),
         (
             """subroutine z
@@ -1331,8 +1332,8 @@ def test_maxval_return_type(fortran_reader):
      real :: r
      z4 = CMPLX(r)
      end subroutine x""",
-            # CMPLX return type is UnresolvedType
-            lambda res: isinstance(res, UnresolvedType),
+            # CMPLX return type is UnsupportedFortranType
+            lambda res: isinstance(res, UnsupportedFortranType),
         ),
         (
             """subroutine x
@@ -1340,8 +1341,8 @@ def test_maxval_return_type(fortran_reader):
      complex(4) :: r
      z4 = CONJG(r)
      end subroutine x""",
-            # CONJG return type is UnresolvedType
-            lambda res: isinstance(res, UnresolvedType),
+            # CONJG return type is UnsupportedFortranType
+            lambda res: isinstance(res, UnsupportedFortranType),
         ),
         (
             """subroutine x
@@ -1734,7 +1735,7 @@ def test_specific_return_types(fortran_reader, code, expected):
         # i = GET_TEAM()
         # end subroutine x""",
         # IntrinsicCall.Intrinsic.GET_TEAM,
-        # lambda res: isinstance(res, UnresolvedType)
+        # lambda res: isinstance(res, UnsupportedFortranType)
         # ),
         # TODO #2823 Can't do this test yet, PSyclone creates a CodeBlock.
         # (
