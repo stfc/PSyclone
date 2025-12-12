@@ -311,7 +311,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
     assert assignment.preceding_comment == "Comment on assignment"
     # When keeping directives a comment before the directive
     # goes on the directive.
-    par_direc = file_container.walk(UnknownDirective)[0]
+    par_direc = file_container.walk(CodeBlock)[0]
     assert par_direc.preceding_comment == "Comment on do loop"
     for node in file_container.walk(CommentableMixin):
         if node not in (assignment, par_direc):
