@@ -36,6 +36,7 @@
 from psyclone.psyir.transformations import OMPLoopTrans
 from psyclone.psyir.nodes import Loop, Routine, UnknownDirective
 
+
 # Find the PSyDirectives, check what the directive is for and then find the
 # next loop to skip when parallelising.
 def trans(psyir):
