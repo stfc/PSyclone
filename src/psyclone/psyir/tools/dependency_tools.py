@@ -109,7 +109,7 @@ class Message:
     # ------------------------------------------------------------------------
     def __str__(self):
         if len(self._var_names) == 0:
-            return self._message
+            return str(self._message)
         if len(self._var_names) == 1:
             return f"{self._message} Variable: '{self._var_names[0].strip()}'."
         return f"{self._message} Variables: {self._var_names}."
@@ -227,8 +227,9 @@ class DependencyTools():
                               "The var_infos argument to _add_message must "
                               "be a list of Signature/AccessSequence pairs")
 
-        self._messages.append(Message(f"{message_type}: {message}", code,
-                                      var_names, var_infos))
+        self._messages.append(Message(
+                LazyString(lambda: f"{message_type}: {message}"),
+                code, var_names, var_infos))
 
     # -------------------------------------------------------------------------
     def get_all_messages(self):
