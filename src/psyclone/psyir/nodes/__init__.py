@@ -196,11 +196,8 @@ __all__ = [
         'OMPSimdDirective',
         'OMPTeamsDistributeParallelDoDirective',
         'OMPTeamsLoopDirective',
-<<<<<<< HEAD
         'UnknownDirective',
-=======
         'OMPCriticalDirective',
->>>>>>> master
         # OMP Clause Nodes
         'OMPGrainsizeClause',
         'OMPNogroupClause',
