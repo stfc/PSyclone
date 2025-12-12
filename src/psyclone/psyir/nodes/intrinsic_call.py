@@ -347,7 +347,8 @@ def _int_return_type(node: IntrinsicCall) -> DataType:
         return dtype
     return ArrayType(
         dtype,
-        [   index.copy()
+        [
+            index.copy()
             for index in node.argument_by_name("a").datatype.shape
         ],
     )
