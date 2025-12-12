@@ -1353,19 +1353,18 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
             )
             self.dir_body.addchild(assignment, 0)
 
-        # Lower the first two children
-        for child in self.children[:2]:
-            child.lower_to_language_level()
-
-        # Create data sharing clauses (order alphabetically to make generation
-        # reproducible)
+        # Create data sharing clauses (before lowering, so the CodedKern
+        # semantics are taken into account)
         private, fprivate, need_sync = self.infer_sharing_attributes()
+
+        # Order the clause variables alphabetically (to facilitate comparisons)
         if reprod_red_call_list:
             private.add(thread_idx)
         private_clause = OMPPrivateClause.create(
                             sorted(private, key=lambda x: x.name))
         fprivate_clause = OMPFirstprivateClause.create(
                             sorted(fprivate, key=lambda x: x.name))
+
         # Check all of the need_sync nodes are synchronized in children.
         # unless it has reduction_kernels which are handled separately
         sync_clauses = self.walk(OMPDependClause)
@@ -1390,10 +1389,14 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         self.children[2].replace_with(private_clause)
         self.children[3].replace_with(fprivate_clause)
 
-        if reduction_kernels and not reprod_red_call_list:
-            self._add_reduction_clauses(need_sync=need_sync)
+        # Continue lowering children (but not the clauses we just added)
+        for child in self.children[:2]:
+            child.lower_to_language_level()
 
-        # Now finish the reproducible reductions
+        # Now finish the LFRic reductions (which need lowering first)
+        if reduction_kernels and not reprod_red_call_list:
+            self._add_reduction_clauses()
+
         for call in reversed(reprod_red_call_list):
             call.reduction_sum_loop(self.parent, self.position,
                                     self.scope.symbol_table)
