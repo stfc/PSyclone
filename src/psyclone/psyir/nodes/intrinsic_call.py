@@ -714,7 +714,7 @@ class IntrinsicCall(Call):
             return_type=lambda node: ScalarType(
                 ScalarType.Intrinsic.REAL,
                 (
-                    node.arguments[node.argument_names.index("kind")]
+                    node.argument_by_name("kind").copy()
                     if "kind" in node.argument_names
                     else node.argument_by_name("a").datatype.precision
                 ),
@@ -769,7 +769,7 @@ class IntrinsicCall(Call):
             return_type=lambda node: ScalarType(
                 ScalarType.Intrinsic.REAL,
                 (
-                    node.arguments[node.argument_names.index("kind")]
+                    node.argument_by_name("kind").copy()
                     if "kind" in node.argument_names
                     else node.argument_by_name("a").datatype.precision
                 ),
@@ -3884,25 +3884,17 @@ class IntrinsicCall(Call):
                 # due to looking up the datatype elements of an Unresolved
                 # or UnsupportedType - in those cases then we should
                 # return an UnresolvedType and not error.
-                if ("has no attribute 'precision'" or
-                    "has no attribute 'intrinsic'" in
+                if (("has no attribute 'precision'" or
+                     "has no attribute 'intrinsic'" in str(err))
+                    and "NoneType" not in 
                         str(err)):
                     return UnresolvedType()
+                # Can't use debug string due to this being a potentially
+                # incomplete IntrinsicCall
                 raise InternalError(
-                    f"Failed to compute the datatype of the intrinsic "
-                    f"{self.debug_string()}. This is likely due to "
-                    f"not fully initialising the intrinsic correctly."
-                ) from err
-            except (ValueError, IndexError) as err:
-                # If we get any ValueError or IndexError from the
-                # intrinsic.return_type
-                # call, then the intrinsic is not setup correctly, either it
-                # is not a valid version of the intrinsic, or the
-                # compute_argument_names call has not been executed.
-                raise InternalError(
-                    f"Failed to compute the datatype of the intrinsic "
-                    f"{self.debug_string()}. This is likely due to "
-                    f"not fully initialising the intrinsic correctly."
+                    f"Failed to compute the datatype of a "
+                    f"'{self.intrinsic.name}' intrinsic. This is likely due "
+                    f"to not fully initialising the intrinsic correctly."
                 ) from err
         else:
             return self.intrinsic.return_type

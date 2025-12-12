@@ -44,6 +44,7 @@ TODO #2341 - tests need to be added for all of the supported intrinsics.
 
 import pytest
 
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     ArrayReference,
     Literal,
@@ -148,6 +149,14 @@ def test_intrinsiccall_datatype(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(IntrinsicCall)[0]
     assert isinstance(call.datatype, UnresolvedType)
+
+    # ValueError test.
+    call = IntrinsicCall(IntrinsicCall.Intrinsic.ABS)
+    with pytest.raises(InternalError) as err:
+        _ = call.datatype
+    assert ("Failed to compute the datatype of a 'ABS' intrinsic. This is "
+            "likely due to not fully initialising the intrinsic correctly."
+            in str(err.value))
 
 
 def test_intrinsiccall_is_elemental():
