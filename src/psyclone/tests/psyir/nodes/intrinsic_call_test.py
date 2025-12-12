@@ -158,6 +158,17 @@ def test_intrinsiccall_datatype(fortran_reader):
             "likely due to not fully initialising the intrinsic correctly."
             in str(err.value))
 
+    # Test that when we get a ValueError due to unresolved/unsupported types
+    # that PSyclone can turn that into an UnresolvedType
+    code = """subroutine test
+    integer :: i
+
+    i = REAL(CMPLX(1.0,1.0))
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(IntrinsicCall)[0]
+    assert isinstance(call.datatype, UnresolvedType)
+
 
 def test_intrinsiccall_is_elemental():
     """Tests the is_elemental() method works as expected. There are
