@@ -78,7 +78,7 @@ def test_globalreduction_dag_name():
     Test the dag_name property.
     '''
     gred = GlobalReduction(operand=Reference(Symbol("a")))
-    assert gred.dag_name == "globalreduction(a)_0"
+    assert gred.dag_name == "GlobalReduction(a)_0"
 
 
 def test_globalreduction_node_str():

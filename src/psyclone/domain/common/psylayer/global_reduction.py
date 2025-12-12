@@ -111,7 +111,7 @@ class GlobalReduction(Statement):
         '''
         :returns: the name to use in the DAG for this node.
         '''
-        return (f"globalreduction({self._operand.name})"
+        return (f"{type(self).__name__}({self._operand.name})"
                 f"_{self.position}")
 
     @property
