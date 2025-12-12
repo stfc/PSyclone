@@ -1239,7 +1239,8 @@ class LFRicFunctionSpaces(LFRicCollection):
                     self._invoke.schedule.addchild(
                         Assignment.create(
                             lhs=Reference(self.symtab.lookup(undf_name)),
-                            rhs=arg.generate_method_call("get_undf")),
+                            rhs=arg.generate_method_call(
+                                "get_undf", function_space=function_space)),
                         cursor)
                     cursor += 1
         return cursor

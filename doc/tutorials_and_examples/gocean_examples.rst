@@ -119,7 +119,7 @@ read-only variables:
 .. code-block:: none
 
     --------------------------------------
-    Double precision field b_fld has been modified in main : update
+    2d Double array b_fld%data has been modified in main : update
     Original checksum:   4611686018427387904
     New checksum:        4638355772470722560
     --------------------------------------

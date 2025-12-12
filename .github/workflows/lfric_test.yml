@@ -86,7 +86,7 @@ jobs:
         python -m pip install --upgrade pip
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
-        # pip install external/fparser
+        pip install external/fparser
         pip install .[test]
         # Fetch the specified version of LFRic apps
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh

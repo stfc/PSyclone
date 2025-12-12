@@ -46,8 +46,7 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants, LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import (
-    InvokeSchedule, HaloExchange, zero_reduction_variables)
+from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, StructureReference,
     Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode,
@@ -158,11 +157,6 @@ class LFRicLoop(PSyLoop):
             # only operate on halo cells => nothing to do.
             self.detach()
             return None
-
-        # Get the list of calls (to kernels) that need reduction variables
-        if not self.is_openmp_parallel():
-            calls = self.reductions()
-            zero_reduction_variables(calls)
 
         # Set halo clean/dirty for all fields that are modified
         if Config.get().distributed_memory:
@@ -566,18 +560,11 @@ class LFRicLoop(PSyLoop):
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
-                    method = "get_last_dof_owned"
-                else:
-                    method = "get_last_dof_annexed"
-                result = Call.create(
-                    StructureReference.create(
-                        sym_tab.lookup(self.field.proxy_name_indexed),
-                        [self.field.ref_name(), method]
-                    )
-                )
-            else:
-                result = Reference(sym_tab.lookup(self._kern.undf_name))
-            return result
+                    return self.field.generate_method_call(
+                        "get_last_dof_owned")
+                return self.field.generate_method_call("get_last_dof_annexed")
+            return Reference(sym_tab.lookup(self._kern.undf_name))
+
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:
                 result = Call.create(
@@ -605,12 +592,7 @@ class LFRicLoop(PSyLoop):
                 "sequential/shared-memory code")
         if self._upper_bound_name == "dof_halo":
             if Config.get().distributed_memory:
-                result = Call.create(
-                    StructureReference.create(
-                        sym_tab.lookup(self.field.proxy_name_indexed),
-                        [self.field.ref_name(), "get_last_dof_halo"]
-                    )
-                )
+                result = self.field.generate_method_call("get_last_dof_halo")
                 if halo_index:
                     result.addchild(halo_index.copy())
                 return result

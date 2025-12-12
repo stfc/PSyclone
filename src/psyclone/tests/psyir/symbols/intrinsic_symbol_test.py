@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,41 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab,
-#             I. Kavcic, Met Office
-
-# ----------- Default "make" values, can be overwritten by the user -----------
-# Compiler and compiler flags
-F90 ?= gfortran
-F90FLAGS ?= -g
+# Author A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-# We don't build dl_timer, drhook, nvidia, tau, and Vernier by default
-# since they require external dependencies/libraries. So this is the
-# list of all wrappers that do not have external dependencies:
-NO_DEP_LIBS = lfric_timer simple_timing template
+''' Perform py.test tests on the psygen.psyir.symbols.intrinsic_symbol file '''
 
-# The list with all libraries (include the ones that have additional
-# dependencies):
-ALL_LIBS = $(NO_DEP_LIBS) dl_timer drhook nvidia tau vernier
+from psyclone.psyir.nodes import IntrinsicCall
+from psyclone.psyir.symbols import IntrinsicSymbol
 
-.PHONY: default all $(NO_DEP_LIBS) clean allclean \
-	dl_timer drhook nvidia tau vernier
 
-# By default, compile all libraries that do not have additional dependencies
-# The 'all' target is used by the compilation tests, so this also can only
-# compile the libraries without additional dependencies.
-default: all
-all: $(NO_DEP_LIBS)
-
-# Invoke make in the corresponding subdirectory for all available libraries
-$(ALL_LIBS):
-		$(MAKE) -C $@
-
-# We clean all libraries, even the ones not compiled by default
-clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
-
-allclean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) allclean; )
+def test_intrinsicsymbol_copy(fortran_reader):
+    '''Test the copy function on the IntrinsicSymbol class.
+    '''
+    # Create an IntrinsicCall
+    code = """subroutine x
+    integer :: a
+    a = INT(1.0)
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic = psyir.walk(IntrinsicCall)[0]
+    assert isinstance(intrinsic.routine.symbol, IntrinsicSymbol)
+    isym = intrinsic.routine.symbol
+    copy = isym.copy()
+    assert copy is not isym
+    assert isym.name == copy.name
+    assert isym.intrinsic == copy.intrinsic
+    assert isym.datatype == copy.datatype
+    assert isym.visibility == copy.visibility
+    assert isym.interface == copy.interface
+    assert isym.is_pure == copy.is_pure
+    assert isym.is_elemental == copy.is_elemental

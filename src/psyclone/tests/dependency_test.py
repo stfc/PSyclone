@@ -85,9 +85,12 @@ def test_assignment(fortran_reader):
     array_assignment = schedule.children[1]
     assert isinstance(array_assignment, Assignment)
     var_accesses = array_assignment.reference_accesses()
+    # We don't know if 'f' is a function or an array (CALLED or READ), so
+    # it is catergorised as UNKNOWN. Its arguments take the worst case
+    # scenario of being READWRITE (in case it was a function).
     assert (str(var_accesses) ==
-            "c: WRITE, d: READ, e: READ, f: READ, i: READ, j: READ, "
-            "x: READ, y: READ")
+            "c: WRITE, d: READ, e: READ, f: UNKNOWN, i: READ, j: READ, "
+            "x: READWRITE, y: READWRITE")
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)
@@ -241,12 +244,11 @@ def test_goloop_partially():
     assert not do_loop.args[3].is_scalar
 
     var_accesses = do_loop.reference_accesses()
-    assert ("a_scalar: READ, i: WRITE+READ, j: WRITE+READ, ssh_fld%grid%"
-            "subdomain%internal%xstop: READ, ssh_fld%grid%tmask: READ, "
-            "ssh_fld%whole%xstart: READ, ssh_fld%whole%xstop: READ, "
-            "ssh_fld%whole%ystart: READ, ssh_fld%whole%ystop: READ, "
-            "ssh_fld: READWRITE"
-            == str(var_accesses))
+    assert ("a_scalar: READ, i: WRITE+READ, j: WRITE+READ, ssh_fld%data: "
+            "WRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "
+            "ssh_fld%grid%tmask: READ, ssh_fld%whole%xstart: READ, "
+            "ssh_fld%whole%xstop: READ, ssh_fld%whole%ystart: READ, "
+            "ssh_fld%whole%ystop: READ" == str(var_accesses))
 
 
 def test_lfric():

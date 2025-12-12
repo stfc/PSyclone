@@ -37,14 +37,15 @@
 '''This module contains the DataSharingAttributeMixin.'''
 
 import abc
-from typing import Set, Tuple
+from typing import Optional, Set, Tuple
 
-from psyclone.core import AccessType, AccessSequence
+from psyclone.core import AccessType, AccessSequence, Signature
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.nodes.omp_clauses import OMPReductionClause
+from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, Symbol
 
@@ -275,91 +276,41 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         # If not, it can be just 'private'
         return False
 
-    def lower_to_language_level(self):
+    def _add_reduction_clauses(self,
+                               need_sync: Optional[list[Symbol]] = None
+                               ) -> None:
         '''
+        Analyses the code beneath this node and adds the necessary
+        OMPReductionClause nodes.
+
+        :param need_sync: optional list of Symbols that require
+            synchronisation (to avoid the expensive call to
+            infer_sharing_attributes).
+
         '''
-        # first check whether we have more than one reduction with the same
-        # name in this Schedule. If so, raise an error as this is not
-        # supported for a parallel region.
-        red_names_and_loops = []
-        reduction_kernels = self.reductions()
-        reprod_red_call_list = self.reductions(reprod=True)
-        import pdb; pdb.set_trace()
-        for call in reduction_kernels:
-            name = call.reduction_arg.name
-            if name in [item[0] for item in red_names_and_loops]:
-                raise GenerationError(
-                    f"Reduction variables can only be used once in an invoke. "
-                    f"'{name}' is used multiple times, please use a different "
-                    f"reduction variable")
-            red_names_and_loops.append((name, call.ancestor(Loop)))
+        if need_sync is None:
+            # infer_sharing_attributes() is expensive so only call it
+            # when necessary.
+            _, _, need_sync = self.infer_sharing_attributes()
 
-        if reduction_kernels:
-            first_type = type(self.dir_body[0])
-            for child in self.dir_body.children:
-                if first_type != type(child):
-                    raise GenerationError(
-                        "Cannot correctly generate code for an OpenMP parallel"
-                        " region with reductions and containing children of "
-                        "different types.")
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.reduction_inference import (
+            ReductionInferenceTool)
+        from psyclone.psyir.nodes.omp_directives import (
+            MAP_REDUCTION_OP_TO_OMP)
 
-        # Lower the first two children
-        for child in self.children[:2]:
-            child.lower_to_language_level()
-        # Create data sharing clauses (order alphabetically to make generation
-        # reproducible)
-        private, fprivate, need_sync = self.infer_sharing_attributes()
-        #if reprod_red_call_list:
-        #    private.add(thread_idx)
+        vam = self.children[0].reference_accesses()
+        # Currently we only support *summation* reductions in DSL code. More
+        # operations are supported for generic code but these are inserted
+        # during the transformation.
+        red_tool = ReductionInferenceTool(
+            [BinaryOperation.Operator.ADD])
 
-        from psyclone.psyir.nodes import (
-            OMPDependClause, OMPPrivateClause, OMPFirstprivateClause,
-            OMPReductionClause)
-        private_clause = OMPPrivateClause.create(
-                            sorted(private, key=lambda x: x.name))
-        fprivate_clause = OMPFirstprivateClause.create(
-                            sorted(fprivate, key=lambda x: x.name))
-        # Check all of the need_sync nodes are synchronized in children.
-        # unless it has reduction_kernels which are handled separately
-        sync_clauses = self.walk(OMPDependClause)
-        if not reduction_kernels and need_sync:
-            for sym in need_sync:
-                for clause in sync_clauses:
-                    # Needs to be an out depend clause to synchronize
-                    if clause.operator == "in":
-                        continue
-                    # Check if the symbol is in this depend clause.
-                    if sym.name in [child.symbol.name for child in
-                                    clause.children]:
-                        break
-                else:
-                    logger = logging.getLogger(__name__)
-                    logger.warning(
-                        "Lowering '%s' detected a possible race condition for "
-                        "symbol '%s'. Make sure this is a false WaW dependency"
-                        " or the code includes the necessary "
-                        "synchronisations.", type(self).__name__, sym.name)
-
-        self.children[2].replace_with(private_clause)
-        self.children[3].replace_with(fprivate_clause)
-
-        if reduction_kernels and not reprod_red_call_list:
-            vam = self.reference_accesses()
-            from psyclone.psyir.tools.reduction_inference import (
-                ReductionInferenceTool)
-            from psyclone.psyir.transformations.omp_loop_trans import (
-                MAP_REDUCTION_OP_TO_OMP)
-            red_tool = ReductionInferenceTool(
-                [BinaryOperation.Operator.ADD])
-            #import pdb; pdb.set_trace()
-            for name, _ in red_names_and_loops:
-                sig = Signature(name)
-                acc_seq = vam[sig]
-                clause = red_tool.attempt_reduction(sig, acc_seq)
-                if clause:
-                    self.children.append(
-                        OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[clause[0]],
-                                           children=[clause[1].copy()]))
-
-        return self
-
+        for sym in need_sync:
+            sig = Signature(sym.name)
+            acc_seq = vam[sig]
+            clause = red_tool.attempt_reduction(sig, acc_seq)
+            if clause:
+                self.children.append(
+                    OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[clause[0]],
+                                       children=[clause[1].copy()]))

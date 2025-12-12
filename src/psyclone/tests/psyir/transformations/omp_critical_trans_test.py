@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,41 +31,43 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab,
-#             I. Kavcic, Met Office
-
-# ----------- Default "make" values, can be overwritten by the user -----------
-# Compiler and compiler flags
-F90 ?= gfortran
-F90FLAGS ?= -g
+# Authors A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-# We don't build dl_timer, drhook, nvidia, tau, and Vernier by default
-# since they require external dependencies/libraries. So this is the
-# list of all wrappers that do not have external dependencies:
-NO_DEP_LIBS = lfric_timer simple_timing template
+''' This module contains the tests for the OpenMP Critical
+transformation.'''
 
-# The list with all libraries (include the ones that have additional
-# dependencies):
-ALL_LIBS = $(NO_DEP_LIBS) dl_timer drhook nvidia tau vernier
+from psyclone.psyir.nodes import OMPCriticalDirective, Routine
+from psyclone.psyir.transformations import OMPCriticalTrans
 
-.PHONY: default all $(NO_DEP_LIBS) clean allclean \
-	dl_timer drhook nvidia tau vernier
 
-# By default, compile all libraries that do not have additional dependencies
-# The 'all' target is used by the compilation tests, so this also can only
-# compile the libraries without additional dependencies.
-default: all
-all: $(NO_DEP_LIBS)
+def test_omp_critical_apply(fortran_reader, fortran_writer):
+    '''Test the apply function of the OMPCriticalTrans.'''
+    ctrans = OMPCriticalTrans()
 
-# Invoke make in the corresponding subdirectory for all available libraries
-$(ALL_LIBS):
-		$(MAKE) -C $@
+    code = """subroutine x
+    integer :: i, j
 
-# We clean all libraries, even the ones not compiled by default
-clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
+    i = 2
+    j = 3
+    end subroutine x"""
 
-allclean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) allclean; )
+    psyir = fortran_reader.psyir_from_source(code)
+
+    routine = psyir.walk(Routine)[0]
+
+    ctrans.apply(routine.children[:])
+    assert isinstance(routine.children[0], OMPCriticalDirective)
+
+    output = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer :: j
+
+  !$omp critical
+  i = 2
+  j = 3
+  !$omp end critical
+
+end subroutine x"""
+    assert correct in output
