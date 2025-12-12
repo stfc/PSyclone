@@ -376,6 +376,7 @@ class ScalarisationTrans(LoopTrans):
         :param options: a dictionary with options for transformations.
 
         '''
+        self.validate(node)
         # For each array reference in the Loop:
         # Find every access to the same symbol in the loop
         # They all have to be accessed with the same index statement, and

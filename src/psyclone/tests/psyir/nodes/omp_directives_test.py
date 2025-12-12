@@ -683,7 +683,7 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
 def test_infer_sharing_attributes_with_hidden_references(
         code, loop_idx, fortran_reader, fortran_writer):
     ''' Tests the infer_sharing_attributes() method when some of the loops have
-    potentially hidden references (e.g. inside codeblocks or loop varialbes).
+    potentially hidden references (e.g. inside codeblocks or loop variables).
     We check that the infer_sharing attribute analysis succeed by assuming
     worst case.
     '''

@@ -98,8 +98,8 @@ def test_codeblock_children_validation():
     cblock = CodeBlock([], "dummy")
     with pytest.raises(GenerationError) as excinfo:
         cblock.addchild(CodeBlock([], "dummy2"))
-    assert ("Item 'CodeBlock' can't be child 0 of 'CodeBlock'. CodeBlock is a"
-            " LeafNode and doesn't accept children.") in str(excinfo.value)
+    assert ("Item 'CodeBlock' can't be child 0 of 'CodeBlock'. The valid "
+            "format is: '[Reference]*'.") in str(excinfo.value)
 
 
 def test_codeblock_get_symbol_names_and_representative_references(parser):
