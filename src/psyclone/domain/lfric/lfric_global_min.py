@@ -2,70 +2,49 @@
 '''
 
 from psyclone.domain.common.psylayer.global_min import GlobalMin
-from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.nodes import (Assignment, Call, Reference,
+from psyclone.psyir.nodes import (Assignment, Call, Node, Reference,
                                   StructureReference)
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
-    UnresolvedType)
+    ContainerSymbol, DataSymbol, ImportInterface,
+    REAL_TYPE, UnresolvedType)
 
 
 class LFRicGlobalMin(GlobalMin):
     '''
     '''
-    def __init__(self, operand, parent=None):
-        # Check that the global sum argument is indeed a scalar
-        # TODO can this be moved up to GlobalReduction or are there
-        # operations that take non-scalar args?
-        if not operand.is_scalar:
-            raise InternalError(
-                f"LFRicGlobalMin.init(): A global reduction argument "
-                f"should be a scalar but found argument of type "
-                f"'{operand.argument_type}'.")
-        # Check scalar intrinsic types that this class supports (only
-        # "real" for now)
-        if operand.intrinsic_type != "real":
-            raise GenerationError(
-                f"LFRicGlobalMin currently only supports real scalars, "
-                f"but argument '{operand.name}' in Kernel "
-                f"'{operand.call.name}' has '{operand.intrinsic_type}' "
-                f"intrinsic type.")
-        # Initialise the parent class
-        super().__init__(operand, parent=parent)
-
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         :returns: this node lowered to language-level PSyIR.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
-        '''
 
+        '''
         # Get the name strings to use
         name = self._operand.name
-        type_name = self._operand.data_type
-        mod_name = self._operand.module_name
 
-        # Get the symbols from the given names
         symtab = self.ancestor(InvokeSchedule).symbol_table
-        sum_mod = symtab.find_or_create(mod_name, symbol_type=ContainerSymbol)
-        sum_type = symtab.find_or_create(type_name,
-                                         symbol_type=DataTypeSymbol,
-                                         datatype=UnresolvedType(),
-                                         interface=ImportInterface(sum_mod))
-        sum_name = symtab.find_or_create_tag("global_sum",
-                                             symbol_type=DataSymbol,
-                                             datatype=sum_type)
-        tmp_var = symtab.lookup(name)
 
-        # Create the assignments
-        assign1 = Assignment.create(
-            lhs=StructureReference.create(sum_name, ["value"]),
-            rhs=Reference(tmp_var)
-        )
-        assign1.preceding_comment = "Perform global sum"
-        self.parent.addchild(assign1, self.position)
-        assign2 = Assignment.create(
-            lhs=Reference(tmp_var),
-            rhs=Call.create(StructureReference.create(sum_name, ["get_sum"]))
-        )
-        return self.replace_with(assign2)
+        # We'll need the global LFRic mpi object.
+        mpi_mod = symtab.find_or_create_tag("lfric_mpi_mod",
+                                            symbol_type=ContainerSymbol)
+        mpi_type = symtab.find_or_create_tag(
+            "global_mpi",
+            symbol_type=DataSymbol,
+            datatype=UnresolvedType(),
+            interface=ImportInterface(mpi_mod))
+
+        # Symbol holding the local minimum value.
+        loc_min = symtab.lookup(name)
+
+        # Symbol holding the global minimum value.
+        result = symtab.new_symbol("glob_min", symbol_type=DataSymbol,
+                                   # TODO - get correct type.
+                                   datatype=REAL_TYPE)
+        sref = StructureReference.create(mpi_type, ["global_min"])
+
+        # Call the method to compute the global min.
+        call = Call.create(sref, [Reference(loc_min), Reference(result)])
+        call.preceding_comment = "Perform global min"
+        self.parent.addchild(call, self.position)
+        assign = Assignment.create(lhs=Reference(loc_min),
+                                   rhs=Reference(result))
+        return self.replace_with(assign)

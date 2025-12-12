@@ -42,7 +42,7 @@ from typing import Any
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import KernelArgument
 from psyclone.psyir.nodes import Statement
 
@@ -79,6 +79,20 @@ class GlobalReduction(Statement):
             # accesses/updates a scalar
             self._operand.access = AccessType.READWRITE
             self._operand.call = self
+            # Check that the global reduction argument is indeed a scalar
+            if not operand.is_scalar:
+                raise InternalError(
+                    f"GlobalReduction.init(): A global reduction argument "
+                    f"should be a scalar but found argument of type "
+                    f"'{operand.argument_type}'.")
+            # Check scalar intrinsic types that this class supports (only
+            # "real" for now)
+            if operand.intrinsic_type != "real":
+                raise GenerationError(
+                    f"GlobalReduction currently only supports real scalars, "
+                    f"but argument '{operand.name}' in Kernel "
+                    f"'{operand.call.name}' has '{operand.intrinsic_type}' "
+                    f"intrinsic type.")
         super().__init__(kwargs)
 
     def initialise_reduction_variable(self, parent):
