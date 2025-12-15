@@ -46,7 +46,6 @@ from psyclone.psyir.nodes import (Assignment, IntrinsicCall, Range, Reference)
 from psyclone.psyir.transformations import (DotProduct2CodeTrans,
                                             Matmul2CodeTrans,
                                             ArrayAssignment2LoopsTrans,
-                                            TransformationError,
                                             Reference2ArrayRangeTrans)
 
 
@@ -75,10 +74,7 @@ def preprocess_trans(kernel_psyir, active_variable_names):
 
     # Replace references to arrays (array notation) with array-ranges
     for reference in kernel_psyir.walk(Reference):
-        try:
-            reference2arrayrange_trans.apply(reference)
-        except TransformationError:
-            pass
+        reference2arrayrange_trans.apply(reference)
 
     for call in kernel_psyir.walk(IntrinsicCall):
         if call.intrinsic == IntrinsicCall.Intrinsic.DOT_PRODUCT:

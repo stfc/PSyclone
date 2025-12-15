@@ -4238,31 +4238,21 @@ class Fparser2Reader():
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.transformations import (
                 Reference2ArrayRangeTrans, TransformationError)
-        # Convert References to arrays to use the array range notation unless
-        # they have an IntrinsicCall parent.
+        # For each reference, we need to know if they are scalars (and let them
+        # be) or arrays which need to use the array range notation.
         for ref in parent.walk(Reference):
-            if isinstance(ref.symbol.interface, (ImportInterface,
-                                                 UnresolvedInterface)):
+            try:
+                Reference2ArrayRangeTrans().apply(ref)
+            except TransformationError as error:
                 raise NotImplementedError(
-                        "PSyclone doesn't yet support reference to imported "
-                        "symbols inside WHERE clauses.")
-            call_ancestor = ref.ancestor(Call)
-            if (isinstance(ref.symbol, DataSymbol) and not call_ancestor):
-                try:
-                    Reference2ArrayRangeTrans().apply(ref)
-                except TransformationError:
-                    pass
-            elif (isinstance(ref.symbol, DataSymbol) and call_ancestor
-                  is not None and call_ancestor.is_elemental):
-                try:
-                    Reference2ArrayRangeTrans().apply(ref)
-                except TransformationError:
-                    pass
+                    f"WHERE not supported because '{ref.name}' cannot "
+                    f"be converted to an array due to: {error}")
         table = parent.scope.symbol_table
         one = Literal("1", INTEGER_TYPE)
         arrays = parent.walk(ArrayMixin)
 
         first_rank = None
+        first_array = None
         for array in arrays:
             # Check that this is a supported array reference and that
             # all arrays are of the same rank
@@ -4293,10 +4283,12 @@ class Fparser2Reader():
                 if rank != first_rank:
                     raise NotImplementedError(
                         f"Found array sections of differing ranks within a "
-                        f"WHERE construct: array section of {array.name} has "
-                        f"rank {rank}")
+                        f"WHERE construct: array section of '{array.name}' "
+                        f" has rank '{rank}', but '{first_array.name}' has "
+                        f"rank '{first_rank}'")
             else:
                 first_rank = rank
+                first_array = array
 
             base_ref = _copy_full_base_reference(array)
             array_ref = array.ancestor(Reference, include_self=True)
@@ -4481,27 +4473,14 @@ class Fparser2Reader():
         # We want to convert all the plain references that are arrays to use
         # explicit array syntax.
         # TODO 2722: Should have the same logic as array_syntax_to_indexed
-        # regarding UnresolvedInterface and Elemental calls?
         references = fake_parent.walk(Reference)
         for ref in references:
-            call_ancestor = ref.ancestor(Call)
-            elemental_ancestor = (call_ancestor is None or
-                                  call_ancestor.is_elemental)
-            # TODO 2884: We should be able to handle this imported symbol
-            # better. If we can, we need to handle a case where is_elemental
-            # can be None.
-            if isinstance(ref.symbol.interface, (ImportInterface,
-                                                 UnresolvedInterface)):
+            try:
+                Reference2ArrayRangeTrans().apply(ref)
+            except TransformationError as error:
                 raise NotImplementedError(
-                        f"PSyclone doesn't yet support references to imported/"
-                        f"unresolved symbols inside WHERE clauses: "
-                        f"'{ref.symbol.name}' is unresolved.")
-            if (isinstance(ref.symbol, DataSymbol) and
-                    elemental_ancestor):
-                try:
-                    Reference2ArrayRangeTrans().apply(ref)
-                except TransformationError:
-                    pass
+                    f"WHERE not supported because '{ref.name}' cannot "
+                    f"be converted to an array due to: {error}")
 
         arrays = fake_parent.walk(ArrayMixin)
 

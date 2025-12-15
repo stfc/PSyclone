@@ -41,8 +41,9 @@ import pytest
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    IfBlock, IntrinsicCall, Reference, Assignment)
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, IntrinsicSymbol
+    Reference, Assignment)
+from psyclone.psyir.symbols import (
+    Symbol, DataSymbol, UnresolvedType, UnsupportedFortranType)
 from psyclone.psyir.transformations import (Reference2ArrayRangeTrans,
                                             TransformationError)
 
@@ -206,35 +207,46 @@ def test_ambiguous_call_array_reference(fortran_reader, fortran_writer):
     assert "b(:) = work(a)" in result
 
 
-def test_validate():
+def test_validate_no_known_datatype():
+    ''' Test the validate method fails if there is no known associated
+    datatype.
+    '''
+    # If it is not even a Reference
+    trans = Reference2ArrayRangeTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(None)
+    assert ("The supplied node should be a Reference but found 'NoneType'."
+            in str(info.value))
+    # If it is a generic symbol
+    with pytest.raises(TransformationError) as info:
+        trans.validate(Reference(Symbol("x")))
+    assert ("The supplied node should be a Reference to a symbol of known "
+            "type, but 'x' is not." in str(info.value))
+    # If it is a datasymbol of UnresolvedType
+    with pytest.raises(TransformationError) as info:
+        trans.validate(Reference(DataSymbol("x", UnresolvedType())))
+    assert ("The supplied node should be a Reference to a symbol of known "
+            "type, but 'x' is not." in str(info.value))
+    # If it is a datasymbol of UnsupportedType
+    with pytest.raises(TransformationError) as info:
+        trans.validate(Reference(
+           DataSymbol("x", UnsupportedFortranType("decl"))))
+    assert ("The supplied node should be a Reference to a symbol of known "
+            "type, but 'x' is not." in str(info.value))
+
+
+def test_validate_no_datatype():
     ''' Test the validate method '''
     trans = Reference2ArrayRangeTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
     assert ("The supplied node should be a Reference but found 'NoneType'."
             in str(info.value))
-    with pytest.raises(TransformationError) as info:
-        trans.validate(Reference(DataSymbol("x", REAL_TYPE)))
-    assert ("The supplied node should be a Reference to a symbol "
-            "that is an array, but 'x' is not." in str(info.value))
 
 
-def test_validate_range(fortran_reader):
-    '''Test that an ArrayReference raises an exception.'''
-    code = CODE.replace("a = b", "a(2:4) = b\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    reference = psyir.walk(Reference)[0]
-    trans = Reference2ArrayRangeTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.validate(reference)
-    assert ("The supplied node should be a Reference but found "
-            "'ArrayReference'." in str(info.value))
-
-
-def test_validate_query(fortran_reader):
-    '''Test that the validate method raises an exception if the Reference
-    is within one of the ALLOCATED, LBOUND, UBOUND or SIZE query functions.
-
+def test_apply_inquiry(fortran_reader, fortran_writer):
+    '''Test that the transformation does not modify arguments in inquiry
+    intrinsic calls such as ALLOCATED, LBOUND, UBOUND or SIZE.
     '''
     code = (
         "program test\n"
@@ -252,47 +264,18 @@ def test_validate_query(fortran_reader):
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Reference2ArrayRangeTrans()
-
-    # Check the references to 'a' in lbound and ubound do not get modified
-    loop = psyir.children[0].children[0]
-    locations = [loop.start_expr, loop.stop_expr]
-    for text, location in zip(["LBOUND", "UBOUND"], locations):
-        for reference in location.walk(Reference)[1:]:
-            with pytest.raises(TransformationError) as info:
-                trans.validate(reference)
-            assert (f"supplied node is passed as an argument to a Call to a "
-                    f"non-elemental routine ({text}(a, dim=1)) and "
-                    f"should not be transformed." in str(info.value))
-
-    # Check the references to 'b' in the hidden lbound and ubound
-    # intrinsics within 'b(:)' do not get modified.
-    assignment = psyir.children[0].children[1]
-    for reference in assignment.walk(Reference):
-        # We want to avoid IntrinsicSymbols and ArrayReference
-        # pylint: disable=unidiomatic-typecheck
-        if (type(reference) is Reference and not
-                isinstance(reference.symbol, IntrinsicSymbol)):
-            with pytest.raises(TransformationError) as info:
-                trans.validate(reference)
-            assert ("supplied node is passed as an argument to a Call to a "
-                    "non-elemental routine (" in str(info.value))
-
-    # Check the reference to 'b' in the size intrinsics does not get modified
-    assignment = psyir.children[0].children[2]
-    reference = assignment.children[1].arguments[0]
-    with pytest.raises(TransformationError) as info:
-        trans.validate(reference)
-    assert ("supplied node is passed as an argument to a Call to a "
-            "non-elemental routine (SIZE" in str(info.value))
-
-    ifblock = psyir.walk(IfBlock)[0]
-    allocd = ifblock.condition
-    assert isinstance(allocd, IntrinsicCall)
-    with pytest.raises(TransformationError) as info:
-        trans.validate(allocd.arguments[0])
-    assert ("supplied node is passed as an argument to a Call to a "
-            "non-elemental routine (ALLOCATED(igor)) and should not be "
-            "transformed" in str(info.value))
+    for ref in psyir.walk(Reference):
+        trans.apply(ref)
+    output = fortran_writer(psyir)
+    assert (
+        "  do i = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
+        "    a(i) = 0.0\n"
+        "  enddo\n"
+        "  b(:) = 0.0\n"
+        "  c = SIZE(b, dim=1)\n"
+        "  if (ALLOCATED(igor)) then\n"
+        "    igor(:) = 4.0\n"
+        "  end if\n") in output
 
 
 def test_validate_structure(fortran_reader):
@@ -314,27 +297,7 @@ def test_validate_structure(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     trans = Reference2ArrayRangeTrans()
     for assign in psyir.walk(Assignment):
-        with pytest.raises(TransformationError) as info:
-            trans.validate(assign.lhs)
-        assert ("The supplied node should be a Reference but found "
-                "'StructureReference'." in str(info.value))
-
-
-def test_validate_deallocate(fortran_reader):
-    '''Test that a DEALLOCATE statement raises an exception. '''
-    code = (
-        "program test\n"
-        "  real, dimension(:), allocatable :: a\n\n"
-        "  allocate(a(10))\n"
-        "  deallocate(a)\n"
-        "end program test\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    reference = psyir.walk(Reference)[3]
-    trans = Reference2ArrayRangeTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.validate(reference)
-    assert ("node is passed as an argument to a Call to a non-elemental "
-            "routine (DEALLOCATE(a)" in str(info.value))
+        trans.validate(assign.lhs)
 
 
 def test_validate_pointer_assignment(fortran_reader):
@@ -350,8 +313,8 @@ def test_validate_pointer_assignment(fortran_reader):
     for reference in psyir.walk(Reference):
         with pytest.raises(TransformationError) as info:
             trans.validate(reference)
-        assert ("can not be applied to references inside pointer assignments"
-                in str(info.value))
+        assert ("The supplied node should be a Reference to a symbol of known "
+                "type, but " in str(info.value))
 
 
 def test_apply_validate():

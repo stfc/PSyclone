@@ -52,7 +52,7 @@ from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, INTEGER_TYPE)
 
 
-def process_where(code, fparser_cls, symbols=None):
+def process_where(code, fparser_cls, symbols=None, scalars=None):
     '''
     Utility routine to process the supplied Fortran code and return the
     PSyIR and fparser2 parse trees.
@@ -62,6 +62,9 @@ def process_where(code, fparser_cls, symbols=None):
                              represent the supplied Fortran.
     :param symbols: list of symbol names that must be added to the symbol
                     table before constructing the PSyIR.
+    :type symbols: List[str]
+    :param scalars: list of symbol names that must be added to the symbol
+                    table with an scalar datatype.
     :type symbols: List[str]
 
     :returns: 2-tuple of a parent PSyIR Schedule and the created instance of
@@ -78,6 +81,10 @@ def process_where(code, fparser_cls, symbols=None):
     if symbols:
         for sym_name in symbols:
             sched.symbol_table.new_symbol(sym_name)
+    if scalars:
+        for sym_name in scalars:
+            sched.symbol_table.new_symbol(sym_name, symbol_type=DataSymbol,
+                                          datatype=INTEGER_TYPE)
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     fparser2spec = fparser_cls(reader)
@@ -205,7 +212,7 @@ def test_different_ranks_error():
     fake_parent, _ = process_where("WHERE (dry(:, :, :))\n"
                                    "  z1_st(:, :) = depth / ptsu(:, :, :)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["dry", "z1_st", "depth", "ptsu"])
+                                   ["dry", "z1_st", "ptsu"], ["depth"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
@@ -271,7 +278,7 @@ def test_basic_where():
     fake_parent, _ = process_where("WHERE (dry(:, :, :))\n"
                                    "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["dry", "z1_st", "depth", "ptsu"])
+                                   ["dry", "z1_st", "ptsu"], ["depth"])
     # We should have a triply-nested loop with an IfBlock inside
     loops = fake_parent.walk(Loop)
     assert len(loops) == 3
@@ -300,7 +307,7 @@ def test_where_array_subsections():
     fake_parent, _ = process_where("WHERE (dry(1, :, :))\n"
                                    "  z1_st(:, 2, :) = depth / ptsu(:, :, 3)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["dry", "z1_st", "depth", "ptsu"])
+                                   ["dry", "z1_st", "ptsu"], ["depth"])
     # We should have a doubly-nested loop with an IfBlock inside
     loops = fake_parent.walk(Loop)
     assert len(loops) == 2
@@ -579,7 +586,7 @@ def test_where_with_array_reduction_intrinsic():
         "  var1 = maxval(depth(:))\n"
         "  z1_st(:, 2, :) = var1 / ptsu(:, :, 3)\n"
         "END WHERE\n", Fortran2003.Where_Construct,
-        ["dry", "z1_st", "depth", "ptsu", "var1"])
+        ["dry", "z1_st", "ptsu", "depth"], ["var1"])
     # We should have a doubly-nested loop with an IfBlock inside
     loops = fake_parent.walk(Loop)
     assert len(loops) == 2
@@ -1165,8 +1172,7 @@ def test_elemental_function_to_loop(fortran_reader, fortran_writer):
     out = fortran_writer(psyir)
     assert correct in out
 
-    # Imported function has unknown elemental status. Only the import error
-    # is testable at the moment.
+    # Imported function has unknown elemental status.
     code = '''
     subroutine test
     use mod, only: somefunc
@@ -1178,27 +1184,10 @@ def test_elemental_function_to_loop(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
     correct = '''! PSyclone CodeBlock (unsupported code) reason:
-  !  - PSyclone doesn't yet support references to imported/unresolved \
-symbols inside WHERE clauses: 'somefunc' is unresolved.
-  WHERE (somefunc(a) < 2)
-    b = a
-  END WHERE'''
-    out = fortran_writer(psyir)
-    assert correct in out
-
-    code = '''
-    subroutine test
-    use mod
-    real, dimension(100) :: a, b
-    where(somefunc(a) < 2)
-        b = a
-    end where
-    end subroutine'''
-    psyir = fortran_reader.psyir_from_source(code)
-    assert isinstance(psyir.children[0].children[0], CodeBlock)
-    correct = '''! PSyclone CodeBlock (unsupported code) reason:
-  !  - PSyclone doesn't yet support references to imported/unresolved \
-symbols inside WHERE clauses: 'somefunc' is unresolved.
+  !  - WHERE not supported because 'a' cannot be converted to an array \
+due to: Transformation Error: The supplied node is passed as an argument to \
+a Call that we don't know if it is elemental or not: 'somefunc(a)'. Consider \
+adding the function's filename to RESOLVE_IMPORTS.
   WHERE (somefunc(a) < 2)
     b = a
   END WHERE'''
@@ -1233,5 +1222,8 @@ def test_array_syntax_to_indexed_unknown_elemental(fortran_reader):
     parser = fortran_reader._processor
     with pytest.raises(NotImplementedError) as excinfo:
         parser._array_syntax_to_indexed(ifblock, ["i"])
-    assert ("Found a function call inside a where clause with unknown "
-            "elemental status: x(a(:)" in str(excinfo.value))
+    assert ("WHERE not supported because 'a' cannot be converted to an "
+            "array due to: Transformation Error: The supplied node is "
+            "passed as an argument to a Call that we don't know if it is "
+            "elemental or not: 'x(a(:))'. Consider adding the function's "
+            "filename to RESOLVE_IMPORTS." in str(excinfo.value))
