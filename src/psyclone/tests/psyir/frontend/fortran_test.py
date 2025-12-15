@@ -43,8 +43,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Routine, FileContainer, UnaryOperation, BinaryOperation, Literal,
-    Assignment, CodeBlock, IntrinsicCall, Loop, Reference,
-    UnknownDirective)
+    Assignment, CodeBlock, IntrinsicCall, Loop, Reference)
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols import (
     SymbolTable, DataSymbol, ScalarType, UnresolvedType)
