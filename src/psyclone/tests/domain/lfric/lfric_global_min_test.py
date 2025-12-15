@@ -68,10 +68,12 @@ def test_lgm_in_invoke():
 
     sched.addchild(lgm)
     output = psy.gen
-    assert "use lfric_mpi_mod, only : global_mpi" in output
+    assert "use lfric_mpi_mod, only : lfric_mpi_type" in output
+    assert "type(lfric_mpi_type) :: mpi" in output
     # TODO correct type/precision
     assert "real :: glob_min" in output
+    assert "mpi = f1%get_mpi()" in output
     assert '''\
     ! Perform global min
-    call global_mpi%global_min(a, glob_min)
+    call mpi%global_min(a, glob_min)
     a = glob_min''' in output

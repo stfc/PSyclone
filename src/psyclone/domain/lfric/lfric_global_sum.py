@@ -1,5 +1,4 @@
 from psyclone.domain.common.psylayer.global_sum import GlobalSum
-from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import (Assignment, Call, Reference,
                                   StructureReference)
@@ -11,24 +10,6 @@ from psyclone.psyir.symbols import (
 class LFRicGlobalSum(GlobalSum):
     '''
     '''
-    def __init__(self, operand, parent=None):
-        # Check that the global sum argument is indeed a scalar
-        if not operand.is_scalar:
-            raise InternalError(
-                f"LFRicGlobalSum.init(): A global reduction argument "
-                f"should be a scalar but found argument of type "
-                f"'{operand.argument_type}'.")
-        # Check scalar intrinsic types that this class supports (only
-        # "real" for now)
-        if operand.intrinsic_type != "real":
-            raise GenerationError(
-                f"LFRicGlobalSum currently only supports real scalars, "
-                f"but argument '{operand.name}' in Kernel "
-                f"'{operand.call.name}' has '{operand.intrinsic_type}' "
-                f"intrinsic type.")
-        # Initialise the parent class
-        super().__init__(operand, parent=parent)
-
     def lower_to_language_level(self):
         '''
         :returns: this node lowered to language-level PSyIR.

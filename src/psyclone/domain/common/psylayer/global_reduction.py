@@ -73,6 +73,7 @@ class GlobalReduction(Statement):
         # a KernelArgument, not a PSyIR Node.
         # TODO Without this `copy`, the tests for the old-style DA fail.
         self._operand = copy.copy(operand)
+
         if isinstance(operand, KernelArgument):
             # Add old-style dependency information
             # Here "readwrite" denotes how the class GlobalSum
@@ -82,15 +83,15 @@ class GlobalReduction(Statement):
             # Check that the global reduction argument is indeed a scalar
             if not operand.is_scalar:
                 raise InternalError(
-                    f"GlobalReduction.init(): A global reduction argument "
-                    f"should be a scalar but found argument of type "
+                    f"{type(self).__name__}.init(): A global reduction "
+                    f"argument should be a scalar but found argument of type "
                     f"'{operand.argument_type}'.")
             # Check scalar intrinsic types that this class supports (only
             # "real" for now)
             if operand.intrinsic_type != "real":
                 raise GenerationError(
-                    f"GlobalReduction currently only supports real scalars, "
-                    f"but argument '{operand.name}' in Kernel "
+                    f"{type(self).__name__} currently only supports real "
+                    f"scalars, but argument '{operand.name}' in Kernel "
                     f"'{operand.call.name}' has '{operand.intrinsic_type}' "
                     f"intrinsic type.")
         super().__init__(kwargs)
