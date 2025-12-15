@@ -75,8 +75,9 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = [
     "icefrm.f90",  # Has an unsupported implicit symbol declaration
-    "icethd_do.f90", # Using hand-edited version of PSyclone processed code instead
     "icethd_dh.f90", # Using hand-edited version of PSyclone processed code instead
+    "icethd_da.f90", # Using hand-edited version of PSyclone processed code instead
+    "icethd_zdf_bl99.f90", # Using hand-edited version of PSyclone processed code instead
     "icesbc.f90", # Terminated by signal 11 compilation error
 
 ]
