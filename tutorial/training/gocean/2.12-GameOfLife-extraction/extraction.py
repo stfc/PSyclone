@@ -57,6 +57,6 @@ def trans(psyir):
     # create a driver
     for inv_schedule in psyir.walk(InvokeSchedule):
         extract.apply(inv_schedule,
-                    # INSERT OPTIONS HERE to create the driver
-                    )
+                      # INSERT OPTIONS HERE to create the driver
+                      )
     print(psyir.view())
