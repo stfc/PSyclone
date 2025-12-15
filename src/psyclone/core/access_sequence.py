@@ -156,14 +156,14 @@ class AccessInfo():
                   messages.
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Statement
+        from psyclone.psyir.nodes import Assignment
         from psyclone.psyir.symbols import Symbol
         if isinstance(self.node, Symbol):
             text = f"the definition of Symbol '{self.node}'"
         else:
             from psyclone.psyGen import CodedKern
             kernel = self.node.ancestor(CodedKern, include_self=True)
-            stmt = self.node.ancestor(Statement, include_self=True)
+            stmt = self.node.ancestor(Assignment, include_self=True)
             if kernel:
                 text = f"'{self.node.debug_string()}' (inside '{kernel.name})'"
             elif stmt:
