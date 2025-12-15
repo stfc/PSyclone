@@ -46,7 +46,7 @@ from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
-    OMPMinimiseSyncTrans, Reference2ArrayRangeTrans,
+    Reference2ArrayRangeTrans,
     ScalarisationTrans, IncreaseRankLoopArraysTrans)
 from psyclone.transformations import TransformationError
 
@@ -470,12 +470,6 @@ def insert_explicit_loop_parallelism(
             # The parallelisation restrictions will be explained with a comment
             # associted to the loop in the generated output.
             continue
-
-    # If we are adding asynchronous parallelism then we now try to minimise
-    # the number of barriers.
-    if enable_nowaits:
-        minsync_trans = OMPMinimiseSyncTrans()
-        minsync_trans.apply(schedule)
 
 
 def add_profiling(children: Union[List[Node], Schedule]):
