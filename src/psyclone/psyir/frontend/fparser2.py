@@ -4238,8 +4238,9 @@ class Fparser2Reader():
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.transformations import (
                 Reference2ArrayRangeTrans, TransformationError)
-        # For each reference, we need to know if they are scalars (and let them
-        # be) or arrays which need to use the array range notation.
+        # For each reference, we need to know if they are used as an array
+        # access (and convert it to ArrayReference) or not. If we cannot
+        # guarantee how it is used we cannot safely proceed.
         for ref in parent.walk(Reference):
             try:
                 Reference2ArrayRangeTrans().apply(ref)

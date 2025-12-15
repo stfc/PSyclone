@@ -127,17 +127,15 @@ class Reference2ArrayRangeTrans(Transformation):
             if not node.parent.is_elemental:
                 return
 
-        if type(node) is ArrayReference:
-            # FIXME: We should check that it expands all dimensions
-            return
-        if type(node) is ArrayOfStructuresReference:
-            # FIXME: We should check that it expands all dimensions
-            return
+        if (
+            type(node) is ArrayReference or
+            type(node) is ArrayOfStructuresReference
+        ):
+            # If it is already and Array access, it does not need expansion
         if type(node) is StructureReference:
-            # FIXME: We should check that it expands all dimensions
+            # TODO #1858: Add support for expansion of structures
             return
 
-        # TODO issue #1858. Add support for structures containing arrays.
         # pylint: disable=unidiomatic-typecheck
         if not type(node) is Reference:
             raise TransformationError(
@@ -168,13 +166,12 @@ class Reference2ArrayRangeTrans(Transformation):
         # that is not UnresolvedType
         symbol = node.symbol
 
+        # The following cases do not need expansions
         if type(node) is ArrayReference:
             return
         if type(node) is ArrayOfStructuresReference:
             return
         if not symbol.is_array:
-            # It must be an scalar, we have proven in not unresolved
-            # in the validation
             return
         if node.parent and isinstance(node.parent, Call):
             if node.position == 0:
