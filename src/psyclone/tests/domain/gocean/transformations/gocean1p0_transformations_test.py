@@ -43,6 +43,7 @@ from importlib import import_module
 import pytest
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern
 from psyclone.parse import ModuleManager
@@ -509,6 +510,11 @@ def test_omp_region_after_loops_trans(tmpdir):
     psy, invoke = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
+
+    # We test with inlining because in the past we had an error when
+    # producing the clauses if the calls were inlined.
+    for kern in schedule.kernels():
+        KernelModuleInlineTrans().apply(kern)
 
     # Put an OpenMP do directive around each loop contained
     # in the schedule
