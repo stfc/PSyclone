@@ -132,6 +132,9 @@ class Reference2ArrayRangeTrans(Transformation):
             type(node) is ArrayOfStructuresReference
         ):
             # If it is already and Array access, it does not need expansion
+            # nor further validation
+            return
+
         if type(node) is StructureReference:
             # TODO #1858: Add support for expansion of structures
             return
