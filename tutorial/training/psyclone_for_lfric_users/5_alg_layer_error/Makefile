@@ -44,7 +44,8 @@ test:
 	$(MAKE) transform 2>&1 | grep "kernel call 'no_setval_c' must either "\
 	"be named in a use statement" >/dev/null
 
+test_run: test
+
 # Not actually required, but to avoid errors when cleaning top level
 clean:
 allclean:
-compile run: test

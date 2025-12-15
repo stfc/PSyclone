@@ -53,7 +53,9 @@ run: compile
 	@# If OMP_NUM_THREADS is not define, set it to 3:
 	OMP_NUM_THREADS=$${OMP_NUM_THREADS:-3} ./example
 
-test:
+test: transform
+
+test_run: compile
 	$(MAKE) run | grep " minmax of field1"
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)

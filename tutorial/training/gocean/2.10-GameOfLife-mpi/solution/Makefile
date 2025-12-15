@@ -13,7 +13,9 @@ $(EXE): $(OBJ)
 run: $(EXE)
 	mpirun -np 4 ./$(EXE) ../../gol-lib/config.glider
 
-# MPI is disabled (to pass github CI), so test both with and without MPI
+transform:
+
+# MPI is disabled for github CI, so have tests for both with and without MPI
 ifeq ($(MPI), yes)
 # ****************
 

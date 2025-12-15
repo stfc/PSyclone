@@ -46,19 +46,17 @@ transform:
 	$(PSYCLONE) -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 compile: $(EXEC)
-	@echo =============================================
-	@echo Warning: this example does not run as MPI job
-	@echo =============================================
 
-run: $(EXEC)
+run: compile
 	@echo =============================================
 	@echo Warning: this example does not run as MPI job
 	@echo =============================================
 	./$(EXEC)
 
-test:
-	$(MAKE) run | grep " minmax of field1"
+test: transform
 
+test_run: compile
+	$(MAKE) run | grep " minmax of field1"
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) \

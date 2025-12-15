@@ -67,3 +67,24 @@ complex than the GOcean API used previously. Many of the concepts
 from the previous sections will apply without modifications, but
 due to the more complex data structures this DSL uses, it's
 harder to understand.
+
+Testing Training
+================
+The different training sections will provide makefiles for the users
+which will contain convenient shortcuts to avoid that a user has
+to type long command line options and file paths. But these targets
+are expected to fail in some cases, for example in the "PSyclone
+for LFRic Users" section contains examples that show how PSyclone
+will detect errors. In order to facilitate consistent testing
+across the whole trainings material, two additional targets
+have been added to the makefiles:
+- `test` This will run any tests that will only use transformations.
+  E.g. no compilation will be done here (nor running any compiled
+  binaries). If a hands-on session is supposed to show a failure,
+  the `test` target will test that the expected error message
+  is indeed shown.
+- `test_run` This target will compile binaries if possible, and run
+  the binary to validate the output. This will always include any
+  tests done by the `test` target (i.e. even if an example cannot
+  be compiled or run, the transformation process will be tested,
+  including checking for expected error messages).

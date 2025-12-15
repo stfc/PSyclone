@@ -1,30 +1,26 @@
 EXE = gol
 API = gocean
 
-OBJ = time_step_alg_mod.o time_step_alg_mod_psy.o
-
+SCRIPT ?= fuse_loops.py
 include ../../common.mk
 
-$(EXE): $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
-
 TS=time_step_alg_mod
-test: test-default
-	$(PSYCLONE) -s ./fuse_loops_last.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
-	# Also trigger the build and run of the fully inlined solution
-	$(MAKE) full_inline
 
-full_inline:
-	$(PSYCLONE) -s ./full_inline_loops.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
-	$(MAKE) --no-print-directory  run | tail -n 12 | diff -b - $(GOL_DIR)/glider.correct
+test:
+	SCRIPT=fuse_loops.py $(MAKE) test-default
+	SCRIPT=fuse_loops_last.py $(MAKE) test-default
+	SCRIPT=full_inline_loops.py $(MAKE) test-default \
+	| grep "potential replacement born"
 
-# Dependencies:
-# -------------
-# Ensure that PSyclone has finished (which will also create the psy file)
-time_step_alg_mod_psy.f90: time_step_alg_mod.f90
-time_step_alg_mod.o: time_step_alg_mod_psy.o
+test_run:
+	$(MAKE) clean
+	SCRIPT=fuse_loops.py $(MAKE) test_run-default
+	$(MAKE) clean
+	SCRIPT=fuse_loops_last.py $(MAKE) test_run-default
+	$(MAKE) clean
+	@# First run make test-default to grep for expected output
+	SCRIPT=full_inline_loops.py $(MAKE) test-default \
+	| grep "potential replacement born"
+	@# Then build and run:
+	SCRIPT=full_inline_loops.py $(MAKE) test_run-default
 
-# PSyclone: create alg and psy layer files:
-%.f90: %.x90 Makefile fuse_loops.py
-	$(PSYCLONE) -s ./fuse_loops.py -oalg $*.f90 \
-		        -opsy $*_psy.f90 $<

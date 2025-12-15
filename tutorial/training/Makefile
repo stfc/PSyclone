@@ -33,11 +33,18 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-# The test target runs tests on the gitlab CI (i.e. without
-# compilation), the run target will compile and execute the binary
-# (if supported, some examples can't be compiled)
-allclean clean compile run test:
+# The transform target `test` runs tests on the gitlab CI (i.e. without
+# compilation), `test_run` will compile all binaries (as far as possible
+# since some examples cannot be compiled), and run will compile and
+# execute the binary (and if tests are available for running the binary
+# they will be triggered as well).
+# Clean removes all temporary files (e.g. transformed code, object
+# and mod files). Allclean will additionally clean all libraries
+# (e.g. infrastructure, psydata).
+
+.PHONY: allclean clean compile test test_run
+
+allclean clean compile test test_run:
 	$(MAKE) -C psyclone_for_lfric_users $@
 	$(MAKE) -C gocean $@
 	$(MAKE) -C lfric $@
-	$(MAKE) -C transformation $@

@@ -33,13 +33,6 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-# We need to add the default target for this Makefile before the
-# include statement (which will add 'test' as default).
-# Default target: run PSyclone (even if the output file should already exist)
-transform:
-	$(PSYCLONE) -s ./omp_transformation.py -dm -l output \
-		     -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
-
 include ../common.mk
 
 
@@ -49,26 +42,29 @@ EXEC = example
 
 # Various targets
 # ---------------
+transform:
+	$(PSYCLONE) -s ./omp_transformation.py -dm -l output \
+		     -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+# This target enforces the use of omp_colour_transformation, before
+# then triggering the exec target (which will use the now working
+# transformed source code)
+transform_coloured:
+	$(PSYCLONE) -s ./omp_colour_transformation.py -nodm -l output \
+		-opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+
+run: $(EXEC)
+	./$(EXEC)
 
 # For PSyclone CI: Test that we get the expected error message
 test:
 	$(MAKE) transform 2>&1 | grep " The kernel has an argument with INC "\
 	"access but the loop is of type ''. Colouring is required." >/dev/null
-
-# The compile target will first run the original failing script (to make
-# sure it still works/fails as expected), then trigger an internal compile:
-compile: test internal_compile
-
-# This target enforces the use of omp_colour_transformation, before
-# then triggering the exec target (which will use the now working
-# transformed source code)
-internal_compile:
+	@# Make sure colouring still works as expected
 	$(PSYCLONE) -s ./omp_colour_transformation.py -nodm -l output \
 		-opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
-	$(MAKE) $(EXEC)
 
-run: compile
-	./$(EXEC)
+test_run: test transform_coloured
+	$(MAKE) run | grep " minmax of field1"
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) \

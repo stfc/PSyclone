@@ -45,7 +45,8 @@ test:
 	"called from the algorithm layer with an insufficient number of arguments as specified "\
 	"by the metadata. Expected at least '2' but found '1'" >/dev/null
 
+test_run: test
+
 # Not actually required, but to avoid errors when cleaning top level
 clean:
 allclean:
-compile run: test

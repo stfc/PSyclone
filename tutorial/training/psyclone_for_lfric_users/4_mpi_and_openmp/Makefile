@@ -50,9 +50,14 @@ transform:
 compile: $(EXEC)
 
 run: compile
+	@echo =============================================
+	@echo Warning: this example does not run as MPI job
+	@echo =============================================
 	./$(EXEC)
 
-test:
+test: transform
+
+test_run: compile
 	$(MAKE) run | grep " minmax of field1"
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)

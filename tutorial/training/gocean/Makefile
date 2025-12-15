@@ -2,18 +2,16 @@
 EXAMPLES=$(sort $(wildcard 2.*GameOfLife*))
 allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
 clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
-compile_EXAMPLES=$(addprefix compile_,$(EXAMPLES))
-run_EXAMPLES=$(addprefix run_,$(EXAMPLES))
 test_EXAMPLES=$(addprefix test_,$(EXAMPLES))
+test_run_EXAMPLES=$(addprefix test_run_,$(EXAMPLES))
 
 .PHONY: $(allclean_EXAMPLES) $(clean_EXAMPLES) $(compile_EXAMPLES) \
-	    $(run_EXAMPLES) $(test_EXAMPLES)
+	    $(test_run_EXAMPLES) $(test_EXAMPLES)                      \
+	    allclean clean default test test_run
 
-default: $(test_EXAMPLES)
+default: test
 
-compile: $(compile_EXAMPLES)
-
-run: $(run_EXAMPLES)
+test_run: $(test_run_EXAMPLES)
 
 test: $(test_EXAMPLES)
 
@@ -30,11 +28,8 @@ $(clean_EXAMPLES):
 	$(MAKE) -C $(patsubst clean_%,%,$@) clean
 	$(MAKE) -C $(patsubst clean_%,%,$@)/solution clean
 
-$(compile_EXAMPLES):
-	$(MAKE) -C $(patsubst compile_%,%,$@)/solution compile
-
-$(run_EXAMPLES):
-	$(MAKE) -C $(patsubst run_%,%,$@)/solution run
+$(test_run_EXAMPLES):
+	$(MAKE) -C $(patsubst test_run_%,%,$@)/solution test_run
 
 $(test_EXAMPLES):
 	$(MAKE) -C $(patsubst test_%,%,$@)/solution test

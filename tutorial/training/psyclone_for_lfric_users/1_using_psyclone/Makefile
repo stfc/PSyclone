@@ -54,10 +54,12 @@ transform:
 
 compile: main_alg_psy.f90 $(EXEC)
 
-run: compile
+run: $(EXEC)
 	./$(EXEC)
 
-test:
+test: transform
+
+test_run: compile
 	$(MAKE) run | grep " minmax of field1"
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)

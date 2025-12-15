@@ -191,6 +191,7 @@ contains
 
 
         call get_environment_variable(env_name, length=value_len, status=status)
+        print *,"XX", env_name, value_len
         ! Status >=1 indicates the variable does not exist, or some other OS
         ! specific error - in any case we have to ignore it.
         if (status >= 1) then
@@ -215,6 +216,7 @@ contains
         endif   ! No specification with module & region
         allocate(character(len=value_len)::env_value)
         call get_environment_variable(env_name, env_value, status=status)
+        print *,"YY", env_name, value_len, env_value
         ! Analyse the specified range
         index_colon = index(env_value, ":")
         if (index_colon == 0) then

@@ -20,6 +20,8 @@ test: $(EXE)
 	@# section of the output file:
 	make run | tail -n 21  | head -n 12| diff - ../../gol-lib/glider.correct
 
+transform: time_step_alg_mod_psy.f90
+
 # Dependencies:
 # -------------
 # Ensure that PSyclone has finished (which will also create the psy file)

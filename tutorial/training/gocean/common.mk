@@ -1,8 +1,4 @@
-ifeq ($(MPI), yes)
-	F90 ?= mpif90
-else
-	F90 ?= gfortran
-endif
+F90 ?= gfortran
 
 # While only some examples use openmp, it is important that they
 # are actually compiled with openmp (since errors in threading might
@@ -57,26 +53,31 @@ $(INF_LIB):
 	$(MAKE) MPI=$(MPI) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)/src
 
 
-# Generic compilation rule
-# ------------------------
-%.o: %.f90
-	$(F90) -c $(F90FLAGS) $<
+#
+.PHONY: allclean-default clean-default test-default test_run-default \
+		transform-default
 
-%.o: %.F90
-	$(F90) -c $(F90FLAGS) $<
+test_run-default: $(EXE)
+	make --no-print-directory  run | tail -n 12 | diff -b - $(GOL_DIR)/glider.correct
 
-# Dependencies - sources need golib
-$(OBJ): $(GOL_LIB)
-
-.PHONY: run-default allclean-default clean-default test-default
+compile-default: $(EXE)
 
 run-default: $(EXE)
 	./$(EXE) $(GOL_DIR)/config.glider
 
-compile-default: $(EXE)
+# Testing, which does not run on github, typicall should just
+# check the transform target. Though multiple examples will define
+# their own test target (e.g. to verify several transformations, errors, ...)
+test-default: transform
 
-test-default: $(EXE)
-	make --no-print-directory  run | tail -n 12 | diff -b - $(GOL_DIR)/glider.correct
+PSYCLONE_COMMAND = $(PSYCLONE) -oalg time_step_alg_mod.f90 -opsy \
+					time_step_alg_mod_psy.f90 time_step_alg_mod.x90
+ifdef SCRIPT
+	PSYCLONE_COMMAND += -s $(SCRIPT)
+endif
+
+transform-default:
+	$(PSYCLONE_COMMAND)
 
 clean-default:
 	rm -f *.o $(EXE) *.mod time_step_alg_mod.f90 time_step_alg_mod_psy.f90
@@ -86,7 +87,40 @@ allclean-default: clean
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR) clean
 
+# PSyclone: create alg and psy layer files:
+ifdef SCRIPT
+time_step_alg_mod.f90: time_step_alg_mod.x90 Makefile $(SCRIPT)
+	$(PSYCLONE) -oalg time_step_alg_mod.f90 -opsy time_step_alg_mod_psy.f90 \
+		-s $(SCRIPT) time_step_alg_mod.x90
+else
+time_step_alg_mod.f90: time_step_alg_mod.x90 Makefile $(SCRIPT)
+	$(PSYCLONE) -oalg time_step_alg_mod.f90 -opsy time_step_alg_mod_psy.f90 \
+		time_step_alg_mod.x90
+endif
+
 # A sneaky way to allow a Makefile including this one to override
-# 'clean' without a warning (overriding recipe)
+# targets without a warning (overriding recipe)
 %:  %-default
 	@  true
+
+# Dependencies for compilation
+# ----------------------------
+OBJ ?= time_step_alg_mod.o time_step_alg_mod_psy.o
+
+# sources need golib
+$(OBJ): $(GOL_LIB)
+
+$(EXE): $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
+
+# Ensure that PSyclone has finished (which will also create the psy file)
+time_step_alg_mod_psy.f90: time_step_alg_mod.f90
+time_step_alg_mod.o: time_step_alg_mod_psy.o
+
+# Generic compilation rule
+# ------------------------
+%.o: %.f90
+	$(F90) -c $(F90FLAGS) $<
+
+%.o: %.F90
+	$(F90) -c $(F90FLAGS) $<

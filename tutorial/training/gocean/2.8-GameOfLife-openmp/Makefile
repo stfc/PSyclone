@@ -3,17 +3,9 @@ API = gocean
 
 OBJ = time_step_alg_mod.o time_step_alg_mod_psy.o
 
+SCRIPT ?= openmp.py
+# Or use:
+# SCRIPT = openmp_combined.py
+# SCRIPT ?= task.py
 include ../common.mk
 
-$(EXE): $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
-
-# Dependencies:
-# -------------
-# Ensure that PSyclone has finished (which will also create the psy file)
-time_step_alg_mod_psy.f90: time_step_alg_mod.f90
-time_step_alg_mod.o: time_step_alg_mod_psy.o
-
-# PSyclone: create alg and psy layer files:
-%.f90: %.x90 Makefile openmp.py
-	$(PSYCLONE) -s ./openmp.py -oalg $*.f90 -opsy $*_psy.f90 $<

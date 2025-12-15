@@ -158,7 +158,12 @@ jobs:
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/LFRic compile
         F90=nvfortran F90FLAGS="-acc -Minfo=all -Mnofma -O2" make -C tutorial/practicals/generic run
-        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training run
+        # We cannot run non-GPU examples with the openacc flag, since output_field
+        # needs a openacc directive, which fails if the rest of the code is no on GPU
+        F90=nvfortran F90FLAGS="-Minfo=all" make -C tutorial/training run
+        # Delete any previous l
+        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training/gocean/2.14-GameOfLife-openacc/solution allclean
+        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training/gocean/2.14-GameOfLife-openacc/solution run
         make -C tutorial/practicals/generic/4_openacc acc_test
     - name: Test logfile creation.
       run: |
