@@ -44,7 +44,7 @@ from utils import (
     normalise_loops, NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import (
-    OMPTargetTrans, OMPDeclareTargetTrans, OMPMinimiseSyncTrans)
+    OMPTargetTrans, OMPDeclareTargetTrans)
 from psyclone.transformations import (
     OMPLoopTrans, TransformationError)
 from psyclone.transformations import (
@@ -304,16 +304,13 @@ def trans(psyir):
                 print(f"Marked {subroutine.name} as GPU-enabled")
             except TransformationError as err:
                 print(err)
+            # We continue parallelising inside the routine, but this could
+            # change if the parallelisation directives added below are not
+            # nestable, in that case we could add a 'continue' here
             disable_profiling_for.append(subroutine.name)
-            # We won't continue parallelising inside the routine, but this
-            # could change if the parallelisation directives added below are
-            # nestable, in that case remove the 'continue'
-            continue
 
-        if (
-            psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES
-            and gpu_loop_trans
-        ):
+        elif (psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES
+              and gpu_loop_trans):
             print(
                 f"Adding offload directives to subroutine: {subroutine.name}")
             insert_explicit_loop_parallelism(
@@ -326,7 +323,8 @@ def trans(psyir):
                     uniform_intrinsics_only=REPRODUCIBLE,
                     asynchronous_parallelism=enable_async,
             )
-        if psyir.name not in PARALLELISATION_ISSUES and cpu_loop_trans:
+        elif psyir.name not in PARALLELISATION_ISSUES and cpu_loop_trans:
+            # These have issues offloading, but we can still do threading
             print(f"Adding OpenMP threading to subroutine: {subroutine.name}")
             insert_explicit_loop_parallelism(
                     subroutine,
@@ -336,11 +334,6 @@ def trans(psyir):
                     enable_reductions=not REPRODUCIBLE,
                     asynchronous_parallelism=enable_async,
             )
-
-        # If we are adding asynchronous parallelism then we now try to minimise
-        # the number of barriers.
-        if enable_async:
-            OMPMinimiseSyncTrans().apply(subroutine)
 
     # Iterate again and add profiling hooks when needed
     for subroutine in psyir.walk(Routine):
