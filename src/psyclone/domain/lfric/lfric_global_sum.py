@@ -1,6 +1,6 @@
 from psyclone.domain.common.psylayer.global_sum import GlobalSum
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.nodes import (Assignment, Call, Reference,
+from psyclone.psyir.nodes import (Assignment, Call, Node, Reference,
                                   StructureReference)
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
@@ -9,13 +9,14 @@ from psyclone.psyir.symbols import (
 
 class LFRicGlobalSum(GlobalSum):
     '''
+    Represents a global sum in the LFRic DSL.
+
     '''
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         :returns: this node lowered to language-level PSyIR.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
-        '''
 
+        '''
         # Get the name strings to use
         name = self._operand.name
         type_name = self._operand.data_type

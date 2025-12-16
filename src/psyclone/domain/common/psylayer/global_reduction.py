@@ -37,6 +37,7 @@
 ''' This module contains the GlobalReduction node implementation.'''
 
 from __future__ import annotations
+from abc import abstractmethod
 import copy
 from typing import Any
 
@@ -44,10 +45,9 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import KernelArgument
-from psyclone.psyir.nodes import Statement
+from psyclone.psyir.nodes import Node, Statement
 
 
-# TODO make this virtual
 class GlobalReduction(Statement):
     '''
     Generic global reduction operation.
@@ -96,10 +96,6 @@ class GlobalReduction(Statement):
                     f"intrinsic type.")
         super().__init__(kwargs)
 
-    def initialise_reduction_variable(self, parent):
-        '''
-        '''
-
     @property
     def operand(self) -> Any:
         '''
@@ -133,6 +129,12 @@ class GlobalReduction(Statement):
         :returns: description of this node, possibly coloured.
 
         '''
-        # TODO move this to sub-classes (e.g. GlobalSum)
         return (f"{self.coloured_name(colour)}["
                 f"operand='{self._operand.name}']")
+
+    @abstractmethod
+    def lower_to_language_level(self) -> Node:
+        '''
+        Creates language-level PSyIR for this node and returns it.
+
+        '''
