@@ -1103,9 +1103,13 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     # REALs and INTEGERs are fine
     assert call.arguments.args[0].intrinsic_type == 'real'
     call._reduction_arg = call.arguments.args[0]
+    # Have to pretend this arg has a reduction access.
+    call._reduction_arg._access = AccessType.MIN
     call.initialise_reduction_variable()
     assert call.arguments.args[6].intrinsic_type == 'integer'
     call._reduction_arg = call.arguments.args[6]
+    # Have to pretend this arg has a reduction access.
+    call._reduction_arg._access = AccessType.MAX
     call.initialise_reduction_variable()
 
 

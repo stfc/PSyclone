@@ -1014,13 +1014,16 @@ class Kern(Statement):
         # Create the initialisation expression - this depends upon the type
         # of reduction being performed.
         if var_arg.access == AccessType.SUM:
+            # Sum - initialise to zero.
             init_val = Literal("0", variable.datatype.copy())
         elif var_arg.access == AccessType.MIN:
+            # Minimum - initialise to HUGE.
             init_val = IntrinsicCall.create(IntrinsicCall.Intrinsic.HUGE,
-                                            Reference(variable))
+                                            [Reference(variable)])
         elif var_arg.access == AccessType.MAX:
+            # Maximum - initialise to -HUGE.
             huge = IntrinsicCall.create(IntrinsicCall.Intrinsic.HUGE,
-                                        Reference(variable))
+                                        [Reference(variable)])
             init_val = UnaryOperation.create(UnaryOperation.Operator.MINUS,
                                              huge)
         else:
