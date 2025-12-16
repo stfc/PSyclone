@@ -1307,16 +1307,16 @@ class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
         # first check whether we have more than one reduction with the same
         # name in this Schedule. If so, raise an error as this is not
         # supported for a parallel region.
-        red_names_and_loops = []
+        names = []
         reduction_kernels = self.reductions()
         for call in reduction_kernels:
             name = call.reduction_arg.name
-            if name in [item[0] for item in red_names_and_loops]:
+            if name in names:
                 raise GenerationError(
                     f"Reduction variables can only be used once in an invoke. "
                     f"'{name}' is used multiple times, please use a different "
                     f"reduction variable")
-            red_names_and_loops.append((name, call.ancestor(Loop)))
+            names.append(name)
 
         if reduction_kernels:
             first_type = type(self.dir_body[0])

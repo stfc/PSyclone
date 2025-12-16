@@ -75,6 +75,10 @@ class AccessType(Enum):
     #: is available at compile-time and can be used for type properties such
     #: as kinds or dimensions.
     CONSTANT = 10
+    #: Is the output of a MIN reduction (i.e. global minimum value).
+    MIN = 11
+    #: Is the output of a MAX reduction (i.e. global maximum value).
+    MAX = 12
 
     def __str__(self) -> str:
         '''Convert to a string representation, returning just the

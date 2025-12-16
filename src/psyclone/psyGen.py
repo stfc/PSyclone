@@ -63,7 +63,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Container, Literal, Loop, Node, OMPDoDirective,
     Reference, Directive, Routine, Schedule, Statement, Assignment,
-    IntrinsicCall, BinaryOperation, FileContainer)
+    IntrinsicCall, BinaryOperation, FileContainer, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
     UnresolvedType, ImportInterface, INTEGER_TYPE, RoutineSymbol)
@@ -1011,6 +1011,24 @@ class Kern(Statement):
                 f"'real' or an 'integer' scalar but found scalar of type "
                 f"'{var_arg.intrinsic_type}'.")
 
+        # Create the initialisation expression - this depends upon the type
+        # of reduction being performed.
+        if var_arg.access == AccessType.SUM:
+            init_val = Literal("0", variable.datatype.copy())
+        elif var_arg.access == AccessType.MIN:
+            init_val = IntrinsicCall.create(IntrinsicCall.Intrinsic.HUGE,
+                                            Reference(variable))
+        elif var_arg.access == AccessType.MAX:
+            huge = IntrinsicCall.create(IntrinsicCall.Intrinsic.HUGE,
+                                        Reference(variable))
+            init_val = UnaryOperation.create(UnaryOperation.Operator.MINUS,
+                                             huge)
+        else:
+            raise GenerationError(
+                f"Kernel '{self.name}' performs a reduction of type "
+                f"'{var_arg.access}' but this is not supported by Kern."
+                f"initialise_reduction_variable()")
+
         # Find a safe location to initialise it.
         insert_loc = self.ancestor((Loop, Directive))
         while insert_loc:
@@ -1020,9 +1038,7 @@ class Kern(Statement):
             insert_loc = loc
         cursor = insert_loc.position
         insert_loc = insert_loc.parent
-        new_node = Assignment.create(
-                        lhs=Reference(variable),
-                        rhs=Literal("0", variable.datatype.copy()))
+        new_node = Assignment.create(lhs=Reference(variable), rhs=init_val)
         new_node.append_preceding_comment("Initialise reduction variable")
         insert_loc.addchild(new_node, cursor)
         cursor += 1
