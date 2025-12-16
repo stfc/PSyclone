@@ -72,12 +72,6 @@ test-default: transform
 # Additional optional options for PSyclone
 ADD_PSYCLONE_OPTIONS ?=
 
-PSYCLONE_COMMAND = $(PSYCLONE) -oalg time_step_alg_mod.f90 -opsy \
-					time_step_alg_mod_psy.f90 time_step_alg_mod.x90
-ifdef SCRIPT
-	PSYCLONE_COMMAND += -s $(SCRIPT)
-endif
-
 transform-default:
 	$(PSYCLONE_COMMAND)
 
@@ -89,16 +83,16 @@ allclean-default: clean
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR) clean
 
-# PSyclone: create alg and psy layer files:
+PSYCLONE_COMMAND = $(PSYCLONE) $(ADD_PSYCLONE_OPTIONS)      \
+					-oalg time_step_alg_mod.f90 -opsy       \
+					time_step_alg_mod_psy.f90 time_step_alg_mod.x90
 ifdef SCRIPT
-time_step_alg_mod.f90: time_step_alg_mod.x90 Makefile $(SCRIPT)
-	$(PSYCLONE) $(ADD_PSYCLONE_OPTIONS) -oalg time_step_alg_mod.f90 \
-	 	-opsy time_step_alg_mod_psy.f90 -s $(SCRIPT) time_step_alg_mod.x90
-else
-time_step_alg_mod.f90: time_step_alg_mod.x90 Makefile $(SCRIPT)
-	$(PSYCLONE) $(ADD_PSYCLONE_OPTIONS) -oalg time_step_alg_mod.f90 \
-		-opsy time_step_alg_mod_psy.f90 time_step_alg_mod.x90
+	PSYCLONE_COMMAND += -s $(SCRIPT)
 endif
+
+# PSyclone: create alg and psy layer files:
+time_step_alg_mod.f90: time_step_alg_mod.x90 Makefile $(SCRIPT)
+	$(PSYCLONE_COMMAND)
 
 # A sneaky way to allow a Makefile including this one to override
 # targets without a warning (overriding recipe)
