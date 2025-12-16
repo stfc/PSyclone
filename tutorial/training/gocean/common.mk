@@ -38,7 +38,8 @@ LIBS +=  $(INF_LIB)
 LDFLAGS += $(LIBS)
 F90FLAGS += -I$(INF_INC)
 
-PSYCLONE = psyclone --config $(ROOT_DIR)/config/psyclone.cfg --psykal-dsl $(API) -l output $(DM) -d $(GOL_DIR)
+PSYCLONE = psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
+	--psykal-dsl $(API) -l output $(DM) -d $(GOL_DIR)
 
 default: $(EXE)
 
@@ -52,8 +53,6 @@ $(GOL_LIB): $(INF_LIB)
 $(INF_LIB):
 	$(MAKE) MPI=$(USE_MPI) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)/src
 
-
-#
 .PHONY: allclean-default clean-default test-default test_run-default \
 		transform-default
 
@@ -69,6 +68,9 @@ run-default: $(EXE)
 # check the transform target. Though multiple examples will define
 # their own test target (e.g. to verify several transformations, errors, ...)
 test-default: transform
+
+# Additional optional options for PSyclone
+ADD_PSYCLONE_OPTIONS ?=
 
 PSYCLONE_COMMAND = $(PSYCLONE) -oalg time_step_alg_mod.f90 -opsy \
 					time_step_alg_mod_psy.f90 time_step_alg_mod.x90
@@ -90,12 +92,12 @@ allclean-default: clean
 # PSyclone: create alg and psy layer files:
 ifdef SCRIPT
 time_step_alg_mod.f90: time_step_alg_mod.x90 Makefile $(SCRIPT)
-	$(PSYCLONE) -oalg time_step_alg_mod.f90 -opsy time_step_alg_mod_psy.f90 \
-		-s $(SCRIPT) time_step_alg_mod.x90
+	$(PSYCLONE) $(ADD_PSYCLONE_OPTIONS) -oalg time_step_alg_mod.f90 \
+	 	-opsy time_step_alg_mod_psy.f90 -s $(SCRIPT) time_step_alg_mod.x90
 else
 time_step_alg_mod.f90: time_step_alg_mod.x90 Makefile $(SCRIPT)
-	$(PSYCLONE) -oalg time_step_alg_mod.f90 -opsy time_step_alg_mod_psy.f90 \
-		time_step_alg_mod.x90
+	$(PSYCLONE) $(ADD_PSYCLONE_OPTIONS) -oalg time_step_alg_mod.f90 \
+		-opsy time_step_alg_mod_psy.f90 time_step_alg_mod.x90
 endif
 
 # A sneaky way to allow a Makefile including this one to override

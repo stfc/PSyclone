@@ -13,20 +13,32 @@ F90FLAGS += $(PSY_DATA_INCLUDE) -DPSYDATA_EXTRACT
 OBJ = gol.o time_step_alg_mod.o time_step_alg_mod_psy.o
 DRIVER_NAME = driver-psy_time_step_alg_mod-invoke_compute-r0
 
+# When creating the driver, we need to specify the paths to all module directories
+# (which PSyclone will search recursively). Unfortunately, dl_esm_info contains
+# two different files with the same module definition (one for MPI, one without),
+# which PSyclone will detect and then abort. So we added a copy of the (non)-MPI
+# to the local dl_no_mpi directory, and put this path first in the search list,
+# so PSyclone will only detect this version.
+# The include paths are:
+# - the gol-library directory (which is added automatically the Makefile, i.e.
+#   it is part of $(PSYCLONE)
+# - the dl_no_mpi directory (containing only parallel_utils_stub_mod)
+# - the dl_esm_inf (for all other dl_esm_inf files)
+# - the extraction module (from which modules for reading the data and for
+#   comparing the results are used):
+ADD_PSYCLONE_OPTIONS = -d ./dl_no_mpi \
+	-d $(ROOT_DIR)/external/dl_esm_inf/finite_difference/src/   \
+ 	-d $(PSY_DATA_DIR)
+
+SCRIPT = extraction.py
 include ../common.mk
 
-$(EXE): $(INF_LIB) $(PSY_DATA_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) $(PSY_DATA_LIB) -o $(EXE)
+$(OBJ): $(PSY_DATA_LIB)
+LDFLAGS += -L$(PSY_DATA_DIR) -l_extract
 
 driver: F90FLAGS += $(PSY_DATA_INCLUDE)/..
 driver: $(DRIVER_NAME).F90
 	$(F90) $(F90FLAGS) $? $(LDFLAGS) -o $(DRIVER_NAME)
-
-# Dependencies:
-# -------------
-# Ensure that PSyclone has finished (which will also create the psy file)
-time_step_alg_mod_psy.f90: time_step_alg_mod.f90
-time_step_alg_mod.o: time_step_alg_mod_psy.o
 
 # External libs
 # -------------
@@ -49,11 +61,6 @@ $(PSY_DATA_LIB): $(INF_LIB)
 # - the dl_esm_inf (for all other dl_esm_inf files)
 # - the extraction module (from which modules for reading the data and for
 #   comparing the results are used):
-%.f90: %.x90 Makefile
-	$(PSYCLONE) -s ./extraction.py -api gocean1.0 -oalg $*.f90  \
-	-d ./dl_no_mpi                                             \
-	-d $(ROOT_DIR)/external/dl_esm_inf/finite_difference/src/   \
-	-d $(PSY_DATA_DIR) -opsy $*_psy.f90 $<
 
 # Clean
 # -----
