@@ -122,7 +122,7 @@ jobs:
           ( make -C tutorial/practicals transform > /dev/null )
           # Jupyter notebooks are out-of-date
           # ( make -C tutorial/notebooks notebook )
-          ( make -C tutorial/training transform )
+          ( make -C tutorial/training test )
       - name: Test with pytest
         if: ${{ !(matrix.python-version == '3.9') }}
         run: |

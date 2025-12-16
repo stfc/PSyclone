@@ -140,7 +140,7 @@ jobs:
         make -C tutorial/practicals compile
         # Required, since othewise the openacc example would try to
         # use nvfortran
-        F90=gfortran F90FLAGS=-g make -C tutorial/training/ run
+        F90=gfortran F90FLAGS=-g make -C tutorial/training/ test_run
     - name: Examples with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
@@ -160,10 +160,10 @@ jobs:
         F90=nvfortran F90FLAGS="-acc -Minfo=all -Mnofma -O2" make -C tutorial/practicals/generic run
         # We cannot run non-GPU examples with the openacc flag, since output_field
         # needs a openacc directive, which fails if the rest of the code is no on GPU
-        F90=nvfortran F90FLAGS="-Minfo=all" make -C tutorial/training run
+        F90=nvfortran F90FLAGS="-Minfo=all" make -C tutorial/training test_run
         # Delete any previous l
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training/gocean/2.14-GameOfLife-openacc/solution allclean
-        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training/gocean/2.14-GameOfLife-openacc/solution run
+        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training/gocean/2.14-GameOfLife-openacc/solution test_run
         make -C tutorial/practicals/generic/4_openacc acc_test
     - name: Test logfile creation.
       run: |
