@@ -67,4 +67,4 @@ def trans(psyir):
         if loop.loop_type == "outer":
             omp_parallel_loop.apply(loop)
 
-    print(schedule.view())
+    # print(schedule.view())

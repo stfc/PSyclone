@@ -58,7 +58,7 @@ def trans(psyir):
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
-    print(schedule.view())
+    # print(schedule.view())
     # Inline all kernels to help gfortran with inlining.
     for kern in schedule.walk(GOKern):
         inline.apply(kern)

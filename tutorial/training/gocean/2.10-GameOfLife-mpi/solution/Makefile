@@ -1,55 +1,50 @@
 EXE = gol
 API = gocean
+
+# The MPI flag is used to indicate if a MPI enabled compiler is used.
+# If not, the transformations will still use distributed memory, but
+# compilation will be disabled.
 MPI ?= yes
 F90 ?= mpif90
 
-OBJ = time_step_alg_mod.o time_step_alg_mod_psy.o
-
+# Trigger the flag -dm, and linking of MPI library in common.mk:
+USE_MPI = yes
+SCRIPT ?= openmp.py
 include ../../common.mk
 
-$(EXE): $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
+test:
+	SCRIPT=./openmp.py $(MAKE) test-default
+	@# Make sure we get a halo exchange:
+	cat time_step_alg_mod_psy.f90 | grep halo_exchange >/dev/null
+	@# Note that this will also test loop_fuse.py
+	SCRIPT=./openmp_combined.py $(MAKE) test-default
+	cat time_step_alg_mod_psy.f90 | grep halo_exchange >/dev/null
 
-run: $(EXE)
-	mpirun -np 4 ./$(EXE) ../../gol-lib/config.glider
-
-transform:
 
 # MPI is disabled for github CI, so have tests for both with and without MPI
 ifeq ($(MPI), yes)
-# ****************
+run: $(EXE)
+	mpirun -np 4 ./$(EXE) ../../gol-lib/config.glider
 
 # Call the default test (which checks the output file), but do a second test to make
 # sure we get a 2x2 domain decomposition, otherwise the job was not running properly
 # with MPI
 TS=time_step_alg_mod
-test: test-default
-	bash -c "if [[ $$(make run | grep -c 'go_decompose: using grid of   2x  2') != 1 ]]; then \
+test_run: test
+	bash -c "if [[ $$(make run | grep -c 'go_decompose: using grid of *2x *2') != 1 ]]; then \
 		echo 'Job is not running properly with MPI'; \
 	fi"
 
-	$(PSYCLONE) -s ./openmp.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
-	$(PSYCLONE) -s ./openmp_combined.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
 
 else
-# **
+test_run: test
+	bash -c "if [[ $$(make run | grep -c 'go_decompose: using grid of *1x *1') != 1 ]]; then \
+		echo 'Job is not running properly with MPI'; \
+	fi"
 
-# We can't simply use the default test, since it will require mpif90 for
-# compilation. If compilation is to be tested, `MPI=yes make test`
-TS=time_step_alg_mod
-test:
-	$(PSYCLONE) -s ./openmp.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
+# No MPI enabled compiler is available
+run: $(EXE)
+	./$(EXE) ../../gol-lib/config.glider
 
 endif
-# ***
-
-# Dependencies:
-# -------------
-# Ensure that PSyclone has finished (which will also create the psy file)
-time_step_alg_mod_psy.f90: time_step_alg_mod.f90
-time_step_alg_mod.o: time_step_alg_mod_psy.o
-
-# PSyclone: create alg and psy layer files:
-%.f90: %.x90 Makefile
-	$(PSYCLONE) -s ./openmp.py -oalg $*.f90 -opsy $*_psy.f90 $<
 

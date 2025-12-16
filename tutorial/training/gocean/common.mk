@@ -15,7 +15,7 @@ ROOT_DIR := $(abspath $(dir $(this_file))../../..)
 ifeq ($(API), gocean)
 	INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
 	INF_INC = $(INF_DIR)/src
-	ifeq ($(MPI), yes)
+	ifeq ($(USE_MPI), yes)
 		INF_LIB ?= $(INF_DIR)/src/lib_dm_fd.a
 		DM = -dm
 	else
@@ -27,7 +27,7 @@ endif
 GOL_DIR = $(ROOT_DIR)/tutorial/training/gocean/gol-lib
 GOL_LIB = $(GOL_DIR)/libgol.a
 
-# For examples that do not use golib, but want to use
+# For examples that do not use gol_lib, but want to use
 # the remaining flags set here:
 ifneq ($(IGNORE_GOL_LIB), yes)
 	LIBS = $(GOL_LIB)
@@ -50,7 +50,7 @@ $(GOL_LIB): $(INF_LIB)
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR)
 
 $(INF_LIB):
-	$(MAKE) MPI=$(MPI) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)/src
+	$(MAKE) MPI=$(USE_MPI) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)/src
 
 
 #
@@ -107,8 +107,10 @@ endif
 # ----------------------------
 OBJ ?= time_step_alg_mod.o time_step_alg_mod_psy.o
 
-# sources need golib
+ifndef BUILDING_GOL_LIB
+# sources need gol_lib (unless we are building gol_lib)
 $(OBJ): $(GOL_LIB)
+endif
 
 $(EXE): $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)

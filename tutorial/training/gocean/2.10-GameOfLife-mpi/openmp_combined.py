@@ -66,7 +66,7 @@ def trans(psyir):
         inline.apply(kern)
 
     # Optional:
-    # fuse_trans(psy)
+    # fuse_trans(psyir)
 
     for loop in schedule.walk(GOLoop):
         if loop.loop_type == "outer":

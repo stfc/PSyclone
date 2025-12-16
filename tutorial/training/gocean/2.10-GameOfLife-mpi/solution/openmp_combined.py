@@ -67,19 +67,18 @@ def trans(psyir):
     for kern in schedule.kernels():
         inline.apply(kern)
 
-    # Optional:
-    # fuse_trans(psy)
+    fuse_trans(psyir)
 
     for loop in schedule.walk(GOLoop):
         if loop.loop_type == "outer":
             omp_do.apply(loop)
 
     # Look at the schedule before adding 'omp parallel':
-    print(schedule.view())
+    # print(schedule.view())
 
     # Now add the OMP PARALLEL around all loops. In case of
     # distributed memory the first node is the halo exchange,
     # which must be excluded:
     omp_parallel.apply(schedule[1:])
 
-    print(schedule.view())
+    # print(schedule.view())
