@@ -4264,21 +4264,12 @@ class Fparser2Reader():
                 # ignore it.
                 continue
 
-            # If it has a Call ancestor we need to check if its a
+            # If it is an argument to a Call we need to check if its a
             # non-elemental function, in which case we should skip
             # changing it.
-            call_ancestor = array.ancestor(Call)
-            if call_ancestor:
-                if call_ancestor.is_elemental is None:
-                    raise NotImplementedError(
-                        f"Found a function call inside a where clause with "
-                        f"unknown elemental status: "
-                        f"{call_ancestor.debug_string()}")
-                # If it is none-elemental, we leave this array reference as it
-                # is
-                if not call_ancestor.is_elemental:
+            if isinstance(array.parent, Call):
+                if not array.parent.is_elemental:
                     continue
-                # Otherwise, we continue replacing the range with the loop idx
 
             if first_rank:
                 if rank != first_rank:
@@ -4403,11 +4394,9 @@ class Fparser2Reader():
                 if (intr.children[0].string in
                         Fortran2003.Intrinsic_Name.array_reduction_names):
                     # These intrinsics are only a problem if they return an
-                    # array rather than a scalar.
-                    arg_specs = walk(intr.children[1],
-                                     Fortran2003.Actual_Arg_Spec)
-                    if any(spec.children[0].string == 'dim'
-                           for spec in arg_specs):
+                    # array rather than a scalar (which can only happen if
+                    # there is more than one argument).
+                    if len(intr.children[1].children) > 1:
                         return True
             return False
 
