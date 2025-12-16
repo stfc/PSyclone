@@ -99,8 +99,8 @@ def test_check_access():
     with pytest.raises(ValueError) as info:
         ScalarArrayArgMetadata.check_access("invalid")
     assert ("The 'access descriptor' metadata should be a recognised value "
-            "(one of ['gh_read', 'gh_sum']) but found 'invalid'."
-            in str(info.value))
+            "(one of ['gh_max', 'gh_min', 'gh_read', 'gh_sum']) but found "
+            "'invalid'." in str(info.value))
 
 
 def test_get_array_ndims():

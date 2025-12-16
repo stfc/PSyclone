@@ -37,6 +37,7 @@
 
 '''This module implements the AccessType used throughout PSyclone.'''
 
+from __future__ import annotations
 from enum import Enum
 from psyclone.configuration import Config
 
@@ -136,12 +137,11 @@ class AccessType(Enum):
                 AccessType.READINC]
 
     @staticmethod
-    def get_valid_reduction_modes():
+    def get_valid_reduction_modes() -> list[AccessType]:
         '''
         :returns: A list of valid reduction access modes.
-        :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
-        return [AccessType.SUM]
+        return [AccessType.SUM, AccessType.MIN, AccessType.MAX]
 
     @staticmethod
     def get_valid_reduction_names():

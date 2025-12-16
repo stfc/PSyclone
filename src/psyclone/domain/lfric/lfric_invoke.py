@@ -94,6 +94,8 @@ class LFRicInvoke(Invoke):
             LFRicRunTimeChecks, LFRicScalarArgs, LFRicFields, LFRicDofmaps,
             LFRicStencils)
         from psyclone.domain.lfric.lfric_global_sum import LFRicGlobalSum
+        from psyclone.domain.lfric.lfric_global_min import LFRicGlobalMin
+        from psyclone.domain.lfric.lfric_global_max import LFRicGlobalMax
 
         self.scalar_args = LFRicScalarArgs(self)
 
@@ -172,20 +174,23 @@ class LFRicInvoke(Invoke):
         # Lastly, add in halo exchange calls and global sums if
         # required. We only need to add halo exchange calls for fields
         # since operators are assembled in place and scalars don't
-        # have halos. We only need to add global sum calls for scalars
-        # which have a 'gh_sum' access.
+        # have halos. We only need to add global reductions for scalars
+        # which have a 'gh_sum/max/min' access.
+        rmap = {AccessType.SUM: LFRicGlobalSum,
+                AccessType.MAX: LFRicGlobalMax,
+                AccessType.MIN: LFRicGlobalMin}
         if Config.get().distributed_memory:
             # halo exchange calls
             const = LFRicConstants()
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
-            # global sum calls
+            # global reduction calls
             for loop in self.schedule.loops():
                 for scalar in loop.args_filter(
                         arg_types=const.VALID_SCALAR_NAMES,
                         arg_accesses=AccessType.get_valid_reduction_modes(),
                         unique=True):
-                    global_sum = LFRicGlobalSum(
+                    global_sum = rmap[scalar.access](
                         scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 

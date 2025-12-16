@@ -115,9 +115,8 @@ def test_init_args_error():
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata(operates_on="invalid")
     assert ("The 'OPERATES_ON' metadata should be a recognised value "
-            "(one of ['domain', 'dof', 'owned_dof', 'cell_column', "
-            "'owned_cell_column', 'halo_cell_column', "
-            "'owned_and_halo_cell_column']) "
+            "(one of ['cell_column', 'dof', 'domain', 'halo_cell_column', "
+            "'owned_and_halo_cell_column', 'owned_cell_column', 'owned_dof']) "
             "but found 'invalid'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
@@ -783,8 +782,8 @@ def test_validate_cma_matrix_kernel():
     with pytest.raises(ValueError) as info:
         ScalarArgMetadata("gh_real", "gh_write")
     assert ("The 'access descriptor' metadata should be a recognised value "
-            "(one of ['gh_read', 'gh_sum']) but found 'gh_write'."
-            in str(info.value))
+            "(one of ['gh_max', 'gh_min', 'gh_read', 'gh_sum']) but found "
+            "'gh_write'." in str(info.value))
 
     # OK.
     meta_args = [
@@ -1298,9 +1297,8 @@ def test_setter_getter_operates_on():
     with pytest.raises(ValueError) as info:
         metadata.operates_on = "invalid"
     assert ("The 'OPERATES_ON' metadata should be a recognised value "
-            "(one of ['domain', 'dof', 'owned_dof', 'cell_column', "
-            "'owned_cell_column', 'halo_cell_column', "
-            "'owned_and_halo_cell_column']) "
+            "(one of ['cell_column', 'dof', 'domain', 'halo_cell_column', "
+            "'owned_and_halo_cell_column', 'owned_cell_column', 'owned_dof']) "
             "but found 'invalid'." in str(info.value))
     metadata.operates_on = "DOMAIN"
     assert metadata.operates_on == "domain"

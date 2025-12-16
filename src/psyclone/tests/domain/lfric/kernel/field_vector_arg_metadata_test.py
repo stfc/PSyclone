@@ -97,7 +97,7 @@ def test_init_invalid_stencil():
         _ = FieldVectorArgMetadata(
             "GH_REAL", "GH_READ", "W0", "2", stencil="invalid")
     assert ("The 'stencil' metadata should be a recognised value (one of "
-            "['x1d', 'y1d', 'xory1d', 'cross', 'region', 'cross2d']) but "
+            "['cross', 'cross2d', 'region', 'x1d', 'xory1d', 'y1d']) but "
             "found 'invalid'." in str(info.value))
 
 

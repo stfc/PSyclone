@@ -40,6 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import FieldArgMetadata
 
 
@@ -166,7 +167,7 @@ def test_check_datatype():
     with pytest.raises(ValueError) as info:
         FieldArgMetadata.check_datatype("invalid")
     assert ("The 'datatype descriptor' metadata should be a recognised value "
-            "(one of ['gh_real', 'gh_integer']) but found 'invalid'."
+            "(one of ['gh_integer', 'gh_real']) but found 'invalid'."
             in str(info.value))
 
 
@@ -176,8 +177,8 @@ def test_check_access():
     with pytest.raises(ValueError) as info:
         FieldArgMetadata.check_access("invalid")
     assert ("The 'access descriptor' metadata should be a recognised value "
-            "(one of ['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', "
-            "'gh_readinc']) but found 'invalid'." in str(info.value))
+            "(one of ['gh_inc', 'gh_read', 'gh_readinc', 'gh_readwrite', "
+            "'gh_write']) but found 'invalid'." in str(info.value))
 
 
 def test_function_space_setter_getter():
@@ -188,18 +189,10 @@ def test_function_space_setter_getter():
     field_arg = FieldArgMetadata("GH_REAL", "GH_READ", "W0")
     with pytest.raises(ValueError) as info:
         field_arg.function_space = "invalid"
-    assert ("The 'function space' metadata should be a recognised value (one "
-            "of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
-            "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi', "
-            "'any_space_1', 'any_space_2', 'any_space_3', 'any_space_4', "
-            "'any_space_5', 'any_space_6', 'any_space_7', 'any_space_8', "
-            "'any_space_9', 'any_space_10', 'any_discontinuous_space_1', "
-            "'any_discontinuous_space_2', 'any_discontinuous_space_3', "
-            "'any_discontinuous_space_4', 'any_discontinuous_space_5', "
-            "'any_discontinuous_space_6', 'any_discontinuous_space_7', "
-            "'any_discontinuous_space_8', 'any_discontinuous_space_9', "
-            "'any_discontinuous_space_10']) but found 'invalid'."
-            in str(info.value))
+    const = LFRicConstants()
+    assert (f"The 'function space' metadata should be a recognised value (one "
+            f"of {sorted(const.VALID_FUNCTION_SPACE_NAMES)}) but found "
+            f"'invalid'." in str(info.value))
     field_arg.function_space = "w3"
     assert field_arg.function_space == "w3"
     field_arg.function_space = "W3"
@@ -216,7 +209,7 @@ def test_stencil_getter_setter():
     with pytest.raises(ValueError) as info:
         field_arg.stencil = "invalid"
     assert ("The 'stencil' metadata should be a recognised value (one of "
-            "['x1d', 'y1d', 'xory1d', 'cross', 'region', 'cross2d']) but "
+            "['cross', 'cross2d', 'region', 'x1d', 'xory1d', 'y1d']) but "
             "found 'invalid'." in str(info.value))
     field_arg.stencil = "x1d"
     assert field_arg.stencil == "x1d"

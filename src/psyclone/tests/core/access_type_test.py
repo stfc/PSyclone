@@ -72,14 +72,18 @@ def test_api_specific_name():
     assert AccessType.INQUIRY.api_specific_name() == "inquiry"
     assert AccessType.CONSTANT.api_specific_name() == "constant"
     assert AccessType.UNKNOWN.api_specific_name() == "unknown"
-    assert AccessType.get_valid_reduction_modes() == [AccessType.SUM]
-    assert AccessType.get_valid_reduction_names() == ["gh_sum"]
+    assert (set(AccessType.get_valid_reduction_modes()) ==
+            set([AccessType.SUM, AccessType.MIN, AccessType.MAX]))
+    assert (set(AccessType.get_valid_reduction_names()) ==
+            set(["gh_sum", "gh_min", "gh_max"]))
     # Use set to make this independent of the order:
     assert set(AccessType.all_write_accesses()) == set([AccessType.WRITE,
                                                         AccessType.READWRITE,
                                                         AccessType.INC,
                                                         AccessType.READINC,
-                                                        AccessType.SUM])
+                                                        AccessType.SUM,
+                                                        AccessType.MAX,
+                                                        AccessType.MIN])
     assert set(AccessType.all_read_accesses()) == set([AccessType.READ,
                                                        AccessType.READWRITE,
                                                        AccessType.READINC,
@@ -112,7 +116,7 @@ def test_all_write_accesses():
 
     all_write_accesses = AccessType.all_write_accesses()
     assert isinstance(all_write_accesses, list)
-    assert len(all_write_accesses) == 5
+    assert len(all_write_accesses) == 7
     assert (len(all_write_accesses) ==
             len(set(all_write_accesses)))
     assert all(isinstance(write_access, AccessType)
