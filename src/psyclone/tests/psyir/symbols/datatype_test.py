@@ -391,6 +391,16 @@ def test_arraytype_arraybounds():
             "be either ArrayType.Extent.ATTRIBUTE or an instance of "
             "DataNode but got 'Extent'" in str(err.value))
 
+    # Test the arraybounds copy functionality
+    # The lower bound is a DataNode so is copied.
+    # The upper bound is an extent so is the same object.
+    bound2 = bounds.copy()
+    assert bound2 is not bounds
+    assert bound2.lower == bounds.lower
+    assert bound2.lower is not bounds.lower
+    assert bound2.upper == bounds.upper
+    assert bound2.upper is bounds.upper
+
 
 def test_arraytype():
     '''Test that the ArrayType class __init__ works as expected. Test the

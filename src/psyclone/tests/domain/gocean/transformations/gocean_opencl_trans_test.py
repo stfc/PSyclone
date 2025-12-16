@@ -1047,7 +1047,7 @@ def test_set_kern_args(kernel_outputdir):
 
     # There is also only one version of the set_args for the second kernel
     assert generated_code.count("subroutine time_smooth_code_set_args("
-                                "kernel_obj, u_fld, unew_fld, uold_fld, "
+                                "kernel_obj, cu_fld, unew_fld, uold_fld, "
                                 "xstart_1, xstop_1, ystart_1, ystop_1)") == 1
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
