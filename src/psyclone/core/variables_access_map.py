@@ -40,11 +40,14 @@
 '''This module provides management of variable access information.'''
 
 
-from typing import List
+from typing import List, TYPE_CHECKING
 
 from psyclone.core.signature import Signature
 from psyclone.core.access_sequence import AccessSequence
+from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes import Node
 
 
 class VariablesAccessMap(dict):
@@ -62,15 +65,16 @@ class VariablesAccessMap(dict):
             output_list.append(f"{key}: {value.str_access_summary()}")
         return ", ".join(sorted(output_list))
 
-    def add_access(self, signature, access_type, node):
+    def add_access(
+            self,
+            signature: Signature,
+            access_type: AccessType,
+            node: "Node") -> None:
         '''Adds access information for the variable with the given signature.
 
         :param signature: the signature of the variable.
-        :type signature: :py:class:`psyclone.core.Signature`
         :param access_type: the type of access (READ, WRITE, ...)
-        :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
-        :type node: :py:class:`psyclone.psyir.nodes.Node` instance
 
         '''
         if not isinstance(signature, Signature):
@@ -107,26 +111,23 @@ class VariablesAccessMap(dict):
                 result.append(sig)
         return result
 
-    def update(self, other_access_map):
+    def update(self,   # type: ignore[override]
+               other_access_map: "VariablesAccessMap") -> None:
         ''' Updates this dictionary with the entries in the provided
         VariablesAccessMap. If there are repeated signatures, the provided
         values are appended to the existing sequence of accesses.
 
         :param other_access_map: the other VariablesAccessMap instance.
-        :type other_access_map: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         for signature in other_access_map.all_signatures:
             access_sequence = other_access_map[signature]
-            for access_info in access_sequence:
-                if signature in self:
-                    var_info = self[signature]
-                else:
-                    var_info = AccessSequence(signature)
-                    self[signature] = var_info
-
-                var_info.add_access(access_info.access_type,
-                                    access_info.node)
+            if signature in self:
+                var_info = self[signature]
+            else:
+                var_info = AccessSequence(signature)
+                self[signature] = var_info
+            var_info.update(access_sequence)
 
     def is_called(self, signature: Signature) -> bool:
         '''
@@ -136,16 +137,14 @@ class VariablesAccessMap(dict):
         '''
         return self[signature].is_called()
 
-    def is_written(self, signature):
+    def is_written(self, signature: Signature) -> bool:
         '''Checks if the specified variable signature is at least
         written once.
 
         :param signature: signature of the variable.
-        :type signature: :py:class:`psyclone.core.Signature`
 
         :returns: True if the specified variable is written (at least \
             once).
-        :rtype: bool
 
         :raises: KeyError if the signature name cannot be found.
 
@@ -153,7 +152,7 @@ class VariablesAccessMap(dict):
         var_access_info = self[signature]
         return var_access_info.is_written()
 
-    def is_read(self, signature) -> bool:
+    def is_read(self, signature: Signature) -> bool:
         '''Checks if the specified variable signature is at least read once.
 
         :param signature: signature of the variable
@@ -167,7 +166,7 @@ class VariablesAccessMap(dict):
         var_access_info = self[signature]
         return var_access_info.is_read()
 
-    def has_read_write(self, signature):
+    def has_read_write(self, signature: Signature) -> bool:
         '''Checks if the specified variable signature has at least one
         READWRITE access (which is typically only used in a function call).
 

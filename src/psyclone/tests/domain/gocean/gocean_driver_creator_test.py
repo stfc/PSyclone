@@ -154,12 +154,10 @@ def test_driver_creation1() -> None:
   real*8, allocatable, dimension(:,:) :: in_fld_grid_gphiu
   type(ReadKernelDataType) :: extract_psy_data
   real*8, allocatable, dimension(:,:) :: dx_data_post
-  integer :: i_post
   real*8, allocatable, dimension(:,:) :: in_fld_data_post
   real*8 :: in_fld_grid_dx_post
   real*8, allocatable, dimension(:,:) :: in_fld_grid_gphiu_post
   real*8, allocatable, dimension(:,:) :: in_out_fld_data_post
-  integer :: j_post
   real*8, allocatable, dimension(:,:) :: out_fld_data_post
 
   call extract_psy_data%OpenReadModuleRegion('psy_extract_example_with_\
@@ -179,10 +177,7 @@ out_fld_internal_xstop)
 out_fld_internal_ystart)
   call extract_psy_data%ReadVariable('out_fld_internal_ystop', \
 out_fld_internal_ystop)
-  call extract_psy_data%ReadVariable('i', i)
-  call extract_psy_data%ReadVariable('j', j)
   call extract_psy_data%ReadVariable('dx_data_post', dx_data_post)
-  call extract_psy_data%ReadVariable('i_post', i_post)
   call extract_psy_data%ReadVariable('in_fld_data_post', in_fld_data_post)
   call extract_psy_data%ReadVariable('in_fld_grid_dx_post', \
 in_fld_grid_dx_post)
@@ -190,7 +185,6 @@ in_fld_grid_dx_post)
 in_fld_grid_gphiu_post)
   call extract_psy_data%ReadVariable('in_out_fld_data_post', \
 in_out_fld_data_post)
-  call extract_psy_data%ReadVariable('j_post', j_post)
   call extract_psy_data%ReadVariable('out_fld_data_post', out_fld_data_post)
   do j = out_fld_internal_ystart, out_fld_internal_ystop, 1
     do i = out_fld_internal_xstart, out_fld_internal_xstop, 1
@@ -198,10 +192,8 @@ in_out_fld_data_post)
 in_fld_data, dx_data, in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
   enddo
-  call compare_init(8)
-  call compare('i', i, i_post)
+  call compare_init(6)
   call compare('in_out_fld_data', in_out_fld_data, in_out_fld_data_post)
-  call compare('j', j, j_post)
   call compare('out_fld_data', out_fld_data, out_fld_data_post)
   call compare_summary()
 '''
@@ -289,10 +281,8 @@ in_out_fld_data_post)
 in_fld_data, dx_data, in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
   enddo
-  call compare_init(8)
-  call compare('i', i, i_post)
+  call compare_init(6)
   call compare('in_out_fld_data', in_out_fld_data, in_out_fld_data_post)
-  call compare('j', j, j_post)
   call compare('out_fld_data', out_fld_data, out_fld_data_post)
   call compare_summary()'''
     expected_lines = expected.split("\n")
@@ -437,7 +427,7 @@ def test_driver_creation_same_symbol():
     dx_data = dx%data
     in_fld_grid_dx = in_fld%grid%dx
     in_fld_grid_gphiu = in_fld%grid%gphiu
-    CALL extract_psy_data % PreStart("module_name", "local_name", 12, 8)
+    CALL extract_psy_data % PreStart("module_name", "local_name", 10, 6)
     """ in code
     assert """
     CALL extract_psy_data % PostEnd

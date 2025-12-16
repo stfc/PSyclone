@@ -39,7 +39,7 @@ directives into Nemo code. '''
 
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
+    NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import (
     ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans)
@@ -96,8 +96,6 @@ def trans(psyir):
                                "lbc_nfd_4d_ptr", "bdy_dyn", "dia_obs_init"):
             print("Skipping", subroutine.name)
             continue
-
-        enhance_tree_information(subroutine)
 
         normalise_loops(
                 subroutine,

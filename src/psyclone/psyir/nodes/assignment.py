@@ -230,9 +230,8 @@ class Assignment(Statement):
                 opn = array_range.ancestor(IntrinsicCall)
                 while opn:
                     if opn.intrinsic in REDUCTION_INTRINSICS:
-                        # The current array range is in an argument to a
-                        # reduction intrinsic so we assume that the result
-                        # is a scalar.
+                        # We don't know if this is a reduction into
+                        # a scalar or an array.
                         # TODO #658 this could still be a reduction
                         # into an array (e.g. SUM(a(:,:), dim=1)) but
                         # we need to be able to interrogate the type

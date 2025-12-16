@@ -1,8 +1,7 @@
-#!/usr/bin/env python
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,30 +31,43 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: S. Siso, STFC Daresbury Lab
+# Authors A. B. G. Chalk, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-''' Process Nemo code with PSyclone but don't do any changes. This file is only
-needed to provide a FILES_TO_SKIP list. '''
+''' This module contains the tests for the OpenMP Critical
+transformation.'''
 
-import os
-
-# A environment variable can inform if this is targeting NEMOv4
-NEMOV4 = os.environ.get('NEMOV4', False)
-
-# List of all files that psyclone will skip processing
-FILES_TO_SKIP = []
-if not NEMOV4:
-    # TODO #3112: These produce diverging run.stat results in gcc NEMOv5 BENCH
-    FILES_TO_SKIP = [
-        "dynhpg.f90",
-        "dynspg_ts.f90",
-        "sbcssm.f90",
-        "tramle.f90",
-        "trazdf.f90",
-        # These fail with nvfortran
-        "icefrm.f90",  # Has unsupported implicit symbol declaration
-    ]
+from psyclone.psyir.nodes import OMPCriticalDirective, Routine
+from psyclone.psyir.transformations import OMPCriticalTrans
 
 
-def trans(_):
-    ''' Don't do any changes. '''
+def test_omp_critical_apply(fortran_reader, fortran_writer):
+    '''Test the apply function of the OMPCriticalTrans.'''
+    ctrans = OMPCriticalTrans()
+
+    code = """subroutine x
+    integer :: i, j
+
+    i = 2
+    j = 3
+    end subroutine x"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    routine = psyir.walk(Routine)[0]
+
+    ctrans.apply(routine.children[:])
+    assert isinstance(routine.children[0], OMPCriticalDirective)
+
+    output = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer :: j
+
+  !$omp critical
+  i = 2
+  j = 3
+  !$omp end critical
+
+end subroutine x"""
+    assert correct in output

@@ -279,9 +279,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     if not call.is_pure]
         if not_pure:
             message = (
-                f"Loop cannot be parallelised because it cannot "
-                f"guarantee that the following calls are pure: "
-                f"{sorted(set(not_pure))}")
+                f"Loop cannot be parallelised because psyclone cannot "
+                f"guarantee that the accesses to {sorted(set(not_pure))} are "
+                f"arrays or pure calls. If they are but the symbol is "
+                f"imported, try adding the module name to RESOLVE_IMPORTS.")
             if verbose:
                 node.append_preceding_comment(message)
             raise TransformationError(message)
@@ -318,11 +319,12 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                                 f"The write-write dependency in '{var_name}'"
                                 f" cannot be solved by automatic array "
                                 f"privatisation. Use 'loop.explictly_private"
-                                f"_sybmols.add(sybmol)' if *YOU* can guarantee"
+                                f"_symbols.add(symbol)' if *YOU* can guarantee"
                                 f" that it is private.")
                     continue
                 # See if the scalar in question allows parallelisation of
                 # the loop using reduction clauses.
+                red_msg = ""
                 if (reduction_ops and
                         message.code == DTCode.WARN_SCALAR_REDUCTION):
                     if (len(message.var_infos) == 1):
@@ -332,7 +334,13 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                         if clause:
                             self.inferred_reduction_clauses.append(clause)
                             continue
+                        red_msg = (
+                            f"Failed to automatically generate reduction "
+                            f"clause for '{sig}' - unsupported form of "
+                            f"reduction")
                 errors.append(str(message))
+                if red_msg:
+                    errors.append(red_msg)
 
             if errors:
                 error_lines = "\n".join(errors)

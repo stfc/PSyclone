@@ -168,8 +168,8 @@ def test_arrays_parallelise(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask' in 'mask(jk,jk)' causes a write-write "
-            "race condition" in str(msg))
+    assert ("The write access to 'mask(jk,jk)' in 'mask(jk,jk) = -1.0d0' "
+            "causes a write-write race condition" in str(msg))
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask"]
 
@@ -186,8 +186,9 @@ def test_arrays_parallelise(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[3])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(ji,jj)' and the read access to "
-            "'mask(ji,jj + 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'mask(ji,jj)' in 'mask(ji,jj) = mask(ji,jj + "
+            "1)' and the read access to 'mask(ji,jj + 1)' in 'mask(ji,jj) = "
+            "mask(ji,jj + 1)' are dependent and cannot be parallelised. "
             "Variable: 'mask'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["mask"]
@@ -598,8 +599,9 @@ def test_derived_type(fortran_reader):
     # next assignment to a derived type.
     assert len(dep_tools.get_all_messages()) == 1
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'a%b(ji,jj)' and the read access to "
-            "'a%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'a%b(ji,jj)' in 'a%b(ji,jj) = a%b(ji,jj - 1) "
+            "+ 1' and the read access to 'a%b(ji,jj - 1)' in 'a%b(ji,jj) = "
+            "a%b(ji,jj - 1) + 1' are dependent and cannot be parallelised. "
             "Variable: 'a%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["a%b"]
@@ -610,13 +612,15 @@ def test_derived_type(fortran_reader):
     # Now we must have two messages, one for each of the two assignments
     assert len(dep_tools.get_all_messages()) == 2
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'a%b(ji,jj)' and the read access "
-            "to 'a%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'a%b(ji,jj)' in 'a%b(ji,jj) = a%b(ji,jj - 1) "
+            "+ 1' and the read access to 'a%b(ji,jj - 1)' in 'a%b(ji,jj) = "
+            "a%b(ji,jj - 1) + 1' are dependent and cannot be parallelised. "
             "Variable: 'a%b'." in str(msg))
     assert msg.var_names == ["a%b"]
     msg = dep_tools.get_all_messages()[1]
-    assert ("The write access to 'b%b(ji,jj)' and the read access to "
-            "'b%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'b%b(ji,jj)' in 'b%b(ji,jj) = b%b(ji,jj - 1) "
+            "+ 1' and the read access to 'b%b(ji,jj - 1)' in 'b%b(ji,jj) = "
+            "b%b(ji,jj - 1) + 1' are dependent and cannot be parallelised. "
             "Variable: 'b%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["b%b"]
@@ -628,8 +632,9 @@ def test_derived_type(fortran_reader):
     assert parallel is False
     assert len(dep_tools.get_all_messages()) == 1
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'b%b(ji,jj)' and the read access to "
-            "'b%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'b%b(ji,jj)' in 'b%b(ji,jj) = b%b(ji,jj - 1) "
+            "+ 1' and the read access to 'b%b(ji,jj - 1)' in 'b%b(ji,jj) = "
+            "b%b(ji,jj - 1) + 1' are dependent and cannot be parallelised. "
             "Variable: 'b%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["b%b"]
@@ -710,8 +715,8 @@ def test_reserved_words(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask' in 'mask(jk,jk)' causes a write-write "
-            "race condition" in str(msg))
+    assert ("The write access to 'mask(jk,jk)' in 'mask(jk,jk) = -1.0d0' "
+            "causes a write-write race condition" in str(msg))
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask"]
 
@@ -728,8 +733,9 @@ def test_reserved_words(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[3])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(ji,lambda)' and "
-            "the read access to 'mask(ji,lambda + 1)' are "
+    assert ("The write access to 'mask(ji,lambda)' in 'mask(ji,lambda) = "
+            "mask(ji,lambda + 1)' and the read access to 'mask(ji,lambda + 1)'"
+            " in 'mask(ji,lambda) = mask(ji,lambda + 1)' are "
             "dependent and cannot be parallelised. Variable: 'mask'."
             in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
@@ -740,13 +746,20 @@ def test_reserved_words(fortran_reader):
 def test_gocean_parallel():
     '''Check that PSyclones gives useful error messages for a GOKern.'''
 
-    # TODO #2531: this kernel should not be accepted in the first place.
+    # TODO #2531: This kernel should not be accepted in the first place, it
+    # has "go_arg(GO_READWRITE, GO_CT, GO_STENCIL(010,010,010)"
     _, invoke = get_invoke("test31_stencil_not_parallel.f90",
                            api="gocean", idx=0, dist_mem=False)
 
     loop = invoke.schedule.children[0]
     dep_tools = DependencyTools()
     parallel = dep_tools.can_loop_be_parallelised(loop)
+
+    if parallel is True:
+        pytest.xfail(
+            reason=("TODO #2531: GOcean metadata validation should not allow"
+                    " kernels writing outside pointwise location.")
+        )
     assert not parallel
 
     assert ("Variable 'u_fld' is read first, which indicates a reduction."

@@ -56,12 +56,8 @@ the process of attempting to create the largest possible Kernel region.
 """
 
 import logging
-from utils import (
-    add_profiling,
-    enhance_tree_information,
-    NOT_PERFORMANT,
-    NEMO_MODULES_TO_IMPORT,
-)
+from utils import (add_profiling, inline_calls,
+                   NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     IfBlock,
@@ -430,8 +426,7 @@ def trans(psyir):
         # Attempt to add OpenACC directives unless we are ignoring this routine
         if subroutine.name.lower() not in ACC_IGNORE:
             print(f"Transforming {subroutine.name} with acc kernels")
-            enhance_tree_information(subroutine)
-            # inline_calls(subroutine)   # Inlining isn't robust enough for use
+            inline_calls(subroutine)
             have_kernels = add_kernels(subroutine.children)
             # Add required OpenACC update directives to every routine,
             # including to those with no device code and that execute

@@ -114,8 +114,10 @@ def test_paralooptrans_validate_pure_calls(fortran_reader, fortran_writer):
     # Check that we reject non-integer collapse arguments
     with pytest.raises(TransformationError) as err:
         trans.validate(loop, {"verbose": True})
-    assert ("Loop cannot be parallelised because it cannot guarantee that "
-            "the following calls are pure: ['my_sub2']" in str(err.value))
+    assert ("Loop cannot be parallelised because psyclone cannot guarantee "
+            "that the accesses to ['my_sub2'] are arrays or pure calls. If "
+            "they are but the symbol is imported, try adding the module name "
+            "to RESOLVE_IMPORTS." in str(err.value))
 
     # Check that forcing the transformation or setting it to "pure" let the
     # validation pass
@@ -335,8 +337,9 @@ def test_paralooptrans_collapse_options(fortran_reader, fortran_writer):
     assert '''\
 !$omp parallel do collapse(1) default(shared) private(i,j,k)
 do i = 1, 10, 1
-  ! Error: The write access to 'var(i,j,k)' and the read access to 'var(i,\
-map(j),k)' are dependent and cannot be parallelised. Variable: 'var'. \
+  ! Error: The write access to \'var(i,j,k)\' in \'var(i,j,k) = var(i,map(j),\
+k)\' and the read access to \'var(i,map(j),k)\' in \'var(i,j,k) = \
+var(i,map(j),k)\' are dependent and cannot be parallelised. Variable: 'var'. \
 Consider using the "ignore_dependencies_for" transformation option if this \
 is a false dependency.
   do j = 1, 10, 1
@@ -635,8 +638,11 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
     # By default this can not be parallelised because 'ztmp' is shared
     with pytest.raises(TransformationError) as err:
         trans.apply(loop)
-    assert "ztmp(jj)\' causes a write-write race condition." in str(err.value)
-    assert "ztmp2(jj)\' causes a write-write race condition." in str(err.value)
+    assert ("The write access to \'ztmp(jj)\' in \'ztmp(jj) = var1(ji,jj) "
+            "+ ztmp2(jj)\' causes a write-write race condition."
+            in str(err.value))
+    assert ("The write access to \'ztmp2(jj)\' in \'ztmp2(jj) = 4\' causes "
+            "a write-write race condition." in str(err.value))
 
     # Automatic array privatisation will not work because there is a path to
     # reach the ztmp2 as a read first (when the condition is not taken)
@@ -742,7 +748,7 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
     # race condition in the outer loops
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
-    assert ("ztmp(jj)\' causes a write-write race condition."
+    assert ("ztmp(jj) = 3\' causes a write-write race condition."
             in str(err.value))
 
     # It should succeed if we enable array privatisation
