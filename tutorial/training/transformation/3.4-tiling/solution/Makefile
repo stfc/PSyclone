@@ -8,6 +8,21 @@ SRC_F90 = gol.f90 read_config_mod.f90 output_field_mod.f90 compute_die_mod.f90 \
 
 OBJ = $(SRC_F90:%.f90=%.o) $(SRC_X90:%.x90=%.o)
 
+transform: $(SRC_X90:%.x90=%.f90)
+
+test: transform
+	@# Check that omp statements and tiling loops are present:
+	cat time_step_mod.f90 | grep "omp *parallel *default" >/dev/null
+	cat time_step_mod.f90 | grep "omp *do *schedule" >/dev/null
+	cat time_step_mod.f90 | grep "do j_out_var" >/dev/null
+	cat time_step_mod.f90 | grep "do i_out_var" >/dev/null
+	cat time_step_mod.f90 | grep "do j = j_out_var" >/dev/null
+	cat time_step_mod.f90 | grep "do i = i_out_var" >/dev/null
+
+# The dependency to $(EXE) makes it easier to see the actual test
+# in the output lines
+test_run: test $(EXE)
+	OMP_NUM_THREADS=2 $(MAKE) run | grep "Using *2 *threads" > /dev/null
 
 $(EXE): $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
@@ -16,8 +31,8 @@ $(EXE): $(OBJ)
 # ------------------------
 .precious: $(SRC_X90:%.x90=%.f90)
 
-%.f90: %.x90 inline_openmp.py
-	$(PSYCLONE) -s ./inline_openmp.py -o $*.f90 $<
+%.f90: %.x90 tiling_with_openmp.py
+	$(PSYCLONE) -s ./tiling_with_openmp.py -o $*.f90 $<
 
 %.o: %.f90
 	$(F90) -c $(F90FLAGS) $<
