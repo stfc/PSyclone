@@ -992,6 +992,7 @@ class Kern(Statement):
             configuration file) is less than 1.
         :raises GenerationError: for a reduction into a scalar that is
             neither 'real' nor 'integer'.
+        :raises GenerationError: for an unsupported type of reduction.
 
         '''
         var_arg = self._reduction_arg

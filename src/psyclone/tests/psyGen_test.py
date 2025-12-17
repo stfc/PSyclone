@@ -1111,6 +1111,13 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     # Have to pretend this arg has a reduction access.
     call._reduction_arg._access = AccessType.MAX
     call.initialise_reduction_variable()
+    # An invalid reduction access.
+    call._reduction_arg._access = AccessType.INC
+    with pytest.raises(GenerationError) as err:
+        call.initialise_reduction_variable()
+    assert ("Kernel 'testkern_three_scalars_code' performs a reduction of "
+            "type 'INC' but this is not supported by Kern.initialise_"
+            "reduction_variable()" in str(err.value))
 
 
 def test_reduction_sum_error(dist_mem):
