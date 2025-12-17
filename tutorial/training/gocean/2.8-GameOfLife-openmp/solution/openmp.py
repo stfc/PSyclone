@@ -43,6 +43,8 @@ from psyclone.gocean1p0 import GOKern, GOLoop
 from psyclone.transformations import OMPParallelLoopTrans
 from psyclone.psyGen import InvokeSchedule
 
+from fuse_loops import trans as fuse_trans  # noqa: F401
+
 
 def trans(psyir):
     '''
@@ -63,8 +65,11 @@ def trans(psyir):
     for kern in schedule.walk(GOKern):
         inline.apply(kern)
 
+    # Optional:
+    fuse_trans(psyir)
+
     for loop in schedule.walk(GOLoop):
         if loop.loop_type == "outer":
             omp_parallel.apply(loop)
 
-    print(schedule.view())
+    # print(schedule.view())

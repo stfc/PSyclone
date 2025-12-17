@@ -78,4 +78,4 @@ def trans(psyir):
     # Fuse the three inner loops:
     fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
     fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
-    print(schedule.view())
+    # print(schedule.view())

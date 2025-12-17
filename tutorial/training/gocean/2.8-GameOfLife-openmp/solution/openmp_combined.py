@@ -42,8 +42,7 @@ from psyclone.gocean1p0 import GOKern, GOLoop
 from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 
-# pylint: disable=unused-import
-from fuse_loops import trans as fuse_trans  # noqa: F401
+from fuse_loops_last import trans as fuse_trans  # noqa: F401
 
 
 def trans(psyir):
@@ -69,7 +68,7 @@ def trans(psyir):
         inline.apply(kern)
 
     # Optional:
-    # fuse_trans(psy)
+    fuse_trans(psyir)
 
     # Both ways work - either specify the default in
     # the constructor, or change the schedule here:
@@ -81,4 +80,4 @@ def trans(psyir):
     # Now add the OMP PARALLEL around all loops:
     omp_parallel.apply(schedule)
 
-    print(schedule.view())
+    # print(schedule.view())
