@@ -9,6 +9,8 @@ SRC_F90 = gol.f90 read_config_mod.f90 output_field_mod.f90
 
 OBJ = $(SRC_F90:%.f90=%.o) $(SRC_X90:%.x90=%.o)
 
+# Default target: run all transformations
+transform: $(SRC_X90:%.x90=%.f90)
 
 $(EXE): $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)

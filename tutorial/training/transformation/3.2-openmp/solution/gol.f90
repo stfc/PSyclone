@@ -2,6 +2,7 @@ program GameOfLife
 
     use read_config_mod, only: read_config
     use time_step_mod, only  : time_step
+!$ use omp_lib, only: omp_get_max_threads
 
     implicit none
 
@@ -13,6 +14,8 @@ program GameOfLife
         print *, "Usage: gol config_file"
         stop
     endif
+
+!$ print *,"Using", omp_get_max_threads(), "threads"
 
     ! Read in the initial condition into the field 'current',
     ! and initialise dl_esm_inf.
