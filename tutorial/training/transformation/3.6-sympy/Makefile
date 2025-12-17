@@ -1,3 +1,4 @@
+transform: test
 
 test:
 	./handle_fortran.py
@@ -5,8 +6,5 @@ test:
 	./sympy_test.py
 	./dataflow.py
 
-compile:
-	# Nothing to compile here
-
-clean:
+allclean clean:
 	# Nothing to clean here
