@@ -19,9 +19,9 @@ test: transform
 	cat time_step_mod.f90 | grep "do j = j_out_var" >/dev/null
 	cat time_step_mod.f90 | grep "do i = i_out_var" >/dev/null
 
-# The dependency to $(EXE) makes it easier to see the actual test
-# in the output lines
-test_run: test $(EXE)
+# Run all tests first, and the default (checking output KGO),
+# then ensure we did indeed compile with threads:
+test_run: test test_run-default
 	OMP_NUM_THREADS=2 $(MAKE) run | grep "Using *2 *threads" > /dev/null
 
 $(EXE): $(OBJ)

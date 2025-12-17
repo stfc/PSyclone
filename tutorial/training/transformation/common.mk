@@ -1,5 +1,5 @@
 F90 ?= gfortran
-F90FLAGS ?= -Wall -g -O0
+F90FLAGS ?= -Wall -g -O0 -fopenmp
 
 # MAKEFILE_LIST is a Gnu-make variable that contains all of the
 # arguments passed to the first invocation of Make. The last entry
@@ -13,7 +13,7 @@ GOL_DIR = $(ROOT_DIR)/tutorial/training/gocean/gol-lib
 
 PSYCLONE = psyclone --config $(ROOT_DIR)/config/psyclone.cfg -l output $(DM)
 
-default: $(EXE)
+default: transform
 
 .precious: time_step_alg_mod.f90 time_step_alg_mod_psy.f90
 
@@ -32,7 +32,9 @@ compile-default: $(EXE)
 run-default: $(EXE)
 	./$(EXE) $(GOL_DIR)/config.glider
 
-test-default: $(EXE)
+test-default: transform
+
+test_run-default: $(EXE)
 	make --no-print-directory  run | tail -n 12 | diff -b - $(GOL_DIR)/glider.correct
 
 clean-default:
