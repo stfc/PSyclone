@@ -38,7 +38,9 @@
 
 from psyclone.domain.lfric.lfric_global_reductions import LFRicGlobalMax
 from psyclone.psyGen import Kern
-from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface, UnresolvedType
+from psyclone.psyir.symbols import (
+    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
+    UnresolvedType)
 from psyclone.tests.utilities import get_invoke
 
 TEST_API = "lfric"
