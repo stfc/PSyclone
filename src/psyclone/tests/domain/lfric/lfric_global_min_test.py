@@ -71,9 +71,9 @@ def test_lgm_in_invoke():
     assert "use lfric_mpi_mod, only : lfric_mpi_type" in output
     assert "type(lfric_mpi_type) :: mpi" in output
     # TODO correct type/precision
-    assert "real :: glob_min" in output
+    assert "real :: glob_a" in output
     assert "mpi = f1%get_mpi()" in output
     assert '''\
     ! Perform global min
-    call mpi%global_min(a, glob_min)
-    a = glob_min''' in output
+    call mpi%global_min(a, glob_a)
+    a = glob_a''' in output

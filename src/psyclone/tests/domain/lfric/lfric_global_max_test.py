@@ -31,24 +31,49 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''
-This module provides the LFRicGlobalMin class.
+'''Module containing pytest tests for the LFRicGlobalMax class.'''
 
-'''
+from psyclone.domain.lfric.lfric_global_max import LFRicGlobalMax
+from psyclone.psyGen import Kern
+from psyclone.tests.utilities import get_invoke
 
-from psyclone.domain.lfric.lfric_global_reduction import LFRicGlobalReduction
-from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.nodes import (Assignment, Call, Node, Reference,
-                                  StructureReference)
-from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
-    REAL_TYPE, UnresolvedType)
+TEST_API = "lfric"
 
 
-class LFRicGlobalMin(LFRicGlobalReduction):
+def test_lgmax_in_invoke():
     '''
+    Test the construction of an LFRicGlobalMax object.
+
+    This is complicated by the need to supply it with an LFRicKernelArgument
+    and therefore we use a full example to get hold of a suitable argument.
     '''
-    _reduction_name = "min"
-    _method_name = "global_min"
+    psy, invoke = get_invoke("1.9_single_invoke_2_real_scalars.f90",
+                             TEST_API, dist_mem=True,
+                             idx=0)
+    sched = invoke.schedule
+
+    # Find a suitable kernel argument (real scalar).
+    kernel = sched.walk(Kern)[0]
+    for arg in kernel.args:
+        if arg.is_scalar and arg.intrinsic_type == "real":
+            break
+
+    lgm = LFRicGlobalMax(operand=arg)
+    assert isinstance(lgm, LFRicGlobalMax)
+    assert lgm.operand is not arg
+    assert lgm.operand.name == arg.name
+
+    sched.addchild(lgm)
+    output = psy.gen
+    assert "use lfric_mpi_mod, only : lfric_mpi_type" in output
+    assert "type(lfric_mpi_type) :: mpi" in output
+    # TODO correct type/precision
+    assert "real :: glob_a" in output
+    assert "mpi = f1%get_mpi()" in output
+    assert '''\
+    ! Perform global max
+    call mpi%global_max(a, glob_a)
+    a = glob_a''' in output

@@ -1,7 +1,44 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2025, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
+
 '''
+This module provides the LFRicGlobalMax class.
+
 '''
 
-from psyclone.domain.common.psylayer.global_max import GlobalMax
+from psyclone.domain.lfric.lfric_global_reduction import LFRicGlobalReduction
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import (Assignment, Call, Node, Reference,
                                   StructureReference)
@@ -10,52 +47,8 @@ from psyclone.psyir.symbols import (
     REAL_TYPE, UnresolvedType)
 
 
-class LFRicGlobalMax(GlobalMax):
+class LFRicGlobalMax(LFRicGlobalReduction):
     '''
     '''
-    def lower_to_language_level(self) -> Node:
-        '''
-        :returns: this node lowered to language-level PSyIR.
-
-        '''
-        # Get the name strings to use
-        name = self._operand.name
-
-        symtab = self.ancestor(InvokeSchedule).symbol_table
-
-        # We'll need the LFRic mpi_type.
-        mpi_mod = symtab.find_or_create_tag("lfric_mpi_mod",
-                                            symbol_type=ContainerSymbol)
-        mpi_type = symtab.find_or_create_tag(
-            "lfric_mpi_type",
-            symbol_type=DataTypeSymbol,
-            datatype=UnresolvedType(),
-            interface=ImportInterface(mpi_mod))
-        mpi_obj = symtab.new_symbol("mpi", symbol_type=DataSymbol,
-                                    datatype=mpi_type)
-        # Symbol holding the local maximum value.
-        loc_min = symtab.lookup(name)
-
-        # Symbol holding the global maximum value.
-        result = symtab.new_symbol("glob_min", symbol_type=DataSymbol,
-                                   # TODO - get correct type.
-                                   datatype=REAL_TYPE)
-
-        # Obtain a suitable mpi object from one of the field arguments.
-        for sym in symtab.datasymbols:
-            if (isinstance(sym.datatype, DataTypeSymbol) and
-                    sym.datatype.name == "field_type"):
-                break
-        get_mpi = StructureReference.create(sym, ["get_mpi"])
-        self.parent.addchild(Assignment.create(lhs=Reference(mpi_obj),
-                                               rhs=Call.create(get_mpi)),
-                             index=0)
-
-        # Call the method to compute the global min.
-        sref = StructureReference.create(mpi_obj, ["global_max"])
-        call = Call.create(sref, [Reference(loc_min), Reference(result)])
-        call.preceding_comment = "Perform global max"
-        self.parent.addchild(call, self.position)
-        assign = Assignment.create(lhs=Reference(loc_min),
-                                   rhs=Reference(result))
-        return self.replace_with(assign)
+    _reduction_name = "max"
+    _method_name = "global_max"
