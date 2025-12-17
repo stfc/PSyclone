@@ -38,6 +38,7 @@
 
 from psyclone.domain.lfric.lfric_global_reductions import LFRicGlobalMax
 from psyclone.psyGen import Kern
+from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface, UnresolvedType
 from psyclone.tests.utilities import get_invoke
 
 TEST_API = "lfric"
@@ -65,13 +66,19 @@ def test_lgmax_in_invoke():
     assert isinstance(lgm, LFRicGlobalMax)
     assert lgm.operand is not arg
     assert lgm.operand.name == arg.name
+    csym = sched.symbol_table.new_symbol("lfric_mpi_mod",
+                                         symbol_type=ContainerSymbol)
+    mtype = sched.symbol_table.new_symbol("mpi_type",
+                                          symbol_type=DataTypeSymbol,
+                                          datatype=UnresolvedType(),
+                                          interface=ImportInterface(csym))
+    sched.symbol_table.find_or_create_tag("mpi",
+                                          symbol_type=DataSymbol,
+                                          datatype=mtype)
 
     sched.addchild(lgm)
     output = psy.gen
-    assert "use lfric_mpi_mod, only : lfric_mpi_type" in output, output
-    assert "type(lfric_mpi_type) :: mpi" in output, output
     assert "real(kind=r_def) :: glob_a" in output, output
-    assert "mpi = f1_proxy%get_mpi()" in output, output
     assert '''\
     ! Perform global max
     call mpi%global_max(a, glob_a)

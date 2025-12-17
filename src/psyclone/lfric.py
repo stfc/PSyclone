@@ -1419,7 +1419,7 @@ class LFRicProxies(LFRicCollection):
         # field-type proxies
         for (fld_type, fld_mod), args in field_datatype_map.items():
             fld_mod_symbol = table.node.parent.symbol_table.lookup(fld_mod)
-            fld_type_sym = table.node.parent.symbol_table.new_symbol(
+            fld_type_sym = table.node.parent.symbol_table.find_or_create_tag(
                     fld_type,
                     symbol_type=DataTypeSymbol,
                     datatype=UnresolvedType(),
@@ -1483,13 +1483,15 @@ class LFRicProxies(LFRicCollection):
         '''
         Insert code into the PSy layer to initialise all necessary proxies.
 
-        :param cursor: position where to add the next initialisation
+        :param cursor: position at which to add the next initialisation
             statements.
 
         :returns: Updated cursor value.
 
         :raises InternalError: if a kernel argument of an unrecognised type
             is encountered.
+        :raises InternalError: if the invoke contains one or more reductions
+            but no fields.
 
         '''
         init_cursor = cursor
@@ -1588,7 +1590,10 @@ class LFRicProxies(LFRicCollection):
                         sym.datatype.name == "field_proxy_type"):
                     break
             else:
-                raise InternalError("huh")
+                raise InternalError(
+                    f"Invoke '{self._invoke.name}' contains one or more "
+                    f"reductions ({self._invoke.schedule.reductions()}) but "
+                    f"does not access any fields.")
             get_mpi = StructureReference.create(sym, ["get_mpi"])
             mpi_obj = self.symtab.lookup_with_tag("mpi")
             self._invoke.schedule.addchild(
