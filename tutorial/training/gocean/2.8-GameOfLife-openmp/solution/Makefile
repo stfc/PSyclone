@@ -8,19 +8,26 @@ include ../../common.mk
 
 test:
 	SCRIPT=./openmp.py $(MAKE) test-default
+	cat time_step_alg_mod_psy.f90 | grep -iq "omp *parallel *do *default"
 	SCRIPT=./openmp_combined.py  $(MAKE) test-default
+	cat time_step_alg_mod_psy.f90 | grep -iq "omp *parallel *default"
+	cat time_step_alg_mod_psy.f90 | grep -iq "omp *do *schedule"
 	SCRIPT=./task.py  $(MAKE) test-default
-	@# Also verify the fuse loops scripts still work:
-	SCRIPT=./fuse_loops.py $(MAKE) test-default
-	SCRIPT=./fuse_loops_last.py  $(MAKE) test-default
+	cat time_step_alg_mod_psy.f90 | grep -iq "omp *parallel *default"
+	cat time_step_alg_mod_psy.f90 | grep -iq "omp *single"
+	cat time_step_alg_mod_psy.f90 | grep -iq "omp *taskloop"
+	@# The fuse_loop scripts are used in openmp and openmp_combined
 
-test_run:
+test_run: #test
 	$(MAKE) clean
 	SCRIPT=./openmp.py $(MAKE) test_run-default
-	@#TODO 3253
-	# $(MAKE) clean
-	# SCRIPT=./openmp_combined.py $(MAKE) test_run-default
-	@echo openmp_combined does not compile atm due to #3253
-	# $(MAKE) clean
-	# SCRIPT=./task.py  $(MAKE) test_run-default
-	@echo task.py does not compile atm due to #3253
+	@# Make sure it was actually compiled with threading:
+	OMP_NUM_THREADS=2 $(MAKE) run | grep "Using *2 *threads" > /dev/null
+
+	$(MAKE) clean
+	SCRIPT=./openmp_combined.py $(MAKE) test_run-default
+	OMP_NUM_THREADS=2 $(MAKE) run | grep  "Using *2 *threads" > /dev/null
+
+	$(MAKE) clean
+	SCRIPT=./task.py  $(MAKE) test_run-default
+	OMP_NUM_THREADS=2 $(MAKE) run | grep  "Using *2 *threads" > /dev/null
