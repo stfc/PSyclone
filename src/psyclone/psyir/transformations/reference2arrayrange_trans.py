@@ -174,13 +174,13 @@ class Reference2ArrayRangeTrans(Transformation):
             return
         if type(node) is ArrayOfStructuresReference:
             return
-        if not symbol.is_array:
-            return
         if node.parent and isinstance(node.parent, Call):
             if node.position == 0:
                 return
             if not node.parent.is_elemental:
                 return
+        if not symbol.is_array:
+            return
 
         indices = []
         for idx, _ in enumerate(symbol.shape):
