@@ -39,12 +39,6 @@ This module provides the LFRicGlobalMin class.
 '''
 
 from psyclone.domain.lfric.lfric_global_reduction import LFRicGlobalReduction
-from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.nodes import (Assignment, Call, Node, Reference,
-                                  StructureReference)
-from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
-    REAL_TYPE, UnresolvedType)
 
 
 class LFRicGlobalMin(LFRicGlobalReduction):
