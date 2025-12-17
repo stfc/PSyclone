@@ -167,7 +167,7 @@ def test_check_datatype():
     with pytest.raises(ValueError) as info:
         FieldArgMetadata.check_datatype("invalid")
     assert ("The 'datatype descriptor' metadata should be a recognised value "
-            "(one of ['gh_integer', 'gh_real']) but found 'invalid'."
+            "(one of ['gh_real', 'gh_integer']) but found 'invalid'."
             in str(info.value))
 
 
@@ -176,9 +176,10 @@ def test_check_access():
     FieldArgMetadata.check_access("GH_READ")
     with pytest.raises(ValueError) as info:
         FieldArgMetadata.check_access("invalid")
-    assert ("The 'access descriptor' metadata should be a recognised value "
-            "(one of ['gh_inc', 'gh_read', 'gh_readinc', 'gh_readwrite', "
-            "'gh_write']) but found 'invalid'." in str(info.value))
+    const = LFRicConstants()
+    assert (f"The 'access descriptor' metadata should be a recognised value "
+            f"(one of {const.VALID_FIELD_ACCESS_TYPES}) but found 'invalid'."
+            in str(info.value))
 
 
 def test_function_space_setter_getter():
@@ -191,7 +192,7 @@ def test_function_space_setter_getter():
         field_arg.function_space = "invalid"
     const = LFRicConstants()
     assert (f"The 'function space' metadata should be a recognised value (one "
-            f"of {sorted(const.VALID_FUNCTION_SPACE_NAMES)}) but found "
+            f"of {const.VALID_FUNCTION_SPACE_NAMES}) but found "
             f"'invalid'." in str(info.value))
     field_arg.function_space = "w3"
     assert field_arg.function_space == "w3"
@@ -208,9 +209,10 @@ def test_stencil_getter_setter():
     field_arg = FieldArgMetadata("GH_REAL", "GH_READ", "W0")
     with pytest.raises(ValueError) as info:
         field_arg.stencil = "invalid"
-    assert ("The 'stencil' metadata should be a recognised value (one of "
-            "['cross', 'cross2d', 'region', 'x1d', 'xory1d', 'y1d']) but "
-            "found 'invalid'." in str(info.value))
+    const = LFRicConstants()
+    assert (f"The 'stencil' metadata should be a recognised value (one of "
+            f"{const.VALID_STENCIL_TYPES}) but "
+            f"found 'invalid'." in str(info.value))
     field_arg.stencil = "x1d"
     assert field_arg.stencil == "x1d"
     field_arg.stencil = "X1D"

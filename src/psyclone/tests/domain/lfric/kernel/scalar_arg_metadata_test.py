@@ -40,6 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import ScalarArgMetadata
 
 
@@ -129,6 +130,7 @@ def test_check_access():
     ScalarArgMetadata.check_access("gh_sum")
     with pytest.raises(ValueError) as info:
         ScalarArgMetadata.check_access("invalid")
-    assert ("The 'access descriptor' metadata should be a recognised value "
-            "(one of ['gh_max', 'gh_min', 'gh_read', 'gh_sum']) but found "
-            "'invalid'." in str(info.value))
+    const = LFRicConstants()
+    assert (f"The 'access descriptor' metadata should be a recognised value "
+            f"(one of {const.VALID_SCALAR_ACCESS_TYPES}) but found "
+            f"'invalid'." in str(info.value))

@@ -148,5 +148,5 @@ def test_setter_errors():
         metadata.evaluator_targets = ["invalid"]
     const = LFRicConstants()
     assert (f"The 'evaluator_targets' metadata should be a recognised value "
-            f"(one of {sorted(const.VALID_FUNCTION_SPACES)}) but found "
+            f"(one of {const.VALID_FUNCTION_SPACES}) but found "
             f"'invalid'." in str(info.value))

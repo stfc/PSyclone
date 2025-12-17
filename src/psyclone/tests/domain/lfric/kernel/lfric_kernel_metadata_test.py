@@ -41,6 +41,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
     ColumnwiseOperatorArgMetadata, EvaluatorTargetsMetadata, FieldArgMetadata,
     FieldVectorArgMetadata, InterGridArgMetadata, InterGridVectorArgMetadata,
@@ -115,8 +116,9 @@ def test_init_args_error():
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata(operates_on="invalid")
     assert ("The 'OPERATES_ON' metadata should be a recognised value "
-            "(one of ['cell_column', 'dof', 'domain', 'halo_cell_column', "
-            "'owned_and_halo_cell_column', 'owned_cell_column', 'owned_dof']) "
+            "(one of ['domain', 'dof', 'owned_dof', 'cell_column', "
+            "'owned_cell_column', 'halo_cell_column', "
+            "'owned_and_halo_cell_column']) "
             "but found 'invalid'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
@@ -781,9 +783,10 @@ def test_validate_cma_matrix_kernel():
     # check that a scalar must be read only.
     with pytest.raises(ValueError) as info:
         ScalarArgMetadata("gh_real", "gh_write")
-    assert ("The 'access descriptor' metadata should be a recognised value "
-            "(one of ['gh_max', 'gh_min', 'gh_read', 'gh_sum']) but found "
-            "'gh_write'." in str(info.value))
+    const = LFRicConstants()
+    assert (f"The 'access descriptor' metadata should be a recognised value "
+            f"(one of {const.VALID_SCALAR_ACCESS_TYPES}) but found 'gh_write'."
+            in str(info.value))
 
     # OK.
     meta_args = [
@@ -1297,8 +1300,9 @@ def test_setter_getter_operates_on():
     with pytest.raises(ValueError) as info:
         metadata.operates_on = "invalid"
     assert ("The 'OPERATES_ON' metadata should be a recognised value "
-            "(one of ['cell_column', 'dof', 'domain', 'halo_cell_column', "
-            "'owned_and_halo_cell_column', 'owned_cell_column', 'owned_dof']) "
+            "(one of ['domain', 'dof', 'owned_dof', 'cell_column', "
+            "'owned_cell_column', 'halo_cell_column', "
+            "'owned_and_halo_cell_column']) "
             "but found 'invalid'." in str(info.value))
     metadata.operates_on = "DOMAIN"
     assert metadata.operates_on == "domain"

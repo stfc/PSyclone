@@ -95,7 +95,7 @@ class CommonMetadata(ABC):
         if value.lower() not in valid_values:
             raise ValueError(
                 f"The '{name}' metadata should be a recognised "
-                f"value (one of {sorted(valid_values)}) "
+                f"value (one of {valid_values}) "
                 f"but found '{value}'.")
 
     @staticmethod

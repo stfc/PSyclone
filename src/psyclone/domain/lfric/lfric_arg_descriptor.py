@@ -628,7 +628,7 @@ class LFRicArgDescriptor(Descriptor):
         rev_access_mapping = api_config.get_reverse_access_mapping()
         if self._access_type not in scalar_accesses:
             api_specific_name = rev_access_mapping[self._access_type]
-            valid_reductions = sorted(AccessType.get_valid_reduction_names())
+            valid_reductions = AccessType.get_valid_reduction_names()
             raise ParseError(
                 f"In the LFRic API scalar arguments must have read-only "
                 f"('gh_read') or a reduction {valid_reductions} access but "
