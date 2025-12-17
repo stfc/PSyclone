@@ -36,7 +36,7 @@
 
 '''Module containing pytest tests for the LFRicGlobalMax class.'''
 
-from psyclone.domain.lfric.lfric_global_max import LFRicGlobalMax
+from psyclone.domain.lfric.lfric_global_reductions import LFRicGlobalMax
 from psyclone.psyGen import Kern
 from psyclone.tests.utilities import get_invoke
 

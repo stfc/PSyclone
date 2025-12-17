@@ -93,9 +93,8 @@ class LFRicInvoke(Invoke):
             LFRicCellIterators, LFRicHaloDepths, LFRicLoopBounds,
             LFRicRunTimeChecks, LFRicScalarArgs, LFRicFields, LFRicDofmaps,
             LFRicStencils)
-        from psyclone.domain.lfric.lfric_global_sum import LFRicGlobalSum
-        from psyclone.domain.lfric.lfric_global_min import LFRicGlobalMin
-        from psyclone.domain.lfric.lfric_global_max import LFRicGlobalMax
+        from psyclone.domain.lfric.lfric_global_reductions import (
+            LFRicGlobalSum, LFRicGlobalMin, LFRicGlobalMax)
 
         self.scalar_args = LFRicScalarArgs(self)
 

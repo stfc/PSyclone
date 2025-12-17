@@ -36,7 +36,7 @@
 
 '''Module containing pytest tests for the LFRicGlobalMin class.'''
 
-from psyclone.domain.lfric.lfric_global_min import LFRicGlobalMin
+from psyclone.domain.lfric.lfric_global_reductions import LFRicGlobalMin
 from psyclone.psyGen import Kern
 from psyclone.tests.utilities import get_invoke
 
