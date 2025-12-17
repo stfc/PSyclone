@@ -70,9 +70,8 @@ def test_lgm_in_invoke():
     output = psy.gen
     assert "use lfric_mpi_mod, only : lfric_mpi_type" in output
     assert "type(lfric_mpi_type) :: mpi" in output
-    # TODO correct type/precision
-    assert "real :: glob_a" in output
-    assert "mpi = f1%get_mpi()" in output
+    assert "real(kind=r_def) :: glob_a" in output
+    assert "mpi = f1_proxy%get_mpi()" in output
     assert '''\
     ! Perform global min
     call mpi%global_min(a, glob_a)

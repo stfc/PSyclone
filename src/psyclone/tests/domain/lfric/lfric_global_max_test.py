@@ -68,12 +68,14 @@ def test_lgmax_in_invoke():
 
     sched.addchild(lgm)
     output = psy.gen
-    assert "use lfric_mpi_mod, only : lfric_mpi_type" in output
-    assert "type(lfric_mpi_type) :: mpi" in output
-    # TODO correct type/precision
-    assert "real :: glob_a" in output
-    assert "mpi = f1%get_mpi()" in output
+    assert "use lfric_mpi_mod, only : lfric_mpi_type" in output, output
+    assert "type(lfric_mpi_type) :: mpi" in output, output
+    assert "real(kind=r_def) :: glob_a" in output, output
+    assert "mpi = f1_proxy%get_mpi()" in output, output
     assert '''\
     ! Perform global max
     call mpi%global_max(a, glob_a)
-    a = glob_a''' in output
+    a = glob_a''' in output, output
+
+    # Can't compile this because we're assigning to a read-only scalar
+    # argument.

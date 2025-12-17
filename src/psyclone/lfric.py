@@ -1313,6 +1313,21 @@ class LFRicProxies(LFRicCollection):
                 rank = 1 if arg not in op_args else 3
                 self._add_symbol(new_name, tag, intrinsic_type, arg, rank)
 
+        if self._invoke.schedule.reductions():
+            # We have one or more reductions so we need to obtain the MPI
+            # object from one of the field arguments.
+            # We'll need the LFRic mpi_type.
+            mpi_mod = self.symtab.find_or_create_tag(
+                "lfric_mpi_mod", symbol_type=ContainerSymbol)
+            mpi_type = self.symtab.find_or_create_tag(
+                "lfric_mpi_type",
+                symbol_type=DataTypeSymbol,
+                datatype=UnresolvedType(),
+                interface=ImportInterface(mpi_mod))
+            self.symtab.find_or_create_tag("mpi",
+                                           symbol_type=DataSymbol,
+                                           datatype=mpi_type)
+
     def _add_symbol(self, name, tag, intrinsic_type, arg, rank):
         '''
         Creates a new DataSymbol representing either an LFRic field or
@@ -1564,6 +1579,23 @@ class LFRicProxies(LFRicCollection):
             if cursor > init_cursor:
                 self._invoke.schedule[init_cursor].preceding_comment = (
                     "Initialise field and/or operator proxies")
+
+        if self._invoke.schedule.reductions():
+            # Now that we've initialised the field proxies, we can get the
+            # MPI object.
+            for sym in self.symtab.datasymbols:
+                if (isinstance(sym.datatype, DataTypeSymbol) and
+                        sym.datatype.name == "field_proxy_type"):
+                    break
+            else:
+                raise InternalError("huh")
+            get_mpi = StructureReference.create(sym, ["get_mpi"])
+            mpi_obj = self.symtab.lookup_with_tag("mpi")
+            self._invoke.schedule.addchild(
+                Assignment.create(lhs=Reference(mpi_obj),
+                                  rhs=Call.create(get_mpi)),
+                index=cursor)
+            cursor += 1
 
         return cursor
 
