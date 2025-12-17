@@ -1,3 +1,45 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified by I. Kavcic and L. Turner, Met Office
+# Modified by C.M. Maynard, Met Office / University of Reading
+# Modified by J. Henrichs, Bureau of Meteorology
+# -----------------------------------------------------------------------------
+
+''' This module provides implementations of the various global reduction
+    nodes supported in the LFRic DSL. '''
+
 from psyclone.domain.common.psylayer.global_reduction import GlobalReduction
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import (Assignment, Call, Node, Reference,
@@ -9,6 +51,8 @@ from psyclone.psyir.symbols import (
 
 class LFRicGlobalReduction(GlobalReduction):
     '''
+    LFRic-specific base class for all global-reduction operations.
+
     '''
     _reduction_name = ""
     _method_name = ""
@@ -63,6 +107,8 @@ class LFRicGlobalReduction(GlobalReduction):
 
 class LFRicGlobalMax(LFRicGlobalReduction):
     '''
+    Represents the operation to find the global maximum value of a scalar.
+
     '''
     _reduction_name = "max"
     _method_name = "global_max"
@@ -71,6 +117,8 @@ class LFRicGlobalMax(LFRicGlobalReduction):
 
 class LFRicGlobalMin(LFRicGlobalReduction):
     '''
+    Represents the operation to find the global minimum value of a scalar.
+
     '''
     _reduction_name = "min"
     _method_name = "global_min"
@@ -82,6 +130,8 @@ class LFRicGlobalSum(LFRicGlobalReduction):
     Represents a global sum in the LFRic DSL.
 
     '''
+    _text_name = "GlobalSum"
+
     def lower_to_language_level(self) -> Node:
         '''
         :returns: this node lowered to language-level PSyIR.
