@@ -207,7 +207,7 @@ xstop, ystart, ystop)
   ystop_1 = SIZE(uold_fld%data, dim=2)
   do j = 1, SIZE(uold_fld%data, dim=2), 1
     do i = 1, SIZE(uold_fld%data, dim=1), 1
-      call time_smooth_code(i, j, u_fld%data, unew_fld%data, uold_fld%data, \
+      call time_smooth_code(i, j, cu_fld%data, unew_fld%data, uold_fld%data, \
 xstart_1, xstop_1, ystart_1, ystop_1)
     enddo
   enddo
