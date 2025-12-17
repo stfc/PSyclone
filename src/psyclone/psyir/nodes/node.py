@@ -64,7 +64,7 @@ try:
 except ImportError:
     # We don't have the termcolor package available (e.g. installing from)
     # Spack) so provide alternative routine
-    def colored(text, _):  # pragma: no-cover
+    def colored(text, _):
         '''
         Returns the supplied text argument unchanged. This is a swap-in
         replacement for when termcolor.colored is not available.
