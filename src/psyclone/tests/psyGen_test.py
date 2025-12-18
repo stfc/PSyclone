@@ -2023,57 +2023,6 @@ def test_find_w_args_hes_vec_no_dep(monkeypatch, annexed):
     assert node_list == []
 
 
-def test_check_vect_hes_differ_wrong_argtype():
-    '''when the check_vector_halos_differ method is called from a halo
-    exchange object the argument being passed should be a halo
-    exchange. If this is not the case an exception should be
-    raised. This test checks that this exception is working correctly.
-    '''
-
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    halo_exchange = schedule.children[0]
-    with pytest.raises(GenerationError) as excinfo:
-        # pass an incorrect object to the method
-        halo_exchange.check_vector_halos_differ(psy)
-    assert (
-        "the argument passed to HaloExchange.check_vector_halos_differ() "
-        "is not a halo exchange object" in str(excinfo.value))
-
-
-def test_check_vec_hes_differ_diff_names():
-    ''' When the check_vector_halos_differ method is called from a halo
-    exchange object the argument being passed should be a halo
-    exchange with an argument having the same name as the local halo
-    exchange argument name. If this is not the case an exception
-    should be raised. This test checks that this exception is working
-    correctly.
-
-    '''
-
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    halo_exchange = schedule.children[0]
-    # Obtain another halo exchange object which has an argument with a
-    # different name
-    different_halo_exchange = schedule.children[1]
-    with pytest.raises(GenerationError) as excinfo:
-        # Pass halo exchange with different name to the method
-        halo_exchange.check_vector_halos_differ(different_halo_exchange)
-    assert (
-        "the halo exchange object passed to "
-        "HaloExchange.check_vector_halos_differ() has a "
-        "different field name 'f2' to self 'f1'" in str(excinfo.value))
-
-
 def test_find_w_args_multiple_deps_error(monkeypatch, annexed, tmpdir):
     ''' When _find_write_arguments finds a write that causes it to return
     there should not be any previous dependencies. This test checks

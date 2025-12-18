@@ -833,65 +833,6 @@ class HaloExchange(Statement):
         base method and simply return our argument. '''
         return [self._field]
 
-    def check_vector_halos_differ(self, node):  # pragma: no-cover
-        '''Helper method which checks that two halo exchange nodes (one being
-        self and the other being passed by argument) operating on the
-        same field, both have vector fields of the same size and use
-        different vector indices. If this is the case then the halo
-        exchange nodes do not depend on each other. If this is not the
-        case then an internal error will have occured and we raise an
-        appropriate exception.
-
-        :param node: a halo exchange which should exchange the same field as \
-                     self.
-        :type node: :py:class:`psyclone.psyGen.HaloExchange`
-        :raises GenerationError: if the argument passed is not a halo exchange.
-        :raises GenerationError: if the field name in the halo exchange \
-                                 passed in has a different name to the field \
-                                 in this halo exchange.
-        :raises GenerationError: if the field in this halo exchange is not a \
-                                 vector field
-        :raises GenerationError: if the vector size of the field in this halo \
-                                 exchange is different to vector size of the \
-                                 field in the halo exchange passed by argument.
-        :raises GenerationError: if the vector index of the field in this \
-                                 halo exchange is the same as the vector \
-                                 index of the field in the halo exchange \
-                                 passed by argument.
-
-        '''
-
-        if not isinstance(node, HaloExchange):
-            raise GenerationError(
-                "Internal error, the argument passed to "
-                "HaloExchange.check_vector_halos_differ() is not "
-                "a halo exchange object")
-
-        if self.field.name != node.field.name:
-            raise GenerationError(
-                f"Internal error, the halo exchange object passed to "
-                f"HaloExchange.check_vector_halos_differ() has a different "
-                f"field name '{node.field.name}' to self '{self.field.name}'")
-
-        if self.field.vector_size <= 1:
-            raise GenerationError(
-                "Internal error, HaloExchange.check_vector_halos_differ() "
-                "a halo exchange depends on another halo exchange but the "
-                f"vector size of field '{self.field.name}' is 1")
-
-        if self.field.vector_size != node.field.vector_size:
-            raise GenerationError(
-                f"Internal error, HaloExchange.check_vector_halos_differ() "
-                f"a halo exchange depends on another halo exchange but the "
-                f"vector sizes for field '{self.field.name}' differ")
-
-        if self.vector_index == node.vector_index:
-            raise GenerationError(
-                f"Internal error, HaloExchange.check_vector_halos_differ() "
-                f"a halo exchange depends on another halo exchange but both "
-                f"vector id's ('{self.vector_index}') of field "
-                f"'{self.field.name}' are the same")
-
     def node_str(self, colour=True):
         '''
         Returns the name of this node with (optional) control codes

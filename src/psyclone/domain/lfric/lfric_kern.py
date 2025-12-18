@@ -976,7 +976,7 @@ class LFRicKern(CodedKern):
             # This is used to identify the correct kernel subroutine for a
             # mixed-precision kernel.
             alg_precision = api_config.precision_map[alg_arg.precision]
-            if alg_precision != actual_precision:  # pragma: no-cover
+            if alg_precision != actual_precision:
                 raise GenerationError(
                     f"Precision ({alg_precision} bytes) of algorithm-layer "
                     f"argument '{alg_arg.name}' does not match that "
