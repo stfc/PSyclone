@@ -77,9 +77,9 @@ BASE_PATH = os.path.join(
 API = "lfric"
 
 
-def builtin_from_file(filename):
+def builtin_from_file(filename: str):
     '''
-    :param str filename: the name of the file to check for the builtin.
+    :param filename: the name of the file to check for the builtin.
     :returns: the first builtin in the first invoke.
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, filename), api=API)
@@ -1973,6 +1973,45 @@ def test_int_to_real_x_precision(tmpdir, kind_name):
 
     # Test compilation of generated code
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_minmaxval_x(fortran_writer):
+    '''
+    Tests for the minval_x and maxval_x builtins.
+    '''
+    metadata = lfric_builtins.LFRicMinvalXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_min"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    metadata = lfric_builtins.LFRicMaxvalXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_max"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+
+    _, invoke = get_invoke("15.10.9_min_max_X_builtin.f90", api=API, idx=0,
+                           dist_mem=False)
+    kerns = invoke.schedule.kernels()
+    assert str(kerns[0]) == ("Built-in: minval_X (compute the global minimum "
+                             "value contained in a field)")
+    code = fortran_writer(kerns[0])
+    assert "amin = MIN(amin, f1_data(df))" in code, code
+
+    assert str(kerns[1]) == ("Built-in: maxval_X (compute the global maximum "
+                             "value contained in a field)")
+    code = fortran_writer(kerns[1])
+    assert "amax = MAX(amax, f1_data(df))" in code, code
+
+    # Currently psy-layer generation with DM enabled won't work because we only
+    # have support for global sums. TODO #2381.
+    with pytest.raises(GenerationError) as err:
+        _ = get_invoke("15.10.9_min_max_X_builtin.f90", api=API, idx=0,
+                       dist_mem=True)
+    assert ("TODO #2381 - currently only global *sum* reductions are supported"
+            in str(err.value))
 
 
 def test_real_to_int_x(fortran_writer):

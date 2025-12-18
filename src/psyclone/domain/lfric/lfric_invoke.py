@@ -65,7 +65,8 @@ class LFRicInvoke(Invoke):
 
     :raises GenerationError: if integer reductions are required in the
                     PSy-layer.
-
+    :raises GenerationError: if a global reduction operation other than sum
+                             is required - TODO #2381.
     '''
     # pylint: disable=too-many-instance-attributes
     # pylint: disable=too-many-locals
@@ -185,6 +186,10 @@ class LFRicInvoke(Invoke):
                         arg_types=const.VALID_SCALAR_NAMES,
                         arg_accesses=AccessType.get_valid_reduction_modes(),
                         unique=True):
+                    if scalar.access != AccessType.SUM:
+                        raise GenerationError(
+                            "TODO #2381 - currently only global *sum* "
+                            "reductions are supported.")
                     global_sum = LFRicGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
