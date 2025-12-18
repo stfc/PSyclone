@@ -2807,7 +2807,7 @@ class LFRicMaxvalXKern(LFRicBuiltIn):
             FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
 
     def __str__(self):
-        return (f"Built-in: {self._case_name} (compute the global maximimum "
+        return (f"Built-in: {self._case_name} (compute the global maximum "
                 f"value contained in a field)")
 
     def lower_to_language_level(self) -> Node:
@@ -2823,8 +2823,8 @@ class LFRicMaxvalXKern(LFRicBuiltIn):
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar reduction argument.
         lhs = self._reduction_reference()
-        minval = IntrinsicCall(IntrinsicCall.Intrinsic.MAXVAL,
-                               [arg_refs[0]])
+        minval = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                      [lhs.copy(), arg_refs[0]])
         return self._replace_with_assignment(lhs, minval)
 
 

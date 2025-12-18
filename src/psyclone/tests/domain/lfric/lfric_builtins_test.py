@@ -1975,8 +1975,9 @@ def test_int_to_real_x_precision(tmpdir, kind_name):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_min_max_x(fortran_writer):
+def test_minmaxval_x(fortran_writer):
     '''
+    Tests for the minval_x and maxval_x builtins.
     '''
     metadata = lfric_builtins.LFRicMinMaxXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
@@ -2000,12 +2001,16 @@ def test_min_max_x(fortran_writer):
 
     _, invoke = get_invoke("15.10.9_min_max_X_builtin.f90", api=API, idx=0,
                            dist_mem=False)
-    kern = invoke.schedule.kernels()[0]
-    assert str(kern) == ("Built-in: minval_X (compute the global minimum "
-                         "value contained in a field)")
-
-    code = fortran_writer(kern)
+    kerns = invoke.schedule.kernels()
+    assert str(kerns[0]) == ("Built-in: minval_X (compute the global minimum "
+                             "value contained in a field)")
+    code = fortran_writer(kerns[0])
     assert "amin = MIN(amin, f1_data(df))" in code, code
+
+    assert str(kerns[1]) == ("Built-in: maxval_X (compute the global maximum "
+                             "value contained in a field)")
+    code = fortran_writer(kerns[1])
+    assert "amax = MAX(amax, f1_data(df))" in code, code
 
 
 def test_real_to_int_x(fortran_writer):
