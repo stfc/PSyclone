@@ -124,6 +124,12 @@ def test_routine_name_setter():
     node.name = "ave"
     assert node.name == "ave"
 
+    # Repeat with no parent or self symbol table
+    node.detach()
+    node._symbol_table = None
+    node.name = "different"
+    assert node.name == "different"
+
 
 def test_routine_return_symbol_setter():
     ''' Check that the return_symbol setter works correctly and rejects invalid
