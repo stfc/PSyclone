@@ -84,17 +84,16 @@ class LFRicInvoke(Invoke):
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.lfric import (LFRicFunctionSpaces, LFRicLMAOperators,
+        from psyclone.lfric import (LFRicFunctionSpaces, LFRicGlobalSum,
+                                    LFRicLMAOperators,
                                     LFRicReferenceElement,
                                     LFRicCMAOperators, LFRicBasisFunctions,
                                     LFRicMeshes, LFRicBoundaryConditions,
                                     LFRicProxies, LFRicMeshProperties)
         from psyclone.domain.lfric import (
             LFRicCellIterators, LFRicHaloDepths, LFRicLoopBounds,
-            LFRicRunTimeChecks, LFRicScalarArgs, LFRicFields, LFRicDofmaps,
-            LFRicStencils)
-        from psyclone.domain.lfric.lfric_global_reductions import (
-            LFRicGlobalSum, LFRicGlobalMin, LFRicGlobalMax)
+            LFRicRunTimeChecks,
+            LFRicScalarArgs, LFRicFields, LFRicDofmaps, LFRicStencils)
 
         self.scalar_args = LFRicScalarArgs(self)
 
@@ -173,24 +172,20 @@ class LFRicInvoke(Invoke):
         # Lastly, add in halo exchange calls and global sums if
         # required. We only need to add halo exchange calls for fields
         # since operators are assembled in place and scalars don't
-        # have halos. We only need to add global reductions for scalars
-        # which have a 'gh_sum/max/min' access.
-        rmap = {AccessType.SUM: LFRicGlobalSum,
-                AccessType.MAX: LFRicGlobalMax,
-                AccessType.MIN: LFRicGlobalMin}
+        # have halos. We only need to add global sum calls for scalars
+        # which have a 'gh_sum' access.
         if Config.get().distributed_memory:
             # halo exchange calls
             const = LFRicConstants()
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
-            # global reduction calls
+            # global sum calls
             for loop in self.schedule.loops():
                 for scalar in loop.args_filter(
                         arg_types=const.VALID_SCALAR_NAMES,
                         arg_accesses=AccessType.get_valid_reduction_modes(),
                         unique=True):
-                    global_sum = rmap[scalar.access](
-                        scalar, parent=loop.parent)
+                    global_sum = LFRicGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
         # Add the halo depth(s) for any kernel(s) that operate in the halos

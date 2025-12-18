@@ -62,7 +62,7 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (lfric_builtins, LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.lfric import LFRicKernelArguments
+from psyclone.lfric import LFRicGlobalSum, LFRicKernelArguments
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
@@ -70,7 +70,7 @@ from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.psyGen import (TransInfo, PSyFactory,
                              InlinedKern, object_index, HaloExchange, Invoke,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
-                             InvokeSchedule)
+                             GlobalSum, InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
                                   colored, Schedule)
@@ -1005,6 +1005,48 @@ def test_haloexchange_unknown_halo_depth():
     assert halo_exchange._halo_depth is None
 
 
+def test_globalsum_node_str():
+    '''test the node_str method in the GlobalSum class. The simplest way
+    to do this is to use an LFRic builtin example which contains a
+    scalar and then call node_str() on that.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
+    gsum = None
+    for child in psy.invokes.invoke_list[0].schedule.children:
+        if isinstance(child, LFRicGlobalSum):
+            gsum = child
+            break
+    assert gsum
+    output = gsum.node_str()
+    expected_output = (colored("GlobalSum", GlobalSum._colour) +
+                       "[scalar='asum']")
+    assert expected_output in output
+
+
+def test_globalsum_children_validation():
+    '''Test that children added to GlobalSum are validated. A GlobalSum node
+    does not accept any children.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
+    gsum = None
+    for child in psy.invokes.invoke_list[0].schedule.children:
+        if isinstance(child, LFRicGlobalSum):
+            gsum = child
+            break
+    with pytest.raises(GenerationError) as excinfo:
+        gsum.addchild(Literal("2", INTEGER_TYPE))
+    assert ("Item 'Literal' can't be child 0 of 'GlobalSum'. GlobalSum is a"
+            " LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
 def test_args_filter():
     '''the args_filter() method is in both Loop() and Arguments() classes
     with the former method calling the latter. This example tests the
@@ -1103,21 +1145,10 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     # REALs and INTEGERs are fine
     assert call.arguments.args[0].intrinsic_type == 'real'
     call._reduction_arg = call.arguments.args[0]
-    # Have to pretend this arg has a reduction access.
-    call._reduction_arg._access = AccessType.MIN
     call.initialise_reduction_variable()
     assert call.arguments.args[6].intrinsic_type == 'integer'
     call._reduction_arg = call.arguments.args[6]
-    # Have to pretend this arg has a reduction access.
-    call._reduction_arg._access = AccessType.MAX
     call.initialise_reduction_variable()
-    # An invalid reduction access.
-    call._reduction_arg._access = AccessType.INC
-    with pytest.raises(GenerationError) as err:
-        call.initialise_reduction_variable()
-    assert ("Kernel 'testkern_three_scalars_code' performs a reduction of "
-            "type 'INC' but this is not supported by Kern.initialise_"
-            "reduction_variable()" in str(err.value))
 
 
 def test_reduction_sum_error(dist_mem):
@@ -1365,7 +1396,7 @@ def test_argument_find_argument():
     schedule = invoke.schedule
     # a) globalsum arg depends on kern arg
     kern_asum_arg = schedule.children[3].loop_body[0].arguments.args[1]
-    glob_sum_arg = schedule.children[2].operand
+    glob_sum_arg = schedule.children[2].scalar
     result = kern_asum_arg._find_argument(schedule.children)
     assert result == glob_sum_arg
     # b) kern arg depends on globalsum arg
@@ -1405,6 +1436,21 @@ def test_argument_find_read_arguments():
     for idx in range(3):
         loop = schedule.children[idx]
         assert result[idx] == loop.loop_body[0].arguments.args[3]
+
+
+def test_globalsum_arg():
+    ''' Check that the globalsum argument is defined as gh_readwrite and
+    points to the GlobalSum node '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    glob_sum = schedule.children[2]
+    glob_sum_arg = glob_sum.scalar
+    assert glob_sum_arg.access == AccessType.READWRITE
+    assert glob_sum_arg.call == glob_sum
 
 
 def test_haloexchange_arg():
@@ -1504,7 +1550,7 @@ def test_argument_forward_dependence(monkeypatch, annexed):
     schedule = invoke.schedule
     prev_arg = schedule.children[0].loop_body[0].arguments.args[1]
     sum_arg = schedule.children[1].loop_body[0].arguments.args[0]
-    global_sum_arg = schedule.children[2].operand
+    global_sum_arg = schedule.children[2].scalar
     next_arg = schedule.children[3].loop_body[0].arguments.args[1]
     # a) prev kern arg depends on sum
     result = prev_arg.forward_dependence()
@@ -1571,7 +1617,7 @@ def test_argument_backward_dependence(monkeypatch, annexed):
     schedule = invoke.schedule
     prev_arg = schedule.children[0].loop_body[0].arguments.args[1]
     sum_arg = schedule.children[1].loop_body[0].arguments.args[0]
-    global_sum_arg = schedule.children[2].operand
+    global_sum_arg = schedule.children[2].scalar
     next_arg = schedule.children[3].loop_body[0].arguments.args[1]
     # a) next kern arg depends on global sum arg
     result = next_arg.backward_dependence()
@@ -1660,6 +1706,20 @@ def test_haloexchange_args():
     for haloexchange in schedule.children[:2]:
         assert len(haloexchange.args) == 1
         assert haloexchange.args[0] == haloexchange.field
+
+
+def test_globalsum_args():
+    '''Test that the globalsum class args method returns the appropriate
+    argument '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    global_sum = schedule.children[2]
+    assert len(global_sum.args) == 1
+    assert global_sum.args[0] == global_sum.scalar
 
 
 def test_call_forward_dependence():

@@ -717,9 +717,9 @@ PSyclone supports parallel scalar reductions.  If a scalar reduction is
 specified in the Kernel metadata (see the API-specific sections for
 details) then PSyclone ensures the appropriate reduction is performed.
 
-In the case of distributed memory, PSyclone will add **GlobalReduction's**
-at the appropriate locations. Currently, only
-"summation" reductions are supported for distributed memory (TODO #2381).
+In the case of distributed memory, PSyclone will add **GlobalSum's**
+at the appropriate locations. As can be inferred by the name, only
+"summation" reductions are currently supported for distributed memory.
 
 In the case of an OpenMP parallel loop the standard reduction support
 will be used by default. For example

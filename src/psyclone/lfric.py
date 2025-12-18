@@ -63,7 +63,7 @@ from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (Arguments, DataAccess, InvokeSchedule, Kern,
-                             KernelArgument, HaloExchange)
+                             KernelArgument, HaloExchange, GlobalSum)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Reference, ACCEnterDataDirective, ArrayOfStructuresReference,
@@ -1313,21 +1313,6 @@ class LFRicProxies(LFRicCollection):
                 rank = 1 if arg not in op_args else 3
                 self._add_symbol(new_name, tag, intrinsic_type, arg, rank)
 
-        if self._invoke.schedule.reductions():
-            # We have one or more reductions so we need to obtain the MPI
-            # object from one of the field arguments.
-            # We'll need the LFRic mpi_type.
-            mpi_mod = self.symtab.find_or_create_tag(
-                "lfric_mpi_mod", symbol_type=ContainerSymbol)
-            mpi_type = self.symtab.find_or_create_tag(
-                "lfric_mpi_type",
-                symbol_type=DataTypeSymbol,
-                datatype=UnresolvedType(),
-                interface=ImportInterface(mpi_mod))
-            self.symtab.find_or_create_tag("mpi",
-                                           symbol_type=DataSymbol,
-                                           datatype=mpi_type)
-
     def _add_symbol(self, name, tag, intrinsic_type, arg, rank):
         '''
         Creates a new DataSymbol representing either an LFRic field or
@@ -1419,7 +1404,7 @@ class LFRicProxies(LFRicCollection):
         # field-type proxies
         for (fld_type, fld_mod), args in field_datatype_map.items():
             fld_mod_symbol = table.node.parent.symbol_table.lookup(fld_mod)
-            fld_type_sym = table.node.parent.symbol_table.find_or_create_tag(
+            fld_type_sym = table.node.parent.symbol_table.new_symbol(
                     fld_type,
                     symbol_type=DataTypeSymbol,
                     datatype=UnresolvedType(),
@@ -1483,15 +1468,13 @@ class LFRicProxies(LFRicCollection):
         '''
         Insert code into the PSy layer to initialise all necessary proxies.
 
-        :param cursor: position at which to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
 
         :returns: Updated cursor value.
 
         :raises InternalError: if a kernel argument of an unrecognised type
             is encountered.
-        :raises InternalError: if the invoke contains one or more reductions
-            but no fields.
 
         '''
         init_cursor = cursor
@@ -1581,26 +1564,6 @@ class LFRicProxies(LFRicCollection):
             if cursor > init_cursor:
                 self._invoke.schedule[init_cursor].preceding_comment = (
                     "Initialise field and/or operator proxies")
-
-        if self._invoke.schedule.reductions():
-            # Now that we've initialised the field proxies, we can get the
-            # MPI object.
-            for sym in self.symtab.datasymbols:
-                if (isinstance(sym.datatype, DataTypeSymbol) and
-                        sym.datatype.name == "field_proxy_type"):
-                    break
-            else:
-                raise InternalError(
-                    f"Invoke '{self._invoke.name}' contains one or more "
-                    f"reductions ({self._invoke.schedule.reductions()}) but "
-                    f"does not access any fields.")
-            get_mpi = StructureReference.create(sym, ["get_mpi"])
-            mpi_obj = self.symtab.lookup_with_tag("mpi")
-            self._invoke.schedule.addchild(
-                Assignment.create(lhs=Reference(mpi_obj),
-                                  rhs=Call.create(get_mpi)),
-                index=cursor)
-            cursor += 1
 
         return cursor
 
@@ -3926,6 +3889,79 @@ class LFRicBoundaryConditions(LFRicCollection):
             cursor += 1
 
         return cursor
+
+
+class LFRicGlobalSum(GlobalSum):
+    '''
+    LFRic specific global sum class which can be added to and
+    manipulated in a schedule.
+
+    :param scalar: the kernel argument for which to perform a global sum.
+    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
+    :param parent: the parent node of this node in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+    :raises GenerationError: if distributed memory is not enabled.
+    :raises InternalError: if the supplied argument is not a scalar.
+    :raises GenerationError: if the scalar is not of "real" intrinsic type.
+
+    '''
+    def __init__(self, scalar, parent=None):
+        # Check that distributed memory is enabled
+        if not Config.get().distributed_memory:
+            raise GenerationError(
+                "It makes no sense to create an LFRicGlobalSum object when "
+                "distributed memory is not enabled (dm=False).")
+        # Check that the global sum argument is indeed a scalar
+        if not scalar.is_scalar:
+            raise InternalError(
+                f"LFRicGlobalSum.init(): A global sum argument should be a "
+                f"scalar but found argument of type '{scalar.argument_type}'.")
+        # Check scalar intrinsic types that this class supports (only
+        # "real" for now)
+        if scalar.intrinsic_type != "real":
+            raise GenerationError(
+                f"LFRicGlobalSum currently only supports real scalars, but "
+                f"argument '{scalar.name}' in Kernel '{scalar.call.name}' has "
+                f"'{scalar.intrinsic_type}' intrinsic type.")
+        # Initialise the parent class
+        super().__init__(scalar, parent=parent)
+
+    def lower_to_language_level(self):
+        '''
+        :returns: this node lowered to language-level PSyIR.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+
+        # Get the name strings to use
+        name = self._scalar.name
+        type_name = self._scalar.data_type
+        mod_name = self._scalar.module_name
+
+        # Get the symbols from the given names
+        symtab = self.ancestor(InvokeSchedule).symbol_table
+        sum_mod = symtab.find_or_create(mod_name, symbol_type=ContainerSymbol)
+        sum_type = symtab.find_or_create(type_name,
+                                         symbol_type=DataTypeSymbol,
+                                         datatype=UnresolvedType(),
+                                         interface=ImportInterface(sum_mod))
+        sum_name = symtab.find_or_create_tag("global_sum",
+                                             symbol_type=DataSymbol,
+                                             datatype=sum_type)
+        tmp_var = symtab.lookup(name)
+
+        # Create the assignments
+        assign1 = Assignment.create(
+            lhs=StructureReference.create(sum_name, ["value"]),
+            rhs=Reference(tmp_var)
+        )
+        assign1.preceding_comment = "Perform global sum"
+        self.parent.addchild(assign1, self.position)
+        assign2 = Assignment.create(
+            lhs=Reference(tmp_var),
+            rhs=Call.create(StructureReference.create(sum_name, ["get_sum"]))
+        )
+        return self.replace_with(assign2)
 
 
 def _create_depth_list(halo_info_list, parent):
@@ -6557,6 +6593,7 @@ __all__ = [
     'LFRicInterGrid',
     'LFRicBasisFunctions',
     'LFRicBoundaryConditions',
+    'LFRicGlobalSum',
     'LFRicHaloExchange',
     'LFRicHaloExchangeStart',
     'LFRicHaloExchangeEnd',

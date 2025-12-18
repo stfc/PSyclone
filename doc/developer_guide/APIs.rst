@@ -1044,9 +1044,21 @@ PSyIR for the arithmetic operations required by the particular BuiltIn.
 This PSyIR forms the new body of the dof loop containing the original
 BuiltIn node.
 
-The sum and inner product BuiltIns require PSyIR support for
-reductions. This is provided by the ``domain.common.psyir.GlobalReduction``
-class.
+In constructing this PSyIR, suitable Symbols for the loop
+variable and the various kernel arguments must be looked up. Since the
+migration to the use of language-level PSyIR for the LFRic PSy layer
+is at an early stage, in practise this often requires that suitable
+Symbols be constructed and inserted into the symbol table of the PSy
+layer routine. A lot of this work is currently performed in the
+``LFRicKernelArgument.infer_datatype()`` method but ultimately (see
+https://github.com/stfc/PSyclone/issues/1258) much of this will be
+removed.
+
+The sum and inner product BuiltIns require extending PSyIR to handle
+reductions in the ``GlobalSum`` class in ``psyGen.py``. Conversions from
+``real`` to ``int`` and vice-versa require the target precisions be
+available as symbols, which is being implemented as a part of the mixed
+precision support.
 
 Kernel Metadata
 ---------------
