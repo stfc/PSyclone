@@ -574,6 +574,7 @@ def test_argument_kinds():
     assert "i_def" in kern.argument_kinds
     assert "r_def" in kern.argument_kinds
 
+
 def test_validate_kernel_code_arg_against_alg_arg(monkeypatch):
     '''
     Test that the kernel validation checks that the kernel argument
