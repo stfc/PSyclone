@@ -57,7 +57,6 @@ if TYPE_CHECKING:
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
 # available then we don't use colour.
-# no cover: start
 try:
     # pylint disable=import-outside-toplevel
     from termcolor import colored
@@ -77,7 +76,6 @@ except ImportError:
         :rtype: str
         '''
         return text
-# no cover: stop
 
 
 class ChildrenList(list):
