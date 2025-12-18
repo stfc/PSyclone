@@ -2784,8 +2784,8 @@ class LFRicMinvalXKern(LFRicBuiltIn):
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar reduction argument.
         lhs = self._reduction_reference()
-        minval = IntrinsicCall(IntrinsicCall.Intrinsic.MINVAL,
-                               [arg_refs[0]])
+        minval = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
+                                      [lhs.copy(), arg_refs[0]])
         return self._replace_with_assignment(lhs, minval)
 
 

@@ -77,9 +77,9 @@ BASE_PATH = os.path.join(
 API = "lfric"
 
 
-def builtin_from_file(filename):
+def builtin_from_file(filename: str):
     '''
-    :param str filename: the name of the file to check for the builtin.
+    :param filename: the name of the file to check for the builtin.
     :returns: the first builtin in the first invoke.
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, filename), api=API)
@@ -1985,9 +1985,27 @@ def test_min_max_x(fortran_writer):
     assert metadata.meta_args[1].access == "gh_max"
     assert metadata.meta_args[2].access == "gh_read"
     assert metadata.meta_args[2].function_space == "any_space_1"
-    kern = builtin_from_file("15.10.9_min_max_X_builtin.f90")
+    metadata = lfric_builtins.LFRicMinvalXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_min"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    metadata = lfric_builtins.LFRicMaxvalXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_max"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+
+    _, invoke = get_invoke("15.10.9_min_max_X_builtin.f90", api=API, idx=0,
+                           dist_mem=False)
+    kern = invoke.schedule.kernels()[0]
     assert str(kern) == ("Built-in: minval_X (compute the global minimum "
                          "value contained in a field)")
+
+    code = fortran_writer(kern)
+    assert "hllow" in code, code
 
 
 def test_real_to_int_x(fortran_writer):
