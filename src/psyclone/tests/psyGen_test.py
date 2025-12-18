@@ -199,7 +199,7 @@ def test_transformation_get_options():
         '''Utilty transformation to test methods of the abstract
         Transformation class.'''
         def apply(self, node, valid: bool = True):
-            pass  # pragma: no cover
+            ...
     trans = TestTrans()
     assert trans.get_option("valid", valid=True)
 
@@ -301,7 +301,7 @@ def test_transformation_validate_options():
         '''Utility transformation to test methods of the abstract
         Transformation class.'''
         def apply(self, node, valid: bool = True, options=None):
-            pass  # pragma: no cover
+            ...
 
     instance = TestTrans()
     instance.validate_options(options={})

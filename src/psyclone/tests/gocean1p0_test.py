@@ -116,7 +116,7 @@ def test_field(tmpdir, dist_mem):
 
 
 def test_invalid_field_accesses_for_iteration_space():
-    ''' Tests that we when retrieving the iteration_space_arg we validate
+    ''' Tests that when retrieving the iteration_space_arg we validate
     there is at least one write. '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.

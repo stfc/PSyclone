@@ -48,8 +48,8 @@ from psyclone.psyir.symbols import RoutineSymbol
 
 
 def test_empty_program_handler(parser):
-    '''Test that an empty program handler still returns a FileContainer
-    with no contents.
+    '''Test that the program handler still returns a FileContainer
+    for an empty program.
     '''
     code = ""
     processor = Fparser2Reader()

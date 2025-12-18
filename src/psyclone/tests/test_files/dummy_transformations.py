@@ -36,7 +36,7 @@
 import abc
 
 
-class LocalTransformation():  # pragma: no-cover
+class LocalTransformation():
     '''abstract baseclass for a transformation. Use of abc means it can
     not be instantiated.
 
@@ -45,17 +45,17 @@ class LocalTransformation():  # pragma: no-cover
 
     @abc.abstractmethod
     def name(self):
-        return
+        ...
 
 
-class TestTrans(LocalTransformation):  # pragma: no-cover
+class TestTrans(LocalTransformation):
     ''' A placeholder test transformation '''
 
     def __init__(self):
         pass
 
     def __str__(self):
-        return "A test transformation"
+        ...
 
     @property
     def name(self):

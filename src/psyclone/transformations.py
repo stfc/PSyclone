@@ -2444,14 +2444,12 @@ class KernelImportsToArguments(Transformation):
                 f"'{type(invoke_schedule).__name__}'")
 
         # Check that there are no unqualified imports or undeclared symbols
-        # no cover: start
         try:
             kernels = node.get_callees()
-        except SymbolError as err:  # pragma: no-cover
+        except (SymbolError, NotImplementedError) as err:
             raise TransformationError(
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err
-        # no cover: stop
 
         for kernel in kernels:
             try:
