@@ -13,6 +13,15 @@ include ../../common.mk
 F90FLAGS += $(PSY_DATA_INCLUDE)
 LDFLAGS += $(PSY_DATA_LIB)
 
+test: test-default
+	@# Check that we have the value_range_check object in the PSy-layer
+	cat time_step_alg_mod_psy.f90 | grep value_range_check_psy_data >/dev/null
+
+test_run: test $(EXE)
+	@# Since we introduce Infinity values, the output is
+	@# not correct. Check instead for the warnings:
+	$(MAKE) --no-print-directory run 2>&1 | grep "has the invalid value 'Inf'">/dev/null
+
 # External libs
 # -------------
 $(OBJ): $(PSY_DATA_LIB)
