@@ -60,10 +60,14 @@ contains
                                         dims_rarray, real_array,    &
                                         dims_larray, logical_array, &
                                         dims_iarray, integer_array, &
-                                        a_scalar)
+                                        a_scalar, ndf_w1, undf_w1,  &
+                                        map_w1)
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), intent(in) :: undf_w1
+    integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
     real(kind=r_def),    intent(inout) :: afield
     integer(kind=i_def), intent(in), dimension(2) :: dims_rarray
     integer(kind=i_def), intent(in), dimension(1) :: dims_larray
