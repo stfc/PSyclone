@@ -1975,6 +1975,21 @@ def test_int_to_real_x_precision(tmpdir, kind_name):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
+def test_min_max_x(fortran_writer):
+    '''
+    '''
+    metadata = lfric_builtins.LFRicMinMaxXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_min"
+    assert metadata.meta_args[1].access == "gh_max"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
+    kern = builtin_from_file("15.10.9_min_max_X_builtin.f90")
+    assert str(kern) == ("Built-in: minval_X (compute the global minimum "
+                         "value contained in a field)")
+
+
 def test_real_to_int_x(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicRealToIntXKern.metadata()
