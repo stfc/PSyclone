@@ -159,16 +159,35 @@ class FunctionSpace():
         # List kernel arguments
         args = self._kernel_args.args
         # Mangle the function space name for any_*_space
+        lorig_name = self._orig_name.lower()
         for arg in args:
             for fspace in arg.function_spaces:
-                if (fspace and fspace.orig_name.lower() ==
-                        self._orig_name.lower()):
+                if (fspace and fspace.orig_name.lower() == lorig_name):
                     mngl_name = self._short_name + "_" + arg.name
                     return mngl_name
         # Raise an error if there are no kernel arguments on this
         # function space
         raise FieldNotFoundError(f"No kernel argument found for function "
                                  f"space '{self._orig_name}'")
+
+    @staticmethod
+    def _shorten_arg_name(name: str) -> str:
+        '''
+        Shortens the provided name by splitting on any underscore characters
+        and reconstructing the name using the camel-cased beginning and
+        ending chars from each token.
+
+        :param name: the name to shorten.
+
+        :returns: a shortened form of the name.
+
+        '''
+        new_name = ""
+        for part in name.split("_"):
+            new_name += part[0].upper()
+            if len(part) > 1:
+                new_name += part[-1]
+        return new_name
 
     def _shorten_fs_name(self):
         '''

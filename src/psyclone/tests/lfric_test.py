@@ -2300,6 +2300,18 @@ def test_no_mangle_specified_function_space():
             in str(excinfo.value))
 
 
+@pytest.mark.parametrize("name, shortened",
+                         [("something_nasty_in_the_woodshead", "SgNyInTeWd"),
+                          ("something_o_nasty", "SgONy"),
+                          ("short", "St")])
+def test_function_space_shorten_arg_name(name, shortened):
+    '''
+    Test the _shorten_arg_name() method of FunctionSpace.
+    '''
+    fs = FunctionSpace
+    assert fs._shorten_arg_name(name) == shortened
+
+
 def test_fsdescriptors_get_descriptor():
     ''' Test that FSDescriptors.get_descriptor() raises the expected error
     when passed a function space for which there is no corresponding kernel
