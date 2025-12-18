@@ -2005,7 +2005,7 @@ def test_min_max_x(fortran_writer):
                          "value contained in a field)")
 
     code = fortran_writer(kern)
-    assert "hllow" in code, code
+    assert "amin = MIN(amin, f1_data(df))" in code, code
 
 
 def test_real_to_int_x(fortran_writer):

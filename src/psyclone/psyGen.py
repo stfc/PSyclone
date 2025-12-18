@@ -63,7 +63,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Container, Literal, Loop, Node, OMPDoDirective,
     Reference, Directive, Routine, Schedule, Statement, Assignment,
-    IntrinsicCall, BinaryOperation, FileContainer, UnaryOperation)
+    IntrinsicCall, BinaryOperation, FileContainer)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
     UnresolvedType, ImportInterface, INTEGER_TYPE, RoutineSymbol)
@@ -713,6 +713,65 @@ class InvokeSchedule(Routine):
         return result
 
 
+class GlobalSum(Statement):
+    '''
+    Generic Global Sum class which can be added to and manipulated
+    in, a schedule.
+
+    :param scalar: the scalar that the global sum is stored into
+    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
+    :param parent: optional parent (default None) of this object
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+    # Textual description of the node.
+    _children_valid_format = "<LeafNode>"
+    _text_name = "GlobalSum"
+    _colour = "cyan"
+
+    def __init__(self, scalar, parent=None):
+        Node.__init__(self, children=[], parent=parent)
+        import copy
+        self._scalar = copy.copy(scalar)
+        if scalar:
+            # Update scalar values appropriately
+            # Here "readwrite" denotes how the class GlobalSum
+            # accesses/updates a scalar
+            self._scalar.access = AccessType.READWRITE
+            self._scalar.call = self
+
+    @property
+    def scalar(self):
+        ''' Return the scalar field that this global sum acts on '''
+        return self._scalar
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in the DAG for this node.
+        :rtype: str
+        '''
+        return f"globalsum({self._scalar.name})_{self.position}"
+
+    @property
+    def args(self):
+        ''' Return the list of arguments associated with this node. Override
+        the base method and simply return our argument.'''
+        return [self._scalar]
+
+    def node_str(self, colour=True):
+        '''
+        Returns a text description of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        return f"{self.coloured_name(colour)}[scalar='{self._scalar.name}']"
+
+
 class HaloExchange(Statement):
     '''
     Generic Halo Exchange class which can be added to and
@@ -992,7 +1051,6 @@ class Kern(Statement):
             configuration file) is less than 1.
         :raises GenerationError: for a reduction into a scalar that is
             neither 'real' nor 'integer'.
-        :raises GenerationError: for an unsupported type of reduction.
 
         '''
         var_arg = self._reduction_arg
@@ -1012,27 +1070,6 @@ class Kern(Statement):
                 f"'real' or an 'integer' scalar but found scalar of type "
                 f"'{var_arg.intrinsic_type}'.")
 
-        # Create the initialisation expression - this depends upon the type
-        # of reduction being performed.
-        if var_arg.access == AccessType.SUM:
-            # Sum - initialise to zero.
-            init_val = Literal("0", variable.datatype.copy())
-        elif var_arg.access == AccessType.MIN:
-            # Minimum - initialise to HUGE.
-            init_val = IntrinsicCall.create(IntrinsicCall.Intrinsic.HUGE,
-                                            [Reference(variable)])
-        elif var_arg.access == AccessType.MAX:
-            # Maximum - initialise to -HUGE.
-            huge = IntrinsicCall.create(IntrinsicCall.Intrinsic.HUGE,
-                                        [Reference(variable)])
-            init_val = UnaryOperation.create(UnaryOperation.Operator.MINUS,
-                                             huge)
-        else:
-            raise GenerationError(
-                f"Kernel '{self.name}' performs a reduction of type "
-                f"'{var_arg.access}' but this is not supported by Kern."
-                f"initialise_reduction_variable()")
-
         # Find a safe location to initialise it.
         insert_loc = self.ancestor((Loop, Directive))
         while insert_loc:
@@ -1042,7 +1079,9 @@ class Kern(Statement):
             insert_loc = loc
         cursor = insert_loc.position
         insert_loc = insert_loc.parent
-        new_node = Assignment.create(lhs=Reference(variable), rhs=init_val)
+        new_node = Assignment.create(
+                        lhs=Reference(variable),
+                        rhs=Literal("0", variable.datatype.copy()))
         new_node.append_preceding_comment("Initialise reduction variable")
         insert_loc.addchild(new_node, cursor)
         cursor += 1
@@ -1888,12 +1927,12 @@ class DataAccess():
 
     def __init__(self, arg):
         '''Store the argument associated with the instance of this class and
-        the Call, HaloExchange or GlobalReduction (or a subclass thereof)
+        the Call, HaloExchange or GlobalSum (or a subclass thereof)
         instance with which the argument is associated.
 
         :param arg: the argument that we are concerned with. An \
         argument can be found in a `Kern` a `HaloExchange` or a \
-        `GlobalReduction` (or a subclass thereof)
+        `GlobalSum` (or a subclass thereof)
         :type arg: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -2355,13 +2394,8 @@ class Argument():
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.common.psylayer.global_reduction import (
-            GlobalReduction)
-
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, HaloExchange,
-                                          GlobalReduction))]
+                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
         for node in nodes_with_args:
             for argument in node.args:
                 if self._depends_on(argument):
@@ -2386,12 +2420,8 @@ class Argument():
             return []
 
         # We only need consider nodes that have arguments
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.common.psylayer.global_reduction import (
-            GlobalReduction)
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, HaloExchange,
-                                          GlobalReduction))]
+                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
         access = DataAccess(self)
         arguments = []
         for node in nodes_with_args:
@@ -2431,11 +2461,8 @@ class Argument():
             return []
 
         # We only need consider nodes that have arguments
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.common.psylayer.global_reduction import (
-            GlobalReduction)
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, GlobalReduction)) or
+                           isinstance(x, (Kern, GlobalSum)) or
                            (isinstance(x, HaloExchange) and not ignore_halos)]
         access = DataAccess(self)
         arguments = []
@@ -2897,6 +2924,6 @@ class Transformation(metaclass=abc.ABCMeta):
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ['PSyFactory', 'PSy', 'Invokes', 'Invoke', 'InvokeSchedule',
-           'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
+           'GlobalSum', 'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
            'BuiltIn', 'Arguments', 'DataAccess', 'Argument', 'KernelArgument',
            'TransInfo', 'Transformation']
