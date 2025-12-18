@@ -698,18 +698,6 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: maxval_X_code
   end type maxval_X
 
-  type, public, extends(kernel_type) :: min_max_X
-     private
-     type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_SCALAR, GH_REAL, GH_MIN               ),        &
-          arg_type(GH_SCALAR, GH_REAL, GH_MAX               ),        &
-          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
-          /)
-     integer :: operates_on = DOF
-   contains
-     procedure, nopass :: min_max_X_code
-  end type min_max_X
-
 ! ------------------------------------------------------------------- !
 ! ============== Converting real to integer field elements ========== !
 ! ------------------------------------------------------------------- !
@@ -1213,9 +1201,6 @@ contains
 
   subroutine maxval_X_code()
   end subroutine maxval_X_code
-
-  subroutine min_max_X_code()
-  end subroutine min_max_X_code
 
   ! Converting real to integer field elements
   subroutine real_to_int_X_code()

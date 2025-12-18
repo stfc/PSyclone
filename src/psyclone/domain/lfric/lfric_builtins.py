@@ -2827,46 +2827,6 @@ class LFRicMaxvalXKern(LFRicBuiltIn):
                                       [lhs.copy(), arg_refs[0]])
         return self._replace_with_assignment(lhs, minval)
 
-
-class LFRicMinMaxXKern(LFRicBuiltIn):
-    '''
-    Computes the (global) minimum and maximum scalar values held in
-    the supplied field.
-    '''
-    _case_name = "min_max_X"
-    _datatype = "real"
-
-    @classmethod
-    def metadata(cls) -> LFRicKernelMetadata:
-        """
-        :returns: kernel metadata describing this built-in.
-        """
-        return cls._builtin_metadata([
-            ScalarArgMetadata("gh_real", "gh_min"),
-            ScalarArgMetadata("gh_real", "gh_max"),
-            FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
-
-    def __str__(self):
-        return (f"Built-in: {self._case_name} (compute the global minimum and "
-                f"maximum values contained in a field)")
-
-    def lower_to_language_level(self) -> Node:
-        '''
-        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
-        This BuiltIn node is replaced by an Assignment node.
-
-        :returns: the lowered version of this node.
-
-        '''
-        super().lower_to_language_level()
-        # Get indexed references for the field (proxy) argument.
-        arg_refs = self.get_indexed_field_argument_references()
-        # Get a reference for the kernel scalar reduction argument.
-        lhs = self._reduction_reference()
-        minval = IntrinsicCall(IntrinsicCall.Intrinsic.MINVAL,
-                               [arg_refs[0]])
-        return self._replace_with_assignment(lhs, minval)
-
 # ------------------------------------------------------------------- #
 # ============== Converting real to integer field elements ========== #
 # ------------------------------------------------------------------- #
@@ -3397,7 +3357,6 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Minimum and maximum values contained in a field
     "minval_X": LFRicMinvalXKern,
     "maxval_X": LFRicMaxvalXKern,
-    "min_max_X": LFRicMinMaxXKern,
     # Converting real to integer field elements
     "real_to_int_X": LFRicRealToIntXKern,
     # Converting real to real field elements

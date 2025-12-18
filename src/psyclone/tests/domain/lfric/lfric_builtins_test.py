@@ -1979,13 +1979,6 @@ def test_minmaxval_x(fortran_writer):
     '''
     Tests for the minval_x and maxval_x builtins.
     '''
-    metadata = lfric_builtins.LFRicMinMaxXKern.metadata()
-    assert isinstance(metadata, LFRicKernelMetadata)
-    assert len(metadata.meta_args) == 3
-    assert metadata.meta_args[0].access == "gh_min"
-    assert metadata.meta_args[1].access == "gh_max"
-    assert metadata.meta_args[2].access == "gh_read"
-    assert metadata.meta_args[2].function_space == "any_space_1"
     metadata = lfric_builtins.LFRicMinvalXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
     assert len(metadata.meta_args) == 2
@@ -2011,6 +2004,14 @@ def test_minmaxval_x(fortran_writer):
                              "value contained in a field)")
     code = fortran_writer(kerns[1])
     assert "amax = MAX(amax, f1_data(df))" in code, code
+
+    # Currently psy-layer generation with DM enabled won't work because we only
+    # have support for global sums. TODO #2381.
+    with pytest.raises(GenerationError) as err:
+        _ = get_invoke("15.10.9_min_max_X_builtin.f90", api=API, idx=0,
+                       dist_mem=True)
+    assert ("TODO #2381 - currently only global *sum* reductions are supported"
+            in str(err.value))
 
 
 def test_real_to_int_x(fortran_writer):
