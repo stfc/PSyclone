@@ -2797,7 +2797,8 @@ are listed in the table below.
 +===============+=====================+================+====================+
 | GH_SCALAR     | GH_INTEGER          | n/a            | GH_READ            |
 +---------------+---------------------+----------------+--------------------+
-| GH_SCALAR     | GH_REAL             | n/a            | GH_READ, GH_SUM    |
+| GH_SCALAR     | GH_REAL             | n/a            | GH_READ, GH_SUM,   |
+|               |                     |                | GH_MIN, GH_MAX     |
 +---------------+---------------------+----------------+--------------------+
 | GH_FIELD      | GH_REAL, GH_INTEGER | ANY_SPACE_<n>  | GH_READ, GH_WRITE, |
 |               |                     |                | GH_READWRITE       |
@@ -3454,6 +3455,30 @@ Returns minimum of *rscalar* and each element of the field *field* in
 the same field (``X = min(a, X)``)::
 
   field(:) = MIN(rscalar, field(:))
+
+Global minimum and maximum field-element values
+###############################################
+
+Built-ins which scan through all elements of a field and return its
+maximum or minimum value.
+
+minval_X
+^^^^^^^^
+
+**minval_X** (*rscalar*, **field**)
+
+Returns the minimum value held in the field *field*::
+
+  rscalar = MINVAL(field(:))
+
+maxval_X
+^^^^^^^^
+
+**maxval_X** (*rscalar*, **field**)
+
+Returns the maximum value held in the field *field*::
+
+  rscalar = MAXVAL(field(:))
 
 Conversion of ``real`` field elements
 #####################################
