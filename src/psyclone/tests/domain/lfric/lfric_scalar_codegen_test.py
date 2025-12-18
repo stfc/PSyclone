@@ -45,6 +45,7 @@ import os
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 
 # Constants
 BASE_PATH = os.path.join(
@@ -610,10 +611,7 @@ def test_scalar_array(tmpdir):
     types of valid scalar array argument: 'real', 'integer' and 'logical'.
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "28.scalar_array_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    psy, invoke = get_invoke("28.scalar_array_invoke.f90", TEST_API, idx=0)
 
     generated_code = str(psy.gen)
     expected = (
