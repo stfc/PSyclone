@@ -54,21 +54,30 @@ from psyclone.errors import GenerationError, InternalError
 if TYPE_CHECKING:
     from psyclone.psyir.symbols import Symbol
 
-def colored(text: object, color: str) -> str:
-    '''
-    :param text: the given text to color.
-    :param color: the text color to use.
-    
-    :returns: the colored text (if termcolor is installed, otherwise return
-        the text without coloring).
-    '''
-    try:
-        from termcolor import colored
-    except ImportError:
-        # We don't have the termcolor package available (e.g. installing from)
-        # Spack) so provide alternative routine
-        return str(text)
-    return colored(text)
+# We use the termcolor module (if available) to enable us to produce
+# coloured, textual representations of Invoke schedules. If it's not
+# available then we don't use colour.
+# no cover: start
+try:
+    # pylint disable=import-outside-toplevel
+    from termcolor import colored
+except ImportError:
+    # We don't have the termcolor package available (e.g. installing from)
+    # Spack) so provide alternative routine
+    def colored(text, _):
+        '''
+        Returns the supplied text argument unchanged. This is a swap-in
+        replacement for when termcolor.colored is not available.
+
+        :param str text: text to return.
+        :param _: fake argument, only required to match interface
+                  provided by termcolor.colored.
+
+        :returns: the supplied text, unchanged.
+        :rtype: str
+        '''
+        return text
+# no cover: stop
 
 
 class ChildrenList(list):
