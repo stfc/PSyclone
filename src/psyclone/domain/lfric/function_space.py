@@ -127,7 +127,7 @@ class FunctionSpace():
         self._mangled_name = self._mangle_fs_name()
         return self._mangled_name
 
-    def _mangle_fs_name(self):
+    def _mangle_fs_name(self) -> str:
         '''
         Constructs the mangled version of a function-space name given a list
         of kernel arguments if the argument's function space is any_*_space
@@ -137,12 +137,11 @@ class FunctionSpace():
         space combined with the argument's name.
 
         :returns: mangled name of this function space.
-        :rtype: str
 
-        :raises InternalError: if a function space to create the mangled \
-                               name for is not one of 'any_space' or \
+        :raises InternalError: if a function space to create the mangled
+                               name for is not one of 'any_space' or
                                'any_discontinuous_space' spaces.
-        :raises FieldNotFoundError: if no kernel argument was found on \
+        :raises FieldNotFoundError: if no kernel argument was found on
                                     the specified function space.
 
         '''
@@ -163,8 +162,8 @@ class FunctionSpace():
         for arg in args:
             for fspace in arg.function_spaces:
                 if (fspace and fspace.orig_name.lower() == lorig_name):
-                    mngl_name = self._short_name + "_" + arg.name
-                    return mngl_name
+                    return (f"{self._short_name}_"
+                            f"{self._shorten_arg_name(arg.name)}")
         # Raise an error if there are no kernel arguments on this
         # function space
         raise FieldNotFoundError(f"No kernel argument found for function "
@@ -174,7 +173,7 @@ class FunctionSpace():
     def _shorten_arg_name(name: str) -> str:
         '''
         Shortens the provided name by splitting on any underscore characters
-        and reconstructing the name using the camel-cased beginning and
+        and reconstructing the name using the beginning and
         ending chars from each token.
 
         :param name: the name to shorten.
@@ -182,16 +181,8 @@ class FunctionSpace():
         :returns: a shortened form of the name.
 
         '''
-        cursor = 0
-        parts = name.split("_")
         new_parts = []
-        if parts[cursor] == "diff":
-            new_parts.append("dif")
-            cursor += 1
-        if parts[cursor] == "basis":
-            new_parts.append("bas")
-            cursor += 1
-        for part in parts[cursor:]:
+        for part in name.split("_"):
             new_name = part[0]
             if len(part) > 1:
                 new_name += part[-1]
@@ -225,9 +216,9 @@ class FunctionSpace():
                 f"{const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES} spaces.")
 
         # Split name string to find any_*_space ID and create a short name as
-        # "<start>" + "spc" + "ID"
+        # "<start>" + "s" + "ID"
         fslist = self._orig_name.split("_")
-        self._short_name = start + "spc" + fslist[-1]
+        self._short_name = start + "s" + fslist[-1]
         return self._short_name
 
     @property

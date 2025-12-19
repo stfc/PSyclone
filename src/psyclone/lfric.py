@@ -3017,8 +3017,7 @@ class LFRicBasisFunctions(LFRicCollection):
                 except ValueError:
                     dims.append(Reference(self.symtab.find_or_create(value)))
             arg = self.symtab.find_or_create_tag(
-                basis, root_name=FunctionSpace._shorten_arg_name(basis),
-                symbol_type=DataSymbol,
+                basis, symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                                    dims))
             arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
@@ -3258,11 +3257,10 @@ class LFRicBasisFunctions(LFRicCollection):
         # Allocate basis arrays
         for basis in basis_arrays:
             dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
-            short_name = FunctionSpace._shorten_arg_name(basis)
             symbol = self.symtab.find_or_create_tag(
-                basis, root_name=short_name,
+                basis,
                 symbol_type=DataSymbol, datatype=UnsupportedFortranType(
-                    f"real(kind=r_def), allocatable :: {short_name}{dims}"
+                    f"real(kind=r_def), allocatable :: {basis}{dims}"
                 ))
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
@@ -3704,7 +3702,7 @@ class LFRicBasisFunctions(LFRicCollection):
                             Literal('1', INTEGER_TYPE), [])
                     loop.loop_body.addchild(inner_loop)
 
-                    symbol = self.symtab.lookup(op_name)
+                    symbol = self.symtab.lookup_with_tag(op_name)
                     rhs = basis_fn['arg'].generate_method_call(
                         "call_function", function_space=basis_fn['fspace'])
                     rhs.addchild(Reference(self.symtab.lookup(basis_type)))
