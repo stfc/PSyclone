@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024-2025, Science and Technology Facilities Council
+# Copyright (c) 2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,24 +33,25 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''A simple generic transformation script to apply omp parallel and omp do.
+'''
+A generic transformation script that creates two different versions
+of a loop, depending on iteration count.
 '''
 
 import os
 
-from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
-from psyclone.psyir.nodes import IfBlock, Loop, Routine
+
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.transformations import OMPParallelLoopTrans, TransformationError
+from psyclone.transformations import OMPParallelLoopTrans
 from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.psyir.nodes import BinaryOperation, Literal
-from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes import (BinaryOperation, IfBlock, Literal,
+                                  Loop, Routine, Schedule)
+
 
 def trans(psyir):
-    ''' Transform a specific Schedule by making all loops
-    over latitudes OpenMP parallel, and adding an omp parallel
-    in the calling subroutine.
+    '''
+    Create two versions of a loop, depending in iteration count.
 
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -63,7 +64,7 @@ def trans(psyir):
         # Don't do anything if there is no combine subroutine
         return
 
-    # combine_mod has only one loop:
+    # combine_mod has only one outer loop, so take the first one:
     outer_loop = routine.walk(Loop)[0]
 
     # We start by creating the expression that will become the
@@ -82,7 +83,7 @@ def trans(psyir):
         expr = reader.psyir_from_expression(expr_str,
                                             symbol_table)
     else:
-        print(f"Creating tree")
+        print("Creating tree")
         # Option 2: Create the PSyIR using the create methods:
         # `stop-start >= 99` as tree looks like this:
         # BinaryOperation ">="
@@ -93,12 +94,12 @@ def trans(psyir):
 
         # Create `stop-start`:
         minus = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                outer_loop.stop_expr.copy(),
-                                outer_loop.start_expr.copy())
+                                       outer_loop.stop_expr.copy(),
+                                       outer_loop.start_expr.copy())
         # Create `stop-start >= 99`:
         expr = BinaryOperation.create(BinaryOperation.Operator.GE,
-                                minus,
-                                Literal("99", INTEGER_TYPE) )
+                                      minus,
+                                      Literal("99", INTEGER_TYPE))
 
     # We first create a new if statement, with the above condition
     # and a copy of the loop as if-body, but no else body:
