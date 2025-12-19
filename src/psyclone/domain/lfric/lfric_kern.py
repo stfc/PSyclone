@@ -793,7 +793,13 @@ class LFRicKern(CodedKern):
         create_arg_list.generate()
         arg_list = []
         for argument_name in create_arg_list.arglist:
-            arg_list.append(stub_routine.symbol_table.lookup(argument_name))
+            # ARPDBG - is this still needed?
+            # try:
+            #     sym = stub_routine.symbol_table.lookup_with_tag(
+            #         argument_name)
+            # except KeyError:
+            sym = stub_routine.symbol_table.lookup(argument_name)
+            arg_list.append(sym)
         stub_routine.symbol_table.specify_argument_list(arg_list)
 
         return stub_module

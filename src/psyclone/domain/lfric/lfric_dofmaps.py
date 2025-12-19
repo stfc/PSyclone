@@ -63,7 +63,7 @@ class LFRicDofmaps(LFRicCollection):
     indirection) required by an invoke.
 
     :param node: Kernel or Invoke for which to manage dofmaps.
-    :type node: :py:class:`psyclone.domain.lfric.LFRicKern` or \
+    :type node: :py:class:`psyclone.domain.lfric.LFRicKern` or
                 :py:class:`psyclone.domain.lfric.LFRicInvoke`
 
     '''
@@ -297,7 +297,7 @@ class LFRicDofmaps(LFRicCollection):
             self.symtab.append_argument(nlayers)
 
             dmap_symbol = self.symtab.find_or_create(
-                dmap, symbol_type=DataSymbol,
+                dmap, tag=dmap, symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                                    [Reference(symbol), Reference(nlayers)]))
             dmap_symbol.interface = ArgumentInterface(
