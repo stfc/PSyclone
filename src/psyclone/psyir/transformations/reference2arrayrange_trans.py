@@ -92,8 +92,8 @@ class Reference2ArrayRangeTrans(Transformation):
     end program example
     <BLANKLINE>
 
-    This transformation does not currently support arrays within
-    structures, see issue #1858.
+    TODO #1858: This transformation does not currently support arrays within
+    structures, which the validation will pass without an error.
 
     '''
 
@@ -137,11 +137,7 @@ class Reference2ArrayRangeTrans(Transformation):
             # nor further validation
             return
 
-        if type(node) is StructureReference:
-            # TODO #1858: Add support for expansion of structures
-            return
-
-        if not type(node) is Reference:
+        if not type(node) in [Reference, StructureReference]:
             raise TransformationError(
                 f"The supplied node should be a Reference but found "
                 f"'{type(node).__name__}'.")
@@ -153,6 +149,15 @@ class Reference2ArrayRangeTrans(Transformation):
             raise TransformationError(
                 f"The supplied node should be a Reference to a symbol "
                 f"of known type, but '{node.symbol}' is not.")
+
+        if type(node) is StructureReference:
+            if node.symbol.is_array:
+                raise TransformationError(
+                    f"{self.name} does not yet support StructureReferences "
+                    f"but found '{node.symbol}'")
+            # TODO #1858: This should recursively keep testing the structure
+            # members
+            return
 
     def apply(self, node, options=None, **kwargs):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified

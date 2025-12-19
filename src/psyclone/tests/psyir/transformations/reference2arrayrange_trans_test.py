@@ -271,26 +271,58 @@ def test_apply_inquiry(fortran_reader, fortran_writer):
         "  end if\n") in output
 
 
-def test_validate_structure(fortran_reader):
-    '''Test that a StructureReference raises an exception. This limitation
-    will be removed once issue #1858 is addressed.
-
+def test_validate_structure_references(fortran_reader):
+    ''' Test that the transformation can be applied to StructureReferences.
+    TODO #1858: this still has several limitations.
     '''
     code = (
         "program test\n"
         "  type :: array_type\n"
-        "      real, dimension(10) :: a\n"
+        "      real :: scalar\n"
+        "      real, dimension(10) :: field\n"
         "      real, pointer :: ptr\n"
         "  end type\n"
         "  type(array_type) :: ref\n"
+        "  type(array_type), dimension(10) :: array_of_ref\n"
         "  real :: b\n\n"
-        "  ref%a = b\n"
+        "  ! These pass the transformation unmodified\n"
+        "  ref%scalar = 1\n"
+        "  array_of_ref(:)%scalar = 1\n"
+        "  ref%field(:) = 1\n"
+        "  array_of_ref(:)%field(:) = 1\n"
+        "  ! These need range expressions added\n"
+        "  array_of_ref%scalar = 1\n"
+        "  array_of_ref%field = 1\n"
+        "  ref%field = 1\n"
+        "  ! This is not supported\n"
         "  ref%ptr => b\n"
-        "end program test\n")
+        "end program test\n"
+    )
     psyir = fortran_reader.psyir_from_source(code)
     trans = Reference2ArrayRangeTrans()
-    for assign in psyir.walk(Assignment):
-        trans.validate(assign.lhs)
+    assign = psyir.walk(Assignment)
+
+    # The 4 first statements are fine
+    trans.apply(assign[0].lhs)
+    trans.apply(assign[1].lhs)
+    trans.apply(assign[2].lhs)
+    trans.apply(assign[3].lhs)
+
+    # TODO #1858: Add support for StructureReference
+    with pytest.raises(TransformationError) as err:
+        trans.apply(assign[4].lhs)
+    assert ("Reference2ArrayRangeTrans does not yet support Structure"
+            "References but found 'array_of_ref: DataSymbol<Array<"
+            in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.apply(assign[5].lhs)
+    assert ("Reference2ArrayRangeTrans does not yet support Structure"
+            "References but found 'array_of_ref: DataSymbol<Array<"
+            in str(err.value))
+
+    # TODO #1858: Extend validations to Structure members
+    trans.apply(assign[6].lhs)
+    trans.apply(assign[7].lhs)
 
 
 def test_validate_pointer_assignment(fortran_reader):
@@ -310,15 +342,3 @@ def test_validate_pointer_assignment(fortran_reader):
             trans.validate(reference)
         assert ("The supplied node should be a Reference to a symbol of known "
                 "type, but " in str(info.value))
-
-
-def test_apply_validate():
-    '''Test that the apply method calls validate by checking that the
-    exception raised by validate is raised when apply is called.
-
-    '''
-    trans = Reference2ArrayRangeTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.apply(None)
-    assert ("The supplied node should be a Reference but found 'NoneType'."
-            in str(info.value))

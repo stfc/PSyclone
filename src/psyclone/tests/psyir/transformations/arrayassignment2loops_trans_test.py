@@ -264,6 +264,8 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source('''
         program test
           use other
+
+          type(my_type) :: struct
           integer, dimension(10,10) :: x2
           integer, dimension(10:20,20:30) :: y2
 
