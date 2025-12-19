@@ -45,9 +45,13 @@ from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Literal, Range, Reference,
-    StructureReference, ArrayOfStructuresReference)
+    ArrayOfStructuresReference, Member)
+from psyclone.psyir.nodes.structure_accessor_mixin import (
+    StructureAccessorMixin)
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, DataSymbol, UnresolvedType, UnsupportedType)
+    INTEGER_TYPE, DataSymbol, UnresolvedType, UnsupportedType, DataTypeSymbol,
+    ArrayType, StructureType)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
@@ -128,36 +132,82 @@ class Reference2ArrayRangeTrans(Transformation):
             if not node.parent.is_elemental:
                 return
 
-        # pylint: disable=unidiomatic-typecheck
-        if (
-            type(node) is ArrayReference or
-            type(node) is ArrayOfStructuresReference
-        ):
-            # If it is already an Array access, it does not need expansion
-            # nor further validation
-            return
-
-        if not type(node) in [Reference, StructureReference]:
+        if not isinstance(node, Reference):
             raise TransformationError(
                 f"The supplied node should be a Reference but found "
                 f"'{type(node).__name__}'.")
-        if (
-            not isinstance(node.symbol, DataSymbol) or
-            isinstance(node.symbol.datatype, (UnresolvedType,
-                                              UnsupportedType))
-        ):
-            raise TransformationError(
-                f"The supplied node should be a Reference to a symbol "
-                f"of known type, but '{node.symbol}' is not.")
 
-        if type(node) is StructureReference:
-            if node.symbol.is_array:
-                raise TransformationError(
-                    f"{self.name} does not yet support StructureReferences "
-                    f"but found '{node.symbol}'")
-            # TODO #1858: This should recursively keep testing the structure
-            # members
-            return
+        if not isinstance(node.symbol, DataSymbol):
+            raise TransformationError(
+                f"The supplied node should be a Reference to a DataSymbol "
+                f"but found '{node.symbol}'. Consider adding the declaration"
+                f"'s filename to RESOLVE_IMPORTS.")
+
+        cursor = node
+        cursor_datatype = cursor.symbol.datatype
+        while cursor:
+            if isinstance(cursor_datatype, StructureType.ComponentType):
+                # If it is a ComponentType, follow its declaration
+                cursor_datatype = cursor_datatype.datatype
+
+            if isinstance(cursor_datatype, DataTypeSymbol):
+                # If it is a DataTypeSymbol, follow its declaration
+                cursor_datatype = cursor_datatype.datatype
+
+            # If it is already an Array access (does not need expansion)
+            # or we don't recurse into its members, we don't mind the type,
+            # but otherwise we will need it
+            if (
+                not isinstance(cursor, ArrayMixin) or
+                isinstance(cursor, StructureAccessorMixin)
+            ):
+                if isinstance(cursor_datatype, (UnresolvedType,
+                                                UnsupportedType)):
+                    # In case of a structure access, we can still guarantee
+                    # it is fine without knowing the types if all the members
+                    # accessors recursing down are all array accesses
+                    while cursor:
+                        if not isinstance(cursor, ArrayMixin):
+                            break
+                        if isinstance(cursor, StructureAccessorMixin):
+                            cursor = cursor.member
+                        else:
+                            cursor = False
+                    else:
+                        # An 'else' in a while means that it has left
+                        # without a break, in this case without finding
+                        # a non-array, so the validation succeeds
+                        return
+
+                    raise TransformationError(
+                        f"The supplied node should be a Reference to a symbol "
+                        f"of known type, but '{node.debug_string()}' is "
+                        f"'{cursor_datatype}'. Consider adding the declaration"
+                        f"'s filename to RESOLVE_IMPORTS.")
+
+            if isinstance(cursor, (StructureAccessorMixin, Member)):
+                if not isinstance(cursor, ArrayMixin):
+                    if isinstance(cursor_datatype, ArrayType):
+                        raise TransformationError(
+                            f"{self.name} does not support converting "
+                            f"StructureReferences yet but in "
+                            f"'{node.debug_string()}' '{cursor.name}'"
+                            f" should be an array access."
+                        )
+
+                if isinstance(cursor, Member):
+                    # Its a leaf member, finish recursion
+                    break
+
+                if isinstance(cursor_datatype, ArrayType):
+                    cursor_datatype = cursor_datatype.intrinsic.datatype
+
+                cursor_datatype = cursor_datatype.components[
+                    cursor.member.name
+                ]
+                cursor = cursor.member
+            else:
+                break
 
     def apply(self, node, options=None, **kwargs):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified

@@ -265,6 +265,14 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
         program test
           use other
 
+          type :: inner
+              integer :: value
+          end type
+          type :: my_type
+            integer, dimension(10) :: values
+            type(inner), dimension(10) :: array
+          end type
+
           type(my_type) :: struct
           integer, dimension(10,10) :: x2
           integer, dimension(10:20,20:30) :: y2
