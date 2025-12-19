@@ -343,23 +343,23 @@ def test_any_space_1(tmpdir):
     assert "integer(kind=i_def), pointer :: map_aspc1_a(:,:) => null()" in code
     assert "integer(kind=i_def), pointer :: map_aspc2_b(:,:) => null()" in code
     assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in code
-    assert "real(kind=r_def), allocatable :: basis_aspc1_a_qr(:,:,:,:)" in code
-    assert "real(kind=r_def), allocatable :: basis_aspc2_b_qr(:,:,:,:)" in code
-    assert ("ALLOCATE(basis_aspc1_a_qr(dim_aspc1_a,ndf_aspc1_a,"
-            "np_xy_qr,np_z_qr))" in code)
-    assert ("ALLOCATE(basis_aspc2_b_qr(dim_aspc2_b,ndf_aspc2_b,"
-            "np_xy_qr,np_z_qr))" in code)
-    assert "map_aspc1_a => a_proxy%vspace%get_whole_dofmap()" in code
-    assert "map_aspc2_b => b_proxy%vspace%get_whole_dofmap()" in code
+    assert "real(kind=r_def), allocatable :: bas_a1_a_qr(:,:,:,:)" in code
+    assert "real(kind=r_def), allocatable :: bas_a2_b_qr(:,:,:,:)" in code
+    assert ("ALLOCATE(bas_a1_a_qr(dim_aspc1_a,ndf_aspc1_a,"
+            "np_xy_qr,np_z_qr))" in code), code
+    assert ("ALLOCATE(bas_a2_b_qr(dim_aspc2_b,ndf_aspc2_b,"
+            "np_xy_qr,np_z_qr))" in code), code
+    assert "map_aspc1_a => a_proxy%vspace%get_whole_dofmap()" in code, code
+    assert "map_aspc2_b => b_proxy%vspace%get_whole_dofmap()" in code, code
     assert ("call testkern_any_space_1_code(nlayers_a, a_data, rdt, "
             "b_data, c_1_data, c_2_data, c_3_data, "
             "ndf_aspc1_a, undf_aspc1_a, map_aspc1_a(:,cell), "
-            "basis_aspc1_a_qr, ndf_aspc2_b, undf_aspc2_b, "
-            "map_aspc2_b(:,cell), basis_aspc2_b_qr, ndf_w0, undf_w0, "
-            "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
-            "weights_xy_qr, weights_z_qr)" in code)
-    assert ("DEALLOCATE(basis_aspc1_a_qr, basis_aspc2_b_qr, diff_basis_w0_qr)"
-            in code)
+            "bas_a1_a_qr, ndf_aspc2_b, undf_aspc2_b, "
+            "map_aspc2_b(:,cell), bas_a2_b_qr, ndf_w0, undf_w0, "
+            "map_w0(:,cell), dif_bas_w0_qr, np_xy_qr, np_z_qr, "
+            "weights_xy_qr, weights_z_qr)" in code), code
+    assert ("DEALLOCATE(bas_a1_a_qr, bas_a2_b_qr, dif_bas_w0_qr)"
+            in code), code
 
 
 def test_any_space_2(tmpdir):
@@ -494,14 +494,14 @@ def test_op_any_discontinuous_space_2(tmpdir):
     assert "dim_adspc4_f1 = f1_proxy%vspace%get_dim_space()" in generated_code
     assert ("diff_dim_adspc4_f1 = f1_proxy%vspace%get_dim_space_diff()"
             in generated_code)
-    assert ("ALLOCATE(basis_adspc1_op1_qr(dim_adspc1_op1,ndf_adspc1_op1"
+    assert ("ALLOCATE(bas_a1_o1_qr(dim_adspc1_op1,ndf_adspc1_op1"
             in generated_code)
-    assert ("ALLOCATE(diff_basis_adspc4_f1_qr(diff_dim_adspc4_f1,"
+    assert ("ALLOCATE(dif_bas_a4_f1_qr(diff_dim_adspc4_f1,"
             "ndf_adspc4_f1" in generated_code)
     assert ("call qr%compute_function(BASIS, op1_proxy%fs_to, dim_adspc1_op1, "
-            "ndf_adspc1_op1, basis_adspc1_op1_qr)" in generated_code)
+            "ndf_adspc1_op1, bas_a1_o1_qr)" in generated_code)
     assert ("call qr%compute_function(DIFF_BASIS, f1_proxy%vspace, "
-            "diff_dim_adspc4_f1, ndf_adspc4_f1, diff_basis_adspc4_f1_qr)"
+            "diff_dim_adspc4_f1, ndf_adspc4_f1, dif_bas_a4_f1_qr)"
             in generated_code)
 
 
@@ -1012,21 +1012,21 @@ def test_multikern_invoke_any_space(tmpdir):
     assert "integer(kind=i_def), pointer :: map_aspc2_f1(:,:) => null()" in gen
     assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_aspc1_f1_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable :: bas_a1_f1_qr(:,:,:,:)") in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_aspc1_f2_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable :: bas_a1_f2_qr(:,:,:,:)") in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_aspc2_f1_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable :: bas_a2_f1_qr(:,:,:,:)") in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_aspc2_f2_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable :: bas_a2_f2_qr(:,:,:,:)") in gen
     assert (
-        "real(kind=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable :: dif_bas_w0_qr(:,:,:,:)") in gen
     assert "ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert "ndf_aspc2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
     assert "ndf_aspc1_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert ("call qr%compute_function(BASIS, f2_proxy%vspace, "
-            "dim_aspc1_f2, ndf_aspc1_f2, basis_aspc1_f2_qr)" in gen)
+            "dim_aspc1_f2, ndf_aspc1_f2, bas_a1_f2_qr)" in gen)
     assert (
         "    map_aspc1_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "    map_aspc2_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
@@ -1037,9 +1037,9 @@ def test_multikern_invoke_any_space(tmpdir):
     assert ("call testkern_any_space_1_code(nlayers_f1, f1_data, rdt, "
             "f2_data, f3_1_data, f3_2_data, "
             "f3_3_data, ndf_aspc1_f1, undf_aspc1_f1, "
-            "map_aspc1_f1(:,cell), basis_aspc1_f1_qr, ndf_aspc2_f2, "
-            "undf_aspc2_f2, map_aspc2_f2(:,cell), basis_aspc2_f2_qr, ndf_w0, "
-            "undf_w0, map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
+            "map_aspc1_f1(:,cell), bas_a1_f1_qr, ndf_aspc2_f2, "
+            "undf_aspc2_f2, map_aspc2_f2(:,cell), bas_a2_f2_qr, ndf_w0, "
+            "undf_w0, map_w0(:,cell), dif_bas_w0_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr" in gen)
 
 
@@ -1058,10 +1058,10 @@ def test_mkern_invoke_multiple_any_spaces(tmpdir):
 
     assert "ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert ("call qr%compute_function(BASIS, f1_proxy%vspace, "
-            "dim_aspc1_f1, ndf_aspc1_f1, basis_aspc1_f1_qr)" in gen)
+            "dim_aspc1_f1, ndf_aspc1_f1, bas_a1_f1_qr)" in gen)
     assert "ndf_aspc2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert ("call qr%compute_function(BASIS, f2_proxy%vspace, "
-            "dim_aspc2_f2, ndf_aspc2_f2, basis_aspc2_f2_qr)" in gen)
+            "dim_aspc2_f2, ndf_aspc2_f2, bas_a2_f2_qr)" in gen)
     assert "ndf_aspc1_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_aspc1_op = op_proxy%fs_to%get_ndf()" in gen
     assert "ndf_aspc5_f2 = f2_proxy%vspace%get_ndf()" in gen
@@ -1074,19 +1074,19 @@ def test_mkern_invoke_multiple_any_spaces(tmpdir):
     # DIFF_BASIS on w0
     # f1 is on ANY_SPACE_1 and f2 is on ANY_SPACE_2. f3 is on W0.
     assert ("call qr%compute_function(BASIS, f1_proxy%vspace, "
-            "dim_aspc1_f1, ndf_aspc1_f1, basis_aspc1_f1_qr)" in gen)
+            "dim_aspc1_f1, ndf_aspc1_f1, bas_a1_f1_qr)" in gen)
     assert ("call qr%compute_function(BASIS, f2_proxy%vspace, "
-            "dim_aspc2_f2, ndf_aspc2_f2, basis_aspc2_f2_qr)" in gen)
+            "dim_aspc2_f2, ndf_aspc2_f2, bas_a2_f2_qr)" in gen)
     # testkern_any_space_4_type needs GH_BASIS on ANY_SPACE_1 which is the
     # to-space of op2
     assert ("call qr%compute_function(BASIS, op2_proxy%fs_to, "
-            "dim_aspc1_op2, ndf_aspc1_op2, basis_aspc1_op2_qr)" in gen)
+            "dim_aspc1_op2, ndf_aspc1_op2, bas_a1_o2_qr)" in gen)
     # Need GH_BASIS and DIFF_BASIS on ANY_SPACE_4 which is to/from-space
     # of op4
     assert ("call qr%compute_function(BASIS, op4_proxy%fs_from, "
-            "dim_aspc4_op4, ndf_aspc4_op4, basis_aspc4_op4_qr)" in gen)
+            "dim_aspc4_op4, ndf_aspc4_op4, bas_a4_o4_qr)" in gen)
     assert ("call qr%compute_function(DIFF_BASIS, op4_proxy%fs_from, "
-            "diff_dim_aspc4_op4, ndf_aspc4_op4, diff_basis_aspc4_op4_qr)"
+            "diff_dim_aspc4_op4, ndf_aspc4_op4, dif_bas_a4_o4_qr)"
             in gen)
 
 
@@ -2300,10 +2300,14 @@ def test_no_mangle_specified_function_space():
             in str(excinfo.value))
 
 
-@pytest.mark.parametrize("name, shortened",
-                         [("something_nasty_in_the_woodshead", "SgNyInTeWd"),
-                          ("something_o_nasty", "SgONy"),
-                          ("short", "St")])
+@pytest.mark.parametrize(
+    "name, shortened",
+    [("something_nasty_in_the_woodshead", "sg_ny_in_te_wd"),
+     ("something_o_nasty", "sg_o_ny"),
+     ("short", "st"),
+     ("diff_basis_aspc1_blah", "dif_bas_a1_bh"),
+     ("basis_aspc2_source_surface_altitude_on_aspc1_surface_altitude_w0_k0",
+      "bas_a2_se_se_ae_on_a1_se_ae_w0_k0")])
 def test_function_space_shorten_arg_name(name, shortened):
     '''
     Test the _shorten_arg_name() method of FunctionSpace.
@@ -3223,12 +3227,12 @@ def test_anyw2_operators(dist_mem, tmpdir):
     assert output in generated_code
     output = (
         "    dim_any_w2 = mm_w2_proxy%fs_from%get_dim_space()\n"
-        "    ALLOCATE(basis_any_w2_qr(dim_any_w2,ndf_any_w2,"
+        "    ALLOCATE(bas_ay_w2_qr(dim_any_w2,ndf_any_w2,"
         "np_xy_qr,np_z_qr))\n"
         "\n"
         "    ! Compute basis/diff-basis arrays\n"
         "    call qr%compute_function(BASIS, mm_w2_proxy%fs_from, "
-        "dim_any_w2, ndf_any_w2, basis_any_w2_qr)")
+        "dim_any_w2, ndf_any_w2, bas_ay_w2_qr)")
     assert output in generated_code
 
 

@@ -3016,8 +3016,9 @@ class LFRicBasisFunctions(LFRicCollection):
                     dims.append(Literal(value, INTEGER_TYPE))
                 except ValueError:
                     dims.append(Reference(self.symtab.find_or_create(value)))
-            arg = self.symtab.find_or_create(
-                basis, symbol_type=DataSymbol,
+            arg = self.symtab.find_or_create_tag(
+                basis, root_name=FunctionSpace._shorten_arg_name(basis),
+                symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                                    dims))
             arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
@@ -3257,9 +3258,11 @@ class LFRicBasisFunctions(LFRicCollection):
         # Allocate basis arrays
         for basis in basis_arrays:
             dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
-            symbol = self.symtab.find_or_create(
-                basis, symbol_type=DataSymbol, datatype=UnsupportedFortranType(
-                    f"real(kind=r_def), allocatable :: {basis}{dims}"
+            short_name = FunctionSpace._shorten_arg_name(basis)
+            symbol = self.symtab.find_or_create_tag(
+                basis, root_name=short_name,
+                symbol_type=DataSymbol, datatype=UnsupportedFortranType(
+                    f"real(kind=r_def), allocatable :: {short_name}{dims}"
                 ))
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
@@ -3436,7 +3439,7 @@ class LFRicBasisFunctions(LFRicCollection):
                 const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["intrinsic"]
             kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["kind"]
             for name in self.qr_weight_vars["xyoz"]:
-                self.symtab.find_or_create(
+                self.symtab.find_or_create_tag(
                     name+"_"+qr_arg_name, symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
                         f"{dtype}(kind={kind}), pointer :: "
@@ -3644,7 +3647,7 @@ class LFRicBasisFunctions(LFRicCollection):
                         Reference(self.symtab.lookup(first_dim)),
                         Reference(self.symtab.lookup(
                             basis_fn["fspace"].ndf_name)),
-                        Reference(self.symtab.lookup(op_name))]
+                        Reference(self.symtab.lookup_with_tag(op_name))]
 
                 # insert the basis array call
                 call = Call.create(
@@ -3759,7 +3762,7 @@ class LFRicBasisFunctions(LFRicCollection):
             # add the required deallocate call
             dealloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.DEALLOCATE,
-                [Reference(self.symtab.lookup(name)) for name in
+                [Reference(self.symtab.lookup_with_tag(name)) for name in
                  sorted(func_space_var_names)]
             )
             if first:
@@ -3839,7 +3842,7 @@ class LFRicBoundaryConditions(LFRicCollection):
                     [ArrayType.Extent.DEFERRED]*2)
                 )
             self.symtab.new_symbol(
-                name,
+                name, tag=name,
                 symbol_type=DataSymbol,
                 datatype=dtype)
 

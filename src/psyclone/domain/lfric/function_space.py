@@ -182,12 +182,21 @@ class FunctionSpace():
         :returns: a shortened form of the name.
 
         '''
-        new_name = ""
-        for part in name.split("_"):
-            new_name += part[0].upper()
+        cursor = 0
+        parts = name.split("_")
+        new_parts = []
+        if parts[cursor] == "diff":
+            new_parts.append("dif")
+            cursor += 1
+        if parts[cursor] == "basis":
+            new_parts.append("bas")
+            cursor += 1
+        for part in parts[cursor:]:
+            new_name = part[0]
             if len(part) > 1:
                 new_name += part[-1]
-        return new_name
+            new_parts.append(new_name)
+        return "_".join(new_parts)
 
     def _shorten_fs_name(self):
         '''
