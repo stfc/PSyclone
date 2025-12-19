@@ -1186,7 +1186,7 @@ def test_elemental_function_to_loop(fortran_reader, fortran_writer):
     correct = '''! PSyclone CodeBlock (unsupported code) reason:
   !  - WHERE not supported because 'a' cannot be converted to an array \
 due to: Transformation Error: The supplied node is passed as an argument to \
-a Call that we don't know if it is elemental or not: 'somefunc(a)'. Consider \
+a Call that may or may not be elemental: 'somefunc(a)'. Consider \
 adding the function's filename to RESOLVE_IMPORTS.
   WHERE (somefunc(a) < 2)
     b = a
@@ -1224,6 +1224,6 @@ def test_array_syntax_to_indexed_unknown_elemental(fortran_reader):
         parser._array_syntax_to_indexed(ifblock, ["i"])
     assert ("WHERE not supported because 'a' cannot be converted to an "
             "array due to: Transformation Error: The supplied node is "
-            "passed as an argument to a Call that we don't know if it is "
-            "elemental or not: 'x(a(:))'. Consider adding the function's "
+            "passed as an argument to a Call that may or may not be elemental"
+            ": 'x(a(:))'. Consider adding the function's "
             "filename to RESOLVE_IMPORTS." in str(excinfo.value))
