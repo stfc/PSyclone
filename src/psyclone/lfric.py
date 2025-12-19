@@ -3821,7 +3821,7 @@ class LFRicBoundaryConditions(LFRicCollection):
                 bc_fs = op_arg.function_space_to
                 self._boundary_dofs.append(self.BoundaryDofs(op_arg, bc_fs))
 
-    def invoke_declarations(self):
+    def invoke_declarations(self) -> None:
         '''
         Add declarations for any boundary-dofs arrays required by an Invoke.
 
@@ -3839,10 +3839,8 @@ class LFRicBoundaryConditions(LFRicCollection):
                     LFRicTypes("LFRicIntegerScalarDataType")(),
                     [ArrayType.Extent.DEFERRED]*2)
                 )
-            self.symtab.new_symbol(
-                name, tag=name,
-                symbol_type=DataSymbol,
-                datatype=dtype)
+            self.symtab.find_or_create_tag(
+                name, symbol_type=DataSymbol, datatype=dtype)
 
     def stub_declarations(self):
         '''
