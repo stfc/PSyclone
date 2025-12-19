@@ -221,27 +221,20 @@ def test_validate_no_known_datatype():
     with pytest.raises(TransformationError) as info:
         trans.validate(Reference(Symbol("x")))
     assert ("The supplied node should be a Reference to a symbol of known "
-            "type, but 'x' is not." in str(info.value))
+            "type, but 'x: Symbol<Automatic>' is not." in str(info.value))
     # If it is a datasymbol of UnresolvedType
     with pytest.raises(TransformationError) as info:
         trans.validate(Reference(DataSymbol("x", UnresolvedType())))
     assert ("The supplied node should be a Reference to a symbol of known "
-            "type, but 'x' is not." in str(info.value))
+            "type, but 'x: DataSymbol<UnresolvedType, Automatic>' is not."
+            in str(info.value))
     # If it is a datasymbol of UnsupportedType
     with pytest.raises(TransformationError) as info:
         trans.validate(Reference(
            DataSymbol("x", UnsupportedFortranType("decl"))))
     assert ("The supplied node should be a Reference to a symbol of known "
-            "type, but 'x' is not." in str(info.value))
-
-
-def test_validate_no_datatype():
-    ''' Test the validate method '''
-    trans = Reference2ArrayRangeTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.validate(None)
-    assert ("The supplied node should be a Reference but found 'NoneType'."
-            in str(info.value))
+            "type, but 'x: DataSymbol<UnsupportedFortranType('decl'), "
+            "Automatic>' is not." in str(info.value))
 
 
 def test_apply_inquiry(fortran_reader, fortran_writer):
@@ -301,7 +294,9 @@ def test_validate_structure(fortran_reader):
 
 
 def test_validate_pointer_assignment(fortran_reader):
-    '''Test that a reference in a PointerAssignment raises an exception. '''
+    ''' Test that a reference in a PointerAssignment raises an exception
+    Even if we have a partial_datatype that could tell us that it was
+    an array, pointer assignemnts must not be converted.'''
     code = (
         "program test\n"
         "  integer, dimension(10), target :: a\n"

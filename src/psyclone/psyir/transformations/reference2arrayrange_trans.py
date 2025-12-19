@@ -152,7 +152,7 @@ class Reference2ArrayRangeTrans(Transformation):
         ):
             raise TransformationError(
                 f"The supplied node should be a Reference to a symbol "
-                f"of known type, but '{node.symbol.name}' is not.")
+                f"of known type, but '{node.symbol}' is not.")
 
     def apply(self, node, options=None, **kwargs):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified

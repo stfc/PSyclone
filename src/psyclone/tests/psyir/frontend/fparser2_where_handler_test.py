@@ -38,9 +38,10 @@
 construct in the PSyIR. '''
 
 import pytest
+from typing import Optional
 
 from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
+from fparser.two import Fortran2003, utils
 
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -52,25 +53,26 @@ from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, INTEGER_TYPE)
 
 
-def process_where(code, fparser_cls, symbols=None, scalars=None):
+def process_where(
+    code: str,
+    fparser_cls: type,
+    symbols: Optional[list[str]] = None,
+    scalars: Optional[list[str]] = None
+) -> tuple[Schedule, utils.Base]:
     '''
     Utility routine to process the supplied Fortran code and return the
     PSyIR and fparser2 parse trees.
 
-    :param str code: Fortran code to process.
-    :param type fparser_cls: the fparser2 class to instantiate to
-                             represent the supplied Fortran.
+    :param code: Fortran code to process.
+    :param fparser_cls: the fparser2 class to instantiate to represent the
+        supplied Fortran.
     :param symbols: list of symbol names that must be added to the symbol
                     table before constructing the PSyIR.
-    :type symbols: List[str]
     :param scalars: list of symbol names that must be added to the symbol
-                    table with an scalar datatype.
-    :type symbols: List[str]
+                    table with an integer, scalar datatype.
 
     :returns: 2-tuple of a parent PSyIR Schedule and the created instance of
               the requested fparser2 class.
-    :rtype: Tuple[:py:class:`psyclone.psyir.nodes.Schedule`,
-                  :py:class:`fparser.two.utils.Base`]
     '''
     sched = Schedule()
     # Always add the 'wp' kind parameter as this must have specific properties.
