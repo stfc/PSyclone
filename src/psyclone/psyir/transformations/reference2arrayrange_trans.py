@@ -61,7 +61,7 @@ from psyclone.utils import transformation_documentation_wrapper
 class Reference2ArrayRangeTrans(Transformation):
     '''
     Transformation to convert plain References of array symbols to
-    ArrayReferances with full-extent ranges if it is semantically equivalent
+    ArrayReferences with full-extent ranges if it is semantically equivalent
     to do so (e.g. it won't convert call arguments because it would change the
     bounds values).
 
@@ -154,9 +154,9 @@ class Reference2ArrayRangeTrans(Transformation):
                 # If it is a DataTypeSymbol, follow its declaration
                 cursor_datatype = cursor_datatype.datatype
 
-            # If it is already an Array access (does not need expansion)
-            # or we don't recurse into its members, we don't mind the type,
-            # but otherwise we will need it
+            # If we don't know if it is an array access (is not ArrayMixin)
+            # or we recurse down (its a StructureAccessorMixin)s, we need to
+            # know the exact type.
             if (
                 not isinstance(cursor, ArrayMixin) or
                 isinstance(cursor, StructureAccessorMixin)
@@ -188,6 +188,9 @@ class Reference2ArrayRangeTrans(Transformation):
             if isinstance(cursor, (StructureAccessorMixin, Member)):
                 if not isinstance(cursor, ArrayMixin):
                     if isinstance(cursor_datatype, ArrayType):
+                        # TODO #1858: This error can be removed when the apply
+                        # has support for transforming StructureReferences to
+                        # ArrayOfStuctureReferences and Members to ArrayMembers
                         raise TransformationError(
                             f"{self.name} does not support converting "
                             f"StructureReferences yet but in "
@@ -202,9 +205,17 @@ class Reference2ArrayRangeTrans(Transformation):
                 if isinstance(cursor_datatype, ArrayType):
                     cursor_datatype = cursor_datatype.intrinsic.datatype
 
-                cursor_datatype = cursor_datatype.components[
-                    cursor.member.name
-                ]
+                try:
+                    cursor_datatype = cursor_datatype.components[
+                        cursor.member.name
+                    ]
+                except (AttributeError, KeyError):
+                    # pylint: disable=raise-missing-from
+                    raise TransformationError(
+                        f"{self.name} cannot validate {node.debug_string()} "
+                        f"because it could not find {cursor.member.name}"
+                        f"of {cursor_datatype}")
+
                 cursor = cursor.member
             else:
                 break
