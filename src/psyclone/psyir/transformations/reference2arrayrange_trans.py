@@ -186,23 +186,7 @@ class Reference2ArrayRangeTrans(Transformation):
                         f"'{cursor_datatype}'. Consider adding the declaration"
                         f"'s filename to RESOLVE_IMPORTS.")
 
-            if isinstance(cursor, (StructureAccessorMixin, Member)):
-                if not isinstance(cursor, ArrayMixin):
-                    if isinstance(cursor_datatype, ArrayType):
-                        # TODO #1858: This error can be removed when the apply
-                        # has support for transforming StructureReferences to
-                        # ArrayOfStuctureReferences and Members to ArrayMembers
-                        raise TransformationError(
-                            f"{self.name} does not support converting "
-                            f"StructureReferences yet but in "
-                            f"'{node.debug_string()}' '{cursor.name}'"
-                            f" should be an array access."
-                        )
-
-                if isinstance(cursor, Member):
-                    # Its a leaf member, finish recursion
-                    break
-
+            if isinstance(cursor, StructureAccessorMixin):
                 if isinstance(cursor_datatype, ArrayType):
                     cursor_datatype = cursor_datatype.intrinsic.datatype
 
@@ -245,7 +229,10 @@ class Reference2ArrayRangeTrans(Transformation):
         # array datatype.
         cursor = node
         cursor_datatype = cursor.symbol.datatype
+        # import pdb; pdb.set_trace()
         while cursor:
+            if isinstance(cursor_datatype, StructureType.ComponentType):
+                cursor_datatype = cursor_datatype.datatype
 
             # If we know its an array but its not an array accessor, convert it
             if not isinstance(cursor, ArrayMixin):
@@ -257,29 +244,30 @@ class Reference2ArrayRangeTrans(Transformation):
                         array = ArrayReference(cursor.symbol)
                     elif type(cursor) is StructureReference:
                         array = ArrayOfStructuresReference(cursor.symbol)
-                    elif type(cursor) is Member:
-                        array = ArrayMember(cursor.member.name)
                         array.addchild(cursor.member.copy())
+                    elif type(cursor) is Member:
+                        array = ArrayMember(cursor.name)
                     elif type(cursor) is StructureMember:
-                        array = ArrayOfStructuresMember(cursor.member.name)
+                        array = ArrayOfStructuresMember(cursor.name)
                         array.addchild(cursor.member.copy())
                     else:
                         raise InternalError(
                             f"{type(cursor).__name__} implements ArrayMixin, "
                             f"but {self.name} does not support it.")
 
+                    # Replace the node with the new one
+                    if cursor.parent:
+                        cursor.replace_with(array)
+
                     # Add full-extent ranges for each dimension
                     for idx, _ in enumerate(cursor_datatype.shape):
                         array.addchild(array.get_full_range(idx))
-                    if cursor.parent:
-                        cursor.replace_with(array)
-                        cursor = array
+
+                    # Continue recursion with the updated node
+                    cursor = array
 
             # Keep recursing down if there are more structure accessors
             if isinstance(cursor, StructureAccessorMixin):
-                if isinstance(cursor_datatype, StructureType.ComponentType):
-                    cursor_datatype = cursor_datatype.datatype
-
                 if isinstance(cursor_datatype, DataTypeSymbol):
                     cursor_datatype = cursor_datatype.datatype
 
@@ -291,6 +279,9 @@ class Reference2ArrayRangeTrans(Transformation):
                         cursor.member.name
                     ]
                 except (AttributeError, KeyError):
+                    # This condition was already validated, if it happens is
+                    # because we guaranteed its correctness (e.g. it is
+                    # ArrayMixins all the way down), so we can finish
                     break
                 cursor = cursor.member
             else:

@@ -229,8 +229,13 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             cursor = cursor.member
             # Collect member information.
             if isinstance(cursor, ArrayMixin):
-                new_indices = [idx.copy() for idx in cursor.indices]
-                cnames.append((cursor.name.lower(), new_indices))
+                try:
+                    new_indices = [idx.copy() for idx in cursor.indices]
+                    cnames.append((cursor.name.lower(), new_indices))
+                except InternalError:
+                    # The node is incomplete, but we can still use the type
+                    # information to populate the bounds
+                    cnames.append(cursor.name.lower())
             else:
                 cnames.append(cursor.name.lower())
             # Continue to resolve datatype unless we hit an

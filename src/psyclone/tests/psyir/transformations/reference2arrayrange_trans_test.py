@@ -274,9 +274,9 @@ def test_apply_inquiry(fortran_reader, fortran_writer):
         "  end if\n") in output
 
 
-def test_validate_structure_references(fortran_reader):
-    ''' Test that the transformation can be applied to StructureReferences.
-    TODO #1858: this still has several limitations.
+def test_structure_references(fortran_reader, fortran_writer):
+    ''' Test that the transformation can be applied to StructureReferences
+    and its Members.
     '''
     code = (
         "program test\n"
@@ -310,12 +310,11 @@ def test_validate_structure_references(fortran_reader):
         "  ! ref%ptr => b\n"
         "end program test\n"
     )
-    print(code)
     psyir = fortran_reader.psyir_from_source(code)
     trans = Reference2ArrayRangeTrans()
     assign = psyir.walk(Assignment)
 
-    # The first statements are pass apply unmodified
+    # The first statements pass unmodified
     trans.apply(assign[0].lhs)
     trans.apply(assign[1].lhs)
     trans.apply(assign[2].lhs)
@@ -323,49 +322,36 @@ def test_validate_structure_references(fortran_reader):
     trans.apply(assign[4].lhs)
     trans.apply(assign[5].lhs)
 
-    # TODO #1858: Add support for StructureReference (all cases below)
-    with pytest.raises(TransformationError) as err:
-        trans.apply(assign[6].lhs)
-    assert ("Reference2ArrayRangeTrans does not support converting "
-            "StructureReferences yet but in 'array_of_ref%scalar' "
-            "'array_of_ref' should be an array access."
-            in str(err.value))
-    with pytest.raises(TransformationError) as err:
-        trans.apply(assign[7].lhs)
-    assert ("Reference2ArrayRangeTrans does not support converting "
-            "StructureReferences yet but in 'array_of_ref(1)%field' "
-            "'field' should be an array access."
-            in str(err.value))
-    with pytest.raises(TransformationError) as err:
-        trans.apply(assign[8].lhs)
-    assert ("Reference2ArrayRangeTrans does not support converting "
-            "StructureReferences yet but in 'array_of_ref%field(1)' "
-            "'array_of_ref' should be an array access."
-            in str(err.value))
-    with pytest.raises(TransformationError) as err:
-        trans.apply(assign[9].lhs)
-    assert ("Reference2ArrayRangeTrans does not support converting "
-            "StructureReferences yet but in 'ref%field' 'field' should "
-            "be an array access."
-            in str(err.value))
-    with pytest.raises(TransformationError) as err:
-        trans.apply(assign[10].lhs)
-    assert ("Reference2ArrayRangeTrans does not support converting "
-            "StructureReferences yet but in 'ref%field_of_fields%inner' "
-            "'field_of_fields' should be an array access."
-            in str(err.value))
-    with pytest.raises(TransformationError) as err:
-        trans.apply(assign[11].lhs)
-    assert ("Reference2ArrayRangeTrans does not support converting "
-            "StructureReferences yet but in 'array_of_ref(1)%field_of_fields"
-            "%inner' 'field_of_fields' should be an array access."
-            in str(err.value))
-    with pytest.raises(TransformationError) as err:
-        trans.apply(assign[12].lhs)
-    assert ("Reference2ArrayRangeTrans does not support converting "
-            "StructureReferences yet but in 'array_of_ref%field_of_fields(1)"
-            "%inner' 'array_of_ref' should be an array access."
-            in str(err.value))
+    # The following get some component replaced
+    trans.apply(assign[6].lhs)
+    trans.apply(assign[7].lhs)
+    trans.apply(assign[8].lhs)
+    trans.apply(assign[9].lhs)
+    trans.apply(assign[10].lhs)
+    trans.apply(assign[11].lhs)
+    trans.apply(assign[12].lhs)
+
+    output = fortran_writer(psyir)
+    print(output)
+    expected_unmodified = """
+  ref%scalar = 1
+  array_of_ref(:)%scalar = 1
+  ref%field(:) = 1
+  array_of_ref(1)%field(:) = 1
+  array_of_ref(:)%field(1) = 1
+  array_of_ref(1)%field_of_fields(:)%inner = 1
+  """
+    assert expected_unmodified in output
+
+    expected_modified = """
+  array_of_ref(1:10)%scalar = 1
+  array_of_ref(1)%field(1:10) = 1
+  array_of_ref(1:10)%field(1) = 1
+  ref%field(1:10) = 1
+  ref%field_of_fields(1:10)%inner = 1
+  array_of_ref(1)%field_of_fields(1:10)%inner = 1
+  array_of_ref(1:10)%field_of_fields(1)%inner = 1"""
+    assert expected_modified in output
 
 
 def test_validate_pointer_assignment(fortran_reader):
