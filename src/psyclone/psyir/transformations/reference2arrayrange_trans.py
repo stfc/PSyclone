@@ -44,13 +44,12 @@
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    ArrayReference, Call, Literal, Range, Reference,
-    ArrayOfStructuresReference, Member)
+    ArrayReference, Call, Reference, Member)
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, DataSymbol, UnresolvedType, UnsupportedType, DataTypeSymbol,
+    DataSymbol, UnresolvedType, UnsupportedType, DataTypeSymbol,
     ArrayType, StructureType)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -232,27 +231,27 @@ class Reference2ArrayRangeTrans(Transformation):
         '''
         self.validate(node, **kwargs)
 
-        # We have validated that it is a reference to a symbol with a datatype
-        # that is not UnresolvedType or UnknownType
-        symbol = node.symbol
-
         # The following cases do not need expansions
-        # pylint: disable=unidiomatic-typecheck
-        if type(node) in [ArrayReference, ArrayOfStructuresReference]:
-            return
         if node.parent and isinstance(node.parent, Call):
             if node is node.parent.routine:
                 return
             if not node.parent.is_elemental:
                 return
-        if not symbol.is_array:
-            return
 
-        indices = []
-        for idx, _ in enumerate(symbol.shape):
-            lbound, ubound = symbol.get_bounds(idx)
-            indices.append(Range.create(lbound, ubound,
-                                        Literal("1", INTEGER_TYPE)))
-        array_ref = ArrayReference.create(symbol, indices)
-        if node.parent:
-            node.replace_with(array_ref)
+        # Recurse down the node converting References to ArrayReferences,
+        # StructureReferences to ArrayOfStructuresReferences and Members to
+        # ArrayMembers when the type is an ArrayType
+        cursor = node
+        symbol = cursor.symbol
+        cursor_datatype = symbol.datatype
+        while cursor:
+
+            # If we know its an array but its not an array accessor, convert it
+            if not isinstance(cursor, ArrayMixin):
+                if isinstance(cursor_datatype, ArrayType):
+                    array_ref = ArrayReference(symbol)
+                    for idx, _ in enumerate(cursor_datatype.shape):
+                        array_ref.addchild(array_ref.get_full_range(idx))
+                    if node.parent:
+                        node.replace_with(array_ref)
+            break
