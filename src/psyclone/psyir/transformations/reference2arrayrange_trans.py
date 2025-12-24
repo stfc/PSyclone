@@ -41,10 +41,12 @@
    as transforming to explicit loops.
 
 '''
-from psyclone.errors import LazyString
+from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    ArrayReference, Call, Reference, Member)
+    ArrayReference, Call, Reference, Member, StructureReference,
+    ArrayOfStructuresMember, ArrayOfStructuresReference, ArrayMember,
+    StructureMember)
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -238,20 +240,58 @@ class Reference2ArrayRangeTrans(Transformation):
             if not node.parent.is_elemental:
                 return
 
-        # Recurse down the node converting References to ArrayReferences,
-        # StructureReferences to ArrayOfStructuresReferences and Members to
-        # ArrayMembers when the type is an ArrayType
+        # Recurse down the node converting each plain Reference and Member
+        # to ArrayReferences or ArrayMembers when they are associated to an
+        # array datatype.
         cursor = node
-        symbol = cursor.symbol
-        cursor_datatype = symbol.datatype
+        cursor_datatype = cursor.symbol.datatype
         while cursor:
 
             # If we know its an array but its not an array accessor, convert it
             if not isinstance(cursor, ArrayMixin):
                 if isinstance(cursor_datatype, ArrayType):
-                    array_ref = ArrayReference(symbol)
+
+                    # Select the appropriate conversion target
+                    # pylint: disable=unidiomatic-typecheck
+                    if type(cursor) is Reference:
+                        array = ArrayReference(cursor.symbol)
+                    elif type(cursor) is StructureReference:
+                        array = ArrayOfStructuresReference(cursor.symbol)
+                    elif type(cursor) is Member:
+                        array = ArrayMember(cursor.member.name)
+                        array.addchild(cursor.member.copy())
+                    elif type(cursor) is StructureMember:
+                        array = ArrayOfStructuresMember(cursor.member.name)
+                        array.addchild(cursor.member.copy())
+                    else:
+                        raise InternalError(
+                            f"{type(cursor).__name__} implements ArrayMixin, "
+                            f"but {self.name} does not support it.")
+
+                    # Add full-extent ranges for each dimension
                     for idx, _ in enumerate(cursor_datatype.shape):
-                        array_ref.addchild(array_ref.get_full_range(idx))
-                    if node.parent:
-                        node.replace_with(array_ref)
-            break
+                        array.addchild(array.get_full_range(idx))
+                    if cursor.parent:
+                        cursor.replace_with(array)
+                        cursor = array
+
+            # Keep recursing down if there are more structure accessors
+            if isinstance(cursor, StructureAccessorMixin):
+                if isinstance(cursor_datatype, StructureType.ComponentType):
+                    cursor_datatype = cursor_datatype.datatype
+
+                if isinstance(cursor_datatype, DataTypeSymbol):
+                    cursor_datatype = cursor_datatype.datatype
+
+                if isinstance(cursor_datatype, ArrayType):
+                    cursor_datatype = cursor_datatype.intrinsic.datatype
+
+                try:
+                    cursor_datatype = cursor_datatype.components[
+                        cursor.member.name
+                    ]
+                except (AttributeError, KeyError):
+                    break
+                cursor = cursor.member
+            else:
+                break
