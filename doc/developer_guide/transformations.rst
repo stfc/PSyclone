@@ -557,7 +557,7 @@ the ``ParallelLoopTrans`` class for reference):
    built upon the ``apply`` definition (e.g. ``LoopTrans`` has
    validation used for subclasses, but performs no actions in its newly added
    ``apply`` method).
-3. The ``validate`` method should call the ``validate_options`` method on each of
+3. The ``validate`` method should call the ``validate_options`` method on
    the keyword arguments and ``**kwargs``. This method should not be called on
    the ``options`` dictionary. The ``options`` input should overrule the keyword
    arguments when determining options to the apply and validate method.

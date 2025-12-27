@@ -79,7 +79,8 @@ def test_str():
           "x(:,:,:) = y(:,:,:)\n",
           "  do idx = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
           "    do idx_1 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
-          "      do idx_2 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "      do idx_2 = LBOUND(x, dim=1), "
+          "UBOUND(x, dim=1), 1\n"
           "        x(idx_2,idx_1,idx) = y(idx_2,idx_1,idx)\n"),
 
          # Multiple arrays on RHS
@@ -126,7 +127,8 @@ def test_str():
           "x(:,jpj,:,ndim,:) = y(jpi,:,:,:,ndim) + 1.0\n",
           "  do idx = LBOUND(x, dim=5), UBOUND(x, dim=5), 1\n"
           "    do idx_1 = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
-          "      do idx_2 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "      do idx_2 = LBOUND(x, dim=1), "
+          "UBOUND(x, dim=1), 1\n"
           "        x(idx_2,jpj,idx_1,ndim,idx) = y(jpi,idx_2,idx_1,"
           "idx,ndim) + 1.0\n"
           "      enddo\n"
@@ -184,7 +186,8 @@ def test_str():
           "x(:,:,:) = 3 + mystruct%soa%array(:,:,:)",
           "  do idx = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
           "    do idx_1 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
-          "      do idx_2 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "      do idx_2 = LBOUND(x, dim=1), "
+          "UBOUND(x, dim=1), 1\n"
           # Ignore offset for this test, it is tested below
           "        x(idx_2,idx_1,idx) = 3 + mystruct%soa%array(idx_2 + "),
 
@@ -283,15 +286,17 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
 
     # The bounds are not known, so L/UBOUND expressions are used
     output_test1 = fortran_writer(psyir.walk(Assignment)[0])
-    assert ("x1(idx_1,idx) = y1(idx_1 + (LBOUND(y1, dim=1) - LBOUND(x1, "
-            "dim=1)),idx + (LBOUND(y1, dim=2) - LBOUND(x1, dim=2)))"
+    assert ("x1(idx_1,idx) = y1(idx_1 + (LBOUND(y1, dim=1) "
+            "- LBOUND(x1, dim=1)),idx + "
+            "(LBOUND(y1, dim=2) - LBOUND(x1, dim=2)))"
             in output_test1)
 
     # When we know the bounds we can see they are different, we also
     # need the offsets (and can also use L/UBOUND)
     output_test2 = fortran_writer(psyir.walk(Assignment)[1])
-    assert ("x2(idx_3,idx_2) = y2(idx_3 + (LBOUND(y2, dim=1) - LBOUND(x2, "
-            "dim=1)),idx_2 + (LBOUND(y2, dim=2) - LBOUND(x2, dim=2)))"
+    assert ("x2(idx_3,idx_2) = y2(idx_3 + (LBOUND(y2, dim=1) "
+            "- LBOUND(x2, dim=1)),idx_2 + "
+            "(LBOUND(y2, dim=2) - LBOUND(x2, dim=2)))"
             in output_test2)
 
     # If the bounds are implicit, the offset should also use the implicit
@@ -307,7 +312,8 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
     output_test4 = fortran_writer(psyir.walk(Assignment)[3])
     assert (" struct%values(idx_6 + (LBOUND(struct%values, dim=1) - "
             "LBOUND(x, dim=1))) + struct%array(idx_6 + ("
-            "LBOUND(struct%array, dim=1) - LBOUND(x, dim=1)))%value"
+            "LBOUND(struct%array, dim=1) - "
+            "LBOUND(x, dim=1)))%value"
             in output_test4)
 
 
@@ -759,6 +765,7 @@ def test_validate_non_elemental_functions(fortran_reader):
     assignment3 = psyir.walk(Assignment)[3]
     assignment4 = psyir.walk(Assignment)[4]
 
+    # When we know for sure that they are not elemental
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment1, options={"verbose": True})
     errormsg = ("ArrayAssignment2LoopsTrans does not accept calls which are "
@@ -773,15 +780,12 @@ def test_validate_non_elemental_functions(fortran_reader):
     assert errormsg in assignment2.preceding_comment
     assert errormsg in str(err.value)
 
-    # Sometimes, like in the two cases below, PSyclone miscategorises function
-    # calls as ArrayReferences, but we still fail with a resonable error msg.
+    # Also, when calls are to unresolved symbols and we don't know if they
+    # are elemental or not
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment3, options={"verbose": True})
-    errormsg = ("ArrayAssignment2LoopsTrans cannot expand expression because "
-                "it contains the access 'myfunc(y)' which is not a DataSymbol "
-                "and therefore cannot be guaranteed to be ScalarType. "
-                "Resolving the import that brings this variable into scope "
-                "may help.")
+    errormsg = ("ArrayAssignment2LoopsTrans does not accept calls which are "
+                "not guaranteed to be elemental, but found: myfunc")
     assert errormsg in assignment3.preceding_comment
     assert errormsg in str(err.value)
 
@@ -840,9 +844,9 @@ def test_validate_indirect_indexing(fortran_reader):
             "cannot be guaranteed" in str(err.value))
     with pytest.raises(TransformationError) as err:
         trans.validate(assignments[3])
-    assert ("cannot expand expression because it contains the access "
-            "'ishtsi(my_func(1),jf)' which is an UnresolvedType and therefore "
-            "cannot be guaranteed to be ScalarType." in str(err.value))
+    assert ("ArrayAssignment2LoopsTrans does not accept calls which are not "
+            "guaranteed to be elemental, but found: my_func"
+            in str(err.value))
 
 
 def test_validate_structure(fortran_reader):
@@ -853,6 +857,7 @@ def test_validate_structure(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source('''
     program test
+      use other
       integer, parameter :: ngrids = 4, kfld=5
       integer, dimension(8,kfld)  :: ishtSi
       type :: sub_grid_type
@@ -863,23 +868,37 @@ def test_validate_structure(fortran_reader):
         type(sub_grid_type), dimension(ngrids) :: subgrid
       end type grid_type
       type(grid_type) :: grid
+      type(unresolved_type) :: grid1
       integer :: jf
-      ! Cannot tell whether or not the access on the RHS is an array.
-      ishtSi(5:8,jf) = grid%data(my_func(1), jf)
-      ! The array access to subgrid is not yet supported.
+      ! This is an array
+      ishtSi(5:8,jf) = grid%data(1, jf)
+      ! This is an array
       ishtSi(5:8,jf) = grid%subgrid%map(1,1)
+      ! This is an array
+      ishtSi(5:8,jf) = grid1%data(1, jf)
+      ! This is an array
+      ishtSi(5:8,jf) = grid1%subgrid%map(1,1)
     end program test
     ''')
     assignments = psyir.walk(Assignment)
     trans = ArrayAssignment2LoopsTrans()
-    with pytest.raises(TransformationError) as err:
-        trans.validate(assignments[0])
-    assert ("contains the access 'grid%data(my_func(1),jf)' which is an "
-            "UnresolvedType" in str(err.value))
-    # TODO #1858 - once we've extended Reference2ArrayRangeTrans to support
-    # StructureMembers we can use it as part of this transformation and this
-    # example will be supported.
+    # We know the type of these, so they can be validated
+    trans.validate(assignments[0])
     trans.validate(assignments[1])
+
+    # We don't know the type of these
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[2])
+    assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
+            "contains the access 'grid1%data(1,jf)' which is an UnresolvedType"
+            " and therefore cannot be guaranteed to be ScalarType"
+            in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[3])
+    assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
+            "contains the access 'grid1%subgrid%map(1,1)' which is an "
+            "UnresolvedType and therefore cannot be guaranteed to be "
+            "ScalarType" in str(err.value))
 
 
 def test_shape_intrinsic(fortran_reader):

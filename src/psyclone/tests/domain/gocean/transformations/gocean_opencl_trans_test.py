@@ -316,11 +316,11 @@ def test_invoke_opencl_initialisation_grid():
     integer(kind=c_size_t) :: size_in_bytes
 
     if (.not.c_associated(field%grid%tmask_device)) then
-      size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
+      size_in_bytes = int(field%grid%nx * field%grid%ny, kind=8) * \
 c_sizeof(field%grid%tmask(1,1))
-      field%grid%tmask_device = transfer(create_ronly_buffer(size_in_bytes),\
- field%grid%tmask_device)
-      size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
+      field%grid%tmask_device = transfer(create_ronly_buffer(\
+size_in_bytes), field%grid%tmask_device)
+      size_in_bytes = int(field%grid%nx * field%grid%ny, kind=8) * \
 c_sizeof(field%grid%'''
     assert expected in generated_code
 
@@ -344,22 +344,22 @@ c_sizeof(field%grid%'''
     integer :: ierr
 
     cmd_queues => get_cmd_queues()
-    size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
+    size_in_bytes = int(field%grid%nx * field%grid%ny, kind=8) * \
 c_sizeof(field%grid%tmask(1,1))
     cl_mem = transfer(field%grid%tmask_device, cl_mem)
-    ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,0_8,\
-size_in_bytes,c_loc(field%grid%tmask),0,c_null_ptr,c_null_ptr)
+    ierr = clenqueuewritebuffer(cmd_queues(1), cl_mem, cl_true, 0_8, \
+size_in_bytes, c_loc(field%grid%tmask), 0, c_null_ptr, c_null_ptr)
     call check_status('clenqueuewritebuffer tmask', ierr)
-    size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
+    size_in_bytes = int(field%grid%nx * field%grid%ny, kind=8) * \
 c_sizeof(field%grid%area_t(1,1))'''
     assert expected in generated_code
 
     for grid_property in check_properties:
-        code = (f"    cl_mem = transfer(field%grid%{grid_property}_device, "
-                f"cl_mem)\n"
-                f"    ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,"
-                f"cl_true,0_8,size_in_bytes,c_loc(field%grid%{grid_property}),"
-                f"0,c_null_ptr,c_null_ptr)\n"
+        code = (f"    cl_mem = transfer(field%grid%{grid_property}_"
+                f"device, cl_mem)\n"
+                f"    ierr = clenqueuewritebuffer(cmd_queues(1), cl_mem, "
+                f"cl_true, 0_8, size_in_bytes, c_loc(field%grid%"
+                f"{grid_property}), 0, c_null_ptr, c_null_ptr)\n"
                 f"    call check_status('clenqueuewritebuffer "
                 f"{grid_property}_device', ierr)\n")
         assert code in generated_code
@@ -385,10 +385,12 @@ c_sizeof(field%grid%area_t(1,1))'''
 
       ! do a set_args now so subsequent writes place the data appropriately
       out_fld_cl_mem = transfer(out_fld%device_ptr, out_fld_cl_mem)
-      in_out_fld_cl_mem = transfer(in_out_fld%device_ptr, in_out_fld_cl_mem)
+      in_out_fld_cl_mem = transfer(in_out_fld%device_ptr, \
+in_out_fld_cl_mem)
       in_fld_cl_mem = transfer(in_fld%device_ptr, in_fld_cl_mem)
       dx_cl_mem = transfer(dx%device_ptr, dx_cl_mem)
-      gphiu_cl_mem = transfer(in_fld%grid%gphiu_device, gphiu_cl_mem)
+      gphiu_cl_mem = transfer(in_fld%grid%gphiu_device, \
+gphiu_cl_mem)
       call compute_kernel_code_set_args(kernel_compute_kernel_code, \
 out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, \
 in_fld%grid%dx, gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
@@ -450,24 +452,25 @@ def test_opencl_routines_initialisation(kernel_outputdir):
 
     cl_mem = transfer(from, cl_mem)
     cmd_queues => get_cmd_queues()
-    if (nx < size(to, 1) / 2) then
+    if (nx < size(to, dim=1) / 2) then
       do i = starty, starty + ny, 1
-        size_in_bytes = int(nx, 8) * c_sizeof(to(1,1))
-        offset_in_bytes = int(size(to, 1) * (i - 1) + \
+        size_in_bytes = int(nx, kind=8) * c_sizeof(to(1,1))
+        offset_in_bytes = int(size(to, dim=1) * (i - 1) + \
 (startx - 1)) * c_sizeof(to(1,1))
-        ierr = clenqueuereadbuffer(cmd_queues(1),cl_mem,cl_false,\
-offset_in_bytes,size_in_bytes,c_loc(to(startx,i)),0,c_null_ptr,c_null_ptr)
+        ierr = clenqueuereadbuffer(cmd_queues(1), cl_mem, cl_false, \
+offset_in_bytes, size_in_bytes, c_loc(to(startx,i)), 0, c_null_ptr, c_null_ptr)
         call check_status('clenqueuereadbuffer', ierr)
       enddo
       if (blocking) then
         call check_status('clfinish on read', clfinish(cmd_queues(1)))
       end if
     else
-      size_in_bytes = int(size(to, 1) * ny, 8) * c_sizeof(to(1,1))
-      offset_in_bytes = int(size(to, 1) * (starty - 1), 8) * \
+      size_in_bytes = int(size(to, dim=1) * ny, kind=8) * \
 c_sizeof(to(1,1))
-      ierr = clenqueuereadbuffer(cmd_queues(1),cl_mem,cl_true,\
-offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
+      offset_in_bytes = int(size(to, dim=1) * (starty - 1), kind=8) \
+* c_sizeof(to(1,1))
+      ierr = clenqueuereadbuffer(cmd_queues(1), cl_mem, cl_true, \
+offset_in_bytes, size_in_bytes, c_loc(to(1,starty)), 0, c_null_ptr, c_null_ptr)
       call check_status('clenqueuereadbuffer', ierr)
     end if
 
@@ -498,24 +501,27 @@ offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
 
     cl_mem = transfer(to, cl_mem)
     cmd_queues => get_cmd_queues()
-    if (nx < size(from, 1) / 2) then
+    if (nx < size(from, dim=1) / 2) then
       do i = starty, starty + ny, 1
-        size_in_bytes = int(nx, 8) * c_sizeof(from(1,1))
-        offset_in_bytes = int(size(from, 1) * (i - 1) + (startx - 1)) * \
-c_sizeof(from(1,1))
-        ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_false,\
-offset_in_bytes,size_in_bytes,c_loc(from(startx,i)),0,c_null_ptr,c_null_ptr)
+        size_in_bytes = int(nx, kind=8) * c_sizeof(from(1,1))
+        offset_in_bytes = int(size(from, dim=1) * (i - 1) + \
+(startx - 1)) * c_sizeof(from(1,1))
+        ierr = clenqueuewritebuffer(cmd_queues(1), cl_mem, cl_false, \
+offset_in_bytes, size_in_bytes, c_loc(from(startx,i)), 0, c_null_ptr, \
+c_null_ptr)
         call check_status('clenqueuewritebuffer', ierr)
       enddo
       if (blocking) then
         call check_status('clfinish on write', clfinish(cmd_queues(1)))
       end if
     else
-      size_in_bytes = int(size(from, 1) * ny, 8) * c_sizeof(from(1,1))
-      offset_in_bytes = int(size(from, 1) * (starty - 1)) * \
+      size_in_bytes = int(size(from, dim=1) * ny, kind=8) * \
 c_sizeof(from(1,1))
-      ierr = clenqueuewritebuffer(cmd_queues(1),cl_mem,cl_true,\
-offset_in_bytes,size_in_bytes,c_loc(from(1,starty)),0,c_null_ptr,c_null_ptr)
+      offset_in_bytes = int(size(from, dim=1) * (starty - 1)) * \
+c_sizeof(from(1,1))
+      ierr = clenqueuewritebuffer(cmd_queues(1), cl_mem, cl_true, \
+offset_in_bytes, size_in_bytes, c_loc(from(1,starty)), 0, c_null_ptr, \
+c_null_ptr)
       call check_status('clenqueuewritebuffer', ierr)
     end if
 
@@ -532,7 +538,7 @@ offset_in_bytes,size_in_bytes,c_loc(from(1,starty)),0,c_null_ptr,c_null_ptr)
     integer(kind=c_size_t) :: size_in_bytes
 
     if (.not.field%data_on_device) then
-      size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
+      size_in_bytes = int(field%grid%nx * field%grid%ny, kind=8) * \
 c_sizeof(field%data(1,1))
       field%device_ptr = transfer(create_rw_buffer(size_in_bytes), \
 field%device_ptr)
@@ -747,7 +753,6 @@ C_NULL_PTR)'''
     call check_status('compute_cu_code clEnqueueNDRangeKernel', ierr)
     ierr = clFinish(cmd_queues(1))
     call check_status('Errors during compute_cu_code', ierr)'''
-
     assert expected in generated_code
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -1042,7 +1047,7 @@ def test_set_kern_args(kernel_outputdir):
 
     # There is also only one version of the set_args for the second kernel
     assert generated_code.count("subroutine time_smooth_code_set_args("
-                                "kernel_obj, u_fld, unew_fld, uold_fld, "
+                                "kernel_obj, cu_fld, unew_fld, uold_fld, "
                                 "xstart_1, xstop_1, ystart_1, ystop_1)") == 1
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 

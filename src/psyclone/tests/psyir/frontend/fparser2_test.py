@@ -1771,6 +1771,67 @@ def test_process_use_stmts_resolving_external_imports(
     assert isinstance(stmt_rhs.children[1], Call)
 
 
+def test_process_resolving_modules_give_correct_types(
+        parser, tmpdir, monkeypatch):
+    ''' Test that if the Fparser2Reader is provided with a list of
+    modules_to_import these are used to resolve external symbol information
+    by the frontend.'''
+
+    # Write a first module into a tmp file
+    other1 = str(tmpdir.join("other.f90"))
+    with open(other1, "w", encoding='utf-8') as my_file:
+        my_file.write('''
+    module other
+        implicit none
+        integer, dimension(10) :: supported_array
+        integer, dimension(10), target :: unsupported_array
+    contains
+        pure elemental function pure_func(i)
+            integer :: pure_func
+            integer, intent(in) :: i
+            pure_func = 3
+        end function
+    end module
+    ''')
+    reader = FortranStringReader('''
+    module test
+        use other
+    contains
+        subroutine test_function()
+            integer :: a
+            a = supported_array(3)
+            a = unsupported_array(3)
+            a = pure_func(3)
+        end subroutine
+    end module
+    ''')
+    parse_tree = parser(reader)
+    module = parse_tree.children[0]
+
+    # By default this will all be parsed as Calls with unknown
+    # is_elemental/is_pure attributes
+    processor = Fparser2Reader()
+    psyir = processor._module_handler(module, None)
+    assigns = psyir.walk(Assignment)
+    assert isinstance(assigns[0].rhs, Call)
+    assert isinstance(assigns[1].rhs, Call)
+    assert isinstance(assigns[2].rhs, Call)
+    assert assigns[2].rhs.is_elemental is None
+    assert assigns[2].rhs.is_pure is None
+
+    # If we populate the module_to_resolve and add the include_path
+    # then we know if they are arrays and pure/elemental
+    processor = Fparser2Reader(resolve_modules=["other"])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
+    psyir = processor._module_handler(module, None)
+    assigns = psyir.walk(Assignment)
+    assert isinstance(assigns[0].rhs, ArrayReference)
+    assert isinstance(assigns[1].rhs, ArrayReference)
+    assert isinstance(assigns[2].rhs, Call)
+    assert assigns[2].rhs.is_elemental
+    assert assigns[2].rhs.is_pure
+
+
 def test_intrinsic_use_stmt(parser):
     ''' Tests that intrinsic value is set correctly for an intrinsic module
     use statement.'''
@@ -2626,7 +2687,7 @@ def test_intrinsiccall_args(f2008_parser):
     intrinsic_node = psyir.walk(IntrinsicCall)[0]
     assert isinstance(intrinsic_node, IntrinsicCall)
     assert len(intrinsic_node._argument_names) == len(intrinsic_node.arguments)
-    arg_names = [None, "dim", "mask"]
+    arg_names = ["array", "dim", "mask"]
     for idx, child in enumerate(intrinsic_node.arguments):
         assert intrinsic_node._argument_names[idx] == (
             id(child), arg_names[idx])

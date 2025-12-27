@@ -41,7 +41,7 @@ invoke calls which uses specialised classes.
 from psyclone.domain.common.transformations import RaisePSyIR2AlgTrans
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicBuiltinFunctorFactory, LFRicKernelFunctor, LFRicAlgorithmInvokeCall)
-from psyclone.psyir.nodes import ArrayReference
+from psyclone.psyir.nodes import Call
 
 
 class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
@@ -74,16 +74,15 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
 
             if call.argument_names[idx]:
                 call_name = f"{call_arg.value}"
-            elif isinstance(call_arg, ArrayReference):
-                # kernel or builtin misrepresented as ArrayReference
-                args = call_arg.pop_all_children()
+            elif isinstance(call_arg, Call):
+                symbol = call_arg.routine.symbol
+                args = call_arg.pop_all_children()[1:]
                 try:
-                    calls.append(factory.create(call_arg.name, table, args))
+                    calls.append(factory.create(symbol.name, table, args))
                 except KeyError:
                     # No match for a builtin so create a user-defined kernel.
-                    self._specialise_symbol(call_arg.symbol)
-                    calls.append(LFRicKernelFunctor.create(call_arg.symbol,
-                                                           args))
+                    self._specialise_symbol(symbol)
+                    calls.append(LFRicKernelFunctor.create(symbol, args))
             else:
                 for fp2_node in call_arg.get_ast_nodes():
                     # This child is a kernel or builtin

@@ -44,7 +44,7 @@ from fparser.two.Fortran2003 import Structure_Constructor
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Call, ArrayReference, CodeBlock, Literal, Reference)
+    Call, CodeBlock, Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
     Symbol, DataTypeSymbol, StructureType, RoutineSymbol, ScalarType)
 from psyclone.domain.common.algorithm import (
@@ -208,24 +208,23 @@ class RaisePSyIR2AlgTrans(Transformation):
                         f"Problem with invoke name: {err}") from err
             if node.argument_names[idx]:
                 pass
-            elif isinstance(arg, ArrayReference):
-                pass
+            elif isinstance(arg, Call):
+                if arg.symbol == arg.ancestor(Routine).symbol:
+                    raise TransformationError(
+                        f"The invoke call argument '{arg.symbol.name}' has "
+                        f"been used as the Algorithm routine name. This is not"
+                        f" allowed.")
             elif isinstance(arg, CodeBlock):
                 # pylint: disable=protected-access
                 for fp2_node in arg.get_ast_nodes():
                     self._validate_fp2_node(fp2_node)
             else:
-                if isinstance(arg, Call):
-                    info = (
-                        f"The invoke call argument '{arg.routine.name}' has "
-                        f"been used as a routine name. This is not allowed.")
-                else:
-                    info = (
-                        f"The arguments to this invoke call are expected to "
-                        f"be kernel calls which are represented in generic "
-                        f"PSyIR as CodeBlocks or ArrayReferences, but "
-                        f"'{arg.debug_string()}' is of type "
-                        f"'{type(arg).__name__}'.")
+                info = (
+                    f"The arguments to this invoke call are expected to "
+                    f"be kernel calls which are represented in generic "
+                    f"PSyIR as Calls or Codeblocks, but "
+                    f"'{arg.debug_string()}' is of type "
+                    f"'{type(arg).__name__}'.")
                 raise TransformationError(
                     f"Error in {self.name} transformation. {info}")
 
@@ -251,10 +250,11 @@ class RaisePSyIR2AlgTrans(Transformation):
             if node.argument_names[idx]:
                 call_name = f"{call_arg.value}"
                 continue
-            elif isinstance(call_arg, ArrayReference):
-                # kernel misrepresented as ArrayReference
-                args = call_arg.pop_all_children()
-                type_symbol = call_arg.symbol
+            elif isinstance(call_arg, Call):
+                # Get the symbols and args to reconstruct it as a
+                # higer-abstraction AlgorithmInvokeCall node
+                type_symbol = call_arg.routine.symbol
+                args = call_arg.pop_all_children()[1:]
                 arg_info.append((type_symbol, args))
             else:
                 # The validates check that this can only be a Codeblock with

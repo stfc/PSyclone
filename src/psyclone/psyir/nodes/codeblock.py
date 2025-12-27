@@ -264,7 +264,7 @@ class Fparser2CodeBlock(CodeBlock):
         # For directives, we need to analyse all alphanumeric* parts of the
         # comment string and return any names that match a symbol in the
         # symbol table.
-        for node in walk(parse_tree, Fortran2003.Comment):
+        for node in walk(parse_tree, Fortran2003.Directive):
             string_rep = node.tostr()
             # Directives start with a $
             if string_rep.lstrip()[0:2] != "!$":

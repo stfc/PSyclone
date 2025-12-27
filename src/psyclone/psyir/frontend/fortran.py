@@ -55,6 +55,9 @@ class FortranReader():
     :param ignore_directives: If directives should be ignored or not
                             (default True). Only has an effect
                             if ignore_comments is False.
+    :param conditional_openmp_statements: whether to keep statements with the
+                                          OpenMP conditional compilation
+                                          prefix.
     :param last_comments_as_codeblocks: If the last comments in the
                                         a given block (e.g. subroutine,
                                         do, if-then body, etc.) should
@@ -74,6 +77,7 @@ class FortranReader():
                  free_form: bool = True,
                  ignore_comments: bool = True,
                  ignore_directives: bool = True,
+                 conditional_openmp_statements: bool = False,
                  last_comments_as_codeblocks: bool = False,
                  resolve_modules: Union[bool, List[str]] = False):
 
@@ -84,6 +88,8 @@ class FortranReader():
                 "to False."
             )
         self._ignore_comments = ignore_comments
+        self._ignore_directives = ignore_directives
+        self._conditional_openmp_statements = conditional_openmp_statements
         self._free_form = free_form
 
         # The frontend reader imports are intentionally inside this method
@@ -130,7 +136,8 @@ class FortranReader():
 
         '''
         tree = self._processor.text_to_parse_tree(
-                source_code, self._ignore_comments, self._free_form)
+                source_code, self._ignore_comments, self._free_form,
+                self._ignore_directives)
         psyir = self._processor.generate_psyir(tree)
         return psyir
 
@@ -160,7 +167,7 @@ class FortranReader():
 
         tree = self._processor.text_to_parse_tree(
                 source_code, self._ignore_comments, self._free_form,
-                partial_code="expression")
+                self._ignore_directives, partial_code="expression")
 
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the expression and lookup any symbols that it
@@ -178,7 +185,7 @@ class FortranReader():
     def psyir_from_statement(self, source_code: str,
                              symbol_table: Optional[SymbolTable] = None):
         '''Generate the PSyIR tree for the supplied Fortran statement. The
-        symbolt table is expected to provide all symbols found in the
+        symbol table is expected to provide all symbols found in the
         statement.
 
         :param source_code: text of the statement to be parsed.
@@ -201,7 +208,7 @@ class FortranReader():
 
         tree = self._processor.text_to_parse_tree(
                 source_code, self._ignore_comments, self._free_form,
-                partial_code="statement")
+                self._ignore_directives, partial_code="statement")
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the statement and lookup any symbols that it
         # references.
