@@ -97,9 +97,6 @@ class Reference2ArrayRangeTrans(Transformation):
     end program example
     <BLANKLINE>
 
-    TODO #1858: This transformation does not currently support arrays within
-    structures, which the validation will pass without an error.
-
     '''
 
     def validate(self, node, options=None, **kwargs):
@@ -186,6 +183,7 @@ class Reference2ArrayRangeTrans(Transformation):
                         f"'{cursor_datatype}'. Consider adding the declaration"
                         f"'s filename to RESOLVE_IMPORTS.")
 
+            # Continue recursing if it is some kind of structure accessor
             if isinstance(cursor, StructureAccessorMixin):
                 if isinstance(cursor_datatype, ArrayType):
                     cursor_datatype = cursor_datatype.intrinsic.datatype
@@ -229,7 +227,6 @@ class Reference2ArrayRangeTrans(Transformation):
         # array datatype.
         cursor = node
         cursor_datatype = cursor.symbol.datatype
-        # import pdb; pdb.set_trace()
         while cursor:
             if isinstance(cursor_datatype, StructureType.ComponentType):
                 cursor_datatype = cursor_datatype.datatype
@@ -279,8 +276,8 @@ class Reference2ArrayRangeTrans(Transformation):
                         cursor.member.name
                     ]
                 except (AttributeError, KeyError):
-                    # This condition was already validated, if it happens is
-                    # because we guaranteed its correctness (e.g. it is
+                    # This condition was already validated, if it happens here
+                    # is because we guaranteed its correctness (e.g. it is
                     # ArrayMixins all the way down), so we can finish
                     break
                 cursor = cursor.member
