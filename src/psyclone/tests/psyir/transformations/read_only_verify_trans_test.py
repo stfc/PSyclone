@@ -101,11 +101,11 @@ def test_read_only_options():
     psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                              "gocean", idx=0, dist_mem=False)
     read_only = ReadOnlyVerifyTrans()
-    read_only.apply(invoke.schedule[0].loop_body[0],
+    read_only.apply(invoke.schedule[0],
                     options={"region_name": ("a", "b")})
     code = str(psy.gen)
 
-    assert 'CALL read_only_verify_psy_data % PreStart("a", "b", 4, 4)' in code
+    assert 'CALL read_only_verify_psy_data % PreStart("a", "b", 6, 6)' in code
 
 
 # -----------------------------------------------------------------------------

@@ -92,7 +92,7 @@ These methods currently use two distinct implementations, the new
 :ref:`variable access API<variable_accesses>` (which also provides the
 :ref:`DefinitionUseChains<defusechain>` and the
 :ref:`Loop Dependency Tools<deptools>` for deeper analysis), and the older
-:ref:`PSyKAl halo exchange dependency analysis<old_dependency_analysis>`.
+:ref:`PSyKAl dependency analysis<old_dependency_analysis>`.
 There is a certain overlap between these two methods, and it is expected that
 the old PSyKAl dependency analysis will be integrated with the variable access
 API in the future (see
@@ -139,8 +139,44 @@ PSyKAl analysis methods:
 PSyKAl Dependence Analysis
 ==========================
 
-Dependence Analysis in PSyclone produces ordering constraints between
-instances of the `Argument` class within a PSyIR tree.
+The PSyKAl Kernel objects have additional dependency considerations that
+we can infer by knowing which specific parts of the provided fields they
+access. This information is given by the kernel metadata. Currently, how
+we use this information differs between the GOcean and LFRic DSLs.
+
+In Gocean, CodedKern have assignments as children (automatically generated
+in the instance creation) that represent the computation pattern given
+the kernel metadata. We call these assignment the kernel prototype. For
+instance, a kernel with the following meta_args:
+
+.. code-block:: fortran
+
+     type(go_arg), dimension(3) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),            & ! cu
+             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,110,000)), & ! p
+             go_arg(GO_READ,  GO_CU, GO_POINTWISE)             & ! u
+           /)
+
+and called with:
+
+.. code-block:: fortran
+
+    call invoke( compute_cu(cu_fld, p_fld, u_fld) )
+
+will have the following prototype assignment as child:
+
+.. code-block:: fortran
+
+    cu_fld%data(i,j) = p_fld%data(i,j) + p_fld%data(i,j + 1) + u_fld%data(i,j)
+
+This assignment will not be generated to code because the lowering method
+replaces the entire CodedKern with the appropriate call. But this child is
+sufficient to provide the `VariablesAccessMap` used by generic PSyIR the
+necessary access information to perform the needed depenency checks.
+
+LFric does not currently use this virtual assignments, instead it uses
+information provided by the `Argument` class attached to the CodedKern to
+evaluate the ordering constraints between between kernels.
 
 The `Argument` class is used to specify the data being passed into and
 out of instances of the `Kern` class, `HaloExchange` class and
@@ -389,102 +425,6 @@ instances to store all accesses to a single variable. A new instance of
 .. autoclass:: psyclone.core.AccessInfo
     :no-index:
     :members:
-
-Indices
--------
-The `AccessInfo` class stores the original PSyIR node that contains the
-access, but it also stores the indices used in a simplified form, which
-makes it easier to analyse dependencies without having
-to analyse a PSyIR tree for details. The indices are stored in the
-ComponentIndices object that each access has, which can be accessed
-using the `component_indices` property of an `AccessInfo` object.
-
-.. autoclass:: psyclone.core.ComponentIndices
-    :no-index:
-    :members:
-    :special-members: __getitem__, __len__
-
-The `ComponentIndices` class provides an array-like accessor for the
-internal data structure, you can use `len(component_indices)` to get the
-number of components for which array indices are stored.
-The information can be accessed using array subscription syntax, e.g.:
-`component_index[0]` will return the list of array indices used in the
-first component. You can also use a 2-tuple to select a component
-and a dimension at the same time, e.g. `component_indices[(0,1)]`, which
-will return the index used in the second dimension of the first component.
-
-`ComponentIndices` provides an easy way
-to iterate over all indices using its `iterate()` method, which returns all
-valid 2-tuples of component index and dimension index. For example:
-
-..
-    The testsetup provides the access information for 'a(i,j)=1',
-    so it should report the accesses to 'i' and 'j'.
-
-.. testcode::
-
-  # access_info is an AccessInfo instance and contains one access. This
-  # could be as simple as `a(i,j)`, but also something more complicated
-  # like `a(i+2*j)%b%c(k, l)`.
-  for indx in access_info.component_indices.iterate():
-      # indx is a 2-tuple of (component_index, dimension_index)
-      psyir_index = access_info.component_indices[indx]
-
-  # Using enumerate:
-  for count, indx in enumerate(access_info.component_indices.iterate()):
-      psyir_index = access_info.component_indices[indx]
-      # fortran writer converts a PSyIR node to Fortran:
-      print(f"Index-id {count} of 'a(i,j)': {fortran_writer(psyir_index)}")
-
-.. testoutput::
-
-    Index-id 0 of 'a(i,j)': i
-    Index-id 1 of 'a(i,j)': j
-
-To find out details about an index expression, you can either analyse
-the tree (e.g. using `walk`), or use the variable access functionality again.
-Below is an example that shows how this is done to determine if an array
-expression contains a reference to a given variable specified as a
-signature in the variable `index_variable`. The
-variable `access_info` is an instance of `AccessInfo` and contains the
-information about one reference. The function `reference_accesses` is used
-to analyse the index expression. Typically, this code would be
-wrapped in an outer loop over all accesses.
-
-..
-    The testsetup provides the access information for 'a(i,j)=1',
-    so the code should output that the index 'i' is used.
-
-.. testcode::
-
-  index_variable = Signature("i")
-  # access_info contains the access information for a single
-  # reference, e.g. `a(i+2*j)%b%c(k, l)`. Loop over all
-  # individual index expressions ("i+2*j", then "k" and "l"
-  # in the example above).
-  for indx in access_info.component_indices.iterate():
-      index_expression = access_info.component_indices[indx]
-
-      # Create an access info object to collect the accesses
-      # in the index expression
-      accesses = VariablesAccessMap(index_expression)
-      
-      # Then test if the index variable is used. Note that
-      # the key of `access` is a signature, as is the `index_variable`
-      if index_variable in accesses:
-          # The index variable is used as an index
-          # at the specified location.
-          print(f"Index '{index_variable}' is used.")
-          break
-  else:
-      print(f"Index '{index_variable}' is not used.")
-
-
-.. testoutput::
-    :hide:
-
-    Index 'i' is used.
-
 
 Access Examples
 ---------------

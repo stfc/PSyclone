@@ -705,15 +705,23 @@ def test_operator_nofield_scalar(tmpdir):
 def test_operator_no_dofmap_lookup():
     ''' Check that we use a field rather than an operator to look-up
     a dofmap, even when the operator precedes the field in the argument
-    list. '''
+    list. Also checks that the correct space of the operator is used
+    when looking up ndf and undf. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.9_operator_first.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     code = str(psy.gen)
+
     # Check that we use the field and not the operator to look-up the dofmap
     assert "theta_proxy%vspace%get_whole_dofmap()" in code
     assert code.count("get_whole_dofmap") == 1
+    # Check also that the lookups for ndf and undf use the correct "to"
+    # function space of the operator.
+    assert ('''\
+    ! Initialise number of DoFs for wtheta
+    ndf_wtheta = ptheta2_proxy%fs_to%get_ndf()
+    undf_wtheta = ptheta2_proxy%fs_to%get_undf()''' in code)
 
 
 def test_operator_read_level1_halo(tmpdir):

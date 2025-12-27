@@ -111,11 +111,11 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         for signature in reads+writes:
             accesses = var_accesses[signature]
             sym_name = signature.var_name
-            # TODO #3060: If any of the accesses are TYPE_INFO then this
+            # TODO #3060: If any of the accesses are CONSTANT then this
             # is a kind parameter, which can currently sometimes appear as
             # a READ. If the only access to a kind parameter is detected as
             # a READ, then we won't skip it.
-            if any([x.access_type == AccessType.TYPE_INFO for x in accesses]):
+            if any([x.access_type == AccessType.CONSTANT for x in accesses]):
                 continue
             last_access = accesses[-1].node
             sym = last_access.scope.symbol_table.lookup(sym_name)

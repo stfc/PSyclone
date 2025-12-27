@@ -52,6 +52,13 @@ class SymbolInterface():
         '''
         return self.__class__()
 
+    def __eq__(self, other) -> bool:
+        '''
+        Unless overridden in a subclass, two interfaces are the same if they
+        are of the same type.
+        '''
+        return type(other) is type(self)
+
 
 class AutomaticInterface(SymbolInterface):
     ''' The symbol is declared without attributes. Its data will live
@@ -178,7 +185,7 @@ class ImportInterface(SymbolInterface):
                 f"'{orig_name_str})")
 
     def __eq__(self, other):
-        if type(other) is not type(self):
+        if not super().__eq__(other):
             return False
         if (self.container_symbol.name.lower() !=
                 other.container_symbol.name.lower()):
@@ -265,7 +272,7 @@ class ArgumentInterface(SymbolInterface):
         return self.__class__(access=self.access)
 
     def __eq__(self, other):
-        if type(other) is not type(self):
+        if not super().__eq__(other):
             return False
         return self.access == other.access
 

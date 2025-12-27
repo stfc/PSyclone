@@ -66,7 +66,7 @@ A simple makefile is provided to compile the example. It needs
 a full installation of NetCDF, since it is using ``nf-config`` to
 query the required compiler and linker flags, and the
 infrastructure library ``liblfric_netcdf.a`` provided in
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
+``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
 If the latter is not available, it will be automatically compiled.
 
 The following environment variables can be set to define the compiler

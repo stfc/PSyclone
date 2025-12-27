@@ -13,7 +13,7 @@ https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/lfric_examples.
 
 A simple Makefile is provided to compile the example. It needs:
 - the infrastructure library ``liblfric.a`` provided in
-  ``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``
+  ``<PSYCLONEHOME>/external/lfric_infrastructure/src``
 
 The infrastructure library will be compiled if it is not available.
 

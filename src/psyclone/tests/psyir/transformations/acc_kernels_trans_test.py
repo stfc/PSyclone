@@ -469,26 +469,27 @@ end
             "OpenACC region but found 'if (assumed_size_char == 'literal')"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[1], options={"allow_string": True})
+        acc_trans.validate(sub.children[1], options={"allow_strings": True})
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
-            " region but found 'assumed_size_char(:LEN(explicit_size_char)) = "
+            " region but found 'assumed_size_char(:LEN("
+            "explicit_size_char)) = "
             in str(err.value))
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[2], options={"allow_string": True})
+        acc_trans.validate(sub.children[2], options={"allow_strings": True})
     assert ("Cannot include 'ACHAR(9)' in an OpenACC region because "
             "it is not available on GPU" in str(err.value))
     # Check that the character assignment is excluded by default.
     with pytest.raises(TransformationError) as err:
         acc_trans.validate(sub.children[2])
     assert ("ACCKernelsTrans does not permit assignments involving character "
-            "variables by default (use the 'allow_string' option to include "
+            "variables by default (use the 'allow_strings' option to include "
             "them), but found:" in str(err.value))
     # Check the verbose option.
     with pytest.raises(TransformationError) as err:
         acc_trans.validate(sub.children[2], options={"verbose": True})
     assert (sub.children[2].preceding_comment ==
             "ACCKernelsTrans does not permit assignments involving character "
-            "variables by default (use the 'allow_string' option to include "
+            "variables by default (use the 'allow_strings' option to include "
             "them)")
 
     # String with explicit length is fine.

@@ -39,13 +39,14 @@
 
 ''' Performs py.test tests on the Reference PSyIR node. '''
 
-import pytest
 import itertools
+import pytest
 
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, CodeBlock, colored,
     KernelSchedule, Literal, Reference, Loop)
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
@@ -602,6 +603,36 @@ def test_reference_is_write(fortran_reader):
     assert not references[11].is_write
 
 
+def test_reference_component_indices(fortran_reader):
+    ''' Test the Reference component_indices method returns a tuple
+    for each expression component containing a tuple for each index.
+    '''
+    code = '''
+    subroutine my_sub()
+        use other
+        a = 1
+        a%b%c = 1
+        a(1,2,3) = 1
+        a(i,j,k+4)%b(j,k)%c%d(i) = 1
+    end subroutine my_sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    refs = psyir.walk(Reference)
+    array_accessor = psyir.walk(ArrayMixin)
+    # A scalar is a tuple with an emtpy tuple
+    assert refs[0].component_indices() == tuple(tuple())
+    # A structure accessor without array is a tuple with an empty tuple
+    # for each compoment
+    assert refs[1].component_indices() == (tuple(), tuple(), tuple())
+    # An array is a single-element tuple, with the nodes representing the
+    # indices in the tuple
+    assert refs[2].component_indices() == (array_accessor[0].indices,)
+    # Structures and Arrays can be combined
+    assert refs[3].component_indices() == (array_accessor[1].indices,
+                                           array_accessor[2].indices,
+                                           tuple(),
+                                           array_accessor[3].indices)
+
+
 def test_reference_enters_and_escapes_scope(fortran_reader):
     ''' Test that the enters_scope and escapes_scope work as expected with
     local and global symbols.
@@ -672,6 +703,42 @@ def test_reference_enters_and_escapes_scope(fortran_reader):
     d_ref = loop.loop_body[1].arguments[0]
     assert d_ref.escapes_scope(loop)
 
+    # Check that a write to a single position of an array is not enough
+    code = """
+    subroutine my_subroutine()
+        use other
+        integer, dimension(10) :: a, b, c, d
+
+        do i=1, 10
+            a(i) = 2
+            b(i) = 3
+            c(i) = 4
+            d(i) = 5
+        enddo
+        a(1) = 1
+        b(:) = 1
+        c = 1
+        do i=1,10
+          d(i) = 1
+        end do
+        call mysub(a, b, c, d)
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    a_ref = loop.loop_body[0].lhs
+    b_ref = loop.loop_body[1].lhs
+    c_ref = loop.loop_body[2].lhs
+    d_ref = loop.loop_body[3].lhs
+    # Some of the values of 'a' escape the scope, because the next write only
+    # covers one index
+    assert a_ref.escapes_scope(loop)
+    # All values of b and c are overwritten, so they do not escape the scope
+    assert not b_ref.escapes_scope(loop)
+    assert not c_ref.escapes_scope(loop)
+    # TODO #3215: All values of 'd' are also overwitten, but we cannot check
+    # this yet
+    assert d_ref.escapes_scope(loop)
+
 
 def test_reference_enters_scope_multiple_conditional_source(fortran_reader):
     ''' Test enters_scope with a conditional assignment inside the loop, but
@@ -714,3 +781,21 @@ def test_reference_enters_scope_multiple_conditional_source(fortran_reader):
     p_trans.apply(loops[0])
     for zice, loop in itertools.product(zice_refs, loops):
         assert not zice.enters_scope(loop)
+
+
+def test_get_all_accessed_symbols(fortran_reader):
+    ''' Test the get_all_accessed_symbols method of the Reference class.'''
+
+    code = '''subroutine test_sub()
+    use other
+
+    k = a(:, j)%b(i)
+    end subroutine'''
+
+    assign = fortran_reader.psyir_from_source(code).walk(Assignment)[0]
+    symbol_names = [s.name for s in assign.get_all_accessed_symbols()]
+    assert "k" in symbol_names
+    assert "a" in symbol_names
+    assert "j" in symbol_names
+    assert "i" in symbol_names
+    assert "b" not in symbol_names

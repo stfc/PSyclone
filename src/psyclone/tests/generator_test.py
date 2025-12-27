@@ -908,6 +908,50 @@ end subroutine a
     output, _ = capsys.readouterr()
 
 
+def test_conditional_openmp_statements(capsys, tmpdir_factory):
+    ''' Check that the Conditional OpenMP statements are ignored
+    or parser depending on the flags provided to psyclone.
+    '''
+    code = """subroutine x
+    !$ use omp_lib
+
+    integer :: i
+    !$ integer :: omp_threads
+
+    i = 1
+    !$ omp_threads = omp_get_num_threads()
+    end subroutine x"""
+    filename = str(tmpdir_factory.mktemp('psyclone_test').join("test.f90"))
+    with open(filename, "w", encoding='utf-8') as wfile:
+        wfile.write(code)
+    main([filename])
+    output, _ = capsys.readouterr()
+    correct = """subroutine x()
+  integer :: i
+
+  i = 1
+
+end subroutine x
+
+"""
+    assert output == correct
+
+    main([filename, "--keep-conditional-openmp-statements"])
+    output, _ = capsys.readouterr()
+    correct = """subroutine x()
+  use omp_lib
+  integer :: i
+  integer :: omp_threads
+
+  i = 1
+  omp_threads = omp_get_num_threads()
+
+end subroutine x
+
+"""
+    assert output == correct
+
+
 def test_keep_comments_lfric(capsys, monkeypatch):
     '''Test that the LFRic API correctly keeps comments and directives
     when applied the appropriate arguments.'''
@@ -993,21 +1037,16 @@ def test_main_directory_arg(capsys):
 def test_main_backend_arg(capsys):
     '''Test the --backend options in main().'''
     filename = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
-    with pytest.raises(SystemExit):
-        main([filename, "-api", "lfric", "--backend", "invalid"])
-    _, output = capsys.readouterr()
-    assert "--backend: invalid choice: 'invalid'" in output
-
     # Make sure we get a default config instance
     Config._instance = None
     # Default is to have checks enabled.
     assert Config.get().backend_checks_enabled is True
-    main([filename, "-api", "lfric", "--backend", "disable-validation"])
+    main([filename, "-api", "lfric", "--backend-disable-validation"])
     assert Config.get().backend_checks_enabled is False
     assert Config.get().backend_indentation_disabled is False
     Config._instance = None
     filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
-    main([filename, "--backend", "disable-indentation"])
+    main([filename, "--backend-disable-indentation"])
     output, _ = capsys.readouterr()
     # None of the three DO loops should be indented.
     assert len(re.findall(r"^do j", output, re.MULTILINE)) == 3
@@ -1078,13 +1117,17 @@ def trans(psyir):
 
 
 @pytest.mark.parametrize(
-         "idx, value, output",
-         [("0", "False", "result = a + b"),
-          ("1", "True", "result = 1 + 1"),
-          ("2", "[\"module1\"]", "result = 1 + b"),
-          ("3", "[\"module2\"]", "result = a + 1"),
+         "idx, value, output", [
+          ("0", "False", "result = a + b + c"),
+          # Indirect import is not resolved
+          ("1", "True", "result = 1 + 1 + c"),
+          ("2", "[\"module1\"]", "result = 1 + b + c"),
+          ("3", "[\"module2\"]", "result = a + 1 + c"),
+          # Indirect import resolved by name
+          ("4", "[\"module1\",\"module3\"]", "result = 1 + b + 1"),
           # Now change both with case insensitive names
-          ("4", "[\"mOdule1\",\"moduLe2\"]", "result = 1 + 1")])
+          ("5", "[\"mOdule1\",\"moduLe2\"]", "result = 1 + 1 + c")
+          ])
 def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
                                              idx, value, output):
     ''' Test that applying recipes in the code-transformation mode follows the
@@ -1092,6 +1135,7 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
 
     module1 = '''
         module module1
+            use module3
             integer :: a
         end module module1
     '''
@@ -1100,6 +1144,11 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
             integer :: b
         end module module2
     '''
+    module3 = '''
+        module module3
+            integer :: c
+        end module module3
+    '''
     code = '''
         module test
             use module1
@@ -1107,7 +1156,7 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
             real :: result
         contains
             subroutine mytest()
-                result = a + b
+                result = a + b + c
             end subroutine mytest
         end module test
     '''
@@ -1127,6 +1176,7 @@ def trans(psyir):
     recipe_name = f"replace_integers_{idx}.py"
     for filename, content in [("module1.f90", module1),
                               ("module2.f90", module2),
+                              ("module3.f90", module3),
                               ("code.f90", code),
                               (recipe_name, recipe)]:
         with open(tmpdir.join(filename), "w", encoding='utf-8') as my_file:
@@ -1134,6 +1184,7 @@ def trans(psyir):
 
     # Execute the recipe (no -I needed as we have everything at the same place)
     monkeypatch.chdir(tmpdir)
+    ModuleManager._instance = None
     main(["code.f90", "-s", recipe_name])
     captured = capsys.readouterr()
 
@@ -1293,7 +1344,7 @@ def test_code_transformation_backend_validation(validate: bool,
     if validate:
         options = []
     else:
-        options = ["--backend", "disable-validation"]
+        options = ["--backend-disable-validation"]
     main([str(input_file)] + options)
     # The actual assert is in the dummy_fortran_writer function above
 
@@ -1314,7 +1365,8 @@ def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
         my_file.write(code)
     with caplog.at_level(logging.ERROR):
         with pytest.raises(SystemExit):
-            code_transformation_mode(inputfile, None, None, False, False)
+            code_transformation_mode(inputfile, None, None, False, False,
+                                     False)
         _, err = capsys.readouterr()
         assert "Failed to create PSyIR from file '" in err
         assert "Is the input valid Fortran" in caplog.text
@@ -1350,15 +1402,8 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    # The output is split as the location of the algorithm file varies
-    # due to it being stored in a temporary directory by pytest.
-    expected_output1 = "Generation Error: In algorithm file '"
-    expected_output2 = (
-        "alg.f90':\nTransformation Error: Error in RaisePSyIR2LFRicAlgTrans "
-        "transformation. The invoke call argument 'setval_c' has been used as"
-        " a routine name. This is not allowed.\n")
-    assert expected_output1 in output
-    assert expected_output2 in output
+    assert ("The invoke call argument 'setval_c' has been used as the "
+            "Algorithm routine name. This is not allowed." in output)
 
 
 def test_generate_no_builtin_container(tmpdir, monkeypatch):
@@ -2036,3 +2081,16 @@ def test_ignore_pattern():
 
     mod_man = ModuleManager.get()
     assert mod_man._ignore_files == set(["abc1", "abc2"])
+
+
+def test_intrinsic_control_settings(tmpdir, caplog):
+    '''Checks that the intrinsic output control settings update the config
+    correctly'''
+    # Create dummy piece of code.
+    code = """program test
+    end program"""
+    filename = str(tmpdir.join("test.f90"))
+    with open(filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([filename, "--backend-add-all-intrinsic-arg-names"])
+    assert Config.get().backend_intrinsic_named_kwargs is True

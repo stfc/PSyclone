@@ -235,6 +235,10 @@ class Config:
         # The Fortran standard that fparser should use
         self._fortran_standard = None
 
+        # By default, the PSyIR backends don't output argument names on (most)
+        # IntrinsicCalls. This option controls that behaviour.
+        self._backend_intrinsic_named_kwargs = False
+
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
         '''Loads a configuration file.
@@ -770,6 +774,28 @@ class Config:
             :py:class:`psyclone.domain.gocean.GOceanConstants`
         '''
         return self.api_conf().get_constants()
+
+    @property
+    def backend_intrinsic_named_kwargs(self) -> bool:
+        '''
+        :returns: whether the output of intrinsic named arguments is
+                  enabled for required intrinsic arguments.
+        '''
+        return self._backend_intrinsic_named_kwargs
+
+    @backend_intrinsic_named_kwargs.setter
+    def backend_intrinsic_named_kwargs(self, output_kwargs: bool) -> None:
+        '''
+        Setter for whether the backend should output required argument names
+        on IntrinsicCalls.
+
+        :param output_kwargs: whether to output required argument names.
+        '''
+        if not isinstance(output_kwargs, bool):
+            raise TypeError(f"backend_intrinsic_named_kwargs must be a bool "
+                            f"but found '{type(output_kwargs).__name__}'.")
+
+        self._backend_intrinsic_named_kwargs = output_kwargs
 
 
 # =============================================================================

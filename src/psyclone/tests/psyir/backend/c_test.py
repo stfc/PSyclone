@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import (
     IntrinsicCall)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol,
-    INTEGER_TYPE, REAL_TYPE, IntrinsicSymbol)
+    INTEGER_TYPE, REAL_TYPE)
 
 
 def test_cw_gen_declaration():
@@ -386,10 +386,8 @@ def test_cw_intrinsiccall():
     # Check that operator-style formatting with a number of children different
     # than 2 produces an error
     with pytest.raises(VisitorError) as err:
-        icall.children[0].replace_with(
-            Reference(
-                IntrinsicSymbol(IntrinsicCall.Intrinsic.MOD.name,
-                                IntrinsicCall.Intrinsic.MOD)))
+        icall = IntrinsicCall(IntrinsicCall.Intrinsic.MOD)
+        icall.addchild(ref1.copy())
         _ = cwriter(icall)
     assert ("The C Writer binary_operator formatter for IntrinsicCall only "
             "supports intrinsics with 2 children, but found '%' with '1' "
@@ -408,10 +406,9 @@ def test_cw_intrinsiccall():
 
     # Check that casts with more than one children produce an error
     with pytest.raises(VisitorError) as err:
-        icall.children[0].replace_with(
-            Reference(
-                IntrinsicSymbol(IntrinsicCall.Intrinsic.REAL.name,
-                                IntrinsicCall.Intrinsic.REAL)))
+        icall = IntrinsicCall(IntrinsicCall.Intrinsic.REAL)
+        icall.addchild(ref1.copy())
+        icall.addchild(ref2.copy())
         _ = cwriter(icall)
     assert ("The C Writer IntrinsicCall cast-style formatter only supports "
             "intrinsics with 1 child, but found 'float' with '2' children."
@@ -588,4 +585,4 @@ def test_cw_directive_with_clause(fortran_reader):
     }
   }
 }
-''' in cwriter(schedule.children[0])
+''' == cwriter(schedule.children[0])

@@ -68,6 +68,7 @@ def test_call_init():
     assert len(call.arguments) == 0
     assert call.is_elemental is None
     assert call.is_pure is None
+    assert call.symbol is None
 
     # Initialise with parent and add routine and argument children
     parent = Schedule()
@@ -76,6 +77,7 @@ def test_call_init():
     call.addchild(Reference(routine))
     call.addchild(Literal('3', INTEGER_TYPE))
     assert call.routine.symbol is routine
+    assert call.symbol is routine
     assert call.parent is parent
     assert call.arguments == (Literal('3', INTEGER_TYPE),)
 
@@ -366,6 +368,19 @@ def test_call_replacenamedarg():
     assert call.argument_names == ["nAMe1", "name2"]
     assert call._argument_names[0][0] == id(op3)
     assert call._argument_names[1][0] == id(op2)
+
+
+def test_call_argument_by_name():
+    '''Test the argument_by_name method.'''
+    op1 = Literal("1", INTEGER_TYPE)
+    op2 = Literal("2", INTEGER_TYPE)
+    op3 = Literal("3", INTEGER_TYPE)
+    call = Call.create(RoutineSymbol("hello"), [op1, ("A", op2), ("b", op3)])
+    assert call.argument_by_name("z") is None
+    assert call.argument_by_name("a") is op2
+    assert call.argument_by_name("A") is op2
+    assert call.argument_by_name("b") is op3
+    assert call.argument_by_name("B") is op3
 
 
 def test_call_reference_accesses():

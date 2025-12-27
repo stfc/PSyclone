@@ -231,9 +231,9 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
     var_info = VariablesAccessMap()
     create_arg_list.generate(var_accesses=var_info)
     assert str(var_info) == (
-        "nlayers_f1: READ, a: READ, f1_data: INC, ndf_w1: READ, undf_w1: READ,"
-        " cell: READ, colour: READ, cmap: READ, map_w1: READ, nfaces_re_h: "
-        "READ, adjacent_face: READ")
+        "a: READ, adjacent_face: READ, cell: READ, cmap: READ, colour: READ, "
+        "f1_data: INC, map_w1: READ, ndf_w1: READ, nfaces_re_h: READ, "
+        "nlayers_f1: READ, undf_w1: READ")
     # Tests that multiple reads are reported as expected:
     assert str(var_info[Signature("cell")]) == "cell:[READ,READ]"
     assert str(var_info[Signature("colour")]) == "colour:[READ,READ]"
@@ -616,10 +616,10 @@ def test_ref_element_handling(fortran_writer):
         'nfaces_re_h', 'nfaces_re_v', 'normals_to_horiz_faces',
         'normals_to_vert_faces'])
 
-    assert ("nlayers_f1: READ, f1_data: INC, ndf_w1: READ, undf_w1: READ, "
-            "cell: READ, map_w1: READ, nfaces_re_h: READ, nfaces_re_v: READ, "
-            "normals_to_horiz_faces: READ, normals_to_vert_faces: READ"
-            == str(vam))
+    assert ("cell: READ, f1_data: INC, map_w1: READ, ndf_w1: READ, "
+            "nfaces_re_h: READ, nfaces_re_v: READ, nlayers_f1: READ, "
+            "normals_to_horiz_faces: READ, normals_to_vert_faces: READ, "
+            "undf_w1: READ" == str(vam))
 
     check_psyir_results(create_arg_list, fortran_writer)
 

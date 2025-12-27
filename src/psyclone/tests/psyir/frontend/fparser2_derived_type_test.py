@@ -395,6 +395,7 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
         "subroutine my_sub()\n"
         "  use some_mod, only: my_type\n"
         "  type(my_type) :: var, vars(3)\n"
+        "  type(my_type) :: vars2d(:,:)\n"
         "  var%flag = 0\n"
         "  var%region%start = 1\n"
         "  var%region%subgrid(3)%stop = 1\n"
@@ -403,6 +404,8 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
         "  vars(1)%region%subgrid(3)%data(:) = 1.0\n"
         "  vars(1)%region%subgrid(:)%data(1) = 1.0\n"
         "  vars(:)%region%subgrid(3)%xstop = 1.0\n"
+        # Whole-array access to 'vars'
+        "  vars2d%region%subgrid(3)%xstop = 1.0\n"
         "end subroutine my_sub\n")
     fparser2spec = f2008_parser(reader)
     sched = processor.generate_psyir(fparser2spec)
@@ -499,6 +502,12 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     assert lbound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
     assert isinstance(lbound.arguments[0], Reference)
     assert lbound.arguments[0].symbol.name == "vars"
+    # vars2d%region%subgrid(3)%xstop
+    # This is treated as a StructureReference by the frontend as there's no
+    # indexing into the vars2d array.
+    assign = assignments[8]
+    amem = assign.lhs
+    assert isinstance(amem, StructureReference)
 
 
 def test_array_of_derived_type_ref(f2008_parser):

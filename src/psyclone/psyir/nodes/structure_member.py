@@ -43,7 +43,7 @@ from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 
 
-class StructureMember(Member, StructureAccessorMixin):
+class StructureMember(StructureAccessorMixin, Member):
     '''
     Node representing a membership expression of the parent's Reference that
     resolves into another structure.

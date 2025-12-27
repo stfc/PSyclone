@@ -91,7 +91,7 @@ $(PSYDATA_LIB): $(INF_LIB) $(OBJS) read_kernel_data_mod.f90
 
 # Create LFRic infrastructure library
 $(INF_LIB):
-	$(MAKE) -C $(LFRIC_PATH) netcdf
+	$(MAKE) -C $(LFRIC_PATH)
 
 kernel_data_netcdf.o:	extract_netcdf_base.o
 extract_netcdf_base.o:	psy_data_base.o

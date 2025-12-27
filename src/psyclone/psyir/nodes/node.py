@@ -44,12 +44,15 @@ ChildrenList - a custom implementation of list.
 
 '''
 from __future__ import annotations
+from typing import Union, TYPE_CHECKING
 import copy
 import graphviz
-from typing import Union
 
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import GenerationError, InternalError
+
+if TYPE_CHECKING:
+    from psyclone.psyir.symbols import Symbol
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -1533,6 +1536,15 @@ class Node():
         for child in self.children[:]:
             child.lower_to_language_level()
         return self
+
+    def get_all_accessed_symbols(self) -> set["Symbol"]:
+        '''
+        :returns: a set of all the symbols accessed inside this Node.
+        '''
+        symbols = set()
+        for child in self._children:
+            symbols.update(child.get_all_accessed_symbols())
+        return symbols
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''

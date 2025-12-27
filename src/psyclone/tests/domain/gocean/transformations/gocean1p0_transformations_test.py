@@ -43,6 +43,7 @@ from importlib import import_module
 import pytest
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern
 from psyclone.parse import ModuleManager
@@ -103,7 +104,7 @@ def test_loop_fuse_error():
     assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
 
-def test_omp_parallel_loop(tmpdir, fortran_writer):
+def test_omp_paralleldo_loop(tmpdir, fortran_writer):
     '''Test that we can generate an OMP PARALLEL DO correctly,
     independent of whether or not we are generating constant loop bounds '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
@@ -176,7 +177,7 @@ def test_omp_region_with_single_loop(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -192,7 +193,7 @@ def test_omp_region_with_single_loop(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -222,7 +223,7 @@ def test_omp_region_with_slice(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -288,7 +289,7 @@ def test_omp_region_no_slice(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -319,7 +320,7 @@ def test_omp_region_no_slice_const_bounds(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -452,6 +453,14 @@ def test_omp_region_retains_kernel_order3(tmpdir):
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
     assert cu_idx < cv_idx < ts_idx
+
+    # Check that the two directive are different statements in above the
+    # second loop (iterates over cv_fld internal) and that the private
+    # clause (now on the parallel directive) only has i and j.
+    assert ("!$omp parallel default(shared) private(i,j)\n"
+            "    !$omp do schedule(static)\n"
+            "    do j = cv_fld%internal%ystart" in gen)
+
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
@@ -482,7 +491,7 @@ def test_omp_region_before_loops_trans(tmpdir):
     omp_region_idx = -1
     omp_do_idx = -1
     for idx, line in enumerate(gen.split('\n')):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             omp_region_idx = idx
         if '!$omp do' in line:
             omp_do_idx = idx
@@ -502,6 +511,11 @@ def test_omp_region_after_loops_trans(tmpdir):
                              dist_mem=False)
     schedule = invoke.schedule
 
+    # We test with inlining because in the past we had an error when
+    # producing the clauses if the calls were inlined.
+    for kern in schedule.kernels():
+        KernelModuleInlineTrans().apply(kern)
+
     # Put an OpenMP do directive around each loop contained
     # in the schedule
     ompl = GOceanOMPLoopTrans()
@@ -519,7 +533,7 @@ def test_omp_region_after_loops_trans(tmpdir):
     omp_region_idx = -1
     omp_do_idx = -1
     for idx, line in enumerate(gen.split('\n')):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             omp_region_idx = idx
         if '!$omp do' in line:
             omp_do_idx = idx

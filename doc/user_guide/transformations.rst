@@ -382,6 +382,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.OMPCriticalTrans
+    :members: apply
+    :no-index:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.OMPDeclareTargetTrans
     :members: apply
     :no-index:
@@ -688,8 +694,9 @@ transformations currently supported allow the addition of:
 * an **OpenMP Single** directive
 * an **OpenMP Master** directive
 * an **OpenMP Taskloop** directive
-* multiple **OpenMP Taskwait** directives; and
-* an **OpenMP Parallel Do** directive.
+* multiple **OpenMP Taskwait** directives
+* an **OpenMP Parallel Do** directive; and
+* an **OpenMP Critical** directive.
 
 The generic versions of these transformations (i.e. ones that
 theoretically work for all APIs) were given in the

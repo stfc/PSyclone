@@ -11,14 +11,13 @@ compare performance).
 ## Dependencies
 
 This library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
-the application. The following dependencies must be available:
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to
+interface with the application. The following dependencies must be available:
 
-- The LFRic infrastructure library. A pared-down version of LFRic
-  infrastructure is located in the PSyclone repository (see e.g.
-  [LFRic Example 17](
-  https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17), however
-  it is not included in the PSyclone [installation](
+- The LFRic infrastructure library, which is included in the PSyclone repository
+  (see e.g. [LFRic Example 17](
+  https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17)), however
+  it is not included in a PSyclone [installation](
   ./../../../README.md#installation). See the [LFRic API](
   https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html) documentation
   for information on how to obtain access to the LFRic code.
@@ -63,15 +62,15 @@ variable ``MPI=yes`` before starting the build process (which will make sure
 that ``NO_MPI`` is not set).
 
 The NetCDF helper program ``nf-config`` is used to get the NetCDF-specific
-include paths. By default it is set to the relative path to the pared-down
+include paths. By default it is set to the relative path to the
 LFRic infrastructure located in a clone of PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
+``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
 This is not available in the PSyclone [installation](
 ./../../../README.md#installation) so the exact path
-**must be specified** using the environment variable ``LFRIC_INF_DIR``, e.g.
+**must be specified** using the environment variable ``LFRIC_PATH``, e.g.
 
 ```shell
-F90=ifort F90FLAGS="-g -check bounds" LFRIC_INF_DIR=<path/to/LFRic/code> make
+F90=ifort F90FLAGS="-g -check bounds" LFRIC_PATH=<path/to/LFRic/code> make
 ```
 
 It is the responsibility of the user to make sure that the module files
@@ -105,7 +104,7 @@ parameters when compiling and linking. For instance:
 
 ```shell
 $(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/netcdf/lfric -l_kernel_data_netcdf \
-        -L$(LFRIC_INF_DIR) -llfric_netcdf $(LFRIC_SPECIFIC_LINKING_PARAMETERS) \
+        -L$(LFRIC_PATH) -llfric_netcdf $(LFRIC_SPECIFIC_LINKING_PARAMETERS) \
         $(nf-config --flibs)
 ```
 

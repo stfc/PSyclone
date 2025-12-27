@@ -40,12 +40,14 @@
 '''This module provides management of variable access information.'''
 
 
-from typing import List
+from typing import List, TYPE_CHECKING
 
-from psyclone.core.component_indices import ComponentIndices
 from psyclone.core.signature import Signature
 from psyclone.core.access_sequence import AccessSequence
+from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes import Node
 
 
 class VariablesAccessMap(dict):
@@ -61,35 +63,18 @@ class VariablesAccessMap(dict):
         output_list = []
         for key, value in self.items():
             output_list.append(f"{key}: {value.str_access_summary()}")
-        return ", ".join(output_list)
+        return ", ".join(sorted(output_list))
 
-    def add_access(self, signature, access_type, node, component_indices=None):
+    def add_access(
+            self,
+            signature: Signature,
+            access_type: AccessType,
+            node: "Node") -> None:
         '''Adds access information for the variable with the given signature.
-        If the `component_indices` parameter is not an instance of
-        `ComponentIndices`, it is used to construct an instance. Therefore it
-        can be None, a list or a list of lists of PSyIR nodes. In the case of
-        a list of lists, this will be used unmodified to construct the
-        ComponentIndices structures. If it is a simple list, it is assumed
-        that it contains the indices used in accessing the last component
-        of the signature. For example, for `a%b` with
-        `component_indices=[i,j]`, it will create `[[], [i,j]` as component
-        indices, indicating that no index is used in the first component `a`.
-        If the access is supposed to be for `a(i)%b(j)`, then the
-        `component_indices` argument must be specified as a list of lists,
-        i.e. `[[i], [j]]`.
 
         :param signature: the signature of the variable.
-        :type signature: :py:class:`psyclone.core.Signature`
         :param access_type: the type of access (READ, WRITE, ...)
-        :type access_type: :py:class:`psyclone.core.access_type.AccessType`
         :param node: Node in PSyIR in which the access happens.
-        :type node: :py:class:`psyclone.psyir.nodes.Node` instance
-        :param component_indices: index information for the access.
-        :type component_indices: \
-            :py:class:`psyclone.core.component_indices.ComponentIndices`, or \
-            any other type that can be used to construct a ComponentIndices \
-            instance (None, List[:py:class:`psyclone.psyir.nodes.Node`] \
-             or List[List[:py:class:`psyclone.psyir.nodes.Node`]])
 
         '''
         if not isinstance(signature, Signature):
@@ -97,37 +82,11 @@ class VariablesAccessMap(dict):
                                 f"'{type(signature).__name__}' but expected "
                                 f"it to be of type psyclone.core.Signature.")
 
-        # To make it easier for the user, we allow to implicitly create the
-        # component indices instance here:
-        if not isinstance(component_indices, ComponentIndices):
-            # Handle some convenient cases:
-            # 1. Add the right number of [] if component_indices is None:
-            if component_indices is None:
-                component_indices = [[]] * len(signature)
-            elif isinstance(component_indices, list):
-                # 2. If the argument is a simple list (not a list of lists),
-                # assume that the indices are for the last component, and
-                # add enough [] to give the right number of entries in the
-                # list that is used to create the ComponentIndices instance:
-                is_list_of_lists = all(isinstance(indx, list)
-                                       for indx in component_indices)
-                if not is_list_of_lists:
-                    component_indices = [[]] * (len(signature)-1) \
-                                      + [component_indices]
-
-            component_indices = ComponentIndices(component_indices)
-
-        if len(signature) != len(component_indices):
-            raise InternalError(f"Cannot add '{component_indices}' with "
-                                f"length {len(component_indices)} as "
-                                f"indices for '{signature}' which "
-                                f"requires {len(signature)} elements.")
-
         if signature in self:
-            self[signature].add_access(access_type, node, component_indices)
+            self[signature].add_access(access_type, node)
         else:
             var_info = AccessSequence(signature)
-            var_info.add_access(access_type, node, component_indices)
+            var_info.add_access(access_type, node)
             self[signature] = var_info
 
     @property
@@ -152,27 +111,23 @@ class VariablesAccessMap(dict):
                 result.append(sig)
         return result
 
-    def update(self, other_access_map):
+    def update(self,   # type: ignore[override]
+               other_access_map: "VariablesAccessMap") -> None:
         ''' Updates this dictionary with the entries in the provided
         VariablesAccessMap. If there are repeated signatures, the provided
         values are appended to the existing sequence of accesses.
 
         :param other_access_map: the other VariablesAccessMap instance.
-        :type other_access_map: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         for signature in other_access_map.all_signatures:
             access_sequence = other_access_map[signature]
-            for access_info in access_sequence:
-                if signature in self:
-                    var_info = self[signature]
-                else:
-                    var_info = AccessSequence(signature)
-                    self[signature] = var_info
-
-                var_info.add_access(access_info.access_type,
-                                    access_info.node,
-                                    access_info.component_indices)
+            if signature in self:
+                var_info = self[signature]
+            else:
+                var_info = AccessSequence(signature)
+                self[signature] = var_info
+            var_info.update(access_sequence)
 
     def is_called(self, signature: Signature) -> bool:
         '''
@@ -182,16 +137,14 @@ class VariablesAccessMap(dict):
         '''
         return self[signature].is_called()
 
-    def is_written(self, signature):
+    def is_written(self, signature: Signature) -> bool:
         '''Checks if the specified variable signature is at least
         written once.
 
         :param signature: signature of the variable.
-        :type signature: :py:class:`psyclone.core.Signature`
 
         :returns: True if the specified variable is written (at least \
             once).
-        :rtype: bool
 
         :raises: KeyError if the signature name cannot be found.
 
@@ -199,7 +152,7 @@ class VariablesAccessMap(dict):
         var_access_info = self[signature]
         return var_access_info.is_written()
 
-    def is_read(self, signature) -> bool:
+    def is_read(self, signature: Signature) -> bool:
         '''Checks if the specified variable signature is at least read once.
 
         :param signature: signature of the variable
@@ -213,7 +166,7 @@ class VariablesAccessMap(dict):
         var_access_info = self[signature]
         return var_access_info.is_read()
 
-    def has_read_write(self, signature):
+    def has_read_write(self, signature: Signature) -> bool:
         '''Checks if the specified variable signature has at least one
         READWRITE access (which is typically only used in a function call).
 

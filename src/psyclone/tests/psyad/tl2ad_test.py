@@ -337,7 +337,6 @@ def test_get_active_variables_datatype_error(fortran_reader):
 
     with pytest.raises(NotImplementedError) as err:
         _get_active_variables_datatype(tl_psyir, ["a", "c"])
-    print(str(err.value))
     assert ("active variables of different datatype: 'a' is of intrinsic "
             "type 'Intrinsic.REAL' and precision 'Precision.UNDEFINED' while "
             "'c' is of intrinsic type 'Intrinsic.REAL' and precision "
@@ -711,7 +710,8 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
             "  ! compute the inner product of the results of the tangent-"
             "linear kernel\n"
             "  inner1 = 0.0\n"
-            "  inner1 = inner1 + dot_product(field, field)\n"
+            "  inner1 = inner1 + dot_product(field, "
+            "field)\n"
             "\n"
             "  ! call the adjoint of the kernel\n"
             "  call adj_kern(field, npts)\n"
@@ -719,7 +719,8 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
             "  ! compute inner product of results of adjoint kernel with "
             "the original inputs to the tangent-linear kernel\n"
             "  inner2 = 0.0\n"
-            "  inner2 = inner2 + dot_product(field, field_input)\n"
+            "  inner2 = inner2 + dot_product(field, "
+            "field_input)\n"
             "\n"
             "  ! test the inner-product values for equality, allowing for "
             "the precision of the active variables\n"
@@ -1153,7 +1154,8 @@ def test_create_inner_product_1d_arrays(fortran_writer):
     assert isinstance(nodes[1].rhs, BinaryOperation)
     assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
     code = fortran_writer(nodes[1])
-    assert "result = result + DOT_PRODUCT(var1, var2)" in code
+    assert ("result = result + DOT_PRODUCT(var1, var2)"
+            in code)
 
 
 def test_create_inner_product_arrays(fortran_writer):

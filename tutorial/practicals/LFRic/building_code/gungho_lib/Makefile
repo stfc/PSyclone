@@ -69,7 +69,7 @@ default: $(LFRIC_LIB) $(GHLIB_OBJ)
 	$(AR) $(ARFLAGS) libgungho.a $(GHLIB_OBJ)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH) netcdf
+	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
 # ------------

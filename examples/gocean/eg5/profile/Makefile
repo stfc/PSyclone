@@ -46,7 +46,7 @@ GENERATED_FILES += *.o *.mod profile_test.* alg.f90 psy.f90
 
 SHARED_DIR ?= $(ROOT_DIR)/external
 PROFILE_DIR = $(ROOT_DIR)/lib/profiling
-# Location of the infrastucture code (which is a submodule of the
+# Location of the infrastructure code (which is a submodule of the
 # PSyclone git repo).
 INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
@@ -63,7 +63,7 @@ NAME=profile_test
 run: compile
 	./profile_test.template
 
-compile: transform template
+compile: transform template lfric simple_timing
 transform: psy.f90
 all: template simple_timing drhook dl_timer lfric tau
 
@@ -121,8 +121,8 @@ dl_timer:
 # The LFRic timer can be used for gocean as well - the wrapper provides
 # a standalone library that contains all dependencies and can therefore be
 # used with any program.
-lfric: 
-	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/lfric"         \
+lfric:
+	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/lfric_timer"   \
 	        WRAPPER_NAME="psy_lfric_timer_standalone"  \
 	        lfric_lib $(NAME).lfric
 
@@ -133,7 +133,7 @@ lfric:
 #.SECONDARY:
 
 $(NAME).tau: $(INF_LIB) $(WRAPPER_DIR)/lib$(WRAPPER_NAME).a $(KERNELS) psy.o alg.o
-	tau_f90.sh $(F90FLAGS) $(KERNELS) psy.o alg.o -o $@                             \
+	tau_f90.sh $(F90FLAGS) $(KERNELS) psy.o alg.o -o $@                         \
 		   -L $(WRAPPER_DIR) -l $(WRAPPER_NAME)                                 \
 		   $(PROFILE_LINK) $(INF_LIB)
 

@@ -258,8 +258,8 @@ def test_validate_arg_not_ref():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Expected result and operands of MATMUL IntrinsicCall to be "
-            "references, but found: 'x(10) = MATMUL(x(10) * x(10), x(10) * "
-            "x(10))\n'." in str(excinfo.value))
+            "references, but found: 'x(10) = MATMUL(x(10) * x(10), "
+            "x(10) * x(10))\n'." in str(excinfo.value))
 
 
 def test_validate_arg_not_arr():

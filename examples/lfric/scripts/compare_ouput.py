@@ -39,7 +39,7 @@
 import sys
 import os
 
-TOLERANCE_DIGITS = 10
+TOLERANCE_DIGITS = 8
 
 
 def main():

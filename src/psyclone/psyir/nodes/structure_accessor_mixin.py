@@ -39,6 +39,7 @@
 
 import abc
 from psyclone.psyir.nodes.member import Member
+from psyclone.psyir.nodes.node import Node
 from psyclone.errors import InternalError
 
 
@@ -63,3 +64,13 @@ class StructureAccessorMixin(metaclass=abc.ABCMeta):
                 f"a first child that must be a (sub-class of) Member, but "
                 f"found: {self.children}")
         return self.children[0]
+
+    def component_indices(self) -> tuple[tuple[Node]]:
+        '''
+        :returns: a tuple of tuples of index expressions; one for every
+            component in the accessor. For example, for a scalar it
+            returns `(())`, for `a%b` it returns ((),()) - two components
+            with 0 indices in each, and for `a(i)%b(j,k+1)` it
+            returns `((i,),(j,k+1))`.
+        '''
+        return ((), *self.member.component_indices())
