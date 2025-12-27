@@ -43,7 +43,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Reference, Assignment)
 from psyclone.psyir.symbols import (
-    Symbol, DataSymbol, UnresolvedType, UnsupportedFortranType)
+    Symbol, DataSymbol, UnresolvedType, UnsupportedFortranType, StructureType)
 from psyclone.psyir.transformations import (Reference2ArrayRangeTrans,
                                             TransformationError)
 
@@ -306,8 +306,6 @@ def test_structure_references(fortran_reader, fortran_writer):
         "  ref%field_of_fields%inner = 1\n"
         "  array_of_ref(1)%field_of_fields%inner = 1\n"
         "  array_of_ref%field_of_fields(1)%inner = 1\n"
-        "  ! This is not supported (TODO #3265)\n"
-        "  ! ref%ptr => b\n"
         "end program test\n"
     )
     psyir = fortran_reader.psyir_from_source(code)
@@ -352,6 +350,48 @@ def test_structure_references(fortran_reader, fortran_writer):
   array_of_ref(1)%field_of_fields(1:10)%inner = 1
   array_of_ref(1:10)%field_of_fields(1)%inner = 1"""
     assert expected_modified in output
+
+
+def test_unsupported_structure_references(fortran_reader, fortran_writer):
+    ''' Test that the transformation returns an error when it finds and
+    unsupported derived type
+    '''
+    code = (
+        "program test\n"
+        "  type :: mytype\n"
+        "      real :: scalar1\n"
+        "      real :: scalar2\n"
+        "  end type\n"
+        "  type(mytype) :: ref\n"
+        "  ref%scalar2 = 2\n"
+        "  ref%ptr => b\n"
+        "end program test\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Reference2ArrayRangeTrans()
+    assign = psyir.walk(Assignment)
+
+    # Remove scalar2 code and add ptr to mytype. It cannot be done in the code
+    # above because pointers and type inheritance are unsupported, and the
+    # reader converts the whole type into a Codeblock (TODO #3265)
+    comp = psyir.children[0].symbol_table.lookup("mytype").datatype.components
+    del comp["scalar2"]
+    comp["ptr"] = StructureType.ComponentType(
+                    "ptr",
+                    UnsupportedFortranType("real, pointer :: ptr"),
+                    Symbol.Visibility.PUBLIC, None
+    )
+
+    # Check that both produce the appropriate error
+    with pytest.raises(TransformationError) as err:
+        trans.apply(assign[0].lhs)
+    assert ("Reference2ArrayRangeTrans cannot validate 'ref%scalar2' because "
+            "it could not resolve the 'scalar2' accessor" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.apply(assign[1].lhs)
+    assert ("The supplied node should be a Reference to a symbol of known "
+            "type, but 'ref%ptr' is 'UnsupportedFortranType('real, pointer "
+            ":: ptr')'" in str(err.value))
 
 
 def test_validate_pointer_assignment(fortran_reader):

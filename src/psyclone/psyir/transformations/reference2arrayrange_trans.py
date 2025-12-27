@@ -195,9 +195,9 @@ class Reference2ArrayRangeTrans(Transformation):
                 except (AttributeError, KeyError):
                     # pylint: disable=raise-missing-from
                     raise TransformationError(
-                        f"{self.name} cannot validate {node.debug_string()} "
-                        f"because it could not find {cursor.member.name}"
-                        f"of {cursor_datatype}")
+                        f"{self.name} cannot validate '{node.debug_string()}'"
+                        f" because it could not resolve the "
+                        f"'{cursor.member.name}' accessor")
 
                 cursor = cursor.member
             else:
