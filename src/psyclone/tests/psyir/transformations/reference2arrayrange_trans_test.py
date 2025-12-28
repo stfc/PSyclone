@@ -39,6 +39,7 @@ transformation.'''
 
 import pytest
 
+from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Reference, Assignment)
@@ -359,12 +360,13 @@ def test_unsupported_structure_references(fortran_reader, fortran_writer):
     code = (
         "program test\n"
         "  type :: mytype\n"
-        "      real :: scalar1\n"
+        "      real, dimension(10) :: field\n"
         "      real :: scalar2\n"
         "  end type\n"
         "  type(mytype) :: ref\n"
         "  ref%scalar2 = 2\n"
         "  ref%ptr => b\n"
+        "  ref%scalar1 = 1\n"
         "end program test\n"
     )
     psyir = fortran_reader.psyir_from_source(code)
@@ -394,10 +396,35 @@ def test_unsupported_structure_references(fortran_reader, fortran_writer):
             ":: ptr')'" in str(err.value))
 
 
+def test_new_node_type(fortran_reader):
+    ''' Test that if a new node type is introduced, this transformation will
+    need to know how to map the new node type to its Array version '''
+    code = (
+        "program test\n"
+        " real, dimension(10) :: ref\n"
+        " ref = 1\n"
+        "end program test\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Reference2ArrayRangeTrans()
+    assign = psyir.walk(Assignment)
+
+    class NewArrayNode(Reference):
+        ...
+
+    new_node = NewArrayNode(assign[0].lhs.symbol)
+    assign[0].lhs.replace_with(new_node)
+    with pytest.raises(InternalError) as err:
+        trans.apply(assign[0].lhs)
+    assert ("PSyclone internal error: NewArrayNode needs to be converted to "
+            "an Array, but Reference2ArrayRangeTrans does not know how."
+            in str(err.value))
+
+
 def test_validate_pointer_assignment(fortran_reader):
     ''' Test that a reference in a PointerAssignment raises an exception
     Even if we have a partial_datatype that could tell us that it was
-    an array, pointer assignemnts must not be converted.'''
+    an array, pointer assignments must not be converted.'''
     code = (
         "program test\n"
         "  integer, dimension(10), target :: a\n"

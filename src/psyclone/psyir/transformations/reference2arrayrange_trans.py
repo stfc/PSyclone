@@ -249,8 +249,9 @@ class Reference2ArrayRangeTrans(Transformation):
                         array.addchild(cursor.member.copy())
                     else:
                         raise InternalError(
-                            f"{type(cursor).__name__} implements ArrayMixin, "
-                            f"but {self.name} does not support it.")
+                            f"{type(cursor).__name__} needs to be converted "
+                            f"to an Array, but {self.name} does not know how."
+                        )
 
                     # Replace the node with the new one
                     if cursor.parent:
