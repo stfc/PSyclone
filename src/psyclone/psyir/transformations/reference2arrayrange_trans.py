@@ -45,9 +45,10 @@ from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Literal, Range, Reference,
-    StructureReference, ArrayOfStructuresReference)
+    StructureReference, ArrayOfStructuresReference, Assignment)
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, DataSymbol, UnresolvedType, UnsupportedType)
+    INTEGER_TYPE, DataSymbol, UnresolvedType, UnsupportedType, ArrayType,
+    ScalarType)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
@@ -127,6 +128,12 @@ class Reference2ArrayRangeTrans(Transformation):
                     f"adding the function's filename to RESOLVE_IMPORTS."))
             if not node.parent.is_elemental:
                 return
+        assignment = node.ancestor(Assignment) if node else None
+        if assignment and assignment.is_pointer:
+            raise TransformationError(
+                f"{type(self).__name__} can not be applied to references"
+                f" inside pointer assignments, but found '{node.name}' in"
+                f" {assignment.debug_string()}")
 
         # pylint: disable=unidiomatic-typecheck
         if (
@@ -150,6 +157,13 @@ class Reference2ArrayRangeTrans(Transformation):
             isinstance(node.symbol.datatype, (UnresolvedType,
                                               UnsupportedType))
         ):
+            if (
+                isinstance(node.symbol, DataSymbol) and
+                isinstance(node.symbol.datatype, UnsupportedType) and
+                isinstance(node.symbol.datatype.partial_datatype,
+                           (ScalarType, ArrayType))
+            ):
+                return
             raise TransformationError(
                 f"The supplied node should be a Reference to a symbol "
                 f"of known type, but '{node.symbol}' is not.")

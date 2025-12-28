@@ -280,12 +280,10 @@ def test_validate_structure(fortran_reader):
         "program test\n"
         "  type :: array_type\n"
         "      real, dimension(10) :: a\n"
-        "      real, pointer :: ptr\n"
         "  end type\n"
         "  type(array_type) :: ref\n"
         "  real :: b\n\n"
         "  ref%a = b\n"
-        "  ref%ptr => b\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Reference2ArrayRangeTrans()
@@ -293,23 +291,36 @@ def test_validate_structure(fortran_reader):
         trans.validate(assign.lhs)
 
 
-def test_validate_pointer_assignment(fortran_reader):
+def test_pointer_assignment(fortran_reader, fortran_writer):
     ''' Test that a reference in a PointerAssignment raises an exception
-    Even if we have a partial_datatype that could tell us that it was
-    an array, pointer assignemnts must not be converted.'''
+    Pointer and target attributes (currently represented by partial_datatype
+    can still be converted in arithmetic assignments. '''
     code = (
         "program test\n"
         "  integer, dimension(10), target :: a\n"
         "  integer, dimension(10), pointer :: b\n"
+        "  integer, target :: c\n"
+        "  integer, pointer :: d\n"
         "  b => a\n"
+        "  d => c\n"
+        "  a = a + b + c + d\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Reference2ArrayRangeTrans()
-    for reference in psyir.walk(Reference):
+    assignments = psyir.walk(Assignment)
+    for reference in (assignments[0].walk(Reference) +
+                      assignments[1].walk(Reference)):
         with pytest.raises(TransformationError) as info:
             trans.validate(reference)
-        assert ("The supplied node should be a Reference to a symbol of known "
-                "type, but " in str(info.value))
+        assert ("Reference2ArrayRangeTrans can not be applied to references "
+                "inside pointer assignments, but found " in str(info.value))
+
+    # pointers (partial datatypes) in non-pointer-assignments are still
+    # converted
+    for reference in assignments[2].walk(Reference):
+        trans.apply(reference)
+    code = fortran_writer(psyir)
+    assert "a(1:10) = a(1:10) + b(1:10) + c + d\n" in code
 
 
 def test_apply_validate():
