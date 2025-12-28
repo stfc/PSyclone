@@ -353,7 +353,7 @@ def test_structure_references(fortran_reader, fortran_writer):
     assert expected_modified in output
 
 
-def test_unsupported_structure_references(fortran_reader, fortran_writer):
+def test_unsupported_structure_references(fortran_reader):
     ''' Test that the transformation returns an error when it finds and
     unsupported derived type
     '''
@@ -391,9 +391,9 @@ def test_unsupported_structure_references(fortran_reader, fortran_writer):
             "it could not resolve the 'scalar2' accessor" in str(err.value))
     with pytest.raises(TransformationError) as err:
         trans.apply(assign[1].lhs)
-    assert ("The supplied node should be a Reference to a symbol of known "
-            "type, but 'ref%ptr' is 'UnsupportedFortranType('real, pointer "
-            ":: ptr')'" in str(err.value))
+    assert (" Reference2ArrayRangeTrans can not be applied to references "
+            "inside pointer assignments, but found 'ref' in ref%ptr => b\n"
+            in str(err.value))
 
 
 def test_new_node_type(fortran_reader):
@@ -421,20 +421,33 @@ def test_new_node_type(fortran_reader):
             in str(err.value))
 
 
-def test_validate_pointer_assignment(fortran_reader):
+def test_pointer_assignment(fortran_reader, fortran_writer):
     ''' Test that a reference in a PointerAssignment raises an exception
-    Even if we have a partial_datatype that could tell us that it was
-    an array, pointer assignments must not be converted.'''
+    Pointer and target attributes (currently represented by partial_datatype
+    can still be converted in arithmetic assignments. '''
     code = (
         "program test\n"
         "  integer, dimension(10), target :: a\n"
         "  integer, dimension(10), pointer :: b\n"
+        "  integer, target :: c\n"
+        "  integer, pointer :: d\n"
         "  b => a\n"
+        "  d => c\n"
+        "  a = a + b + c + d\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Reference2ArrayRangeTrans()
-    for reference in psyir.walk(Reference):
+    assignments = psyir.walk(Assignment)
+    for reference in (assignments[0].walk(Reference) +
+                      assignments[1].walk(Reference)):
         with pytest.raises(TransformationError) as info:
             trans.validate(reference)
-        assert ("The supplied node should be a Reference to a symbol of known "
-                "type, but " in str(info.value))
+        assert ("Reference2ArrayRangeTrans can not be applied to references "
+                "inside pointer assignments, but found " in str(info.value))
+
+    # pointers (partial datatypes) in non-pointer-assignments are still
+    # converted
+    for reference in assignments[2].walk(Reference):
+        trans.apply(reference)
+    code = fortran_writer(psyir)
+    assert "a(:) = a(:) + b(:) + c + d\n" in code

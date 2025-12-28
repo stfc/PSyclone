@@ -46,7 +46,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Reference, Member, StructureReference,
     ArrayOfStructuresMember, ArrayOfStructuresReference, ArrayMember,
-    StructureMember)
+    StructureMember, Assignment)
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -129,6 +129,12 @@ class Reference2ArrayRangeTrans(Transformation):
                     f"adding the function's filename to RESOLVE_IMPORTS."))
             if not node.parent.is_elemental:
                 return
+        assignment = node.ancestor(Assignment) if node else None
+        if assignment and assignment.is_pointer:
+            raise TransformationError(
+                f"{type(self).__name__} can not be applied to references"
+                f" inside pointer assignments, but found '{node.name}' in"
+                f" {assignment.debug_string()}")
 
         if not isinstance(node, Reference):
             raise TransformationError(
@@ -144,6 +150,12 @@ class Reference2ArrayRangeTrans(Transformation):
         cursor = node
         cursor_datatype = cursor.symbol.datatype
         while cursor:
+            if (
+                isinstance(cursor_datatype, UnsupportedType) and
+                cursor_datatype.partial_datatype
+            ):
+                cursor_datatype = cursor_datatype.partial_datatype
+
             if isinstance(cursor_datatype, StructureType.ComponentType):
                 # If it is a ComponentType, follow its declaration
                 cursor_datatype = cursor_datatype.datatype
@@ -228,6 +240,12 @@ class Reference2ArrayRangeTrans(Transformation):
         cursor = node
         cursor_datatype = cursor.symbol.datatype
         while cursor:
+            if (
+                isinstance(cursor_datatype, UnsupportedType) and
+                cursor_datatype.partial_datatype
+            ):
+                cursor_datatype = cursor_datatype.partial_datatype
+
             if isinstance(cursor_datatype, StructureType.ComponentType):
                 cursor_datatype = cursor_datatype.datatype
 
