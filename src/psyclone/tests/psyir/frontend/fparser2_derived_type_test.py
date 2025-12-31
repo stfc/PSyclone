@@ -633,8 +633,8 @@ def test_array_of_derived_type_pointer(f2008_parser):
 
 
 def test_type_with_unsupported_component(f2008_parser):
-    ''' Check that a new DataTypeSymbol is created in place of an existing
-    Symbol if it is used in a type declaration. '''
+    ''' Check that types with unsupported components still create the
+    StructureType with the correct component names.  '''
     fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     fparser2spec = f2008_parser(
@@ -649,8 +649,45 @@ def test_type_with_unsupported_component(f2008_parser):
                                    walk(fparser2spec.content,
                                         Fortran2003.Derived_Type_Def),
                                    [])
-    type = fake_parent.symbol_table.lookup("my_type").datatype
-    assert "supported" in type.components
-    assert "supported2" in type.components
-    assert "unsupported" in type.components
-    assert "unsupported2" in type.components
+    newtype = fake_parent.symbol_table.lookup("my_type").datatype
+    assert isinstance(newtype.components["supported"].datatype, ScalarType)
+    assert isinstance(newtype.components["supported2"].datatype, ScalarType)
+    assert isinstance(newtype.components["unsupported"].datatype,
+                      UnsupportedFortranType)
+    assert isinstance(newtype.components["unsupported2"].datatype,
+                      UnsupportedFortranType)
+
+
+def test_type_with_outside_reference(f2008_parser):
+    ''' Check that a derived types components with references before and
+    after their declaration can be parsed, and when possible, are internally
+    consistent. '''
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    processor = Fparser2Reader()
+    fparser2spec = f2008_parser(
+        FortranStringReader("subroutine my_sub()\n"
+                            "  type :: before\n"
+                            "  end type\n"
+                            "  TYPE y\n"
+                            "    TYPE(before), POINTER :: a\n"
+                            "    TYPE(after), POINTER :: b\n"
+                            "    TYPE(before) :: c\n"
+                            "    TYPE(after) :: d\n"
+                            "  END TYPE y\n"
+                            "  type :: after\n"
+                            "  end type\n"
+                            "end subroutine my_sub\n"))
+
+    processor.process_declarations(fake_parent,
+                                   walk(fparser2spec.content,
+                                        Fortran2003.Derived_Type_Def),
+                                   [])
+
+    # Check that the 3 types exist
+    before = fake_parent.symbol_table.lookup("before")
+    y = fake_parent.symbol_table.lookup("y")
+    after = fake_parent.symbol_table.lookup("after")
+
+    # Check that when possible, the symbols are itnernally consistent
+    assert y.datatype.components["c"].datatype is before
+    assert y.datatype.components["d"].datatype is after
