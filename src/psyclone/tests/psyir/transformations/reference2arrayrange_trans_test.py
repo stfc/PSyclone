@@ -149,13 +149,13 @@ def test_multid(fortran_reader, fortran_writer):
 
 def test_assumed_shape(fortran_reader, fortran_writer):
     '''Test when the underlying array is of assumed shape.'''
-    code = ('''\
+    code = '''\
     subroutine sub(var, istart)
       integer, intent(in) :: istart
       integer, dimension(istart:) :: var
       var = 1
     end subroutine sub
-    ''')
+    '''
     result = apply_trans(fortran_reader, fortran_writer, code)
     assert "var(:) = 1" in result
 
@@ -208,7 +208,7 @@ def test_ambiguous_call_array_reference(fortran_reader, fortran_writer):
     assert "b(:) = work(a)" in result
 
 
-def test_validate_no_known_datatype():
+def test_validate_no_known_datatype(fortran_reader, fortran_writer):
     ''' Test the validate method fails if there is no known associated
     datatype.
     '''
@@ -239,6 +239,22 @@ def test_validate_no_known_datatype():
             "type, but 'x' is 'UnsupportedFortranType('decl')'. Consider "
             "adding the declaration's filename to RESOLVE_IMPORTS."
             in str(info.value))
+
+    # The exception is when the Unresolved is inside a Range
+    code = '''\
+    program test
+      use some_mod, only: work
+      integer, dimension(10) :: a, b
+      b = a(2:work) + b(work:5)
+    end program test'''
+    trans = Reference2ArrayRangeTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    # Any of these fail validation because we can infer that 'work' is a
+    # scalar because it is directly inside a range expression
+    for reference in psyir.walk(Reference):
+        trans.apply(reference)
+    result = fortran_writer(psyir)
+    assert "b(:) = a(2:work) + b(work:5)" in result
 
 
 def test_apply_inquiry(fortran_reader, fortran_writer):
@@ -410,7 +426,7 @@ def test_new_node_type(fortran_reader):
     assign = psyir.walk(Assignment)
 
     class NewArrayNode(Reference):
-        ...
+        ''' New subclass of Reference. '''
 
     new_node = NewArrayNode(assign[0].lhs.symbol)
     assign[0].lhs.replace_with(new_node)

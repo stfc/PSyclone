@@ -46,7 +46,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Reference, Member, StructureReference,
     ArrayOfStructuresMember, ArrayOfStructuresReference, ArrayMember,
-    StructureMember, Assignment)
+    StructureMember, Assignment, Range)
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -129,6 +129,10 @@ class Reference2ArrayRangeTrans(Transformation):
                     f"adding the function's filename to RESOLVE_IMPORTS."))
             if not node.parent.is_elemental:
                 return
+        if node and node.parent and isinstance(node.parent, Range):
+            # If it is directly inside a Range, we know it is a scalar and we
+            # don't need further validation
+            return
         assignment = node.ancestor(Assignment) if node else None
         if assignment and assignment.is_pointer:
             raise TransformationError(
@@ -233,6 +237,8 @@ class Reference2ArrayRangeTrans(Transformation):
                 return
             if not node.parent.is_elemental:
                 return
+        if node and node.parent and isinstance(node.parent, Range):
+            return
 
         # Recurse down the node converting each plain Reference and Member
         # to ArrayReferences or ArrayMembers when they are associated to an
