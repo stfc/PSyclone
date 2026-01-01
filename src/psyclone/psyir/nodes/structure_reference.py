@@ -348,8 +348,11 @@ class StructureReference(StructureAccessorMixin, Reference):
             if not isinstance(cursor_type, (UnresolvedType, UnsupportedType)):
                 # Once we've hit an Unresolved/UnsupportedType the cursor_type
                 # will remain set to that as we can't do any better.
-                cursor_type = cursor_type.components[
-                    cursor.name.lower()].datatype
+                try:
+                    cursor_type = cursor_type.components[
+                        cursor.name.lower()].datatype
+                except KeyError:
+                    return UnresolvedType()
             try:
                 cursor_shape = _get_cursor_shape(cursor, cursor_type)
             except NotImplementedError:

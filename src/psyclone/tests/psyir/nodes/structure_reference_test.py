@@ -263,6 +263,11 @@ def test_struc_ref_datatype():
     sref0 = nodes.StructureReference.create(ssym0, ["nx"])
     assert sref0.datatype == symbols.INTEGER_TYPE
 
+    # If the type component is not found (e.g. it is inherited, which psyclone
+    # does not support), return UnresolvedType
+    sref = nodes.StructureReference.create(ssym0, ["not_specified"])
+    assert sref.datatype == symbols.UnresolvedType()
+
     # Symbol with type defined by DataTypeSymbol
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
