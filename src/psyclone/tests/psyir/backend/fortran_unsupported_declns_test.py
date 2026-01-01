@@ -326,3 +326,26 @@ end subroutine my_sub\n'''
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
     assert code == output
+
+
+def test_fw_unsupported_type_components_with_visibility(
+            fortran_reader, fortran_writer):
+    ''' Check that the writer can handler type declarations with unsupported
+    components. '''
+
+    code = '''\
+module mymod
+  type :: test
+     real :: supported
+     real, public :: supported_public
+     real, pointer :: unsupported
+     real, public, pointer :: unsupported_public
+     private
+  end type test
+end module mymod\n'''
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    # Check that the private attribute has been added to supported and
+    # unsupported, component types
+    assert "real, private :: supported" in output
+    assert "real, pointer, private :: unsupported" in output
