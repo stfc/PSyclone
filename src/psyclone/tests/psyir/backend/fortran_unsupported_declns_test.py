@@ -302,3 +302,27 @@ def test_fw_save_common(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     assert "SAVE :: /my_common/\n" in output
     assert "integer, save, public :: var3\n" in output
+
+
+def test_fw_unsupported_type_components(fortran_reader, fortran_writer):
+    ''' Check that the writer can handler type declarations with unsupported
+    components. '''
+
+    code = '''\
+subroutine my_sub()
+  type :: before
+  end type before
+  type :: y
+    TYPE(before), POINTER :: a
+    TYPE(after), POINTER :: b
+    type(before) :: c
+    type(after) :: d
+  end type y
+  type :: after
+  end type after
+
+
+end subroutine my_sub\n'''
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert code == output

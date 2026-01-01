@@ -688,6 +688,28 @@ def test_type_with_outside_reference(f2008_parser):
     y = fake_parent.symbol_table.lookup("y")
     after = fake_parent.symbol_table.lookup("after")
 
+    assert before.is_automatic
+    assert after.is_automatic
+
     # Check that when possible, the symbols are itnernally consistent
     assert y.datatype.components["c"].datatype is before
     assert y.datatype.components["d"].datatype is after
+
+    # It also works inside modules and it has the appropriate interface
+    fake_parent = Container("mymod")
+    fparser2spec = f2008_parser(
+        FortranStringReader("module mymod\n"
+                            "  TYPE y\n"
+                            "    TYPE(after), POINTER :: b\n"
+                            "    TYPE(after) :: d\n"
+                            "  END TYPE y\n"
+                            "  type :: after\n"
+                            "  end type\n"
+                            "end module\n"))
+    processor.process_declarations(fake_parent,
+                                   walk(fparser2spec.content,
+                                        Fortran2003.Derived_Type_Def),
+                                   [])
+    y = fake_parent.symbol_table.lookup("y")
+    after = fake_parent.symbol_table.lookup("after")
+    assert after.is_modulevar

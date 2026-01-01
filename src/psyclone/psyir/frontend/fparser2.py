@@ -2136,6 +2136,12 @@ class Fparser2Reader():
                     f"this name but it is of type "
                     f"'{type(tsymbol.datatype).__name__}' when it should be "
                     f"of 'UnresolvedType'")
+            # Since we have now found the declaration, we can give it the
+            # proper inteterface depending on its location
+            if isinstance(parent, Container):
+                tsymbol.interface = DefaultModuleInterface()
+            else:
+                tsymbol.interface = AutomaticInterface()
         else:
             # We don't already have an entry for this type so create one
             tsymbol = DataTypeSymbol(name, dtype, visibility=dtype_symbol_vis)
