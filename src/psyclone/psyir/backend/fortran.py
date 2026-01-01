@@ -160,7 +160,7 @@ def add_accessibility_to_unsupported_declaration(symbol):
         visibility of the supplied symbol.
 
     '''
-    if not isinstance(symbol, Symbol):
+    if not isinstance(symbol, (Symbol, StructureType.ComponentType)):
         raise TypeError(f"Expected a Symbol but got '{type(symbol).__name__}'")
 
     if not isinstance(symbol.datatype, UnsupportedFortranType):
