@@ -267,9 +267,9 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
         'cell', 'nlayers_lma_op1', 'ncell_2d', 'lma_op1_proxy%ncell_3d',
         'lma_op1_local_stencil', 'cma_op1_cma_matrix', 'cma_op1_nrow',
         'cma_op1_ncol', 'cma_op1_bandwidth', 'cma_op1_alpha', 'cma_op1_beta',
-        'cma_op1_gamma_m', 'cma_op1_gamma_p', 'ndf_adspc1_lma_op1',
-        'cbanded_map_adspc1_lma_op1', 'ndf_adspc2_lma_op1',
-        'cbanded_map_adspc2_lma_op1']
+        'cma_op1_gamma_m', 'cma_op1_gamma_p', 'ndf_ads1_la_o1',
+        'cbanded_map_ads1_la_o1', 'ndf_ads2_la_o1',
+        'cbanded_map_ads2_la_o1']
 
     check_psyir_results(create_arg_list, fortran_writer)
     psyir_arglist = create_arg_list.psyir_arglist

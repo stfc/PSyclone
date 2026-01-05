@@ -535,10 +535,11 @@ class LFRicKern(CodedKern):
                 # Declare array holding map from a given tile-colour-cell to
                 # the index of the cell (this is not initialised until code
                 # lowering)
+                new_name = sched.symbol_table.next_available_name("tmap")
+                decl = f"integer(kind=i_def), pointer :: {new_name}(:,:,:)"
                 tmap = sched.symbol_table.find_or_create_tag(
                     "tilecolourmap", root_name="tmap", symbol_type=DataSymbol,
-                    datatype=UnsupportedFortranType(
-                        "integer(kind=i_def), pointer :: tmap(:,:,:)")).name
+                    datatype=UnsupportedFortranType(decl)).name
 
         return tmap
 

@@ -319,9 +319,9 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, "
         "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-        "ndf_aspc1_afield, undf_aspc1_afield, "
-        "map_aspc1_afield(:,cmap(colour,cell)), cbanded_map_aspc1_afield, "
-        "ndf_aspc2_lma_op1, cbanded_map_aspc2_lma_op1)\n"
+        "ndf_as1_ad, undf_as1_ad, "
+        "map_as1_ad(:,cmap(colour,cell)), cbanded_map_as1_ad, "
+        "ndf_as2_la_o1, cbanded_map_as2_la_o1)\n"
         "      enddo\n"
         "    enddo\n") in gen
 
@@ -1361,9 +1361,9 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
 
     assert (
         "    ! Look-up required column-banded dofmaps\n"
-        "    cbanded_map_aspc1_afield => "
+        "    cbanded_map_as1_ad => "
         "cma_op1_proxy%column_banded_dofmap_to\n"
-        "    cbanded_map_aspc2_lma_op1 => "
+        "    cbanded_map_as2_la_o1 => "
         "cma_op1_proxy%column_banded_dofmap_from\n") in code
     assert (
         "    ! Look-up information for each CMA operator\n"
@@ -1381,10 +1381,9 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_aspc1_afield, "
-        "undf_aspc1_afield, map_aspc1_afield(:,cell), "
-        "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
-        "cbanded_map_aspc2_lma_op1)\n"
+        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_as1_ad, "
+        "undf_as1_ad, map_as1_ad(:,cell), "
+        "cbanded_map_as1_ad, ndf_as2_la_o1, cbanded_map_as2_la_o1)\n"
         "      call testkern_two_real_scalars_code(nlayers_afield, scalar1, "
         "afield_data, bfield_data, cfield_data, "
         "dfield_data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
@@ -1460,7 +1459,7 @@ def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "    call f2_proxy%set_dirty()")
         assert code in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f2" in result
+        assert "loop0_stop = undf_as1_f2" in result
         assert (
             "    !$omp parallel do default(shared) private(df) "
             "schedule(static)\n"
@@ -1538,7 +1537,7 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
         assert code in result
     else:  # not distmem. annexed can be True or False
         for idx in range(1, 4):
-            assert f"loop{idx-1}_stop = undf_aspc1_f{idx}" in result
+            assert f"loop{idx-1}_stop = undf_as1_f{idx}" in result
         assert (
             "    !$omp parallel do default(shared) private(df) "
             "schedule(static)\n"
@@ -1621,7 +1620,7 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "    call f3_proxy%set_dirty()")
         assert code in result
     else:  # distmem is False. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
         assert (
             "    !$omp parallel do default(shared) private(df) "
             "schedule(static)\n"
@@ -1689,7 +1688,7 @@ def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "above loop(s)\n"
             "    call f2_proxy%set_dirty()\n") in result
     else:  # distmem is False. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f2" in result
+        assert "loop0_stop = undf_as1_f2" in result
         assert (
             "    !$omp parallel default(shared) private(df)\n"
             "    !$omp do schedule(static)\n"
@@ -1775,9 +1774,9 @@ def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
         )
         assert code in result
     else:  # distmem is False. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f2" in result
-        assert "loop2_stop = undf_aspc1_f3" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f2" in result
+        assert "loop2_stop = undf_as1_f3" in result
         assert (
             "    !$omp parallel default(shared) private(df)\n"
             "    !$omp do schedule(static)\n"
@@ -1865,7 +1864,7 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
             "    call f3_proxy%set_dirty()\n")
         assert code in result
     else:  # distmem is False. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
         assert (
             "    !$omp parallel default(shared) private(df)\n"
             "    !$omp do schedule(static)\n"
@@ -1917,7 +1916,7 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
             "    asum = global_sum%get_sum()\n") in code
 
     else:
-        assert "loop0_stop = undf_aspc1_f1" in code
+        assert "loop0_stop = undf_as1_f1" in code
         assert (
             "    !$omp parallel do default(shared) "
             "private(df) schedule(static) reduction(+: asum)\n"
@@ -1962,7 +1961,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_aspc1_f1\n" in code
+        assert "loop0_stop = undf_as1_f1\n" in code
         assert (
             "    !$omp parallel default(shared) private(df)\n"
             "    !$omp do schedule(static) reduction(+: asum)\n"
@@ -2025,8 +2024,8 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_aspc1_f1\n" in code
-        assert "loop1_stop = undf_aspc1_f1\n" in code
+        assert "loop0_stop = undf_as1_f1\n" in code
+        assert "loop1_stop = undf_as1_f1\n" in code
         assert (
             "    asum = 0.0_r_def\n"
             "\n"
@@ -2116,8 +2115,8 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "    asum = global_sum%get_sum()")
         assert expected_output in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         expected_output = (
             "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
@@ -2213,8 +2212,8 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "    asum = global_sum%get_sum()")
         assert expected_output in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         expected_output = (
             "    ALLOCATE(local_asum(8,nthreads))\n\n"
             "    ! Initialise reduction variable\n"
@@ -2315,8 +2314,8 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()")
     else:
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         expected_output = (
             "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
@@ -2422,8 +2421,8 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()")
     else:
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         expected_output = (
             "    ALLOCATE(local_asum(8,nthreads))\n"
             "\n"
@@ -2575,8 +2574,8 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_aspc1_f1" in code
-        assert "loop1_stop = undf_aspc1_f1" in code
+        assert "loop0_stop = undf_as1_f1" in code
+        assert "loop1_stop = undf_as1_f1" in code
         assert (
             "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
@@ -2659,8 +2658,8 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "    call f1_proxy%set_dirty()\n")
         assert code in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         assert (
             "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
@@ -2748,8 +2747,8 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             code = code.replace("dof_annexed", "dof_owned")
         assert code in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         assert (
             "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
@@ -2834,7 +2833,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
-            assert "loop0_stop = undf_aspc1_f1" in result
+            assert "loop0_stop = undf_as1_f1" in result
             code = (
                 "    ! Initialise reduction variable\n"
                 "    asum = 0.0_r_def\n"
@@ -2920,7 +2919,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
         else:  # not distmem, annexed is True or False
-            assert "loop0_stop = undf_aspc1_f1" in result
+            assert "loop0_stop = undf_as1_f1" in result
             code = (
                 "    asum = 0.0_r_def\n"
                 "\n"
@@ -3000,8 +2999,8 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "    asum = global_sum%get_sum()\n")
         assert code in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         assert (
             "    !$omp parallel do default(shared) private(df) "
             "schedule(static)\n"
@@ -3078,7 +3077,7 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
-            assert "loop0_stop = undf_aspc1_f1" in result
+            assert "loop0_stop = undf_as1_f1" in result
             code = (
                 "    ! Initialise reduction variable\n"
                 "    asum = 0.0_r_def\n"
@@ -3157,7 +3156,7 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
-            assert "loop0_stop = undf_aspc1_f1" in result
+            assert "loop0_stop = undf_as1_f1" in result
             code = (
                 "    asum = 0.0_r_def\n"
                 "\n"
@@ -3280,7 +3279,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()") in code
     else:
-        assert "loop0_stop = undf_aspc1_f1" in code
+        assert "loop0_stop = undf_as1_f1" in code
         assert (
             "    ALLOCATE(local_asum(8,nthreads))\n"
             "\n"
@@ -3415,8 +3414,8 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "    asum = global_sum%get_sum()\n")
         assert code in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         assert (
             "    ALLOCATE(local_asum(8,nthreads))\n"
             "\n"
@@ -3534,7 +3533,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n") in result
         else:  # not distmem. annexed can be True or False
-            assert "loop0_stop = undf_aspc1_f1" in result
+            assert "loop0_stop = undf_as1_f1" in result
             assert (
                 "    ALLOCATE(local_asum(8,nthreads))\n"
                 "\n"
@@ -3636,7 +3635,7 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n") in result
         else:  # distmem is False. annexed can be True or False
-            assert "loop0_stop = undf_aspc1_f1" in result
+            assert "loop0_stop = undf_as1_f1" in result
             assert (
                 "    ALLOCATE(local_asum(8,nthreads))\n"
                 "\n"
@@ -3732,9 +3731,9 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "    " + names["var"] + " = "
                 "global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_aspc1_f1" in code
-        assert "loop1_stop = undf_aspc1_f1" in code
-        assert "loop2_stop = undf_aspc1_f2" in code
+        assert "loop0_stop = undf_as1_f1" in code
+        assert "loop1_stop = undf_as1_f1" in code
+        assert "loop2_stop = undf_as1_f2" in code
 
         for names in [
                 {"var": "asum", "lvar": "local_asum", "loop_idx": "0",
@@ -6582,7 +6581,7 @@ def test_accenterdata_builtin(tmpdir):
     assert ("!$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
             "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
             "undf_w1,undf_w2,undf_w3)" in output)
-    assert "loop2_stop = undf_aspc1_f1" in output
+    assert "loop2_stop = undf_as1_f1" in output
     assert ("    !$acc loop independent\n"
             "    do df = loop2_start, loop2_stop, 1\n"
             "      ! built-in: setval_c (set a real-valued field to "
@@ -6930,8 +6929,8 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
         "    call f2_proxy%halo_exchange_start(depth=1)\n"
         "    do cell = loop3_start, loop3_stop, 1\n"
         "      call testkern_any_space_3_code(cell, nlayers_op, "
-        "op_proxy%ncell_3d, op_local_stencil, ndf_aspc1_op, "
-        "ndf_aspc2_op)\n"
+        "op_proxy%ncell_3d, op_local_stencil, ndf_as1_op, "
+        "ndf_as2_op)\n"
         "    enddo\n"
         "    call f2_proxy%halo_exchange_finish(depth=1)\n") in result
 

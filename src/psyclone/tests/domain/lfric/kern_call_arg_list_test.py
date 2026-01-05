@@ -138,10 +138,10 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
         'f2_3_data', 'f3_data', 'istp', 'ndf_w2', 'undf_w2',
         'map_w2(:,cell)', 'basis_w2_qr_xyoz', 'basis_w2_qr_face', 'ndf_wchi',
         'undf_wchi', 'map_wchi(:,cell)', 'diff_basis_wchi_qr_xyoz',
-        'diff_basis_wchi_qr_face', 'ndf_adspc1_f3', 'undf_adspc1_f3',
-        'map_adspc1_f3(:,cell)', 'basis_adspc1_f3_qr_xyoz',
-        'basis_adspc1_f3_qr_face', 'diff_basis_adspc1_f3_qr_xyoz',
-        'diff_basis_adspc1_f3_qr_face', 'np_xy_qr_xyoz', 'np_z_qr_xyoz',
+        'diff_basis_wchi_qr_face', 'ndf_ads1_f3', 'undf_ads1_f3',
+        'map_ads1_f3(:,cell)', 'basis_ads1_f3_qr_xyoz',
+        'basis_ads1_f3_qr_face', 'diff_basis_ads1_f3_qr_xyoz',
+        'diff_basis_ads1_f3_qr_face', 'np_xy_qr_xyoz', 'np_z_qr_xyoz',
         'weights_xy_qr_xyoz', 'weights_z_qr_xyoz', 'nfaces_qr_face',
         'np_xyz_qr_face', 'weights_xyz_qr_face']
 
@@ -355,8 +355,8 @@ def test_kerncallarglist_bcs(fortran_writer, monkeypatch):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers_a', 'a_data', 'ndf_aspc1_a', 'undf_aspc1_a',
-        'map_aspc1_a(:,cell)', 'boundary_dofs_a']
+        'nlayers_a', 'a_data', 'ndf_as1_a', 'undf_as1_a',
+        'map_as1_a(:,cell)', 'boundary_dofs_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
 
@@ -390,7 +390,7 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     create_arg_list.generate(access_info)
     assert create_arg_list._arglist == [
         'cell', 'nlayers_op_a', 'op_a_proxy%ncell_3d', 'op_a_local_stencil',
-        'ndf_aspc1_op_a', 'ndf_aspc2_op_a', 'boundary_dofs_op_a']
+        'ndf_as1_op_a', 'ndf_as2_op_a', 'boundary_dofs_op_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
     assert (create_arg_list.psyir_arglist[2].datatype ==
@@ -557,10 +557,10 @@ def test_indirect_dofmap(fortran_writer):
         'cma_op1_cma_matrix', 'cma_op1_nrow', 'cma_op1_ncol',
         'cma_op1_bandwidth', 'cma_op1_alpha', 'cma_op1_beta',
         'cma_op1_gamma_m', 'cma_op1_gamma_p',
-        'ndf_adspc1_field_a', 'undf_adspc1_field_a',
-        'map_adspc1_field_a(:,cell)', 'cma_indirection_map_adspc1_field_a',
-        'ndf_aspc1_field_b', 'undf_aspc1_field_b', 'map_aspc1_field_b(:,cell)',
-        'cma_indirection_map_aspc1_field_b'])
+        'ndf_ads1_fd_a', 'undf_ads1_fd_a',
+        'map_ads1_fd_a(:,cell)', 'cma_indirection_map_ads1_fd_a',
+        'ndf_as1_fd_b', 'undf_as1_fd_b', 'map_as1_fd_b(:,cell)',
+        'cma_indirection_map_as1_fd_b'])
 
     check_psyir_results(create_arg_list, fortran_writer)
 
