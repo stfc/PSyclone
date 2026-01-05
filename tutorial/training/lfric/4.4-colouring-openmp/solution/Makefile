@@ -45,7 +45,7 @@ include ../../common.mk
 
 # Various targets
 # ---------------
-.PHONY: transform compile run clean allclean test
+.PHONY: transform compile test_run clean allclean test
 
 # Default target: run PSyclone (even if the output file should already exist)
 transform:
@@ -55,7 +55,7 @@ transform:
 compile: $(EXE)
 
 # If we want to run the binary, use the script that adds colour transformation:
-run: TRANS= ./omp_colour_transformation.py
+test_run: TRANS= ./omp_colour_transformation.py
 
 test_run: compile
 	@# If OMP_NUM_THREADS is not define, set it to 3:
