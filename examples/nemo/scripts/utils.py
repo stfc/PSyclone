@@ -236,7 +236,7 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
-            if filename == "fldread.f90":
+            if filename in ("fldread.f90", "diadct.f90"):
                 # TODO #2951: This file has issues converting SturctureRefs
                 continue
             try:

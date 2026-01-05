@@ -639,10 +639,14 @@ def test_type_with_unsupported_component(f2008_parser):
     processor = Fparser2Reader()
     fparser2spec = f2008_parser(
         FortranStringReader("subroutine my_sub()\n"
+                            "  real :: supported\n"
+                            "  real :: unsupported\n"
                             "  type :: my_type\n"
                             "    real :: supported, supported2\n"
                             "    real, pointer :: unsupported, unsupported2\n"
                             "  end type my_type\n"
+                            "  real :: supported\n"
+                            "  real :: unsupported\n"
                             "end subroutine my_sub\n"))
 
     processor.process_declarations(fake_parent,

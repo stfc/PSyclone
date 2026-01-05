@@ -303,6 +303,23 @@ def test_fw_save_common(fortran_reader, fortran_writer):
     assert "SAVE :: /my_common/\n" in output
     assert "integer, save, public :: var3\n" in output
 
+def test_fw_unsupported_derived_type(fortran_reader, fortran_writer):
+    ''' Check that the writer can handler type declarations with unsupported
+    derived types. '''
+    code = '''\
+subroutine my_sub()
+  type :: unsupported
+    sequence
+    real :: a
+    real :: b
+  end type unsupported
+
+
+end subroutine my_sub\n'''
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert code == output
+
 
 def test_fw_unsupported_type_components(fortran_reader, fortran_writer):
     ''' Check that the writer can handler type declarations with unsupported
