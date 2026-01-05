@@ -1022,24 +1022,24 @@ def test_two_eval_same_var_same_space(tmpdir):
     # We should only get one set of basis and diff-basis functions in the
     # generated code
     assert code.count(
-        "ndf_adspc1_f0 = f0_proxy%vspace%get_ndf()") == 1
+        "ndf_ads1_f0 = f0_proxy%vspace%get_ndf()") == 1
     assert code.count(
-        "    do df_nodal = 1, ndf_adspc1_f0, 1\n"
+        "    do df_nodal = 1, ndf_ads1_f0, 1\n"
         "      do df_w0 = 1, ndf_w0, 1\n"
-        "        basis_w0_on_adspc1_f0(:,df_w0,df_nodal) = f1_proxy%vspace"
-        "%call_function(BASIS, df_w0, nodes_adspc1_f0(:,df_nodal))\n"
+        "        basis_w0_on_ads1_f0(:,df_w0,df_nodal) = f1_proxy%vspace"
+        "%call_function(BASIS, df_w0, nodes_ads1_f0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
     assert code.count(
-        "    do df_nodal = 1, ndf_adspc1_f0, 1\n"
+        "    do df_nodal = 1, ndf_ads1_f0, 1\n"
         "      do df_w1 = 1, ndf_w1, 1\n"
-        "        diff_basis_w1_on_adspc1_f0(:,df_w1,df_nodal) = f2_proxy"
-        "%vspace%call_function(DIFF_BASIS, df_w1, nodes_adspc1_f0(:,"
+        "        diff_basis_w1_on_ads1_f0(:,df_w1,df_nodal) = f2_proxy"
+        "%vspace%call_function(DIFF_BASIS, df_w1, nodes_ads1_f0(:,"
         "df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
     assert code.count(
-        "DEALLOCATE(basis_w0_on_adspc1_f0, diff_basis_w1_on_adspc1_f0)") == 1
+        "DEALLOCATE(basis_w0_on_ads1_f0, diff_basis_w1_on_ads1_f0)") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
