@@ -2,34 +2,34 @@
 EXAMPLES=$(sort $(wildcard 4.*))
 allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
 clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
-compile_EXAMPLES=$(addprefix compile_,$(EXAMPLES))
-run_EXAMPLES=$(addprefix run_,$(EXAMPLES))
 test_EXAMPLES=$(addprefix test_,$(EXAMPLES))
+test_run_EXAMPLES=$(addprefix test_run_,$(EXAMPLES))
 
-.PHONY: $(allclean_EXAMPLES) $(clean_EXAMPLES) $(compile_EXAMPLES) \
-        $(run_EXAMPLES) $(test_EXAMPLES) \
+.PHONY: $(allclean_EXAMPLES) $(clean_EXAMPLES) \
+        $(test_EXAMPLES) $(test_run_EXAMPLES)  \
         allclean clean compile run test
 
 default: test
+
 allclean: $(allclean_EXAMPLES)
+
+$(allclean_EXAMPLES):
+	$(MAKE) -C $(patsubst allclean_%,%,$@)/solution allclean
+
 clean: $(clean_EXAMPLES)
-test: $(test_EXAMPLES)
-compile: $(compile_EXAMPLES)
-run: $(run_EXAMPLES)
-test: $(test_EXAMPLES)
-
-$(compile_EXAMPLES):
-	$(MAKE) -C $(patsubst compile_%,%,$@)/solution test
-
-$(run_EXAMPLES):
-	$(MAKE) -C $(patsubst run_%,%,$@)/solution test
-
-$(test_EXAMPLES):
-	$(MAKE) -C $(patsubst test_%,%,$@)/solution test
 
 $(clean_EXAMPLES):
 	$(MAKE) -C $(patsubst clean_%,%,$@) clean
 	$(MAKE) -C $(patsubst clean_%,%,$@)/solution clean
 
-$(allclean_EXAMPLES):
-	$(MAKE) -C $(patsubst allclean_%,%,$@)/solution allclean
+
+test: $(test_EXAMPLES)
+
+$(test_EXAMPLES):
+	$(MAKE) -C $(patsubst test_%,%,$@)/solution test
+
+test_run: $(test_run_EXAMPLES)
+
+$(test_run_EXAMPLES):
+	$(MAKE) -C $(patsubst test_run_%,%,$@)/solution test_run
+

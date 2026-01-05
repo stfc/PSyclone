@@ -63,7 +63,7 @@ main_alg_psy.f90: main_alg.x90 openmp.py  summation_w0_to_w3_kernel_mod.f90
 
 compile: main_alg_psy.f90 $(EXE)
 
-run: compile
+test_run: compile
 	./example
 
 $(EXE): $(LFRIC_LIB) $(OBJ)
