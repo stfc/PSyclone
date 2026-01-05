@@ -10,7 +10,7 @@ contains
         use compute_born_mod, only     : compute_born
         use combine_mod, only          : combine
         use count_neighbours_mod, only : count_neighbours
-        use output_field_openacc_mod, only : output_field_openacc
+        use output_field_mod, only     : output_field
         USE grid_mod, only             : grid_type
         USE field_mod, only            : r2d_field, go_t_points
 
@@ -41,7 +41,7 @@ contains
                         combine(current, die, born),             &
                         name="compute"    )
             if(time_steps<=20) then
-             call output_field_openacc(current)
+             call output_field(current)
             endif
         enddo
 
