@@ -271,6 +271,9 @@ def test_apply_inquiry(fortran_reader, fortran_writer):
         "  end if\n") in output
 
 
+# TODO # 1858: Make the test below pass validation and check that the apply
+# generates the correct code.
+
 def test_validate_structure(fortran_reader):
     '''Test that a StructureReference raises an exception. This limitation
     will be removed once issue #1858 is addressed.
@@ -293,7 +296,7 @@ def test_validate_structure(fortran_reader):
 
 def test_pointer_assignment(fortran_reader, fortran_writer):
     ''' Test that a reference in a PointerAssignment raises an exception
-    Pointer and target attributes (currently represented by partial_datatype
+    Pointer and target attributes (currently represented by partial_datatype)
     can still be converted in arithmetic assignments. '''
     code = (
         "program test\n"
