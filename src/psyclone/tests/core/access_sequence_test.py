@@ -47,6 +47,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Assignment, Node, Reference, Return, ArrayReference)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, Symbol
+from psyclone.psyGen import CodedKern
 
 
 def test_access_info() -> None:
@@ -149,6 +150,26 @@ def test_access_info_description() -> None:
     ainfo = AccessInfo(AccessType.INQUIRY, asym)
     assert ("definition of symbol 'test: datasymbol<scalar" in
             ainfo.description.lower())
+
+    # Assignment has a special description to provide more context
+    ref1 = Reference(osym)
+    ref2 = Reference(asym)
+    assign = Assignment.create(ref1, ref2)
+    ainfo = AccessInfo(AccessType.READ, ref2)
+    assert "'test' in 'something = test'" in ainfo.description
+
+    # CodedKernel has a special description to provide more context
+    class MockKern(CodedKern):
+        ''' Create a API agnostic subclass of CodedKern '''
+        name = "kernel_name"
+
+        def __init__(self):
+            Node.__init__(self)
+
+    mk = MockKern()
+    mk._children = [assign]
+    assign._parent = mk
+    assert "'test' (inside 'kernel_name)'" in ainfo.description
 
 
 # -----------------------------------------------------------------------------
