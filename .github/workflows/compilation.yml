@@ -139,8 +139,10 @@ jobs:
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         make -C tutorial/practicals compile
         # Required, since othewise the openacc example would try to
-        # use nvfortran
-        F90=gfortran F90FLAGS=-g make -C tutorial/training/ test_run
+        # use nvfortran. Also, the implicitly defined F90FLAGS (in a
+        # module?) does not include -fopenmp, which then causes some
+        # examples to fail.
+        F90=gfortran F90FLAGS="-g -Wall -O0 -fopenmp" make -C tutorial/training/ test_run
     - name: Examples with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
