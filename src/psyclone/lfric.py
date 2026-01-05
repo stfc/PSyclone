@@ -2626,6 +2626,7 @@ class LFRicInterGrid():
             [ArrayType.Extent.DEFERRED]*2)
         sym = symtab.find_or_create(
                 base_name,
+                tag=base_name,
                 symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
                     f"integer(kind=i_def), pointer :: {base_name}"
