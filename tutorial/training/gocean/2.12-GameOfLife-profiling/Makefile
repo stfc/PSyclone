@@ -23,10 +23,20 @@ test: test-default
 
 test_run: test $(EXE)
 	@# Due to the additional profiling output, we need to take a different
-	@# section of the output file:
-	$(MAKE) --no-print-directory run | tail -n 20 | head -n 12| diff - ../gol-lib/glider.correct
+	@# section of the output file. Additionally, the white space is compiler
+	@# dependent. The sed command cuts off the profiling output, then we
+	@# cut the last state
+	$(MAKE) --no-print-directory run | sed '/===========/q' \
+		| tail -n 14 | head -n 12| diff -w - ../../gol-lib/glider.correct
 	@# Also check that we get the output from the simple timer lib
-	$(MAKE) run | grep -q "count\s*sum\s*min"
+	@# Again, line wrapping is compiler dependent, so test for
+	@# profile headers individually
+	$(MAKE) run | grep "average" >/dev/null
+	$(MAKE) run | grep "min" >/dev/null
+	@# The output contains a 'max' and 'count', adding a white space here
+	@# (for the tab in the output) makes sure we test for the right one
+	$(MAKE) run | grep "[[:space:]]count"  >/dev/null
+	$(MAKE) run | grep "[[:space:]]max" >/dev/null
 
 # External libs
 # -------------
