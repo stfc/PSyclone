@@ -1,3 +1,6 @@
+   15) PR #3260 for #2884. Allow WHERE with imported symbols by changing
+   Ref2ArrayRangeTrans behaviour to do the validations.
+ 
    14) PR #3254 for #3253. Fix openmp parallel lowering with kernels and
    improve dependency messages
 
