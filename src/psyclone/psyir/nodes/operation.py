@@ -345,30 +345,18 @@ class BinaryOperation(Operation):
 
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import ScalarType
-        if precisions[0] == precisions[1]:
-            return precisions[0]
+        from psyclone.psyir.tools.type_info_computation import (
+                compute_precision
+        )
 
-        # Operands have different precisions.
-        if all(isinstance(prec, int) for prec in precisions):
-            # Both precisions are integer.
-            return max(precisions)
-
-        if all(isinstance(prec, ScalarType.Precision) for
-               prec in precisions):
-            # Both precisions are of ScalarType.Precision type.
-            if ScalarType.Precision.UNDEFINED in precisions:
-                return ScalarType.Precision.UNDEFINED
-            if ScalarType.Precision.DOUBLE in precisions:
-                return ScalarType.Precision.DOUBLE
+        try:
+            return compute_precision(precisions)
+        except InternalError as err:
             raise InternalError(
                 f"Operation._get_result_precision: got unsupported Precision "
                 f"value(s) '{precisions[0]}' and '{precisions[1]}' for "
                 f"operands '{self.children[0].debug_string()}' and "
-                f"'{self.children[1].debug_string()}'")
-
-        # We can't reason about the precision of the result.
-        return ScalarType.Precision.UNDEFINED
+                f"'{self.children[1].debug_string()}'") from err
 
     def get_result_scalar_type(self, argtypes):
         '''
@@ -390,39 +378,19 @@ class BinaryOperation(Operation):
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols.datatypes import (
-                BOOLEAN_TYPE, ScalarType, UnresolvedType)
+                BOOLEAN_TYPE, ScalarType)
+        from psyclone.psyir.tools.type_info_computation import (
+                compute_scalar_type
+        )
 
         if self.operator not in self._numeric_ops:
             # Must be a relational or logical operator. Intrinsic type of
             # result will be boolean.
             return BOOLEAN_TYPE
 
-        # We have a numerical operation.
-        if any(isinstance(atype.intrinsic, UnresolvedType)
-               for atype in argtypes):
-            # datatype of a numerical operation on a UnresolvedType is a
-            # UnresolvedType.
-            return UnresolvedType()
-
-        base_type = None
-
-        # If either of the operands has REAL intrinsic type then the result
-        # must also be REAL.
-        if argtypes[0].intrinsic == argtypes[1].intrinsic:
-            # Operands are of the same intrinsic type.
-            precision = self._get_result_precision([argtypes[0].precision,
-                                                    argtypes[1].precision])
-            base_type = ScalarType(argtypes[0].intrinsic, precision)
-        elif argtypes[0].intrinsic == ScalarType.Intrinsic.REAL:
-            base_type = argtypes[0]
-        elif argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
-            base_type = argtypes[1]
-
-        # Check that the type of the result is consistent with a numerical
-        # operation.
-        if not base_type or base_type.intrinsic not in (
-                ScalarType.Intrinsic.INTEGER,
-                ScalarType.Intrinsic.REAL):
+        try:
+            return compute_scalar_type(argtypes)
+        except TypeError as err:
             for atype in argtypes:
                 if atype.intrinsic not in (ScalarType.Intrinsic.INTEGER,
                                            ScalarType.Intrinsic.REAL):
@@ -431,8 +399,7 @@ class BinaryOperation(Operation):
                         f"numerical operation '{self.operator}' in "
                         f"'{self.debug_string()}'. Currently only "
                         f"ScalarType.Intrinsic.REAL/INTEGER are "
-                        f"supported (TODO #1590)")
-        return base_type
+                        f"supported (TODO #1590)") from err
 
     @property
     def datatype(self):

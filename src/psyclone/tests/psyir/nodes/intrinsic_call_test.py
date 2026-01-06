@@ -1223,9 +1223,11 @@ def test_int_return_type(fortran_reader):
     assert _int_return_type(intrinsic) == INTEGER_TYPE
 
     code = """subroutine z
+    integer, parameter :: wp = 8
     real*4, dimension(100) :: x
     integer*8, dimension(100) :: y
     y = INT(x, kind=8)
+    y = INT(x, kind=wp)
     end subroutine z"""
     psyir = fortran_reader.psyir_from_source(code)
     intrinsic = psyir.walk(IntrinsicCall)[0]
@@ -1233,6 +1235,12 @@ def test_int_return_type(fortran_reader):
     assert isinstance(rtype, ArrayType)
     assert rtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert rtype.precision.value == "8"
+
+    intrinsic = psyir.walk(IntrinsicCall)[1]
+    rtype = _int_return_type(intrinsic)
+    assert isinstance(rtype, ArrayType)
+    assert rtype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert rtype.precision.symbol.name == "wp"
 
 
 def test_iparity_return_type(fortran_reader):
@@ -1253,7 +1261,7 @@ def test_iparity_return_type(fortran_reader):
 
     assert _iparity_return_type(intrinsic) == INTEGER_TYPE
 
-    # Can't test the other case with fortran reader, so need to
+    # TODO 3268 Can't test the other case with fortran reader, so need to
     # create it manually.
     k_sym = psyir.children[0].symbol_table.lookup("k")
     intrinsic = psyir.walk(Call)[0]
@@ -1270,11 +1278,14 @@ def test_iparity_return_type(fortran_reader):
 def test_get_bound_function_return_type(fortran_reader):
     """Test the _get_bound_function_return_type helper function."""
     code = """subroutine x
+    integer, parameter :: wp = 8
     integer, dimension(100,100) :: array
     integer, dimension(2) :: out1
     integer*8 :: out2
+    integer :: dm
     out1 = LBOUND(array)
     out2 = LBOUND(array, dim=1, kind=8)
+    out3 = LBOUND(array, dim=dm, kind=wp)
     end subroutine x"""
     psyir = fortran_reader.psyir_from_source(code)
     intrinsics = psyir.walk(IntrinsicCall)
@@ -1290,6 +1301,11 @@ def test_get_bound_function_return_type(fortran_reader):
     assert isinstance(res, ScalarType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
     assert res.precision.value == "8"
+
+    res = _get_bound_function_return_type(intrinsics[2])
+    assert isinstance(res, ScalarType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision.symbol.name == "wp"
 
 
 def test_matmul_return_type(fortran_reader):
