@@ -32,9 +32,11 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds optimised OpenMP statements.
+'''
+Python script intended to be passed to PSyclone's generate()
+function via the -s option. It adds standalone OpenMP loop
+directives for each outer loop, and then encloses them all in
+an OpenMP parallel directive.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -49,7 +51,7 @@ from fuse_loops import trans as fuse_trans   # noqa: F401
 def trans(psyir):
     '''
     Take the supplied psyir object, and add openmp parallel directives
-    with individual omp do for the loops.
+    with individual omp do for the loops of this particular example.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -58,14 +60,14 @@ def trans(psyir):
     omp_parallel = OMPParallelTrans()
     # Optional argument: schedule
     omp_do = OMPLoopTrans(omp_schedule="dynamic")
-    inline = KernelModuleInlineTrans()
+    module_inline = KernelModuleInlineTrans()
 
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
-    # Inline all kernels to help gfortran with inlining.
+    # Module inline all kernels to help gfortran with inlining.
     for kern in schedule.kernels():
-        inline.apply(kern)
+        module_inline.apply(kern)
 
     fuse_trans(psyir)
 

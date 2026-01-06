@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel fuseion code to
-all invokes.
+'''
+Python script intended to be passed to PSyclone's generate()
+function via the -s option. It fuses all possible loops containing kernels.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -46,22 +46,23 @@ from psyclone.psyGen import InvokeSchedule
 
 def trans(psyir):
     '''
-    Take the supplied psyir object, and fuse all loops.
+    Take the supplied psyir object, and fuse all loops
+    for this specific example.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     fuse = GOceanLoopFuseTrans()
-    inline = KernelModuleInlineTrans()
+    module_inline = KernelModuleInlineTrans()
 
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
     print(schedule.view())
-    # Inline all kernels to help gfortran with inlining.
+    # Module inline all kernels to help gfortran with inlining.
     for kern in schedule.walk(GOKern):
-        inline.apply(kern)
+        module_inline.apply(kern)
 
     # This schedule has four loops, corresponding to
     # count_neighbours, compute_born, compute_die, combine kernels

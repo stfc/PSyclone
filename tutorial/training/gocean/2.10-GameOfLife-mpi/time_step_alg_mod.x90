@@ -1,3 +1,6 @@
+! This file contains a PSyKAl Algorithm for the "Game of Life".
+! The additional required files are taken from ../gol-lib.
+
 module time_step_alg_mod
 
     private

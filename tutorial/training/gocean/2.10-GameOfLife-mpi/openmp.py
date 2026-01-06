@@ -33,8 +33,11 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds openmp for an MPI implementation.
+'''
+Python script intended to be passed to PSyclone's generate()
+function via the -s option. It adds openmp for an MPI implementation,
+i.e. it is taking the additional halo-exchange nodes that are added
+by PSyclone into account.
 '''
 
 from psyclone.gocean1p0 import GOLoop
@@ -64,6 +67,9 @@ def trans(psyir):
     # the default in the constructor above, or change the schedule
     omp_parallel_loop.omp_schedule = "dynamic"
     for loop in schedule.walk(GOLoop):
+        # We only apply OpenMP to the outer loop. The OpenMP collapse
+        # parameter could also be used (though might not be ideal
+        # performance-wise in this example).
         if loop.loop_type == "outer":
             omp_parallel_loop.apply(loop)
 
