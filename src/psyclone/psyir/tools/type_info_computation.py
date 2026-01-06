@@ -83,6 +83,9 @@ def compute_precision(
     if all(isinstance(prec, ScalarType.Precision) for
            prec in precisions):
         # All precisions are of ScalarType.Precision type.
+        # TODO 3271 - at the moment this is wrong as reals are defined as
+        # UNDEFINED, wheras it should keep as a DOUBLE with real + double
+        # precision.
         if ScalarType.Precision.UNDEFINED in precisions:
             return ScalarType.Precision.UNDEFINED
         if ScalarType.Precision.DOUBLE in precisions:
@@ -119,7 +122,8 @@ def compute_scalar_type(
             f"{len(argtypes)} were provided."
         )
 
-    if any(isinstance(atype, UnresolvedType) for atype in argtypes):
+    if any(isinstance(atype, UnresolvedType) or
+           isinstance(atype.intrinsic, UnresolvedType) for atype in argtypes):
         # If any of the input intrinsics are UnresolvedTypes then we can't do
         # better than UnresolvedType
         return UnresolvedType()

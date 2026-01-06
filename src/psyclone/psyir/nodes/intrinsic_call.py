@@ -48,7 +48,6 @@ from typing import List, Tuple, Callable
 
 from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
@@ -68,7 +67,6 @@ from psyclone.psyir.symbols.datatypes import (
     UnsupportedFortranType,
     NoType,
 )
-from psyclone.psyir.symbols.datasymbol import DataSymbol
 
 # pylint: disable=too-many-branches
 
@@ -212,7 +210,7 @@ def _type_of_scalar_with_optional_kind(
     )
 
 
-def _get_intrinsic_of_argname_kind_with_optional_dim(
+def _type_of_intrinsic_with_argname_kind_and_optional_dim(
         node: IntrinsicCall, intrinsic: ScalarType.Intrinsic,
         array_arg_name: str, kind_arg_name: str) -> DataType:
     """Helper function for a datatype of type intrinsic with optional dim and
@@ -253,7 +251,7 @@ def _get_intrinsic_of_argname_kind_with_optional_dim(
     return ArrayType(dtype, new_shape)
 
 
-def _get_intrinsic_with_named_arg_precision(
+def _type_of_intrinsic_with_precision_of_named_arg(
         node: IntrinsicCall, intrinsic: ScalarType.Intrinsic,
         argument_name: str
 ) -> DataType:
@@ -433,18 +431,19 @@ def _matmul_return_type(node: IntrinsicCall) -> DataType:
 
     :returns: the computed datatype for the IntrinsicCall.
     """
+    # pylint: disable=import-outside-toplevel
+    from psyclone.psyir.tools.type_info_computation import (
+        compute_scalar_type
+    )
     argtype1 = node.argument_by_name("matrix_a").datatype
     argtype2 = node.argument_by_name("matrix_b").datatype
     shape1 = argtype1.shape
     shape2 = argtype2.shape
+    # Create scalar versions of the datatypes to compute the datatype
+    # of the result.
     stype1 = ScalarType(argtype1.intrinsic, argtype1.precision)
     stype2 = ScalarType(argtype2.intrinsic, argtype2.precision)
-    # Create a temporary BinaryOperation to use get_result_scalar_type
-    arg1 = Reference(DataSymbol("a", stype1))
-    arg2 = Reference(DataSymbol("b", stype2))
-    binop = BinaryOperation.create(BinaryOperation.Operator.MUL,
-                                   arg1, arg2)
-    stype = binop.get_result_scalar_type([stype1, stype2])
+    stype = compute_scalar_type([stype1, stype2])
     #  a11 a12 x b1 = a11*b1 + a12*b2
     #  a21 a22   b2   a21*b1 + a22*b2
     #  a31 a32        a31*b1 + a32*b2
@@ -502,6 +501,34 @@ def _maxval_return_type(node: IntrinsicCall) -> DataType:
         dtype,
         [ArrayType.Extent.DEFERRED]
         * (len(node.argument_by_name("array").datatype.shape) - 1),
+    )
+
+
+def _dot_product_return_type(node: IntrinsicCall) -> DataType:
+    """Helper value for DOT_PRODUCT intrinsic return type.
+
+    The result is a scalar with the promoted Fortran type computed by
+    compute_scalar_type.
+
+    :param node: The IntrinsicCall whose return type to compute.
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    # pylint: disable=import-outside-toplevel
+    from psyclone.psyir.tools.type_info_computation import (
+        compute_scalar_type
+    )
+
+    return compute_scalar_type(
+        [ScalarType(
+            node.argument_by_name("vector_a").datatype.intrinsic,
+            node.argument_by_name("vector_a").datatype.precision
+         ),
+         ScalarType(
+            node.argument_by_name("vector_b").datatype.intrinsic,
+            node.argument_by_name("vector_b").datatype.precision
+         ),
+         ]
     )
 
 
@@ -1060,7 +1087,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_precision(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1078,7 +1105,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_precision(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1102,7 +1129,7 @@ class IntrinsicCall(Call):
             ),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_precision(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1120,7 +1147,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_precision(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1138,7 +1165,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_precision(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1162,7 +1189,7 @@ class IntrinsicCall(Call):
             ),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_precision(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1481,7 +1508,7 @@ class IntrinsicCall(Call):
                 arg_names=(("mask",),)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_of_argname_kind_with_optional_dim(
+                _type_of_intrinsic_with_argname_kind_and_optional_dim(
                     node, ScalarType.Intrinsic.INTEGER,
                     "mask", "kind"
                 ),
@@ -1588,9 +1615,8 @@ class IntrinsicCall(Call):
                 arg_names=(("vector_a", "vector_b"),)
             ),
             optional_args={},
-            return_type=lambda node: ScalarType(
-                node.argument_by_name("vector_a").datatype.intrinsic,
-                node.argument_by_name("vector_a").datatype.precision
+            return_type=lambda node: _dot_product_return_type(
+                node
             ),
             reference_accesses=None,
         )
@@ -1686,7 +1712,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_precision(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1704,7 +1730,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_precision(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1722,7 +1748,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_precision(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -2043,7 +2069,7 @@ class IntrinsicCall(Call):
                 # No kind option is available, however if we provide a fake
                 # argument name as the final parameter this function will
                 # provide the correct result.
-                _get_intrinsic_of_argname_kind_with_optional_dim(
+                _type_of_intrinsic_with_argname_kind_and_optional_dim(
                     node, ScalarType.Intrinsic.INTEGER,
                     "array", "no_kind"
                 ),
@@ -2087,7 +2113,7 @@ class IntrinsicCall(Call):
                 # No kind option is available, however if we provide a fake
                 # argument name as the final parameter this function will
                 # provide the correct result.
-                _get_intrinsic_of_argname_kind_with_optional_dim(
+                _type_of_intrinsic_with_argname_kind_and_optional_dim(
                     node, ScalarType.Intrinsic.INTEGER,
                     "array", "no_kind"
                 ),
@@ -2245,11 +2271,12 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "j"),)),
             optional_args={},
-            return_type=lambda node: (_get_intrinsic_with_named_arg_precision(
-                node,
-                ScalarType.Intrinsic.INTEGER,
-                "j" if isinstance(node.argument_by_name("i"), Literal) else
-                "i"
+            return_type=lambda node: (
+                _type_of_intrinsic_with_precision_of_named_arg(
+                    node,
+                    ScalarType.Intrinsic.INTEGER,
+                    "j" if isinstance(node.argument_by_name("i"), Literal) else
+                    "i"
                 )
             ),
             reference_accesses=None,

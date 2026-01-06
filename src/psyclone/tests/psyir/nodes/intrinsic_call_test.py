@@ -60,8 +60,8 @@ from psyclone.psyir.nodes.intrinsic_call import (
     _type_of_named_arg_with_optional_kind_and_dim,
     _type_with_specified_precision_and_optional_dim,
     _type_of_scalar_with_optional_kind,
-    _get_intrinsic_of_argname_kind_with_optional_dim,
-    _get_intrinsic_with_named_arg_precision,
+    _type_of_intrinsic_with_argname_kind_and_optional_dim,
+    _type_of_intrinsic_with_precision_of_named_arg,
     _findloc_return_type,
     _int_return_type,
     _iparity_return_type,
@@ -1040,8 +1040,9 @@ def test_type_with_specified_precision_and_optional_dim(fortran_reader):
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
 
-def test_get_intrinsic_with_named_arg_precision(fortran_reader):
-    """Test the _get_intrinsic_with_named_arg_precision helper function."""
+def test_type_of_intrinsic_with_precision_of_named_arg(fortran_reader):
+    """Test the _type_of_intrinsic_with_precision_of_named_arg helper
+    function."""
     code = """subroutine y
     real*8 :: x
     x = BESSEL_J0(x)
@@ -1051,7 +1052,7 @@ def test_get_intrinsic_with_named_arg_precision(fortran_reader):
     intr = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.BESSEL_J0, [bessel_call.arguments[0].copy()]
     )
-    dtype = _get_intrinsic_with_named_arg_precision(
+    dtype = _type_of_intrinsic_with_precision_of_named_arg(
             intr, ScalarType.Intrinsic.REAL, "x"
     )
     assert dtype.intrinsic == ScalarType.Intrinsic.REAL
@@ -1090,8 +1091,9 @@ def test_type_of_scalar_with_optional_kind(fortran_reader):
     assert dtype.precision.symbol.name == "wp"
 
 
-def test_get_intrinsic_of_argname_kind_with_optional_dim(fortran_reader):
-    """Test the _get_intrinsic_of_argname_kind_with_optional_dim function."""
+def test_type_of_intrinsic_with_argname_kind_and_optional_dim(fortran_reader):
+    """Test the _type_of_intrinsic_with_argname_kind_and_optional_dim
+    function."""
     code = """
     subroutine y
     integer, parameter :: wp = 8
@@ -1107,14 +1109,14 @@ def test_get_intrinsic_of_argname_kind_with_optional_dim(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     intrs = psyir.walk(IntrinsicCall)
 
-    res = _get_intrinsic_of_argname_kind_with_optional_dim(
+    res = _type_of_intrinsic_with_argname_kind_and_optional_dim(
             intrs[0], ScalarType.Intrinsic.INTEGER,
             "mask", "kind")
     assert isinstance(res, ScalarType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
     assert res.precision == ScalarType.Precision.UNDEFINED
 
-    res = _get_intrinsic_of_argname_kind_with_optional_dim(
+    res = _type_of_intrinsic_with_argname_kind_and_optional_dim(
             intrs[1], ScalarType.Intrinsic.INTEGER,
             "mask", "kind")
     assert isinstance(res, ArrayType)
@@ -1123,14 +1125,14 @@ def test_get_intrinsic_of_argname_kind_with_optional_dim(fortran_reader):
     assert len(res.shape) == 1
     assert res.shape[0] == ArrayType.Extent.DEFERRED
 
-    res = _get_intrinsic_of_argname_kind_with_optional_dim(
+    res = _type_of_intrinsic_with_argname_kind_and_optional_dim(
             intrs[2], ScalarType.Intrinsic.INTEGER,
             "mask", "kind")
     assert isinstance(res, ScalarType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
     assert res.precision == ScalarType.Precision.UNDEFINED
 
-    res = _get_intrinsic_of_argname_kind_with_optional_dim(
+    res = _type_of_intrinsic_with_argname_kind_and_optional_dim(
             intrs[3], ScalarType.Intrinsic.INTEGER,
             "mask", "kind")
     assert isinstance(res, ArrayType)
@@ -1315,16 +1317,22 @@ def test_matmul_return_type(fortran_reader):
     real, dimension(100) :: c
     real, dimension(:) :: d
     real, dimension(:,:) :: e
+    real*8, dimension(:,:) :: f
+    real*4, dimension(:,:) :: g
+    integer*4, dimension(:,:) :: h
 
     e = MATMUL(a,b)
     d = MATMUL(a,c)
     d = MATMUL(c,a)
+    f = MATMUL(f,g)
+    g = MATMUL(g,h)
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     intrinsics = psyir.walk(IntrinsicCall)
     res = _matmul_return_type(intrinsics[0])
     assert isinstance(res, ArrayType)
     assert res.intrinsic == ScalarType.Intrinsic.REAL
+    # TODO 3271 This should be DOUBLE but currently reals are handled oddly.
     assert res.precision == ScalarType.Precision.UNDEFINED
     assert len(res.shape) == 2
     assert res.shape[0].lower.value == "1"
@@ -1360,22 +1368,56 @@ def test_matmul_return_type(fortran_reader):
     assert res.shape[0].upper.arguments[0].symbol.name == "a"
     assert res.shape[0].upper.arguments[1].value == "1"
 
+    res = _matmul_return_type(intrinsics[3])
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.REAL
+    assert res.precision == 8
+    assert len(res.shape) == 2
+    assert res.shape[0].lower.value == "1"
+    assert isinstance(res.shape[0].upper, IntrinsicCall)
+    assert res.shape[0].upper.intrinsic == IntrinsicCall.Intrinsic.SIZE
+    assert res.shape[0].upper.arguments[0].symbol.name == "f"
+    assert res.shape[0].upper.arguments[1].value == "1"
+    assert res.shape[1].lower.value == "1"
+    assert isinstance(res.shape[1].upper, IntrinsicCall)
+    assert res.shape[1].upper.intrinsic == IntrinsicCall.Intrinsic.SIZE
+    assert res.shape[1].upper.arguments[0].symbol.name == "g"
+    assert res.shape[1].upper.arguments[1].value == "2"
+
+    res = _matmul_return_type(intrinsics[4])
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.REAL
+    assert res.precision == 4
+    assert len(res.shape) == 2
+    assert res.shape[0].lower.value == "1"
+    assert isinstance(res.shape[0].upper, IntrinsicCall)
+    assert res.shape[0].upper.intrinsic == IntrinsicCall.Intrinsic.SIZE
+    assert res.shape[0].upper.arguments[0].symbol.name == "g"
+    assert res.shape[0].upper.arguments[1].value == "1"
+    assert res.shape[1].lower.value == "1"
+    assert isinstance(res.shape[1].upper, IntrinsicCall)
+    assert res.shape[1].upper.intrinsic == IntrinsicCall.Intrinsic.SIZE
+    assert res.shape[1].upper.arguments[0].symbol.name == "h"
+    assert res.shape[1].upper.arguments[1].value == "2"
+
 
 def test_maxval_return_type(fortran_reader):
     '''Test for the _maxval_return_type function.'''
     code = """subroutine test
+    integer, parameter :: wp = 8
     integer*8, dimension(100,100) :: x
     integer, dimension(100) :: z
+    integer(kind=wp), dimension(100) :: m
     integer :: y
     y = MAXVAL(x)
     z = MAXVAL(x, dim=2)
+    y = MAXVAL(m)
     end subroutine test
     """
     psyir = fortran_reader.psyir_from_source(code)
     intrs = psyir.walk(IntrinsicCall)
 
     res = _maxval_return_type(intrs[0])
-    assert isinstance(res, ScalarType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
     assert res.precision == 8
 
@@ -1385,6 +1427,12 @@ def test_maxval_return_type(fortran_reader):
     assert res.precision == 8
     assert len(res.shape) == 1
     assert res.shape[0] == ArrayType.Extent.DEFERRED
+
+    res = _maxval_return_type(intrs[2])
+    assert isinstance(res, ScalarType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(res.precision, Reference)
+    assert res.precision.symbol.name == "wp"
 
 
 # FIXME Do we need ANINT (also REAL) tests (Reviewer/codecov decision).
@@ -1450,10 +1498,23 @@ def test_maxval_return_type(fortran_reader):
     integer :: c
     c = DOT_PRODUCT(a,b)
     end subroutine x""",
-            # DOT_PRODUCT RETURN TYPE is Scalar type of input 1.
+            # DOT_PRODUCT RETURN TYPE is Scalar type of computed a*b operation
             lambda res: (
                 res.intrinsic == ScalarType.Intrinsic.INTEGER
                 and res.precision == ScalarType.Precision.UNDEFINED
+            ),
+        ),
+        (
+            """subroutine x
+    integer*8 :: a(100)
+    real*4 :: b(100)
+    real*4 :: c
+    c = DOT_PRODUCT(a,b)
+    end subroutine x""",
+            # DOT_PRODUCT RETURN TYPE is Scalar type of computed a*b operation
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.REAL
+                and res.precision == 4
             ),
         ),
         (
