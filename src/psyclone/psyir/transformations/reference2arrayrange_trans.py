@@ -66,7 +66,7 @@ class Reference2ArrayRangeTrans(Transformation):
     to do so (e.g. it won't convert call arguments because it would change the
     bounds values).
 
-    Note that if the provided node does not need to be modified is provided (
+    Note that if the provided node does not need to be modified (
     e.g. a Reference to a scalar or an ArrayReference to an array), the
     transformation will succeed. However, if we cannot guarantee the type of
     the symbol, or the validity of the transformations (e.g. it is in a call
@@ -118,7 +118,7 @@ class Reference2ArrayRangeTrans(Transformation):
         super().validate(node, **kwargs)
         self.validate_options(**kwargs)
 
-        if node and node.parent and isinstance(node.parent, Call):
+        if node and isinstance(node.parent, Call):
             if node is node.parent.routine:
                 return
             if node.parent.is_elemental is None:

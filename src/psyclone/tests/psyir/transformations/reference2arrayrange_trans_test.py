@@ -439,7 +439,7 @@ def test_new_node_type(fortran_reader):
 
 def test_pointer_assignment(fortran_reader, fortran_writer):
     ''' Test that a reference in a PointerAssignment raises an exception
-    Pointer and target attributes (currently represented by partial_datatype
+    Pointer and target attributes (currently represented by partial_datatype)
     can still be converted in arithmetic assignments. '''
     code = (
         "program test\n"
