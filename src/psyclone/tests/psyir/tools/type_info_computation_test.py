@@ -188,3 +188,9 @@ def test_compute_scalar_type(fortran_reader):
             "arguments have a non-numeric non-shared datatype. Provided "
             "arguments were 'Scalar<BOOLEAN, UNDEFINED>' and "
             "'Scalar<INTEGER, 4>'." in str(excinfo.value))
+
+    # Too many argument failure
+    with pytest.raises(InternalError) as excinfo:
+        _ = compute_scalar_type([1, 2, 3])
+    assert ("Can't compute the scalar type of more than 2 inputs but "
+            "3 were provided." in str(excinfo.value))
