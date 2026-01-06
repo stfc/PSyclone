@@ -37,7 +37,9 @@ algorithm layer and PSY-layer file.
 
 To create the required PSy-layer, use the following command:
 
+```bash
     psyclone --psykal-dsl lfric -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+```
 
 The same command can be triggered by `make`. This will create
 two new output files, `main_alg.f90`, the rewritten algorithm layer `main_alg.x90`,
@@ -48,11 +50,13 @@ PSyclone is creating quite a bit of code. Identify how the main program, the alg
 layer, calls the PSy-layer, and how the PSy-layer calls the kernel in a loop. Focus
 on the first two invokes in `main_alg.x90`:
 
+```fortran
     call invoke( name = 'Initialise fields',         &
                  setval_c( field_3,     0.0_r_def ), &
                  setval_c( field_0,     1.0_r_def )  &
                  )
     call invoke( name = 'summation', summation_w0_to_w3_kernel_type(field_3, field_0) )
+```
 
 How are these lines rewritten in the algorithm file `main_alg.f90`? Then check the
 PSy-layer file `main_alg_psy.f90` to find the two subroutines called from the
@@ -64,8 +68,10 @@ You can even compile and execute the script: `make compile` will create a binary
 you (including compilation of the required LFRic infrastructure, which can take some
 time). Executing the binary with `./example` will print:
 
+```bash
      Mesh has           5 layers.
     20230905101141.609+1000:INFO : Min/max minmax of field_3 =   0.80000000E+01  0.80000000E+01
+```
 
 The minimum and maximum of `field1` are printed, and they are as expected 8.
 
@@ -76,7 +82,9 @@ The explanation can be found [here](#explanation-for-using-psyclone).
 As explained, PSyclone has the ability to support MPI parallelisation of the code. This
 is simply done by using the command line option `-dm` (instead of `-nodm`):
 
+```bash
     psyclone --psykal-dsl lfric -dm -l output -opsy main_psy.f90 -oalg main_alg.f90 main_alg.x90
+```
 
 Use this option, and look at the PSy-layer. Some of the setup code
 has changed (which is related to getting the loop sizes based on a distributed field),
@@ -101,7 +109,9 @@ In this example you will add a transformation script to the PSyclone command lin
 This script will apply OpenMP transformation to the loops. Add the option
 `-s omp.py` to the PSyclone command, i.e.:
 
+```bash
     psyclone --psykal-dsl lfric -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+```
 
 The script will apply OpenMP parallelisation to all loops.
 Compare the PSy-layer files with the previously created files in the directory
@@ -124,8 +134,9 @@ MPI and OpenMP at the same time. In this example we will enable both kind of
 parallelisation at the same time. In order to do this, you need to invoke PSyclone
 with the `-dm` flag, but also apply the OpenMP transformation:
 
+```bash
     psyclone --psykal-dsl lfric -s ./omp_transformation.py -dm -l output -opsy main_al_psy.f90 -oalg main_alg.f90 main_alg.x90
-
+```
 
 Again, check the created PSy-layer file `main_alg_psy.f90` for the calls to halo-exchanges
 and OpenMP directives around loops. You can also compare it with the files created
@@ -142,7 +153,9 @@ first example `main_alg.x90` contains an invalid PSyclone builtin name,
 though of course PSyclone cannot know what exactly the user meant.
 Use:
 
+```bash
     psyclone --psykal-dsl lfric -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+```
 
 Does PSyclone's error message make sense?
 
@@ -152,7 +165,9 @@ The explanation can be found [here](#explanation-for-error-in-algorithm-layer).
 ## Missing Parameter (`6_missing_parameter`)
 This example misses a kernel parameter. Run PSyclone, i.e.:
 
+```bash
     psyclone --psykal-dsl lfric -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+```
 
 What happens?
 
@@ -216,7 +231,9 @@ as in the very first PSyclone example, but the kernel file has been renamed to
 `summation_w0_to_w3_mod.f90`, while the module name is still summation_w0_to_w3_kernel_mod and
 the `use` statement in the algorithm layer is unchanged as well:
 
+```fortran
     use summation_w0_to_w3_kernel_mod, only: summation_w0_to_w3_kernel_type
+```
 
 This works with a compiler (assuming that the kernel is compiled before the algorithm
 file), since the compiler will create a compiler-specific file
@@ -228,7 +245,9 @@ to create, it cannot process the algorithm layer.
 
 Run PSyclone with the standard command:
 
+```bash
     psyclone --psykal-dsl lfric -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+```
 
 and look at the error message provided by PSyclone.
 
@@ -259,12 +278,16 @@ This section contains the explanations for all hands-on tasks.
 
 ## Explanation for Using PSyclone
 The file `main_alg.f90` contains two calls to a PSy layer:
+
+```fortran
     CALL invoke_initialise_fields(field_3, field_0)
     CALL invoke_summation(field_3, field_0)
-    
+```
+
 In turn the `main_alg_psy.f90` files contains these two subroutines. The first
 one contains the implementation of the builtins, i.e. the code is inlined:
 
+```fortran
     !
     ! Call our kernels
     !
@@ -274,9 +297,11 @@ one contains the implementation of the builtins, i.e. the code is inlined:
     DO df=loop1_start,loop1_stop
       field_0_proxy%data(df) = 1.0_r_def
     END DO
+```
 
 The second subroutine contains the call of the test kernel:
 
+```fortran
     !
     ! Call our kernels
     !
@@ -285,6 +310,7 @@ The second subroutine contains the call of the test kernel:
        CALL summation_w0_to_w3_kernel_code(nlayers, field_3_proxy%data, field_0_proxy%data, &
                                            ndf_w3, undf_w3, map_w3(:,cell), ndf_w0, undf_w0, map_w0(:,cell))
     END DO
+```
 
 Note that PSyclone will automatically provide additional required parameters to
 the kernel.
@@ -293,6 +319,7 @@ the kernel.
 ## Explanation for Supporting MPI
 After initialising a field, it is marked to be modified (or 'dirty'):
 
+```fortran
     DO df=loop0_start,loop0_stop
         field_3_proxy%data(df) = 0.0_r_def
     END DO
@@ -300,11 +327,13 @@ After initialising a field, it is marked to be modified (or 'dirty'):
     ! Set halos dirty/clean for fields modified in the above loop
     !
     CALL field_3_proxy%set_dirty()
+```
 
 Next time the fields are read, we need to get the newly computed values which
 might be on neighbouring processes. So the second subroutine in the PSy-layer
 contains:
 
+```fortran
     IF (field_0_proxy%is_dirty(depth=1)) THEN
        CALL field_0_proxy%halo_exchange(depth=1)
     END IF
@@ -318,6 +347,7 @@ contains:
     ! Set halos dirty/clean for fields modified in the above loop
     !
     CALL field_3_proxy%set_dirty()
+```
 
 The halo-exchange uses an if-statement so that the communication functions are
 only called if the values of a field have actually changed. While in our case this is
@@ -330,6 +360,7 @@ calls required.
 ## Explanation for Applying OpenMP
 You will see `omp parallel do` statements around each individual loop:
 
+```fortran
     !$omp parallel do default(shared), private(df), schedule(static)
     DO df=loop0_start,loop0_stop
       field_3_proxy%data(df) = 0.0_r_def
@@ -340,6 +371,7 @@ You will see `omp parallel do` statements around each individual loop:
       field_0_proxy%data(df) = 1.0_r_def
     END DO
     !$omp end parallel do
+```
 
 While this example works, it is obviously very inefficient: the two loops should be
 in one `omp parallel` region, to avoid the overhead of stopping and starting the
@@ -348,6 +380,7 @@ script.
 
 For the user kernel you will see:
 
+```fortran
     !$omp parallel do default(shared), private(cell), schedule(static)
     DO cell=loop0_start,loop0_stop
        !
@@ -355,9 +388,11 @@ For the user kernel you will see:
                                            ndf_w3, undf_w3, map_w3(:,cell), &ndf_w0, undf_w0, map_w0(:,cell))
     END DO
     !$omp end parallel do
+```
 
 The optional task might print out:
 
+```bash
     Kernel executed by thread            1  of            3  using indices           16  -           20
     Kernel executed by thread            1  of            3  using indices           21  -           25
     Kernel executed by thread            1  of            3  using indices           26  -           30
@@ -367,6 +402,7 @@ The optional task might print out:
     Kernel executed by thread            2  of            3  using indices           31  -           35
     Kernel executed by thread            2  of            3  using indices           36  -           40
     Kernel executed by thread            2  of            3  using indices           41  -           45
+```
 
 A column is internally a section of a 1D-array. You can see in the output above that one column
 starts at index 16 and ends at index 20 etc.
@@ -376,6 +412,7 @@ starts at index 16 and ends at index 20 etc.
 Implementing hybrid parallelism is easy once a script was written to add the required OpenMP statements.
 The output file contains first the halo exchange, followed by the loop with OpenMP directives:
 
+```fortran
     IF (field_0_proxy%is_dirty(depth=1)) THEN
        CALL field_0_proxy%halo_exchange(depth=1)
     END IF
@@ -391,17 +428,19 @@ The output file contains first the halo exchange, followed by the loop with Open
     ! Set halos dirty/clean for fields modified in the above loop(s)
     !
     CALL field_3_proxy%set_dirty()
-
+```
  
 ## Explanation for Error in Algorithm Layer
 
 PSylone will print the following error message (or a variation of it, since depending
 on version the list of builtins might change):
 
+```bash
     Parse Error: kernel call 'no_setval_c' must either be named in a use statement (found
     ['global_mesh_base_mod', 'mesh_mod', 'mesh_mod', 'partition_mod', ..., 'log_mod',
     'summation_w0_to_w3_kernel_mod']) or be a recognised built-in (one of '['x_plus_y',
     'inc_x_plus_y', 'a_plus_x', 'inc_a_plus_x',... , 'real_x']' for this API)
+```
 
 PSyclone cannot know if `no_setval_c` is supposed to be a builtin (for which no `use` statement
 would be required), or if it is supposed to be a user-defined kernel (which requires
@@ -411,9 +450,11 @@ a `use` statement).
 ## Explanation for Missing Parameter
 PSyclone will detect that a parameter is missing for the kernel:
 
+```bash
     Parse Error: Kernel 'summation_w0_to_w3_kernel_type' called from the algorithm layer with
     an insufficient number of arguments as specified by the metadata. Expected at least '2'
     but found '1'.
+```
 
 PSyclone will verify the code the user asked to be created as much as possible and raise
 any issues early on, i.e. before even compiling the code.
@@ -503,8 +544,10 @@ threads. For a larger example,
 
 PSyclone will print the error message:
 
+```bash
     Parse Error: Kernel file 'summation_w0_to_w3_kernel_mod.[fF]90' not found in
     .../training/users/lfric/8_incorrect_naming
+```
 
 Notice that the error message exactly specifies the file name PSyclone is looking for,
 and also in which directory it is searching. PSyclone provides the command line
