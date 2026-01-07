@@ -290,7 +290,7 @@ class LFRicInvoke(Invoke):
                   arguments as values for each type of intent.
         :rtype: dict of :py:class:`psyclone.psyGen.KernelArgument`
 
-        :raises InternalError: if at least one kernel argument type is \
+        :raises InternalError: if at least one kernel argument type is
                                not valid for the particular API.
         :raises InternalError: if an invalid intrinsic type is specified.
 
@@ -300,15 +300,15 @@ class LFRicInvoke(Invoke):
         if any(argtype not in const.VALID_ARG_TYPE_NAMES for
                argtype in argument_types):
             raise InternalError(
-                f"LFRicInvoke.unique_declns_by_intent() called with at least one "
-                f"invalid argument type. Expected one of "
+                f"LFRicInvoke.unique_declns_by_intent() called with at least "
+                f"one invalid argument type. Expected one of "
                 f"{const.VALID_ARG_TYPE_NAMES} but found {argument_types}.")
 
         if (intrinsic_type and intrinsic_type not in
                 const.VALID_INTRINSIC_TYPES):
             raise InternalError(
-                f"LFRicInvoke.unique_declns_by_intent() called with an invalid "
-                f"intrinsic argument data type. Expected one of "
+                f"LFRicInvoke.unique_declns_by_intent() called with an invalid"
+                f" intrinsic argument data type. Expected one of "
                 f"{const.VALID_INTRINSIC_TYPES} but found '{intrinsic_type}'.")
 
         # We will return a dictionary containing as many lists

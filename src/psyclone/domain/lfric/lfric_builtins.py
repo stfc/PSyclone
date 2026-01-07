@@ -46,8 +46,8 @@
 import abc
 
 from psyclone.configuration import Config
-from psyclone.core import Signature, VariablesAccessMap
-from psyclone.domain.lfric import LFRicAccessType, LFRicConstants
+from psyclone.core import AccessType, Signature, VariablesAccessMap
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
     FieldVectorArgMetadata)
@@ -249,7 +249,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                         f"LFRicBuiltin.reference_accesses only supports field "
                         f"and scalar arguments but got '{arg.name}' of type "
                         f"'{arg.argument_type}'")
-                if arg.access == LFRicAccessType.WRITE:
+                if arg.access == AccessType.WRITE:
                     written.add_access(Signature(name), arg.access, self)
                 else:
                     var_accesses.add_access(Signature(name), arg.access, self)

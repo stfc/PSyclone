@@ -2242,7 +2242,7 @@ class Argument():
         :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
-        if self.access not in AccessType.all_read_accesses():
+        if self.access not in self._call._access_type.all_read_accesses():
             # I am not a reader so there will be no write dependencies
             return []
 

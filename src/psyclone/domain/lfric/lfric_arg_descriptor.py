@@ -489,10 +489,10 @@ class LFRicArgDescriptor(Descriptor):
 
         # Test allowed accesses for fields that have stencil specification
         if self._stencil:
-            if self._access_type != LFRicAccessType.READ:
+            if self._access_type != AccessType.READ:
                 raise ParseError(
                     f"In the LFRic API a field with a stencil access must be "
-                    f"read-only ('{rev_access_mapping[LFRicAccessType.READ]}')"
+                    f"read-only ('{rev_access_mapping[AccessType.READ]}')"
                     f", but found '{rev_access_mapping[self._access_type]}' in"
                     f" '{arg_type}'.")
             if operates_on == "domain":
