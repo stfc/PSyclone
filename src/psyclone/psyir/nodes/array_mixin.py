@@ -229,8 +229,13 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             cursor = cursor.member
             # Collect member information.
             if isinstance(cursor, ArrayMixin):
-                new_indices = [idx.copy() for idx in cursor.indices]
-                cnames.append((cursor.name.lower(), new_indices))
+                try:
+                    new_indices = [idx.copy() for idx in cursor.indices]
+                    cnames.append((cursor.name.lower(), new_indices))
+                except InternalError:
+                    # The node is incomplete, but we can still use the type
+                    # information to populate the bounds
+                    cnames.append(cursor.name.lower())
             else:
                 cnames.append(cursor.name.lower())
             # Continue to resolve datatype unless we hit an
@@ -243,17 +248,23 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 continue
             cursor_type = cursor_type.components[cursor.name.lower()].datatype
 
-        if (isinstance(cursor_type, ArrayType) and
-                cursor_type.shape[pos] not in [ArrayType.Extent.DEFERRED,
-                                               ArrayType.Extent.ATTRIBUTE]):
-            # We have the full type information and the bound is known.
-            if bound == "lower":
-                return cursor_type.shape[pos].lower.copy()
-            # If the upper bound is required and is of ArrayType.Extent type
-            # then we'll have to proceed to construct a call to the UBOUND
-            # intrinsic.
-            if not isinstance(cursor_type.shape[pos].upper, ArrayType.Extent):
-                return cursor_type.shape[pos].upper.copy()
+        if isinstance(cursor_type, ArrayType):
+            if pos > len(cursor_type.shape):
+                raise ValueError(
+                    f"In '{type(self).__name__}' '{self.name}' the specified "
+                    f"index '{pos}' must be less than the number of dimensions"
+                    f" '{len(cursor_type.shape)}'.")
+            if cursor_type.shape[pos] not in [ArrayType.Extent.DEFERRED,
+                                              ArrayType.Extent.ATTRIBUTE]:
+                # We have the full type information and the bound is known.
+                if bound == "lower":
+                    return cursor_type.shape[pos].lower.copy()
+                # If the upper bound is required and is of ArrayType.Extent
+                # type then we'll have to proceed to construct a call to the
+                # UBOUND intrinsic.
+                if not isinstance(cursor_type.shape[pos].upper,
+                                  ArrayType.Extent):
+                    return cursor_type.shape[pos].upper.copy()
 
         # We've either failed to resolve the type or we don't know the extent
         # of the array dimension so construct a call to the BOUND intrinsic.
@@ -294,12 +305,11 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         lower bound.
 
         :returns: the declared lower bound for the specified dimension of
-            the array accesed or a call to the LBOUND intrinsic if it is
+            the array accessed or a call to the LBOUND intrinsic if it is
             unknown.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        self._validate_index(pos)
         # Call the helper function
         return self._get_bound_expression(pos, "lower")
 
@@ -313,12 +323,11 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         upper bound.
 
         :returns: the declared upper bound for the specified dimension of
-            the array accesed or a call to the UBOUND intrinsic if it is
+            the array accessed or a call to the UBOUND intrinsic if it is
             unknown.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        self._validate_index(pos)
         # Call the helper function
         return self._get_bound_expression(pos, "upper")
 
@@ -334,8 +343,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                   pos for this ArrayMixin.
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
         '''
-        self._validate_index(pos)
-
         lbound = self.get_lbound_expression(pos)
         ubound = self.get_ubound_expression(pos)
 
