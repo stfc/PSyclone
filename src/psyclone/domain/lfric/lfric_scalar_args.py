@@ -47,8 +47,8 @@ from collections import OrderedDict, Counter
 
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants, LFRicTypes
+from psyclone.domain.lfric.lfric_invoke import FORTRAN_INTENT_NAMES
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import FORTRAN_INTENT_NAMES
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 
 # pylint: disable=too-many-lines

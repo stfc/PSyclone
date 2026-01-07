@@ -46,6 +46,7 @@ from typing import List, Optional
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
+from psyclone.domain.lfric.lfric_access_type import LFRicAccessType
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
@@ -57,11 +58,11 @@ from psyclone.psyGen import InvokeSchedule, CodedKern, args_filter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
-    Loop, Literal, Reference, KernelSchedule, Container, Routine)
+    Loop, Literal, Reference, KernelSchedule, Container, Routine, Node)
 from psyclone.psyir.symbols import (
     DataSymbol, GenericInterfaceSymbol, ScalarType, ArrayType, DataTypeSymbol,
-    UnresolvedType, ContainerSymbol, INTEGER_TYPE, UnresolvedInterface,
-    UnsupportedFortranType)
+    UnresolvedType, ContainerSymbol, INTEGER_TYPE, SymbolTable,
+    UnresolvedInterface, UnsupportedFortranType)
 
 
 class LFRicKern(CodedKern):
@@ -72,6 +73,8 @@ class LFRicKern(CodedKern):
 
     '''
     # pylint: disable=too-many-instance-attributes
+
+    _access_type = LFRicAccessType
 
     @dataclass(frozen=True)
     class QRRule:
@@ -439,6 +442,59 @@ class LFRicKern(CodedKern):
         # Properties of the mesh required by this kernel
         self._mesh_properties = ktype.mesh
 
+    def reduction_sum_loop(self,
+                           parent: Node,
+                           position: int,
+                           table: SymbolTable) -> None:
+        '''
+        Generate the appropriate code to place after the end parallel
+        region.
+
+        This method is designed to be used *after* a Kern has been lowered
+        (and thus detached) and therefore does not use `self.scope`.
+
+        :param parent: the node to which to add the Loop as a child.
+        :param position: where in the parent's list of children to add
+                        the new Loop.
+        :param table: the SymbolTable to use.
+
+        :raises GenerationError: for an unsupported reduction access in
+                                 LFRicBuiltIn.
+        '''
+        tag = f"{self.name}:{self._reduction_arg.name}:local"
+        local_symbol = table.lookup_with_tag(tag)
+        if self._reduction_arg.access != LFRicAccessType.SUM:
+            raise GenerationError(
+                f"Unsupported reduction access "
+                f"'{reduction_access.api_specific_name()}' found in "
+                f"LFRicBuiltIn:reduction_sum_loop(). Expected one of "
+                f"['gh_sum'].")
+        thread_idx = table.lookup_with_tag("omp_thread_index")
+        nthreads = table.lookup_with_tag("omp_num_threads")
+        do_loop = Loop.create(
+                    thread_idx,
+                    start=Literal("1", INTEGER_TYPE),
+                    stop=Reference(nthreads),
+                    step=Literal("1", INTEGER_TYPE),
+                    children=[])
+        parent.addchild(do_loop, position+1)
+        var_symbol = table.lookup_with_tag(
+            f"AlgArgs_{self._reduction_arg.text}")
+        do_loop.loop_body.addchild(Assignment.create(
+           lhs=Reference(var_symbol),
+           rhs=BinaryOperation.create(
+               BinaryOperation.Operator.ADD,
+               Reference(var_symbol),
+               ArrayReference.create(local_symbol,
+                                     [Literal("1", INTEGER_TYPE),
+                                      Reference(thread_idx)]))))
+        do_loop.append_preceding_comment(
+                    "sum the partial results sequentially")
+        do_loop.parent.addchild(
+                IntrinsicCall.create(IntrinsicCall.Intrinsic.DEALLOCATE,
+                                     [Reference(local_symbol)]),
+                do_loop.position+1)
+
     @property
     def halo_depth(self):
         '''
@@ -622,6 +678,23 @@ class LFRicKern(CodedKern):
             return None
         return symbol.name
 
+    def incremented_arg(self) -> str:
+        ''' Returns the argument that has INC access. Raises a
+        FieldNotFoundError if none is found.
+
+        :returns: a Fortran argument name.
+
+        :raises FieldNotFoundError: if none is found.
+        '''
+        for arg in self.arguments.args:
+            if arg.access == LFRicAccessType.INC:
+                return arg
+
+        raise FieldNotFoundError(f"Kernel {self.name} does not have an "
+                                 f"argument with "
+                                 f"{LFRicAccessType.INC.api_specific_name()} "
+                                 f"access")
+
     @property
     def fs_descriptors(self):
         '''
@@ -686,7 +759,7 @@ class LFRicKern(CodedKern):
                   'GH_WRITE' access, False otherwise.
         '''
         accesses = set(arg.access for arg in self.args)
-        all_writes = AccessType.all_write_accesses()
+        all_writes = LFRicAccessType.all_write_accesses()
         all_writes.remove(AccessType.WRITE)
         return (not accesses.intersection(set(all_writes)))
 
@@ -1078,7 +1151,7 @@ class LFRicKern(CodedKern):
         # Check whether this kernel reads from an operator
         op_args = parent_loop.args_filter(
             arg_types=const.VALID_OPERATOR_NAMES,
-            arg_accesses=[AccessType.READ, AccessType.READWRITE])
+            arg_accesses=[LFRicAccessType.READ, LFRicAccessType.READWRITE])
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.

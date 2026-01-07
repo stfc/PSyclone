@@ -255,18 +255,6 @@ class PSyLoop(Loop):
         result += "End " + name
         return result
 
-    def has_inc_arg(self):
-        '''
-        :returns: True if any of the Kernels called within this loop have an \
-                argument with INC access, False otherwise.
-        :rtype: bool
-        '''
-        for kern_call in self.coded_kernels():
-            for arg in kern_call.arguments.args:
-                if arg.access == AccessType.INC:
-                    return True
-        return False
-
     def unique_modified_args(self, arg_type):
         '''Return all unique arguments of the given type from kernels inside
         this loop that are modified.

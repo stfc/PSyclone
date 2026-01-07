@@ -43,7 +43,7 @@
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.domain.lfric import LFRicAccessType, LFRicConstants, LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, HaloExchange
@@ -462,6 +462,17 @@ class LFRicLoop(PSyLoop):
         return BinaryOperation.create(BinaryOperation.Operator.ADD,
                                       call, Literal("1", INTEGER_TYPE))
 
+    def has_inc_arg(self) -> bool:
+        '''
+        :returns: True if any of the Kernels called within this loop have an
+                argument with INC access, False otherwise.
+        '''
+        for kern_call in self.coded_kernels():
+            for arg in kern_call.arguments.args:
+                if arg.access == LFRicAccessType.INC:
+                    return True
+        return False
+
     @property
     def _mesh_name(self):
         '''
@@ -704,7 +715,7 @@ class LFRicLoop(PSyLoop):
             if arg.access in [AccessType.WRITE]:
                 # This is not a read access
                 return False
-            if arg.access in AccessType.all_read_accesses():
+            if arg.access in LFRicAccessType.all_read_accesses():
                 # This is a read access
                 if arg.descriptor.stencil:
                     if self._upper_bound_name not in ["cell_halo", "ncells"]:
@@ -855,7 +866,7 @@ class LFRicLoop(PSyLoop):
         from psyclone.lfric import LFRicHaloExchange
         for call in self.kernels():
             for arg in call.arguments.args:
-                if arg.access in AccessType.all_write_accesses():
+                if arg.access in LFRicAccessType.all_write_accesses():
                     dep_arg_list = arg.forward_read_dependencies()
                     for dep_arg in dep_arg_list:
                         if isinstance(dep_arg.call, LFRicHaloExchange):

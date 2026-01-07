@@ -45,6 +45,7 @@ import fparser
 
 from psyclone import psyGen
 from psyclone.core import AccessType
+from psyclone.domain.lfric.lfric_access_type import LFRicAccessType
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
 from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
 from psyclone.lfric import (LFRicFuncDescriptor, MeshPropertiesMetaData,
@@ -175,7 +176,7 @@ class LFRicKernMetadata(KernelType):
         if not _targets and \
            self._eval_shapes and "gh_evaluator" in self._eval_shapes:
             # Use the FS of the kernel arguments that are updated
-            write_accesses = AccessType.all_write_accesses()
+            write_accesses = LFRicAccessType.all_write_accesses()
             write_args = psyGen.args_filter(self._arg_descriptors,
                                             arg_accesses=write_accesses)
             # We want the 'to' space of any operator arguments so get
@@ -457,7 +458,7 @@ class LFRicKernMetadata(KernelType):
         # Count the number of CMA operators that are written to
         write_count = 0
         for cop in cwise_ops:
-            if cop.access in AccessType.all_write_accesses():
+            if cop.access in LFRicAccessType.all_write_accesses():
                 write_count += 1
 
         if write_count == 0:
@@ -482,8 +483,8 @@ class LFRicKernMetadata(KernelType):
             farg_read = psyGen.args_filter(
                 self._arg_descriptors,
                 arg_types=const.VALID_FIELD_NAMES,
-                arg_accesses=[AccessType.READ])
-            write_accesses = AccessType.all_write_accesses()
+                arg_accesses=[LFRicAccessType.READ])
+            write_accesses = LFRicAccessType.all_write_accesses()
             farg_write = psyGen.args_filter(
                 self._arg_descriptors,
                 arg_types=const.VALID_FIELD_NAMES,
@@ -522,7 +523,7 @@ class LFRicKernMetadata(KernelType):
             # or performing a matrix-matrix operation...
             # The kernel must not write to any args other than the CMA
             # operator
-            write_accesses = AccessType.all_write_accesses()
+            write_accesses = LFRicAccessType.all_write_accesses()
             write_args = psyGen.args_filter(self._arg_descriptors,
                                             arg_accesses=write_accesses)
             if len(write_args) > 1:

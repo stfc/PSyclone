@@ -51,14 +51,6 @@ class AccessType(Enum):
     #: Data associated with the symbol is both read and written (e.g. is passed
     #: to a routine with intent(inout)).
     READWRITE = 3
-    #: Incremented from more than one cell column (see the LFRic API section
-    #: of the User Guide).
-    INC = 4
-    #: Read before incrementing. Requires that the outermost halo be clean (see
-    #: the LFRic API section of the User Guide).
-    READINC = 5
-    #: Is the output of a SUM reduction.
-    SUM = 6
     #: This is used internally to indicate unknown access type of
     #: a variable, e.g. when a variable is passed to a subroutine
     #: and the access type of this variable in the subroutine
@@ -95,14 +87,13 @@ class AccessType(Enum):
         return rev_access_mapping.get(self, str(self).lower())
 
     @staticmethod
-    def from_string(access_string: str):
+    def from_string(access_string: str) -> AccessType:
         '''Convert a string (e.g. "read") into the corresponding
         AccessType enum value (AccessType.READ).
 
         :param access_string: Access type as a string.
 
         :returns: Corresponding AccessType enum.
-        :rtype: :py:class:`psyclone.core.access_type.AccessType`
 
         :raises ValueError: if access_string is not a valid access type.
         '''
@@ -114,46 +105,24 @@ class AccessType(Enum):
                          f"Valid values are {valid}.")
 
     @staticmethod
-    def all_write_accesses():
+    def all_write_accesses() -> list[AccessType]:
         ''':returns: A list of all access types that involve writing to an
                      argument in some form.
-        :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
-        return [AccessType.WRITE, AccessType.READWRITE, AccessType.INC,
-                AccessType.READINC] + AccessType.get_valid_reduction_modes()
+        return [AccessType.WRITE, AccessType.READWRITE]
 
     @staticmethod
-    def all_read_accesses():
+    def all_read_accesses() -> list[AccessType]:
         ''':returns: A list of all access types that involve reading an
                      argument in some form.
-        :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
-        return [AccessType.READ, AccessType.READWRITE, AccessType.INC,
-                AccessType.READINC]
+        return [AccessType.READ, AccessType.READWRITE]
 
     @staticmethod
-    def get_valid_reduction_modes():
-        '''
-        :returns: A list of valid reduction access modes.
-        :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
-        '''
-        return [AccessType.SUM]
-
-    @staticmethod
-    def get_valid_reduction_names():
-        '''
-        :returns: A list of valid reduction access names.
-        :rtype: List of strings.
-        '''
-        return [access.api_specific_name() for access in
-                AccessType.get_valid_reduction_modes()]
-
-    @staticmethod
-    def non_data_accesses():
+    def non_data_accesses() -> list[AccessType]:
         '''
         :returns: all access types that do not touch any data associated with
                   a symbol.
-        :rtype: list[:py:class:`psyclone.core.AccessType`]
         '''
         return [AccessType.CALL, AccessType.CONSTANT, AccessType.INQUIRY]
 

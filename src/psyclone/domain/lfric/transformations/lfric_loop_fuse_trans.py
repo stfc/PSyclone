@@ -39,8 +39,7 @@
 '''This module provides the LFRic-specific loop fusion transformation.
 '''
 
-from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicAccessType, LFRicConstants
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 from psyclone.transformations import check_intergrid
 
@@ -223,7 +222,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
 
         # 5) Check for reductions
         arg_types = const.VALID_SCALAR_NAMES
-        all_reductions = AccessType.get_valid_reduction_modes()
+        all_reductions = LFRicAccessType.get_valid_reduction_modes()
         node1_red_args = node1.args_filter(arg_types=arg_types,
                                            arg_accesses=all_reductions)
         node2_red_args = node2.args_filter(arg_types=arg_types,

@@ -418,7 +418,7 @@ class GOLoop(PSyLoop):
             return True
 
     # -------------------------------------------------------------------------
-    def _halo_read_access(self, arg):
+    def _halo_read_access(self, arg) -> bool:
         '''Determines whether the supplied argument has (or might have) its
         halo data read within this loop. Returns True if it does, or if
         it might and False if it definitely does not.
@@ -426,14 +426,12 @@ class GOLoop(PSyLoop):
         :param arg: an argument contained within this loop.
         :type arg: :py:class:`psyclone.gocean1p0.GOKernelArgument`
 
-        :return: True if the argument reads, or might read from the \
+        :return: True if the argument reads, or might read from the
                  halo and False otherwise.
-        :rtype: bool
 
         '''
-        return arg.argument_type == 'field' and arg.stencil.has_stencil and \
-            arg.access in [AccessType.READ, AccessType.READWRITE,
-                           AccessType.INC]
+        return (arg.argument_type == 'field' and arg.stencil.has_stencil and
+                arg.access in [AccessType.READ, AccessType.READWRITE])
 
     def create_halo_exchanges(self):
         '''Add halo exchanges before this loop as required by fields within

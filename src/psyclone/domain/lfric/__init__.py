@@ -43,6 +43,7 @@
 # KernCallAccArgList imports KernCallArgList, ArgOrdering
 # imports LFRicArgDescriptor, ...).
 from psyclone.domain.lfric.function_space import FunctionSpace
+from psyclone.domain.lfric.lfric_access_type import LFRicAccessType
 from psyclone.domain.lfric.lfric_arg_descriptor import LFRicArgDescriptor
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_halo_depths import LFRicHaloDepths

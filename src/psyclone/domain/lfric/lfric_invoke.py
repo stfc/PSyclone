@@ -41,12 +41,18 @@
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
+from psyclone.domain.lfric.lfric_access_type import LFRicAccessType
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.psyGen import Invoke
 from psyclone.psyir.nodes import Assignment, Reference, Call, Literal
 from psyclone.psyir.symbols import (
     ContainerSymbol, RoutineSymbol, ImportInterface, DataSymbol, INTEGER_TYPE)
+
+
+# The types of 'intent' that an argument to a Fortran subroutine
+# may have
+FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 
 
 class LFRicInvoke(Invoke):
@@ -180,11 +186,16 @@ class LFRicInvoke(Invoke):
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
             # global sum calls
+            valid_rdn_modes = LFRicAccessType.get_valid_reduction_modes()
             for loop in self.schedule.loops():
                 for scalar in loop.args_filter(
                         arg_types=const.VALID_SCALAR_NAMES,
-                        arg_accesses=AccessType.get_valid_reduction_modes(),
+                        arg_accesses=valid_rdn_modes,
                         unique=True):
+                    if scalar.access != LFRicAccessType.SUM:
+                        raise GenerationError(
+                            "TODO #2381 - currently only global *sum* "
+                            "reductions are supported.")
                     global_sum = LFRicGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
@@ -199,6 +210,82 @@ class LFRicInvoke(Invoke):
                         self._alg_unique_halo_depth_args.append(sym.name)
 
             self._alg_unique_args.extend(self._alg_unique_halo_depth_args)
+
+    def unique_declns_by_intent(self, argument_types, intrinsic_type=None):
+        '''
+        Returns a dictionary listing all required declarations for each
+        type of intent ('inout', 'out' and 'in').
+
+        :param argument_types: the types of the kernel argument for the \
+                               particular API for which the intent is required.
+        :type argument_types: list of str
+        :param intrinsic_type: optional intrinsic type of argument data.
+        :type intrinsic_type: str
+
+        :returns: dictionary containing 'intent' keys holding the kernel \
+                  arguments as values for each type of intent.
+        :rtype: dict of :py:class:`psyclone.psyGen.KernelArgument`
+
+        :raises InternalError: if at least one kernel argument type is \
+                               not valid for the particular API.
+        :raises InternalError: if an invalid intrinsic type is specified.
+
+        '''
+        # First check for invalid argument types and intrinsic type
+        const = Config.get().api_conf().get_constants()
+        if any(argtype not in const.VALID_ARG_TYPE_NAMES for
+               argtype in argument_types):
+            raise InternalError(
+                f"LFRicInvoke.unique_declns_by_intent() called with at least one "
+                f"invalid argument type. Expected one of "
+                f"{const.VALID_ARG_TYPE_NAMES} but found {argument_types}.")
+
+        if (intrinsic_type and intrinsic_type not in
+                const.VALID_INTRINSIC_TYPES):
+            raise InternalError(
+                f"LFRicInvoke.unique_declns_by_intent() called with an invalid "
+                f"intrinsic argument data type. Expected one of "
+                f"{const.VALID_INTRINSIC_TYPES} but found '{intrinsic_type}'.")
+
+        # We will return a dictionary containing as many lists
+        # as there are types of intent
+        declns = {}
+        for intent in FORTRAN_INTENT_NAMES:
+            declns[intent] = []
+
+        for arg in self.unique_declarations(argument_types,
+                                            intrinsic_type=intrinsic_type):
+            first_arg = self.first_access(arg.declaration_name)
+            if first_arg.access in (
+                    [AccessType.WRITE] +
+                    LFRicAccessType.get_valid_reduction_modes()):
+                # If the first access is a write then the intent is
+                # out irrespective of any other accesses. Note,
+                # reduction args behave as if they are write args from the
+                # PSy-layer's perspective.
+                declns["out"].append(arg)
+                continue
+            # if all accesses are read, then the intent is in,
+            # otherwise the intent is inout (as we have already
+            # dealt with intent out).
+            read_only = True
+            for call in self.schedule.kernels():
+                for tmp_arg in call.arguments.args:
+                    if (tmp_arg.text is not None and
+                           tmp_arg.declaration_name == arg.declaration_name):
+                        if tmp_arg.access != AccessType.READ:
+                            # readwrite_args behave in the
+                            # same way as inc_args from the
+                            # perspective of intents
+                            read_only = False
+                            break
+                if not read_only:
+                    break
+            if read_only:
+                declns["in"].append(arg)
+            else:
+                declns["inout"].append(arg)
+        return declns
 
     def arg_for_funcspace(self, fspace):
         '''

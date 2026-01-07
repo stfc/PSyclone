@@ -830,11 +830,11 @@ class BaseConfig:
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
             from psyclone.core.access_type import AccessType
-
+            from psyclone.domain.lfric.lfric_access_type import LFRicAccessType
             for api_access_name, access_type in self._access_mapping.items():
                 try:
                     self._access_mapping[api_access_name] = \
-                        AccessType.from_string(access_type)
+                        LFRicAccessType.from_string(access_type)
                 except ValueError as err:
                     # Raised by from_string()
                     raise ConfigurationError(

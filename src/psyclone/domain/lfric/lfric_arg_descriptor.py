@@ -45,9 +45,10 @@ and properties.
 import os
 
 from psyclone.configuration import Config
-from psyclone.core.access_type import AccessType
+from psyclone.core import AccessType
 # Importing from psyclone.domain.lfric only creates circular
 # import with __init__
+from psyclone.domain.lfric.lfric_access_type import LFRicAccessType
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
 import psyclone.expression as expr
@@ -428,7 +429,7 @@ class LFRicArgDescriptor(Descriptor):
         # function spaces, kernels that specify this must guarantee to write
         # the same value to any given shared entity, independent of iteration.
         field_cont_accesses = [AccessType.READ, AccessType.WRITE,
-                               AccessType.INC, AccessType.READINC]
+                               LFRicAccessType.INC, LFRicAccessType.READINC]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()
@@ -488,12 +489,12 @@ class LFRicArgDescriptor(Descriptor):
 
         # Test allowed accesses for fields that have stencil specification
         if self._stencil:
-            if self._access_type != AccessType.READ:
+            if self._access_type != LFRicAccessType.READ:
                 raise ParseError(
                     f"In the LFRic API a field with a stencil access must be "
-                    f"read-only ('{rev_access_mapping[AccessType.READ]}'), "
-                    f"but found '{rev_access_mapping[self._access_type]}' in "
-                    f"'{arg_type}'.")
+                    f"read-only ('{rev_access_mapping[LFRicAccessType.READ]}')"
+                    f", but found '{rev_access_mapping[self._access_type]}' in"
+                    f" '{arg_type}'.")
             if operates_on == "domain":
                 raise ParseError(
                     f"In the LFRic API, kernels that operate on the domain "
@@ -622,20 +623,20 @@ class LFRicArgDescriptor(Descriptor):
 
         # Test allowed accesses for scalars (read_only or reduction)
         scalar_accesses = [AccessType.READ] + \
-            AccessType.get_valid_reduction_modes()
+            LFRicAccessType.get_valid_reduction_modes()
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
         rev_access_mapping = api_config.get_reverse_access_mapping()
         if self._access_type not in scalar_accesses:
             api_specific_name = rev_access_mapping[self._access_type]
-            valid_reductions = AccessType.get_valid_reduction_names()
+            valid_reductions = LFRicAccessType.get_valid_reduction_names()
             raise ParseError(
                 f"In the LFRic API scalar arguments must have read-only "
                 f"('gh_read') or a reduction {valid_reductions} access but "
                 f"found '{api_specific_name}' in '{arg_type}'.")
         # Reduction access is currently only valid for real scalar arguments
-        if self._data_type != "gh_real" and self._access_type in \
-           AccessType.get_valid_reduction_modes():
+        if (self._data_type != "gh_real" and self._access_type in
+                LFRicAccessType.get_valid_reduction_modes()):
             raise ParseError(
                 f"In the LFRic API a reduction access "
                 f"'{self._access_type.api_specific_name()}' is only valid "

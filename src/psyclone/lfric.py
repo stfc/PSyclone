@@ -53,6 +53,7 @@ from typing import Any, List, Optional
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, SymbolicMaths
+from psyclone.domain.lfric.lfric_access_type import LFRicAccessType
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (
     FunctionSpace, KernCallAccArgList, KernCallArgList, LFRicCollection,
@@ -483,8 +484,9 @@ class LFRicMeshProperties(LFRicCollection):
                             ).name
                     arg_list.append(name)
                     if var_accesses is not None:
-                        var_accesses.add_access(Signature(name),
-                                                AccessType.READ, self._kernel)
+                        var_accesses.add_access(
+                            Signature(name), LFRicAccessType.READ,
+                            self._kernel)
 
                 adj_face = "adjacent_face"
                 if not stub and kern_call_arg_list:
@@ -499,7 +501,8 @@ class LFRicMeshProperties(LFRicCollection):
                     adj_face = adj_face_sym.name
                     if var_accesses:
                         var_accesses.add_access(Signature(adj_face),
-                                                AccessType.READ, self._kernel)
+                                                LFRicAccessType.READ,
+                                                self._kernel)
 
                 if not stub:
                     adj_face = self.symtab.find_or_create_tag(
@@ -517,7 +520,7 @@ class LFRicMeshProperties(LFRicCollection):
 
                 if var_accesses and not kern_call_arg_list:
                     var_accesses.add_access(Signature(adj_face),
-                                            AccessType.READ, self._kernel)
+                                            LFRicAccessType.READ, self._kernel)
             else:
                 raise InternalError(
                     f"kern_args: found unsupported mesh property '{prop}' "
@@ -4511,7 +4514,7 @@ class LFRicHaloExchangeStart(LFRicHaloExchange):
         # Update the field's access appropriately. Here "gh_read"
         # specifies that the start of a halo exchange only reads
         # the field's data.
-        self._field.access = AccessType.READ
+        self._field.access = LFRicAccessType.READ
         # override appropriate parent class names
         self._halo_exchange_name = "halo_exchange_start"
 
@@ -4626,7 +4629,7 @@ class LFRicHaloExchangeEnd(LFRicHaloExchange):
         # written to. However, a readwrite field access needs to be
         # specified as this is required for the halo exchange logic to
         # work correctly.
-        self._field.access = AccessType.READWRITE
+        self._field.access = LFRicAccessType.READWRITE
         # override appropriate parent class names
         self._halo_exchange_name = "halo_exchange_finish"
 
@@ -4776,7 +4779,7 @@ class HaloDepth():
 
 
 def halo_check_arg(field: LFRicKernelArgument,
-                   access_types: list[AccessType]) -> Kern:
+                   access_types: list[LFRicAccessType]) -> Kern:
     '''
     Support function which performs checks to ensure the first argument
     is a field, that the field is contained within Kernel or Builtin
@@ -4898,7 +4901,7 @@ class HaloWriteAccess(HaloDepth):
         '''
         const = LFRicConstants()
 
-        call = halo_check_arg(field, AccessType.all_write_accesses())
+        call = halo_check_arg(field, LFRicAccessType.all_write_accesses())
         # no test required here as all calls exist within a loop
 
         loop = call.parent.parent
@@ -5019,7 +5022,7 @@ class HaloReadAccess(HaloDepth):
         const = LFRicConstants()
 
         self._annexed_only = False
-        call = halo_check_arg(field, AccessType.all_read_accesses())
+        call = halo_check_arg(field, LFRicAccessType.all_read_accesses())
 
         loop = call.ancestor(LFRicLoop)
         table = loop.ancestor(InvokeSchedule).symbol_table
@@ -5036,7 +5039,7 @@ class HaloReadAccess(HaloDepth):
         # required, at some later point, in that level of the halo
         # then we do a halo swap.)
         self._needs_clean_outer = (
-            not (field.access == AccessType.INC
+            not (field.access == LFRicAccessType.INC
                  and loop.upper_bound_name in ["cell_halo",
                                                "colour_halo"]))
 
@@ -5549,7 +5552,7 @@ class LFRicKernelArguments(Arguments):
 
         # Since we always compute operators out to the L1 halo we first
         # check whether this kernel writes to an operator
-        write_accesses = AccessType.all_write_accesses()
+        write_accesses = LFRicAccessType.all_write_accesses()
         const = LFRicConstants()
         op_args = psyGen.args_filter(
             self._args,
@@ -5579,7 +5582,7 @@ class LFRicKernelArguments(Arguments):
         # a continuous FS is modified then our iteration space must be
         # larger (include L1-halo cells)
         const = LFRicConstants()
-        write_accesses = AccessType.all_write_accesses()
+        write_accesses = LFRicAccessType.all_write_accesses()
         fld_args = psyGen.args_filter(
             self._args,
             arg_types=const.VALID_FIELD_NAMES,
@@ -5965,7 +5968,7 @@ class LFRicKernelArgument(KernelArgument):
                 f"their precision defined in the algorithm layer but "
                 f"'{self.name}' in '{self._call.name}' does not.")
 
-        if self.access in AccessType.get_valid_reduction_modes():
+        if self.access in LFRicAccessType.get_valid_reduction_modes():
             # Treat reductions separately to other scalars as it
             # is expected that they should match the precision of
             # the field they are reducing. At the moment there is
@@ -6409,15 +6412,16 @@ class LFRicKernelArgument(KernelArgument):
         :rtype: str
 
         '''
-        write_accesses = AccessType.all_write_accesses()
+        write_accesses = LFRicAccessType.all_write_accesses()
         if self.access == AccessType.READ:
             return "in"
         if self.access in write_accesses:
             return "inout"
         # An argument access other than the pure "read" or one of
         # the "write" accesses is invalid
-        valid_accesses = [AccessType.READ.api_specific_name()] + \
-            [access.api_specific_name() for access in write_accesses]
+        valid_accesses = (
+            [AccessType.READ.api_specific_name()] +
+            [access.api_specific_name() for access in write_accesses])
         raise GenerationError(
             f"In the LFRic API the argument access must be one of "
             f"{valid_accesses}, but found '{self.access}'.")

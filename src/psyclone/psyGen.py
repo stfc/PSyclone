@@ -70,13 +70,6 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 
-# The types of 'intent' that an argument to a Fortran subroutine
-# may have
-FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
-
-# Mapping of access type to operator.
-REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
-
 
 def object_index(alist, item):
     '''
@@ -560,80 +553,6 @@ class Invoke():
         raise GenerationError(f"Failed to find any kernel argument with name "
                               f"'{arg_name}'")
 
-    def unique_declns_by_intent(self, argument_types, intrinsic_type=None):
-        '''
-        Returns a dictionary listing all required declarations for each
-        type of intent ('inout', 'out' and 'in').
-
-        :param argument_types: the types of the kernel argument for the \
-                               particular API for which the intent is required.
-        :type argument_types: list of str
-        :param intrinsic_type: optional intrinsic type of argument data.
-        :type intrinsic_type: str
-
-        :returns: dictionary containing 'intent' keys holding the kernel \
-                  arguments as values for each type of intent.
-        :rtype: dict of :py:class:`psyclone.psyGen.KernelArgument`
-
-        :raises InternalError: if at least one kernel argument type is \
-                               not valid for the particular API.
-        :raises InternalError: if an invalid intrinsic type is specified.
-
-        '''
-        # First check for invalid argument types and intrinsic type
-        const = Config.get().api_conf().get_constants()
-        if any(argtype not in const.VALID_ARG_TYPE_NAMES for
-               argtype in argument_types):
-            raise InternalError(
-                f"Invoke.unique_declns_by_intent() called with at least one "
-                f"invalid argument type. Expected one of "
-                f"{const.VALID_ARG_TYPE_NAMES} but found {argument_types}.")
-
-        if (intrinsic_type and intrinsic_type not in
-                const.VALID_INTRINSIC_TYPES):
-            raise InternalError(
-                f"Invoke.unique_declns_by_intent() called with an invalid "
-                f"intrinsic argument data type. Expected one of "
-                f"{const.VALID_INTRINSIC_TYPES} but found '{intrinsic_type}'.")
-
-        # We will return a dictionary containing as many lists
-        # as there are types of intent
-        declns = {}
-        for intent in FORTRAN_INTENT_NAMES:
-            declns[intent] = []
-
-        for arg in self.unique_declarations(argument_types,
-                                            intrinsic_type=intrinsic_type):
-            first_arg = self.first_access(arg.declaration_name)
-            if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
-                # If the first access is a write then the intent is
-                # out irrespective of any other accesses. Note,
-                # sum_args behave as if they are write_args from the
-                # PSy-layer's perspective.
-                declns["out"].append(arg)
-                continue
-            # if all accesses are read, then the intent is in,
-            # otherwise the intent is inout (as we have already
-            # dealt with intent out).
-            read_only = True
-            for call in self.schedule.kernels():
-                for tmp_arg in call.arguments.args:
-                    if tmp_arg.text is not None and \
-                       tmp_arg.declaration_name == arg.declaration_name:
-                        if tmp_arg.access != AccessType.READ:
-                            # readwrite_args behave in the
-                            # same way as inc_args from the
-                            # perspective of intents
-                            read_only = False
-                            break
-                if not read_only:
-                    break
-            if read_only:
-                declns["in"].append(arg)
-            else:
-                declns["inout"].append(arg)
-        return declns
-
 
 class InvokeSchedule(Routine):
     '''
@@ -949,6 +868,8 @@ class Kern(Statement):
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
 
+    _access_type = AccessType
+
     def __init__(self, parent, call, name, ArgumentsClass, check=True):
         # pylint: disable=too-many-arguments
         super().__init__(parent=parent)
@@ -972,7 +893,7 @@ class Kern(Statement):
         self._arg_descriptors = None
 
         # Initialise any reduction information
-        reduction_modes = AccessType.get_valid_reduction_modes()
+        reduction_modes = self._access_type.get_valid_reduction_modes()
         const = Config.get().api_conf().get_constants()
         args = args_filter(self._arguments.args,
                            arg_types=const.VALID_SCALAR_NAMES,
@@ -1095,63 +1016,6 @@ class Kern(Statement):
             )
             insert_loc.addchild(assign, cursor)
         return new_node
-
-    def reduction_sum_loop(self,
-                           parent: Node,
-                           position: int,
-                           table: SymbolTable) -> None:
-        '''
-        Generate the appropriate code to place after the end parallel
-        region.
-
-        This method is designed to be used *after* a Kern has been lowered
-        (and thus detached) and therefore does not use `self.scope`.
-
-        :param parent: the node to which to add the Loop as a child.
-        :param position: where in the parent's list of children to add
-                        the new Loop.
-        :param table: the SymbolTable to use.
-
-        :raises GenerationError: for an unsupported reduction access in
-                                 LFRicBuiltIn.
-        '''
-        tag = f"{self.name}:{self._reduction_arg.name}:local"
-        local_symbol = table.lookup_with_tag(tag)
-        reduction_access = self._reduction_arg.access
-        if reduction_access not in REDUCTION_OPERATOR_MAPPING:
-            api_strings = [access.api_specific_name()
-                           for access in REDUCTION_OPERATOR_MAPPING]
-            raise GenerationError(
-                f"Unsupported reduction access "
-                f"'{reduction_access.api_specific_name()}' found in "
-                f"LFRicBuiltIn:reduction_sum_loop(). Expected one of "
-                f"{api_strings}.")
-        symtab = table
-        thread_idx = symtab.lookup_with_tag("omp_thread_index")
-        nthreads = symtab.lookup_with_tag("omp_num_threads")
-        do_loop = Loop.create(
-                    thread_idx,
-                    start=Literal("1", INTEGER_TYPE),
-                    stop=Reference(nthreads),
-                    step=Literal("1", INTEGER_TYPE),
-                    children=[])
-        parent.addchild(do_loop, position+1)
-        var_symbol = table.lookup_with_tag(
-            f"AlgArgs_{self._reduction_arg.text}")
-        do_loop.loop_body.addchild(Assignment.create(
-           lhs=Reference(var_symbol),
-           rhs=BinaryOperation.create(
-               BinaryOperation.Operator.ADD,
-               Reference(var_symbol),
-               ArrayReference.create(local_symbol,
-                                     [Literal("1", INTEGER_TYPE),
-                                      Reference(thread_idx)]))))
-        do_loop.append_preceding_comment(
-                    "sum the partial results sequentially")
-        do_loop.parent.addchild(
-                IntrinsicCall.create(IntrinsicCall.Intrinsic.DEALLOCATE,
-                                     [Reference(local_symbol)]),
-                do_loop.position+1)
 
     def _reduction_reference(self):
         '''
@@ -1500,23 +1364,6 @@ class CodedKern(Kern):
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
         return call_node
-
-    def incremented_arg(self):
-        ''' Returns the argument that has INC access. Raises a
-        FieldNotFoundError if none is found.
-
-        :rtype: str
-        :raises FieldNotFoundError: if none is found.
-        :returns: a Fortran argument name.
-        '''
-        for arg in self.arguments.args:
-            if arg.access == AccessType.INC:
-                return arg
-
-        raise FieldNotFoundError(f"Kernel {self.name} does not have an "
-                                 f"argument with "
-                                 f"{AccessType.INC.api_specific_name()} "
-                                 f"access")
 
     @property
     def ast(self):
@@ -1881,8 +1728,8 @@ class Arguments():
 
         '''
         for arg in self._args:
-            if arg.access in AccessType.all_write_accesses() and \
-                    arg.access not in AccessType.get_valid_reduction_modes():
+            if arg.access in self._parent_call._access_type.all_write_accesses() and \
+                    arg.access not in self._parent_call._access_type.get_valid_reduction_modes():
                 return arg
         raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
                               "we assume there is at least one writer, "
@@ -2415,7 +2262,7 @@ class Argument():
         :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
-        if self.access not in AccessType.all_write_accesses():
+        if self.access not in self._call._access_type.all_write_accesses():
             # I am not a writer so there will be no read dependencies
             return []
 
@@ -2427,10 +2274,10 @@ class Argument():
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
-                if argument.access in AccessType.all_read_accesses() and \
+                if argument.access in self._call._access_type.all_read_accesses() and \
                    access.overlaps(argument):
                     arguments.append(argument)
-                if argument.access in AccessType.all_write_accesses():
+                if argument.access in self._call._access_type.all_write_accesses():
                     access.update_coverage(argument)
                     if access.covered:
                         # We have now found all arguments upon which
@@ -2469,7 +2316,7 @@ class Argument():
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
-                if argument.access not in AccessType.all_write_accesses():
+                if argument.access not in self._call._access_type.all_write_accesses():
                     # no dependence if not a writer
                     continue
                 if not access.overlaps(argument):
@@ -2532,14 +2379,14 @@ class Argument():
 
         '''
         if argument.name == self._name:
-            if self.access in AccessType.all_write_accesses() and \
-               argument.access in AccessType.all_read_accesses():
+            if self.access in self._call._access_type.all_write_accesses() and \
+               argument.access in self._call._access_type.all_read_accesses():
                 return True
-            if self.access in AccessType.all_read_accesses() and \
-               argument.access in AccessType.all_write_accesses():
+            if self.access in self._call._access_type.all_read_accesses() and \
+               argument.access in self._call._access_type.all_write_accesses():
                 return True
-            if self.access in AccessType.all_write_accesses() and \
-               argument.access in AccessType.all_write_accesses():
+            if self.access in self._call._access_type.all_write_accesses() and \
+               argument.access in self._call._access_type.all_write_accesses():
                 return True
         return False
 
