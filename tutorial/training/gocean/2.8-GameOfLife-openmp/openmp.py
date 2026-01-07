@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds a generic OpenMP parallelisation
-to the code.
+'''
+Python script intended to be passed to PSyclone via the -s option.
+It adds a generic OpenMP parallelisation to the code.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -46,7 +46,7 @@ from psyclone.psyGen import InvokeSchedule
 
 def trans(psyir):
     '''
-    Take the supplied psy object, and apply 'omp parallel do' to all loops.
+    Take the supplied psyir object, and apply 'omp parallel do' to all loops.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

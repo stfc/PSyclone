@@ -34,10 +34,12 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel fusion code to
-all invokes.
 '''
+Python script intended to be passed to PSyclone via the -s option.
+It applies module inlining and then fuses the last three loops in
+the first invoke.
+'''
+
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
@@ -46,7 +48,8 @@ from psyclone.psyGen import InvokeSchedule
 
 def trans(psyir):
     '''
-    Take the supplied psyir object, and fuse the last three loops.
+    Take the supplied psyir object, apply kernel module inlining
+    and fuse the last three loops.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

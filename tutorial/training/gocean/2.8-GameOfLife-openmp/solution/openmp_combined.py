@@ -33,8 +33,10 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds optimised OpenMP statements.
+'''
+Python script intended to be passed to PSyclone via the -s option.
+It applies kernel module inlining, then 'omp do' to all loops and
+adds an outer `omp parallel`.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans

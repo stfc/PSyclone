@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds value range verification for all
+'''Python script intended to be passed to PSyclone via the -s option.
+It adds value range verification for all
 kernels.
 '''
 

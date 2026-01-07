@@ -34,10 +34,9 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''
-Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds openmp for an MPI implementation,
-i.e. it is taking the additional halo-exchange nodes that are added
-by PSyclone into account.
+Python script intended to be passed to PSyclone via the -s option.
+It adds OpenMP for an MPI implementation, i.e. it is taking the additional
+halo-exchange nodes that are added by PSyclone into account.
 '''
 
 from psyclone.gocean1p0 import GOLoop
@@ -60,7 +59,7 @@ def trans(psyir):
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
-    # Call the existing fuse transformation, which will also inline.
+    # Call the existing fuse transformation, which will also module inline.
     fuse_trans(psyir)
 
     # As example, select schedule dynamic. Both ways work - either specify

@@ -33,9 +33,10 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel extraction code to
-all invokes.
+'''
+Python script intended to be passed to PSyclone via the -s option.
+It applies kernel module inlining, and then adds OpenMP taskloop
+directives
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans

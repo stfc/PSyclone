@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel fusion code to
-all invokes.
+'''
+Python script intended to be passed to PSyclone via the -s option.
+It applies kernel inlining and then loop fusion to all kernel calls.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -110,7 +110,7 @@ def apply_all(node_list, transform):
 
 def trans(psyir):
     '''
-    Take the supplied psy object, and fuse all loops as much as possible
+    Take the supplied psyir object, and fuse all loops as much as possible.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -120,9 +120,9 @@ def trans(psyir):
     schedule = psyir.walk(InvokeSchedule)[0]
 
     # Inline all kernels to help gfortran with inlining.
-    inline = KernelModuleInlineTrans()
+    km_inline = KernelModuleInlineTrans()
     for kern in schedule.walk(GOKern):
-        inline.apply(kern)
+        km_inline.apply(kern)
 
     # Collect all outer loops
     outer_loops = []

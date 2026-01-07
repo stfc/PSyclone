@@ -33,14 +33,12 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds OpenACC directives to execute
-the code on GPUs.
+'''Python script intended to be passed to PSyclone's via the -s option.
+It adds OpenACC directives to execute the code on GPUs.
 '''
 
 from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
                                       ACCLoopTrans, ACCRoutineTrans)
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.gocean1p0 import GOKern
 from psyclone.psyGen import InvokeSchedule
@@ -50,11 +48,12 @@ from fuse_loops import trans as fuse_trans
 
 def trans(psyir):
     '''
-    Take the supplied psy object, and fuse the first two loops
+    Take the supplied psyir object, use the existing fuse_loops
+    script to do module inlining and fuse the first three loops,
+    then apply OpenACC directives. 
 
     :param psyir: the PSyIR layer to transform.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
-
 
     '''
     # Use existing fuse script to fuse all loops
@@ -62,10 +61,8 @@ def trans(psyir):
 
     # Module inline all kernels (so they can be modified)
     # Then add an acc routine statement to each of them:
-    inline = KernelModuleInlineTrans()
     ktrans = ACCRoutineTrans()
     for kern in psyir.walk(GOKern):
-        inline.apply(kern)
         # Put an 'acc routine' directive inside each kernel
         ktrans.apply(kern)
 

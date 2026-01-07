@@ -34,8 +34,9 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds optimised OpenMP statements.
+'''
+Python script intended to be passed to PSyclone via the -s option.
+It applies 'omp do' to all loops and then adds an outer `omp parallel`
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -49,7 +50,7 @@ from fuse_loops import trans as fuse_trans
 def trans(psyir):
     '''
     Take the supplied psy object, and apply 'omp do' to all loops and
-    an outer `omp parallel`
+    adds an outer `omp parallel`.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

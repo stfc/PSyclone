@@ -34,10 +34,9 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''
-Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds standalone OpenMP loop
-directives for each outer loop, and then encloses them all in
-an OpenMP parallel directive.
+Python script intended to be passed to PSyclone via the -s option.
+It adds standalone OpenMP loop directives for each outer loop, and then
+encloses them all in an OpenMP parallel directive.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans

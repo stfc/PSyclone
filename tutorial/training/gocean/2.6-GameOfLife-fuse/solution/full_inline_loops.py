@@ -33,10 +33,12 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It uses a custom version to allow
-real inlining of a kernel, and then adds kernel fusion code to
-all invokes.
+'''
+Python script intended to be passed to PSyclone via the -s option.
+It analyses the algorithm layer to identify arrays that are not used
+outside of the invoke (i.e. are temporary arrays). It then fuses the
+kernel loops, applies full inlining, and then replaces
+arrays with scalars if the arrays are not used elsewhere.
 '''
 
 from psyclone.core import AccessType, Signature
@@ -91,9 +93,9 @@ def trans_alg(psyir: FileContainer) -> None:
 
 def trans(psyir: FileContainer) -> None:
     '''
-    Take the supplied psyir object, and fuse the first two loops
-
-    :param psyir: the PSyIR of the PSy-layer.
+    Fuse the kernel loops, full inline the kernels, and then
+    replace any temporary array (based on analysing the algorithm
+    layer) with a scalar.
 
     '''
     # pylint: disable=too-many-locals

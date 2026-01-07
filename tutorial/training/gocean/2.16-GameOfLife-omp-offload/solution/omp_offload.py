@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds OpenMP offload directives
-to all kernels.
+'''
+Python script intended to be passed to PSyclone via the -s option.
+It adds OpenMP offload directives to all kernels.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -53,7 +53,6 @@ def trans(psyir):
 
     :param psyir: the PSyIR layer to transform.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
-
 
     '''
 

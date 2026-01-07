@@ -20,7 +20,7 @@ DRIVER_NAME = driver-psy_time_step_alg_mod-invoke_compute-r0
 # to the local dl_no_mpi directory, and put this path first in the search list,
 # so PSyclone will only detect this version.
 # The include paths are:
-# - the gol-library directory (which is added automatically the Makefile, i.e.
+# - the gol-library directory (which is added automatically by the Makefile, i.e.
 #   it is part of $(PSYCLONE)
 # - the dl_no_mpi directory (containing only parallel_utils_stub_mod)
 # - the dl_esm_inf (for all other dl_esm_inf files)
@@ -45,22 +45,7 @@ driver: $(DRIVER_NAME).F90
 $(PSY_DATA_LIB): $(INF_LIB)
 	$(MAKE) -C $(PSY_DATA_DIR)
 
-
 .precious: time_step_alg_mod.f90 time_step_alg_mod_psy.f90
-
-# When creating the driver, we need to specify the paths to all module directories
-# (which PSyclone will search recursively). Unfortunately, dl_esm_info contains
-# two different files with the same module definition (one for MPI, one without),
-# which PSyclone will detect and then abort. So we added a copy of the (non)-MPI
-# to the local dl_no_mpi directory, and put this path first in the search list,
-# so PSyclone will only detect this version.
-# The include paths are:
-# - the gol-library directory (which is added automatically the Makefile, i.e.#
-#   it is part of $(PSYCLONE)
-# - the dl_no_mpi directory (containing only parallel_utils_stub_mod)
-# - the dl_esm_inf (for all other dl_esm_inf files)
-# - the extraction module (from which modules for reading the data and for
-#   comparing the results are used):
 
 # Clean
 # -----

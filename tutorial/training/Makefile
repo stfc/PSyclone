@@ -33,14 +33,16 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-# The transform target `test` runs tests on the gitlab CI (i.e. without
+# The Makefile target `test` runs tests on the gitlab CI (i.e. without
 # compilation), `test_run` will compile all binaries (as far as possible
-# since some examples cannot be compiled), and run will compile and
-# execute the binary (and if tests are available for running the binary
-# they will be triggered as well).
-# Clean removes all temporary files (e.g. transformed code, object
-# and mod files). Allclean will additionally clean all libraries
-# (e.g. infrastructure, psydata).
+# since some examples cannot be compiled), and execute the binary (and
+# if tests are available for checking the binary they will be triggered
+# as well). In case that an example cannot be compiled, `test_run` will
+# still execute all `test` targets. So, `test_run` is the most complete
+# set of tests (and is executed as part of PSyclone's integration tests).
+# The `clean` target removes all temporary files (e.g. transformed code,
+# object # and mod files). Using `allclean` will additionally clean all
+# libraries (e.g. infrastructure, psydata).
 
 .PHONY: allclean clean compile test test_run
 

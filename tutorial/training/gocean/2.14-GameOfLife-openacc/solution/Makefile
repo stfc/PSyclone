@@ -3,7 +3,7 @@ API = gocean
 
 OBJ = time_step_alg_mod.o time_step_alg_mod_psy.o
 
-# Use nvfortran by default
+# Use nvfortran without managed memory by default
 F90 ?= nvfortran
 F90FLAGS ?= -O3 -acc -Minfo=all
 
@@ -16,9 +16,8 @@ include ../../common.mk
 time_step_alg_mod_psy.f90: time_step_alg_mod.f90
 time_step_alg_mod.o: time_step_alg_mod_psy.o
 
-# We can't simply use the default test, since it will require to recompile
-# the infrastructure files. So only test the transformation here.
-# If compilation is to be tested, use `make test-default`
+# First trigger the default test (i.e. run the transformation), then
+# check for the expected OpenACC directives in the output file:
 TS=time_step_alg_mod_psy.f90
 test: test-default
 	cat $(TS) | grep "acc enter data copyin" > /dev/null

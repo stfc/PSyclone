@@ -30,7 +30,7 @@ This is not very efficient for large application (since each
 process needs to read in the global field), but given the very
 simple and short input file size this is acceptable for this application.
 
-3. Gathering Local Data
+3. Gathering Global Data
 The field object provides a method to gather the local data from
 all processes into a 2d array on the master. This is used for
 the simple output functionality.
@@ -47,11 +47,12 @@ memory version `lib_dm_fd` is linked in.
 ## Adding Halo Exchanges
 The only required change is adding halo exchanges, since counting
 the number of neighbours means that updated information from neighbouring
-processes is required. And happily, this error-prone step can be
-done automatically by PSyclone.
+processes is required. And happily, this error-prone step is done
+automatically by PSyclone.
 
-PSyclone relies on the metadata provided for each kernel. Especially
-in `count_neighbours_mod` the metadata is:
+PSyclone relies on the metadata provided for each kernel
+(see [Argument Metadata](https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html#argument-metadata-meta-args)
+for full details). Especially in `count_neighbours_mod` the metadata is:
 
 ```fortran
        type(go_arg), dimension(2) :: meta_args =         &
@@ -103,8 +104,7 @@ kernel that counts the neighbours.
 ## Combination with other Transformations
 MPI can obviously work together with other transformations. Provide the
 `fuse_loops.py` script as an argument via the `-s` flag, and check the
-created output file or the displayed schedule."We will address more intelligent scripting in a later part of this course" perhaps?
-
+created output file or the displayed schedule.
 
 You can also combine distributed memory with OpenMP:
 Start with using the script `openmp.py` from example 2.8 (a copy

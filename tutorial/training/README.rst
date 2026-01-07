@@ -4,7 +4,7 @@ PSyclone Training
 This is the training material for the usage of PSyclone, a code
 transformation and generator tool. PSyclone was originally developed
 for the UK Met Office’s new LFRic numerical weather prediction system,
-but it’s features of modifying large codes based on scripts have found
+but its features of modifying large codes based on scripts have found
 other use cases, for example NOAA’s Tsunami model MOST (Method of
 Splitting Tsunamis) and Nemo (Nucleus for European Modelling of the
 Ocean) are both using it.
@@ -26,12 +26,13 @@ introduced in a simple test case. Some of the hands-on sessions are
 more open ended, and trainees are encouraged to go back to these
 examples and implement better solutions later.
 
-The trainings material is split into four parts, and the files
+The training material is split into four parts, and the files
 and documentation here are only the hands-on section. The full
 training is accompanied by a presentations
 (a slightly outdated version of the slides are available on the `wiki
-<https://github.com/stfc/PSyclone/wiki/Presentations>`_). It
-contains the following session (in order in which they are presented):
+<https://github.com/stfc/PSyclone/wiki/Presentations>`_,
+we are working on updating these, see ticket #3270). It
+contains the following sessions (in the order in which they are presented):
 
 
 PSyclone for LFRic Users
@@ -50,11 +51,11 @@ The material in ``tutorial/training/gocean`` contains an
 introduction to PSyclone domain-specific-language features (DSL).
 It uses the easier ``gocean`` API to introduce the user to
 writing kernels, applying transformations, and writing
-transformation scripts. It is the longest session in this trainings
+transformation scripts. It is the longest session in this training
 material and will take one full day.
 
-PSyclone Transformation API
----------------------------
+Transforming existing Fortran code with PSyclone
+------------------------------------------------
 PSyclone can also be used as a transformation tool for generic
 Fortran code, i.e. not using its DSL code-creation features.
 The material in ``tutorial/training/transformation`` contains
@@ -68,16 +69,17 @@ from the previous sections will apply without modifications, but
 due to the more complex data structures this DSL uses, it's
 harder to understand.
 
-Testing Training
-================
-The different training sections will provide makefiles for the users
-which will contain convenient shortcuts to avoid that a user has
-to type long command line options and file paths. But these targets
-are expected to fail in some cases, for example in the "PSyclone
+Testing the Training Material
+=============================
+The different training sections provide makefiles for the users
+which contain convenient shortcuts to avoid that a user has
+to type long command line options and file paths. However, these targets
+are expected to fail in some cases, e.g. the "PSyclone
 for LFRic Users" section contains examples that show how PSyclone
 will detect errors. In order to facilitate consistent testing
-across the whole trainings material, two additional targets
-have been added to the makefiles:
+across the whole training material, the makefiles contain two special
+targets:
+
 - `test` This will run any tests that will only use transformations.
   E.g. no compilation will be done here (nor running any compiled
   binaries). If a hands-on session is supposed to show a failure,

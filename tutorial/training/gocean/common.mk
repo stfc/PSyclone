@@ -64,7 +64,7 @@ compile-default: $(EXE)
 run-default: $(EXE)
 	./$(EXE) $(GOL_DIR)/config.glider
 
-# Testing, which does not run on github, typicall should just
+# Testing, which does not run on github, typically should just
 # check the transform target. Though multiple examples will define
 # their own test target (e.g. to verify several transformations, errors, ...)
 test-default: transform

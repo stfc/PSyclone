@@ -6,6 +6,13 @@ module output_field_mod
 contains
 
     subroutine output_field(field)
+    !> @brief Outputs the status of the game of life.
+    !>
+    !> This subroutine collects the (potentially local) values of
+    !> the field onto the master process, and prints the state.
+    !>
+    !> @param[in] field The state of the Game of Life: 1 for a
+    !>                  cell that is alive, 0 otherwise.
         USE field_mod, only      : r2d_field
         USE kind_params_mod, only: go_wp
         USE parallel_mod, only: on_master
@@ -16,7 +23,10 @@ contains
         real(go_wp), dimension(:,:), allocatable :: global_data
         integer                                  :: j
 
+! If this file is compiled with OpenACC support, update the CPU copy
+! of the data with the values from the GPU first:
 !$acc update self(field%data)
+
         ! Gather the (potentially distributed) arrays into a
         ! 2d Fortran array
         call field%gather_inner_data(global_data)

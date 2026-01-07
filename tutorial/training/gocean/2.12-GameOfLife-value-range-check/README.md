@@ -1,6 +1,6 @@
 # Using PSyclone's PSyData Plugin Structure - Value Range Check
 
-This examples shows PSyclone's value range check functionality.
+This example shows PSyclone's value range check functionality.
 It utilises the PSyData interface.
 
 ## Value Range Checking

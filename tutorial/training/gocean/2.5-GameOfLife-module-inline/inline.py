@@ -34,8 +34,8 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It module inlines all kernels.
+'''Python script intended to be passed to PSyclone via the -s option.
+It module inlines all kernels.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans

@@ -27,8 +27,8 @@ contains
     !> @brief Computes which empty fields will get a new cell.
     !>
     !> This subroutine computes a field 'born' which has the value '1'
-    !> for each dead cell, but which will get a new cell. Otherwise
-    !> the field is 0.
+    !> for every currently dead (empty) cell, where a new cell will be
+    !> born. Otherwise the field is 0.
     !>
     !> @param[in]  i, j Coordinates of the cell to update.
     !> @param[out] born The output field with 1 iff a cell is newly born.
@@ -45,7 +45,6 @@ contains
         ! A new cell is born in an empty location if
         ! it has exactly three neighbours.
         if (current(i, j) == 0.0 .and. neighbours(i,j) == 3.0) then
-            born(i, j) = 1.0
             born(i, j) = 1.0 / (i-j)
         endif
 

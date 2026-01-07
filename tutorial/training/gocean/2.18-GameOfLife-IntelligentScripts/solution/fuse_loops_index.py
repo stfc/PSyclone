@@ -33,9 +33,10 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel fuseion code to
-all invokes.
+'''
+Python script intended to be passed to PSyclone via the -s option.
+It applies kernel inlining and then fuse the first three loops of
+the first invoke.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
