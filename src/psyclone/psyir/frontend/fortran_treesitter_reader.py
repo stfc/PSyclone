@@ -69,8 +69,9 @@ class FortranTreeSitterReader():
         }
 
     @staticmethod
-    def text_to_parse_tree(source_code, ignore_comments, free_form,
-                           ignore_directives):
+    def text_to_parse_tree(cls, source_code, ignore_comments, free_form,
+                           ignore_directives, conditional_openmp,
+                           partial_code=None):
         def report_errors(node):
             ''' Recursively find and report errors '''
             if node.type == 'ERROR':

@@ -1017,14 +1017,17 @@ class Fparser2Reader():
 
     @classmethod
     def text_to_parse_tree(cls, source_code, ignore_comments, free_form,
-                           ignore_directives, partial_code=None):
+                           ignore_directives, conditional_openmp,
+                           partial_code=None):
         # self._free_form = free_form
         # self._ignore_comments = ignore_comments
 
         string_reader = FortranStringReader(
             source_code, include_dirs=Config.get().include_paths,
             ignore_comments=ignore_comments,
-            process_directives=not ignore_directives)
+            process_directives=not ignore_directives,
+            include_omp_conditional_lines=conditional_openmp,
+        )
         # Set reader to free format.
         string_reader.set_format(FortranFormat(free_form, False))
 
@@ -1053,7 +1056,7 @@ class Fparser2Reader():
                 raise ValueError(
                     f"Failed to parse the provided source code:\n{source_code}"
                     "\nError was: {err}\nIs the input valid Fortran (note that"
-                    f"CPP directives must be handled by a pre-processor)?"
+                    f" CPP directives must be handled by a pre-processor)?"
                 ) from err
         return parse_tree
 

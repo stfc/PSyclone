@@ -138,7 +138,7 @@ class FortranReader():
         '''
         tree = self._processor.text_to_parse_tree(
                 source_code, self._ignore_comments, self._free_form,
-                self._ignore_directives)
+                self._ignore_directives, self._conditional_openmp_statements)
         psyir = self._processor.generate_psyir(tree)
         return psyir
 
@@ -168,7 +168,8 @@ class FortranReader():
 
         tree = self._processor.text_to_parse_tree(
                 source_code, self._ignore_comments, self._free_form,
-                self._ignore_directives, partial_code="expression")
+                self._ignore_directives, self._conditional_openmp_statements,
+                partial_code="expression")
 
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the expression and lookup any symbols that it
@@ -209,7 +210,8 @@ class FortranReader():
 
         tree = self._processor.text_to_parse_tree(
                 source_code, self._ignore_comments, self._free_form,
-                self._ignore_directives, partial_code="statement")
+                self._ignore_directives, self._conditional_openmp_statements,
+                partial_code="statement")
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the statement and lookup any symbols that it
         # references.
@@ -237,7 +239,9 @@ class FortranReader():
                             the supplied file.
         '''
         with open(file_path, encoding="utf-8") as fortran_file:
-            return self.psyir_from_source(fortran_file.read())
+            output = self.psyir_from_source(fortran_file.read())
+        output.name = str(file_path).split('/')[-1]
+        return output
 
 
 # For Sphinx AutoAPI documentation generation
