@@ -51,20 +51,15 @@ class FortranReader():
 
     :param free_form: If parsing free-form code or not (default True).
     :param ignore_comments: If comments should be ignored or not
-                            (default True).
+        (default True).
     :param ignore_directives: If directives should be ignored or not
-                            (default True). Only has an effect
-                            if ignore_comments is False.
+        (default True). Only has an effect if ignore_comments is False.
     :param conditional_openmp_statements: whether to keep statements with the
-                                          OpenMP conditional compilation
-                                          prefix.
-    :param last_comments_as_codeblocks: If the last comments in the
-                                        a given block (e.g. subroutine,
-                                        do, if-then body, etc.) should
-                                        be kept as code blocks or lost
-                                        (default False).
-                                        Only has an effect if ignore_comments
-                                        is False.
+        OpenMP conditional compilation prefix.
+    :param last_comments_as_codeblocks: If the last comments in the a given
+        block (e.g. subroutine, do, if-then body, etc.) should be kept as
+        Codeblocks or lost (default False). Only has an effect if
+        ignore_comments is False.
     :param resolve_modules: Whether to resolve modules while parsing a file,
         for more precise control it also accepts a list of module names.
         Defaults to False.
