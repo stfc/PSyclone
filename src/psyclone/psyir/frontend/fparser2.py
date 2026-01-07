@@ -2159,13 +2159,6 @@ class Fparser2Reader():
                 raise NotImplementedError(
                     "Derived-type definition contains unsupported attributes.")
 
-            # We don't yet support derived-type definitions with a CONTAINS
-            # section.
-            contains = walk(decl, Fortran2003.Contains_Stmt)
-            if contains:
-                raise NotImplementedError(
-                    "Derived-type definition has a CONTAINS statement.")
-
             # Re-use the existing code for processing symbols. This needs to
             # be able to find any symbols declared in an outer scope but
             # referenced within the type definition (e.g. a type name). Hence
@@ -2174,17 +2167,24 @@ class Fparser2Reader():
             local_table.default_visibility = default_compt_visibility
 
             preceding_comments = []
-            for child in decl.children:
+            for child in decl.children[1:]:
                 if isinstance(child, Fortran2003.Comment):
                     self.process_comment(child, preceding_comments)
-                    continue
-                if isinstance(child, Fortran2003.Component_Part):
+                elif isinstance(child, Fortran2003.Component_Part):
                     for component in walk(child,
                                           Fortran2003.Data_Component_Def_Stmt):
                         self._process_decl_or_create_unsupported(
                             parent, local_table, component,
                             preceding_comments=preceding_comments)
                         preceding_comments = []
+                elif isinstance(child, (Fortran2003.Private_Components_Stmt,
+                                        Fortran2003.End_Type_Stmt)):
+                    continue
+                else:
+                    raise NotImplementedError(
+                        f"Found unsupported '{type(child)} while processing "
+                        "a derived type"
+                    )
 
             # Convert from Symbols to StructureType components.
             for symbol in local_table.symbols:
