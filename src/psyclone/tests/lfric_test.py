@@ -47,7 +47,8 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
+from psyclone.domain.lfric import (FunctionSpace, LFRicAccessType,
+                                   LFRicArgDescriptor,
                                    LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
@@ -572,7 +573,7 @@ def test_invoke_uniq_declns_valid_access():
     assert fields_read == ["f2", "m1", "m2"]
     assert fields_proxy_read == ["f2_proxy", "m1_proxy", "m2_proxy"]
     fields_incremented_args = (psy.invokes.invoke_list[0].unique_declarations(
-        ["gh_field"], access=AccessType.INC))
+        ["gh_field"], access=LFRicAccessType.INC))
     fields_incremented = [arg.declaration_name for arg in
                           fields_incremented_args]
     fields_proxy_incremented = [arg.proxy_declaration_name for arg in

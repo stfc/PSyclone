@@ -480,68 +480,6 @@ class Invoke():
     def schedule(self, obj):
         self._schedule = obj
 
-    def unique_declarations(self, argument_types, access=None,
-                            intrinsic_type=None):
-        '''
-        Returns a list of all required declarations for the specified
-        API argument types. If access is supplied (e.g. "write") then
-        only declarations with that access are returned. If an intrinsic
-        type is supplied then only declarations with that intrinsic type
-        are returned.
-
-        :param argument_types: the types of the kernel argument for the \
-                               particular API.
-        :type argument_types: list of str
-        :param access: optional AccessType that the declaration should have.
-        :type access: :py:class:`psyclone.core.access_type.AccessType`
-        :param intrinsic_type: optional intrinsic type of argument data.
-        :type intrinsic_type: str
-
-        :returns: a list of all declared kernel arguments.
-        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
-
-        :raises InternalError: if at least one kernel argument type is \
-                               not valid for the particular API.
-        :raises InternalError: if an invalid access is specified.
-        :raises InternalError: if an invalid intrinsic type is specified.
-
-        '''
-        # First check for invalid argument types, access and intrinsic type
-        const = Config.get().api_conf().get_constants()
-        if any(argtype not in const.VALID_ARG_TYPE_NAMES for
-               argtype in argument_types):
-            raise InternalError(
-                f"Invoke.unique_declarations() called with at least one "
-                f"invalid argument type. Expected one of "
-                f"{const.VALID_ARG_TYPE_NAMES} but found {argument_types}.")
-
-        if access and not isinstance(access, AccessType):
-            raise InternalError(
-                f"Invoke.unique_declarations() called with an invalid "
-                f"access type. Type is '{access}' instead of AccessType.")
-
-        if (intrinsic_type and intrinsic_type not in
-                const.VALID_INTRINSIC_TYPES):
-            raise InternalError(
-                f"Invoke.unique_declarations() called with an invalid "
-                f"intrinsic argument data type. Expected one of "
-                f"{const.VALID_INTRINSIC_TYPES} but found '{intrinsic_type}'.")
-
-        # Initialise dictionary of kernel arguments to get the
-        # argument list from
-        declarations = OrderedDict()
-        # Find unique kernel arguments using their declaration names
-        for call in self.schedule.kernels():
-            for arg in call.arguments.args:
-                if not intrinsic_type or arg.intrinsic_type == intrinsic_type:
-                    if not access or arg.access == access:
-                        if arg.text is not None:
-                            if arg.argument_type in argument_types:
-                                test_name = arg.declaration_name
-                                if test_name not in declarations:
-                                    declarations[test_name] = arg
-        return list(declarations.values())
-
     def first_access(self, arg_name):
         ''' Returns the first argument with the specified name passed to
         a kernel in our schedule '''
@@ -714,6 +652,7 @@ class HaloExchange(Statement):
     _children_valid_format = "<LeafNode>"
     _text_name = "HaloExchange"
     _colour = "blue"
+    _access_type = AccessType
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):

@@ -37,6 +37,7 @@
 
 '''This module implements the AccessType used throughout PSyclone.'''
 
+from __future__ import annotations
 from enum import Enum
 from psyclone.configuration import Config
 

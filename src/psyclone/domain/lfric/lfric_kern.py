@@ -1151,7 +1151,7 @@ class LFRicKern(CodedKern):
         # Check whether this kernel reads from an operator
         op_args = parent_loop.args_filter(
             arg_types=const.VALID_OPERATOR_NAMES,
-            arg_accesses=[LFRicAccessType.READ, LFRicAccessType.READWRITE])
+            arg_accesses=[AccessType.READ, AccessType.READWRITE])
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.

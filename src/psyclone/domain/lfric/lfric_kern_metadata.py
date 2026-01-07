@@ -483,7 +483,7 @@ class LFRicKernMetadata(KernelType):
             farg_read = psyGen.args_filter(
                 self._arg_descriptors,
                 arg_types=const.VALID_FIELD_NAMES,
-                arg_accesses=[LFRicAccessType.READ])
+                arg_accesses=[AccessType.READ])
             write_accesses = LFRicAccessType.all_write_accesses()
             farg_write = psyGen.args_filter(
                 self._arg_descriptors,

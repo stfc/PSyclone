@@ -485,8 +485,7 @@ class LFRicMeshProperties(LFRicCollection):
                     arg_list.append(name)
                     if var_accesses is not None:
                         var_accesses.add_access(
-                            Signature(name), LFRicAccessType.READ,
-                            self._kernel)
+                            Signature(name), AccessType.READ, self._kernel)
 
                 adj_face = "adjacent_face"
                 if not stub and kern_call_arg_list:
@@ -501,7 +500,7 @@ class LFRicMeshProperties(LFRicCollection):
                     adj_face = adj_face_sym.name
                     if var_accesses:
                         var_accesses.add_access(Signature(adj_face),
-                                                LFRicAccessType.READ,
+                                                AccessType.READ,
                                                 self._kernel)
 
                 if not stub:
@@ -520,7 +519,7 @@ class LFRicMeshProperties(LFRicCollection):
 
                 if var_accesses and not kern_call_arg_list:
                     var_accesses.add_access(Signature(adj_face),
-                                            LFRicAccessType.READ, self._kernel)
+                                            AccessType.READ, self._kernel)
             else:
                 raise InternalError(
                     f"kern_args: found unsupported mesh property '{prop}' "
@@ -4081,6 +4080,8 @@ class LFRicHaloExchange(HaloExchange):
     :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
     '''
+    _access_type = LFRicAccessType
+
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         HaloExchange.__init__(self, field, check_dirty=check_dirty,
@@ -4514,7 +4515,7 @@ class LFRicHaloExchangeStart(LFRicHaloExchange):
         # Update the field's access appropriately. Here "gh_read"
         # specifies that the start of a halo exchange only reads
         # the field's data.
-        self._field.access = LFRicAccessType.READ
+        self._field.access = AccessType.READ
         # override appropriate parent class names
         self._halo_exchange_name = "halo_exchange_start"
 
@@ -4629,7 +4630,7 @@ class LFRicHaloExchangeEnd(LFRicHaloExchange):
         # written to. However, a readwrite field access needs to be
         # specified as this is required for the halo exchange logic to
         # work correctly.
-        self._field.access = LFRicAccessType.READWRITE
+        self._field.access = AccessType.READWRITE
         # override appropriate parent class names
         self._halo_exchange_name = "halo_exchange_finish"
 
