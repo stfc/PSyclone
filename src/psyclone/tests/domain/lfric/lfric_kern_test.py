@@ -573,3 +573,26 @@ def test_argument_kinds():
     assert len(kern.argument_kinds) == 2
     assert "i_def" in kern.argument_kinds
     assert "r_def" in kern.argument_kinds
+
+
+def test_validate_kernel_code_arg_against_alg_arg(monkeypatch):
+    '''
+    Test that the kernel validation checks that the kernel argument
+    precision matches the specified in the Algorithm layer.
+    '''
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                             name="invoke_0", dist_mem=False)
+    sched = invoke.schedule
+    # Second kernel has args of precision r_solver.
+    kernel = sched.walk(LFRicKern, stop_type=LFRicKern)[1]
+    read_access = ArgumentInterface(ArgumentInterface.Access.READ)
+    lfric_real_scalar_symbol = LFRicTypes("LFRicRealScalarDataSymbol")(
+        "scalar", interface=read_access)
+    with pytest.raises(GenerationError) as err:
+        kernel._validate_kernel_code_arg(lfric_real_scalar_symbol,
+                                         lfric_real_scalar_symbol,
+                                         kernel.args[0])
+    assert ("Precision (4 bytes) of algorithm-layer argument "
+            "'scalar_r_solver' does not match that (8 bytes) of the "
+            "corresponding kernel subroutine argument 'scalar' for kernel "
+            "'mixed_code'" in str(err.value))
