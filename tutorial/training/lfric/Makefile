@@ -7,7 +7,7 @@ test_run_EXAMPLES=$(addprefix test_run_,$(EXAMPLES))
 
 .PHONY: $(allclean_EXAMPLES) $(clean_EXAMPLES) \
         $(test_EXAMPLES) $(test_run_EXAMPLES)  \
-        allclean clean compile run test
+        allclean clean run test
 
 default: test
 

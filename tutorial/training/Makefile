@@ -44,9 +44,9 @@
 # object # and mod files). Using `allclean` will additionally clean all
 # libraries (e.g. infrastructure, psydata).
 
-.PHONY: allclean clean compile test test_run
+.PHONY: allclean clean test test_run
 
-allclean clean compile test test_run:
+allclean clean test test_run:
 	$(MAKE) -C psyclone_for_lfric_users $@
 	$(MAKE) -C gocean $@
 	$(MAKE) -C transformation $@
