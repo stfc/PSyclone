@@ -902,7 +902,7 @@ def test_unsupported_decln(fortran_reader):
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     with pytest.raises(NotImplementedError) as error:
-        processor._process_decln(fake_parent, symtab, fparser2spec)
+        processor._process_decln(fake_parent, symtab, fparser2spec, {})
     assert "Unrecognised attribute type 'str'" in str(error.value)
 
 

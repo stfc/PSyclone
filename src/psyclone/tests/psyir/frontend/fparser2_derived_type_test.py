@@ -633,20 +633,16 @@ def test_array_of_derived_type_pointer(f2008_parser):
 
 
 def test_type_with_unsupported_component(f2008_parser):
-    ''' Check that types with unsupported components still create the
-    StructureType with the correct component names.  '''
+    ''' Check that types with unsupported components create StructureType with
+    the correct component names of UnsupportedFortranType.  '''
     fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     fparser2spec = f2008_parser(
         FortranStringReader("subroutine my_sub()\n"
-                            "  real :: supported\n"
-                            "  real :: unsupported\n"
                             "  type :: my_type\n"
                             "    real :: supported, supported2\n"
                             "    real, pointer :: unsupported, unsupported2\n"
                             "  end type my_type\n"
-                            "  real :: supported\n"
-                            "  real :: unsupported\n"
                             "end subroutine my_sub\n"))
 
     processor.process_declarations(fake_parent,
@@ -664,8 +660,8 @@ def test_type_with_unsupported_component(f2008_parser):
 
 def test_type_with_outside_reference(f2008_parser):
     ''' Check that a derived types components with references before and
-    after their declaration can be parsed, and when possible, are internally
-    consistent. '''
+    after their declaration can be parsed and have consistent symbosl.
+    '''
     fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     fparser2spec = f2008_parser(
@@ -695,7 +691,7 @@ def test_type_with_outside_reference(f2008_parser):
     assert before.is_automatic
     assert after.is_automatic
 
-    # Check that when possible, the symbols are itnernally consistent
+    # Check that the symbols are consistent
     assert y.datatype.components["c"].datatype is before
     assert y.datatype.components["d"].datatype is after
 

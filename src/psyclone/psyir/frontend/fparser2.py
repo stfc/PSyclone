@@ -1672,16 +1672,16 @@ class Fparser2Reader():
         scope: ScopingNode,
         symbol_table: SymbolTable,
         decl: Fortran2003.Type_Declaration_Stmt,
-        visibility_map: dict[str, Symbol.Visibility] = {},
+        visibility_map: Optional[dict[str, Symbol.Visibility]] = None,
         statics_list: Iterable[str] = (),
         preceding_comments: Iterable[str] = (),
     ):
-        ''' Wraps the call to the _process_decl method with the exception
-        handling to create UnsupportedTypes with partial_datatypes when
-        an issue is found.
+        ''' Wraps the call to the _process_decl method with exception handling
+        for NotImplementedError, in that case creates symbols of
+        UnsupportedFortranType.
 
-        :param scope: PSyIR node in which to insert the symbols found.
-        :param symbol_table: the symbol table to which to add new symbols.
+        :param scope: the PSyIR location of the declaration.
+        :param symbol_table: the symbol table in which to add new symbols.
         :param decl: fparser2 parse tree of declaration to process.
         :param visibility_map: mapping of symbol name to visibility (for
             those symbols listed in an accessibility statement).
@@ -1693,6 +1693,9 @@ class Fparser2Reader():
         :raise SymbolError: a symbol with the same name already in the given
             symbol table.
         '''
+        if visibility_map is None:
+            visibility_map = {}
+
         try:
             tsym = self._process_decln(scope, symbol_table,
                                        decl, visibility_map,
@@ -1771,7 +1774,7 @@ class Fparser2Reader():
         scope: ScopingNode,
         symbol_table: SymbolTable,
         decl: Fortran2003.Type_Declaration_Stmt,
-        visibility_map: Optional[dict[str, Symbol.Visibility]] = None,
+        visibility_map: dict[str, Symbol.Visibility],
         statics_list: Iterable[str] = ()
     ):
         '''
@@ -1779,7 +1782,7 @@ class Fparser2Reader():
         entity that is declared, a symbol is added to the supplied symbol
         table.
 
-        :param scope: PSyIR node in which to insert the symbols found.
+        :param scope: the PSyIR location of the declaration.
         :param symbol_table: the symbol table to which to add new symbols.
         :param decl: fparser2 parse tree of declaration to process.
         :param visibility_map: mapping of symbol name to visibility (for
@@ -1964,11 +1967,8 @@ class Fparser2Reader():
                 visibility = decln_access_spec
             else:
                 # There was no access-spec on the LHS of the decln
-                if visibility_map is not None:
-                    visibility = visibility_map.get(
-                        sym_name, symbol_table.default_visibility)
-                else:
-                    visibility = symbol_table.default_visibility
+                visibility = visibility_map.get(
+                    sym_name, symbol_table.default_visibility)
 
             listed_in_save = "*" in statics_list or sym_name in statics_list
             if has_save_attr or listed_in_save:
@@ -2212,15 +2212,19 @@ class Fparser2Reader():
 
         return tsymbol
 
-    def _get_partial_datatype(self, node, scope, symbol_table, visibility_map):
+    def _get_partial_datatype(
+        self,
+        node: Fortran2003.Type_Declaration_Stmt,
+        scope: ScopingNode,
+        symbol_table: SymbolTable,
+        visibility_map
+    ):
         '''Try to obtain partial datatype information from node by removing
         any unsupported properties in the declaration.
 
         :param node: fparser2 node containing the declaration statement.
-        :type node: :py:class:`fparser.two.Fortran2008.Type_Declaration_Stmt`
-            or :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
-        :param scope: PSyIR node in which to insert the symbols found.
-        :type scope: :py:class:`psyclone.psyir.nodes.ScopingNode`
+        :param scope: the PSyIR location of the declaration.
+        :param symbol_table: the symbol table in which to add new symbols.
         :param visibility_map: mapping of symbol names to explicit
             visibilities.
         :type visibility_map: dict with str keys and values of type
@@ -2262,8 +2266,7 @@ class Fparser2Reader():
 
         # Try to parse the modified node.
         try:
-            self._process_decln(scope, symbol_table, node,
-                                visibility_map)
+            self._process_decln(scope, symbol_table, node, visibility_map)
             symbol_name = node.children[2].children[0].children[0].string
             symbol_name = symbol_name.lower()
             new_sym = symbol_table.lookup(symbol_name)

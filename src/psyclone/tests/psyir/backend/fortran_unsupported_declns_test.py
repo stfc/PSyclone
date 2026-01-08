@@ -151,7 +151,8 @@ def test_fw_add_accessibility_errors():
     raises the expected errors. '''
     with pytest.raises(TypeError) as err:
         add_accessibility_to_unsupported_declaration("hello")
-    assert str(err.value) == "Expected a Symbol but got 'str'"
+    assert str(err.value) == (
+        "Expected a Symbol or DerivedType component but got 'str'")
     with pytest.raises(TypeError) as err:
         add_accessibility_to_unsupported_declaration(
             DataSymbol("var", INTEGER_TYPE))
@@ -304,34 +305,11 @@ def test_fw_save_common(fortran_reader, fortran_writer):
     assert "integer, save, public :: var3\n" in output
 
 
-def test_fw_unsupported_type_components(fortran_reader, fortran_writer):
-    ''' Check that the writer can handler type declarations with unsupported
-    components. '''
-
-    code = '''\
-subroutine my_sub()
-  type :: before
-  end type before
-  type :: y
-    TYPE(before), POINTER :: a
-    TYPE(after), POINTER :: b
-    type(before) :: c
-    type(after) :: d
-  end type y
-  type :: after
-  end type after
-
-
-end subroutine my_sub\n'''
-    psyir = fortran_reader.psyir_from_source(code)
-    output = fortran_writer(psyir)
-    assert code == output
-
-
 def test_fw_unsupported_type_components_with_visibility(
             fortran_reader, fortran_writer):
     ''' Check that the writer can handler type declarations with unsupported
-    components. '''
+    components, and these have the visibility attribute modified when needed.
+    '''
 
     code = '''\
 module mymod
@@ -346,6 +324,7 @@ end module mymod\n'''
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
     # Check that the private attribute has been added to supported and
-    # unsupported, component types
+    # unsupported, component types (because the backend does not use
+    # global visibility statements)
     assert "real, private :: supported" in output
     assert "real, pointer, private :: unsupported" in output
