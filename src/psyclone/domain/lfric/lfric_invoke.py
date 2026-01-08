@@ -42,6 +42,7 @@
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.psyGen import Invoke
 from psyclone.psyir.nodes import Assignment, Reference, Call, Literal
@@ -173,25 +174,26 @@ class LFRicInvoke(Invoke):
         # Lastly, add in halo exchange calls and global sums if
         # required. We only need to add halo exchange calls for fields
         # since operators are assembled in place and scalars don't
-        # have halos. We only need to add global sum calls for scalars
-        # which have a 'gh_sum' access.
+        # have halos. We only need to add global reduction calls for scalars
+        # which have a 'gh_reduction' access.
         if Config.get().distributed_memory:
             # halo exchange calls
             const = LFRicConstants()
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
-            # global sum calls
-            for loop in self.schedule.loops():
-                for scalar in loop.args_filter(
-                        arg_types=const.VALID_SCALAR_NAMES,
-                        arg_accesses=AccessType.get_valid_reduction_modes(),
-                        unique=True):
-                    if scalar.access != AccessType.SUM:
-                        raise GenerationError(
-                            "TODO #2381 - currently only global *sum* "
-                            "reductions are supported.")
-                    global_sum = LFRicGlobalSum(scalar, parent=loop.parent)
-                    loop.parent.children.insert(loop.position+1, global_sum)
+            # Global reductions
+            for kern in self.schedule.walk(LFRicBuiltIn):
+                if not kern.is_reduction:
+                    continue
+                loop = kern.parent.parent
+                if kern.reduction_type == "sum":
+                    global_red = LFRicGlobalSum(kern.reduction_arg,
+                                                parent=loop.parent)
+                else:
+                    raise GenerationError(
+                        "TODO #2381 - currently only global *sum* "
+                        "reductions are supported.")
+                loop.parent.children.insert(loop.position+1, global_red)
 
         # Add the halo depth(s) for any kernel(s) that operate in the halos
         self._alg_unique_halo_depth_args = []

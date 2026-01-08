@@ -58,8 +58,8 @@ class AccessType(Enum):
     #: Read before incrementing. Requires that the outermost halo be clean (see
     #: the LFRic API section of the User Guide).
     READINC = 5
-    #: Is the output of a SUM reduction.
-    SUM = 6
+    #: Is the output of a (min/max/sum) reduction.
+    REDUCTION = 6
     #: This is used internally to indicate unknown access type of
     #: a variable, e.g. when a variable is passed to a subroutine
     #: and the access type of this variable in the subroutine
@@ -76,10 +76,6 @@ class AccessType(Enum):
     #: is available at compile-time and can be used for type properties such
     #: as kinds or dimensions.
     CONSTANT = 10
-    #: Is the output of a MIN reduction (i.e. global minimum value).
-    MIN = 11
-    #: Is the output of a MAX reduction (i.e. global maximum value).
-    MAX = 12
 
     def __str__(self) -> str:
         '''Convert to a string representation, returning just the
@@ -141,7 +137,7 @@ class AccessType(Enum):
         '''
         :returns: A list of valid reduction access modes.
         '''
-        return [AccessType.SUM, AccessType.MIN, AccessType.MAX]
+        return [AccessType.REDUCTION]
 
     @staticmethod
     def get_valid_reduction_names():

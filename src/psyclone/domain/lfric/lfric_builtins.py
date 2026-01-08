@@ -44,6 +44,7 @@
 
 # pylint: disable=too-many-lines
 import abc
+from typing import Optional
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, VariablesAccessMap
@@ -168,6 +169,9 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     '''
     _case_name = None
     _datatype = None
+    #: The type of reduction performed by this kernel. By default this is
+    ## None indicating no reduction.
+    _reduction_type = None
 
     def __init__(self):
         # Builtins do not accept quadrature
@@ -451,6 +455,14 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
         '''
         return self._fs_descriptors
+
+    @property
+    def reduction_type(self) -> Optional[str]:
+        '''
+        :returns: the type of reduction operation performed by this Built-in
+            or None if it does not perform a reduction.
+        '''
+        return self._reduction_type
 
     def get_dof_loop_index_symbol(self):
         '''
@@ -2352,6 +2364,7 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
     '''
     _case_name = "X_innerproduct_Y"
     _datatype = "real"
+    _reduction_type = "sum"
 
     @classmethod
     def metadata(cls):
@@ -2363,7 +2376,7 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
         '''
         gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
         return cls._builtin_metadata([
-            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            ScalarArgMetadata(gh_datatype, "gh_reduction"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
@@ -2399,6 +2412,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
     '''
     _case_name = "X_innerproduct_X"
     _datatype = "real"
+    _reduction_type = "sum"
 
     @classmethod
     def metadata(cls):
@@ -2410,7 +2424,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
         '''
         gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
         return cls._builtin_metadata([
-            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            ScalarArgMetadata(gh_datatype, "gh_reduction"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self) -> Node:
@@ -2449,6 +2463,7 @@ class LFRicSumXKern(LFRicBuiltIn):
     '''
     _case_name = "sum_X"
     _datatype = "real"
+    _reduction_type = "sum"
 
     @classmethod
     def metadata(cls):
@@ -2460,7 +2475,7 @@ class LFRicSumXKern(LFRicBuiltIn):
         '''
         gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
         return cls._builtin_metadata([
-            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            ScalarArgMetadata(gh_datatype, "gh_reduction"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def __str__(self):
@@ -2757,6 +2772,7 @@ class LFRicMinvalXKern(LFRicBuiltIn):
     '''
     _case_name = "minval_X"
     _datatype = "real"
+    _reduction_type = "min"
 
     @classmethod
     def metadata(cls) -> LFRicKernelMetadata:
@@ -2764,7 +2780,7 @@ class LFRicMinvalXKern(LFRicBuiltIn):
         :returns: kernel metadata describing this built-in.
         """
         return cls._builtin_metadata([
-            ScalarArgMetadata("gh_real", "gh_min"),
+            ScalarArgMetadata("gh_real", "gh_reduction"),
             FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
 
     def __str__(self):
@@ -2796,6 +2812,7 @@ class LFRicMaxvalXKern(LFRicBuiltIn):
     '''
     _case_name = "maxval_X"
     _datatype = "real"
+    _reduction_type = "max"
 
     @classmethod
     def metadata(cls) -> LFRicKernelMetadata:
@@ -2803,7 +2820,7 @@ class LFRicMaxvalXKern(LFRicBuiltIn):
         :returns: kernel metadata describing this built-in.
         """
         return cls._builtin_metadata([
-            ScalarArgMetadata("gh_real", "gh_max"),
+            ScalarArgMetadata("gh_real", "gh_reduction"),
             FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
 
     def __str__(self):

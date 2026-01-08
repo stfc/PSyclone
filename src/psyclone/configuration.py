@@ -46,6 +46,7 @@ import abc
 from configparser import (ConfigParser, MissingSectionHeaderError,
                           ParsingError)
 from collections import namedtuple
+import logging
 import os
 import re
 import sys
@@ -811,11 +812,12 @@ class BaseConfig:
     '''
 
     def __init__(self, section):
+        logger = logging.getLogger(__name__)
         # Set a default mapping, this way the test cases all work without
         # having to specify those mappings.
         self._access_mapping = {"read": "read", "write": "write",
                                 "readwrite": "readwrite", "inc": "inc",
-                                "sum": "sum", "min": "min", "max": "max"}
+                                "reduction": "reduction", "sum": "reduction"}
         # Get the mapping if one exists and convert it into a
         # dictionary. The input is in the format: key1:value1,
         # key2=value2, ...
@@ -837,9 +839,11 @@ class BaseConfig:
                         AccessType.from_string(access_type)
                 except ValueError as err:
                     # Raised by from_string()
-                    raise ConfigurationError(
+                    # raise ConfigurationError(
+                    logger.warn(
                         f"Unknown access type '{access_type}' found for key "
-                        f"'{api_access_name}'") from err
+                        f"'{api_access_name}'")
+                    # from err
 
         # Now create the reverse lookup (for better error messages):
         self._reverse_access_mapping = {v: k for k, v in

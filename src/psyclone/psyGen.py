@@ -74,9 +74,6 @@ from psyclone.psyir.symbols.symbol_table import SymbolTable
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 
-# Mapping of access type to operator.
-REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
-
 
 def object_index(alist, item):
     '''
@@ -1041,15 +1038,6 @@ class Kern(Statement):
         '''
         tag = f"{self.name}:{self._reduction_arg.name}:local"
         local_symbol = table.lookup_with_tag(tag)
-        reduction_access = self._reduction_arg.access
-        if reduction_access not in REDUCTION_OPERATOR_MAPPING:
-            api_strings = [access.api_specific_name()
-                           for access in REDUCTION_OPERATOR_MAPPING]
-            raise GenerationError(
-                f"Unsupported reduction access "
-                f"'{reduction_access.api_specific_name()}' found in "
-                f"LFRicBuiltIn:reduction_sum_loop(). Expected one of "
-                f"{api_strings}.")
         symtab = table
         thread_idx = symtab.lookup_with_tag("omp_thread_index")
         nthreads = symtab.lookup_with_tag("omp_num_threads")

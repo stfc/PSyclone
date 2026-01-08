@@ -560,7 +560,7 @@ use argument_mod,  only : arg_type,            &
   type, public, extends(kernel_type) :: X_innerproduct_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_SCALAR, GH_REAL, GH_SUM              ),         &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION        ),         &
           arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_SPACE_1),         &
           arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_SPACE_1)          &
           /)
@@ -573,7 +573,7 @@ use argument_mod,  only : arg_type,            &
   type, public, extends(kernel_type) :: X_innerproduct_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_SCALAR, GH_REAL, GH_SUM              ),         &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION        ),         &
           arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_SPACE_1)          &
           /)
      integer :: operates_on = DOF
@@ -589,7 +589,7 @@ use argument_mod,  only : arg_type,            &
   type, public, extends(kernel_type) :: sum_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_SCALAR, GH_REAL, GH_SUM              ),         &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION        ),         &
           arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_SPACE_1)          &
           /)
      integer :: operates_on = DOF
@@ -679,7 +679,7 @@ use argument_mod,  only : arg_type,            &
   type, public, extends(kernel_type) :: minval_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_SCALAR, GH_REAL, GH_MIN               ),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION         ),        &
           arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
           /)
      integer :: operates_on = DOF
@@ -690,7 +690,7 @@ use argument_mod,  only : arg_type,            &
   type, public, extends(kernel_type) :: maxval_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_SCALAR, GH_REAL, GH_MAX               ),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION         ),        &
           arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
           /)
      integer :: operates_on = DOF

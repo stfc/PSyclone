@@ -287,7 +287,7 @@ def test_builtin_write_and_readwrite():
 
 def test_builtin_sum_and_readwrite():
     '''Check that we raise an appropriate error if we encounter a built-in
-    that updates more than one argument where one is 'gh_sum' and one
+    that updates more than one argument where one is 'gh_reduction' and one
     is 'gh_readwrite'.
 
     '''
@@ -1853,7 +1853,7 @@ def test_sum_x(fortran_writer):
     assert isinstance(metadata, LFRicKernelMetadata)
     assert len(metadata.meta_args) == 2
     assert isinstance(metadata.meta_args[0], ScalarArgMetadata)
-    assert metadata.meta_args[0].access == "gh_sum"
+    assert metadata.meta_args[0].access == "gh_reduction"
     assert metadata.meta_args[1].access == "gh_read"
     assert metadata.meta_args[1].function_space == "any_space_1"
 
@@ -1872,7 +1872,7 @@ def test_x_innerproduct_x(fortran_writer):
     assert isinstance(metadata, LFRicKernelMetadata)
     assert len(metadata.meta_args) == 2
     assert isinstance(metadata.meta_args[0], ScalarArgMetadata)
-    assert metadata.meta_args[0].access == "gh_sum"
+    assert metadata.meta_args[0].access == "gh_reduction"
     assert metadata.meta_args[1].access == "gh_read"
     assert metadata.meta_args[1].function_space == "any_space_1"
 
@@ -1891,7 +1891,7 @@ def test_x_innerproduct_y(fortran_writer):
     assert isinstance(metadata, LFRicKernelMetadata)
     assert len(metadata.meta_args) == 3
     assert isinstance(metadata.meta_args[0], ScalarArgMetadata)
-    assert metadata.meta_args[0].access == "gh_sum"
+    assert metadata.meta_args[0].access == "gh_reduction"
     assert metadata.meta_args[1].access == "gh_read"
     assert metadata.meta_args[1].function_space == "any_space_1"
     assert metadata.meta_args[2].access == "gh_read"
@@ -1982,13 +1982,13 @@ def test_minmaxval_x(fortran_writer):
     metadata = lfric_builtins.LFRicMinvalXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
     assert len(metadata.meta_args) == 2
-    assert metadata.meta_args[0].access == "gh_min"
+    assert metadata.meta_args[0].access == "gh_reduction"
     assert metadata.meta_args[1].access == "gh_read"
     assert metadata.meta_args[1].function_space == "any_space_1"
     metadata = lfric_builtins.LFRicMaxvalXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
     assert len(metadata.meta_args) == 2
-    assert metadata.meta_args[0].access == "gh_max"
+    assert metadata.meta_args[0].access == "gh_reduction"
     assert metadata.meta_args[1].access == "gh_read"
     assert metadata.meta_args[1].function_space == "any_space_1"
 
@@ -2160,7 +2160,7 @@ def test_scalar_int_builtin_error(monkeypatch):
         _, _ = parse(os.path.join(BASE_PATH,
                                   "16.2_integer_scalar_sum.f90"),
                      api=API)
-    assert ("In the LFRic API a reduction access 'gh_sum' is only valid "
+    assert ("In the LFRic API a reduction access 'gh_reduction' is only valid "
             "with a real scalar argument, but a scalar argument with "
             "'gh_integer' data type was found" in str(excinfo.value))
 
