@@ -176,6 +176,7 @@ if __name__ == '__main__':
                     "pydata-sphinx-theme", "sphinx-autodoc-typehints",
                     "autoapi"],
             'test': ["flake8", "pylint", "pytest-cov", "pytest-xdist"],
+            'treesitter': ["tree-sitter", "tree-sitter-fortran"],
         },
         include_package_data=True,
         scripts=[

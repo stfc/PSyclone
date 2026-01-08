@@ -951,7 +951,7 @@ class Fparser2Reader():
 
     def __init__(self, ignore_directives: bool = True,
                  last_comments_as_codeblocks: bool = False,
-                 resolve_modules: bool = False):
+                 resolve_modules: Union[bool, list[str]] = False):
         if isinstance(resolve_modules, bool):
             self._resolve_all_modules = resolve_modules
             self._modules_to_resolve = []
