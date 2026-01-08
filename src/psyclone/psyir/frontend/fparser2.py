@@ -1734,7 +1734,7 @@ class Fparser2Reader():
 
                 # Try to extract partial datatype information.
                 datatype, init = self._get_partial_datatype(
-                    decl, scope, visibility_map)
+                    decl, scope, symbol_table, visibility_map)
 
                 # If a declaration declares multiple entities, it's
                 # possible that some may have already been processed
@@ -2212,7 +2212,7 @@ class Fparser2Reader():
 
         return tsymbol
 
-    def _get_partial_datatype(self, node, scope, visibility_map):
+    def _get_partial_datatype(self, node, scope, symbol_table, visibility_map):
         '''Try to obtain partial datatype information from node by removing
         any unsupported properties in the declaration.
 
@@ -2261,7 +2261,6 @@ class Fparser2Reader():
                 node.items[1].items = tuple(entry_list)
 
         # Try to parse the modified node.
-        symbol_table = scope.symbol_table
         try:
             self._process_decln(scope, symbol_table, node,
                                 visibility_map)
