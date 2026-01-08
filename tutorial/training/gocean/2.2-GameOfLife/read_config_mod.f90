@@ -77,6 +77,12 @@ end subroutine read_config
 
 ! ----------------------------------------------------------------------------
 subroutine get_initial_state(initial_state, n_rows, n_cols)
+
+    !> @brief Reads the initial state from the config file into a field
+    !>
+    !> This subroutine reads the state information from the config file
+    !> and stores it in the `initial_state` field.
+
     USE field_mod, only            : r2d_field
     implicit none
     real(kind=8), dimension(:,:), allocatable :: initial_state

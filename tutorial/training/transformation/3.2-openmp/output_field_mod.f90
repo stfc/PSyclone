@@ -6,6 +6,15 @@ module output_field_mod
 contains
 
     subroutine output_field(field)
+
+        !> @brief Outputs the status of the game of life.
+        !>
+        !> This subroutine collects the (potentially local) values of
+        !> the field onto the master process, and prints the state.
+        !>
+        !> @param[in] field The state of the Game of Life: 1 for a
+        !>                  cell that is alive, 0 otherwise.
+
         implicit none
         real(kind=8), dimension(:,:), allocatable :: field
 

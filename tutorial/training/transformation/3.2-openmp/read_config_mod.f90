@@ -8,6 +8,14 @@ contains
 ! ----------------------------------------------------------------------------
 subroutine read_config(initial, time_steps)
 
+    !> @brief Reads the configuration file and initialised dl_esm_inf
+    !> and the grid.
+    !>
+    !> This subroutine reads the configuration file specified on the command
+    !> line. It takes the grid size from the file, initialises dl_esm_inf and
+    !> creates an appropriate grid. It then fills the field `initial` with
+    !> the initial condition taken from the file.
+
     implicit none
     real(kind=8), dimension(:,:), intent(inout), allocatable :: initial
     integer, intent(out)         :: time_steps
@@ -39,6 +47,12 @@ end subroutine read_config
 
 ! ----------------------------------------------------------------------------
 subroutine get_initial_state(initial_state, n_rows, n_cols)
+
+    !> @brief Reads the initial state from the config file into a field
+    !>
+    !> This subroutine reads the state information from the config file
+    !> and stores it in the `initial_state` field.
+
     implicit none
     real(kind=8), dimension(:,:), allocatable, intent(inout) :: initial_state
     integer, intent(in)            :: n_rows, n_cols
