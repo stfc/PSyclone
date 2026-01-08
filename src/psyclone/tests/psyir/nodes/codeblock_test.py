@@ -140,10 +140,12 @@ def test_codeblock_get_symbol_names_comments_and_directives():
     '''
     code = """
     subroutine mytest
-    integer :: i, is
+    integer :: i, j, is
 
     !$omp dir private(i)
     i = i + 1
+    !dir$ omp private(j)
+    i = j + 1
     ! Here is a comment
     end subroutine"""
 
@@ -151,9 +153,11 @@ def test_codeblock_get_symbol_names_comments_and_directives():
                            ignore_directives=False,
                            last_comments_as_codeblocks=True)
     psyir = reader.psyir_from_source(code)
-    block = psyir.walk(CodeBlock)[0]
-    sym_names = block.get_symbol_names()
+    block = psyir.walk(CodeBlock)
+    sym_names = set(block[0].get_symbol_names()).union(
+                    set(block[1].get_symbol_names()))
     assert "i" in sym_names
+    assert "j" in sym_names
     assert "omp" not in sym_names
     assert "dir" not in sym_names
     assert "private" not in sym_names
