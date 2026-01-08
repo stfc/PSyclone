@@ -10,7 +10,7 @@ code.
 The original design of splitting the code into several
 small kernels is typically not ideal from a performance
 point of view, since hardly any data is being reused and
-data needs to be loaded from memory, instead from cache.
+data needs to be loaded from memory, instead of from cache.
 But from a software engineering point of view splitting
 the code into smaller kernels offer better testing
 opportunities: in the Game of Life example you can

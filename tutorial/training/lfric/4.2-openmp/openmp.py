@@ -57,14 +57,14 @@ def trans(psy):
     '''
     omp_parallel = OMPParallelTrans()
     omp_loop = OMPLoopTrans()
-    inline = KernelModuleInlineTrans()
+    module_inline = KernelModuleInlineTrans()
 
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
 
         # Module inline all kernels to help with inlining.
         for kern in schedule.walk(LFRicKern):
-            inline.apply(kern)
+            module_inline.apply(kern)
 
         all_loops = list(schedule.walk(LFRicLoop))
         # Can we use loop fusion? Note that we need to use the specific

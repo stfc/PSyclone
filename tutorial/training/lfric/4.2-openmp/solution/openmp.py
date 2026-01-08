@@ -59,13 +59,13 @@ def trans(psyir):
     '''
     omp_parallel = OMPParallelTrans()
     omp_loop = OMPLoopTrans()
-    inline = KernelModuleInlineTrans()
+    module_inline = KernelModuleInlineTrans()
 
     for invoke in psyir.walk(InvokeSchedule):
 
         # Module inline all kernels to help with inlining.
         for kern in invoke.walk(LFRicKern):
-            inline.apply(kern)
+            module_inline.apply(kern)
 
         all_loops = list(invoke.walk(LFRicLoop))
         # We can't fuse the two builtins, and PSyclone will raise

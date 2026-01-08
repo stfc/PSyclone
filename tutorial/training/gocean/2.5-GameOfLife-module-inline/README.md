@@ -59,11 +59,11 @@ applies the inline tranformation.
         :rtype: :py:class:`psyclone.psyGen.PSy`
     
         '''
-        inline = KernelModuleInlineTrans()
+        module_inline = KernelModuleInlineTrans()
     
         for subroutine in psyir.kernels:
             if subroutine.name == "invoke_compute":
-                inline.apply(subroutine)    
+                module_inline.apply(subroutine)    
 
 If you now invoke PSyclone with the additional parameter
 `-s inline.py`, the script will be invoked by PSyclone,

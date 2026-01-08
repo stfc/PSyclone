@@ -138,14 +138,14 @@ def trans(psyir: FileContainer) -> None:
     # do j do i combine
 
     kmit = KernelModuleInlineTrans()
-    inline = InlineTrans()
+    module_inline = InlineTrans()
 
     # Inline all kernels. We need to lower to language level before
     # we can inline. Also, any kernel must first be module inlined.
     psyir.lower_to_language_level()
     for call in psyir.walk(Call):
         kmit.apply(call)
-        inline.apply(call)
+        module_inline.apply(call)
 
     # Now try to replace fields (that are locally used in the algorithm
     # layer) with scalars

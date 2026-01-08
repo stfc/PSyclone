@@ -36,7 +36,7 @@
 
 '''
 Python script intended to be passed to PSyclone via the -s option.
-It adds applies OpenMP task parallelism.
+It applies module inlining, and then adds OpenMP task parallelism.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -53,7 +53,8 @@ from fuse_loops import trans as fuse_trans
 
 def trans(psyir):
     '''
-    Take the supplied psyir object, and use omp taskloop directives.
+    Take the supplied psyir object, apply module inlining and then
+    add omp taskloop directives.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -64,14 +65,14 @@ def trans(psyir):
     omp_do = OMPLoopTrans()
     omp_task = OMPTaskloopTrans()
     omp_single = OMPSingleTrans()
-    inline = KernelModuleInlineTrans()
+    module_inline = KernelModuleInlineTrans()
 
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
     # Inline all kernels to help gfortran with inlining.
     for kern in schedule.kernels():
-        inline.apply(kern)
+        module_inline.apply(kern)
 
     # We need to have:
     # omp parallel

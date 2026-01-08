@@ -48,7 +48,8 @@ from psyclone.psyir.nodes import FileContainer
 
 def trans(psyir: FileContainer) -> None:
     '''
-    Take the supplied psyir object, and fuse the first two loops
+    Take the supplied FileContainer object, apply kernel inlining and then
+    fuse the first three loops of the first invoke.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

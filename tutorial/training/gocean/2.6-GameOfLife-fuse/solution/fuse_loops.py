@@ -35,7 +35,7 @@
 
 '''
 Python script intended to be passed to PSyclone via the -s option.
-It applies kernel inlining and then fuses the first three loops of
+It applies module inlining and then fuses the first three loops of
 the first invoke.
 '''
 
@@ -47,7 +47,8 @@ from psyclone.psyir.nodes import FileContainer
 
 def trans(psyir: FileContainer) -> None:
     '''
-    Take the supplied psyir object, and fuse the first three loops
+    Take the supplied psyir object, apply module inlining and then
+    fuse the first three loops of the first invoke.
 
     :param psyir: the PSyIR of the PSy-layer.
 

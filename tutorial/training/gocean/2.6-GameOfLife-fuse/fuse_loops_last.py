@@ -47,16 +47,17 @@ from psyclone.psyir.nodes import FileContainer
 
 def trans(psyir: FileContainer) -> None:
     '''
-    Take the supplied FileContainer object, and fuse the first three loops.
+    Take the supplied FileContainer object, apply kernel inlining and then
+    fuse the last three loops of the first invoke.
 
     :param psyir: the PSyIR of the PSy-layer.
 
     '''
-    inline = KernelModuleInlineTrans()
+    module_inline = KernelModuleInlineTrans()
 
     # Inline all kernels to help gfortran with inlining.
     for kern in psyir.kernels():
-        inline.apply(kern)
+        module_inline.apply(kern)
 
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]

@@ -36,7 +36,8 @@
 
 '''
 Python script intended to be passed to PSyclone via the -s option.
-It applies 'omp do' to all loops and then adds an outer `omp parallel`
+It applies module inlining, then adds 'omp do' to all loops and then
+adds an outer `omp parallel`
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -49,8 +50,8 @@ from fuse_loops import trans as fuse_trans
 
 def trans(psyir):
     '''
-    Take the supplied psy object, and apply 'omp do' to all loops and
-    adds an outer `omp parallel`.
+    Take the supplied psy object, and apply module inlingin. Then add
+    'omp do' to all loops, and add an outer `omp parallel`.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -58,14 +59,14 @@ def trans(psyir):
     '''
     omp_parallel = OMPParallelTrans()
     omp_do = OMPLoopTrans()
-    inline = KernelModuleInlineTrans()
+    module_inline = KernelModuleInlineTrans()
 
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
     # Inline all kernels to help gfortran with inlining.
     for kern in schedule.walk(GOKern):
-        inline.apply(kern)
+        module_inline.apply(kern)
 
     # TODO (later): Try changing the schedule to be dynamic. This can
     # either be done at the constructor above, or assigning to the

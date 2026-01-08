@@ -56,14 +56,14 @@ def trans(psyir):
 
     '''
     fuse = GOceanLoopFuseTrans()
-    inline = KernelModuleInlineTrans()
+    module_inline = KernelModuleInlineTrans()
 
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
     # Inline all kernels to help gfortran with inlining.
     for kern in schedule.kernels():
-        inline.apply(kern)
+        module_inline.apply(kern)
 
     # This schedule has four loops, corresponding to
     # count_neighbours, compute_born, compute_die, combine kernels

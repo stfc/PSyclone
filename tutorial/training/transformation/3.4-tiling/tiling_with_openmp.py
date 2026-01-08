@@ -60,13 +60,13 @@ def trans(psyir):
     # subroutine, i.e. copy the subroutine into the current module using
     # the KernelModuleInlineTrans. Once this is done, we can use the
     # inlining transformation:
-    kmit = KernelModuleInlineTrans()
+    module_inline = KernelModuleInlineTrans()
     inline = InlineTrans()
 
     for call in psyir.walk(Call):
         if call.routine.name != #TODO: not for output_field
             print("Inlining", call.routine)
-            TODO appy inlining, first kmit, then inline
+            TODO appy inlining, first module_inline, then inline
 
     # Study the output code - and find a way to add openmp - ideally
     # by using `openmp parallel` only once around all loops.

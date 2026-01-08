@@ -18,7 +18,8 @@ OBJ = $(SRC:%.f90=%.o)
 include ../../common.mk
 
 test transform:
-	# Nothing to do here, testing requires compilation
+	# Nothing to do here, the only possible testing requires compilation
+	# (which happens with the test_run target).
 
 # Dependencies:
 # -------------

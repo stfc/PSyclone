@@ -112,9 +112,9 @@ def trans(psyir):
     schedule = psyir.walk(InvokeSchedule)[0]
 
     # Inline all kernels to help gfortran with inlining.
-    inline = KernelModuleInlineTrans()
+    module_inline = KernelModuleInlineTrans()
     for kern in schedule.walk(GOKern):
-        inline.apply(kern)
+        module_inline.apply(kern)
 
     # Collect all outer loops
     outer_loops = []

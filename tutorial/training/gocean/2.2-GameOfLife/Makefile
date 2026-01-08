@@ -17,7 +17,8 @@ SRC = gol.f90 read_config_mod.f90 time_step_mod.f90 compute_die_mod.f90 \
 OBJ = $(SRC:%.f90=%.o)
 
 test transform:
-	# Nothing to do here, testing requires compilation
+	# Nothing to do here, the only possible testing requires compilation
+	# (which happens with the test_run target).
 
 # Dependencies:
 # -------------

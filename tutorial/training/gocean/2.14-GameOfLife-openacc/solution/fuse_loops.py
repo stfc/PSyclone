@@ -52,11 +52,11 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    inline = KernelModuleInlineTrans()
+    module_inline = KernelModuleInlineTrans()
 
     # Inline all kernels to help gfortran with inlining.
     for kern in psyir.kernels():
-        inline.apply(kern)
+        module_inline.apply(kern)
 
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]

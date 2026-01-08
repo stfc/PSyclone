@@ -11,7 +11,8 @@ contains
     !> for each cell that is currently alive, but should die. Otherwise
     !> the cell is 0.
     !>
-    !> @param[out] die  The output field with 1 iff the cell dies.
+    !> @param[out] die The output field with 1 if the cell dies,
+    !>                 and 0 otherwise.
     !> @param[in]  current The current state.
     !> @param[in]  neighbours The number of live neighbours for each cell.
 

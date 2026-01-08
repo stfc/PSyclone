@@ -57,16 +57,15 @@ def trans(psyir: FileContainer) -> None:
     '''
 
     declare_target = OMPDeclareTargetTrans()
-    inline = KernelModuleInlineTrans()
 
     # Use existing fuse script to fuse all loops
     fuse_trans(psyir)
 
     # Module inline all kernels (so they can be modified)
     # Then add an OpenMP routine statement to each of them:
-    inline = KernelModuleInlineTrans()
+    module_inline = KernelModuleInlineTrans()
     for kern in psyir.walk(GOKern):
-        inline.apply(kern)
+        module_inline.apply(kern)
         # Put a ``declare target`` directive inside each kernel
         try:
             declare_target.apply(kern)

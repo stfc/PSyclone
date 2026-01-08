@@ -60,12 +60,12 @@ def trans(psyir):
     # subroutine, i.e. copy the subroutine into the current module using
     # the KernelModuleInlineTrans. Once this is done, we can use the
     # inlining transformation:
-    kmit = KernelModuleInlineTrans()
+    module_inline = KernelModuleInlineTrans()
     inline = InlineTrans()
     for call in psyir.walk(Call):
         if (not isinstance(call, IntrinsicCall) and
                 call.routine.name != "output_field"):
-            kmit.apply(call)
+            module_inline.apply(call)
             inline.apply(call)
 
     # Collect all outer (latitude) loops. We only collect the loops
