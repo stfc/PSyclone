@@ -402,14 +402,14 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
             "null()\n" in output)
     assert "type(field_proxy_type) :: field1_proxy\n" in output
     assert "type(field_proxy_type) :: field2_proxy\n" in output
-    assert ("integer(kind=i_def), pointer :: map_aspc1_field1(:,:) => "
+    assert ("integer(kind=i_def), pointer :: map_as1_f1(:,:) => "
             "null()" in output)
-    assert ("integer(kind=i_def), pointer :: map_aspc2_field2(:,:) => "
+    assert ("integer(kind=i_def), pointer :: map_as2_f2(:,:) => "
             "null()" in output)
-    assert "integer(kind=i_def) :: ndf_aspc1_field1\n" in output
-    assert "integer(kind=i_def) :: undf_aspc1_field1\n" in output
-    assert "integer(kind=i_def) :: ndf_aspc2_field2\n" in output
-    assert "integer(kind=i_def) :: undf_aspc2_field2\n" in output
+    assert "integer(kind=i_def) :: ndf_as1_f1\n" in output
+    assert "integer(kind=i_def) :: undf_as1_f1\n" in output
+    assert "integer(kind=i_def) :: ndf_as2_f2\n" in output
+    assert "integer(kind=i_def) :: undf_as2_f2\n" in output
     assert "integer(kind=i_def) :: ncell_field2\n" in output
     assert "integer(kind=i_def) :: ncpc_field2_field1_x\n" in output
     assert "integer(kind=i_def) :: ncpc_field2_field1_y\n" in output
@@ -449,8 +449,8 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
         "get_ntarget_cells_per_source_y()\n"
         "\n"
         "    ! Look-up dofmaps for each function space\n"
-        "    map_aspc1_field1 => field1_proxy%vspace%get_whole_dofmap()\n"
-        "    map_aspc2_field2 => field2_proxy%vspace%get_whole_dofmap()\n")
+        "    map_as1_f1 => field1_proxy%vspace%get_whole_dofmap()\n"
+        "    map_as2_f2 => field2_proxy%vspace%get_whole_dofmap()\n")
     assert inits in output
 
     if dist_mem:
@@ -483,9 +483,8 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
         "      call restrict_test_kernel_code(nlayers_field1, "
         "cell_map_field1(:,:,cell), ncpc_field2_field1_x, "
         "ncpc_field2_field1_y, ncell_field2, "
-        "field1_data, field2_data, undf_aspc1_field1, "
-        "map_aspc1_field1(:,cell), ndf_aspc2_field2, undf_aspc2_field2, "
-        "map_aspc2_field2)\n"
+        "field1_data, field2_data, undf_as1_f1, "
+        "map_as1_f1(:,cell), ndf_as2_f2, undf_as2_f2, map_as2_f2)\n"
         "    enddo\n")
     assert kern_call in output
 
@@ -665,16 +664,16 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "    do cell = loop2_start, loop2_stop, 1\n"
             "      call restrict_test_kernel_code(nlayers_fld_m, "
             "cell_map_fld_m(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y,"
-            " ncell_fld_f, fld_m_data, fld_f_data, undf_aspc1_fld_m, "
-            "map_aspc1_fld_m(:,cell), ndf_aspc2_fld_f, undf_aspc2_fld_f, "
-            "map_aspc2_fld_f)\n"
+            " ncell_fld_f, fld_m_data, fld_f_data, undf_as1_fd_m, "
+            "map_as1_fd_m(:,cell), ndf_as2_fd_f, undf_as2_fd_f, "
+            "map_as2_fd_f)\n"
             "    enddo\n"
             "    do cell = loop3_start, loop3_stop, 1\n"
             "      call restrict_test_kernel_code(nlayers_cmap_fld_c, "
             "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
             "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, cmap_fld_c_data, "
-            "fld_m_data, undf_aspc1_cmap_fld_c, map_aspc1_cmap_fld_c"
-            "(:,cell), ndf_aspc2_fld_m, undf_aspc2_fld_m, map_aspc2_fld_m)\n")
+            "fld_m_data, undf_as1_cp_fd_c, map_as1_cp_fd_c"
+            "(:,cell), ndf_as2_fd_m, undf_as2_fd_m, map_as2_fd_m)\n")
         assert expected in output
 
 
@@ -760,21 +759,21 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     output = str(psy.gen)
     # Check maps for any_discontinuous_space
     expected = (
-        "    map_adspc1_fld_m => fld_m_proxy%vspace%get_whole_dofmap()\n"
-        "    map_adspc2_fld_f => fld_f_proxy%vspace%get_whole_dofmap()\n"
-        "    map_adspc1_fld_c => fld_c_proxy%vspace%get_whole_dofmap()\n"
-        "    map_adspc2_fld_m => fld_m_proxy%vspace%get_whole_dofmap()\n")
+        "    map_ads1_fd_m => fld_m_proxy%vspace%get_whole_dofmap()\n"
+        "    map_ads2_fd_f => fld_f_proxy%vspace%get_whole_dofmap()\n"
+        "    map_ads1_fd_c => fld_c_proxy%vspace%get_whole_dofmap()\n"
+        "    map_ads2_fd_m => fld_m_proxy%vspace%get_whole_dofmap()\n")
     assert expected in output
     # Check ndf and undf initialisations the second restrict kernel
     # (fld_m to fld_c)
     expected = (
-        "    ! Initialise number of DoFs for adspc1_fld_c\n"
-        "    ndf_adspc1_fld_c = fld_c_proxy%vspace%get_ndf()\n"
-        "    undf_adspc1_fld_c = fld_c_proxy%vspace%get_undf()\n"
+        "    ! Initialise number of DoFs for ads1_fd_c\n"
+        "    ndf_ads1_fd_c = fld_c_proxy%vspace%get_ndf()\n"
+        "    undf_ads1_fd_c = fld_c_proxy%vspace%get_undf()\n"
         "\n"
-        "    ! Initialise number of DoFs for adspc2_fld_m\n"
-        "    ndf_adspc2_fld_m = fld_m_proxy%vspace%get_ndf()\n"
-        "    undf_adspc2_fld_m = fld_m_proxy%vspace%get_undf()\n")
+        "    ! Initialise number of DoFs for ads2_fd_m\n"
+        "    ndf_ads2_fd_m = fld_m_proxy%vspace%get_ndf()\n"
+        "    undf_ads2_fd_m = fld_m_proxy%vspace%get_undf()\n")
     assert expected in output
     # Check an example of restrict loop and all upper loop bounds
     expected = (
@@ -782,9 +781,9 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call restrict_kernel_code(nlayers_fld_m, "
         "cell_map_fld_m(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, "
-        "ncell_fld_f, fld_m_data, fld_f_data, undf_adspc1_fld_m, "
-        "map_adspc1_fld_m(:,cell), ndf_adspc2_fld_f, "
-        "undf_adspc2_fld_f, map_adspc2_fld_f)\n"
+        "ncell_fld_f, fld_m_data, fld_f_data, undf_ads1_fd_m, "
+        "map_ads1_fd_m(:,cell), ndf_ads2_fd_f, "
+        "undf_ads2_fd_f, map_ads2_fd_f)\n"
         "    enddo\n")
     assert expected in output
     assert "loop0_stop = mesh_fld_m%get_last_edge_cell()\n" in output
