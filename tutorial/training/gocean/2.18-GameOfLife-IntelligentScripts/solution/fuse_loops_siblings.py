@@ -46,10 +46,16 @@ from psyclone.psyGen import InvokeSchedule
 
 
 def apply_all(node_list, transform):
-    '''This subroutine applies the specified transformation, which takes
-    two consecutive nodes (e.g. loop fusion), and applies it to a block
-    as large as possible. For example given six loops, of which the first
-    three and the last two can be fused, it would result in:
+    '''This subroutine takes a transformation that merges two consecutive
+    nodes in the tree, and applies it repeatedly to merge as many
+    loops as possible.
+
+    This is mostly intended to use the LoopFusion transformation, but shows
+    how to write meta-transformations to repeatedly apply an existing
+    transformation to blocks of code.
+
+    As an example: given six loops, of which the first three and the last
+    two can be fused, calling this function with LoopFusion would result in:
     loop
        1, 2, 3
     loop

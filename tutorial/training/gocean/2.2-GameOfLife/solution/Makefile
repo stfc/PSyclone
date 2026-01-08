@@ -1,3 +1,9 @@
+# This Makefile compiles all source files. It ignores the files
+# in gol_lib (which are used in the PSyclone implementation later).
+# The 'test' target does nothing (since no transformation is applied),
+# using 'test_run' will compile and execute the code, and compare the
+# output with the expected result.
+
 EXE = gol
 API = gocean
 

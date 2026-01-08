@@ -1,7 +1,8 @@
 # Introduction to ``dl_esm_inf``
 
 This tutorial introduces the infrastructure library
-``dl_esm_inf``, which is used by the PSyclone
+[``dl_esm_inf``](https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html#the-gocean-infrastructure-library-dl-esm-inf), 
+which is used by the PSyclone
 GOcean API. As example we will implement Conway's
 'Game of Life'. This directory contains templates for
 the functions, but you need to add code to various files.
@@ -21,7 +22,7 @@ grid are alive. Then the following rules are applied:
    neighbours, it dies (overpopulation).
 3. Any dead cell with exactly three live neighbours 
    becomes a live cell (reproduction).
-4. Any life or dead cell for which none of the
+4. Any live or dead cell for which none of the
    previous rules applies, will stay the way it is
    (i.e. either live or dead).
 

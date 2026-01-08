@@ -23,3 +23,6 @@ test: test-default
 	cat $(TS) | grep "acc enter data copyin" > /dev/null
 	cat $(TS) | grep "acc parallel default" > /dev/null
 	cat $(TS) | grep "acc loop independent collapse" > /dev/null
+
+# Trigger the above test target, and the running test
+test_run: test test_run-default

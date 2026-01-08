@@ -34,9 +34,9 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds a generic OpenMP parallelisation
-to the code.
+'''
+Python script intended to be passed to PSyclone via the -s option.
+It adds a generic OpenMP parallelisation to the code.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans

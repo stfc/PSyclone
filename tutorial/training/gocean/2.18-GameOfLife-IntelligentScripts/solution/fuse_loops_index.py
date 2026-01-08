@@ -102,6 +102,7 @@ def apply_all(node_list, transform):
 def trans(psyir):
     '''
     Take the supplied psy object, and fuse loops as much as possible.
+
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 

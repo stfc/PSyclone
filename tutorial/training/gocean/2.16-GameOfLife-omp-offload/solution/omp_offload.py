@@ -40,19 +40,19 @@ It adds OpenMP offload directives to all kernels.
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern
-from psyclone.psyir.nodes import Directive, Loop, Routine
+from psyclone.psyir.nodes import Directive, FileContainer, Loop, Routine
 from psyclone.psyir.transformations import TransformationError, OMPTargetTrans
 from psyclone.transformations import OMPLoopTrans
 from psyclone.psyir.transformations import OMPDeclareTargetTrans
 from fuse_loops import trans as fuse_trans
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
-    Take the supplied psy object, and fuse the first two loops
+    Take the supplied psyir object, apply kernel inlining and loop fusion,
+    then add OpenMP offloading directives.
 
     :param psyir: the PSyIR layer to transform.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
 
@@ -83,6 +83,5 @@ def trans(psyir):
     for subroutine in psyir.walk(Routine):
         for loop in subroutine.walk(Loop):
             if loop.loop_type == "outer":
-                loop_offloading.apply(
-                    loop, options={"independent": True})
+                loop_offloading.apply(loop)
                 target_trans.apply(loop.ancestor(Directive))

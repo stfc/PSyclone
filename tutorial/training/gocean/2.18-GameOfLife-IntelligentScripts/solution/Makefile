@@ -3,10 +3,8 @@ API = gocean
 
 OBJ = time_step_alg_mod.o time_step_alg_mod_psy.o
 
+SCRIPT=fuse_loops_siblings.py
 include ../../common.mk
-
-$(EXE): $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
 
 # Dependencies:
 # -------------
@@ -14,10 +12,19 @@ $(EXE): $(OBJ)
 time_step_alg_mod_psy.f90: time_step_alg_mod.f90
 time_step_alg_mod.o: time_step_alg_mod_psy.o
 
-# PSyclone: create alg and psy layer files:
-%.f90: %.x90 Makefile fuse_loops_siblings.py
-	$(PSYCLONE) -s ./fuse_loops_siblings.py -oalg $*.f90 -opsy $*_psy.f90 $<
-
 TS=time_step_alg_mod
 test: test-default
+	$(PSYCLONE) -s ./fuse_loops_siblings.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
+	@# Count the number of outer loops (do j) to check that loops were fused
+	@bash -c "if [[ $$(cat $(TS)_psy.f90 | grep -c 'do j') != 2 ]]; then \
+		echo 'We should only have two outer loops in $(TS)_psy.f90 with fuse_loops_siblings.py'; \
+		exit 1; \
+	fi"
 	$(PSYCLONE) -s ./fuse_loops_index.py -oalg $(TS).f90 -opsy $(TS)_psy.f90 $(TS).x90
+	@# Count the number of outer loops (do j) to check that loops were fused
+	@bash -c "if [[ $$(cat $(TS)_psy.f90 | grep -c 'do j') != 2 ]]; then \
+		echo 'We should only have two outer loops in $(TS)_psy.f90 with fuse_loops_index.py'; \
+		exit 1; \
+	fi"
+
+test_run: test test_run-default
