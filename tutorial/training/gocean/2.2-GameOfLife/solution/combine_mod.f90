@@ -11,8 +11,10 @@ contains
     !> cells, and adding the newly born cells.
     !>
     !> @param[out] current The current state that will be updated
-    !> @param[in]  die     The field with 1 iff the cell dies
-    !> @param[in]  born    The field with 1 iff a new cell is born
+    !> @param[in]  die     The field with 1 if the cell dies,
+    !>                     and 0 otherwise.
+    !> @param[in]  born    The field with 1 if a new cell is born,
+    !>                     and 0 otherwise.
 
     subroutine combine(current, die, born)
         USE field_mod, only            : r2d_field

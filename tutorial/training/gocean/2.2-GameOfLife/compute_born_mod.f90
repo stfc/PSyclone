@@ -11,7 +11,8 @@ contains
     !> for each dead cell, but which will get a new cell. Otherwise
     !> the field is 0.
     !>
-    !> @param[out] born The output field with 1 iff a cell is newly born.
+    !> @param[out] born The output field with 1 if a cell is newly born,
+    !>             and 0 otherwise.
     !> @param[in]  current The current state.
     !> @param[in]  neighbours The number of live neighbours for each cell.
     subroutine compute_born(born, current, neighbours)

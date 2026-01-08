@@ -6,6 +6,14 @@ module output_field_mod
 contains
 
     subroutine output_field(field)
+        !> @brief Reads the configuration file and initialised dl_esm_inf
+        !> and the grid.
+        !>
+        !> This subroutine reads the configuration file specified on the command
+        !> line. It takes the grid size from the file, initialises dl_esm_inf and
+        !> creates an appropriate grid. It then fills the field `initial` with
+        !> the initial condition taken from the file.
+
         USE field_mod, only      : r2d_field
         USE kind_params_mod, only: go_wp
 

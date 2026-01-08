@@ -29,6 +29,7 @@ contains
         die        = r2d_field(grid, GO_T_POINTS)
         born       = r2d_field(grid, GO_T_POINTS)
 
+        ! Output the initial state
         if(time_steps<=20) call output_field(current)
         ! In each time step:
         ! 1. Count neighbours

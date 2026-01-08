@@ -31,7 +31,8 @@ contains
     !> the cell is 0.
     !>
     !> @param[in]  i, j Coordinates of the cell to update.
-    !> @param[out] die  The output field with 1 iff the cell dies.
+    !> @param[out] die  The output field with 1 if the cell dies,
+    !>             and 0 otherwise.
     !> @param[in]  current The current state.
     !> @param[in]  neighbours The number of live neighbours for each cell.
     subroutine compute_die_code(i, j, die, current, neighbours)

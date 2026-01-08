@@ -8,6 +8,14 @@ contains
 ! ----------------------------------------------------------------------------
 subroutine read_config(grid, initial, time_steps)
 
+    !> @brief Reads the configuration file and initialised dl_esm_inf
+    !> and the grid.
+    !>
+    !> This subroutine reads the configuration file specified on the command
+    !> line. It takes the grid size from the file, initialises dl_esm_inf and
+    !> creates an appropriate grid. It then fills the field `initial` with
+    !> the initial condition taken from the file.
+
     USE grid_mod, only           : grid_type, grid_init, GO_ARAKAWA_C,     &
                                    GO_BC_EXTERNAL, GO_BC_NONE, GO_OFFSET_SW
     use parallel_mod, only       : parallel_init

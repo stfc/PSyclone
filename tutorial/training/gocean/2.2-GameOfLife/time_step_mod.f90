@@ -6,6 +6,18 @@ module time_step_mod
 contains
 
     subroutine time_step(grid, current, time_steps)
+
+        !> @brief The time stepping loop.
+        !>
+        !> This subroutine contains the time stepping loop.
+        !> It calls the functions to count the neighbours, computes
+        !> which cell die or become alive, and updates the state
+        !> - all in a loop over the number of time steps.
+        !> If the number of time steps is 20 or less, the state
+        !> will be printed out after each time step (useful for
+        !> debugging). If more time steps are done, it is assumed
+        !> to be a performance test, and no status is printed out.
+
         use compute_die_mod, only      : compute_die
         use compute_born_mod, only     : compute_born
         use combine_mod, only          : combine
@@ -27,6 +39,7 @@ contains
         ! Create fields required:
         neighbours = r2d_field(grid, GO_T_POINTS)
 
+        ! Output the initial state
         if(time_steps<=20) call output_field(current)
         ! In each time step:
         ! 1. Count neighbours

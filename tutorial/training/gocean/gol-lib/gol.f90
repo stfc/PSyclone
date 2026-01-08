@@ -1,5 +1,11 @@
 program GameOfLife
 
+    !> @brief The main program, which controls the execution.
+    !>
+    !> It calls read_config to read the specified configuration file
+    !> and initialses dl_esm_inf. Then it executes the time stepping
+    !> loop, before shutting down the program.
+
     use parallel_mod, only     : parallel_finalise
     use read_config_mod, only  : read_config
     use time_step_alg_mod, only: time_step
