@@ -17,10 +17,12 @@ the time required for the actual computations.
 The Intel compiler is able (given the right compiler options) to
 inline code that is contained in a different program unit. It is
 able to inline the kernels contained in the various kernel files
-into the psy-layer file, and can then vectorise the loop.
+into the psy-layer file, and can then vectorise the loop. But in
+the past we have seen that the resulting code is not as performant
+as if the compiler is presented with already inlined code.
 
 The GNU Fortran compiler on the other hand is not able to inline
-code from a different file, but it can inline successfully if the
+code from a different file at all, but it can inline successfully if the
 code is contained in the same file.
 
 PSyclone's `KernelModuleInlineTrans` can move the code from the kernel
