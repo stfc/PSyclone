@@ -47,7 +47,7 @@
 .PHONY: allclean clean test test_run
 
 allclean clean test test_run:
-	$(MAKE) -C psyclone_for_lfric_users $@
+	$(MAKE) -C lfric_users $@
 	$(MAKE) -C gocean $@
 	$(MAKE) -C transformation $@
 	$(MAKE) -C lfric $@
