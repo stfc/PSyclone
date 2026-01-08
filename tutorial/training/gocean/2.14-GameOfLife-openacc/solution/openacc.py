@@ -50,7 +50,7 @@ def trans(psyir):
     '''
     Take the supplied psyir object, use the existing fuse_loops
     script to do module inlining and fuse the first three loops,
-    then apply OpenACC directives. 
+    then apply OpenACC directives.
 
     :param psyir: the PSyIR layer to transform.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
