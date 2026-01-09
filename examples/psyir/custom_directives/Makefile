@@ -33,6 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: A. B. G. Chalk, STFC Daresbury Lab
 
+include ../../common.mk
+
 F90 ?= gfortran
 F90FLAGS ?= -O2 -fopenmp
 
