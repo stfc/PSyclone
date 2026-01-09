@@ -91,10 +91,7 @@ def process_where(
     reader = FortranStringReader(code)
     fparser2spec = fparser_cls(reader)
 
-    if fparser_cls is Fortran2003.Execution_Part:
-        processor.process_nodes(sched, fparser2spec.content)
-    else:
-        processor.process_nodes(sched, [fparser2spec])
+    processor.process_nodes(sched, [fparser2spec])
     return sched, fparser2spec
 
 
