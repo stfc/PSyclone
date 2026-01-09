@@ -518,15 +518,14 @@ def _dot_product_return_type(node: IntrinsicCall) -> DataType:
     from psyclone.psyir.tools.type_info_computation import (
         compute_scalar_type
     )
-
+    veca_datatype = node.argument_by_name("vector_a").datatype
+    vecb_datatype = node.argument_by_name("vector_b").datatype
     return compute_scalar_type(
         [ScalarType(
-            node.argument_by_name("vector_a").datatype.intrinsic,
-            node.argument_by_name("vector_a").datatype.precision
+            veca_datatype.intrinsic, veca_datatype.precision
          ),
          ScalarType(
-            node.argument_by_name("vector_b").datatype.intrinsic,
-            node.argument_by_name("vector_b").datatype.precision
+            vecb_datatype.intrinsic, vecb_datatype.precision
          ),
          ]
     )

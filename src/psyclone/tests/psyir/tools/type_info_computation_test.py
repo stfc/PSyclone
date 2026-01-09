@@ -184,8 +184,8 @@ def test_compute_scalar_type(fortran_reader):
     op = ops[5]
     with pytest.raises(TypeError) as excinfo:
         _ = compute_scalar_type([x.datatype for x in op.operands])
-    assert ("Couldn't compute the type of an operation as one or more of the "
-            "arguments have a non-numeric non-shared datatype. Provided "
+    assert ("Couldn't compute the type of an operation as the types of the "
+            "arguments differ and one is non-numeric. Provided "
             "arguments were 'Scalar<BOOLEAN, UNDEFINED>' and "
             "'Scalar<INTEGER, 4>'." in str(excinfo.value))
 

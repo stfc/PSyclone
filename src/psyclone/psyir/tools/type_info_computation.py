@@ -36,10 +36,10 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module contains the implementation of a function that computes the
-promotion of precisions or datatype for Fortran operations.'''
+''' This module contains the implementation functions that computes the
+promotion of precisions or datatypes for Fortran operations.'''
 
-from typing import List, Union
+from typing import Union
 
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Reference
@@ -49,11 +49,11 @@ from psyclone.psyir.symbols.datatypes import (
 
 
 def compute_precision(
-        precisions: List[Union[int, ScalarType.Precision, Reference]]
+        precisions: list[Union[int, ScalarType.Precision, Reference]]
 ) -> Union[int, ScalarType.Precision, Reference]:
     '''
     Compares the input precisions to determine the precision of the result
-    of the operation.
+    of a numerical operation involving them.
 
     If the precisions are the same, then that value is returned.
     Otherwise, Section 7.1.9.3 of the Fortran2008 standard says that in
@@ -83,9 +83,10 @@ def compute_precision(
     if all(isinstance(prec, ScalarType.Precision) for
            prec in precisions):
         # All precisions are of ScalarType.Precision type.
-        # TODO 3271 - at the moment this is wrong as reals are defined as
-        # UNDEFINED, wheras it should keep as a DOUBLE with real + double
-        # precision.
+        # TODO 3271 - at the moment this is wrong as default reals are defined
+        # as UNDEFINED. This means that the precision of an operation
+        # involving a default REAL and a DOUBLE PRECISION will be computed
+        # to be UNDEFINED insteaf of DOUBLE.
         if ScalarType.Precision.UNDEFINED in precisions:
             return ScalarType.Precision.UNDEFINED
         if ScalarType.Precision.DOUBLE in precisions:
@@ -100,17 +101,17 @@ def compute_precision(
 
 
 def compute_scalar_type(
-    argtypes: List[DataType]
+    argtypes: list[DataType]
 ) -> ScalarType.Intrinsic:
     '''
-    Examines the argtypes to determine the base type of the
-    operation using the rules in Section 7.2 of the Fortran2008 standard.
-    If the type cannot be determined then an instance of `UnresolvedType`
-    is returned.
+    Examines the argtypes to determine the base type of the result of a
+    numerical operation with them as operands. Usesthe rules in Section 7.2
+    of the Fortran2008 standard. If the type cannot be determined then an
+    instance of `UnresolvedType` is returned.
 
     :param argtypes: the types of the arguments.
 
-    :returns: the base type of the result of the input arguments.
+    :returns: the base (scalar) type of the result of the input arguments.
 
     :raises InternalError: If more than two argument types are provided.
     :raises TypeError: If the types differ and any are not a numeric datatype.
@@ -129,8 +130,7 @@ def compute_scalar_type(
         return UnresolvedType()
 
     # If all the datatypes are the same then we can return the first.
-    if (argtypes[0].intrinsic == argtypes[1].intrinsic and
-            argtypes[0].precision == argtypes[1].precision):
+    if (argtypes[0] == argtypes[1]):
         return argtypes[0]
 
     # TODO 1590 - ensure support for complex numbers here in the future.
@@ -152,7 +152,7 @@ def compute_scalar_type(
     # Otherwise, the type of the result is not consistent with
     # a numerical operation
     raise TypeError(
-        f"Couldn't compute the type of an operation as one or more of "
-        f"the arguments have a non-numeric non-shared datatype. Provided "
+        f"Couldn't compute the type of an operation as the types of the "
+        "arguments differ and one is non-numeric. Provided "
         f"arguments were '{argtypes[0]}' and '{argtypes[1]}'."
     )

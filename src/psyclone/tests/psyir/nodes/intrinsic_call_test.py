@@ -148,6 +148,7 @@ def test_intrinsiccall_datatype(fortran_reader):
     """
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(IntrinsicCall)[0]
+    # Return type depends on the type of an unresolved type.
     assert isinstance(call.datatype, UnresolvedType)
 
     # ValueError test. This test intentionally doesn't use the create method
@@ -1144,6 +1145,8 @@ def test_type_of_intrinsic_with_argname_kind_and_optional_dim(fortran_reader):
 
 def test_findloc_return_type(fortran_reader):
     """Test the _findloc_return_type helper function."""
+    # TODO #3268 adding namedargs makes this a CodeBlock so can't test yet via
+    # fortran_reader.
     code = """
     subroutine y
     integer, dimension(100) :: a
@@ -1154,9 +1157,11 @@ def test_findloc_return_type(fortran_reader):
     end subroutine y"""
     psyir = fortran_reader.psyir_from_source(code)
     intrs = psyir.walk(Call)
+    # Create an IntrinsicCall from the Call that fortran_reader creates.
     intr = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.FINDLOC, [x.copy() for x in intrs[0].arguments]
     )
+    # Return value of this FINDLOC is an integer array of size 1.
     res = _findloc_return_type(intr)
     assert isinstance(res, ArrayType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
@@ -1165,6 +1170,7 @@ def test_findloc_return_type(fortran_reader):
     assert res.shape[0].upper.value == "1"
     assert res.shape[0].lower.value == "1"
 
+    # Create an IntrinsicCall with a kind argument for FINDLOC
     intr = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.FINDLOC, [
             ("array", intrs[0].arguments[0].copy()),
@@ -1172,6 +1178,7 @@ def test_findloc_return_type(fortran_reader):
             ("kind", Literal("8", INTEGER_TYPE))
         ]
     )
+    # Return type of this FINDLOC is an integer*8 array of size 1.
     res = _findloc_return_type(intr)
     assert isinstance(res, ArrayType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
@@ -1180,6 +1187,7 @@ def test_findloc_return_type(fortran_reader):
     assert res.shape[0].upper.value == "1"
     assert res.shape[0].lower.value == "1"
 
+    # Create an IntrinsicCall with kind and dim arguments for FINDLOC
     intr = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.FINDLOC, [
             ("array", intrs[0].arguments[0].copy()),
@@ -1188,12 +1196,14 @@ def test_findloc_return_type(fortran_reader):
             ("dim", Literal("1", INTEGER_TYPE)),
         ]
     )
+    # Return type of this FINDLOC is an integer*8.
     res = _findloc_return_type(intr)
     assert isinstance(res, ScalarType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
     assert res.precision.value == "8"
 
-    # Test multidimensional array input with dim specified
+    # Test multidimensional array input with dim specified - array is
+    # c from declared code.
     intr = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.FINDLOC, [
             ("array", intrs[1].arguments[0].copy()),
@@ -1201,6 +1211,8 @@ def test_findloc_return_type(fortran_reader):
             ("dim", Literal("1", INTEGER_TYPE)),
         ]
     )
+    # Result of this is an integer array of rank 2 with unknown dimensions (
+    # array of dimension 1 less than c).
     res = _findloc_return_type(intr)
     assert isinstance(res, ArrayType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
@@ -1208,9 +1220,6 @@ def test_findloc_return_type(fortran_reader):
     assert len(res.shape) == 2
     assert res.shape[0] == ArrayType.Extent.DEFERRED
     assert res.shape[1] == ArrayType.Extent.DEFERRED
-
-    # TODO #2823 adding namedargs makes this a CodeBlock so can't test yet via
-    # fortran_reader.
 
 
 def test_int_return_type(fortran_reader):
@@ -1255,6 +1264,8 @@ def test_iparity_return_type(fortran_reader):
     end subroutine x
     """
     psyir = fortran_reader.psyir_from_source(code)
+    # TODO #3268 Can't iparity directily with fortran reader, so need to
+    # create the Intrinsics manually using the psyir from the generated code.
     intrinsic = psyir.walk(Call)[0]
     intrinsic = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.IPARITY,
@@ -1263,8 +1274,6 @@ def test_iparity_return_type(fortran_reader):
 
     assert _iparity_return_type(intrinsic) == INTEGER_TYPE
 
-    # TODO 3268 Can't test the other case with fortran reader, so need to
-    # create it manually.
     k_sym = psyir.children[0].symbol_table.lookup("k")
     intrinsic = psyir.walk(Call)[0]
     intrinsic = IntrinsicCall.create(
@@ -1321,18 +1330,24 @@ def test_matmul_return_type(fortran_reader):
     real*4, dimension(:,:) :: g
     integer*4, dimension(:,:) :: h
 
+    ! 2D real * 2D double
     e = MATMUL(a,b)
+    ! 2D real * 1D real
     d = MATMUL(a,c)
+    ! 1D real * 2D real
     d = MATMUL(c,a)
+    !  2D real8 * 2D real4
     f = MATMUL(f,g)
+    ! 2D real4 * 2D int4
     g = MATMUL(g,h)
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     intrinsics = psyir.walk(IntrinsicCall)
+    # 2D default real * 2D double - should result currently in default real.
     res = _matmul_return_type(intrinsics[0])
     assert isinstance(res, ArrayType)
     assert res.intrinsic == ScalarType.Intrinsic.REAL
-    # TODO 3271 This should be DOUBLE but currently reals are handled oddly.
+    # TODO #3271 This should be DOUBLE but currently reals are handled oddly.
     assert res.precision == ScalarType.Precision.UNDEFINED
     assert len(res.shape) == 2
     assert res.shape[0].lower.value == "1"
@@ -1346,6 +1361,7 @@ def test_matmul_return_type(fortran_reader):
     assert res.shape[1].upper.arguments[0].symbol.name == "b"
     assert res.shape[1].upper.arguments[1].value == "2"
 
+    # 2D default real * 1D default real - results in a 1D default real.
     res = _matmul_return_type(intrinsics[1])
     assert isinstance(res, ArrayType)
     assert res.intrinsic == ScalarType.Intrinsic.REAL
@@ -1357,6 +1373,7 @@ def test_matmul_return_type(fortran_reader):
     assert res.shape[0].upper.arguments[0].symbol.name == "a"
     assert res.shape[0].upper.arguments[1].value == "1"
 
+    # 1D default real * 2D default real - results in a 1D default real.
     res = _matmul_return_type(intrinsics[2])
     assert isinstance(res, ArrayType)
     assert res.intrinsic == ScalarType.Intrinsic.REAL
@@ -1368,6 +1385,7 @@ def test_matmul_return_type(fortran_reader):
     assert res.shape[0].upper.arguments[0].symbol.name == "a"
     assert res.shape[0].upper.arguments[1].value == "1"
 
+    # 2D real8 * 2D real4 - results in a 2D real8.
     res = _matmul_return_type(intrinsics[3])
     assert isinstance(res, ArrayType)
     assert res.intrinsic == ScalarType.Intrinsic.REAL
@@ -1384,6 +1402,7 @@ def test_matmul_return_type(fortran_reader):
     assert res.shape[1].upper.arguments[0].symbol.name == "g"
     assert res.shape[1].upper.arguments[1].value == "2"
 
+    # 2D real4 * 2D int4 - results in a 2D real4.
     res = _matmul_return_type(intrinsics[4])
     assert isinstance(res, ArrayType)
     assert res.intrinsic == ScalarType.Intrinsic.REAL
@@ -1417,10 +1436,13 @@ def test_maxval_return_type(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     intrs = psyir.walk(IntrinsicCall)
 
+    # Input is a int*8 so the return type should be an int*8
     res = _maxval_return_type(intrs[0])
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
     assert res.precision == 8
 
+    # Input is a 2D array of int*8 with dim specified so the result
+    # is a 1D int*8 array.
     res = _maxval_return_type(intrs[1])
     assert isinstance(res, ArrayType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
@@ -1428,6 +1450,8 @@ def test_maxval_return_type(fortran_reader):
     assert len(res.shape) == 1
     assert res.shape[0] == ArrayType.Extent.DEFERRED
 
+    # Input is a 1D array of int(kind=wp) so the result is an
+    # int(kind=wp)
     res = _maxval_return_type(intrs[2])
     assert isinstance(res, ScalarType)
     assert res.intrinsic == ScalarType.Intrinsic.INTEGER
@@ -1435,7 +1459,6 @@ def test_maxval_return_type(fortran_reader):
     assert res.precision.symbol.name == "wp"
 
 
-# FIXME Do we need ANINT (also REAL) tests (Reviewer/codecov decision).
 @pytest.mark.parametrize(
     "code, expected",
     [
@@ -1827,7 +1850,8 @@ def test_specific_return_types(fortran_reader, code, expected):
                 and res.shape[0].lower.value == "1"
             ),
         ),
-        # TODO #2823 Can't do this test yet.
+        # TODO #3268 Can't do this test yet as the frontend creates a
+        # Codeblock for COSHAPE with named arguments.
         # ("""subroutine test
         #    integer, dimension(100) :: x
         #    integer, dimension(100) :: y
@@ -1865,18 +1889,20 @@ def test_specific_return_types(fortran_reader, code, expected):
                 and res.precision == 8
             ),
         ),
-        # TODO #2823 Can't do this test yet, PSyclone creates a CodeBlock.
+        # TODO #3628 Can't do this test yet, PSyclone creates a CodeBlock
+        # instead of the IntrinsicCall.
         # ("""subroutine x
-        # integer*8, dimension(100) :: i, j
-        # i = FAILED_IMAGES()
-        # end subroutine x""",
-        # IntrinsicCall.Intrinsic.FAILED_IMAGES,
-        # # Return type here is Array of deferred size with integer type.
-        # lambda res: (isinstance(res, ArrayType) and
-        #             res.intrinsic == ScalarType.Intrinsic.INTEGER and
-        #             res.precision == ScalarType.Precision.UNDEFINED)
-        # ),
-        # TODO #2823 Can't do this test yet, PSyclone creates a CodeBlock.
+        #  integer*8, dimension(100) :: i, j
+        #  i = FAILED_IMAGES()
+        #  end subroutine x""",
+        #  IntrinsicCall.Intrinsic.FAILED_IMAGES,
+        #  # Return type here is Array of deferred size with integer type.
+        #  lambda res: (isinstance(res, ArrayType) and
+        #              res.intrinsic == ScalarType.Intrinsic.INTEGER and
+        #              res.precision == ScalarType.Precision.UNDEFINED)
+        #  ),
+        # TODO #3628 Can't do this test yet, PSyclone creates a CodeBlock
+        # instead of the IntrinsicCall.
         # ("""subroutine x
         # integer*8, dimension(100) :: i, j
         # integer :: bad
@@ -1889,7 +1915,8 @@ def test_specific_return_types(fortran_reader, code, expected):
         #             res.intrinsic == ScalarType.Intrinsic.INTEGER and
         #             res.precision.value == "8")
         # ),
-        # TODO #2823 Can't do this test yet, PSyclone creates a CodeBlock.
+        # TODO #3628 Can't do this test yet, PSyclone creates a CodeBlock
+        # instead of an IntrinsicCall.
         # ("""subroutine x
         # integer :: i
         # i = GET_TEAM()
@@ -1897,7 +1924,8 @@ def test_specific_return_types(fortran_reader, code, expected):
         # IntrinsicCall.Intrinsic.GET_TEAM,
         # lambda res: isinstance(res, UnsupportedFortranType)
         # ),
-        # TODO #2823 Can't do this test yet, PSyclone creates a CodeBlock.
+        # TODO #3628 Can't do this test yet, PSyclone creates a CodeBlock
+        # instead of an IntrinsicCall.
         # (
         #     """subroutine z
         # integer, dimension(:) :: result

@@ -320,44 +320,6 @@ class BinaryOperation(Operation):
                             f"boolean, but found '{type(value).__name__}'.")
         self._has_explicit_grouping = value
 
-    def _get_result_precision(self, precisions):
-        '''
-        Compares the two precisions to determine the precision of the result
-        of the operation.
-
-        If the two precisions are the same, then that value is returned.
-        Otherwise, Section 7.1.9.3 of the Fortran2008 standard says that in
-        this case, the precision of the result is the greater of the two.
-        If the precision cannot be determined then
-        `ScalarType.Precision.UNDEFINED` is returned.
-
-        :param precisions: the precision of the two operands.
-        :type precisions: list[int |
-            :py:class:`psyclone.psyir.symbols.ScalarType.Precision |
-            :py:class:`psyclone.psyir.nodes.Reference`]
-
-        :returns: the precision of the result of the operation.
-        :rtype: int | :py:class:`psyclone.psyir.symbols.ScalarType.Precision
-
-        :raises InternalError: if an unsupported Precision value is encountered
-            (this is to defend against any future extension of
-            ScalarType.Precision).
-
-        '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.type_info_computation import (
-                compute_precision
-        )
-
-        try:
-            return compute_precision(precisions)
-        except InternalError as err:
-            raise InternalError(
-                f"Operation._get_result_precision: got unsupported Precision "
-                f"value(s) '{precisions[0]}' and '{precisions[1]}' for "
-                f"operands '{self.children[0].debug_string()}' and "
-                f"'{self.children[1].debug_string()}'") from err
-
     def get_result_scalar_type(self, argtypes):
         '''
         Examines the two operand types to determine the base type of the
