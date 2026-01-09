@@ -42,7 +42,7 @@ Program simple_example
     end do
 
     ! Don't parallelise this next loop due to the string comparison
-    !$psy no_par
+    !$my_dir no_par
     do i = 2, 1000
         if(j(3) == "m") then
             vals(i) = vals(i-1) + 3

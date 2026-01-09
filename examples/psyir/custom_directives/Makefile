@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2026, Science and Technology Facilities Council.
+# Copyright (c) 2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,9 +30,27 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. B. G. Chalk, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+# Author: A. B. G. Chalk, STFC Daresbury Lab
 
-EXAMPLES=custom_directives
+F90 ?= gfortran
+F90FLAGS ?= -O2 -fopenmp
 
-include ../top_level.mk
+transform:
+	psyclone --keep-directives -s omp.py directive_filtering.F90 -o directives_omp.F90
+
+.PHONY: clean
+clean:
+	rm -f directives_omp
+	rm -f directives_omp.F90
+
+directives_omp.F90: directive_filtering.F90 omp.py
+	psyclone --keep-directives -s omp.py directive_filtering.F90 -o directives_omp.F90
+
+%: %.F90
+	$(F90) $(F90FLAGS) $< -o $@
+
+compile: transform directives_omp omp.py
+
+run: compile
+	./directives_omp

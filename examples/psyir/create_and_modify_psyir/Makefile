@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,24 +30,21 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: M. Naylor, University of Cambridge, UK
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
+# ------------------------------------------------------------------------------
+# Authors: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
-F90 ?= gfortran
-F90FLAGS ?= -O2 -fopenmp
+include ../common.mk
 
-.PHONY: all
-all: directives_omp
-	./directives_omp
+CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
-.PHONY: clean
-clean:
-	rm -f directives_omp
-	rm -f directives_omp.F90
+transform:
+	$(CONFIG_ENV) ${PYTHON} create.py
+	$(CONFIG_ENV) ${PYTHON} create_structure_types.py
+	$(CONFIG_ENV) ${PYTHON} modify.py
 
-directives_omp.F90: directive_filtering.F90 omp.py
-	psyclone --keep-directives -s omp.py directive_filtering.F90 -o directives_omp.F90
+compile:
+	@echo "No compilation supported for the PSyIR examples"
 
-%: %.F90
-	$(F90) $(F90FLAGS) $< -o $@
+run: compile
+	@echo "No run targets for PSyIR creation examples"
+

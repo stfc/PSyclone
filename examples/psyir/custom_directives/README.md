@@ -34,18 +34,15 @@ POSSIBILITY OF SUCH DAMAGE.
 Authors: A. B. G. Chalk, STFC Daresbury Lab
 -->
 
-# PSyclone PSyIR directives.
+# Use custom directives
 
-This directory contains examples of how to create and/or modify
-instances of PSyIR and how to use directives in the tree to influence
-PSyclone's behaviour.
+This directory contains an example of how write PSyclone scripts to transform code
+by taking advantage of information provided by the use of custom Fortran code directives.
 
-The Fortran code contains a custom directive, ``!$psy no_par`` which is
+The Fortran code contains a custom directive, ``!$my_dir no_par`` which is
 used by the PSyclone script to skip attempting to parallelise a specific loop.
 
 The example can be compiled using the Makefile, but this is a simple operation:
 ``psyclone --keep-directive -s omp.py directive_filtering.F90``. The
- ``-keep-directives`` option is essential to enabling the directive of interest
+ ``--keep-directives`` option is essential to enabling the directive of interest
 to appear in the tree.
-
-

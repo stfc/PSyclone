@@ -37,14 +37,14 @@ from psyclone.psyir.transformations import OMPLoopTrans
 from psyclone.psyir.nodes import Loop, Routine, UnknownDirective
 
 
-# Find the PSyDirectives, check what the directive is for and then find the
-# next loop to skip when parallelising.
 def trans(psyir):
+    """Find the custom directive and add the associated loop to the list of
+    loops to skip. Parallelise the rest"""
     for routine in psyir.walk(Routine):
         psy_dirs = routine.walk(UnknownDirective)
         loops_to_skip = []
         for psy_dir in psy_dirs:
-            if psy_dir.directive_string == "psy no_par":
+            if psy_dir.directive_string == "my_dir no_par":
                 position = psy_dir.position
                 parent = psy_dir.parent
                 # Remove the directive as we don't need it in the output now.
