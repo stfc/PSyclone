@@ -40,9 +40,8 @@
     base class from psyGen.py. '''
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
-from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
+from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.psyGen import Invoke
 from psyclone.psyir.nodes import Assignment, Reference, Call, Literal
@@ -75,7 +74,6 @@ class LFRicInvoke(Invoke):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicInvokeSchedule
-        const = LFRicConstants()
         Invoke.__init__(self, alg_invocation, idx, LFRicInvokeSchedule,
                         invokes)
 
@@ -177,15 +175,14 @@ class LFRicInvoke(Invoke):
         # have halos. We only need to add global reduction calls for scalars
         # which have a 'gh_reduction' access.
         if Config.get().distributed_memory:
-            # halo exchange calls
-            const = LFRicConstants()
+            # Halo exchange calls
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
             # Global reductions
             for kern in self.schedule.walk(LFRicBuiltIn):
                 if not kern.is_reduction:
                     continue
-                loop = kern.parent.parent
+                loop = kern.ancestor(LFRicLoop)
                 if kern.reduction_type == "sum":
                     global_red = LFRicGlobalSum(kern.reduction_arg,
                                                 parent=loop.parent)
