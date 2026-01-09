@@ -46,7 +46,7 @@ class UnknownDirective(StandaloneDirective):
     :param directive_string: The content after the !$psy part of this
                              node in the tree.
     '''
-    _children_valid_format = ""
+    _children_valid_format = "<LeafNode>"
 
     def __init__(self, directive_string: str = "", **kwargs):
         super().__init__(**kwargs)

@@ -191,8 +191,8 @@ def test_directive_before_while():
 
 
 def test_directive_before_allocate():
-    """Test that the FortranReader stored a directive before an allocate as an
-    UnknownDirective."""
+    """Test that the FortranReader stored a directive before an allocate as a
+    CodeBlock."""
     code = """subroutine x
     integer :: j
     integer, dimension(:), allocatable :: i
