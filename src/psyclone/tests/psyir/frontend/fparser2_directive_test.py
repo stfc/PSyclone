@@ -40,7 +40,7 @@ import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    CodeBlock,
+    CodeBlock, UnknownDirective
 )
 
 
@@ -260,3 +260,31 @@ def test_inline_comment(fortran_writer):
     assert len(routine.walk(CodeBlock)) == 0
     # The comment should still be inline
     assert "j = 4  ! $omp atomic" in fortran_writer(psyir)
+
+
+def test_unknowndirective(fortran_writer):
+    """Test the the FortranReader creates a UnknownDirective when expected."""
+    code = """subroutine x
+    integer :: j
+    !$psy lowercase
+    !$PSY Uppercase
+    !$PsY mixedCASE
+    j = 1
+    end subroutine x
+    """
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    pdirs = routine.walk(UnknownDirective)
+
+    assert len(pdirs) == 3
+    assert pdirs[0].directive_string == "psy lowercase"
+    assert pdirs[1].directive_string == "psy uppercase"
+    assert pdirs[2].directive_string == "psy mixedcase"
+
+    # Check the output is also correct
+    output = fortran_writer(psyir)
+
+    assert "!$psy lowercase" in output
+    assert "!$psy uppercase" in output
+    assert "!$psy mixedcase" in output
