@@ -352,8 +352,7 @@ def test_cw_binaryoperator():
     # Test that an unsupported operator raises a error
     class Unsupported():
         '''Dummy class'''
-        def __init__(self):
-            pass
+
     binary_operation._operator = Unsupported
     with pytest.raises(VisitorError) as err:
         _ = cwriter(binary_operation)

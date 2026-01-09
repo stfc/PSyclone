@@ -1,3 +1,12 @@
+   16) PR #3258 for #279. Removes Arguments.dofs and generally improves
+   testing coverage.
+
+   15) PR #3260 for #2884. Allow WHERE with imported symbols by changing
+   Ref2ArrayRangeTrans behaviour to do the validations.
+ 
+   14) PR #3254 for #3253. Fix openmp parallel lowering with kernels and
+   improve dependency messages
+
    13) PR #3239 for #3199. Add OMPCritical Directive and Transformation.
 
    12) PR #3226 for #514. Refactor LFRic reductions to use OMPReductionClause.
