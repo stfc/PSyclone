@@ -585,7 +585,7 @@ class Invoke():
         for arg in self.unique_declarations(argument_types,
                                             intrinsic_type=intrinsic_type):
             first_arg = self.first_access(arg.declaration_name)
-            if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
+            if first_arg.access in [AccessType.WRITE, AccessType.REDUCTION]:
                 # If the first access is a write then the intent is
                 # out irrespective of any other accesses. Note,
                 # sum_args behave as if they are write_args from the
