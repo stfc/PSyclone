@@ -37,6 +37,7 @@
 
 '''This module implements the AccessType used throughout PSyclone.'''
 
+from __future__ import annotations
 from enum import Enum
 from psyclone.configuration import Config
 
@@ -57,8 +58,8 @@ class AccessType(Enum):
     #: Read before incrementing. Requires that the outermost halo be clean (see
     #: the LFRic API section of the User Guide).
     READINC = 5
-    #: Is the output of a SUM reduction.
-    SUM = 6
+    #: Is the output of a (min/max/sum) reduction.
+    REDUCTION = 6
     #: This is used internally to indicate unknown access type of
     #: a variable, e.g. when a variable is passed to a subroutine
     #: and the access type of this variable in the subroutine
@@ -132,12 +133,11 @@ class AccessType(Enum):
                 AccessType.READINC]
 
     @staticmethod
-    def get_valid_reduction_modes():
+    def get_valid_reduction_modes() -> list[AccessType]:
         '''
         :returns: A list of valid reduction access modes.
-        :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
-        return [AccessType.SUM]
+        return [AccessType.REDUCTION]
 
     @staticmethod
     def get_valid_reduction_names():

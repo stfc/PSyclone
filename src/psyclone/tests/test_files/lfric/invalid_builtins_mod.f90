@@ -63,11 +63,12 @@ module lfric_builtins_mod
   end type aX_plus_Y
 
   !> An invalid built-in that updates two arguments where one is a scalar
-  !! reduction ('gh_sum') and the other is a field with 'gh_readwrite' access
+  !! reduction ('gh_reduction') and the other is a field with 'gh_readwrite'
+  !! access.
   type, public, extends(kernel_type) :: inc_aX_plus_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_SCALAR, GH_REAL, GH_SUM                   ),    &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION             ),    &
           arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1),    &
           arg_type(GH_FIELD,  GH_REAL, GH_READ,      ANY_SPACE_1)     &
           /)
@@ -110,7 +111,7 @@ module lfric_builtins_mod
   type, public, extends(kernel_type) :: setval_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_SCALAR, GH_REAL, GH_SUM),                       &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION),                 &
           arg_type(GH_SCALAR, GH_REAL, GH_READ)                       &
           /)
      integer :: operates_on = DOF
