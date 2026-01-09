@@ -142,7 +142,7 @@ jobs:
         # that the openacc example defaults to nvfoetran. Also, the implicitly
         # defined F90FLAGS (in a module?) does not include -fopenmp, which
         # then causes some examples to fail, so explicitly define this
-        F90=mpif90 F90FLAGS="-g -Wall -O0 -fopenmp" make -C tutorial/training/ test_run
+        USE_GPU=no F90=mpif90 F90FLAGS="-g -Wall -O0 -fopenmp" make -C tutorial/training/ test_run
     - name: Examples with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
@@ -163,10 +163,10 @@ jobs:
         # We cannot run non-GPU examples with the openacc flag, since output_field
         # needs a openacc directive, which fails if the rest of the code is not on GPU
         # Enable OpenMP on CPU (for some run tests)
-        F90=mpif90 F90FLAGS="-mp -Minfo=all" make -C tutorial/training test_run
+        USE_GPU=no F90=mpif90 F90FLAGS="-mp -Minfo=all" make -C tutorial/training test_run
         # Delete any previous foles, and compile the openacc example with openacc:
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training/gocean/2.14-GameOfLife-openacc/solution allclean
-        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training/gocean/2.14-GameOfLife-openacc/solution test_run
+        USE_GPU=yes F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training/gocean/2.14-GameOfLife-openacc/solution test_run
         make -C tutorial/practicals/generic/4_openacc acc_test
     - name: Test logfile creation.
       run: |
