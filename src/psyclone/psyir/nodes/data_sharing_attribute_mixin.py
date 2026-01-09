@@ -54,14 +54,16 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
     ''' Abstract class used to compute data sharing attributes about variables
     in regions used for parallelism.
     '''
+    def __init__(self, *args, **kwargs):
+        self._explicitly_private_symbols = set()
+        super().__init__(*args, **kwargs)
+
     @property
     def explicitly_private_symbols(self) -> set[DataSymbol]:
         '''
         :returns: the set of symbols inside the loop which are private to each
             iteration of the loop if it is executed concurrently.
         '''
-        if not hasattr(self, "_explicitly_private_symbols"):
-            self._explicitly_private_symbols = set()
         return self._explicitly_private_symbols
 
     def replace_symbols_using(

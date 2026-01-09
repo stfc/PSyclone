@@ -37,6 +37,7 @@
 ''' Test the DataSharingAttributeMixin. '''
 
 from psyclone.psyir.nodes import Loop, Assignment, OMPParallelDoDirective
+from psyclone.psyir.symbols import Symbol
 
 
 def test_explicitly_private_symbols_attibute(fortran_reader):
@@ -73,10 +74,19 @@ def test_explicitly_private_symbols_attibute(fortran_reader):
     assert b_ref.symbol not in directive.explicitly_private_symbols
 
     # Check that the copy method appropriately updates the symbol references
-    # (using the replace_symbol method)
+    # (calling the 'replace_symbols_using' with the new symbol table)
     new_psyir = psyir.copy()
     new_directive = new_psyir.walk(OMPParallelDoDirective)[0]
     new_a_ref = new_psyir.walk(Assignment)[0].lhs
     assert new_a_ref.symbol is not a_ref.symbol
     assert a_ref.symbol not in new_directive.explicitly_private_symbols
     assert new_a_ref.symbol in new_directive.explicitly_private_symbols
+
+    # The 'replace_symbols_using' can also be called with a Symbol
+    previous_sym = new_a_ref.symbol
+    a_sym = Symbol("a")
+    new_directive.replace_symbols_using(a_sym)
+    assert previous_sym not in new_directive.explicitly_private_symbols
+    assert a_sym in new_directive.explicitly_private_symbols
+    # Inner references are also updated because the method is recursive
+    assert new_a_ref.symbol is a_sym
