@@ -37,7 +37,7 @@
 '''This module contains the DataSharingAttributeMixin.'''
 
 import abc
-from typing import Optional, Set, Tuple
+from typing import Optional, Union
 
 from psyclone.core import AccessType, AccessSequence, Signature
 from psyclone.psyir.nodes.codeblock import CodeBlock
@@ -47,16 +47,55 @@ from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.nodes.omp_clauses import OMPReductionClause
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import DataSymbol, Symbol
+from psyclone.psyir.symbols import DataSymbol, Symbol, SymbolTable
 
 
 class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
     ''' Abstract class used to compute data sharing attributes about variables
     in regions used for parallelism.
     '''
+    @property
+    def explicitly_private_symbols(self) -> set[DataSymbol]:
+        '''
+        :returns: the set of symbols inside the loop which are private to each
+            iteration of the loop if it is executed concurrently.
+        '''
+        if not hasattr(self, "_explicitly_private_symbols"):
+            self._explicitly_private_symbols = set()
+        return self._explicitly_private_symbols
+
+    def replace_symbols_using(
+        self,
+        table_or_symbol: Union[Symbol, SymbolTable]
+    ):
+        '''
+        Replace the Symbol referred to by this object's
+        `explicitly_private_symbols` set with those in the supplied
+        SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
+
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+
+        '''
+
+        for symbol in list(self._explicitly_private_symbols):
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == symbol.name.lower():
+                    self._explicitly_private_symbols.remove(symbol)
+                    self._explicitly_private_symbols.add(table_or_symbol)
+            else:
+                try:
+                    new_sym = table_or_symbol.lookup(symbol.name)
+                    self._explicitly_private_symbols.remove(symbol)
+                    self._explicitly_private_symbols.add(new_sym)
+                except KeyError:
+                    pass
+        super().replace_symbols_using(table_or_symbol)
 
     def infer_sharing_attributes(self) -> \
-            Tuple[Set[Symbol], Set[Symbol], Set[Symbol]]:
+            tuple[set[Symbol], set[Symbol], set[Symbol]]:
         '''
         The PSyIR does not specify if each symbol inside an OpenMP region is
         private, firstprivate, shared or shared but needs synchronisation,
@@ -153,8 +192,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             # If it is manually marked as a local symbol, add it to private or
             # firstprivate set
             if (isinstance(symbol, DataSymbol) and
-                    isinstance(self.dir_body[0], Loop) and
-                    symbol in self.dir_body[0].explicitly_private_symbols):
+                    symbol in self.explicitly_private_symbols):
                 if self._should_it_be_fprivate(accesses, n_cblocks):
                     fprivate.add(symbol)
                 else:
