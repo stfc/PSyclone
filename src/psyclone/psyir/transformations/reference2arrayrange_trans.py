@@ -43,9 +43,12 @@
 '''
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import (ArrayReference, Assignment, Call,
-                                  Literal, Range, Reference)
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.nodes import (
+    ArrayReference, Call, Literal, Range, Reference,
+    StructureReference, ArrayOfStructuresReference, Assignment)
+from psyclone.psyir.symbols import (
+    INTEGER_TYPE, DataSymbol, UnresolvedType, UnsupportedType, ArrayType,
+    ScalarType)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
@@ -53,8 +56,18 @@ from psyclone.utils import transformation_documentation_wrapper
 
 @transformation_documentation_wrapper
 class Reference2ArrayRangeTrans(Transformation):
-    '''Provides a transformation from PSyIR Array Notation (a reference to
-    an Array) to a PSyIR Range. For example:
+    '''
+    Transformation to convert plain References of array symbols to
+    ArrayReferances with full-extent ranges if it is semantically equivalent
+    to do so (e.g. it won't convert call arguments because it would change the
+    bounds values).
+
+    Note that if the provided node does not need to be modified (
+    e.g. a Reference to a scalar or an ArrayReference to an array), the
+    transformation will succeed. However, if we cannot guarantee the type of
+    the symbol, or the validity of the transformations (e.g. it is in a call
+    that we don't know if it is elemental or not), the transformation will
+    fail.
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
@@ -84,6 +97,7 @@ class Reference2ArrayRangeTrans(Transformation):
     structures, see issue #1858.
 
     '''
+
     def validate(self, node, options=None, **kwargs):
         '''Check that the node is a Reference node and that we have all
         information necessary to decide if it can be expanded.
@@ -103,28 +117,56 @@ class Reference2ArrayRangeTrans(Transformation):
         super().validate(node, **kwargs)
         self.validate_options(**kwargs)
 
-        # TODO issue #1858. Add support for structures containing arrays.
+        if node and isinstance(node.parent, Call):
+            if node is node.parent.routine:
+                return
+            if node.parent.is_elemental is None:
+                raise TransformationError(LazyString(
+                    lambda: f"The supplied node is passed as an argument to a "
+                    f"Call that may or may not be elemental: "
+                    f"'{node.parent.debug_string().strip()}'. Consider "
+                    f"adding the function's filename to RESOLVE_IMPORTS."))
+            if not node.parent.is_elemental:
+                return
+        assignment = node.ancestor(Assignment) if node else None
+        if assignment and assignment.is_pointer:
+            raise TransformationError(
+                f"{type(self).__name__} can not be applied to references"
+                f" inside pointer assignments, but found '{node.name}' in"
+                f" {assignment.debug_string()}")
+
         # pylint: disable=unidiomatic-typecheck
+        if (
+            type(node) is ArrayReference or
+            type(node) is ArrayOfStructuresReference
+        ):
+            # If it is already an Array access, it does not need expansion
+            # nor further validation
+            return
+
+        if type(node) is StructureReference:
+            # TODO #1858: Add support for expansion of structures
+            return
+
         if not type(node) is Reference:
             raise TransformationError(
                 f"The supplied node should be a Reference but found "
                 f"'{type(node).__name__}'.")
-        if not node.symbol.is_array:
+        if (
+            not isinstance(node.symbol, DataSymbol) or
+            isinstance(node.symbol.datatype, (UnresolvedType,
+                                              UnsupportedType))
+        ):
+            if (
+                isinstance(node.symbol, DataSymbol) and
+                isinstance(node.symbol.datatype, UnsupportedType) and
+                isinstance(node.symbol.datatype.partial_datatype,
+                           (ScalarType, ArrayType))
+            ):
+                return
             raise TransformationError(
                 f"The supplied node should be a Reference to a symbol "
-                f"that is an array, but '{node.symbol.name}' is not.")
-        if isinstance(node.parent, Call) and not node.parent.is_elemental:
-            raise TransformationError(LazyString(
-                lambda: f"The supplied node is passed as an argument to a "
-                f"Call to a non-elemental routine ("
-                f"{node.parent.debug_string().strip()}) and should not be "
-                f"transformed."))
-        assignment = node.ancestor(Assignment)
-        if assignment and assignment.is_pointer:
-            raise TransformationError(
-                f"'{type(self).__name__}' can not be applied to references"
-                f" inside pointer assignments, but found '{node.name}' in"
-                f" {assignment.debug_string()}")
+                f"of known type, but '{node.symbol}' is not.")
 
     def apply(self, node, options=None, **kwargs):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified
@@ -138,7 +180,22 @@ class Reference2ArrayRangeTrans(Transformation):
         '''
         self.validate(node, **kwargs)
 
+        # We have validated that it is a reference to a symbol with a datatype
+        # that is not UnresolvedType or UnknownType
         symbol = node.symbol
+
+        # The following cases do not need expansions
+        # pylint: disable=unidiomatic-typecheck
+        if type(node) in [ArrayReference, ArrayOfStructuresReference]:
+            return
+        if node.parent and isinstance(node.parent, Call):
+            if node is node.parent.routine:
+                return
+            if not node.parent.is_elemental:
+                return
+        if not symbol.is_array:
+            return
+
         indices = []
         for idx, _ in enumerate(symbol.shape):
             lbound, ubound = symbol.get_bounds(idx)

@@ -2475,7 +2475,7 @@ class KernelImportsToArguments(Transformation):
         # Check that there are no unqualified imports or undeclared symbols
         try:
             kernels = node.get_callees()
-        except SymbolError as err:
+        except (SymbolError, NotImplementedError) as err:
             raise TransformationError(
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err

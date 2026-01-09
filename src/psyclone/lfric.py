@@ -5416,8 +5416,6 @@ class LFRicKernelArguments(Arguments):
                     )
                     arg.stencil.direction_arg.varname = symbol.name
 
-        self._dofs = []
-
         # Generate a static list of unique function-space names used
         # by the set of arguments: store the mangled names as these
         # are what we use at the level of an Invoke
@@ -5604,13 +5602,6 @@ class LFRicKernelArguments(Arguments):
             "iteration_space_arg(). The lfric api must have a modified "
             "field, a modified operator, or an unmodified field (in the case "
             "of a modified scalar). None of these were found.")
-
-    @property
-    def dofs(self):
-        ''' Currently required for Invoke base class although this
-        makes no sense for LFRic. Need to refactor the Invoke base class
-        and remove the need for this property (#279). '''
-        return self._dofs
 
     def psyir_expressions(self):
         '''
