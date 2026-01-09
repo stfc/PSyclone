@@ -57,7 +57,7 @@ REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
 [lfric]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
-                 gh_inc: inc, gh_sum: sum
+                 gh_inc: inc, gh_reduction: reduction
 COMPUTE_ANNEXED_DOFS = false
 supported_fortran_datatypes = real, integer, logical
 default_kind = real: r_def, integer: i_def, logical: l_def
@@ -308,7 +308,8 @@ def test_access_mapping():
     assert (api_config.get_access_mapping()["gh_readwrite"] ==
             AccessType.READWRITE)
     assert api_config.get_access_mapping()["gh_inc"] == AccessType.INC
-    assert api_config.get_access_mapping()["gh_sum"] == AccessType.SUM
+    assert (api_config.get_access_mapping()["gh_reduction"] ==
+            AccessType.REDUCTION)
 
 
 def test_compute_annexed_dofs():
