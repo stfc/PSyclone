@@ -42,6 +42,7 @@
 Module containing tests relating to PSyclone configuration handling.
 '''
 
+import logging
 import os
 import re
 import sys
@@ -616,56 +617,17 @@ def test_mappings():
     assert "Invalid format for mapping: k2=v2" in str(err.value)
 
 
-def test_invalid_access_mapping(tmpdir):
-    '''Test that providing an invalid access type (i.e. not
-    'read', 'write', ...) raises an exception.
-
-    '''
-    # Test for an invalid key
-    config_file = tmpdir.join("config")
-    content = re.sub(r"gh_read: read", "gh_read: invalid", _CONFIG_CONTENT)
-
-    with pytest.raises(ConfigurationError) as cerr:
-        get_config(config_file, content)
-    assert "Unknown access type 'invalid' found for key 'gh_read'" \
-        in str(cerr.value)
-
-    # Test that all values of the mapping are access types:
-    api_config = Config.get().api_conf("lfric")
-    for access_mode in api_config.get_access_mapping().values():
-        assert isinstance(access_mode, AccessType)
-
-
-def test_default_access_mapping(tmpdir):
-    ''' Test that the default access mapping is correctly converted
-    to AccessTypes.
+def test_default_access_mapping(tmpdir, caplog):
+    ''' Test that the the presence of an access mapping section correctly
+    results in a deprecation warning.
 
     '''
     config_file = tmpdir.join("config")
 
-    test_config = get_config(config_file, _CONFIG_CONTENT)
+    with caplog.at_level(logging.WARN):
+        test_config = get_config(config_file, _CONFIG_CONTENT)
 
-    api_config = test_config.api_conf("lfric")
-    for access_mode in api_config.get_access_mapping().values():
-        assert isinstance(access_mode, AccessType)
-
-
-def test_access_mapping_order(tmpdir):
-    ''' Test that the order of the access mappings in the config file
-    does not affect the correct access type-mode conversion.
-
-    '''
-    config_file = tmpdir.join("config")
-    content = re.sub(r"gh_write: write, gh_readwrite: readwrite",
-                     "gh_readwrite: readwrite, gh_write: write",
-                     _CONFIG_CONTENT)
-    content = re.sub(r"gh_inc: inc, gh_sum: sum",
-                     "gh_sum: sum, gh_inc: inc", content)
-
-    api_config = get_config(config_file, content).get().api_conf("lfric")
-
-    for access_mode in api_config.get_access_mapping().values():
-        assert isinstance(access_mode, AccessType)
+    assert "Configuration file contains an ACCESS_MAPPING entry" in caplog.text
 
 
 def test_psy_data_prefix(tmpdir):

@@ -431,11 +431,10 @@ class LFRicArgDescriptor(Descriptor):
                                AccessType.INC, AccessType.READINC]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
-        rev_access_mapping = api_config.get_reverse_access_mapping()
         # Create a list of allowed accesses for use in error messages
-        fld_disc_acc_msg = [rev_access_mapping[acc] for acc in
+        fld_disc_acc_msg = [acc.api_specific_name() for acc in
                             field_disc_accesses]
-        fld_cont_acc_msg = [rev_access_mapping[acc] for acc in
+        fld_cont_acc_msg = [acc.api_specific_name() for acc in
                             field_cont_accesses]
         # Joint lists of valid function spaces for continuous fields
         fld_cont_spaces = (const.CONTINUOUS_FUNCTION_SPACES +
@@ -447,7 +446,7 @@ class LFRicArgDescriptor(Descriptor):
                 raise ParseError(
                     f"In the LFRic API, allowed field accesses for a kernel "
                     f"that operates on DoFs are {fld_disc_acc_msg}, but found "
-                    f"'{rev_access_mapping[self._access_type]}' for "
+                    f"'{self._access_type.api_specific_name()}' for "
                     f"'{self._function_space1.lower()}' in '{arg_type}'.")
         # Check accesses for kernels that operate on cell-columns or the
         # domain
@@ -461,7 +460,7 @@ class LFRicArgDescriptor(Descriptor):
                     f"discontinuous function spaces that are arguments to "
                     f"kernels that operate on either cell-columns or the "
                     f"domain are {fld_disc_acc_msg}, but found "
-                    f"'{rev_access_mapping[self._access_type]}' for "
+                    f"'{self._access_type.api_specific_name()}' for "
                     f"'{self._function_space1.lower()}' in '{arg_type}'.")
             # Fields on continuous function spaces
             if self._function_space1.lower() in fld_cont_spaces:
@@ -478,7 +477,7 @@ class LFRicArgDescriptor(Descriptor):
                         f"continuous function spaces that are arguments to "
                         f"kernels that operate on cell-columns are "
                         f"{fld_cont_acc_msg}, but found "
-                        f"'{rev_access_mapping[self._access_type]}' for "
+                        f"'{self._access_type.api_specific_name()}' for "
                         f"'{self._function_space1.lower()}' in '{arg_type}'.")
         # Raise an InternalError for an invalid value of operates-on
         else:
@@ -491,8 +490,8 @@ class LFRicArgDescriptor(Descriptor):
             if self._access_type != AccessType.READ:
                 raise ParseError(
                     f"In the LFRic API a field with a stencil access must be "
-                    f"read-only ('{rev_access_mapping[AccessType.READ]}'), "
-                    f"but found '{rev_access_mapping[self._access_type]}' in "
+                    f"read-only ('{AccessType.READ.api_specific_name()}'), "
+                    f"but found '{self._access_type.api_specific_name()}' in "
                     f"'{arg_type}'.")
             if operates_on == "domain":
                 raise ParseError(
@@ -571,14 +570,13 @@ class LFRicArgDescriptor(Descriptor):
                              AccessType.READWRITE]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
-        rev_access_mapping = api_config.get_reverse_access_mapping()
-        op_acc_msg = [rev_access_mapping[acc] for acc in operator_accesses]
+        op_acc_msg = [acc.api_specific_name() for acc in operator_accesses]
         if self._access_type not in operator_accesses:
             raise ParseError(
                 f"In the LFRic API, allowed accesses for operators are "
                 f"{op_acc_msg} because they behave as discontinuous "
                 f"quantities, but found "
-                f"'{rev_access_mapping[self._access_type]}' in '{arg_type}'.")
+                f"'{self._access_type.api_specific_name()}' in '{arg_type}'.")
 
     def _init_scalar(self, arg_type):
         '''
@@ -625,9 +623,8 @@ class LFRicArgDescriptor(Descriptor):
             AccessType.get_valid_reduction_modes()
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
-        rev_access_mapping = api_config.get_reverse_access_mapping()
         if self._access_type not in scalar_accesses:
-            api_specific_name = rev_access_mapping[self._access_type]
+            api_specific_name = self._access_type.api_specific_name()
             valid_reductions = AccessType.get_valid_reduction_names()
             raise ParseError(
                 f"In the LFRic API scalar arguments must have read-only "
@@ -690,9 +687,8 @@ class LFRicArgDescriptor(Descriptor):
         array_accesses = [AccessType.READ]
         # Convert generic access types to GH_* names for error messages
         api_config = Config.get().api_conf(API)
-        rev_access_mapping = api_config.get_reverse_access_mapping()
         if self._access_type not in array_accesses:
-            api_specific_name = rev_access_mapping[self._access_type]
+            api_specific_name = self._access_type.api_specific_name()
             raise ParseError(
                 f"In the LFRic API, ScalarArray arguments must have read-only "
                 f"('gh_read') access but found '{api_specific_name}' "

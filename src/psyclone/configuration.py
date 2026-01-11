@@ -44,8 +44,9 @@ Deals with reading the config file and storing default settings.
 
 import abc
 from configparser import (ConfigParser, MissingSectionHeaderError,
-                          ParsingError)
+                          ParsingError, SectionProxy)
 from collections import namedtuple
+import logging
 import os
 import re
 import sys
@@ -804,46 +805,20 @@ class BaseConfig:
     At the moment this is just the function 'access_mapping' that maps between
     API-specific access-descriptor strings and the PSyclone internal
     AccessType.
-    :param section: :py:class:`configparser.SectionProxy`
-    :raises ConfigurationError: if an access-mapping is provided that \
-        assigns an invalid value (i.e. not one of 'read', 'write', \
-        'readwrite'), 'inc' or 'sum') to a string.
-    '''
 
-    def __init__(self, section):
-        # Set a default mapping, this way the test cases all work without
-        # having to specify those mappings.
-        self._access_mapping = {"read": "read", "write": "write",
-                                "readwrite": "readwrite", "inc": "inc",
-                                "sum": "sum"}
+    :param section: :py:class:`configparser.SectionProxy`
+
+    '''
+    def __init__(self, section: SectionProxy):
+        logger = logging.getLogger(__name__)
         # Get the mapping if one exists and convert it into a
         # dictionary. The input is in the format: key1:value1,
         # key2=value2, ...
         if "ACCESS_MAPPING" in section:
-            mapping_list = section.getlist("ACCESS_MAPPING")
-            if mapping_list is not None:
-                self._access_mapping = \
-                    BaseConfig.create_dict_from_list(mapping_list)
-            # Now convert the string type ("read" etc) to AccessType
-            # TODO (issue #710): Add checks for duplicate or missing access
-            # key-value pairs
-            # Avoid circular import
-            # pylint: disable=import-outside-toplevel
-            from psyclone.core.access_type import AccessType
+            logger.warn(
+                "Configuration file contains an ACCESS_MAPPING entry. This is "
+                "deprecated and will be ignored.")
 
-            for api_access_name, access_type in self._access_mapping.items():
-                try:
-                    self._access_mapping[api_access_name] = \
-                        AccessType.from_string(access_type)
-                except ValueError as err:
-                    # Raised by from_string()
-                    raise ConfigurationError(
-                        f"Unknown access type '{access_type}' found for key "
-                        f"'{api_access_name}'") from err
-
-        # Now create the reverse lookup (for better error messages):
-        self._reverse_access_mapping = {v: k for k, v in
-                                        self._access_mapping.items()}
 
     @staticmethod
     def create_dict_from_list(input_list):
@@ -899,22 +874,22 @@ class BaseConfig:
                     f" characters.")
         return return_dict
 
+    @abc.abstractmethod
     def get_access_mapping(self):
         '''Returns the mapping of API-specific access strings (e.g.
         gh_write) to the AccessType (e.g. AccessType.WRITE).
         :returns: The access mapping to be used by this API.
         :rtype: Dictionary of strings
         '''
-        return self._access_mapping
 
+    @abc.abstractmethod
     def get_reverse_access_mapping(self):
-        '''Returns the reverse mapping of a PSyclone internal access type
-        to the API specific string, e.g.: AccessType.READ to 'gh_read'.
-        This is used to provide the user with API specific error messages.
-        :returns: The mapping of access types to API-specific strings.
+        '''Returns the mapping of API-specific access strings (e.g.
+        gh_write) to the AccessType (e.g. AccessType.WRITE).
+        :returns: The access mapping to be used by this API.
         :rtype: Dictionary of strings
         '''
-        return self._reverse_access_mapping
+
 
     def get_valid_accesses_api(self):
         '''Returns the sorted, API-specific names of all valid access
@@ -1136,6 +1111,14 @@ class LFRicConfig(BaseConfig):
         '''
         return self._default_kind
 
+    def get_access_mapping(self):
+        from psyclone.domain.lfric.lfric_constants import LFRicConstants
+        return LFRicConstants.ACCESS_MAPPING
+
+    def get_reverse_access_mapping(self):
+        from psyclone.domain.lfric.lfric_constants import LFRicConstants
+        return LFRicConstants.REVERSE_ACCESS_MAPPING
+
     @property
     def precision_map(self):
         '''
@@ -1330,6 +1313,10 @@ class GOceanConfig(BaseConfig):
 
         '''
         return self._debug_mode
+
+    def get_access_mapping(self):
+        from psyclone.domain.gocean.gocean_constants import GOceanConstants
+        return GOceanConstants.ACCESS_MAPPING
 
     # ---------------------------------------------------------------------
     def get_constants(self):
