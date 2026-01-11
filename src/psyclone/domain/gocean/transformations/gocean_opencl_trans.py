@@ -58,7 +58,8 @@ from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, RoutineSymbol, ContainerSymbol,
     UnsupportedFortranType, ArgumentInterface, ImportInterface,
     INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, ScalarType)
-from psyclone.transformations import TransformationError
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 
 
 class GOOpenCLTrans(Transformation):
