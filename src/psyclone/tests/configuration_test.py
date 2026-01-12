@@ -478,7 +478,7 @@ def test_wrong_api(tmpdir):
     API-specific configuration options '''
     config_file = tmpdir.join("config")
     cfg = get_config(config_file, _CONFIG_CONTENT)
-    with pytest.raises(ConfigurationError) as err:
+    with pytest.raises(ValueError) as err:
         _ = cfg.api_conf("blah")
     assert "API 'blah' is not in the list" in str(err.value)
     with pytest.raises(ConfigurationError) as err:

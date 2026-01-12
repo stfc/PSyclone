@@ -408,31 +408,31 @@ class Config:
         # Set the flag that the config file has been loaded now.
         Config._HAS_CONFIG_BEEN_INITIALISED = True
 
-    def api_conf(self, api=None):
+    def api_conf(self, api: str = None):
         '''
         Getter for the object holding API-specific configuration options.
 
-        :param str api: Optional, the API for which configuration details are
+        :param api: Optional, the API for which configuration details are
                 required. If none is specified, returns the config for the
                 default API.
         :returns: object containing API-specific configuration
-        :rtype: One of :py:class:`psyclone.configuration.LFRicConfig`,
-                :py:class:`psyclone.configuration.GOceanConfig` or None.
+        :rtype: Union[:py:class:`psyclone.configuration.LFRicConfig`,
+                      :py:class:`psyclone.configuration.GOceanConfig`]
 
-        :raises ConfigurationError: if api is not in the list of supported \
-                                    APIs.
-        :raises ConfigurationError: if the config file did not contain a \
+        :raises ValueError: if api is not in the list of supported APIs.
+        :raises ConfigurationError: if the config file did not contain a
                                     section for the requested API.
         '''
         if not api:
             api = self._api
 
+        # Ensure we use the curated API name.
         if api in LFRIC_API_NAMES:
-            api = "lfric"
+            api = LFRIC_API_NAMES[0]
         elif api in GOCEAN_API_NAMES:
-            api = "gocean"
+            api = GOCEAN_API_NAMES[0]
         else:
-            raise ConfigurationError(
+            raise ValueError(
                 f"API '{api}' is not in the list '{self.supported_apis}'' of "
                 f"supported APIs.")
 
