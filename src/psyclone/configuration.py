@@ -427,10 +427,15 @@ class Config:
         if not api:
             api = self._api
 
-        if api not in self.supported_apis:
+        if api in LFRIC_API_NAMES:
+            api = "lfric"
+        elif api in GOCEAN_API_NAMES:
+            api = "gocean"
+        else:
             raise ConfigurationError(
                 f"API '{api}' is not in the list '{self.supported_apis}'' of "
                 f"supported APIs.")
+
         if api not in self._api_conf:
             raise ConfigurationError(
                 f"Configuration file did not contain a section for the "
@@ -891,13 +896,11 @@ class BaseConfig:
         '''
 
 
-    def get_valid_accesses_api(self):
-        '''Returns the sorted, API-specific names of all valid access
-        names.
-        :returns: Sorted list of API-specific valid strings.
-        :rtype: List of strings
+    def get_valid_accesses_api(self) -> list[str]:
         '''
-        valid_names = list(self._access_mapping.keys())
+        :returns: Sorted list of API-specific access names.
+        '''
+        valid_names = list(self.get_access_mapping().keys())
         valid_names.sort()
         return valid_names
 
