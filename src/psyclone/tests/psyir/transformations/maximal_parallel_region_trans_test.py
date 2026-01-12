@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025-2026, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,98 +38,120 @@
 import pytest
 
 from psyclone.psyir.nodes import (
-    Assignment, IfBlock, Call, Loop, OMPParallelDirective, Routine
+    Assignment,
+    IfBlock,
+    Routine,
+    OMPParallelDirective,
 )
-from psyclone.psyir.transformations.maximal_parallel_region_trans import (
-    MaximalParallelRegionTrans
-)
-from psyclone.psyir.transformations.transformation_error import (
+from psyclone.psyir.transformations import (
+    MaximalParallelRegionTrans,
     TransformationError
 )
 from psyclone.transformations import OMPParallelTrans
 
 
-class DummyMaxTrans(MaximalParallelRegionTrans):
-    '''Test class to test the functionality of the MaximalParallelRegionTrans
-    '''
+# Dummy class to test MaxParallelRegionTrans' functionality.
+class MaxParTrans(MaximalParallelRegionTrans):
+    # The apply function will do OMPParallelTrans around allowed regions.
     _parallel_transformation = OMPParallelTrans
-    _allowed_nodes = (Assignment, IfBlock)
-    _required_nodes = (Assignment)
+    # We're only allowing assignment because its straightforward to test with.
+    _allowed_nodes = (Assignment, )
+    # Should parallelise any found region that contains an assignment.
+    _required_nodes = (Assignment, )
 
 
-def test_can_be_in_parallel_region(fortran_reader):
-    '''Test the can_be_in_parallel_region function of the
-    MaximalParallelRegionTrans.'''
-    code = """subroutine x
-    use some_mod
-    integer :: i, j, k, l, m
-
-    i = 2
-    if(k == 3) then
-        call something()
-    end if
-    call something()
-    do j = k, l
-        i = 3
-    end do
-    do j = k, l
-        call something()
-    end do
-    end subroutine x"""
+@pytest.mark.parametrize(
+    "statement,expected",
+    [
+        ("i = 1", True),
+        ("call a_function()", False),
+        ("do i = 1, 100\nj = j + 1\nend do", True),
+        ("do i = 1, 100\ncall a_function()\nend do", False),
+        ("if (.true.) then\nj=3\nend if", True),
+        ("if(.true.) then\nj=3\nelse\nj=3\nend if", True),
+        ("if(.true.) then\ncall a_function()\nelse\nj=3\nendif", False),
+        ("if(.true.) then\nj=3\nelse\ncall a_function()\nendif", False),
+    ]
+)
+def test_can_be_in_parallel_region(fortran_reader, statement, expected):
+    '''Test the _can_be_in_parallel_region function of
+    MaxParallelRegionTrans.'''
+    code = f"""
+    subroutine test
+        use some_module
+        integer :: i, j
+        {statement}
+    end subroutine test
+    """
     psyir = fortran_reader.psyir_from_source(code)
-    mtrans = DummyMaxTrans()
-    # First case - Assignment is in _allowed_nodes so should be True
-    assert mtrans._can_be_in_parallel_region(psyir.walk(Assignment)[0])
-    # Second case - IfBlock is in _allowed_nodes so should be True
-    assert mtrans._can_be_in_parallel_region(psyir.walk(IfBlock)[0])
-    # Third case - Call is not in _allowed_nodes so should be False
-    assert not mtrans._can_be_in_parallel_region(psyir.walk(Call)[0])
-    # Fourth case - Loop containing only nodes in _allowed_nodes so should be
-    # true.
-    assert mtrans._can_be_in_parallel_region(psyir.walk(Loop)[0])
-    # Fifth case - Loop containing a node not in _allowed_nodes so should be
-    # False.
-    assert not mtrans._can_be_in_parallel_region(psyir.walk(Loop)[1])
+    routine = psyir.walk(Routine)[0]
+    trans = MaxParTrans()
+    assert trans._can_be_in_parallel_region(routine.children[0]) == expected
 
 
 def test_validate(fortran_reader):
-    '''Test the validate function of the MaximalParallelRegionTrans.'''
-    code = """subroutine x
-    integer :: i, j, k, l, m
+    '''Test the validate function of MaxParallelRegionTrans.'''
+    code = """
+    subroutine test
+    integer :: i, j
     i = 1
-    if(i == 3) then
-        i = 2
+    j = 1
+    k = i + 1
+    if(.true.) then
+        k = i + j
     end if
-    i = 3
-    end subroutine x"""
+    end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
-    assigns = psyir.walk(Assignment)
-    mtrans = DummyMaxTrans()
+    routine = psyir.walk(Routine)[0]
+    trans = MaxParTrans()
+    # Validate should allow us to give the full children
+    trans.validate(routine.children)
 
+    # Validate should not allow non consecutive children
     with pytest.raises(TransformationError) as err:
-        mtrans.validate([assigns[0], assigns[1]])
-    assert ("Error in DummyMaxTrans transformation: supplied nodes are not "
-            "children of the same parent." in str(err.value))
-
-    with pytest.raises(TransformationError) as err:
-        mtrans.validate([assigns[0], assigns[2]])
-    assert ("Children are not consecutive children of one parent: "
-            "child 'i = 3' has position 2, but previous child had position 0."
+        trans.validate([routine.children[0], routine.children[2]])
+    assert ("Children are not consecutive children of one parent: child "
+            "'k = i + 1' has position 2, but previous child had position 0."
             in str(err.value))
 
-
-class DummyMaxTrans2(MaximalParallelRegionTrans):
-    '''Test class to test the functionality of the MaximalParallelRegionTrans
-    apply method
-    '''
-    _parallel_transformation = OMPParallelTrans
-    _allowed_nodes = (Assignment)
-    _required_nodes = (Assignment)
+    # Validate should not allow children of different parents.
+    with pytest.raises(TransformationError) as err:
+        trans.validate([routine.children[0],
+                        routine.children[3].if_body.children[0]])
+    assert ("Error in MaxParTrans transformation: supplied nodes are not "
+            "children of the same parent" in str(err.value))
 
 
 def test_apply(fortran_reader):
-    '''Test the apply function of the MaximalParallelRegionTrans.'''
-    mtrans = DummyMaxTrans2()
+    '''Test the apply function of MaxParallelRegionTrans.'''
+    code = """
+    subroutine test
+    use some_module
+    integer :: i, j
+    i = 1
+    j = 1
+    call a_function()
+    if(.true.) then
+        i = 1
+    end if
+    j = 1
+    end subroutine test
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    mtrans = MaxParTrans()
+    mtrans.apply(routine)
+    # The result should be two OMPParallelDirectives, one containing
+    # i = 1 and j = 1, and another containing the IFBlock and the second j = 1
+    dirs = routine.walk(OMPParallelDirective)
+    assert len(dirs) == 2
+
+    assert len(dirs[0].dir_body.children) == 2
+    assert dirs[0].dir_body.children[0].debug_string() == "i = 1\n"
+    assert dirs[0].dir_body.children[1].debug_string() == "j = 1\n"
+
+    assert isinstance(dirs[1].dir_body.children[0], IfBlock)
+    assert dirs[1].dir_body.children[1].debug_string() == "j = 1\n"
 
     code = """subroutine x
     integer :: i, j, k, l
