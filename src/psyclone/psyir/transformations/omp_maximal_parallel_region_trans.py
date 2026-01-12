@@ -51,7 +51,12 @@ from psyclone.transformations import OMPParallelTrans
 
 
 class OMPMaximalParallelRegionTrans(MaximalParallelRegionTrans):
-    '''TODO'''
+    '''Applies OpenMP Parallel directives around the largest possible sections
+    of the input.
+
+    At current, this will never place OpenMP parallel sections around
+    Assignments that are outside of another OpenMP directive. See #3157 and
+    the discussion on #3205 for more detail.'''
     # The type of parallel transformation to be applied to the input region.
     _parallel_transformation = OMPParallelTrans
     # Tuple of statement nodes allowed inside the _parallel_transformation
