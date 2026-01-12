@@ -824,7 +824,6 @@ class BaseConfig:
                 "Configuration file contains an ACCESS_MAPPING entry. This is "
                 "deprecated and will be ignored.")
 
-
     @staticmethod
     def create_dict_from_list(input_list):
         '''Takes a list of strings each with the format: key:value and creates
@@ -880,21 +879,18 @@ class BaseConfig:
         return return_dict
 
     @abc.abstractmethod
-    def get_access_mapping(self):
-        '''Returns the mapping of API-specific access strings (e.g.
+    def get_access_mapping(self) -> dict[str]:
+        ''':returns: the mapping of API-specific access strings (e.g.
         gh_write) to the AccessType (e.g. AccessType.WRITE).
-        :returns: The access mapping to be used by this API.
-        :rtype: Dictionary of strings
+
         '''
 
     @abc.abstractmethod
-    def get_reverse_access_mapping(self):
-        '''Returns the mapping of API-specific access strings (e.g.
+    def get_reverse_access_mapping(self) -> dict[str]:
+        ''':returns: the mapping of API-specific access strings (e.g.
         gh_write) to the AccessType (e.g. AccessType.WRITE).
-        :returns: The access mapping to be used by this API.
-        :rtype: Dictionary of strings
-        '''
 
+        '''
 
     def get_valid_accesses_api(self) -> list[str]:
         '''

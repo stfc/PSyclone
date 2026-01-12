@@ -71,7 +71,7 @@ class GOceanConstants():
         GOceanConstants.REVERSE_ACCESS_MAPPING = {}
         for key, value in GOceanConstants.ACCESS_MAPPING.items():
             GOceanConstants.REVERSE_ACCESS_MAPPING[value] = key
- 
+
         # psyGen argument types.
         GOceanConstants.VALID_ARG_TYPE_NAMES = []
 

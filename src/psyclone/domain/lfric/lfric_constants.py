@@ -136,7 +136,7 @@ class LFRicConstants():
         LFRicConstants.REVERSE_ACCESS_MAPPING = {}
         for key, value in LFRicConstants.ACCESS_MAPPING.items():
             LFRicConstants.REVERSE_ACCESS_MAPPING[value] = key
-        
+
         LFRicConstants.WRITE_ACCESSES = [
             "gh_write", "gh_readwrite", "gh_inc", "gh_readinc", "gh_sum"]
 

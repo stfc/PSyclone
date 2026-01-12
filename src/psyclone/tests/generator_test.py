@@ -903,7 +903,7 @@ end subroutine a
         main([filename, "--keep-directives"])
     for record in caplog.records:
         if ("keep_directives requires keep_comments so "
-            "PSyclone enabled keep_comments." in record.message):
+                "PSyclone enabled keep_comments." in record.message):
             assert record.levelname == "WARNING"
             break
     else:

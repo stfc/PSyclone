@@ -430,7 +430,6 @@ class LFRicArgDescriptor(Descriptor):
         field_cont_accesses = [AccessType.READ, AccessType.WRITE,
                                AccessType.INC, AccessType.READINC]
         # Convert generic access types to GH_* names for error messages
-        api_config = Config.get().api_conf(API)
         # Create a list of allowed accesses for use in error messages
         fld_disc_acc_msg = [acc.api_specific_name() for acc in
                             field_disc_accesses]
@@ -569,7 +568,6 @@ class LFRicArgDescriptor(Descriptor):
         operator_accesses = [AccessType.READ, AccessType.WRITE,
                              AccessType.READWRITE]
         # Convert generic access types to GH_* names for error messages
-        api_config = Config.get().api_conf(API)
         op_acc_msg = [acc.api_specific_name() for acc in operator_accesses]
         if self._access_type not in operator_accesses:
             raise ParseError(
@@ -622,7 +620,6 @@ class LFRicArgDescriptor(Descriptor):
         scalar_accesses = [AccessType.READ] + \
             AccessType.get_valid_reduction_modes()
         # Convert generic access types to GH_* names for error messages
-        api_config = Config.get().api_conf(API)
         if self._access_type not in scalar_accesses:
             api_specific_name = self._access_type.api_specific_name()
             valid_reductions = AccessType.get_valid_reduction_names()
@@ -686,7 +683,6 @@ class LFRicArgDescriptor(Descriptor):
         # Test allowed accesses for ScalarArrays (read_only)
         array_accesses = [AccessType.READ]
         # Convert generic access types to GH_* names for error messages
-        api_config = Config.get().api_conf(API)
         if self._access_type not in array_accesses:
             api_specific_name = self._access_type.api_specific_name()
             raise ParseError(

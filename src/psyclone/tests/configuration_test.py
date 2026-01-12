@@ -53,7 +53,6 @@ import psyclone
 
 from psyclone.configuration import (BaseConfig, ConfigurationError,
                                     Config, VALID_KERNEL_NAMING_SCHEMES)
-from psyclone.core.access_type import AccessType
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.parse import ModuleManager
@@ -617,7 +616,7 @@ def test_mappings():
     assert "Invalid format for mapping: k2=v2" in str(err.value)
 
 
-def test_default_access_mapping(tmpdir, caplog):
+def test_deprecated_access_mapping(tmpdir, caplog):
     ''' Test that the the presence of an access mapping section correctly
     results in a deprecation warning.
 
@@ -625,7 +624,7 @@ def test_default_access_mapping(tmpdir, caplog):
     config_file = tmpdir.join("config")
 
     with caplog.at_level(logging.WARN):
-        test_config = get_config(config_file, _CONFIG_CONTENT)
+        _ = get_config(config_file, _CONFIG_CONTENT)
 
     assert "Configuration file contains an ACCESS_MAPPING entry" in caplog.text
 
