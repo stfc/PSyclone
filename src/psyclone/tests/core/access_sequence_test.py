@@ -72,8 +72,8 @@ def test_access_info() -> None:
     assert access_info2.access_type == AccessType.CONSTANT
     with pytest.raises(InternalError) as err:
         access_info2.change_read_to_constant()
-    assert ("Trying to change variable to 'CONSTANT' but '< Node[] >' "
-            "does not contain a 'READ' access." in str(err.value))
+    assert ("Trying to change variable access from 'READ' to 'CONSTANT' "
+            "but access type is  'CONSTANT'." in str(err.value))
 
     access_info = AccessInfo(AccessType.UNKNOWN, Node())
     assert access_info.access_type == AccessType.UNKNOWN

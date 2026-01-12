@@ -94,9 +94,9 @@ class AccessInfo():
         :raises InternalError: if the variable does not have READ acccess.
         '''
         if self._access_type != AccessType.READ:
-            raise InternalError(f"Trying to change variable to 'CONSTANT' "
-                                f"but '{self._node.debug_string().rstrip()}' "
-                                f"does not contain a 'READ' access.")
+            raise InternalError(f"Trying to change variable access from "
+                                f"'READ' to 'CONSTANT' but access type is "
+                                f" '{self._access_type}'.")
         self._access_type = AccessType.CONSTANT
 
     def component_indices(self):

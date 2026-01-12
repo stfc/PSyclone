@@ -56,7 +56,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
     IAttr,
-    _get_named_argument_type,
+    _type_of_named_argument,
     _type_of_named_arg_with_optional_kind_and_dim,
     _type_with_specified_precision_and_optional_dim,
     _type_of_scalar_with_optional_kind,
@@ -962,8 +962,8 @@ def test_get_all_accessed_symbols(fortran_reader):
     assert "SHAPE" not in symbol_names
 
 
-def test_get_named_argument_type(fortran_reader):
-    """Test the _get_named_argument_type helper function."""
+def test_type_of_named_argument(fortran_reader):
+    """Test the _type_of_named_argument helper function."""
     code = """subroutine x
     integer :: a, b
     a = 1
@@ -971,7 +971,7 @@ def test_get_named_argument_type(fortran_reader):
     end subroutine x"""
     psyir = fortran_reader.psyir_from_source(code)
     abs_call = psyir.walk(IntrinsicCall)[0]
-    dtype = _get_named_argument_type(abs_call, "a")
+    dtype = _type_of_named_argument(abs_call, "a")
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
