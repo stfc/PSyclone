@@ -61,21 +61,20 @@ from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
     Call, CodeBlock, Directive, Literal, Loop, Node,
-    OMPDirective, OMPMasterDirective,
-    OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
-    Return, Schedule, OMPReductionClause,
-    OMPSingleDirective, PSyDataNode, IntrinsicCall)
+    Return, Schedule, PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.omp_directives import (
+    MAP_REDUCTION_OP_TO_OMP, OMPDirective, OMPMasterDirective,
+    OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
+    OMPReductionClause, OMPSingleDirective)
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
     SymbolError, UnresolvedType)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
-from psyclone.psyir.transformations.omp_loop_trans import (
-    OMPLoopTrans, MAP_REDUCTION_OP_TO_OMP
-)
+from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import (
     ParallelLoopTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
@@ -2476,7 +2475,7 @@ class KernelImportsToArguments(Transformation):
         # Check that there are no unqualified imports or undeclared symbols
         try:
             kernels = node.get_callees()
-        except SymbolError as err:
+        except (SymbolError, NotImplementedError) as err:
             raise TransformationError(
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,32 +31,43 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors A. B. G. Chalk, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-import abc
+''' This module contains the tests for the OpenMP Critical
+transformation.'''
 
-
-class LocalTransformation():
-    '''abstract baseclass for a transformation. Use of abc means it can
-    not be instantiated.
-
-    '''
-    __metaclass__ = abc.ABCMeta
-
-    @abc.abstractmethod
-    def name(self):
-        ...
+from psyclone.psyir.nodes import OMPCriticalDirective, Routine
+from psyclone.psyir.transformations import OMPCriticalTrans
 
 
-class TestTrans(LocalTransformation):
-    ''' A placeholder test transformation '''
+def test_omp_critical_apply(fortran_reader, fortran_writer):
+    '''Test the apply function of the OMPCriticalTrans.'''
+    ctrans = OMPCriticalTrans()
 
-    def __init__(self):
-        pass
+    code = """subroutine x
+    integer :: i, j
 
-    def __str__(self):
-        ...
+    i = 2
+    j = 3
+    end subroutine x"""
 
-    @property
-    def name(self):
-        return "testTrans"
+    psyir = fortran_reader.psyir_from_source(code)
+
+    routine = psyir.walk(Routine)[0]
+
+    ctrans.apply(routine.children[:])
+    assert isinstance(routine.children[0], OMPCriticalDirective)
+
+    output = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer :: j
+
+  !$omp critical
+  i = 2
+  j = 3
+  !$omp end critical
+
+end subroutine x"""
+    assert correct in output
