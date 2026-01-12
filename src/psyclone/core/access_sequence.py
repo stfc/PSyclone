@@ -47,7 +47,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.core.signature import Signature
 from psyclone.errors import InternalError
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from psyclone.psyir.nodes import Node
     from psyclone.psyir.symbols import Symbol
 
