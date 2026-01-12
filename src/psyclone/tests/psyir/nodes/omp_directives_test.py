@@ -639,7 +639,7 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
     # If the loop has some explict locals, these are listed when getting
     # the infer_sharing_attributes
     array_symbol = routine.symbol_table.lookup("array")
-    loop.explicitly_private_symbols.add(array_symbol)
+    directive.explicitly_private_symbols.add(array_symbol)
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 3
     assert len(fpvars) == 0
@@ -650,7 +650,7 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
 
     # Scalar symbols can also be set as explicitly local
     scalar_symbol = routine.symbol_table.lookup("scalar2")
-    loop.explicitly_private_symbols.add(scalar_symbol)
+    directive.explicitly_private_symbols.add(scalar_symbol)
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 4
     assert len(fpvars) == 0
@@ -707,9 +707,8 @@ def test_infer_sharing_attributes_with_codeblocks(
     # Make sure that the write statements inside the loop are CodeBlocks,
     # otherwise we need a new test example
     assert loop.has_descendant(nodes.CodeBlock)
-    loop.explicitly_private_symbols.add(
-            loop.scope.symbol_table.lookup("scalar2"))
-    omplooptrans.apply(loop, node_type_check=False, force=True)
+    omplooptrans.apply(loop, node_type_check=False, force=True,
+                       force_private=["scalar2"])
 
     # Here we mostly check that the infer_sharing attributes doesn't fall
     # over with CodeBlocks. This will often still be defensively firstprivate

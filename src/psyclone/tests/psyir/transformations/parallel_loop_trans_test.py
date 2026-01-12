@@ -656,9 +656,7 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
     assert "'ztmp'" not in str(err.value)
 
     # It can still be parallelised by explictly marking the symbol as private
-    ztmp2 = loop.scope.symbol_table.lookup("ztmp2")
-    loop.explicitly_private_symbols.add(ztmp2)
-    trans.apply(loop, {"privatise_arrays": True})
+    trans.apply(loop, {"privatise_arrays": True, "force_private": ["ztmp2"]})
     assert ("!$omp parallel do default(shared) private(ji,jj,ztmp) "
             "firstprivate(ztmp2)" in fortran_writer(psyir))
 
@@ -770,8 +768,7 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
             "array privatisation" in str(err.value))
 
     # But it is fine when explicitly requesting the symbol to be private
-    loop.explicitly_private_symbols.add(loop.scope.symbol_table.lookup("ztmp"))
-    trans.validate(loop, {"privatise_arrays": True})
+    trans.validate(loop, {"privatise_arrays": True, "force_private": ["ztmp"]})
 
     # Check if the whole loop body is inside a conditional, this is needed
     # because the privatisation validation will search for the node following
