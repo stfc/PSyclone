@@ -41,68 +41,22 @@ from psyclone.psyir.transformations import (
         ArrayAssignment2LoopsTrans,
         OMPLoopTrans,
         OMPMinimiseSyncTrans,
-        TransformationError
+        TransformationError,
+        OMPMaximalParallelRegionTrans
 )
-from psyclone.transformations import OMPParallelTrans
 from psyclone.psyir.nodes import (
         Assignment,
         Directive,
-        IfBlock,
         Loop,
-        OMPBarrierDirective,
-        OMPDoDirective,
         Routine,
 )
 
 
-def add_parallel_region_to_contiguous_directives(schedule):
-    '''Adds OMPParallelDirective nodes around areas of the schedule with
-    contiguous OpenMP directives.
-
-    :param schedule: The Schedule to add OpenMPParallelDirectives to.
-    :type schedule: :py:class:`psyclone.nodes.Schedule`
-    '''
-    par_trans = OMPParallelTrans()
-    start = -1
-    end = -1
-    sets = []
-    # Loop through the children, if its an OpenMP directive add it
-    # to the current set
-    for child in schedule:
-        if isinstance(child, (OMPDoDirective, OMPBarrierDirective)):
-            if start < 0:
-                start = child.position
-            end = child.position + 1
-        else:
-            # If we have a non OMPDodirective/OMPBarrierDirective then add
-            # an OMPParallelDirective if needed.
-            if start >= 0:
-                sets.append((start, end))
-                start = -1
-                end = -1
-            # Recurse appropriately to sub schedules:
-            if isinstance(child, Loop):
-                add_parallel_region_to_contiguous_directives(child.loop_body)
-            elif isinstance(child, IfBlock):
-                add_parallel_region_to_contiguous_directives(child.if_body)
-                if child.else_body:
-                    add_parallel_region_to_contiguous_directives(
-                        child.else_body
-                    )
-    # If we get to the end and need to enclose some nodes in a parallel
-    # directive we do it now
-    if start >= 0:
-        sets.append((start, end))
-
-    for subset in sets[::-1]:
-        par_trans.apply(schedule[subset[0]:subset[1]])
-
-
 def trans(psyir):
     ''' Adds OpenMP Loop directives with nowait to Nemo loops over levels.
-    This is followed by applying OpenMP parallel directives as required,
-    before removing barriers where possible.
-
+    This is followed by applying OpenMP parallel directives as required
+    with the OMPMaximalParallelRegionTrans, before removing barriers where
+    possible.
 
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -130,5 +84,5 @@ def trans(psyir):
     # Apply the largest possible parallel regions and remove any barriers that
     # can be removed.
     for routine in psyir.walk(Routine):
-        add_parallel_region_to_contiguous_directives(routine)
+        OMPMaximalParallelRegionTrans().apply(routine)
         minsync_trans.apply(routine)
