@@ -108,7 +108,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
     def _attempt_privatisation(
         loop: Loop,
         symbol_name: str,
-        force_private: list[str] = None,
+        force_private: Iterable[str] = (),
         output_set: Optional[set[Symbol]] = None
     ):
         ''' Check and (if dry_run is False) perform symbol privatisation
@@ -116,7 +116,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
 
         :param loop: the loop that will be parallelised.
         :param symbol_name: the symbol that we want to privatise.
-        :param force_private:
+        :param force_private: list of symbols explicitly requested to be
+            private.
         :param output_set: Optional set of symbols on which to add each symbol
             indentified as needed to be private.
 
@@ -477,8 +478,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             except KeyError:
                 # This is not an error, but we will log the missed string
                 logger.warning(
-                    "'%s' has been provided with the '%s' symbol name in "
-                    " the 'force_private' option, but there is no such "
+                    "%s has been provided with the '%s' symbol name in "
+                    "the 'force_private' option, but there is no such "
                     "symbol in this scope.", self.name, symbol_name)
             explictly_private_symbols.add(sym)
 

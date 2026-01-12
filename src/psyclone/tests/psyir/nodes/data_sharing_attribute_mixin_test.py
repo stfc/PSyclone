@@ -75,6 +75,8 @@ def test_explicitly_private_symbols_attibute(fortran_reader):
 
     # Check that the copy method appropriately updates the symbol references
     # (calling the 'replace_symbols_using' with the new symbol table)
+    # Having symbols that are not in the symbol_table doesn't make it fail
+    directive.explicitly_private_symbols.add(Symbol("non_existant"))
     new_psyir = psyir.copy()
     new_directive = new_psyir.walk(OMPParallelDoDirective)[0]
     new_a_ref = new_psyir.walk(Assignment)[0].lhs
