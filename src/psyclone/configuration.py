@@ -807,9 +807,6 @@ class Config:
 # =============================================================================
 class BaseConfig:
     '''A base class for functions that each API-specific class must provide.
-    At the moment this is just the function 'access_mapping' that maps between
-    API-specific access-descriptor strings and the PSyclone internal
-    AccessType.
 
     :param section: :py:class:`configparser.SectionProxy`
 
@@ -876,16 +873,16 @@ class BaseConfig:
         return return_dict
 
     def get_access_mapping(self) -> dict[str]:
-        ''':returns: the mapping of API-specific access strings (e.g.
-        gh_write) to the AccessType (e.g. AccessType.WRITE).
-
+        '''
+        :returns: the mapping of API-specific access strings (e.g.
+                  gh_write) to the AccessType (e.g. AccessType.WRITE).
         '''
         return self.get_constants().ACCESS_MAPPING
 
     def get_reverse_access_mapping(self) -> dict[str]:
-        ''':returns: the mapping of API-specific access strings (e.g.
-        gh_write) to the AccessType (e.g. AccessType.WRITE).
-
+        '''
+        :returns: the mapping of API-specific access strings (e.g.
+                  gh_write) to the AccessType (e.g. AccessType.WRITE).
         '''
         return self.get_constants().REVERSE_ACCESS_MAPPING
 
