@@ -136,7 +136,7 @@ class Reference2ArrayRangeTrans(Transformation):
         assignment = node.ancestor(Assignment) if node else None
         if assignment and assignment.is_pointer:
             raise TransformationError(
-                f"{type(self).__name__} can not be applied to references"
+                f"{type(self).__name__} cannot be applied to references"
                 f" inside pointer assignments, but found '{node.name}' in"
                 f" {assignment.debug_string()}")
 
@@ -255,7 +255,8 @@ class Reference2ArrayRangeTrans(Transformation):
             if isinstance(cursor_datatype, StructureType.ComponentType):
                 cursor_datatype = cursor_datatype.datatype
 
-            # If we know its an array but its not an array accessor, convert it
+            # If we know it's an array but it's not an array accessor, we need
+            # to update the node
             if not isinstance(cursor, ArrayMixin):
                 if isinstance(cursor_datatype, ArrayType):
 

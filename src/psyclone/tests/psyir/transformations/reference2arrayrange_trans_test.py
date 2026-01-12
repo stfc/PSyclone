@@ -249,7 +249,7 @@ def test_validate_no_known_datatype(fortran_reader, fortran_writer):
     end program test'''
     trans = Reference2ArrayRangeTrans()
     psyir = fortran_reader.psyir_from_source(code)
-    # Any of these fail validation because we can infer that 'work' is a
+    # These succeed validation because we can infer that 'work' is a
     # scalar because it is directly inside a range expression
     for reference in psyir.walk(Reference):
         trans.apply(reference)
@@ -329,25 +329,11 @@ def test_structure_references(fortran_reader, fortran_writer):
     trans = Reference2ArrayRangeTrans()
     assign = psyir.walk(Assignment)
 
+    for assign in psyir.walk(Assignment):
+        trans.apply(assign.lhs)
+
     # The first statements pass unmodified
-    trans.apply(assign[0].lhs)
-    trans.apply(assign[1].lhs)
-    trans.apply(assign[2].lhs)
-    trans.apply(assign[3].lhs)
-    trans.apply(assign[4].lhs)
-    trans.apply(assign[5].lhs)
-
-    # The following get some component replaced
-    trans.apply(assign[6].lhs)
-    trans.apply(assign[7].lhs)
-    trans.apply(assign[8].lhs)
-    trans.apply(assign[9].lhs)
-    trans.apply(assign[10].lhs)
-    trans.apply(assign[11].lhs)
-    trans.apply(assign[12].lhs)
-
     output = fortran_writer(psyir)
-    print(output)
     expected_unmodified = """
   ref%scalar = 1
   array_of_ref(:)%scalar = 1
@@ -358,6 +344,7 @@ def test_structure_references(fortran_reader, fortran_writer):
   """
     assert expected_unmodified in output
 
+    # The following get some component replaced
     expected_modified = """
   array_of_ref(1:10)%scalar = 1
   array_of_ref(1)%field(1:10) = 1
@@ -407,7 +394,7 @@ def test_unsupported_structure_references(fortran_reader):
             "it could not resolve the 'scalar2' accessor" in str(err.value))
     with pytest.raises(TransformationError) as err:
         trans.apply(assign[1].lhs)
-    assert (" Reference2ArrayRangeTrans can not be applied to references "
+    assert (" Reference2ArrayRangeTrans cannot be applied to references "
             "inside pointer assignments, but found 'ref' in ref%ptr => b\n"
             in str(err.value))
 
@@ -458,7 +445,7 @@ def test_pointer_assignment(fortran_reader, fortran_writer):
                       assignments[1].walk(Reference)):
         with pytest.raises(TransformationError) as info:
             trans.validate(reference)
-        assert ("Reference2ArrayRangeTrans can not be applied to references "
+        assert ("Reference2ArrayRangeTrans cannot be applied to references "
                 "inside pointer assignments, but found " in str(info.value))
 
     # pointers (partial datatypes) in non-pointer-assignments are still
