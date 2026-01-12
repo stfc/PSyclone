@@ -494,7 +494,7 @@ def test_op_any_discontinuous_space_2(tmpdir):
     assert "dim_ads4_f1 = f1_proxy%vspace%get_dim_space()" in generated_code
     assert ("diff_dim_ads4_f1 = f1_proxy%vspace%get_dim_space_diff()"
             in generated_code)
-    assert ("ALLOCATE(basis_ads1_o1_qr(dim_ads1_op1,ndf_ads1_op1"
+    assert ("ALLOCATE(basis_ads1_op1_qr(dim_ads1_op1,ndf_ads1_op1"
             in generated_code)
     assert ("ALLOCATE(diff_basis_ads4_f1_qr(diff_dim_ads4_f1,"
             "ndf_ads4_f1" in generated_code)
@@ -2303,8 +2303,8 @@ def test_no_mangle_specified_function_space():
 @pytest.mark.parametrize(
     "name, shortened",
     [("something_nasty_in_the_woodshead", "sg_ny_in_te_wd"),
-     ("something_o_nasty", "sg_o_ny"),
-     ("short", "st"),
+     ("something_o_nasty_i_t_woodshead_tonight", "sg_o_ny_i_t_wd_tt"),
+     ("short", "short"),
      ("diff_basis_as1_blah", "diff_basis_as1_blah"),
      ("basis_as2_se_se_ae_on_as1_se_ae_w0_k0",
       "bs_a2_se_se_ae_on_a1_se_ae_w0_k0")])

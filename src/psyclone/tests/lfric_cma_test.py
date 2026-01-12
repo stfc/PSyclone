@@ -834,9 +834,9 @@ def test_cma_asm(tmpdir, dist_mem):
             "cma_op1_cma_matrix => null()" in code)
     assert "type(mesh_type), pointer :: mesh => null()" in code
     assert "integer(kind=i_def) :: ncell_2d" in code
-    assert ("integer(kind=i_def), pointer :: cbanded_map_ads1_la_o1(:,:) "
+    assert ("integer(kind=i_def), pointer :: cbanded_map_ads1_lma_op1(:,:) "
             "=> null()") in code
-    assert ("integer(kind=i_def), pointer :: cbanded_map_ads2_la_o1(:,:) "
+    assert ("integer(kind=i_def), pointer :: cbanded_map_ads2_lma_op1(:,:) "
             "=> null()") in code
     assert "ncell_2d = mesh%get_ncells_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
@@ -844,8 +844,8 @@ def test_cma_asm(tmpdir, dist_mem):
             "ncell_2d, lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
             "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, cma_op1_ncol, "
             "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
-            "cma_op1_gamma_p, ndf_ads1_la_o1, cbanded_map_ads1_la_o1, "
-            "ndf_ads2_la_o1, cbanded_map_ads2_la_o1)") in code
+            "cma_op1_gamma_p, ndf_ads1_lma_op1, cbanded_map_ads1_lma_op1, "
+            "ndf_ads2_lma_op1, cbanded_map_ads2_lma_op1)") in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -871,9 +871,9 @@ def test_cma_asm_field(tmpdir, dist_mem):
     assert "type(columnwise_operator_type), intent(inout) :: cma_op1\n" in code
     assert "type(columnwise_operator_proxy_type) :: cma_op1_proxy\n" in code
     assert ("integer(kind=i_def), pointer :: "
-            "cbanded_map_as1_ad(:,:) => null()\n" in code)
+            "cbanded_map_as1_afield(:,:) => null()\n" in code)
     assert ("integer(kind=i_def), pointer :: "
-            "cbanded_map_as2_la_o1(:,:) => null()\n" in code)
+            "cbanded_map_as2_lma_op1(:,:) => null()\n" in code)
     assert "integer(kind=i_def) :: ncell_2d" in code
     assert "mesh => afield_proxy%vspace%get_mesh()\n" in code
     assert "ncell_2d = mesh%get_ncells_2d()" in code
@@ -883,10 +883,10 @@ def test_cma_asm_field(tmpdir, dist_mem):
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_as1_ad, "
-        "undf_as1_ad, map_as1_ad(:,cell), "
-        "cbanded_map_as1_ad, ndf_as2_la_o1, "
-        "cbanded_map_as2_la_o1)")
+        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_as1_afield, "
+        "undf_as1_afield, map_as1_afield(:,cell), "
+        "cbanded_map_as1_afield, ndf_as2_lma_op1, "
+        "cbanded_map_as2_lma_op1)")
     assert expected in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -915,9 +915,9 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
     assert "type(columnwise_operator_type), intent(inout) :: cma_op1" in code
     assert "type(columnwise_operator_proxy_type) :: cma_op1_proxy" in code
     assert ("integer(kind=i_def), pointer :: "
-            "cbanded_map_as1_la_o1(:,:) => null()" in code)
+            "cbanded_map_as1_lma_op1(:,:) => null()" in code)
     assert ("integer(kind=i_def), pointer :: "
-            "cbanded_map_as2_la_o1(:,:) => null()" in code)
+            "cbanded_map_as2_lma_op1(:,:) => null()" in code)
     assert "integer(kind=i_def) :: ncell_2d" in code
     assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
@@ -926,9 +926,9 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
                 "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), "
                 "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
                 "cma_op1_alpha_1, cma_op1_beta, cma_op1_gamma_m, "
-                "cma_op1_gamma_p, cma_op1_alpha, ndf_as1_la_o1, "
-                "cbanded_map_as1_la_o1, ndf_as2_la_o1, "
-                "cbanded_map_as2_la_o1)")
+                "cma_op1_gamma_p, cma_op1_alpha, ndf_as1_lma_op1, "
+                "cbanded_map_as1_lma_op1, ndf_as2_lma_op1, "
+                "cbanded_map_as2_lma_op1)")
 
     assert expected in code
 
@@ -959,7 +959,7 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
             in code)
     assert "type(columnwise_operator_proxy_type) :: cma_op1_proxy" in code
     assert ("integer(kind=i_def), pointer :: "
-            "cbanded_map_as2_la_o1(:,:) => null()\n" in code)
+            "cbanded_map_as2_lma_op1(:,:) => null()\n" in code)
     assert "integer(kind=i_def) :: ncell_2d" in code
     assert "mesh => lma_op1_proxy%fs_from%get_mesh()" in code
     assert "ncell_2d = mesh%get_ncells_2d()" in code
@@ -976,9 +976,9 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
                 "lma_op1_local_stencil, afield_data, "
                 "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, cma_op1_bandwidth, "
                 "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
-                "cma_op1_gamma_p, ndf_as1_la_o1, undf_as1_la_o1, "
-                "map_as1_la_o1(:,cell), ndf_as2_la_o1, "
-                "cbanded_map_as2_la_o1)")
+                "cma_op1_gamma_p, ndf_as1_lma_op1, undf_as1_lma_op1, "
+                "map_as1_lma_op1(:,cell), ndf_as2_lma_op1, "
+                "cbanded_map_as2_lma_op1)")
     assert expected in code
     # We do not perform halo swaps for operators
     assert "lma_op1_proxy%is_dirty(" not in code
@@ -1003,24 +1003,24 @@ def test_cma_apply(tmpdir, dist_mem):
     assert "mesh => field_a_proxy%vspace%get_mesh()" in code
     assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert ("integer(kind=i_def), pointer :: cma_indirection_map_as1_"
-            "fd_a(:) => null()" in code)
+            "field_a(:) => null()" in code)
     assert ("integer(kind=i_def), pointer :: "
-            "cma_indirection_map_as2_fd_b(:) => null()\n") in code
-    assert ("ndf_as1_fd_a = field_a_proxy%vspace%get_ndf()\n"
-            "    undf_as1_fd_a = field_a_proxy%vspace%"
+            "cma_indirection_map_as2_field_b(:) => null()\n") in code
+    assert ("ndf_as1_field_a = field_a_proxy%vspace%get_ndf()\n"
+            "    undf_as1_field_a = field_a_proxy%vspace%"
             "get_undf()") in code
-    assert ("cma_indirection_map_as1_fd_a => "
+    assert ("cma_indirection_map_as1_field_a => "
             "cma_op1_proxy%indirection_dofmap_to") in code
-    assert ("cma_indirection_map_as2_fd_b => "
+    assert ("cma_indirection_map_as2_field_b => "
             "cma_op1_proxy%indirection_dofmap_from") in code
     assert ("call columnwise_op_app_kernel_code(cell, ncell_2d, "
             "field_a_data, field_b_data, cma_op1_cma_matrix(:,:,:), "
             "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-            "ndf_as1_fd_a, undf_as1_fd_a, "
-            "map_as1_fd_a(:,cell), cma_indirection_map_as1_fd_a, "
-            "ndf_as2_fd_b, undf_as2_fd_b, map_as2_fd_b(:,cell),"
-            " cma_indirection_map_as2_fd_b)") in code
+            "ndf_as1_field_a, undf_as1_field_a, "
+            "map_as1_field_a(:,cell), cma_indirection_map_as1_field_a, "
+            "ndf_as2_field_b, undf_as2_field_b, map_as2_field_b(:,cell),"
+            " cma_indirection_map_as2_field_b)") in code
     # We do not perform halo swaps for operators
     assert "cma_op1_proxy%is_dirty(" not in code
 
@@ -1045,13 +1045,13 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
     assert "integer(kind=i_def) :: ncell_2d" in code
     assert "type(columnwise_operator_proxy_type) :: cma_op1_proxy" in code
     assert ("integer(kind=i_def), pointer :: "
-            "cma_indirection_map_ads1_fd_a(:) => null()") in code
+            "cma_indirection_map_ads1_field_a(:) => null()") in code
     assert ("integer(kind=i_def), pointer :: "
-            "cma_indirection_map_as1_fd_b(:) => null()\n") in code
-    assert ("ndf_ads1_fd_a = field_a_proxy%vspace%get_ndf()\n"
-            "    undf_ads1_fd_a = "
+            "cma_indirection_map_as1_field_b(:) => null()\n") in code
+    assert ("ndf_ads1_field_a = field_a_proxy%vspace%get_ndf()\n"
+            "    undf_ads1_field_a = "
             "field_a_proxy%vspace%get_undf()") in code
-    assert ("cma_indirection_map_ads1_fd_a => "
+    assert ("cma_indirection_map_ads1_field_a => "
             "cma_op1_proxy%indirection_dofmap_to") in code
     # Check w2v
     assert "type(columnwise_operator_proxy_type) :: cma_op2_proxy" in code
@@ -1060,7 +1060,7 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
     assert ("integer(kind=i_def), pointer :: "
             "cma_indirection_map_w2v(:) => null()") in code
     assert ("integer(kind=i_def), pointer :: "
-            "cma_indirection_map_as2_fd_d(:) => null()\n") in code
+            "cma_indirection_map_as2_field_d(:) => null()\n") in code
     assert ("ndf_w2v = field_c_proxy%vspace%get_ndf()\n"
             "    undf_w2v = field_c_proxy%vspace%get_undf()") in code
     assert ("cma_indirection_map_w2v => "
@@ -1079,19 +1079,19 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
             "ncell_2d, field_a_data, field_b_data, "
             "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, cma_op1_ncol, "
             "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-            "cma_op1_gamma_m, cma_op1_gamma_p, ndf_ads1_fd_a, "
-            "undf_ads1_fd_a, map_ads1_fd_a(:,cell), "
-            "cma_indirection_map_ads1_fd_a, ndf_as1_fd_b, "
-            "undf_as1_fd_b, map_as1_fd_b(:,cell), "
-            "cma_indirection_map_as1_fd_b") in code
+            "cma_op1_gamma_m, cma_op1_gamma_p, ndf_ads1_field_a, "
+            "undf_ads1_field_a, map_ads1_field_a(:,cell), "
+            "cma_indirection_map_ads1_field_a, ndf_as1_field_b, "
+            "undf_as1_field_b, map_as1_field_b(:,cell), "
+            "cma_indirection_map_as1_field_b") in code
     # Check w2v
     assert ("call columnwise_op_app_w2v_kernel_code(cell, ncell_2d, "
             "field_c_data, field_d_data, cma_op2_cma_matrix(:,:,:), "
             "cma_op2_nrow, cma_op2_ncol, cma_op2_bandwidth, cma_op2_alpha, "
             "cma_op2_beta, cma_op2_gamma_m, cma_op2_gamma_p, ndf_w2v, "
             "undf_w2v, map_w2v(:,cell), cma_indirection_map_w2v, "
-            "ndf_as2_fd_d, undf_as2_fd_d, map_as2_fd_d"
-            "(:,cell), cma_indirection_map_as2_fd_d)") in code
+            "ndf_as2_field_d, undf_as2_field_d, map_as2_field_d"
+            "(:,cell), cma_indirection_map_as2_field_d)") in code
 
     if dist_mem:
         # Check any_discontinuous_space_1
