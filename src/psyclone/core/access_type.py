@@ -90,8 +90,8 @@ class AccessType(Enum):
 
         :returns: The API specific name.
         '''
-        const = Config.get().api_conf().get_constants()
-        return const.REVERSE_ACCESS_MAPPING.get(self, str(self).lower())
+        rmap = Config.get().api_conf().get_reverse_access_mapping()
+        return rmap.get(self, str(self).lower())
 
     @staticmethod
     def from_string(access_string: str):

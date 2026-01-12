@@ -121,7 +121,7 @@ def config(config_file, content):
 
 
 @pytest.mark.parametrize(
-    "option", ["access_mapping", "COMPUTE_ANNEXED_DOFS",
+    "option", ["COMPUTE_ANNEXED_DOFS",
                "supported_fortran_datatypes", "default_kind",
                "precision_map", "RUN_TIME_CHECKS",
                "NUM_ANY_SPACE", "NUM_ANY_DISCONTINUOUS_SPACE"])
@@ -137,7 +137,7 @@ def test_no_mandatory_option(tmpdir, option):
         config(config_file, content)
     assert ("Missing mandatory configuration option in the "
             "\'[lfric]\' section " in str(err.value))
-    assert ("Valid options are: ['access_mapping', "
+    assert ("Valid options are: ["
             "'compute_annexed_dofs', 'supported_fortran_datatypes', "
             "'default_kind', 'precision_map', 'run_time_checks', "
             "'num_any_space', 'num_any_discontinuous_space']."

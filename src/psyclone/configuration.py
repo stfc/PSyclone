@@ -816,9 +816,6 @@ class BaseConfig:
     '''
     def __init__(self, section: SectionProxy):
         logger = logging.getLogger(__name__)
-        # Get the mapping if one exists and convert it into a
-        # dictionary. The input is in the format: key1:value1,
-        # key2=value2, ...
         if "ACCESS_MAPPING" in section:
             logger.warn(
                 "Configuration file contains an ACCESS_MAPPING entry. This is "
@@ -878,19 +875,19 @@ class BaseConfig:
                     f" characters.")
         return return_dict
 
-    @abc.abstractmethod
     def get_access_mapping(self) -> dict[str]:
         ''':returns: the mapping of API-specific access strings (e.g.
         gh_write) to the AccessType (e.g. AccessType.WRITE).
 
         '''
+        return self.get_constants().ACCESS_MAPPING
 
-    @abc.abstractmethod
     def get_reverse_access_mapping(self) -> dict[str]:
         ''':returns: the mapping of API-specific access strings (e.g.
         gh_write) to the AccessType (e.g. AccessType.WRITE).
 
         '''
+        return self.get_constants().REVERSE_ACCESS_MAPPING
 
     def get_valid_accesses_api(self) -> list[str]:
         '''
@@ -955,8 +952,7 @@ class LFRicConfig(BaseConfig):
         self._num_any_discontinuous_space = None
 
         # Define and check mandatory keys
-        self._mandatory_keys = ["access_mapping",
-                                "compute_annexed_dofs",
+        self._mandatory_keys = ["compute_annexed_dofs",
                                 "supported_fortran_datatypes",
                                 "default_kind",
                                 "precision_map",
@@ -1109,14 +1105,6 @@ class LFRicConfig(BaseConfig):
 
         '''
         return self._default_kind
-
-    def get_access_mapping(self):
-        from psyclone.domain.lfric.lfric_constants import LFRicConstants
-        return LFRicConstants.ACCESS_MAPPING
-
-    def get_reverse_access_mapping(self):
-        from psyclone.domain.lfric.lfric_constants import LFRicConstants
-        return LFRicConstants.REVERSE_ACCESS_MAPPING
 
     @property
     def precision_map(self):
@@ -1312,10 +1300,6 @@ class GOceanConfig(BaseConfig):
 
         '''
         return self._debug_mode
-
-    def get_access_mapping(self):
-        from psyclone.domain.gocean.gocean_constants import GOceanConstants
-        return GOceanConstants.ACCESS_MAPPING
 
     # ---------------------------------------------------------------------
     def get_constants(self):
