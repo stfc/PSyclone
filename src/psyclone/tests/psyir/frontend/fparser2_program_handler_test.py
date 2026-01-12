@@ -47,6 +47,20 @@ from psyclone.psyir.nodes import CodeBlock, FileContainer
 from psyclone.psyir.symbols import RoutineSymbol
 
 
+def test_empty_program_handler(parser):
+    '''Test that the program handler still returns a FileContainer
+    for an empty program.
+    '''
+    code = ""
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    psyir = processor._program_handler(parse_tree, None)
+    assert isinstance(psyir, FileContainer)
+    assert psyir.parent is None
+    assert len(psyir.children) == 0
+
+
 def test_program_handler(parser):
     '''Test that program handler works with multiple program units of
     different types.

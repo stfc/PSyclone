@@ -213,17 +213,11 @@ def normalise_loops(
             pass
 
     if convert_array_notation:
-        # Make sure all array dimensions are explicit
         for reference in schedule.walk(Reference):
-            part_of_the_call = reference.ancestor(Call)
-            if part_of_the_call:
-                if not part_of_the_call.is_elemental:
-                    continue
-            if isinstance(reference.symbol, DataSymbol):
-                try:
-                    Reference2ArrayRangeTrans().apply(reference)
-                except TransformationError:
-                    pass
+            try:
+                Reference2ArrayRangeTrans().apply(reference)
+            except TransformationError:
+                pass
 
     if loopify_array_intrinsics:
         for intr in schedule.walk(IntrinsicCall):

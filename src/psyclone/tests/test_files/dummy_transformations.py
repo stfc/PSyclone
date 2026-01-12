@@ -45,7 +45,7 @@ class LocalTransformation():
 
     @abc.abstractmethod
     def name(self):
-        return
+        ...
 
 
 class TestTrans(LocalTransformation):
@@ -55,7 +55,7 @@ class TestTrans(LocalTransformation):
         pass
 
     def __str__(self):
-        return "A test transformation"
+        ...
 
     @property
     def name(self):
