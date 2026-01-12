@@ -128,6 +128,9 @@ from psyclone.psyir.transformations.omp_taskloop_trans import \
     OMPTaskloopTrans
 from psyclone.psyir.transformations.omp_declare_target_trans import \
     OMPDeclareTargetTrans
+from psyclone.psyir.transformations.omp_maximal_parallel_region_trans import (
+    OMPMaximalParallelRegionTrans,
+)
 
 # For AutoAPI documentation generation
 __all__ = [
@@ -180,4 +183,5 @@ __all__ = [
     "OMPDeclareTargetTrans",
     "MaximalParallelRegionTrans",
     "OMPCriticalTrans",
+    "OMPMaximalParallelRegionTrans",
 ]
