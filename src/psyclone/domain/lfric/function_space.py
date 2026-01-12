@@ -48,15 +48,17 @@ class FunctionSpace():
     any_discontinuous_space then its name is mangled such that it is unique
     within the scope of an Invoke.
 
-    :param str name: original name of function space to create a \
+    :param str name: original name of function space to create a
                      mangled name for.
-    :param kernel_args: object encapsulating all arguments to the kernel, \
+    :param kernel_args: object encapsulating all arguments to the kernel,
                         one or more of which are on this function space.
     :type kernel_args: :py:class:`psyclone.lfric.LFRicKernelArguments`
 
     :raises InternalError: if an unrecognised function space is encountered.
 
     '''
+    #: The maximum length of variable name to generate.
+    MAX_NAME_LEN = 31
 
     def __init__(self, name, kernel_args):
         self._orig_name = name
@@ -172,15 +174,18 @@ class FunctionSpace():
     @staticmethod
     def _shorten_arg_name(name: str) -> str:
         '''
-        Shortens the provided name by splitting on any underscore characters
-        and reconstructing the name using the beginning and
-        ending chars from each token.
+        If the supplied name is less than FunctionSpace.MAX_NAME_LEN characters
+        then it is returned unchanged. Otherwise, shortens the provided name by
+        splitting on any underscore characters and reconstructing the name
+        using the beginning and ending chars from each token.
 
         :param name: the name to shorten.
 
         :returns: a shortened form of the name.
 
         '''
+        if len(name) < FunctionSpace.MAX_NAME_LEN:
+            return name
         new_parts = []
         for part in name.split("_"):
             new_name = part[0]

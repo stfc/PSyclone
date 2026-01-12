@@ -3258,10 +3258,11 @@ class LFRicBasisFunctions(LFRicCollection):
         # Allocate basis arrays
         for basis in basis_arrays:
             dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
+            new_name = self.symtab.next_available_name(basis)
             symbol = self.symtab.find_or_create_tag(
-                basis,
-                symbol_type=DataSymbol, datatype=UnsupportedFortranType(
-                    f"real(kind=r_def), allocatable :: {basis}{dims}"
+                new_name, symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(
+                    f"real(kind=r_def), allocatable :: {new_name}{dims}"
                 ))
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
@@ -3438,11 +3439,13 @@ class LFRicBasisFunctions(LFRicCollection):
                 const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["intrinsic"]
             kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["kind"]
             for name in self.qr_weight_vars["xyoz"]:
+                new_name = self.symtab.next_available_name(
+                    f"{name}_{qr_arg_name}")
                 self.symtab.find_or_create_tag(
-                    name+"_"+qr_arg_name, symbol_type=DataSymbol,
+                    new_name, symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
                         f"{dtype}(kind={kind}), pointer :: "
-                        f"{name}_{qr_arg_name}(:) => null()"))
+                        f"{new_name}(:) => null()"))
 
             # Get the quadrature proxy
             dtp_symbol = self.symtab.lookup(

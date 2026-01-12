@@ -460,15 +460,15 @@ def test_op_any_discontinuous_space_1(tmpdir):
     assert "undf_ads1_f1 = f1_proxy(1)%vspace%get_undf()" in generated_code
     assert ("map_ads1_f1 => f1_proxy(1)%vspace%get_whole_dofmap()"
             in generated_code)
-    assert "ndf_ads3_o4 = op4_proxy%fs_to%get_ndf()" in generated_code
-    assert "ndf_ads7_o4 = op4_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_ads3_op4 = op4_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_ads7_op4 = op4_proxy%fs_from%get_ndf()" in generated_code
     assert ("call testkern_any_discontinuous_space_op_1_code(cell, "
             "nlayers_f1, f1_1_data, f1_2_data, f1_3_data, "
             "f2_data, op3_proxy%ncell_3d, op3_local_stencil, "
             "op4_proxy%ncell_3d, op4_local_stencil, rdt, "
             "ndf_ads1_f1, undf_ads1_f1, map_ads1_f1(:,cell), "
             "ndf_ads2_f2, undf_ads2_f2, map_ads2_f2(:,cell), "
-            "ndf_ads3_o4, ndf_ads7_o4)" in generated_code)
+            "ndf_ads3_op4, ndf_ads7_op4)" in generated_code)
 
 
 def test_op_any_discontinuous_space_2(tmpdir):
@@ -489,17 +489,17 @@ def test_op_any_discontinuous_space_2(tmpdir):
     assert "undf_ads4_f1 = f1_proxy%vspace%get_undf()" in generated_code
     assert ("map_ads4_f1 => f1_proxy%vspace%get_whole_dofmap()"
             in generated_code)
-    assert "ndf_ads1_o1 = op1_proxy%fs_to%get_ndf()" in generated_code
-    assert "ndf_ads2_o1 = op1_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_ads1_op1 = op1_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_ads2_op1 = op1_proxy%fs_from%get_ndf()" in generated_code
     assert "dim_ads4_f1 = f1_proxy%vspace%get_dim_space()" in generated_code
     assert ("diff_dim_ads4_f1 = f1_proxy%vspace%get_dim_space_diff()"
             in generated_code)
-    assert ("ALLOCATE(basis_ads1_o1_qr(dim_ads1_o1,ndf_ads1_o1"
+    assert ("ALLOCATE(basis_ads1_o1_qr(dim_ads1_op1,ndf_ads1_op1"
             in generated_code)
     assert ("ALLOCATE(diff_basis_ads4_f1_qr(diff_dim_ads4_f1,"
             "ndf_ads4_f1" in generated_code)
-    assert ("call qr%compute_function(BASIS, op1_proxy%fs_to, dim_ads1_o1, "
-            "ndf_ads1_o1, basis_ads1_o1_qr)" in generated_code)
+    assert ("call qr%compute_function(BASIS, op1_proxy%fs_to, dim_ads1_op1, "
+            "ndf_ads1_op1, basis_ads1_op1_qr)" in generated_code)
     assert ("call qr%compute_function(DIFF_BASIS, f1_proxy%vspace, "
             "diff_dim_ads4_f1, ndf_ads4_f1, diff_basis_ads4_f1_qr)"
             in generated_code)
@@ -1065,10 +1065,10 @@ def test_mkern_invoke_multiple_any_spaces(tmpdir):
     assert "ndf_as1_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_as1_op = op_proxy%fs_to%get_ndf()" in gen
     assert "ndf_as5_f2 = f2_proxy%vspace%get_ndf()" in gen
-    assert "ndf_as1_o2 = op2_proxy%fs_to%get_ndf()" in gen
-    assert "ndf_as3_o3 = op3_proxy%fs_to%get_ndf()" in gen
-    assert gen.count("ndf_as4_o4 = op4_proxy%fs_from%get_ndf()") == 1
-    assert "ndf_as3_o5" not in gen
+    assert "ndf_as1_op2 = op2_proxy%fs_to%get_ndf()" in gen
+    assert "ndf_as3_op3 = op3_proxy%fs_to%get_ndf()" in gen
+    assert gen.count("ndf_as4_op4 = op4_proxy%fs_from%get_ndf()") == 1
+    assert "ndf_as3_op5" not in gen
     assert "ndf_as4_f1" not in gen
     # testkern_any_space_1_type requires GH_BASIS on ANY_SPACE_1 and 2 and
     # DIFF_BASIS on w0
@@ -1080,13 +1080,13 @@ def test_mkern_invoke_multiple_any_spaces(tmpdir):
     # testkern_any_space_4_type needs GH_BASIS on ANY_SPACE_1 which is the
     # to-space of op2
     assert ("call qr%compute_function(BASIS, op2_proxy%fs_to, "
-            "dim_as1_o2, ndf_as1_o2, basis_as1_o2_qr)" in gen)
+            "dim_as1_op2, ndf_as1_op2, basis_as1_op2_qr)" in gen)
     # Need GH_BASIS and DIFF_BASIS on ANY_SPACE_4 which is to/from-space
     # of op4
     assert ("call qr%compute_function(BASIS, op4_proxy%fs_from, "
-            "dim_as4_o4, ndf_as4_o4, basis_as4_o4_qr)" in gen)
+            "dim_as4_op4, ndf_as4_op4, basis_as4_op4_qr)" in gen)
     assert ("call qr%compute_function(DIFF_BASIS, op4_proxy%fs_from, "
-            "diff_dim_as4_o4, ndf_as4_o4, diff_basis_as4_o4_qr)"
+            "diff_dim_as4_op4, ndf_as4_op4, diff_basis_as4_op4_qr)"
             in gen)
 
 
@@ -2305,7 +2305,7 @@ def test_no_mangle_specified_function_space():
     [("something_nasty_in_the_woodshead", "sg_ny_in_te_wd"),
      ("something_o_nasty", "sg_o_ny"),
      ("short", "st"),
-     ("diff_basis_as1_blah", "df_bs_a1_bh"),
+     ("diff_basis_as1_blah", "diff_basis_as1_blah"),
      ("basis_as2_se_se_ae_on_as1_se_ae_w0_k0",
       "bs_a2_se_se_ae_on_a1_se_ae_w0_k0")])
 def test_function_space_shorten_arg_name(name, shortened):
