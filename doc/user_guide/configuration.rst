@@ -102,8 +102,6 @@ and an optional API specific section, for example for the
 ::
 
    [lfric]
-   access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
-                    gh_inc: inc, gh_readinc: readinc, gh_sum: sum
    COMPUTE_ANNEXED_DOFS = false
    supported_fortran_datatypes = real, integer, logical
    default_kind = real: r_def, integer: i_def, logical: l_def
@@ -127,7 +125,6 @@ or for ``gocean``:
 ::
 
    [gocean]
-   access_mapping = go_read:read, go_write:write, go_readwrite:readwrite
    grid-properties = go_grid_xstop: {0}%%grid%%subdomain%%internal%%xstop: scalar,
                   go_grid_ystop: {0}%%grid%%subdomain%%internal%%ystop: scalar,
                   go_grid_data: {0}%%data: array,
@@ -182,34 +179,6 @@ FORTRAN_STANDARD             Optional (defaults to f2008). The Fortran standard 
                              that should be used by fparser. Valid values are
                              f2003 and f2008.
 ============================ ======================================================= ===========
-
-Common Sections
-^^^^^^^^^^^^^^^
-
-The following entries must be defined for each API in order for PSyclone to
-work as expected:
-
-.. tabularcolumns:: |l|L|
-
-======================= =======================================================
-Entry                   Description
-======================= =======================================================
-access_mapping          This field defines the strings that are used by a
-                        particular API to indicate write, read, ... access. Its
-                        value is a comma separated list of access-string:access
-                        pairs, e.g.:
-
-                        ``gh_read: read, gh_write: write, gh_readwrite: readwrite,
-                        gh_inc: inc, gh_readinc: gh_sum: sum``
-
-                        At this stage these 6 types are defined for
-                        read, write, read+write, increment,
-                        read+increment and summation access by
-                        PSyclone. Sum is a form of reduction. The
-                        GOcean API does not support increment or sum,
-                        so it only defines three mappings for read,
-                        write, and readwrite.
-======================= =======================================================
 
 
 ``lfric`` Section
