@@ -116,10 +116,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
 
         :param loop: the loop that will be parallelised.
         :param symbol_name: the symbol that we want to privatise.
-        :param force_private: list of symbols explicitly requested to be
-            private.
+        :param force_private: list of symbols explicitly requested to
+            be private.
         :param output_set: Optional set of symbols on which to add each symbol
-            indentified as needed to be private.
+            identified as needed to be private.
 
         :returns: whether the symbol_name can be privatised.
         :rtype: bool
@@ -417,8 +417,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             and 'force' also affect the collapse applicability analysis.
         :param bool force: whether to force parallelisation of the
             target loop (i.e. ignore any dependence analysis).
-        :param list[str] ignore_dependencies_for: whether to ignore
-            some symbol names from the dependence analysis checks.
+        :param Iterable[str] force_private: specify a list of symbol names
+            explicitly requested to be private.
+        :param Iterable[str] ignore_dependencies_for: specify a list of symbol
+            names to ignore for the dependence analysis checks.
         :param bool sequential: whether this is a sequential loop.
         :param bool verbose: whether to report the reasons the
             validate and collapse steps have failed.
