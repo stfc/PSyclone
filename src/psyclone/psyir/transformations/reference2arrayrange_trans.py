@@ -41,14 +41,18 @@
    as transforming to explicit loops.
 
 '''
-from psyclone.errors import LazyString
+from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    ArrayReference, Call, Literal, Range, Reference,
-    StructureReference, ArrayOfStructuresReference, Assignment)
+    ArrayReference, Call, Reference, Member, StructureReference,
+    ArrayOfStructuresMember, ArrayOfStructuresReference, ArrayMember,
+    StructureMember, Assignment, Range)
+from psyclone.psyir.nodes.structure_accessor_mixin import (
+    StructureAccessorMixin)
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, DataSymbol, UnresolvedType, UnsupportedType, ArrayType,
-    ScalarType)
+    DataSymbol, UnresolvedType, UnsupportedType, DataTypeSymbol,
+    ArrayType, StructureType)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
@@ -58,7 +62,7 @@ from psyclone.utils import transformation_documentation_wrapper
 class Reference2ArrayRangeTrans(Transformation):
     '''
     Transformation to convert plain References of array symbols to
-    ArrayReferances with full-extent ranges if it is semantically equivalent
+    ArrayReferences with full-extent ranges if it is semantically equivalent
     to do so (e.g. it won't convert call arguments because it would change the
     bounds values).
 
@@ -93,9 +97,6 @@ class Reference2ArrayRangeTrans(Transformation):
     end program example
     <BLANKLINE>
 
-    This transformation does not currently support arrays within
-    structures, see issue #1858.
-
     '''
 
     def validate(self, node, options=None, **kwargs):
@@ -128,45 +129,95 @@ class Reference2ArrayRangeTrans(Transformation):
                     f"adding the function's filename to RESOLVE_IMPORTS."))
             if not node.parent.is_elemental:
                 return
+        if node and node.parent and isinstance(node.parent, Range):
+            # If it is directly inside a Range, we know it is a scalar and we
+            # don't need further validation
+            return
         assignment = node.ancestor(Assignment) if node else None
         if assignment and assignment.is_pointer:
             raise TransformationError(
-                f"{type(self).__name__} can not be applied to references"
+                f"{type(self).__name__} cannot be applied to references"
                 f" inside pointer assignments, but found '{node.name}' in"
                 f" {assignment.debug_string()}")
 
-        # pylint: disable=unidiomatic-typecheck
-        if (
-            type(node) is ArrayReference or
-            type(node) is ArrayOfStructuresReference
-        ):
-            # If it is already an Array access, it does not need expansion
-            # nor further validation
-            return
-
-        if type(node) is StructureReference:
-            # TODO #1858: Add support for expansion of structures
-            return
-
-        if not type(node) is Reference:
+        if not isinstance(node, Reference):
             raise TransformationError(
                 f"The supplied node should be a Reference but found "
                 f"'{type(node).__name__}'.")
-        if (
-            not isinstance(node.symbol, DataSymbol) or
-            isinstance(node.symbol.datatype, (UnresolvedType,
-                                              UnsupportedType))
-        ):
-            if (
-                isinstance(node.symbol, DataSymbol) and
-                isinstance(node.symbol.datatype, UnsupportedType) and
-                isinstance(node.symbol.datatype.partial_datatype,
-                           (ScalarType, ArrayType))
-            ):
-                return
+
+        if not isinstance(node.symbol, DataSymbol):
             raise TransformationError(
-                f"The supplied node should be a Reference to a symbol "
-                f"of known type, but '{node.symbol}' is not.")
+                f"The supplied node should be a Reference to a DataSymbol "
+                f"but found '{node.symbol}'. Consider adding the declaration"
+                f"'s filename to RESOLVE_IMPORTS.")
+
+        cursor = node
+        cursor_datatype = cursor.symbol.datatype
+        while cursor:
+            if (
+                isinstance(cursor_datatype, UnsupportedType) and
+                cursor_datatype.partial_datatype
+            ):
+                cursor_datatype = cursor_datatype.partial_datatype
+
+            if isinstance(cursor_datatype, StructureType.ComponentType):
+                # If it is a ComponentType, follow its declaration
+                cursor_datatype = cursor_datatype.datatype
+
+            if isinstance(cursor_datatype, DataTypeSymbol):
+                # If it is a DataTypeSymbol, follow its declaration
+                cursor_datatype = cursor_datatype.datatype
+
+            # If we don't know if it is an array access (is not ArrayMixin)
+            # or we recurse down (its a StructureAccessorMixin)s, we need to
+            # know the exact type.
+            if (
+                not isinstance(cursor, ArrayMixin) or
+                isinstance(cursor, StructureAccessorMixin)
+            ):
+                if isinstance(cursor_datatype, (UnresolvedType,
+                                                UnsupportedType)):
+                    # In case of a structure access, we can still guarantee
+                    # it is fine without knowing the types if all the members
+                    # accessors recursing down are all array accesses
+                    while cursor:
+                        if not isinstance(cursor, ArrayMixin):
+                            break
+                        if isinstance(cursor, StructureAccessorMixin):
+                            cursor = cursor.member
+                        else:
+                            cursor = False
+                    else:
+                        # An 'else' in a while means that it has left
+                        # without a break, in this case without finding
+                        # a non-array, so the validation succeeds
+                        return
+
+                    raise TransformationError(
+                        f"The supplied node should be a Reference to a symbol "
+                        f"of known type, but '{node.debug_string()}' is "
+                        f"'{cursor_datatype}'. Consider adding the declaration"
+                        f"'s filename to RESOLVE_IMPORTS.")
+
+            # Continue recursing if it is some kind of structure accessor
+            if isinstance(cursor, StructureAccessorMixin):
+                if isinstance(cursor_datatype, ArrayType):
+                    cursor_datatype = cursor_datatype.intrinsic.datatype
+
+                try:
+                    cursor_datatype = cursor_datatype.components[
+                        cursor.member.name
+                    ]
+                except (AttributeError, KeyError):
+                    # pylint: disable=raise-missing-from
+                    raise TransformationError(
+                        f"{self.name} cannot validate '{node.debug_string()}'"
+                        f" because it could not resolve the "
+                        f"'{cursor.member.name}' accessor")
+
+                cursor = cursor.member
+            else:
+                break
 
     def apply(self, node, options=None, **kwargs):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified
@@ -180,27 +231,81 @@ class Reference2ArrayRangeTrans(Transformation):
         '''
         self.validate(node, **kwargs)
 
-        # We have validated that it is a reference to a symbol with a datatype
-        # that is not UnresolvedType or UnknownType
-        symbol = node.symbol
-
         # The following cases do not need expansions
-        # pylint: disable=unidiomatic-typecheck
-        if type(node) in [ArrayReference, ArrayOfStructuresReference]:
-            return
         if node.parent and isinstance(node.parent, Call):
             if node is node.parent.routine:
                 return
             if not node.parent.is_elemental:
                 return
-        if not symbol.is_array:
+        if node and node.parent and isinstance(node.parent, Range):
             return
 
-        indices = []
-        for idx, _ in enumerate(symbol.shape):
-            lbound, ubound = symbol.get_bounds(idx)
-            indices.append(Range.create(lbound, ubound,
-                                        Literal("1", INTEGER_TYPE)))
-        array_ref = ArrayReference.create(symbol, indices)
-        if node.parent:
-            node.replace_with(array_ref)
+        # Recurse down the node converting each plain Reference and Member
+        # to ArrayReferences or ArrayMembers when they are associated to an
+        # array datatype.
+        cursor = node
+        cursor_datatype = cursor.symbol.datatype
+        while cursor:
+            if (
+                isinstance(cursor_datatype, UnsupportedType) and
+                cursor_datatype.partial_datatype
+            ):
+                cursor_datatype = cursor_datatype.partial_datatype
+
+            if isinstance(cursor_datatype, StructureType.ComponentType):
+                cursor_datatype = cursor_datatype.datatype
+
+            # If we know it's an array but it's not an array accessor, we need
+            # to update the node
+            if not isinstance(cursor, ArrayMixin):
+                if isinstance(cursor_datatype, ArrayType):
+
+                    # Select the appropriate conversion target
+                    # pylint: disable=unidiomatic-typecheck
+                    if type(cursor) is Reference:
+                        array = ArrayReference(cursor.symbol)
+                    elif type(cursor) is StructureReference:
+                        array = ArrayOfStructuresReference(cursor.symbol)
+                        array.addchild(cursor.member.copy())
+                    elif type(cursor) is Member:
+                        array = ArrayMember(cursor.name)
+                    elif type(cursor) is StructureMember:
+                        array = ArrayOfStructuresMember(cursor.name)
+                        array.addchild(cursor.member.copy())
+                    else:
+                        raise InternalError(
+                            f"{type(cursor).__name__} needs to be converted "
+                            f"to an Array, but {self.name} does not know how."
+                        )
+
+                    # Replace the node with the new one
+                    if cursor.parent:
+                        cursor.replace_with(array)
+
+                    # Add full-extent ranges for each dimension
+                    for idx, _ in enumerate(cursor_datatype.shape):
+                        array.addchild(array.get_full_range(idx))
+
+                    # Continue recursion with the updated node
+                    cursor = array
+
+            # Keep recursing down if there are more structure accessors
+            if isinstance(cursor, StructureAccessorMixin):
+                if isinstance(cursor_datatype, DataTypeSymbol):
+                    cursor_datatype = cursor_datatype.datatype
+
+                if isinstance(cursor_datatype, ArrayType):
+                    cursor_datatype = cursor_datatype.intrinsic.datatype
+
+                try:
+                    cursor_datatype = cursor_datatype.components[
+                        cursor.member.name
+                    ]
+                except (AttributeError, KeyError):
+                    # This condition was already validated, if it happens here
+                    # is because we guaranteed its correctness (e.g. it is
+                    # ArrayMixins all the way down), so we can finish
+                    break
+                cursor = cursor.member
+            else:
+                break

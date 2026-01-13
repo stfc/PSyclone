@@ -58,7 +58,7 @@ NEMO_MODULES_TO_IMPORT = [
     "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
     "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc", "abl", "ice1d",
     "sed", "p2zlim", "oce_trc", "p4zpoc", "tide_mod", "sbcwave", "isf_oce",
-    "step_oce", "bdyice",
+    "step_oce", "bdyice", "lbcnfd"
 ]
 
 # Files that PSyclone could process but would reduce the performance.
@@ -228,10 +228,7 @@ def normalise_loops(
                     print(err.value)
 
     if convert_range_loops:
-        if filename == "fldread.f90":
-            # TODO #2951: This file has issues converting StructureRefs
-            pass
-        elif nemo_v4 and filename == "dynspg_ts.f90":
+        if nemo_v4 and filename == "dynspg_ts.f90":
             # TODO #3256: Is there an issue with the L/UBOUND intrinsics
             # that this transformation adds?
             pass
