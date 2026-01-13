@@ -40,8 +40,9 @@ invoke. This script can be applied via the -s option in the psyclone
 command.
 
 '''
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import LFRicOMPParallelLoopTrans, \
-    TransformationError, LFRicColourTrans, OMPParallelTrans, \
+    TransformationError, LFRicColourTrans, \
     LFRicOMPLoopTrans
 from psyclone.psyGen import Loop
 from psyclone.domain.lfric import LFRicConstants
