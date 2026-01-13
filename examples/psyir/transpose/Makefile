@@ -48,6 +48,16 @@ clean:
 	rm -f trans trans_tiled trans_omp trans_omp_tiled
 	rm -f trans_tiled.F90 trans_omp.F90 trans_omp_tiled.F90
 
+transform: trans_tiled.F90 trans_omp.F90 trans_omp_tiled.F90
+
+compile: trans trans_tiled trans_omp trans_omp_tiled
+
+run: compile
+	./trans
+	./trans_tiles
+	./trans_omp
+	./trans_omp_tiled
+
 trans_tiled.F90: trans.F90 tile.py
 	psyclone -s tile.py trans.F90 -o trans_tiled.F90
 

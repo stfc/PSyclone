@@ -33,6 +33,6 @@
 # ------------------------------------------------------------------------------
 # Author: A. B. G. Chalk, STFC Daresbury Laboratory
 
-EXAMPLES=custom_directives
+EXAMPLES=custom_directives create_and_modify_psyir matmul transpose
 
 include ../top_level.mk

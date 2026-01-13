@@ -50,7 +50,7 @@ def trans(psyir):
                 # Remove the directive as we don't need it in the output now.
                 psy_dir.detach()
                 loops_to_skip.append(parent.children[position])
-    for loop in routine.walk(Loop):
-        if loop in loops_to_skip:
-            continue
-        OMPLoopTrans(omp_directive="paralleldo").apply(loop)
+        for loop in routine.walk(Loop):
+            if loop in loops_to_skip:
+                continue
+            OMPLoopTrans(omp_directive="paralleldo").apply(loop)

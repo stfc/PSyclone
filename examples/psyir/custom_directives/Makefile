@@ -39,20 +39,20 @@ F90 ?= gfortran
 F90FLAGS ?= -O2 -fopenmp
 
 transform:
-	psyclone --keep-directives -s omp.py directive_filtering.F90 -o directives_omp.F90
+	psyclone --keep-directives -s identify_custom_directives.py directive_filtering.F90 -o directives_omp.F90
 
 .PHONY: clean
 clean:
 	rm -f directives_omp
 	rm -f directives_omp.F90
 
-directives_omp.F90: directive_filtering.F90 omp.py
-	psyclone --keep-directives -s omp.py directive_filtering.F90 -o directives_omp.F90
+directives_omp.F90: directive_filtering.F90 identify_custom_directives.py
+	psyclone --keep-directives -s identify_custom_directives.py directive_filtering.F90 -o directives_omp.F90
 
 %: %.F90
 	$(F90) $(F90FLAGS) $< -o $@
 
-compile: transform directives_omp omp.py
+compile: transform directives_omp identify_custom_directives.py
 
 run: compile
 	./directives_omp

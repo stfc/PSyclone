@@ -33,7 +33,7 @@
 # ------------------------------------------------------------------------------
 # Authors: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
-include ../common.mk
+include ../../common.mk
 
 CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 

@@ -57,5 +57,15 @@ matmul_omp.F90: matmul.F90 omp.py
 matmul_omp_tiled.F90: matmul.F90 omp-tile.py
 	psyclone -s omp-tile.py matmul.F90 -o matmul_omp_tiled.F90
 
+transform: matmul_tiled.F90 matmul_omp.F90 matmul_omp_tiled.F90
+
+compile: trans trans_tiled trans_omp trans_omp_tiled
+
+run: compile
+	./trans
+	./trans_tiles
+	./trans_omp
+	./trans_omp_tiled
+
 %: %.F90
 	$(F90) $(F90FLAGS) $< -o $@

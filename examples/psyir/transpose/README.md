@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2019-2025, Science and Technology Facilities Council.
+Copyright (c) 2019-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -35,42 +35,21 @@ Authors: R. W. Ford, A. R. Porter and S. Siso STFC Daresbury Lab
          M. Naylor, University of Cambridge, UK
 -->
 
-# PSyclone PSyIR Examples
+# PSyclone PSyIR matrix multiplication example.
 
-This directory contains examples of how to create and/or modify
-instances of PSyIR and how to use backends to transform them into
-code.
-
-All of these examples require PSyclone to be installed.
-
-## Example 1:
-
-Create an instance of PSyIR using many of the generic PSyIR nodes and
-output the resultant tree as Fortran and C. Currently the C
-backend does not support all of the node types so it only outputs a
-subset of the tree. This example may be run by doing:
+Demonstrates acceleration of a simple routine for matrix transposition using
+`LoopTilingTrans` and `OMPLoopTrans`. To run this example:
 
 ```sh
-> python create.py
+> make
+./trans
+Passed 0.7202s
+./trans_tiled
+Passed 0.2420s
+./trans_omp
+Passed 0.2996s
+./trans_omp_tiled
+Passed 0.0445s
 ```
 
-## Example 2:
-
-Demonstrates how to create and manipulate structure types (a.k.a.
-derived types in Fortran) within the PSyIR.
-To run this example:
-
-```sh
-> python create_structure_types.py
-```
-
-## Example 3:
-
-Demonstrates how to manipulate an existing PSyIR tree. This example
-imports the PSyIR created in Example 1, applies some modifications
-to it and then outputs the modified PSyIR as Fortran code. This example may
-be run by doing:
-
-```sh
-> python modify.py
-```
+(Sample output from a 20-core Intel i9-12900H.)
