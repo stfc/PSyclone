@@ -800,6 +800,9 @@ def test_omp_parallel_region_inside_parallel_do():
     ompl = GOceanOMPParallelLoopTrans()
     ompr = OMPParallelTrans()
 
+    # Also test the str method of OMPParallelTrans
+    assert str(ompr) == "Insert an OpenMP Parallel region"
+
     # Put an OpenMP parallel do directive around one of the loops
     ompl.apply(schedule.children[1])
 
