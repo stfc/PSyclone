@@ -298,7 +298,7 @@ jobs:
 
         # Build the 'meto-ex1a' platform, that includes psyclone-transmutation
         export BUILD_START="${SECONDS}"
-        ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16 -w workdir-lfric-atm-transmuted
+        ./build/local_build.py -a lfric_atm -p psyclone-test -j 16 -w workdir-lfric-atm-transmuted
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
         # Run the app with 8 threads and no MPI
