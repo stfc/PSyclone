@@ -1123,20 +1123,20 @@ def test_cma_apply_same_space(dist_mem, tmpdir):
     assert "mesh => field_a_proxy%vspace%get_mesh()" in code
     assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert ("integer(kind=i_def), pointer :: cma_indirection_map_as2_"
-            "fd_a(:) => null()\n") in code
-    assert ("ndf_as2_fd_a = field_a_proxy%vspace%get_ndf()\n"
-            "    undf_as2_fd_a = field_a_proxy%vspace%"
+            "field_a(:) => null()\n") in code
+    assert ("ndf_as2_field_a = field_a_proxy%vspace%get_ndf()\n"
+            "    undf_as2_field_a = field_a_proxy%vspace%"
             "get_undf()") in code
-    assert ("cma_indirection_map_as2_fd_a => "
+    assert ("cma_indirection_map_as2_field_a => "
             "cma_op1_proxy%indirection_dofmap_to") in code
     assert ("call columnwise_op_app_same_fs_kernel_code(cell, ncell_2d, "
             "field_a_data, field_b_data, "
             "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
             "cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-            "ndf_as2_fd_a, undf_as2_fd_a, "
-            "map_as2_fd_a(:,cell), "
-            "cma_indirection_map_as2_fd_a)") in code
+            "ndf_as2_field_a, undf_as2_field_a, "
+            "map_as2_field_a(:,cell), "
+            "cma_indirection_map_as2_field_a)") in code
     if dist_mem:
         assert "call field_a_proxy%set_dirty()" in code
         assert "cma_op1_proxy%is_dirty(" not in code
@@ -1255,13 +1255,13 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
     assert "cma_op1_alpha = cma_op1_proxy%alpha\n" in code
     assert "cma_op1_beta = cma_op1_proxy%beta\n" in code
 
-    assert ("    cbanded_map_as1_ad => "
+    assert ("    cbanded_map_as1_afield => "
             "cma_op1_proxy%column_banded_dofmap_to\n"
-            "    cbanded_map_as2_la_o1 => "
+            "    cbanded_map_as2_lma_op1 => "
             "cma_op1_proxy%column_banded_dofmap_from\n") in code
-    assert ("cma_indirection_map_as1_fd_a => "
+    assert ("cma_indirection_map_as1_field_a => "
             "cma_op1_proxy%indirection_dofmap_to\n"
-            "    cma_indirection_map_as2_fd_b => "
+            "    cma_indirection_map_as2_field_b => "
             "cma_op1_proxy%indirection_dofmap_from\n") in code
 
     if dist_mem:
@@ -1282,19 +1282,19 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
             "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
             "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
             "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-            "cma_op1_gamma_m, cma_op1_gamma_p, ndf_as1_ad, "
-            "undf_as1_ad, map_as1_ad(:,cell), "
-            "cbanded_map_as1_ad, ndf_as2_la_o1, "
-            "cbanded_map_as2_la_o1)") in code
+            "cma_op1_gamma_m, cma_op1_gamma_p, ndf_as1_afield, "
+            "undf_as1_afield, map_as1_afield(:,cell), "
+            "cbanded_map_as1_afield, ndf_as2_lma_op1, "
+            "cbanded_map_as2_lma_op1)") in code
     assert ("call columnwise_op_app_kernel_code(cell, ncell_2d, "
             "field_a_data, field_b_data, cma_op1_cma_matrix(:,:,:), "
             "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-            "ndf_as1_fd_a, undf_as1_fd_a, "
-            "map_as1_fd_a(:,cell), cma_indirection_map_as1_fd_a, "
-            "ndf_as2_fd_b, undf_as2_fd_b, "
-            "map_as2_fd_b(:,cell), "
-            "cma_indirection_map_as2_fd_b)\n") in code
+            "ndf_as1_field_a, undf_as1_field_a, "
+            "map_as1_field_a(:,cell), cma_indirection_map_as1_field_a, "
+            "ndf_as2_field_b, undf_as2_field_b, "
+            "map_as2_field_b(:,cell), "
+            "cma_indirection_map_as2_field_b)\n") in code
     assert ("call columnwise_op_mul_kernel_code(cell, ncell_2d, "
             "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, cma_op1_ncol, "
             "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
@@ -1376,21 +1376,21 @@ module columnwise_op_asm_field_kernel_mod
 
   contains
   subroutine columnwise_op_asm_field_kernel_code(cell, nlayers, ncell_2d, \
-field_1_as1_fd_1, op_2_ncell_3d, op_2, cma_op_3, cma_op_3_nrow, \
+field_1_as1_field_1, op_2_ncell_3d, op_2, cma_op_3, cma_op_3_nrow, \
 cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, \
-cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_as1_fd_1, undf_as1_fd_1, \
-map_as1_fd_1, cbanded_map_as1_fd_1, ndf_as2_op_2, cbanded_map_as2_op_2)
+cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_as1_field_1, undf_as1_field_1, \
+map_as1_field_1, cbanded_map_as1_field_1, ndf_as2_op_2, cbanded_map_as2_op_2)
     use constants_mod
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_as1_fd_1
-    integer(kind=i_def), dimension(ndf_as1_fd_1), intent(in) :: \
-map_as1_fd_1
-    integer(kind=i_def), dimension(ndf_as1_fd_1,nlayers), intent(in) :: \
-cbanded_map_as1_fd_1
+    integer(kind=i_def), intent(in) :: ndf_as1_field_1
+    integer(kind=i_def), dimension(ndf_as1_field_1), intent(in) :: \
+map_as1_field_1
+    integer(kind=i_def), dimension(ndf_as1_field_1,nlayers), intent(in) :: \
+cbanded_map_as1_field_1
     integer(kind=i_def), intent(in) :: ndf_as2_op_2
     integer(kind=i_def), dimension(ndf_as2_op_2,nlayers), intent(in) :: \
 cbanded_map_as2_op_2
-    integer(kind=i_def), intent(in) :: undf_as1_fd_1
+    integer(kind=i_def), intent(in) :: undf_as1_field_1
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: cma_op_3_nrow
@@ -1402,10 +1402,10 @@ cbanded_map_as2_op_2
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
     real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
 , intent(inout) :: cma_op_3
-    real(kind=r_def), dimension(undf_as1_fd_1), intent(in) :: \
-field_1_as1_fd_1
+    real(kind=r_def), dimension(undf_as1_field_1), intent(in) :: \
+field_1_as1_field_1
     integer(kind=i_def), intent(in) :: op_2_ncell_3d
-    real(kind=r_def), dimension(op_2_ncell_3d,ndf_as1_fd_1,\
+    real(kind=r_def), dimension(op_2_ncell_3d,ndf_as1_field_1,\
 ndf_as2_op_2), intent(in) :: op_2
 
 
@@ -1487,26 +1487,26 @@ module columnwise_op_app_kernel_mod
 
   contains
   subroutine columnwise_op_app_kernel_code(cell, ncell_2d, \
-field_1_as1_fd_1, field_2_as2_fd_2, cma_op_3, cma_op_3_nrow, \
+field_1_as1_field_1, field_2_as2_field_2, cma_op_3, cma_op_3_nrow, \
 cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, \
-cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_as1_fd_1, undf_as1_fd_1, \
-map_as1_fd_1, cma_indirection_map_as1_fd_1, ndf_as2_fd_2, \
-undf_as2_fd_2, map_as2_fd_2, cma_indirection_map_as2_fd_2)
+cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_as1_field_1, undf_as1_field_1, \
+map_as1_field_1, cma_indirection_map_as1_field_1, ndf_as2_field_2, \
+undf_as2_field_2, map_as2_field_2, cma_indirection_map_as2_field_2)
     use constants_mod
-    integer(kind=i_def), intent(in) :: ndf_as1_fd_1
-    integer(kind=i_def), dimension(ndf_as1_fd_1), intent(in) :: \
-map_as1_fd_1
-    integer(kind=i_def), intent(in) :: ndf_as2_fd_2
-    integer(kind=i_def), dimension(ndf_as2_fd_2), intent(in) :: \
-map_as2_fd_2
+    integer(kind=i_def), intent(in) :: ndf_as1_field_1
+    integer(kind=i_def), dimension(ndf_as1_field_1), intent(in) :: \
+map_as1_field_1
+    integer(kind=i_def), intent(in) :: ndf_as2_field_2
+    integer(kind=i_def), dimension(ndf_as2_field_2), intent(in) :: \
+map_as2_field_2
     integer(kind=i_def), intent(in) :: cma_op_3_nrow
     integer(kind=i_def), dimension(cma_op_3_nrow), intent(in) :: \
-cma_indirection_map_as1_fd_1
+cma_indirection_map_as1_field_1
     integer(kind=i_def), intent(in) :: cma_op_3_ncol
     integer(kind=i_def), dimension(cma_op_3_ncol), intent(in) :: \
-cma_indirection_map_as2_fd_2
-    integer(kind=i_def), intent(in) :: undf_as1_fd_1
-    integer(kind=i_def), intent(in) :: undf_as2_fd_2
+cma_indirection_map_as2_field_2
+    integer(kind=i_def), intent(in) :: undf_as1_field_1
+    integer(kind=i_def), intent(in) :: undf_as2_field_2
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: cma_op_3_bandwidth
@@ -1516,10 +1516,10 @@ cma_indirection_map_as2_fd_2
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
     real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,\
 ncell_2d), intent(in) :: cma_op_3
-    real(kind=r_def), dimension(undf_as1_fd_1), intent(inout) :: \
-field_1_as1_fd_1
-    real(kind=r_def), dimension(undf_as2_fd_2), intent(in) :: \
-field_2_as2_fd_2
+    real(kind=r_def), dimension(undf_as1_field_1), intent(inout) :: \
+field_1_as1_field_1
+    real(kind=r_def), dimension(undf_as2_field_2), intent(in) :: \
+field_2_as2_field_2
 
 
   end subroutine columnwise_op_app_kernel_code
@@ -1547,18 +1547,18 @@ module columnwise_op_app_same_fs_kernel_mod
 
   contains
   subroutine columnwise_op_app_same_fs_kernel_code(cell, ncell_2d, \
-field_1_as2_fd_1, field_2_as2_fd_1, cma_op_3, cma_op_3_nrow, \
+field_1_as2_field_1, field_2_as2_field_1, cma_op_3, cma_op_3_nrow, \
 cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, \
-cma_op_3_gamma_p, ndf_as2_fd_1, undf_as2_fd_1, map_as2_fd_1, \
-cma_indirection_map_as2_fd_1)
+cma_op_3_gamma_p, ndf_as2_field_1, undf_as2_field_1, map_as2_field_1, \
+cma_indirection_map_as2_field_1)
     use constants_mod
-    integer(kind=i_def), intent(in) :: ndf_as2_fd_1
-    integer(kind=i_def), dimension(ndf_as2_fd_1), intent(in) :: \
-map_as2_fd_1
+    integer(kind=i_def), intent(in) :: ndf_as2_field_1
+    integer(kind=i_def), dimension(ndf_as2_field_1), intent(in) :: \
+map_as2_field_1
     integer(kind=i_def), intent(in) :: cma_op_3_nrow
     integer(kind=i_def), dimension(cma_op_3_nrow), intent(in) :: \
-cma_indirection_map_as2_fd_1
-    integer(kind=i_def), intent(in) :: undf_as2_fd_1
+cma_indirection_map_as2_field_1
+    integer(kind=i_def), intent(in) :: undf_as2_field_1
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: cma_op_3_bandwidth
@@ -1568,10 +1568,10 @@ cma_indirection_map_as2_fd_1
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
     real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,\
 ncell_2d), intent(in) :: cma_op_3
-    real(kind=r_def), dimension(undf_as2_fd_1), intent(inout) :: \
-field_1_as2_fd_1
-    real(kind=r_def), dimension(undf_as2_fd_1), intent(in) :: \
-field_2_as2_fd_1
+    real(kind=r_def), dimension(undf_as2_field_1), intent(inout) :: \
+field_1_as2_field_1
+    real(kind=r_def), dimension(undf_as2_field_1), intent(in) :: \
+field_2_as2_field_1
 
 
   end subroutine columnwise_op_app_same_fs_kernel_code
