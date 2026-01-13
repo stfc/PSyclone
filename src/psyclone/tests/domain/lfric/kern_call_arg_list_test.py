@@ -557,10 +557,10 @@ def test_indirect_dofmap(fortran_writer):
         'cma_op1_cma_matrix', 'cma_op1_nrow', 'cma_op1_ncol',
         'cma_op1_bandwidth', 'cma_op1_alpha', 'cma_op1_beta',
         'cma_op1_gamma_m', 'cma_op1_gamma_p',
-        'ndf_ads1_fd_a', 'undf_ads1_fd_a',
-        'map_ads1_fd_a(:,cell)', 'cma_indirection_map_ads1_fd_a',
-        'ndf_as1_fd_b', 'undf_as1_fd_b', 'map_as1_fd_b(:,cell)',
-        'cma_indirection_map_as1_fd_b'])
+        'ndf_ads1_field_a', 'undf_ads1_field_a',
+        'map_ads1_field_a(:,cell)', 'cma_indirection_map_ads1_field_a',
+        'ndf_as1_field_b', 'undf_as1_field_b', 'map_as1_field_b(:,cell)',
+        'cma_indirection_map_as1_field_b'])
 
     check_psyir_results(create_arg_list, fortran_writer)
 

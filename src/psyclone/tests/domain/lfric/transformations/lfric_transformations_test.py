@@ -319,9 +319,9 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, "
         "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-        "ndf_as1_ad, undf_as1_ad, "
-        "map_as1_ad(:,cmap(colour,cell)), cbanded_map_as1_ad, "
-        "ndf_as2_la_o1, cbanded_map_as2_la_o1)\n"
+        "ndf_as1_afield, undf_as1_afield, "
+        "map_as1_afield(:,cmap(colour,cell)), cbanded_map_as1_afield, "
+        "ndf_as2_lma_op1, cbanded_map_as2_lma_op1)\n"
         "      enddo\n"
         "    enddo\n") in gen
 
@@ -1361,9 +1361,9 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
 
     assert (
         "    ! Look-up required column-banded dofmaps\n"
-        "    cbanded_map_as1_ad => "
+        "    cbanded_map_as1_afield => "
         "cma_op1_proxy%column_banded_dofmap_to\n"
-        "    cbanded_map_as2_la_o1 => "
+        "    cbanded_map_as2_lma_op1 => "
         "cma_op1_proxy%column_banded_dofmap_from\n") in code
     assert (
         "    ! Look-up information for each CMA operator\n"
@@ -1381,9 +1381,9 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_as1_ad, "
-        "undf_as1_ad, map_as1_ad(:,cell), "
-        "cbanded_map_as1_ad, ndf_as2_la_o1, cbanded_map_as2_la_o1)\n"
+        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_as1_afield, "
+        "undf_as1_afield, map_as1_afield(:,cell), "
+        "cbanded_map_as1_afield, ndf_as2_lma_op1, cbanded_map_as2_lma_op1)\n"
         "      call testkern_two_real_scalars_code(nlayers_afield, scalar1, "
         "afield_data, bfield_data, cfield_data, "
         "dfield_data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
