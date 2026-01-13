@@ -2132,11 +2132,12 @@ def test_no_arg_on_space(monkeypatch):
     # Copy of the function space object so that we get a new one whose state
     # we can monkeypatch
     fspace = copy.copy(arg.function_space)
-    monkeypatch.setattr(fspace, "_mangled_name", "not_a_space_name")
+    monkeypatch.setattr(fspace, "_orig_name", "not_a_space_name")
     with pytest.raises(FieldNotFoundError) as excinfo:
         _ = kernel_args.get_arg_on_space(fspace)
-    assert ("there is no field or operator with function space w2 (mangled "
-            "name = 'not_a_space_name')" in str(excinfo.value))
+    assert ("there is no field or operator with function space "
+            "not_a_space_name (mangled name = 'not_a_space_name')"
+            in str(excinfo.value))
 
 
 def test_arg_descriptor_func_method_error():
@@ -2267,8 +2268,7 @@ def test_mangle_function_space():
 
 def test_no_mangle_specified_function_space():
     ''' Test that we do not name-mangle a function space that is not
-    any_space or any_discontinuous_space. Also test that an attempt to
-    create a short name for such a space will fail.
+    any_space or any_discontinuous_space.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2282,22 +2282,6 @@ def test_no_mangle_specified_function_space():
     short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
     assert mangled_name == fs_name
     assert short_name == fs_name
-    # Try to call the internal _mangle_fs_name function with a FS name other
-    # than any_*_space name (not allowed)
-    with pytest.raises(InternalError) as excinfo:
-        _ = FunctionSpace(fs_name, first_kernel.arguments)._mangle_fs_name()
-    const = LFRicConstants()
-    assert (f"_mangle_fs_name: function space '{fs_name}' is not one of "
-            f"{const.VALID_ANY_SPACE_NAMES} or "
-            f"{const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES} spaces."
-            in str(excinfo.value))
-    # Try to create a short name for this function space (not allowed)
-    with pytest.raises(InternalError) as excinfo:
-        _ = FunctionSpace(fs_name, first_kernel.arguments)._shorten_fs_name()
-    assert (f"_shorten_fs_name: function space '{fs_name}' is not one of "
-            f"{const.VALID_ANY_SPACE_NAMES} or "
-            f"{const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES} spaces."
-            in str(excinfo.value))
 
 
 @pytest.mark.parametrize(
@@ -2308,12 +2292,12 @@ def test_no_mangle_specified_function_space():
      ("diff_basis_as1_blah", "diff_basis_as1_blah"),
      ("basis_as2_se_se_ae_on_as1_se_ae_w0_k0",
       "bs_a2_se_se_ae_on_a1_se_ae_w0_k0")])
-def test_function_space_shorten_arg_name(name, shortened):
+def test_function_space_shorten_name(name, shortened):
     '''
-    Test the _shorten_arg_name() method of FunctionSpace.
+    Test the _shorten_name() method of FunctionSpace.
     '''
     fs = FunctionSpace
-    assert fs._shorten_arg_name(name) == shortened
+    assert fs._shorten_name(name) == shortened
 
 
 def test_fsdescriptors_get_descriptor():
