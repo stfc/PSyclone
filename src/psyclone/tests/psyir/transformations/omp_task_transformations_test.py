@@ -42,9 +42,11 @@ from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import Kern, PSyFactory
 from psyclone.psyir.nodes import Call, CodeBlock, Loop
-from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import OMPParallelTrans, \
-    OMPSingleTrans
+from psyclone.psyir.transformations import (
+    TransformationError,
+    OMPParallelTrans,
+)
+from psyclone.transformations import OMPSingleTrans
 from psyclone.psyir.transformations import OMPTaskTrans
 from psyclone.tests.utilities import get_invoke
 

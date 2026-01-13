@@ -50,9 +50,10 @@ from psyclone.parse import ModuleManager
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import (
-    LoopFuseTrans, LoopTrans, TransformationError)
+    LoopFuseTrans, LoopTrans, TransformationError,
+    OMPParallelTrans)
 from psyclone.transformations import ACCRoutineTrans, \
-    OMPParallelTrans, GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
+    GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
     OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.gocean_build import GOceanBuild

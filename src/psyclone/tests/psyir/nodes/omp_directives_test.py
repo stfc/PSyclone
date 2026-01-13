@@ -70,8 +70,9 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.transformations.omp_taskloop_trans import OMPTaskloopTrans
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import (
-    LFRicOMPLoopTrans, OMPParallelTrans,
+    LFRicOMPLoopTrans,
     OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPLoopTrans, TransformationError)
 

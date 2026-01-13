@@ -85,7 +85,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
     >>> from psyclone.psyir.nodes import Loop
     >>> from psyclone.psyir.transformations import OMPLoopTrans
     >>> from psyclone.psyir.transformations import OMPMinimiseSyncTrans
-    >>> from psyclone.transformations import OMPParallelTrans
+    >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>>
     >>> psyir = FortranReader().psyir_from_source("""
     ...     subroutine test

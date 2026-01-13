@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -871,7 +871,8 @@ class OMPSingleTrans(ParallelRegionTrans):
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+    >>> from psyclone.transformations import OMPSingleTrans
+    >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> singletrans = OMPSingleTrans()
     >>> paralleltrans = OMPParallelTrans()
     >>>
@@ -1001,7 +1002,8 @@ class OMPMasterTrans(ParallelRegionTrans):
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.transformations import OMPParallelTrans, OMPMasterTrans
+    >>> from psyclone.transformations import OMPMasterTrans
+    >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> mastertrans = OMPMasterTrans()
     >>> paralleltrans = OMPParallelTrans()
     >>>
@@ -1039,84 +1041,6 @@ class OMPMasterTrans(ParallelRegionTrans):
         :rtype: str
         '''
         return "OMPMasterTrans"
-
-
-class OMPParallelTrans(ParallelRegionTrans):
-    '''
-    Create an OpenMP PARALLEL region by inserting directives. For
-    example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory
-    >>> from psyclone.errors import GenerationError
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> ltrans = t.get_trans_name('GOceanOMPLoopTrans')
-    >>> rtrans = t.get_trans_name('OMPParallelTrans')
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> # Apply the OpenMP Loop transformation to *every* loop
-    >>> # in the schedule
-    >>> for child in schedule.children:
-    >>>     ltrans.apply(child)
-    >>>
-    >>> # Enclose all of these loops within a single OpenMP
-    >>> # PARALLEL region
-    >>> rtrans.apply(schedule.children)
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-
-    '''
-    # The types of node that this transformation cannot enclose
-    excluded_node_types = (CodeBlock, Return, ACCDirective,
-                           psyGen.HaloExchange)
-
-    def __init__(self):
-        super().__init__()
-        # Set the type of directive that the base class will use
-        self._directive_factory = OMPParallelDirective.create
-
-    def __str__(self):
-        return "Insert an OpenMP Parallel region"
-
-    @property
-    def name(self):
-        '''
-        :returns: the name of this transformation as a string.
-        :rtype: str
-        '''
-        return "OMPParallelTrans"
-
-    def validate(self, node_list, options=None):
-        '''
-        Perform OpenMP-specific validation checks.
-
-        :param node_list: list of Nodes to put within parallel region.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["node-type-check"]: this flag controls if the \
-                type of the nodes enclosed in the region should be tested \
-                to avoid using unsupported nodes inside a region.
-
-        :raises TransformationError: if the target Nodes are already within \
-                                     some OMP parallel region.
-        '''
-        if node_list[0].ancestor(OMPDirective):
-            raise TransformationError("Error in OMPParallel transformation:" +
-                                      " cannot create an OpenMP PARALLEL " +
-                                      "region within another OpenMP region.")
-
-        # Now call the general validation checks
-        super().validate(node_list, options)
 
 
 class ACCParallelTrans(ParallelRegionTrans):
@@ -2632,6 +2556,5 @@ __all__ = [
    "MoveTrans",
    "OMPMasterTrans",
    "OMPParallelLoopTrans",
-   "OMPParallelTrans",
    "OMPSingleTrans",
 ]

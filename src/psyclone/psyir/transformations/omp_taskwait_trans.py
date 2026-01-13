@@ -66,7 +66,8 @@ class OMPTaskwaitTrans(Transformation):
     >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+    >>> from psyclone.transformations import OMPSingleTrans
+    >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> from psyclone.transformations import OMPTaskloopTrans
     >>> from psyclone.psyir.transformations import OMPTaskwaitTrans
     >>> singletrans = OMPSingleTrans()

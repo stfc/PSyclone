@@ -45,8 +45,8 @@ from psyclone.psyir.nodes import Assignment, BinaryOperation, \
         DynamicOMPTaskDirective, Literal, Loop, Reference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.tests.utilities import Compile
-from psyclone.transformations import OMPSingleTrans, \
-    OMPParallelTrans
+from psyclone.transformations import OMPSingleTrans
+from psyclone.psyir.transformations import OMPParallelTrans
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
