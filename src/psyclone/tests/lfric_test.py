@@ -64,8 +64,10 @@ from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
                                   Reference, Routine, Container, Schedule)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
-from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
+
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -2299,6 +2301,14 @@ def test_function_space_shorten_name(name, shortened):
     fs = FunctionSpace
     assert fs._shorten_name(name) == shortened
 
+
+def test_op_name_with_long_variable_names():
+    '''
+    '''
+    psy, invoke = get_invoke("6.1.1_eval_op_invoke.f90", idx=0, api=TEST_API)
+    first_kernel = invoke.schedule.coded_kernels()[0]
+    fspace = FunctionSpace("w0", first_kernel.arguments)
+    assert 0
 
 def test_fsdescriptors_get_descriptor():
     ''' Test that FSDescriptors.get_descriptor() raises the expected error

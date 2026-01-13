@@ -53,8 +53,7 @@ class FunctionSpace():
     any_discontinuous_space then its name is mangled such that it is unique
     within the scope of an Invoke.
 
-    :param str name: original name of function space to create a
-                     mangled name for.
+    :param name: original name of function space.
     :param kernel_args: object encapsulating all arguments to the kernel,
                         one or more of which are on this function space.
 

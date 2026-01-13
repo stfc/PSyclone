@@ -39,9 +39,10 @@ program eval_invoke
 
   implicit none
 
-  type(field_type)    :: f1
-  type(operator_type) :: op1
+  type(field_type)    :: happens_to_be_a_very_long_field_name 
+  type(operator_type) :: a_very_long_operator_name
 
-  call invoke( testkern_eval_op_type(op1, f1) )
+  call invoke( testkern_eval_op_type(a_very_long_operator_name, &
+                                     happens_to_be_a_very_long_field_name) )
 
 end program eval_invoke
