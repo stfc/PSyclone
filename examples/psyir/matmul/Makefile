@@ -69,3 +69,6 @@ run: compile
 
 %: %.F90
 	$(F90) $(F90FLAGS) $< -o $@
+
+notebook:
+	@echo "No compilation supported for lfric/matmul"
