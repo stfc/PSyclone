@@ -69,3 +69,6 @@ trans_omp_tiled.F90: trans.F90 omp-tile.py
 
 %: %.F90
 	$(F90) $(F90FLAGS) $< -o $@
+
+notebook:
+	@echo "No compilation supported for lfric/matmul"
