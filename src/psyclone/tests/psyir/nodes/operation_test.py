@@ -230,8 +230,10 @@ def test_binaryop_scalar_datatype():
                                                          BOOLEAN_TYPE)))
     with pytest.raises(TypeError) as err:
         _ = binop6.datatype
-    assert ("Invalid argument of type 'Intrinsic.BOOLEAN' to numerical "
-            "operation 'Operator.ADD' in 'itmp1 + switch'" in str(err.value))
+    assert ("Invalid argument(s) of type(s) '['Intrinsic.BOOLEAN']' to "
+            "numerical operation 'Operator.ADD' in 'itmp1 + switch'. "
+            "Currently only ScalarType.Intrinsic.REAL/INTEGER are supported "
+            "(TODO #1590)" in str(err.value))
 
 
 def test_binaryop_operands():

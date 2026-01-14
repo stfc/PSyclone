@@ -353,15 +353,16 @@ class BinaryOperation(Operation):
         try:
             return compute_scalar_type(argtypes)
         except TypeError as err:
-            for atype in argtypes:
-                if atype.intrinsic not in (ScalarType.Intrinsic.INTEGER,
-                                           ScalarType.Intrinsic.REAL):
-                    raise TypeError(
-                        f"Invalid argument of type '{atype.intrinsic}' to "
-                        f"numerical operation '{self.operator}' in "
-                        f"'{self.debug_string()}'. Currently only "
-                        f"ScalarType.Intrinsic.REAL/INTEGER are "
-                        f"supported (TODO #1590)") from err
+            actual_types = set(atype.intrinsic for atype in argtypes)
+            actual_types -= set([ScalarType.Intrinsic.INTEGER,
+                                ScalarType.Intrinsic.REAL])
+            actual_types = [str(x) for x in actual_types]
+            raise TypeError(
+                f"Invalid argument(s) of type(s) '{actual_types}' to "
+                f"numerical operation '{self.operator}' in "
+                f"'{self.debug_string()}'. Currently only "
+                f"ScalarType.Intrinsic.REAL/INTEGER are supported "
+                f"(TODO #1590)") from err
 
     @property
     def datatype(self):

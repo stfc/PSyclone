@@ -301,7 +301,7 @@ def test_sign_of_unknown_type(fortran_reader):
       integer, parameter, dimension(0:4) :: A2D = (/1, 2, 3, 4, 5/)
       REAL(wp), DIMENSION(A2D(0)) :: ztmp1
       ztmp1 = 0.0
-      ! Can't handle because MAXVAL returns an array.
+      ! Can handle because MAXVAL returns an array.
       ztmp1 = SIGN(MAX(MAXVAL(ABS(ztmp1)),1.E-6_wp), ztmp1)
       ! Can't handle because we don't know the type of thing
       ztmp1 = SIGN( thing, ztmp1 )

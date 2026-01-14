@@ -87,6 +87,23 @@ IAttr = namedtuple(
 ArgDesc = namedtuple('ArgDesc', 'min_count max_count types arg_names')
 
 
+def _type_of_arg_with_rank_minus_one(
+        arg: Node, scalar_type: ScalarType
+) -> Union[ScalarType, ArrayType]:
+    '''
+    Returns a DataType with with the type of the provided scalar_type
+    with one rank less than the input arg. If arg is an array of rank 1,
+    scalar_type is returned instead.
+
+
+    '''
+    shape = arg.datatype.shape
+    if len(shape) == 1:
+        return scalar_type
+    new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
+    return ArrayType(scalar_type, new_shape)
+
+
 def _type_of_named_argument(node: IntrinsicCall,
                             argument_name: str) -> DataType:
     """Helper function for the common IntrinsicCall case where
@@ -141,14 +158,7 @@ def _type_of_named_arg_with_optional_kind_and_dim(
             ],
         )
     # Always have dim argument from here.
-    # If array has rank 1, the result is scalar.
-    shape = arg.datatype.shape
-    if len(shape) == 1:
-        return dtype
-    # Otherwise the result is an array with rank one less than the
-    # arg_name argument.
-    new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
-    return ArrayType(dtype, new_shape)
+    return _type_of_arg_with_rank_minus_one(arg, dtype)
 
 
 def _type_with_specified_precision_and_optional_dim(
@@ -173,16 +183,14 @@ def _type_with_specified_precision_and_optional_dim(
     # If dim is not present, or the rank of the
     # array argument is 1 then this returns a scalar.
     arg = node.argument_by_name(argument_name)
-    shape = arg.datatype.shape
-    if "dim" not in node.argument_names or len(shape) == 1:
+    if "dim" not in node.argument_names:
         return dtype
+
     # If dim is given then this should return an array, but we
     # don't necessarily know the dimensions of the resulting array
     # at compile time. It will have one fewer dimension than the
     # input.
-    # For now we don't attempt to work out the shape.
-    new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
-    return ArrayType(dtype, new_shape)
+    return _type_of_arg_with_rank_minus_one(arg, dtype)
 
 
 def _type_of_scalar_with_optional_kind(
@@ -243,12 +251,7 @@ def _type_of_intrinsic_with_argname_kind_and_optional_dim(
     # at compile time. It will have one fewer dimension than the
     # input.
     arg = node.argument_by_name(array_arg_name)
-    shape = arg.datatype.shape
-    if len(shape) == 1:
-        return dtype
-    # For now we don't attempt to work out the shape.
-    new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
-    return ArrayType(dtype, new_shape)
+    return _type_of_arg_with_rank_minus_one(arg, dtype)
 
 
 def _type_of_intrinsic_with_precision_of_named_arg(
@@ -294,15 +297,8 @@ def _findloc_return_type(node: IntrinsicCall) -> DataType:
         dtype = node.argument_by_name("array").datatype.copy()
     # If dim argument is given.
     if "dim" in node.argument_names:
-        # Return a scalar if the array has rank 1.
-        if len(node.argument_by_name("array").datatype.shape) == 1:
-            return dtype
-        # Otherwise return an array of rank n-1.
-        return ArrayType(
-            dtype,
-            [ArrayType.Extent.DEFERRED]
-            * (len(node.argument_by_name("array").datatype.shape) - 1),
-        )
+        arg = node.argument_by_name("array")
+        return _type_of_arg_with_rank_minus_one(arg, dtype)
     # Otherwise return an array with same rank as the "array"
     # argument.
     return ArrayType(
@@ -492,16 +488,12 @@ def _maxval_return_type(node: IntrinsicCall) -> DataType:
     """
     dtype = ScalarType(node.argument_by_name("array").datatype.intrinsic,
                        node.argument_by_name("array").datatype.precision)
-    if ("dim" not in node.argument_names
-            or len(node.argument_by_name("array").datatype.shape) == 1):
+    if "dim" not in node.argument_names:
         return dtype
     # We have a dimension specified. We don't know the resultant shape
     # in any detail as its dependent on the value of dim
-    return ArrayType(
-        dtype,
-        [ArrayType.Extent.DEFERRED]
-        * (len(node.argument_by_name("array").datatype.shape) - 1),
-    )
+    arg = node.argument_by_name("array")
+    return _type_of_arg_with_rank_minus_one(arg, dtype)
 
 
 def _dot_product_return_type(node: IntrinsicCall) -> DataType:
