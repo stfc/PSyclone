@@ -42,6 +42,7 @@ PSyclone configuration management module.
 Deals with reading the config file and storing default settings.
 '''
 
+from __future__ import annotations
 import abc
 from configparser import (ConfigParser, MissingSectionHeaderError,
                           ParsingError, SectionProxy)
@@ -50,8 +51,9 @@ import logging
 import os
 import re
 import sys
-import psyclone
+from typing import Union
 
+import psyclone
 from psyclone.errors import PSycloneError, InternalError
 
 
@@ -408,16 +410,14 @@ class Config:
         # Set the flag that the config file has been loaded now.
         Config._HAS_CONFIG_BEEN_INITIALISED = True
 
-    def api_conf(self, api: str = None):
+    def api_conf(self, api: str = "") -> Union[LFRicConfig, GOceanConfig]:
         '''
         Getter for the object holding API-specific configuration options.
 
         :param api: Optional, the API for which configuration details are
                 required. If none is specified, returns the config for the
-                default API.
+                the current API.
         :returns: object containing API-specific configuration
-        :rtype: Union[:py:class:`psyclone.configuration.LFRicConfig`,
-                      :py:class:`psyclone.configuration.GOceanConfig`]
 
         :raises ValueError: if api is not in the list of supported APIs.
         :raises ConfigurationError: if the config file did not contain a
@@ -814,7 +814,7 @@ class BaseConfig:
     def __init__(self, section: SectionProxy):
         logger = logging.getLogger(__name__)
         if "ACCESS_MAPPING" in section:
-            logger.warn(
+            logger.warning(
                 "Configuration file contains an ACCESS_MAPPING entry. This is "
                 "deprecated and will be ignored.")
 
