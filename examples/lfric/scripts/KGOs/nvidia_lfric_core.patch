@@ -1,8 +1,8 @@
-Index: components/driver/source/mesh/runtime_partition_lfric_mod.f90
-===================================================================
---- components/driver/source/mesh/runtime_partition_lfric_mod.f90	(revision 53845)
-+++ components/driver/source/mesh/runtime_partition_lfric_mod.f90	(working copy)
-@@ -85,35 +85,6 @@
+diff --git a/components/driver/source/mesh/runtime_partition_lfric_mod.f90 b/components/driver/source/mesh/runtime_partition_lfric_mod.f90
+index 155662def..55e20ee46 100644
+--- a/components/driver/source/mesh/runtime_partition_lfric_mod.f90
++++ b/components/driver/source/mesh/runtime_partition_lfric_mod.f90
+@@ -89,41 +89,6 @@ subroutine get_partition_parameters_nml( partitioning,   &
  
    procedure(partitioner_interface), intent(out), pointer :: partitioner_ptr
  
@@ -26,7 +26,14 @@ Index: components/driver/source/mesh/runtime_partition_lfric_mod.f90
 -  case ( panel_decomposition_custom )
 -    call partitioning%get_value( 'panel_xproc', panel_xproc )
 -    call partitioning%get_value( 'panel_yproc', panel_yproc )
--    decomposition = custom_decomposition_type( num_xprocs=panel_xproc, num_yprocs=panel_yproc )
+-    decomposition = custom_decomposition_type( panel_xproc, panel_yproc )
+-
+-  case ( panel_decomposition_auto_nonuniform )
+-    decomposition = auto_nonuniform_decomposition_type()
+-
+-  case ( panel_decomposition_guided_nonuniform )
+-    call partitioning%get_value( 'panel_xproc', panel_xproc )
+-    decomposition = guided_nonuniform_decomposition_type( panel_xproc )
 -
 -  case default
 -    ! Not clear it's possible to still error at this point but no harm in checking
@@ -34,7 +41,6 @@ Index: components/driver/source/mesh/runtime_partition_lfric_mod.f90
 -                    "specify 'auto' if unsure.", LOG_LEVEL_ERROR )
 -
 -  end select
--
+ 
    call get_partition_strategy(mesh_selection, total_ranks, partitioner_ptr)
  
- end subroutine get_partition_parameters_nml

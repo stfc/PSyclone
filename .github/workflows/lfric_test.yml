@@ -42,8 +42,8 @@ on:
   push
 
 env:
-  LFRIC_APPS_REV: 14921
-  LFRIC_CORE_REV: 53845
+  LFRIC_APPS_REV: ce7a652398e30c3fa9776b624439862b0f7e03b0
+  LFRIC_CORE_REV: 5d4d72f0e35f00e71b1757df6beadec21ece97f0
   PYTHON_VERSION: 3.14
   GCC_VERSION: 14
   NVHPC_VERSION: 25.1
@@ -89,30 +89,34 @@ jobs:
         pip install external/fparser
         pip install .[test]
         # Fetch the specified version of LFRic apps
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load fcm/xyl5qxp
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack load fcm/zefe2ha
         cd /archive/psyclone-tests/latest-run
         rm -rf lfric_apps lfric_core
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r ${LFRIC_APPS_REV} https://code.metoffice.gov.uk/svn/lfric_apps/main/trunk/ lfric_apps
+        git clone https://github.com/MetOffice/lfric_apps
         # Disable XIOS in the gungho_model example configuration
-        cd lfric_apps/applications/gungho_model/example
+        cd lfric_apps/
+        sed -i "s|git@github.com:MetOffice/lfric_core.git|/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
+        sed -i "s|git@github.com:MetOffice/jules.git|/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
+        cd applications/gungho_model/example
         sed -i "s|use_xios_io=.*|use_xios_io=.false.|g" configuration.nml
         # We need to patch lfric_core to resolve issues with the nvfortran compiler
         # see https://code.metoffice.gov.uk/trac/lfric/ticket/4621
+        # and add amdflang mk files
+        git clone https://github.com/MetOffice/lfric_core
         cd /archive/psyclone-tests/latest-run
         fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
           -r ${LFRIC_CORE_REV} https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
         cd lfric_core
-        svn patch ${GITHUB_WORKSPACE}/examples/lfric/scripts/KGOs/nvidia_lfric_core.patch
+        git apply < ${GITHUB_WORKSPACE}/examples/lfric/scripts/KGOs/nvidia_lfric_core.patch
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
     - name: LFRic passthrough (with DistributedMemory)
       id: lfric_dist_mem
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc@${GCC_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment %gcc_openmpi
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         # TODO #3206: The no-annex-dof configuration fails in LFRic because some kernels lie in
@@ -121,17 +125,21 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use un-patched LFRic core
-        sed -i "s|lfric_core_rev=.*|lfric_core_rev=${LFRIC_CORE_REV}|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=|g" dependencies.sh
         # Ensure no transformations are applied by supplying an empty
         # transformation script.
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
+        export OPT_DIR=${LFRIC_DIR}/applications/lfric_atm/optimisation/psyclone-test/psykal
+        mkdir -p ${OPT_DIR}
+        cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
+        export OPT_DIR=${LFRIC_DIR}/applications/lfric_atm/optimisation/psyclone-test/transmute
+        mkdir -p ${OPT_DIR}
         # Clean previous version and compile again
-        rm -rf applications/gungho_model/working
-        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -v -p psyclone-test -w working-passthrough
+        rm -rf working-gh-passthrough
+        ./build/local_build.py -j ${NUM_PARALLEL} -v -p psyclone-test -w working-gh-passthrough gungho_model
+        rm -rf working-atm-passthrough
+        ./build/local_build.py -j ${NUM_PARALLEL} -v -p psyclone-test -w working-atm-passthrough lfric_atm
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -157,9 +165,6 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use the patched LFRic core to support nvfortran
-        sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
@@ -193,9 +198,6 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use the patched LFRic core to support nvfortran
-        sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
@@ -225,9 +227,6 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use un-patched LFRic core
-        sed -i "s|lfric_core_rev=.*|lfric_core_rev=${LFRIC_CORE_REV}|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
@@ -257,9 +256,6 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use un-patched LFRic core
-        sed -i "s|lfric_core_rev=.*|lfric_core_rev=${LFRIC_CORE_REV}|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
@@ -287,9 +283,6 @@ jobs:
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use un-patched LFRic core
-        sed -i "s|lfric_core_rev=.*|lfric_core_rev=${LFRIC_CORE_REV}|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=|g" dependencies.sh
 
         # Build the 'meto-ex1a' platform, that includes psyclone-transmutation
         export BUILD_START="${SECONDS}"
