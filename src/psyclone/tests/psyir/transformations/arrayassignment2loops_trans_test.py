@@ -406,7 +406,6 @@ def test_apply_assumed_shape(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-@pytest.mark.xfail(reason="TODO #2951: Dependencies are ignored")
 def test_validate_with_dependency(fortran_reader):
     ''' Check that the validate method checks for dependencies (or
     resolve them using a temporary) '''
@@ -421,8 +420,11 @@ def test_validate_with_dependency(fortran_reader):
     loop = psyir.walk(Loop)[0]
     assignment = loop.walk(Assignment)[0]
     trans = ArrayAssignment2LoopsTrans()
-    with pytest.raises(TransformationError):
-        trans.apply(assignment)
+    trans.apply(assignment)
+    pytest.xfail(
+        reason=("TODO #2951: Should raise an error pointing to the"
+                "dependencies that should prevent the transformation")
+    )
 
 
 def test_apply_calls_validate():
