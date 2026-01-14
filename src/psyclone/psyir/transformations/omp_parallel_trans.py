@@ -40,10 +40,6 @@
 #          J. Dendy, Met Office
 '''This module provides the OMPParallelTrans transformation.'''
 
-from psyclone.psyir.transformations.parallel_region_trans import (
-    ParallelRegionTrans)
-from psyclone.psyir.transformations.transformation_error import (
-    TransformationError)
 from psyclone import psyGen
 from psyclone.psyir.nodes import (
     ACCDirective,
@@ -53,6 +49,10 @@ from psyclone.psyir.nodes import (
     OMPDirective,
     Return,
 )
+from psyclone.psyir.transformations.parallel_region_trans import (
+    ParallelRegionTrans)
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 
 
 class OMPParallelTrans(ParallelRegionTrans):
