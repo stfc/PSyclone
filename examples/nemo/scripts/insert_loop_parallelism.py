@@ -118,8 +118,6 @@ if not NEMOV4:
     ])
 
     OFFLOADING_ISSUES.extend([
-        # Produces different output results
-        "zdftke.f90",
         # The following issues only affect BENCH (because ice is enabled?)
         # Runtime Error: Illegal address during kernel execution
         "trcrad.f90",
