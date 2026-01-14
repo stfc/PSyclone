@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,7 @@ NEMO_MODULES_TO_IMPORT = [
     "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
     "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc", "abl", "ice1d",
     "sed", "p2zlim", "oce_trc", "p4zpoc", "tide_mod", "sbcwave", "isf_oce",
-    "step_oce", "bdyice",
+    "step_oce", "bdyice", "lbcnfd"
 ]
 
 # Files that PSyclone could process but would reduce the performance.
@@ -201,7 +201,6 @@ def normalise_loops(
     :param hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
     '''
-    filename = schedule.root.name
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
         # to files with statement functions because it will attempt to put the
@@ -230,9 +229,6 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
-            if filename in ("fldread.f90", "diadct.f90"):
-                # TODO #2951: This file has issues converting SturctureRefs
-                continue
             try:
                 explicit_loops.apply(
                     assignment, options={'verbose': True})
