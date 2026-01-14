@@ -56,6 +56,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
     IAttr,
+    _type_of_arg_with_rank_minus_one,
     _type_of_named_argument,
     _type_of_named_arg_with_optional_kind_and_dim,
     _type_with_specified_precision_and_optional_dim,
@@ -348,7 +349,6 @@ def test_intrinsiccall_random_create():
     assert rand.routine.name == "RANDOM_NUMBER"
     assert rand.arguments[0].symbol is sym
     assert isinstance(rand.datatype, NoType)
-
 
 @pytest.mark.parametrize(
     "intrinsic_call",
@@ -676,6 +676,29 @@ end program test_prog
     intrs = psyir.walk(IntrinsicCall)
     for intr in intrs:
         assert isinstance(intr.datatype, NoType)
+
+
+def test_type_of_arg_with_rank_minus_one(fortran_reader):
+    """Test the type_of_arg_with_rank_minus_one routine."""
+
+    code = """
+    program test_prog
+    integer, dimension(100):: i
+    integer, dimension(100,100,100) :: j
+    i = 1
+    j = 2
+    end program test_prog"""
+    psyir = fortran_reader.psyir_from_source(code)
+    refs = psyir.walk(Reference)
+    # First one is a 1D array, so the result should be the second argument.
+    res1 = _type_of_arg_with_rank_minus_one(refs[0], INTEGER_TYPE)
+    assert res1 == INTEGER_TYPE
+    # Second one should be a 2D real array.
+    res2 = _type_of_arg_with_rank_minus_one(refs[1], REAL_TYPE)
+    assert isinstance(res2, ArrayType)
+    assert len(res2.shape) == 2
+    assert all(x == ArrayType.Extent.DEFERRED for x in res2.shape)
+    assert res2.datatype == REAL_TYPE
 
 
 def test_index_intrinsic(fortran_reader, fortran_writer):

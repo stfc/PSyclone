@@ -44,7 +44,7 @@ from __future__ import annotations
 from collections import namedtuple
 from collections.abc import Iterable
 from enum import Enum
-from typing import List, Tuple, Callable
+from typing import List, Tuple, Callable, Union
 
 from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.errors import InternalError
@@ -88,13 +88,18 @@ ArgDesc = namedtuple('ArgDesc', 'min_count max_count types arg_names')
 
 
 def _type_of_arg_with_rank_minus_one(
-        arg: Node, scalar_type: ScalarType
+        arg: Reference, scalar_type: ScalarType
 ) -> Union[ScalarType, ArrayType]:
     '''
     Returns a DataType with with the type of the provided scalar_type
     with one rank less than the input arg. If arg is an array of rank 1,
     scalar_type is returned instead.
 
+    :param arg: The argument to base the resultant type on.
+    :param scalar_type: The ScalarType of the resultant type.
+
+    :returns: A datatype with the provided scalar_type and rank 1 less than
+              arg. If arg has rank 1 the scalar_type is returned.
 
     '''
     shape = arg.datatype.shape
