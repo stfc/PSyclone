@@ -350,6 +350,7 @@ def test_intrinsiccall_random_create():
     assert rand.arguments[0].symbol is sym
     assert isinstance(rand.datatype, NoType)
 
+
 @pytest.mark.parametrize(
     "intrinsic_call",
     [
