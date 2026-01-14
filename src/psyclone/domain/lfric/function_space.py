@@ -345,7 +345,8 @@ class FunctionSpace():
 
     @property
     def has_scalar_diff_basis(self) -> bool:
-        ''':returns: True if this function space has scalar differential
+        '''
+        :returns: True if this function space has scalar differential
             basis functions.
         '''
         const = LFRicConstants()
@@ -353,7 +354,8 @@ class FunctionSpace():
 
     @property
     def has_vector_diff_basis(self) -> bool:
-        ''':returns: True if this function space has vector differential
+        '''
+        :returns: True if this function space has vector differential
             basis functions.
         '''
         const = LFRicConstants()
