@@ -423,11 +423,11 @@ def test_op_any_space_different_space_2(tmpdir):
     assert "dim_as1_b = b_proxy%fs_to%get_dim_space()" in generated_code
     assert "ndf_as2_b = b_proxy%fs_from%get_ndf()" in generated_code
     assert "ndf_as3_c = c_proxy%fs_to%get_ndf()" in generated_code
-    assert ("ndf_as4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
+    assert ("ndf_a4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
             "proxy%fs_from%get_ndf()" in generated_code)
-    assert ("undf_as4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
+    assert ("undf_a4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
             "proxy%fs_from%get_undf()" in generated_code)
-    assert ("dim_as4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
+    assert ("dim_a4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
             "proxy%fs_from%get_dim_space()" in generated_code)
     assert "ndf_as5_a = a_proxy%vspace%get_ndf()" in generated_code
     assert "undf_as5_a = a_proxy%vspace%get_undf()" in generated_code
@@ -437,7 +437,7 @@ def test_op_any_space_different_space_2(tmpdir):
     assert ("call qr%compute_function(DIFF_BASIS, an_operator_with_a_very_"
             "long_name_proxy%fs_from, " in generated_code)
     assert "map_as5_a => a_proxy%vspace%get_whole_dofmap()" in generated_code
-    assert ("map_as4_an_or_wh_a_vy_lg_ne => a_field_with_a_very_long_name_"
+    assert ("map_a4_an_or_wh_a_vy_lg_ne => a_field_with_a_very_long_name_"
             "proxy%vspace%get_whole_dofmap()" in generated_code)
 
 

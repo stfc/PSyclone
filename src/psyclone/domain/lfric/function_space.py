@@ -115,8 +115,7 @@ class FunctionSpace():
         for arg in args:
             for fspace in arg.function_spaces:
                 if (fspace and fspace.orig_name.lower() == lorig_name):
-                    return (f"{self.short_name}_"
-                            f"{self._shorten_name(arg.name)}")
+                    return self._shorten_name(f"{self.short_name}_{arg.name}")
         # Raise an error if there are no kernel arguments on this
         # function space
         raise FieldNotFoundError(f"No kernel argument found for function "
