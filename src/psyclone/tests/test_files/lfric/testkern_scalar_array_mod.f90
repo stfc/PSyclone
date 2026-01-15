@@ -55,8 +55,7 @@ module testkern_scalar_array_mod
 
 contains
 
-  subroutine testkern_scalar_array_code(nlayers,                    &
-                                        afield,                     &
+  subroutine testkern_scalar_array_code(nlayers, afield,            &
                                         dims_rarray, real_array,    &
                                         dims_larray, logical_array, &
                                         dims_iarray, integer_array, &
@@ -65,17 +64,17 @@ contains
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_w1
-    integer(kind=i_def), intent(in) :: undf_w1
-    integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
-    real(kind=r_def),    intent(inout) :: afield
     integer(kind=i_def), intent(in), dimension(2) :: dims_rarray
-    integer(kind=i_def), intent(in), dimension(1) :: dims_larray
-    integer(kind=i_def), intent(in), dimension(4) :: dims_iarray
     real(kind=r_def),    intent(in), dimension(dims_rarray(1),dims_rarray(2)) :: real_array
+    integer(kind=i_def), intent(in), dimension(1) :: dims_larray
     logical(kind=l_def), intent(in), dimension(dims_larray(1)) :: logical_array
+    integer(kind=i_def), intent(in), dimension(4) :: dims_iarray
     integer(kind=i_def), intent(in), dimension(dims_iarray(1),dims_iarray(2),dims_iarray(3),dims_iarray(4)) :: integer_array
     integer(kind=i_def), intent(in) :: a_scalar
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), intent(in) :: undf_w1
+    real(kind=r_def),    intent(inout), dimension(undf_w1) :: afield
+    integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
 
   end subroutine testkern_scalar_array_code
 

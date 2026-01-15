@@ -42,11 +42,11 @@ program scalar_array_invoke
 
   implicit none
 
-  type(field_type)                       :: afield
-  real(r_def),    dimension(50, 100)     :: real_array
-  logical(l_def), dimension(10)          :: logical_array
-  integer(i_def), dimension(2, 5, 10, 8) :: integer_array
-  integer(i_def)                         :: a_scalar
+  type(field_type)                            :: afield
+  real(kind=r_def),    dimension(50, 100)     :: real_array
+  logical(kind=l_def), dimension(10)          :: logical_array
+  integer(kind=i_def), dimension(2, 5, 10, 8) :: integer_array
+  integer(kind=i_def)                         :: a_scalar
 
   call invoke(                                                                            &
        testkern_scalar_array_type(afield,real_array,logical_array,integer_array,a_scalar) &
