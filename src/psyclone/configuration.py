@@ -872,28 +872,6 @@ class BaseConfig:
                     f" characters.")
         return return_dict
 
-    def get_access_mapping(self) -> dict[str]:
-        '''
-        :returns: the mapping of API-specific access strings (e.g.
-                  gh_write) to the AccessType (e.g. AccessType.WRITE).
-        '''
-        return self.get_constants().ACCESS_MAPPING
-
-    def get_reverse_access_mapping(self) -> dict[str]:
-        '''
-        :returns: the mapping of API-specific access strings (e.g.
-                  gh_write) to the AccessType (e.g. AccessType.WRITE).
-        '''
-        return self.get_constants().REVERSE_ACCESS_MAPPING
-
-    def get_valid_accesses_api(self) -> list[str]:
-        '''
-        :returns: Sorted list of API-specific access names.
-        '''
-        valid_names = list(self.get_access_mapping().keys())
-        valid_names.sort()
-        return valid_names
-
     @abc.abstractmethod
     def get_constants(self):
         ''':returns: an object containing all constants for the API.

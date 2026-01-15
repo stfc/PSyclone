@@ -169,13 +169,15 @@ class LFRicArgDescriptor(Descriptor):
         # The 3rd arg is an access descriptor. Allowed accesses for each
         # argument type are dealt with in the related _init methods.
         # Convert from GH_* names to the generic access type
-        api_config = Config.get().api_conf(API)
-        access_mapping = api_config.get_access_mapping()
+        config = Config.get()
+        api_config = config.api_conf(API)
+        consts = config.get_constants()
+        access_mapping = consts.ACCESS_MAPPING
         prop_ind = 2
         try:
             self._access_type = access_mapping[arg_type.args[prop_ind].name]
         except KeyError as err:
-            valid_names = api_config.get_valid_accesses_api()
+            valid_names = sorted(access_mapping.keys())
             raise ParseError(
                 f"In the LFRic API argument {prop_ind+1} of a 'meta_arg' entry"
                 f" must be a valid access descriptor (one of {valid_names}), "
