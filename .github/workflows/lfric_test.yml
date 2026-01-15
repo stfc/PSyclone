@@ -89,26 +89,15 @@ jobs:
         pip install external/fparser
         pip install .[test]
         # Fetch the specified version of LFRic apps
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load fcm/zefe2ha
         cd /archive/psyclone-tests/latest-run
         rm -rf lfric_apps lfric_core
         git clone https://github.com/MetOffice/lfric_apps
         # Disable XIOS in the gungho_model example configuration
         cd lfric_apps/
-        sed -i "s|git@github.com:MetOffice/lfric_core.git|/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
-        sed -i "s|git@github.com:MetOffice/jules.git|/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
+        sed -i "s|git@github.com:MetOffice/lfric_core.git|/archive/psyclone-tests/lfric-repos/lfric_core|g" dependencies.yaml
+        sed -i "s|git@github.com:MetOffice/jules.git|/archive/psyclone-tests/lfric-repos/jules|g" dependencies.yaml
         cd applications/gungho_model/example
         sed -i "s|use_xios_io=.*|use_xios_io=.false.|g" configuration.nml
-        # We need to patch lfric_core to resolve issues with the nvfortran compiler
-        # see https://code.metoffice.gov.uk/trac/lfric/ticket/4621
-        # and add amdflang mk files
-        git clone https://github.com/MetOffice/lfric_core
-        cd /archive/psyclone-tests/latest-run
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r ${LFRIC_CORE_REV} https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
-        cd lfric_core
-        git apply < ${GITHUB_WORKSPACE}/examples/lfric/scripts/KGOs/nvidia_lfric_core.patch
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
     - name: LFRic passthrough (with DistributedMemory)
