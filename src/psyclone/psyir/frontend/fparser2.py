@@ -1690,7 +1690,7 @@ class Fparser2Reader():
             this contains the single entry "*".
         :param preceding_comments: list of comments preceding the declaration.
 
-        :raise SymbolError: a symbol with the same name already in the given
+        :raise SymbolError: a symbol with the same name is already in the given
             symbol table.
         '''
         if visibility_map is None:
@@ -1755,9 +1755,10 @@ class Fparser2Reader():
                             = self._comments_list_to_string(
                                 preceding_comments)
                     preceding_comments = []
+                    # Save the decl text to recover declaration comments
+                    # if needed.
                     self._last_psyir_parsed_and_span\
-                        = (new_symbol,
-                           decl.item.span)
+                        = (new_symbol, decl.item.span)
                     symbol_table.add(new_symbol)
                 except KeyError as err:
                     if len(orig_children) == 1:
@@ -2167,6 +2168,7 @@ class Fparser2Reader():
             local_table.default_visibility = default_compt_visibility
 
             preceding_comments = []
+            # Child 0 is the derived_type_stmt already handled above
             for child in decl.children[1:]:
                 if isinstance(child, Fortran2003.Comment):
                     self.process_comment(child, preceding_comments)
@@ -2183,7 +2185,7 @@ class Fparser2Reader():
                 else:
                     raise NotImplementedError(
                         f"Found unsupported '{type(child)} while processing "
-                        "a derived type"
+                        f"a derived type"
                     )
 
             # Convert from Symbols to StructureType components.
@@ -2217,7 +2219,7 @@ class Fparser2Reader():
         node: Fortran2003.Type_Declaration_Stmt,
         scope: ScopingNode,
         symbol_table: SymbolTable,
-        visibility_map
+        visibility_map: Optional[dict[str, Symbol.Visibility]] = None
     ):
         '''Try to obtain partial datatype information from node by removing
         any unsupported properties in the declaration.
@@ -2227,8 +2229,6 @@ class Fparser2Reader():
         :param symbol_table: the symbol table in which to add new symbols.
         :param visibility_map: mapping of symbol names to explicit
             visibilities.
-        :type visibility_map: dict with str keys and values of type
-            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
         :returns: a 2-tuple containing a PSyIR datatype, or datatype symbol,
             containing partial datatype information for the declaration

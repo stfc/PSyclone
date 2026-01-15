@@ -134,7 +134,7 @@ def precedence(fortran_operator):
     raise KeyError()
 
 
-def add_accessibility_to_unsupported_declaration(symbol):
+def add_accessibility_to_unsupported_declaration(symbol: Symbol) -> str:
     '''
     Utility that manipulates the UnsupportedFortranType declaration for the
     supplied Symbol so as to ensure that it has the correct accessibility
@@ -143,20 +143,19 @@ def add_accessibility_to_unsupported_declaration(symbol):
     as is and this may or may not include accessibility information.)
 
     :param symbol: the symbol for which the declaration is required.
-    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
-    :returns: Fortran declaration of the supplied symbol with accessibility \
+    :returns: Fortran declaration of the supplied symbol with accessibility
         information included (public/private).
     :rtype: str
 
-    :raises TypeError: if the supplied argument is not a Symbol of \
-        UnsupportedFortranType.
-    :raises InternalError: if the declaration associated with the Symbol is \
+    :raises TypeError: if the supplied argument is not a Symbol or DerivedType
+        component of UnsupportedFortranType.
+    :raises InternalError: if the declaration associated with the Symbol is
         empty.
-    :raises NotImplementedError: if the original declaration does not use \
+    :raises NotImplementedError: if the original declaration does not use
         '::' to separate the entity name from its type.
-    :raises InternalError: if the declaration stored for the supplied symbol \
-        contains accessibility information which does not match the \
+    :raises InternalError: if the declaration stored for the supplied symbol
+        contains accessibility information which does not match the
         visibility of the supplied symbol.
 
     '''
