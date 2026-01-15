@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1171,7 +1171,6 @@ class GOKernelArguments(Arguments):
                 raise ParseError(f"Invalid kernel argument type. Found "
                                  f"'{arg.argument_type}' but must be one of "
                                  f"['grid_property', 'scalar', 'field'].")
-        self._dofs = []
 
     def psyir_expressions(self):
         '''
@@ -1206,13 +1205,6 @@ class GOKernelArguments(Arguments):
         # to access the grid properties. This will only be a problem
         # if the kernel requires a grid-property argument.
         return None
-
-    @property
-    def dofs(self):
-        ''' Currently required for invoke base class although this makes no
-            sense for GOcean. Need to refactor the Invoke base class and
-            remove the need for this property (#279). '''
-        return self._dofs
 
     @property
     def acc_args(self):

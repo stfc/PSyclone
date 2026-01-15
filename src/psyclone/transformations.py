@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -2475,7 +2475,7 @@ class KernelImportsToArguments(Transformation):
         # Check that there are no unqualified imports or undeclared symbols
         try:
             kernels = node.get_callees()
-        except SymbolError as err:
+        except (SymbolError, NotImplementedError) as err:
             raise TransformationError(
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err

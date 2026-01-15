@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2025, Australian Bureau of Meteorology
+! Copyright (c) 2020-2026, Australian Bureau of Meteorology
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
