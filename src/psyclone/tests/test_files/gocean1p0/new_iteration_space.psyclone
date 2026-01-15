@@ -78,3 +78,8 @@ grid-properties = go_grid_xstop: {0}%%grid%%subdomain%%internal%%xstop: scalar: 
                   go_grid_x_max_index: {0}%%grid%%subdomain%%internal%%xstop: scalar: integer,
                   go_grid_y_min_index: {0}%%grid%%subdomain%%internal%%ystart: scalar: integer,
                   go_grid_y_max_index: {0}%%grid%%subdomain%%internal%%ystop: scalar: integer
+# This entry is deprecated but is given here to test that PSyclone logs a
+# warning message.
+access_mapping = go_read: read, go_write: write, go_readwrite: readwrite,
+                 go_inc: inc, go_sum: sum
+
