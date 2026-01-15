@@ -79,7 +79,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'PSyclone'
-project_copyright = '2017-2025, STFC Daresbury Laboratory'
+project_copyright = '2017-2026, STFC Daresbury Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
