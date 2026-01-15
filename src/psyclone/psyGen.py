@@ -893,11 +893,10 @@ class Kern(Statement):
         self._arg_descriptors = None
 
         # Initialise any reduction information
-        reduction_modes = AccessType.get_valid_reduction_modes()
         const = Config.get().api_conf().get_constants()
         args = args_filter(self._arguments.args,
                            arg_types=const.VALID_SCALAR_NAMES,
-                           arg_accesses=reduction_modes)
+                           arg_accesses=[AccessType.REDUCTION])
         if args:
             self._reduction = True
             if len(args) != 1:
@@ -1781,20 +1780,20 @@ class Arguments():
     def args(self):
         return self._args
 
-    def iteration_space_arg(self):
+    def iteration_space_arg(self) -> str:
         '''
         Returns an argument that can be iterated over, i.e. modified
         (has WRITE, READWRITE or INC access), but not the result of
         a reduction operation.
 
         :returns: a Fortran argument name
-        :rtype: string
+
         :raises GenerationError: if none such argument is found.
 
         '''
         for arg in self._args:
             if arg.access in AccessType.all_write_accesses() and \
-                    arg.access not in AccessType.get_valid_reduction_modes():
+                    arg.access != AccessType.REDUCTION:
                 return arg
         raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
                               "we assume there is at least one writer, "

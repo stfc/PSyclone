@@ -1164,27 +1164,6 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     call.initialise_reduction_variable()
 
 
-def test_reduction_sum_error(dist_mem):
-    ''' Check that we raise an exception if the reduction_sum_loop()
-    method is provided with an incorrect type of argument. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=dist_mem).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    call = schedule.kernels()[0]
-    # args[1] is of type gh_field
-    call._reduction_arg = call.arguments.args[1]
-    # Ensure symbol is tagged appropriately.
-    sym = schedule.symbol_table.lookup(call._reduction_arg.name)
-    schedule.symbol_table._tags[f"{call.name}:{sym.name}:local"] = sym
-    with pytest.raises(GenerationError) as err:
-        call.reduction_sum_loop(call.parent, 1, schedule.symbol_table)
-    assert ("Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
-            "reduction_sum_loop(). Expected one of ['gh_sum']."
-            in str(err.value))
-
-
 def test_call_multi_reduction_error(monkeypatch, dist_mem):
     ''' Check that we raise an exception if we try to create a Call (a
     Kernel or a Built-in) with more than one reduction in it. Since we have

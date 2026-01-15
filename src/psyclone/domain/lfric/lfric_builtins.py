@@ -317,8 +317,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         spaces = set()   # All field arguments must be on the same space
         # Built-ins update fields DoF by DoF and therefore can have
         # WRITE/READWRITE access
-        write_access_modes = AccessType.get_valid_reduction_modes() + [
-            AccessType.WRITE, AccessType.READWRITE]
+        write_access_modes = [AccessType.REDUCTION, AccessType.WRITE,
+                              AccessType.READWRITE]
         # Field data types must be the same except for the conversion built-ins
         data_types = set()
         for arg in self.arg_descriptors:

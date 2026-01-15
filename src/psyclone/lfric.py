@@ -5956,7 +5956,7 @@ class LFRicKernelArgument(KernelArgument):
                 f"their precision defined in the algorithm layer but "
                 f"'{self.name}' in '{self._call.name}' does not.")
 
-        if self.access in AccessType.get_valid_reduction_modes():
+        if self.access == AccessType.REDUCTION:
             # Treat reductions separately to other scalars as it
             # is expected that they should match the precision of
             # the field they are reducing. At the moment there is

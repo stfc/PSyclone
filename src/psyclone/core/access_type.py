@@ -114,13 +114,12 @@ class AccessType(Enum):
                          f"Valid values are {valid}.")
 
     @staticmethod
-    def all_write_accesses():
+    def all_write_accesses() -> list[AccessType]:
         ''':returns: A list of all access types that involve writing to an
                      argument in some form.
-        :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
         return [AccessType.WRITE, AccessType.READWRITE, AccessType.INC,
-                AccessType.READINC] + AccessType.get_valid_reduction_modes()
+                AccessType.READINC, AccessType.REDUCTION]
 
     @staticmethod
     def all_read_accesses():
@@ -130,22 +129,6 @@ class AccessType(Enum):
         '''
         return [AccessType.READ, AccessType.READWRITE, AccessType.INC,
                 AccessType.READINC]
-
-    @staticmethod
-    def get_valid_reduction_modes() -> list[AccessType]:
-        '''
-        :returns: A list of valid reduction access modes.
-        '''
-        return [AccessType.REDUCTION]
-
-    @staticmethod
-    def get_valid_reduction_names():
-        '''
-        :returns: A list of valid reduction access names.
-        :rtype: List of strings.
-        '''
-        return [access.api_specific_name() for access in
-                AccessType.get_valid_reduction_modes()]
 
     @staticmethod
     def non_data_accesses():

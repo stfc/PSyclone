@@ -198,7 +198,7 @@ def test_ad_scalar_type_no_write():
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)
         assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction ['gh_reduction'] access but found "
+                "reduction ('gh_reduction') access but found "
                 "'gh_write'" in str(excinfo.value))
 
 
@@ -215,7 +215,7 @@ def test_ad_scalar_type_no_inc():
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)
         assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction ['gh_reduction'] access but found "
+                "reduction ('gh_reduction') access but found "
                 "'gh_inc'" in str(excinfo.value))
 
 
@@ -233,7 +233,7 @@ def test_ad_scalar_type_no_readwrite():
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)
         assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction ['gh_reduction'] access but found "
+                "reduction ('gh_reduction') access but found "
                 "'gh_readwrite'" in str(excinfo.value))
 
 
