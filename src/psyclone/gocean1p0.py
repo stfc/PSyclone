@@ -1902,12 +1902,13 @@ class GO1p0Descriptor(Descriptor):
                 f"expects 2 or 3 arguments but found '{len(kernel_arg.args)}' "
                 f"in '{kernel_arg.args}'")
 
-        api_config = Config.get().api_conf("gocean")
-        access_mapping = api_config.get_access_mapping()
+        config = Config.get()
+        api_config = config.api_conf("gocean")
+        access_mapping = config.get_constants().ACCESS_MAPPING
         try:
             access_type = access_mapping[access]
         except KeyError as err:
-            valid_names = api_config.get_valid_accesses_api()
+            valid_names = sorted(access_mapping.keys())
             raise ParseError(
                 f"Meta-data error in kernel {kernel_name}: argument access is "
                 f"given as '{access}' but must be one of {valid_names}"

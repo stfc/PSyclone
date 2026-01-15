@@ -43,7 +43,6 @@ import re
 import pytest
 
 from psyclone.configuration import Config, ConfigurationError
-from psyclone.core.access_type import AccessType
 
 
 # Constants
@@ -56,8 +55,6 @@ DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
 [lfric]
-access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
-                 gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
 supported_fortran_datatypes = real, integer, logical
 default_kind = real: r_def, integer: i_def, logical: l_def
@@ -121,7 +118,7 @@ def config(config_file, content):
 
 
 @pytest.mark.parametrize(
-    "option", ["access_mapping", "COMPUTE_ANNEXED_DOFS",
+    "option", ["COMPUTE_ANNEXED_DOFS",
                "supported_fortran_datatypes", "default_kind",
                "precision_map", "RUN_TIME_CHECKS",
                "NUM_ANY_SPACE", "NUM_ANY_DISCONTINUOUS_SPACE"])
@@ -137,7 +134,7 @@ def test_no_mandatory_option(tmpdir, option):
         config(config_file, content)
     assert ("Missing mandatory configuration option in the "
             "\'[lfric]\' section " in str(err.value))
-    assert ("Valid options are: ['access_mapping', "
+    assert ("Valid options are: ["
             "'compute_annexed_dofs', 'supported_fortran_datatypes', "
             "'default_kind', 'precision_map', 'run_time_checks', "
             "'num_any_space', 'num_any_discontinuous_space']."
@@ -298,17 +295,6 @@ def test_invalid_num_any_anyd_spaces(tmpdir):
             "spaces in the \'[lfric]\' section " in str(err.value))
     assert ("must be greater than 0 but found -10."
             in str(err.value))
-
-
-def test_access_mapping():
-    '''Check that we load the expected default access mapping values'''
-    api_config = Config().get().api_conf(TEST_API)
-    assert api_config.get_access_mapping()["gh_read"] == AccessType.READ
-    assert api_config.get_access_mapping()["gh_write"] == AccessType.WRITE
-    assert (api_config.get_access_mapping()["gh_readwrite"] ==
-            AccessType.READWRITE)
-    assert api_config.get_access_mapping()["gh_inc"] == AccessType.INC
-    assert api_config.get_access_mapping()["gh_sum"] == AccessType.SUM
 
 
 def test_compute_annexed_dofs():
