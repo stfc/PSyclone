@@ -72,10 +72,6 @@ def test_api_specific_name():
     assert AccessType.INQUIRY.api_specific_name() == "inquiry"
     assert AccessType.CONSTANT.api_specific_name() == "constant"
     assert AccessType.UNKNOWN.api_specific_name() == "unknown"
-    #assert (set(AccessType.get_valid_reduction_modes()) ==
-    #        set([AccessType.SUM, AccessType.MIN, AccessType.MAX]))
-    #assert (set(AccessType.get_valid_reduction_names()) ==
-    #        set(["gh_sum", "gh_min", "gh_max"]))
     # Use set to make this independent of the order:
     assert set(AccessType.all_write_accesses()) == set([AccessType.WRITE,
                                                         AccessType.READWRITE,
