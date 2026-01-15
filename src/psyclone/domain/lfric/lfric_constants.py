@@ -114,8 +114,9 @@ class LFRicConstants():
         # pylint: disable=too-many-instance-attributes
 
         # Supported access types
-        # gh_sum for scalars is restricted to iterates_over == 'dof'
-        LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read", "gh_sum"]
+        # gh_sum/min/max for scalars is restricted to iterates_over == 'dof'
+        LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read", "gh_sum",
+                                                    "gh_min", "gh_max"]
         LFRicConstants.VALID_ARRAY_ACCESS_TYPES = ["gh_read"]
         LFRicConstants.VALID_FIELD_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
@@ -125,7 +126,8 @@ class LFRicConstants():
             "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
 
         LFRicConstants.WRITE_ACCESSES = [
-            "gh_write", "gh_readwrite", "gh_inc", "gh_readinc", "gh_sum"]
+            "gh_write", "gh_readwrite", "gh_inc", "gh_readinc", "gh_sum",
+            "gh_min", "gh_max"]
 
         # Supported LFRic API stencil types and directions
         LFRicConstants.VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross",

@@ -62,17 +62,18 @@ class ReductionInferenceTool():
             Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
         '''
         :param node: the node to match against.
+
         :returns: the reduction operator at the root of the given
-        DataNode or None if there isn't one.
+                  DataNode or None if there isn't one.
         '''
         if isinstance(node, BinaryOperation):
-            for op in self.red_ops:
-                if node.operator == op:
-                    return node.operator
+            if node.operator in self.red_ops:
+                return node.operator
+
         if isinstance(node, IntrinsicCall):
-            for op in self.red_ops:
-                if node.intrinsic == op:
-                    return node.intrinsic
+            if node.intrinsic in self.red_ops:
+                return node.intrinsic
+
         return None
 
     @staticmethod

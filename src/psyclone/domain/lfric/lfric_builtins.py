@@ -311,6 +311,10 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         write_count = 0  # Only one argument must be written to
         field_count = 0  # We must have one or more fields as arguments
         spaces = set()   # All field arguments must be on the same space
+        # Built-ins update fields DoF by DoF and therefore can have
+        # WRITE/READWRITE access
+        write_access_modes = AccessType.get_valid_reduction_modes() + [
+            AccessType.WRITE, AccessType.READWRITE]
         # Field data types must be the same except for the conversion built-ins
         data_types = set()
         for arg in self.arg_descriptors:
@@ -328,10 +332,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                     f"must have one of {const.VALID_BUILTIN_DATA_TYPES} as "
                     f"a data type but kernel '{self.name}' has an argument "
                     f"of data type '{arg.data_type}'.")
-            # Built-ins update fields DoF by DoF and therefore can have
-            # WRITE/READWRITE access
-            if arg.access in [AccessType.WRITE, AccessType.SUM,
-                              AccessType.READWRITE]:
+            # Check for write accesses
+            if arg.access in write_access_modes:
                 write_count += 1
             if arg.argument_type in const.VALID_FIELD_NAMES:
                 field_count += 1
@@ -2744,6 +2746,128 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
         return self._replace_with_assignment(lhs, rhs)
 
 # ------------------------------------------------------------------- #
+# ============ Minimum, maximum value of real field elements) ======= #
+# ------------------------------------------------------------------- #
+
+
+class LFRicMinvalXKern(LFRicBuiltIn):
+    '''
+    Computes the (global) minimum scalar value held in
+    the supplied field.
+    '''
+    _case_name = "minval_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls) -> LFRicKernelMetadata:
+        """
+        :returns: kernel metadata describing this built-in.
+        """
+        return cls._builtin_metadata([
+            ScalarArgMetadata("gh_real", "gh_min"),
+            FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
+
+    def __str__(self):
+        return (f"Built-in: {self._case_name} (compute the global minimum "
+                f"value contained in a field)")
+
+    def lower_to_language_level(self) -> Node:
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+
+        '''
+        super().lower_to_language_level()
+        # Get indexed references for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar reduction argument.
+        lhs = self._reduction_reference()
+        minval = IntrinsicCall(IntrinsicCall.Intrinsic.MINVAL,
+                               [arg_refs[0]])
+        return self._replace_with_assignment(lhs, minval)
+
+
+class LFRicMaxvalXKern(LFRicBuiltIn):
+    '''
+    Computes the (global) maximum scalar value held in
+    the supplied field.
+    '''
+    _case_name = "maxval_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls) -> LFRicKernelMetadata:
+        """
+        :returns: kernel metadata describing this built-in.
+        """
+        return cls._builtin_metadata([
+            ScalarArgMetadata("gh_real", "gh_max"),
+            FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
+
+    def __str__(self):
+        return (f"Built-in: {self._case_name} (compute the global maximimum "
+                f"value contained in a field)")
+
+    def lower_to_language_level(self) -> Node:
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+
+        '''
+        super().lower_to_language_level()
+        # Get indexed references for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar reduction argument.
+        lhs = self._reduction_reference()
+        minval = IntrinsicCall(IntrinsicCall.Intrinsic.MAXVAL,
+                               [arg_refs[0]])
+        return self._replace_with_assignment(lhs, minval)
+
+
+class LFRicMinMaxXKern(LFRicBuiltIn):
+    '''
+    Computes the (global) minimum and maximum scalar values held in
+    the supplied field.
+    '''
+    _case_name = "min_max_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls) -> LFRicKernelMetadata:
+        """
+        :returns: kernel metadata describing this built-in.
+        """
+        return cls._builtin_metadata([
+            ScalarArgMetadata("gh_real", "gh_min"),
+            ScalarArgMetadata("gh_real", "gh_max"),
+            FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
+
+    def __str__(self):
+        return (f"Built-in: {self._case_name} (compute the global minimum and "
+                f"maximum values contained in a field)")
+
+    def lower_to_language_level(self) -> Node:
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+
+        '''
+        super().lower_to_language_level()
+        # Get indexed references for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar reduction argument.
+        lhs = self._reduction_reference()
+        minval = IntrinsicCall(IntrinsicCall.Intrinsic.MINVAL,
+                               [arg_refs[0]])
+        return self._replace_with_assignment(lhs, minval)
+
+# ------------------------------------------------------------------- #
 # ============== Converting real to integer field elements ========== #
 # ------------------------------------------------------------------- #
 
@@ -3270,6 +3394,10 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Minimum of a real scalar value and real field elements
     "min_aX": LFRicMinAXKern,
     "inc_min_aX": LFRicIncMinAXKern,
+    # Minimum and maximum values contained in a field
+    "minval_X": LFRicMinvalXKern,
+    "maxval_X": LFRicMaxvalXKern,
+    "min_max_X": LFRicMinMaxXKern,
     # Converting real to integer field elements
     "real_to_int_X": LFRicRealToIntXKern,
     # Converting real to real field elements

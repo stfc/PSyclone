@@ -815,7 +815,7 @@ class BaseConfig:
         # having to specify those mappings.
         self._access_mapping = {"read": "read", "write": "write",
                                 "readwrite": "readwrite", "inc": "inc",
-                                "sum": "sum"}
+                                "sum": "sum", "min": "min", "max": "max"}
         # Get the mapping if one exists and convert it into a
         # dictionary. The input is in the format: key1:value1,
         # key2=value2, ...

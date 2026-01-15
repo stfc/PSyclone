@@ -41,6 +41,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
     ColumnwiseOperatorArgMetadata, EvaluatorTargetsMetadata, FieldArgMetadata,
     FieldVectorArgMetadata, InterGridArgMetadata, InterGridVectorArgMetadata,
@@ -782,8 +783,9 @@ def test_validate_cma_matrix_kernel():
     # check that a scalar must be read only.
     with pytest.raises(ValueError) as info:
         ScalarArgMetadata("gh_real", "gh_write")
-    assert ("The 'access descriptor' metadata should be a recognised value "
-            "(one of ['gh_read', 'gh_sum']) but found 'gh_write'."
+    const = LFRicConstants()
+    assert (f"The 'access descriptor' metadata should be a recognised value "
+            f"(one of {const.VALID_SCALAR_ACCESS_TYPES}) but found 'gh_write'."
             in str(info.value))
 
     # OK.
