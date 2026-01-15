@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,16 +42,18 @@ PSyclone configuration management module.
 Deals with reading the config file and storing default settings.
 '''
 
+from __future__ import annotations
 import abc
 from configparser import (ConfigParser, MissingSectionHeaderError,
-                          ParsingError)
+                          ParsingError, SectionProxy)
 from collections import namedtuple
 import logging
 import os
 import re
 import sys
-import psyclone
+from typing import Union
 
+import psyclone
 from psyclone.errors import PSycloneError, InternalError
 
 
@@ -408,29 +410,32 @@ class Config:
         # Set the flag that the config file has been loaded now.
         Config._HAS_CONFIG_BEEN_INITIALISED = True
 
-    def api_conf(self, api=None):
+    def api_conf(self, api: str = "") -> Union[LFRicConfig, GOceanConfig]:
         '''
         Getter for the object holding API-specific configuration options.
 
-        :param str api: Optional, the API for which configuration details are
+        :param api: Optional, the API for which configuration details are
                 required. If none is specified, returns the config for the
-                default API.
+                the current API.
         :returns: object containing API-specific configuration
-        :rtype: One of :py:class:`psyclone.configuration.LFRicConfig`,
-                :py:class:`psyclone.configuration.GOceanConfig` or None.
 
-        :raises ConfigurationError: if api is not in the list of supported \
-                                    APIs.
-        :raises ConfigurationError: if the config file did not contain a \
+        :raises ValueError: if api is not in the list of supported APIs.
+        :raises ConfigurationError: if the config file did not contain a
                                     section for the requested API.
         '''
         if not api:
             api = self._api
 
-        if api not in self.supported_apis:
-            raise ConfigurationError(
+        # Ensure we use the curated API name.
+        if api in LFRIC_API_NAMES:
+            api = LFRIC_API_NAMES[0]
+        elif api in GOCEAN_API_NAMES:
+            api = GOCEAN_API_NAMES[0]
+        else:
+            raise ValueError(
                 f"API '{api}' is not in the list '{self.supported_apis}'' of "
                 f"supported APIs.")
+
         if api not in self._api_conf:
             raise ConfigurationError(
                 f"Configuration file did not contain a section for the "
@@ -802,52 +807,16 @@ class Config:
 # =============================================================================
 class BaseConfig:
     '''A base class for functions that each API-specific class must provide.
-    At the moment this is just the function 'access_mapping' that maps between
-    API-specific access-descriptor strings and the PSyclone internal
-    AccessType.
+
     :param section: :py:class:`configparser.SectionProxy`
-    :raises ConfigurationError: if an access-mapping is provided that \
-        assigns an invalid value (i.e. not one of 'read', 'write', \
-        'readwrite'), 'inc' or 'sum') to a string.
+
     '''
-
-    def __init__(self, section):
+    def __init__(self, section: SectionProxy):
         logger = logging.getLogger(__name__)
-        # Set a default mapping, this way the test cases all work without
-        # having to specify those mappings.
-        self._access_mapping = {"read": "read", "write": "write",
-                                "readwrite": "readwrite", "inc": "inc",
-                                "reduction": "reduction", "sum": "reduction"}
-        # Get the mapping if one exists and convert it into a
-        # dictionary. The input is in the format: key1:value1,
-        # key2=value2, ...
         if "ACCESS_MAPPING" in section:
-            mapping_list = section.getlist("ACCESS_MAPPING")
-            if mapping_list is not None:
-                self._access_mapping = \
-                    BaseConfig.create_dict_from_list(mapping_list)
-            # Now convert the string type ("read" etc) to AccessType
-            # TODO (issue #710): Add checks for duplicate or missing access
-            # key-value pairs
-            # Avoid circular import
-            # pylint: disable=import-outside-toplevel
-            from psyclone.core.access_type import AccessType
-
-            for api_access_name, access_type in self._access_mapping.items():
-                try:
-                    self._access_mapping[api_access_name] = \
-                        AccessType.from_string(access_type)
-                except ValueError as err:
-                    # Raised by from_string()
-                    # raise ConfigurationError(
-                    logger.warn(
-                        f"Unknown access type '{access_type}' found for key "
-                        f"'{api_access_name}'")
-                    # from err
-
-        # Now create the reverse lookup (for better error messages):
-        self._reverse_access_mapping = {v: k for k, v in
-                                        self._access_mapping.items()}
+            logger.warning(
+                "Configuration file contains an ACCESS_MAPPING entry. This is "
+                "deprecated and will be ignored.")
 
     @staticmethod
     def create_dict_from_list(input_list):
@@ -902,33 +871,6 @@ class BaseConfig:
                     f" is not a positive integer or contains special"
                     f" characters.")
         return return_dict
-
-    def get_access_mapping(self):
-        '''Returns the mapping of API-specific access strings (e.g.
-        gh_write) to the AccessType (e.g. AccessType.WRITE).
-        :returns: The access mapping to be used by this API.
-        :rtype: Dictionary of strings
-        '''
-        return self._access_mapping
-
-    def get_reverse_access_mapping(self):
-        '''Returns the reverse mapping of a PSyclone internal access type
-        to the API specific string, e.g.: AccessType.READ to 'gh_read'.
-        This is used to provide the user with API specific error messages.
-        :returns: The mapping of access types to API-specific strings.
-        :rtype: Dictionary of strings
-        '''
-        return self._reverse_access_mapping
-
-    def get_valid_accesses_api(self):
-        '''Returns the sorted, API-specific names of all valid access
-        names.
-        :returns: Sorted list of API-specific valid strings.
-        :rtype: List of strings
-        '''
-        valid_names = list(self._access_mapping.keys())
-        valid_names.sort()
-        return valid_names
 
     @abc.abstractmethod
     def get_constants(self):
@@ -985,8 +927,7 @@ class LFRicConfig(BaseConfig):
         self._num_any_discontinuous_space = None
 
         # Define and check mandatory keys
-        self._mandatory_keys = ["access_mapping",
-                                "compute_annexed_dofs",
+        self._mandatory_keys = ["compute_annexed_dofs",
                                 "supported_fortran_datatypes",
                                 "default_kind",
                                 "precision_map",

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -166,8 +166,8 @@ def test_ad_invalid_access_type():
                         "(gh_scalar,   gh_integer, gh_ead)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    api_config = Config.get().api_conf("lfric")
-    valid_access_names = api_config.get_valid_accesses_api()
+    consts = Config.get().get_constants()
+    valid_access_names = sorted(consts.ACCESS_MAPPING.keys())
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert (f"argument 3 of a 'meta_arg' entry must be a valid "

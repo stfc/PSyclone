@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -264,6 +264,16 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source('''
         program test
           use other
+
+          type :: inner
+              integer :: value
+          end type
+          type :: my_type
+            integer, dimension(10) :: values
+            type(inner), dimension(10) :: array
+          end type
+
+          type(my_type) :: struct
           integer, dimension(10,10) :: x2
           integer, dimension(10:20,20:30) :: y2
 
@@ -394,6 +404,27 @@ def test_apply_assumed_shape(fortran_reader, fortran_writer, tmpdir):
     var(idx) = 2 * var2(idx + (istart2 - istart))
   enddo''' in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_validate_with_dependency(fortran_reader):
+    ''' Check that the validate method checks for dependencies (or
+    resolve them using a temporary) '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+          use other_mod
+          do i = 1, 10
+            A(2:10) = A(1:9) + B(2:10)
+          end do
+        end subroutine test
+    ''')
+    loop = psyir.walk(Loop)[0]
+    assignment = loop.walk(Assignment)[0]
+    trans = ArrayAssignment2LoopsTrans()
+    trans.apply(assignment)
+    pytest.xfail(
+        reason=("TODO #2951: Should raise an error pointing to the"
+                "dependencies that should prevent the transformation")
+    )
 
 
 def test_apply_calls_validate():
