@@ -166,7 +166,6 @@ def test_ad_invalid_access_type():
                         "(gh_scalar,   gh_integer, gh_ead)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    api_config = Config.get().api_conf("lfric")
     consts = Config.get().get_constants()
     valid_access_names = sorted(consts.ACCESS_MAPPING.keys())
     with pytest.raises(ParseError) as excinfo:

@@ -170,7 +170,6 @@ class LFRicArgDescriptor(Descriptor):
         # argument type are dealt with in the related _init methods.
         # Convert from GH_* names to the generic access type
         config = Config.get()
-        api_config = config.api_conf(API)
         consts = config.get_constants()
         access_mapping = consts.ACCESS_MAPPING
         prop_ind = 2

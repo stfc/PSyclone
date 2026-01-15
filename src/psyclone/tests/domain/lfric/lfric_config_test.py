@@ -43,7 +43,6 @@ import re
 import pytest
 
 from psyclone.configuration import Config, ConfigurationError
-from psyclone.core.access_type import AccessType
 
 
 # Constants
