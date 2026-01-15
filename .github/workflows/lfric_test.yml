@@ -42,9 +42,8 @@ on:
   push
 
 env:
-  LFRIC_APPS_REV: ce7a652398e30c3fa9776b624439862b0f7e03b0
+  LFRIC_APPS_HASH: bb3a3458ebb02e1e016221ca886a9e2ebba5a174
   PYTHON_VERSION: 3.14
-  GCC_VERSION: 14
   NVHPC_VERSION: 25.1
   NUM_PARALLEL: 16
 
@@ -89,14 +88,10 @@ jobs:
         pip install .[test]
         # Fetch the specified version of LFRic apps
         cd /archive/psyclone-tests/latest-run
-        rm -rf lfric_apps lfric_core
-        git clone https://github.com/MetOffice/lfric_apps
-        # Disable XIOS in the gungho_model example configuration
-        cd lfric_apps/
-        sed -i "s|git@github.com:MetOffice/lfric_core.git|/archive/psyclone-tests/lfric-repos/lfric_core|g" dependencies.yaml
-        sed -i "s|git@github.com:MetOffice/jules.git|/archive/psyclone-tests/lfric-repos/jules|g" dependencies.yaml
-        cd applications/gungho_model/example
-        sed -i "s|use_xios_io=.*|use_xios_io=.false.|g" configuration.nml
+        rm -rf lfric_apps
+        git clone https://github.com/stfc/lfric_apps
+        cd lfric_apps
+        git checkout ${LFRIC_APPS_HASH}
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
     - name: LFRic passthrough (with DistributedMemory)
@@ -305,7 +300,7 @@ jobs:
         run: |
           export COMMON_FIELDS='branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'", date: new Date()'
           export COMMON_FIELDS=${COMMON_FIELDS}', github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'"'
-          export COMMON_FIELDS=${COMMON_FIELDS}', lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert"'
+          export COMMON_FIELDS=${COMMON_FIELDS}', lfric_apps_version: '"$LFRIC_APPS_HASH"', system: "Rupert"'
           mongosh \
             "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
             --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -313,7 +308,7 @@ jobs:
             --eval 'db.GitHub_CI.insertMany([
               {
                 ci_test: "LFRic Passthrough with DM",
-                compiler:"gfortran@'"$GCC_VERSION"'",
+                compiler:"gfortran@14",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_dist_mem}}"',
                 '"${COMMON_FIELDS}"'
               },
@@ -337,25 +332,25 @@ jobs:
               },
               {
                 ci_test: "LFRic all transformations",
-                compiler:"gfortran@'"$GCC_VERSION"'",
+                compiler:"gfortran@14",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_all_trans}}"',
                 '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic colour-tiling",
-                compiler:"gfortran@'"$GCC_VERSION"'",
+                compiler:"gfortran@14,
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"',
                 '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic_atm",
-                compiler:"gfortran@'"$GCC_VERSION"'",
+                compiler:"gfortran@14,
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_atm}}"',
                 '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic_atm build time",
-                compiler:"gfortran@'"$GCC_VERSION"'",
+                compiler:"gfortran@14,
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_atm_build}}"',
                 '"${COMMON_FIELDS}"'
               }
