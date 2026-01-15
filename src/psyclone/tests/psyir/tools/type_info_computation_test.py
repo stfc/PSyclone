@@ -118,6 +118,11 @@ def test_compute_precision(fortran_reader, monkeypatch):
             "'[<FakePrecision.SINGLE: 1>, <FakePrecision.OTHER: 4>]' due to "
             "unknown Precisions being supplied." in str(err.value))
 
+    # If one is a DOUBLE and the other is SINGLE we should get a DOUBLE
+    res = compute_precision([ScalarType.Precision.SINGLE,
+                             ScalarType.Precision.DOUBLE])
+    assert res == ScalarType.Precision.DOUBLE
+
 
 def test_compute_scalar_type(fortran_reader):
     '''Tests the compute_scalar_type helper function.'''
