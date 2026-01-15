@@ -5814,10 +5814,10 @@ class Fparser2Reader():
         :returns: a CodeBlock containing the input Directive or a
                   UnknownDirective.
         '''
-        # We don't turn OpenMP, OpenACC or directives we can't output
+        # We don't turn OpenMP extensions or directives we can't output
         # correctly into Directive nodes. PSyclone currently always
         # outputs directives starting with !$
-        dont_match = ["!$omp", "!$acc", "!$ompx", "!dir$"]
+        dont_match = ["!$ompx", "!dir$"]
         str_rep = str(node).lstrip().lower()
         to_direc = all([
             not str_rep.startswith(prefix) for prefix in dont_match
