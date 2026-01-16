@@ -147,9 +147,10 @@ jobs:
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf applications/gungho_model/working
+        rm -rf working-gh-ompoffload
         export BUILD_START="${SECONDS}"
-        LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -w working-omp-offload
+        LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -v -j ${NUM_PARALLEL} -p psyclone-test \
+          -w working-gh-ompoffload gungho_model
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -180,8 +181,9 @@ jobs:
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf applications/gungho_model/working
-        LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -w working-acc-offload
+        rm -rf working-gh-accoffload
+        LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -v -j ${NUM_PARALLEL} -p psyclone-test \
+          -w working-gh-accoffload gungho_model
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=12
@@ -209,8 +211,8 @@ jobs:
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf applications/gungho_model/working
-        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -v -w working-all-trans
+        rm -rf working-gh_alltrans
+        ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test -v -w working-gh-alltrans gungho_model
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -238,8 +240,8 @@ jobs:
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/tiledcolouring_and_omp.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf applications/gungho_model/working
-        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -v -w working-omp-tiling
+        rm -rf working-gh-omptiling
+        ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test -v -w working-gh-omptiling gungho_model
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -262,8 +264,9 @@ jobs:
         cd ${LFRIC_DIR}
 
         # Build the 'meto-ex1a' platform, that includes psyclone-transmutation
+        rm -rf working-atm-transmuted
         export BUILD_START="${SECONDS}"
-        ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16 -w workdir-lfric-atm-transmuted
+        ./build/local_build.py -v -p meto-ex1a -j 16 -w working-atm-transmuted lfric_atm
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
         # Run the app with 8 threads and no MPI
