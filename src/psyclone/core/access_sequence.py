@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,10 +45,9 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from psyclone.core.access_type import AccessType
 from psyclone.core.signature import Signature
-
-
 from psyclone.errors import InternalError
-if TYPE_CHECKING:  # pragma: no cover
+
+if TYPE_CHECKING:
     from psyclone.psyir.nodes import Node
     from psyclone.psyir.symbols import Symbol
 
@@ -95,8 +94,9 @@ class AccessInfo():
         :raises InternalError: if the variable does not have READ acccess.
         '''
         if self._access_type != AccessType.READ:
-            raise InternalError("Trying to change variable to 'CONSTANT' "
-                                "which does not have 'READ' access.")
+            raise InternalError(f"Trying to change variable access from "
+                                f"'READ' to 'CONSTANT' but access type is "
+                                f" '{self._access_type}'.")
         self._access_type = AccessType.CONSTANT
 
     def component_indices(self):
@@ -167,14 +167,19 @@ class AccessInfo():
                   messages.
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Statement
+        from psyclone.psyir.nodes import Assignment
         from psyclone.psyir.symbols import Symbol
         if isinstance(self.node, Symbol):
             text = f"the definition of Symbol '{self.node}'"
         else:
-            stmt = self.node.ancestor(Statement, include_self=True)
-            if stmt:
-                text = f"'{stmt.debug_string()}'"
+            from psyclone.psyGen import CodedKern
+            kernel = self.node.ancestor(CodedKern, include_self=True)
+            stmt = self.node.ancestor(Assignment, include_self=True)
+            if kernel:
+                text = f"'{self.node.debug_string()}' (inside '{kernel.name})'"
+            elif stmt:
+                text = (f"'{self.node.debug_string()}' "
+                        f"in '{stmt.debug_string().strip()}'")
             else:
                 text = f"'{self.node.debug_string()}'"
         return text

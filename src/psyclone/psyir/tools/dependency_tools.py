@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -109,7 +109,7 @@ class Message:
     # ------------------------------------------------------------------------
     def __str__(self):
         if len(self._var_names) == 0:
-            return self._message
+            return str(self._message)
         if len(self._var_names) == 1:
             return f"{self._message} Variable: '{self._var_names[0].strip()}'."
         return f"{self._message} Variables: {self._var_names}."
@@ -227,8 +227,9 @@ class DependencyTools():
                               "The var_infos argument to _add_message must "
                               "be a list of Signature/AccessSequence pairs")
 
-        self._messages.append(Message(f"{message_type}: {message}", code,
-                                      var_names, var_infos))
+        self._messages.append(Message(
+                LazyString(lambda: f"{message_type}: {message}"),
+                code, var_names, var_infos))
 
     # -------------------------------------------------------------------------
     def get_all_messages(self):
@@ -738,37 +739,35 @@ class DependencyTools():
                 if not self._is_loop_carried_dependency(loop_variables,
                                                         write_access,
                                                         other_access):
+                    # We can capture the loop variable 'write_access' and
+                    # 'other_access' in the lambdas because we immidiately
+                    # return after creating the lambdas, not allowing the
+                    # variables to be redefined anymore.
+                    # pylint: disable=cell-var-from-loop
+
                     # There is a dependency. Try to give precise error
                     # messages:
                     if write_access is other_access:
                         # The write access has a dependency on itself, e.g.
                         # a(3) = ...    or a((i-2)**2) = ...
                         # Both would result in a write-write conflict
-                        node = write_access.node
-                        self._add_message(
-                            f"The write access to '{var_info.var_name}' in "
-                            f"'{node.debug_string()}' causes "
-                            f"a write-write race condition.",
+                        self._add_message(LazyString(
+                            lambda:
+                                (f"The write access to "
+                                 f"{write_access.description} "
+                                 f"causes a write-write race condition.")),
                             DTCode.ERROR_WRITE_WRITE_RACE,
                             [var_info.var_name])
                     else:
                         # Get 'read' or 'write' etc
                         access_type = str(other_access.access_type).lower()
 
-                        # We need to use default parameters for wnode and
-                        # onode, since otherwise the value of a variable might
-                        # be different when the message is actually evaluated.
-                        # Some pylint version complain here (because of the
-                        # above). The code is correct, so disable this
-                        # message:
-                        # pylint: disable=cell-var-from-loop
                         self._add_message(LazyString(
-                            lambda wnode=write_access.node,
-                            onode=other_access.node:
+                            lambda:
                                 (f"The write access to "
-                                 f"'{wnode.debug_string().strip()}' and the "
+                                 f"{write_access.description} and the "
                                  f"{access_type} access to "
-                                 f"'{onode.debug_string().strip()}' "
+                                 f"{other_access.description} "
                                  f"are dependent and cannot be "
                                  f"parallelised.")),
                             DTCode.ERROR_DEPENDENCY,

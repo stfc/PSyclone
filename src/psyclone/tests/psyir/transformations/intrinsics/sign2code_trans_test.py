@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council
+# Copyright (c) 2020-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -301,6 +301,8 @@ def test_sign_of_unknown_type(fortran_reader):
       integer, parameter, dimension(0:4) :: A2D = (/1, 2, 3, 4, 5/)
       REAL(wp), DIMENSION(A2D(0)) :: ztmp1
       ztmp1 = 0.0
+      ! Can handle because MAXVAL returns an array.
+      ztmp1 = SIGN(MAX(MAXVAL(ABS(ztmp1)),1.E-6_wp), ztmp1)
       ! Can't handle because we don't know the type of thing
       ztmp1 = SIGN( thing, ztmp1 )
       ! Can't handle because ztmp1 is an array
@@ -310,13 +312,15 @@ def test_sign_of_unknown_type(fortran_reader):
     trans = Sign2CodeTrans()
     sgn_calls = [call for call in psyir.walk(IntrinsicCall)
                  if call.intrinsic.name == "SIGN"]
+    # This one should work correctly.
+    trans.validate(sgn_calls[0])
     with pytest.raises(TransformationError) as err:
-        trans.validate(sgn_calls[0])
+        trans.validate(sgn_calls[1])
     assert ("Sign2CodeTrans cannot be applied to 'SIGN(thing, "
             "ztmp1) because the type of the argument"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
-        trans.validate(sgn_calls[1])
+        trans.validate(sgn_calls[2])
     assert ("Sign2CodeTrans cannot be applied to SIGN calls which have an "
             "array as argument but 'ztmp1' is of array type. It may be "
             "possible to use the ArrayAssignment2LoopsTrans to convert this "

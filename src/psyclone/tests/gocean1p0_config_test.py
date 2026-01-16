@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council
+# Copyright (c) 2018-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@
 
 ''' Module containing tests for gocean specific config files.'''
 
+import logging
 import os
 import pytest
 
@@ -67,7 +68,7 @@ def clear_config_instance():
 
 
 # =============================================================================
-def test_command_line(capsys):
+def test_command_line(capsys, caplog):
     '''Tests that the config command line flag works as expected.
     '''
     f90_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -85,8 +86,12 @@ def test_command_line(capsys):
     # Make sure we always trigger the GOLoop.setup_bounds()
     # in the constructor so that part is always tested!
     GOLoop._bounds_lookup = {}
-    # Check that --config with a parameter is accepted
-    main(options+["--config", config_file, f90_file])
+    # Check that --config with a parameter is accepted but logs a warning
+    # about the deprecated access_mapping entry.
+    with caplog.at_level(logging.WARN):
+        main(options+["--config", config_file, f90_file])
+    assert ("Configuration file contains an ACCESS_MAPPING entry. This is "
+            "deprecated" in caplog.text)
 
     # Check that a missing parameter raises an error:
     with pytest.raises(SystemExit):

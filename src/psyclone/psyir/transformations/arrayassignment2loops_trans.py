@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -118,10 +118,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
         # If there is any array reference without the accessor syntax,
         # we need to add it first.
         for reference in node.walk(Reference):
-            try:
-                Reference2ArrayRangeTrans().apply(reference)
-            except TransformationError:
-                pass
+            Reference2ArrayRangeTrans().apply(reference)
 
         # Start by the rightmost array range
         for lhs_range in reversed(node.lhs.walk(Range)):

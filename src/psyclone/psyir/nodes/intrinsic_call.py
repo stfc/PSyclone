@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,11 +44,10 @@ from __future__ import annotations
 from collections import namedtuple
 from collections.abc import Iterable
 from enum import Enum
-from typing import List, Tuple, Callable
+from typing import List, Tuple, Callable, Union
 
 from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
@@ -65,9 +64,9 @@ from psyclone.psyir.symbols.datatypes import (
     ArrayType,
     ScalarType,
     UnresolvedType,
+    UnsupportedFortranType,
     NoType,
 )
-from psyclone.psyir.symbols.datasymbol import DataSymbol
 
 # pylint: disable=too-many-branches
 
@@ -77,11 +76,6 @@ IAttr = namedtuple(
     "name is_pure is_elemental is_inquiry required_args optional_args"
     " return_type reference_accesses",
 )
-# Alternatively we could use an Enum to decrive the intrinsic types
-# IntrinsicType = Enum('IntrinsicType',
-#    'Atomic Collective Elemental Inquiry Pure Impure Transformational'
-# )
-# And let the IntrinsicCall is_pure, is_elemental, ... do the conversion
 
 # Named tuple for describing the properties of the required arguments to
 # a particular intrinsic. If there's no limit on the number of arguments
@@ -317,19 +311,30 @@ def _reference_accesses_all_reads_with_optional_kind(
     return reference_accesses
 
 
-def _get_first_argument_type(node: IntrinsicCall) -> DataType:
-    """
-    Helper function for MIN and MAX where named arguments aren't supported.
+def _type_of_arg_with_rank_minus_one(
+        arg: Reference, scalar_type: ScalarType
+) -> Union[ScalarType, ArrayType]:
+    '''
+    Returns a DataType with with the type of the provided scalar_type
+    with one rank less than the input arg. If arg is an array of rank 1,
+    scalar_type is returned instead.
 
-    :param node: The IntrinsicCall whose return type to compute.
+    :param arg: The argument to base the resultant type on.
+    :param scalar_type: The ScalarType of the resultant type.
 
-    :returns: the datatype of the first argument of the IntrinsicCall.
-    """
-    return node.arguments[0].datatype
+    :returns: A datatype with the provided scalar_type and rank 1 less than
+              arg. If arg has rank 1 the scalar_type is returned.
+
+    '''
+    shape = arg.datatype.shape
+    if len(shape) == 1:
+        return scalar_type
+    new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
+    return ArrayType(scalar_type, new_shape)
 
 
-def _get_named_argument_type(node: IntrinsicCall,
-                             argument_name: str) -> DataType:
+def _type_of_named_argument(node: IntrinsicCall,
+                            argument_name: str) -> DataType:
     """Helper function for the common IntrinsicCall case where
     the return type matches exactly the datatype of the
     argument with the provided argument_name.
@@ -342,29 +347,30 @@ def _get_named_argument_type(node: IntrinsicCall,
     return node.argument_by_name(argument_name).datatype
 
 
-def _get_named_argument_intrinsic_with_optional_kind_and_dim(
+def _type_of_named_arg_with_optional_kind_and_dim(
         node: IntrinsicCall, arg_name: str
 ) -> DataType:
     """Helper function for IntrinsicCalls like MAXLOC where they have optional
-    Kind and Dim options but the intrinsic is that of the argument with the
-    provided arg_name.
+    Kind and Dim options but the intrinsic type is that of the argument with
+    the provided arg_name.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :param arg_name: The name of the argument to use the datatype intrinsic
-                     of.
+    :param arg_name: The name of the argument that provides the intrinsic
+                     type.
 
     :returns: the computed datatype for the IntrinsicCall.
     """
+    arg = node.argument_by_name(arg_name)
     if "kind" in node.argument_names:
         dtype = ScalarType(
-            node.argument_by_name(arg_name).datatype.intrinsic,
+            arg.datatype.intrinsic,
             node.argument_by_name("kind").copy(),
         )
     else:
         # PSyclone has the UNDEFINED Precision as the default kind for all
         # supported inbuilt datatypes.
         dtype = ScalarType(
-            node.argument_by_name(arg_name).datatype.intrinsic,
+            arg.datatype.intrinsic,
             ScalarType.Precision.UNDEFINED,
         )
     # If "dim" argument isn't present then the result is an array of the same
@@ -375,34 +381,26 @@ def _get_named_argument_intrinsic_with_optional_kind_and_dim(
             [
                 Literal(
                     str(len(
-                        node.argument_by_name(arg_name).datatype.shape)),
+                        arg.datatype.shape)),
                     INTEGER_TYPE,
                 ),
             ],
         )
     # Always have dim argument from here.
-    # If array has rank 1, the result is scalar.
-    arg = node.argument_by_name(arg_name)
-    shape = arg.datatype.shape
-    if len(shape) == 1:
-        return dtype
-    # Otherwise the result is an array with rank one less than the
-    # arg_name argument.
-    new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
-    return ArrayType(dtype, new_shape)
+    return _type_of_arg_with_rank_minus_one(arg, dtype)
 
 
-def _get_named_argument_specified_kind_with_optional_dim(
+def _type_with_specified_precision_and_optional_dim(
         node: IntrinsicCall, argument_name: str,
         intrinsic: ScalarType.Intrinsic = ScalarType.Intrinsic.BOOLEAN
         ) -> DataType:
     """Helper function for the common IntrinsicCall case where the
-    return type is a Scalar with the kind of a named argument,
-    unless an optional dim named argument exists, in which case an array with
-    rank n-1 is given instead.
+    return type is a Scalar with the precision of a named argument,
+    unless an optional argument named 'dim' exists, in which case an array
+    with rank one less than the input node is given instead.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :param argument_name: The name of the argument whose kind to be used.
+    :param argument_name: The name of the argument whose precision to be used.
     :param intrinsic: The type of the intrinsic of the resulting datatype.
                       Default is ScalarType.Intrinsic.BOOLEAN
 
@@ -414,19 +412,17 @@ def _get_named_argument_specified_kind_with_optional_dim(
     # If dim is not present, or the rank of the
     # array argument is 1 then this returns a scalar.
     arg = node.argument_by_name(argument_name)
-    shape = arg.datatype.shape
-    if "dim" not in node.argument_names or len(shape) == 1:
+    if "dim" not in node.argument_names:
         return dtype
+
     # If dim is given then this should return an array, but we
     # don't necessarily know the dimensions of the resulting array
     # at compile time. It will have one fewer dimension than the
     # input.
-    # For now we don't attempt to work out the shape.
-    new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
-    return ArrayType(dtype, new_shape)
+    return _type_of_arg_with_rank_minus_one(arg, dtype)
 
 
-def _get_intrinsic_with_optional_arg_kind(
+def _type_of_scalar_with_optional_kind(
         node: IntrinsicCall, intrinsic: ScalarType.Intrinsic,
         arg_name: str
 ) -> DataType:
@@ -442,7 +438,7 @@ def _get_intrinsic_with_optional_arg_kind(
     return (
         ScalarType(
             intrinsic,
-            node.argument_by_name(arg_name),
+            node.argument_by_name(arg_name).copy(),
         )
         if arg_name in node.argument_names
         # Otherwise, use the default Precision (in PSyclone this is the
@@ -451,7 +447,7 @@ def _get_intrinsic_with_optional_arg_kind(
     )
 
 
-def _get_intrinsic_of_argname_kind_with_optional_dim(
+def _type_of_intrinsic_with_argname_kind_and_optional_dim(
         node: IntrinsicCall, intrinsic: ScalarType.Intrinsic,
         array_arg_name: str, kind_arg_name: str) -> DataType:
     """Helper function for a datatype of type intrinsic with optional dim and
@@ -473,33 +469,27 @@ def _get_intrinsic_of_argname_kind_with_optional_dim(
         (
             ScalarType.Precision.UNDEFINED
             if kind_arg_name not in node.argument_names
-            else node.argument_by_name(kind_arg_name)
+            else node.argument_by_name(kind_arg_name).copy()
         ),
     )
     # If dim is not present then we return a scalar.
     if "dim" not in node.argument_names:
         return dtype
-    else:
-        # If dim is given then this should return an array, but we
-        # don't necessarily know the dimensions of the resulting array
-        # at compile time. It will have one fewer dimension than the
-        # input.
-        arg = node.argument_by_name(array_arg_name)
-        shape = arg.datatype.shape
-        if len(shape) == 1:
-            return dtype
-        else:
-            # For now we don't attempt to work out the shape.
-            new_shape = [ArrayType.Extent.DEFERRED] * (len(shape) - 1)
-            return ArrayType(dtype, new_shape)
+    # If dim is given then this should return an array, but we
+    # don't necessarily know the dimensions of the resulting array
+    # at compile time. It will have one fewer dimension than the
+    # input.
+    arg = node.argument_by_name(array_arg_name)
+    return _type_of_arg_with_rank_minus_one(arg, dtype)
 
 
-def _get_intrinsic_with_named_arg_kind(
+def _type_of_intrinsic_with_precision_of_named_arg(
         node: IntrinsicCall, intrinsic: ScalarType.Intrinsic,
         argument_name: str
 ) -> DataType:
     """Helper function for the common IntrinsicCall case where the
-    return type is a Scalar REAL with the kind of the first argument.
+    return type is a scalar of the type of the supplied intrinsic,
+    with the kind of the first argument.
 
     :param node: The IntrinsicCall whose return type to compute.
     :param intrinsic: The datatype intrinsic type to use.
@@ -524,7 +514,6 @@ def _findloc_return_type(node: IntrinsicCall) -> DataType:
     is equal to the kind argument.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
     :returns: the computed datatype for the IntrinsicCall.
     """
@@ -537,15 +526,8 @@ def _findloc_return_type(node: IntrinsicCall) -> DataType:
         dtype = node.argument_by_name("array").datatype.copy()
     # If dim argument is given.
     if "dim" in node.argument_names:
-        # Return a scalar if the array has rank 1.
-        if len(node.argument_by_name("array").datatype.shape) == 1:
-            return dtype
-        # Otherwise return an array of rank n-1.
-        return ArrayType(
-            dtype,
-            [ArrayType.Extent.DEFERRED]
-            * (len(node.argument_by_name("array").datatype.shape) - 1),
-        )
+        arg = node.argument_by_name("array")
+        return _type_of_arg_with_rank_minus_one(arg, dtype)
     # Otherwise return an array with same rank as the "array"
     # argument.
     return ArrayType(
@@ -584,20 +566,15 @@ def _int_return_type(node: IntrinsicCall) -> DataType:
     else:
         dtype = INTEGER_TYPE
 
-    if isinstance(node.argument_by_name("a").datatype, ArrayType):
-        return ArrayType(
-            dtype,
-            [
-                (
-                    index.copy()
-                    if not isinstance(index, ArrayType.ArrayBounds)
-                    else ArrayType.ArrayBounds(index.lower, index.upper)
-                )
-                for index in node.argument_by_name("a").datatype.shape
-            ],
-        )
-    else:
+    if not isinstance(node.argument_by_name("a").datatype, ArrayType):
         return dtype
+    return ArrayType(
+        dtype,
+        [
+            index.copy()
+            for index in node.argument_by_name("a").datatype.shape
+        ],
+    )
 
 
 def _iparity_return_type(node: IntrinsicCall) -> DataType:
@@ -633,10 +610,10 @@ def _get_bound_function_return_type(node: IntrinsicCall) -> DataType:
     LCOBOUND etc.
 
     The return type is of type integer and of the kind specified by the
-    "kind" argument if present, of the default
+    "kind" argument if present, or the default
     (ScalarType.Precision.UNDEFINED) otherwise.
     If the "dim" argument is present, then the result is that ScalarType.
-    Otherwise, its an array that ScalarType with extent equal to the
+    Otherwise, it's an array of that ScalarType with extent equal to the
     rank of the "array" argument.
 
     :param node: The IntrinsicCall whose return type to compute.
@@ -679,18 +656,19 @@ def _matmul_return_type(node: IntrinsicCall) -> DataType:
 
     :returns: the computed datatype for the IntrinsicCall.
     """
+    # pylint: disable=import-outside-toplevel
+    from psyclone.psyir.tools.type_info_computation import (
+        compute_scalar_type
+    )
     argtype1 = node.argument_by_name("matrix_a").datatype
     argtype2 = node.argument_by_name("matrix_b").datatype
     shape1 = argtype1.shape
     shape2 = argtype2.shape
+    # Create scalar versions of the datatypes to compute the datatype
+    # of the result.
     stype1 = ScalarType(argtype1.intrinsic, argtype1.precision)
     stype2 = ScalarType(argtype2.intrinsic, argtype2.precision)
-    # Create a temporary BinaryOperation to use get_result_scalar_type
-    arg1 = Reference(DataSymbol("a", stype1))
-    arg2 = Reference(DataSymbol("b", stype2))
-    binop = BinaryOperation.create(BinaryOperation.Operator.MUL,
-                                   arg1, arg2)
-    stype = binop.get_result_scalar_type([stype1, stype2])
+    stype = compute_scalar_type([stype1, stype2])
     #  a11 a12 x b1 = a11*b1 + a12*b2
     #  a21 a22   b2   a21*b1 + a22*b2
     #  a31 a32        a31*b1 + a32*b2
@@ -734,21 +712,43 @@ def _maxval_return_type(node: IntrinsicCall) -> DataType:
     the "array" argument) with the same datatype of the "array" argument.
 
     :param node: The IntrinsicCall whose return type to compute.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
     :returns: the computed datatype for the IntrinsicCall.
     """
     dtype = ScalarType(node.argument_by_name("array").datatype.intrinsic,
                        node.argument_by_name("array").datatype.precision)
-    if ("dim" not in node.argument_names
-            or len(node.argument_by_name("array").datatype.shape) == 1):
+    if "dim" not in node.argument_names:
         return dtype
     # We have a dimension specified. We don't know the resultant shape
     # in any detail as its dependent on the value of dim
-    return ArrayType(
-        dtype,
-        [ArrayType.Extent.DEFERRED]
-        * (len(node.argument_by_name("array").datatype.shape) - 1),
+    arg = node.argument_by_name("array")
+    return _type_of_arg_with_rank_minus_one(arg, dtype)
+
+
+def _dot_product_return_type(node: IntrinsicCall) -> DataType:
+    """Helper value for DOT_PRODUCT intrinsic return type.
+
+    The result is a scalar with the promoted Fortran type computed by
+    compute_scalar_type.
+
+    :param node: The IntrinsicCall whose return type to compute.
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    # pylint: disable=import-outside-toplevel
+    from psyclone.psyir.tools.type_info_computation import (
+        compute_scalar_type
+    )
+    veca_datatype = node.argument_by_name("vector_a").datatype
+    vecb_datatype = node.argument_by_name("vector_b").datatype
+    return compute_scalar_type(
+        [ScalarType(
+            veca_datatype.intrinsic, veca_datatype.precision
+         ),
+         ScalarType(
+            vecb_datatype.intrinsic, vecb_datatype.precision
+         ),
+         ]
     )
 
 
@@ -794,7 +794,8 @@ class IntrinsicCall(Call):
 
         # Fortran special-case statements (technically not Fortran intrinsics
         # but in PSyIR they are represented as Intrinsics)
-        # TODO 3060 reference_accesses
+        # TODO 3060 reference_accesses NYI on Intrinsics, they are currently
+        # all set to None.
         ALLOCATE = IAttr(
             name="ALLOCATE",
             is_pure=False,
@@ -882,8 +883,8 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("a",),)),
             optional_args={},
-            # TODO 1590 Complex conversion unsupported.
-            return_type=lambda node: _get_named_argument_type(node, "a"),
+            # TODO 1590 Complex to real conversion unsupported.
+            return_type=lambda node: _type_of_named_argument(node, "a"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -915,7 +916,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -931,7 +932,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -948,7 +949,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string",),)),
             optional_args={},
             # TODO 2612 This may be more complex if we support character len
-            return_type=lambda node: _get_named_argument_type(node, "string"),
+            return_type=lambda node: _type_of_named_argument(node, "string"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -965,7 +966,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string",),)),
             optional_args={},
             # TODO 2612 This may be more complex if we support character len
-            return_type=lambda node: _get_named_argument_type(node, "string"),
+            return_type=lambda node: _type_of_named_argument(node, "string"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -982,7 +983,7 @@ class IntrinsicCall(Call):
                 arg_names=(("z",),)),
             optional_args={},
             # TODO #1590 Complex numbers' precision unsupported.
-            return_type=lambda node: UnresolvedType(),
+            return_type=lambda node: UnsupportedFortranType(""),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -998,15 +999,13 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
-            return_type=lambda node: (
-                ScalarType(
-                    ScalarType.Intrinsic.REAL,
-                    (
-                        node.arguments[node.argument_names.index("kind")]
-                        if "kind" in node.argument_names
-                        else node.argument_by_name("a").datatype.precision
-                    ),
-                )
+            return_type=lambda node: ScalarType(
+                ScalarType.Intrinsic.REAL,
+                (
+                    node.argument_by_name("kind").copy()
+                    if "kind" in node.argument_names
+                    else node.argument_by_name("a").datatype.precision
+                ),
             ),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
@@ -1025,7 +1024,7 @@ class IntrinsicCall(Call):
             optional_args={"dim": DataNode},
             return_type=(
                 lambda node:
-                _get_named_argument_specified_kind_with_optional_dim(
+                _type_with_specified_precision_and_optional_dim(
                     node, "mask"
                 )
             ),
@@ -1064,15 +1063,13 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
-            return_type=lambda node: (
-                ScalarType(
-                    ScalarType.Intrinsic.REAL,
-                    (
-                        node.arguments[node.argument_names.index("kind")]
-                        if "kind" not in node.argument_names
-                        else node.argument_by_bname("a").datatype.precision
-                    ),
-                )
+            return_type=lambda node: ScalarType(
+                ScalarType.Intrinsic.REAL,
+                (
+                    node.argument_by_name("kind").copy()
+                    if "kind" in node.argument_names
+                    else node.argument_by_name("a").datatype.precision
+                ),
             ),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
@@ -1091,7 +1088,7 @@ class IntrinsicCall(Call):
             optional_args={"dim": DataNode},
             return_type=(
                 lambda node:
-                _get_named_argument_specified_kind_with_optional_dim(
+                _type_with_specified_precision_and_optional_dim(
                     node, "mask"
                 )
             ),
@@ -1110,7 +1107,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -1126,7 +1123,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -1161,7 +1158,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",), ("y", "x"))),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -1177,7 +1174,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("y", "x"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "y"),
+            return_type=lambda node: _type_of_named_argument(node, "y"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -1193,7 +1190,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -1455,7 +1452,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_kind(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1475,7 +1472,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_kind(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1501,7 +1498,7 @@ class IntrinsicCall(Call):
             ),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_kind(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1521,7 +1518,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_kind(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1541,7 +1538,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_kind(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1567,7 +1564,7 @@ class IntrinsicCall(Call):
             ),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_kind(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -1686,7 +1683,7 @@ class IntrinsicCall(Call):
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -1722,7 +1719,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={"y": DataNode, "kind": DataNode},
             # TODO #1590 Complex numbers unsupported.
-            return_type=lambda node: UnresolvedType(),
+            return_type=lambda node: UnsupportedFortranType(""),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -1873,7 +1870,7 @@ class IntrinsicCall(Call):
                 arg_names=(("z",),)),
             optional_args={},
             # TODO #1590 Complex numbers unsupported.
-            return_type=lambda node: UnresolvedType(),
+            return_type=lambda node: UnsupportedFortranType(""),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -1889,7 +1886,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -1905,7 +1902,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -1931,11 +1928,7 @@ class IntrinsicCall(Call):
                     ),
                 ),
                 [
-                    (
-                        index.copy()
-                        if not isinstance(index, ArrayType.ArrayBounds)
-                        else ArrayType.ArrayBounds(index.lower, index.upper)
-                    )
+                    index.copy()
                     for index in node.argument_by_name(
                         "coarray"
                     ).datatype.shape
@@ -1961,7 +1954,7 @@ class IntrinsicCall(Call):
                 arg_names=(("mask",),)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_of_argname_kind_with_optional_dim(
+                _type_of_intrinsic_with_argname_kind_and_optional_dim(
                     node, ScalarType.Intrinsic.INTEGER,
                     "mask", "kind"
                 ),
@@ -1999,7 +1992,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("array", "shift"),)),
             optional_args={"dim": DataNode},
-            return_type=lambda node: _get_named_argument_type(node, "array"),
+            return_type=lambda node: _type_of_named_argument(node, "array"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -2074,7 +2067,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x", "y"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -2091,9 +2084,8 @@ class IntrinsicCall(Call):
                 arg_names=(("vector_a", "vector_b"),)
             ),
             optional_args={},
-            return_type=lambda node: ScalarType(
-                node.argument_by_name("vector_a").datatype.intrinsic,
-                node.argument_by_name("vector_a").datatype.precision,
+            return_type=lambda node: _dot_product_return_type(
+                node
             ),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
@@ -2126,10 +2118,11 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "j", "shift"),)),
             optional_args={},
-            return_type=lambda node: (
-                node.argument_by_name("i").datatype.copy()
-                if not isinstance(node.argument_by_name("i"), Literal)
-                else node.argument_by_name("j").datatype.copy()
+            return_type=lambda node: (_type_of_named_argument(
+                node,
+                "j" if isinstance(node.argument_by_name("i"), Literal) else
+                "i"
+                )
             ),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
@@ -2146,10 +2139,11 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "j", "shift"),)),
             optional_args={},
-            return_type=lambda node: (
-                node.argument_by_name("i").datatype.copy()
-                if not isinstance(node.argument_by_name("i"), Literal)
-                else node.argument_by_name("j").datatype.copy()
+            return_type=lambda node: (_type_of_named_argument(
+                node,
+                "j" if isinstance(node.argument_by_name("i"), Literal) else
+                "i"
+                )
             ),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
@@ -2166,7 +2160,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("array", "shift"),)),
             optional_args={"boundary": DataNode, "dim": DataNode},
-            return_type=lambda node: _get_named_argument_type(node, "array"),
+            return_type=lambda node: _type_of_named_argument(node, "array"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -2182,7 +2176,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -2202,7 +2196,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_kind(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -2222,7 +2216,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_kind(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -2242,7 +2236,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node:
-                _get_intrinsic_with_named_arg_kind(
+                _type_of_intrinsic_with_precision_of_named_arg(
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
@@ -2306,7 +2300,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -2358,7 +2352,7 @@ class IntrinsicCall(Call):
                 arg_names=()),
             optional_args={"team": DataNode, "kind": DataNode},
             return_type=lambda node: ArrayType(
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -2420,7 +2414,7 @@ class IntrinsicCall(Call):
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -2439,7 +2433,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -2455,7 +2449,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -2550,7 +2544,7 @@ class IntrinsicCall(Call):
                 arg_names=()),
             optional_args={"level": DataNode},
             # Unsupported return type (TEAM_TYPE from ISO_FORTRAN_ENV).
-            return_type=lambda node: UnresolvedType(),
+            return_type=lambda node: UnsupportedFortranType("TEAM_TYPE"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -2566,7 +2560,7 @@ class IntrinsicCall(Call):
                  types=(Reference, Literal),
                  arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -2582,7 +2576,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x", "y"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -2599,7 +2593,7 @@ class IntrinsicCall(Call):
                 arg_names=(("c",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -2626,7 +2620,7 @@ class IntrinsicCall(Call):
                 # No kind option is available, however if we provide a fake
                 # argument name as the final parameter this function will
                 # provide the correct result.
-                _get_intrinsic_of_argname_kind_with_optional_dim(
+                _type_of_intrinsic_with_argname_kind_and_optional_dim(
                     node, ScalarType.Intrinsic.INTEGER,
                     "array", "no_kind"
                 ),
@@ -2645,10 +2639,11 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "j"),)),
             optional_args={},
-            return_type=lambda node: (
-                node.argument_by_name("i").datatype.copy()
-                if not isinstance(node.argument_by_name("i"), Literal)
-                else node.argument_by_name("j").datatype.copy()
+            return_type=lambda node: (_type_of_named_argument(
+                node,
+                "j" if isinstance(node.argument_by_name("i"), Literal) else
+                "i"
+                )
             ),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
@@ -2673,7 +2668,7 @@ class IntrinsicCall(Call):
                 # No kind option is available, however if we provide a fake
                 # argument name as the final parameter this function will
                 # provide the correct result.
-                _get_intrinsic_of_argname_kind_with_optional_dim(
+                _type_of_intrinsic_with_argname_kind_and_optional_dim(
                     node, ScalarType.Intrinsic.INTEGER,
                     "array", "no_kind"
                 ),
@@ -2692,7 +2687,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "pos"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "i"),
+            return_type=lambda node: _type_of_named_argument(node, "i"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -2708,7 +2703,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "pos", "len"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "i"),
+            return_type=lambda node: _type_of_named_argument(node, "i"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -2724,7 +2719,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "pos"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "i"),
+            return_type=lambda node: _type_of_named_argument(node, "i"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -2741,7 +2736,7 @@ class IntrinsicCall(Call):
                 arg_names=(("c",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -2760,10 +2755,11 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "j"),)),
             optional_args={},
-            return_type=lambda node: (
-                node.argument_by_name("i").datatype.copy()
-                if not isinstance(node.argument_by_name("i"), Literal)
-                else node.argument_by_name("j").datatype.copy()
+            return_type=lambda node: (_type_of_named_argument(
+                node,
+                "j" if isinstance(node.argument_by_name("i"), Literal) else
+                "i"
+                )
             ),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
@@ -2815,7 +2811,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string", "substring"),)),
             optional_args={"back": DataNode, "kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -2850,13 +2846,13 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "j"),)),
             optional_args={},
-            return_type=lambda node: ScalarType(
-                ScalarType.Intrinsic.INTEGER,
-                (
-                    node.argument_by_name("i").datatype.precision
-                    if not isinstance(node.argument_by_name("i"), Literal)
-                    else node.argument_by_name("j").datatype.precision
-                ),
+            return_type=lambda node: (
+                _type_of_intrinsic_with_precision_of_named_arg(
+                    node,
+                    ScalarType.Intrinsic.INTEGER,
+                    "j" if isinstance(node.argument_by_name("i"), Literal) else
+                    "i"
+                )
             ),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
@@ -2944,7 +2940,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "shift"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "i"),
+            return_type=lambda node: _type_of_named_argument(node, "i"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -2960,7 +2956,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "shift"),)),
             optional_args={"size": DataNode},
-            return_type=lambda node: _get_named_argument_type(node, "i"),
+            return_type=lambda node: _type_of_named_argument(node, "i"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -3054,7 +3050,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -3074,7 +3070,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -3161,7 +3157,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -3177,7 +3173,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -3193,7 +3189,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -3210,11 +3206,11 @@ class IntrinsicCall(Call):
                 arg_names=(("l",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node: (
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, node.argument_by_name("l").datatype.intrinsic,
                     "kind",
                 ) if "kind" in node.argument_names else
-                _get_named_argument_type(node, "l")
+                _type_of_named_argument(node, "l")
             ),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
@@ -3232,7 +3228,7 @@ class IntrinsicCall(Call):
                 arg_names=(("i",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -3252,7 +3248,7 @@ class IntrinsicCall(Call):
                 arg_names=(("i",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -3290,7 +3286,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=((None,),)),
             optional_args={},
-            return_type=_get_first_argument_type,
+            return_type=lambda node: node.arguments[0].datatype,
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -3334,7 +3330,7 @@ class IntrinsicCall(Call):
                 "back": DataNode,
             },
             return_type=lambda node: (
-                _get_named_argument_intrinsic_with_optional_kind_and_dim(
+                _type_of_named_arg_with_optional_kind_and_dim(
                     node, "array"
                 )
             ),
@@ -3374,8 +3370,8 @@ class IntrinsicCall(Call):
                 arg_names=(("tsource", "fsource", "mask"),)
             ),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node,
-                                                              "tsource"),
+            return_type=lambda node: _type_of_named_argument(node,
+                                                             "tsource"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -3391,7 +3387,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "j", "mask"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "i"),
+            return_type=lambda node: _type_of_named_argument(node, "i"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -3409,7 +3405,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=((None,),)),
             optional_args={},
-            return_type=_get_first_argument_type,
+            return_type=lambda node: node.arguments[0].datatype,
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -3453,7 +3449,7 @@ class IntrinsicCall(Call):
                 "back": DataNode,
             },
             return_type=lambda node: (
-                _get_named_argument_intrinsic_with_optional_kind_and_dim(
+                _type_of_named_arg_with_optional_kind_and_dim(
                     node, "array"
                 )
             ),
@@ -3492,7 +3488,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("a", "p"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "a"),
+            return_type=lambda node: _type_of_named_argument(node, "a"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -3508,7 +3504,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("a", "p"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "a"),
+            return_type=lambda node: _type_of_named_argument(node, "a"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -3567,7 +3563,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x", "s"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -3624,7 +3620,7 @@ class IntrinsicCall(Call):
             optional_args={},
             # No kind on NORM2 but this function works for return type.
             return_type=lambda node: (
-                _get_named_argument_intrinsic_with_optional_kind_and_dim(
+                _type_of_named_arg_with_optional_kind_and_dim(
                     node, "x"
                 )
             ),
@@ -3663,7 +3659,7 @@ class IntrinsicCall(Call):
                 arg_names=()),
             optional_args={"mold": DataNode},
             # Returns a dissociated pointed - not supported.
-            return_type=lambda node: UnresolvedType(),
+            return_type=lambda node: UnsupportedFortranType(""),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -3744,7 +3740,7 @@ class IntrinsicCall(Call):
                 )
             ),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "mask"),
+            return_type=lambda node: _type_of_named_argument(node, "mask"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -3836,7 +3832,7 @@ class IntrinsicCall(Call):
             optional_args={"mask": DataNode},
             return_type=(
                 lambda node:
-                _get_named_argument_specified_kind_with_optional_dim(
+                _type_with_specified_precision_and_optional_dim(
                     node, "array",
                     node.argument_by_name("array").datatype.intrinsic
                 )
@@ -4050,7 +4046,7 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -4085,7 +4081,7 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=(("x", "i"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -4102,7 +4098,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string", "set"),)),
             optional_args={"back": DataNode, "kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -4169,7 +4165,7 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=(("x", "i"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -4214,7 +4210,7 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=(("i", "shift"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "i"),
+            return_type=lambda node: _type_of_named_argument(node, "i"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -4230,7 +4226,7 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=(("i", "shift"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "i"),
+            return_type=lambda node: _type_of_named_argument(node, "i"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -4246,7 +4242,7 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=(("i", "shift"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "i"),
+            return_type=lambda node: _type_of_named_argument(node, "i"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -4262,7 +4258,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("a", "b"),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "a"),
+            return_type=lambda node: _type_of_named_argument(node, "a"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -4278,7 +4274,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -4294,7 +4290,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -4311,7 +4307,7 @@ class IntrinsicCall(Call):
                 arg_names=(("array",),)),
             optional_args={"dim": DataNode, "kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -4335,7 +4331,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -4380,7 +4376,8 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: UnresolvedType(),
+            # TODO 1590 Complex conversion unsupported.
+            return_type=lambda node: UnsupportedFortranType(""),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -4397,7 +4394,7 @@ class IntrinsicCall(Call):
                 arg_names=()),
             optional_args={"team": DataNode, "kind": DataNode},
             return_type=lambda node: ArrayType(
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 )
@@ -4419,7 +4416,7 @@ class IntrinsicCall(Call):
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -4448,7 +4445,7 @@ class IntrinsicCall(Call):
             optional_args={"mask": DataNode},
             return_type=(
                 lambda node:
-                _get_named_argument_specified_kind_with_optional_dim(
+                _type_with_specified_precision_and_optional_dim(
                     node, "array",
                     node.argument_by_name("array").datatype.intrinsic
                 )
@@ -4493,7 +4490,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -4509,7 +4506,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -4544,6 +4541,10 @@ class IntrinsicCall(Call):
                 )
             ),
             optional_args={"team": DataNode},
+            # Support for this is not currentl implemented, however it is
+            # an integer or array of integer's depending on arguments, so
+            # could be added later. See
+            # https://gcc.gnu.org/onlinedocs/gfortran/THIS_005fIMAGE.html
             return_type=lambda node: UnresolvedType(),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
@@ -4561,7 +4562,7 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)
             ),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "x"),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -4597,7 +4598,7 @@ class IntrinsicCall(Call):
                 arg_names=(("source", "mold"),)),
             optional_args={"size": DataNode},
             return_type=lambda node: (
-                node.arguments[1].datatype if
+                node.arguments[1].datatype.copy() if
                 ("size" not in node.argument_names and
                  not isinstance(node.argument_by_name("mold").datatype,
                                 ArrayType))
@@ -4703,7 +4704,7 @@ class IntrinsicCall(Call):
                 arg_names=(("vector", "mask", "field"),)
             ),
             optional_args={},
-            return_type=lambda node: _get_named_argument_type(node, "vector"),
+            return_type=lambda node: _type_of_named_argument(node, "vector"),
             reference_accesses=(
                 _reference_accesses_all_reads_with_optional_kind
             ),
@@ -4720,7 +4721,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string", "set"),)),
             optional_args={"back": DataNode, "kind": DataNode},
             return_type=lambda node:
-                _get_intrinsic_with_optional_arg_kind(
+                _type_of_scalar_with_optional_kind(
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
@@ -4771,16 +4772,29 @@ class IntrinsicCall(Call):
         :returns: The datatype corresponding to this IntrinsicCall.
         """
         # If the return type is None then return NoType
-        if not self.intrinsic.return_type:
+        if self.intrinsic.return_type is None:
             return NoType()
         if isinstance(self.intrinsic.return_type, Callable):
             try:
                 return self.intrinsic.return_type(self)
-            except Exception:
-                # If we don't know what a type is correctly then many
-                # of the computed types will fail, so we should give
-                # an UnresolvedType in those cases.
-                return UnresolvedType()
+            except AttributeError as err:
+                # If we get an attribute error, and its because of attempting
+                # to lookup the precision or intrinsic, then it is likely
+                # due to looking up the datatype elements of an Unresolved
+                # or UnsupportedType - in those cases then we should
+                # return an UnresolvedType and not error.
+                if (("has no attribute 'precision'" or
+                     "has no attribute 'intrinsic'" in str(err))
+                    and "NoneType" not in
+                        str(err)):
+                    return UnresolvedType()
+                # Can't use debug string due to this being a potentially
+                # incomplete IntrinsicCall
+                raise InternalError(
+                    f"Failed to compute the datatype of a "
+                    f"'{self.intrinsic.name}' intrinsic. This is likely due "
+                    f"to not fully initialising the intrinsic correctly."
+                ) from err
         else:
             return self.intrinsic.return_type
 
