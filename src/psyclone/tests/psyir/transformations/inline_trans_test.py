@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -644,10 +644,7 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
         "    integer :: jim1, jjp1, jim2, jjp2\n"
         "    real, allocatable, dimension(:,:) :: avar\n"
         "    allocate(grid%data(2:6,-1:8))\n"
-        # TODO #1858 - ideally 'grid%data' would work below (instead of
-        # 'grid%data(:,:)') but Reference2ArrayRangeTrans doesn't yet work for
-        # members of structures.
-        "    call sub1(grid%data(:,:), jim1, jjp1)\n"
+        "    call sub1(grid%data, jim1, jjp1)\n"
         "    call sub1(grid%data(2:6,-1:8), jim2, jjp2)\n"
         "  end subroutine run_it\n"
         "  subroutine sub1(x, ji, jj)\n"
@@ -865,10 +862,6 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
     inline_trans = InlineTrans()
     for call in psyir.walk(Call):
         if not isinstance(call, IntrinsicCall):
-            if call.arguments[0].debug_string() == "grid%local%data":
-                # TODO #1858: this if construct can be removed once we
-                # support getting the type of `grid%local%data`.
-                continue
             inline_trans.apply(
                 call, options={"check_matching_arguments": False}
             )
@@ -894,15 +887,12 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
             "      grid%data2d(1:2,i) = 0.0\n"
             "      grid%data2d(1:5,i) = 3.0\n"
             "      grid%data2d(1:5,i) = 5.0\n"
-            # TODO #1858: replace the following line with the commented-out
-            # lines below.
-            "      call sub(grid%local%data)\n"
-            # "      do ji_3 = 1, 5, 1\n"
-            # "        grid%local%data(ji_3) = 2.0 * grid%local%data(ji_3)\n"
-            # "      enddo\n"
-            # "      grid%local%data(1:2) = 0.0\n"
-            # "      grid%local%data(:) = 3.0\n"
-            # "      grid%local%data = 5.0\n"
+            "      do ji_3 = 1, 5, 1\n"
+            "        grid%local%data(ji_3) = 2.0 * grid%local%data(ji_3)\n"
+            "      enddo\n"
+            "      grid%local%data(1:2) = 0.0\n"
+            "      grid%local%data(:) = 3.0\n"
+            "      grid%local%data = 5.0\n"
             "    enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 

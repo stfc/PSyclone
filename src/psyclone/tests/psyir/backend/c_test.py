@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -352,8 +352,7 @@ def test_cw_binaryoperator():
     # Test that an unsupported operator raises a error
     class Unsupported():
         '''Dummy class'''
-        def __init__(self):
-            pass
+
     binary_operation._operator = Unsupported
     with pytest.raises(VisitorError) as err:
         _ = cwriter(binary_operation)

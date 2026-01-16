@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1171,7 +1171,6 @@ class GOKernelArguments(Arguments):
                 raise ParseError(f"Invalid kernel argument type. Found "
                                  f"'{arg.argument_type}' but must be one of "
                                  f"['grid_property', 'scalar', 'field'].")
-        self._dofs = []
 
     def psyir_expressions(self):
         '''
@@ -1206,13 +1205,6 @@ class GOKernelArguments(Arguments):
         # to access the grid properties. This will only be a problem
         # if the kernel requires a grid-property argument.
         return None
-
-    @property
-    def dofs(self):
-        ''' Currently required for invoke base class although this makes no
-            sense for GOcean. Need to refactor the Invoke base class and
-            remove the need for this property (#279). '''
-        return self._dofs
 
     @property
     def acc_args(self):
@@ -1910,12 +1902,13 @@ class GO1p0Descriptor(Descriptor):
                 f"expects 2 or 3 arguments but found '{len(kernel_arg.args)}' "
                 f"in '{kernel_arg.args}'")
 
-        api_config = Config.get().api_conf("gocean")
-        access_mapping = api_config.get_access_mapping()
+        config = Config.get()
+        api_config = config.api_conf("gocean")
+        access_mapping = config.get_constants().ACCESS_MAPPING
         try:
             access_type = access_mapping[access]
         except KeyError as err:
-            valid_names = api_config.get_valid_accesses_api()
+            valid_names = sorted(access_mapping.keys())
             raise ParseError(
                 f"Meta-data error in kernel {kernel_name}: argument access is "
                 f"given as '{access}' but must be one of {valid_names}"

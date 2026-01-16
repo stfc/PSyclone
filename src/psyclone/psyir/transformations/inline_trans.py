@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -860,10 +860,7 @@ class InlineTrans(Transformation):
                 break
             cursor = cursor.member
 
-        # TODO #1858 - once we support converting structure accesses into
-        # explicit array accesses, we can put back the testing in
-        # inline_trans_test.py that covers this code and remove the pragma:
-        if not actual_arg.walk(Range) and local_indices:  # pragma: no cover
+        if not actual_arg.walk(Range) and local_indices:
             # There are no Ranges in the actual argument but the local
             # reference is an array access.
             # Create updated index expressions for that access.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -81,7 +81,7 @@ def pytest_addoption(parser):
 
 
 @pytest.fixture
-def have_graphviz():
+def have_graphviz():  # pragma: no-cover
     ''' Whether or not the system has graphviz installed. This refers to
     the underlying system library, not the python bindings that are provided
     by 'import graphviz'. '''
