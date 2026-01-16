@@ -38,8 +38,7 @@
 This module provides a class with all GOcean related constants.
 '''
 
-# Imports
-from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 
 
 # pylint: disable=too-few-public-methods
@@ -50,21 +49,6 @@ class GOceanConstants():
     '''
     HAS_BEEN_INITIALISED = False
 
-    @staticmethod
-    def get_valid_access_types():
-        '''Return the valid access types for the GOcean API. Reads the values
-        from the config file the first time the method is called.
-
-        :returns: valid access types for the GOcean API.
-        :rtype: list[str]
-
-        '''
-        if not GOceanConstants._VALID_ACCESS_TYPES:
-            conf = Config.get().api_conf("gocean")
-            GOceanConstants._VALID_ACCESS_TYPES = \
-                list(conf.get_access_mapping().keys())
-        return GOceanConstants._VALID_ACCESS_TYPES
-
     def __init__(self):
         if GOceanConstants.HAS_BEEN_INITIALISED:
             return
@@ -74,10 +58,19 @@ class GOceanConstants():
         # Valid intrinsic types of kernel argument metadata.
         GOceanConstants.VALID_INTRINSIC_TYPES = []
 
-        # Valid access types (GO_READ etc). These are accessed via the
-        # get_valid_access_types() method as they are read from the
-        # config file rather than being fixed constant values.
-        GOceanConstants._VALID_ACCESS_TYPES = []
+        # Valid access types.
+        GOceanConstants.VALID_ACCESS_TYPES = ["go_read",
+                                              "go_write",
+                                              "go_readwrite"]
+
+        # Mapping from API-specific access types to internal access types.
+        GOceanConstants.ACCESS_MAPPING = {"go_read": AccessType.READ,
+                                          "go_write": AccessType.WRITE,
+                                          "go_readwrite": AccessType.READWRITE
+                                          }
+        GOceanConstants.REVERSE_ACCESS_MAPPING = {}
+        for key, value in GOceanConstants.ACCESS_MAPPING.items():
+            GOceanConstants.REVERSE_ACCESS_MAPPING[value] = key
 
         # psyGen argument types.
         GOceanConstants.VALID_ARG_TYPE_NAMES = []

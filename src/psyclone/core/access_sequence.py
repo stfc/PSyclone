@@ -88,7 +88,18 @@ class AccessInfo():
                                 "which does not have 'READ' access.")
         self._access_type = AccessType.WRITE
 
-    def component_indices(self) -> tuple[tuple[Node]]:
+    def change_read_to_constant(self):
+        '''This changes the access mode from READ to CONSTANT.
+
+        :raises InternalError: if the variable does not have READ acccess.
+        '''
+        if self._access_type != AccessType.READ:
+            raise InternalError(f"Trying to change variable access from "
+                                f"'READ' to 'CONSTANT' but access type is "
+                                f" '{self._access_type}'.")
+        self._access_type = AccessType.CONSTANT
+
+    def component_indices(self):
         '''
         :returns: a tuple of tuples of index expressions; one for every
             component in the accessor. For example, for a scalar it
@@ -307,6 +318,35 @@ class AccessSequence(list):
         :param node: Node in PSyIR in which the access happens.
         '''
         self.append(AccessInfo(access_type, node))
+
+    def change_read_to_constant(self):
+        '''This function is used to change a READ into a CONSTANT.
+
+        :raises InternalError: if there is an access that is not READ or
+                               INQUIRY or there is > 1 READ accesses.
+        '''
+        read_access = None
+        for acc in self:
+
+            if acc.access_type == AccessType.READ:
+                if read_access:
+                    raise InternalError(
+                        f"Trying to change variable '{self._signature}' to "
+                        f"'CONSTANT' but it has more than one 'READ' access."
+                    )
+                read_access = acc
+
+            elif acc.access_type not in AccessType.non_data_accesses():
+                raise InternalError(
+                    f"Variable '{self._signature}' has a '{acc.access_type}' "
+                    f"access. change_read_to_constant() expects only "
+                    f"inquiry accesses and a single 'READ' access.")
+
+        if not read_access:
+            raise InternalError(
+                f"Trying to change variable '{self._signature}' to "
+                f"'CONSTANT' but it does not have a 'READ' access.")
+        read_access.change_read_to_constant()
 
     def update(self, access_seq: AccessSequence) -> None:
         '''
