@@ -173,6 +173,20 @@ def test_intrinsiccall_datatype(fortran_reader):
     assert isinstance(call.datatype, UnresolvedType)
 
 
+def test_intrinsiccall_reference_accesses_error():
+    """Tests the reference_accesses method of intrinsiccall's error
+    case."""
+    # Test computing argument names doesn't work when we have 2 arguments for
+    # SUM with no naming, as it can't determine between the SUM variants.
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
+    intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
+    intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
+    with pytest.raises(InternalError) as err:
+        _ = intrinsic.reference_accesses()
+    assert ("Can't compute reference accesses for 'SUM(a, a)' due to not "
+            "being able to resolve all the argument names." in str(err.value))
+
+
 def test_intrinsiccall_is_elemental():
     """Tests the is_elemental() method works as expected. There are
     currently no elemental intrinsics so we can only test for

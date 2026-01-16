@@ -5168,8 +5168,8 @@ class IntrinsicCall(Call):
             except NotImplementedError as err:
                 raise InternalError(
                     f"Can't compute reference accesses for "
-                    f"{self.debug_string()} due to not being able to "
-                    f"resolve all the argument names."
+                    f"'{self.debug_string().rstrip()}' due to not being "
+                    f"able to resolve all the argument names."
                 ) from err
 
         return self.intrinsic.reference_accesses(self)
