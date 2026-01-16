@@ -205,12 +205,12 @@ class KernelTypeFactory():
     '''Factory to create the required API-specific information about
     coded-kernel metadata and a reference to its code.
 
-    :param str api: The API for which this factory is to create Kernel \
-    information. If it is not supplied then the default API, as \
-    specified in the PSyclone config file, is used.
+    :param api: The API for which this factory is to create Kernel
+        information. If it is not supplied then the current API (as
+        specified on the psyclone command-line) is used.
 
     '''
-    def __init__(self, api=''):
+    def __init__(self, api: str = ""):
         check_api(api)
         self._type = api
 
