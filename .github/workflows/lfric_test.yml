@@ -42,8 +42,9 @@ on:
   push
 
 env:
-  LFRIC_APPS_HASH: bb3a3458ebb02e1e016221ca886a9e2ebba5a174
+  LFRIC_APPS_HASH: 152804e4ba768cf54801f034a20131812ecff0f2
   PYTHON_VERSION: 3.14
+  GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_VERSION: 25.1
   NUM_PARALLEL: 16
 
@@ -99,7 +100,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment %gnu14_openmpi
+        spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         # TODO #3206: The no-annex-dof configuration fails in LFRic because some kernels lie in
@@ -113,16 +114,9 @@ jobs:
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
-        export OPT_DIR=${LFRIC_DIR}/applications/lfric_atm/optimisation/psyclone-test/psykal
-        mkdir -p ${OPT_DIR}
-        cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
-        export OPT_DIR=${LFRIC_DIR}/applications/lfric_atm/optimisation/psyclone-test/transmute
-        mkdir -p ${OPT_DIR}
         # Clean previous version and compile again
         rm -rf working-gh-passthrough
         ./build/local_build.py -j ${NUM_PARALLEL} -v -p psyclone-test -w working-gh-passthrough gungho_model
-        rm -rf working-atm-passthrough
-        ./build/local_build.py -j ${NUM_PARALLEL} -v -p psyclone-test -w working-atm-passthrough lfric_atm
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -204,7 +198,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment %gnu14_openmpi
+        spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -233,7 +227,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment %gnu14_openmpi
+        spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -261,7 +255,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment %gnu14_openmpi
+        spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
@@ -308,7 +302,7 @@ jobs:
             --eval 'db.GitHub_CI.insertMany([
               {
                 ci_test: "LFRic Passthrough with DM",
-                compiler:"gfortran@14",
+                compiler:"'"${GNU_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_dist_mem}}"',
                 '"${COMMON_FIELDS}"'
               },
@@ -332,25 +326,25 @@ jobs:
               },
               {
                 ci_test: "LFRic all transformations",
-                compiler:"gfortran@14",
+                compiler:"'"${GNU_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_all_trans}}"',
                 '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic colour-tiling",
-                compiler:"gfortran@14,
+                compiler:"'"${GNU_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"',
                 '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic_atm",
-                compiler:"gfortran@14,
+                compiler:"'"${GNU_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_atm}}"',
                 '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic_atm build time",
-                compiler:"gfortran@14,
+                compiler:"'"${GNU_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_atm_build}}"',
                 '"${COMMON_FIELDS}"'
               }
