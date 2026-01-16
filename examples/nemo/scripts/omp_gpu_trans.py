@@ -177,9 +177,6 @@ def trans(psyir):
         # ICE routines do not perform well on GPU, so we skip them
         if psyir.name.startswith("ice"):
             continue
-        # Many of the obs_ files have problems to be offloaded to the GPU
-        if psyir.name.startswith("obs_"):
-            continue
         # Skip initialisation and diagnostic subroutines
         if (subroutine.name.endswith('_alloc') or
                 subroutine.name.endswith('_init') or
