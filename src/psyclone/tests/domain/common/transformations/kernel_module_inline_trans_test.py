@@ -321,7 +321,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     inline_trans.apply(kern_call)
 
     # A RoutineSymbol should have been added to the Container symbol table.
-    rsym = container.symbol_table.lookup("compute_cv_code")
+    rsym = container.symbol_table.lookup("compute_cv_code_inlined_")
     assert isinstance(rsym, RoutineSymbol)
     assert rsym.visibility == Symbol.Visibility.PRIVATE
 
@@ -444,16 +444,16 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
 
     # The new inlined routine must now exist and be private.
     routine_sym = kern_call.ancestor(Container).symbol_table.lookup(
-        "compute_cv_code")
+        "compute_cv_code_inlined_")
     assert routine_sym
     assert routine_sym.visibility == Symbol.Visibility.PRIVATE
-    assert kern_call.ancestor(Container).children[1].name == "compute_cv_code"
+    assert kern_call.ancestor(Container).children[1].name == "compute_cv_code_inlined_"
     assert (kern_call.ancestor(Container).symbol_table.
-            lookup("compute_cv_code").is_modulevar)
+            lookup("compute_cv_code_inlined_").is_modulevar)
 
     # Generate the code
     code = str(psy.gen)
-    assert 'subroutine compute_cv_code(i, j, cv, p, v)' in code
+    assert 'subroutine compute_cv_code_inlined_(i, j, cv, p, v)' in code
 
     # And the import has been remove from both, so check that the associated
     # use no longer exists
@@ -462,9 +462,9 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     # Do the check again because repeating the call resets some aspects and we
     # need to see if the second call still works as expected
     gen = str(psy.gen)
-    assert 'subroutine compute_cv_code(i, j, cv, p, v)' in gen
+    assert 'subroutine compute_cv_code_inlined_(i, j, cv, p, v)' in gen
     assert 'use compute_cv_mod' not in gen
-    assert gen.count("subroutine compute_cv_code(") == 1
+    assert gen.count("subroutine compute_cv_code_inlined_(") == 1
 
     # And it is valid code
     assert GOceanBuild(tmpdir).code_compiles(psy)
@@ -484,26 +484,27 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     assert gen.count("end subroutine testkern_qr_code") == 0
 
     # Module inline kernel in invoke 1
-    inline_trans = KernelModuleInlineTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
     artrans = ACCRoutineTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "testkern_qr_code":
-            inline_trans.apply(coded_kern)
+            mod_inline_trans.apply(coded_kern)
             artrans.apply(coded_kern)
     gen = str(psy.gen)
+    assert gen.count("end subroutine testkern_qr_code") == 1
 
-    # After this, both invokes use the inlined top-level subroutine.
-    # Module-inlining kernel in invoke 2 should have no effect.
+    # After this, each call should be to a separate copy of the inlined
+    # routine.
     schedule1 = psy.invokes.invoke_list[1].schedule
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "testkern_qr_code":
-            inline_trans.apply(coded_kern)
+            mod_inline_trans.apply(coded_kern)
     gen = str(psy.gen)
     # After this, no imports are remaining and both use the same
     # top-level implementation
     assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 0
-    assert gen.count("end subroutine testkern_qr_code") == 1
+    assert gen.count("end subroutine testkern_qr_code") == 4
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -517,12 +518,12 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
                         "lfric", idx=0, dist_mem=False)
 
     # Module inline kernel in invoke 1
-    inline_trans = KernelModuleInlineTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
     artrans = ACCRoutineTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "mixed_code":
-            inline_trans.apply(coded_kern)
+            mod_inline_trans.apply(coded_kern)
             # Transform that kernel. We have to use 'force' as it contains
             # a CodeBlock.
             artrans.apply(coded_kern, options={"force": True})
@@ -554,7 +555,7 @@ def test_module_inline_apply_with_sub_use(tmpdir):
     inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'subroutine bc_ssh_code(ji, jj, istep, ssha, tmask)' in gen
+    assert 'subroutine bc_ssh_code_inlined_(ji, jj, istep, ssha, tmask)' in gen
     # check that the use within the subroutine exists
     assert 'use grid_mod' in gen
     # check that the associated psy use does not exist
@@ -574,18 +575,19 @@ def test_module_inline_apply_same_kernel(tmpdir):
     inline_trans.apply(kern_calls[0])
     gen = str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'subroutine compute_cu_code(' in gen
-    # check that the associated psy "use" does not exist
-    assert 'use compute_cu_mod' not in gen
+    assert 'subroutine compute_cu_code_inlined_(' in gen
+    # check that the associated "use" is unchanged
+    assert 'use compute_cu_mod' in gen
     # check that the subroutine has only been inlined once
-    count = count_lines(gen, "subroutine compute_cu_code(")
+    count = count_lines(gen, "subroutine compute_cu_code_inlined_(")
     assert count == 1, "Expecting subroutine to be inlined once"
     assert GOceanBuild(tmpdir).code_compiles(psy)
     # Calling the transformation on a second call to the same kernel
-    # should have no effect.
+    # should create a new, private copy of the routine.
     inline_trans.apply(kern_calls[1])
     gen2 = str(psy.gen)
-    assert gen2 == gen
+    assert 'subroutine compute_cu_code_inlined__1(' in gen2
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_module_inline_apply_bring_in_non_local_symbols(
@@ -819,9 +821,9 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'subroutine ru_code(' in gen
-    # check that the associated psy "use" does not exist
-    assert 'use ru_kernel_mod' not in gen
+    assert 'subroutine ru_code_inlined_(' in gen
+    # check that the associated psy "use" is still present
+    assert 'use ru_kernel_mod' in gen
     # Check that we can subsequently transform the inlined kernel.
     omptrans = OMPDeclareTargetTrans()
     omptrans.apply(kern_call)
