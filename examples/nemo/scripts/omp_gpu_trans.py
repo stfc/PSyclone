@@ -109,6 +109,7 @@ OFFLOADING_ISSUES = [
     "dtatsd.f90",
     "trcatf.f90",
     "stp2d.f90",
+    "trabbc.f90",
 ]
 
 ASYNC_ISSUES = [

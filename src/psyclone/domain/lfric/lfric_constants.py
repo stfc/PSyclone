@@ -43,6 +43,7 @@ This module provides a class with all LFRic related constants.
 from collections import OrderedDict
 
 from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 
 
@@ -123,6 +124,18 @@ class LFRicConstants():
             "gh_read", "gh_write", "gh_readwrite"]
         LFRicConstants.VALID_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
+
+        # Mapping from metadata access patterns to internal access type.
+        LFRicConstants.ACCESS_MAPPING = {"gh_read": AccessType.READ,
+                                         "gh_write": AccessType.WRITE,
+                                         "gh_readwrite": AccessType.READWRITE,
+                                         "gh_inc": AccessType.INC,
+                                         "gh_readinc": AccessType.READINC,
+                                         "gh_sum": AccessType.SUM}
+
+        LFRicConstants.REVERSE_ACCESS_MAPPING = {}
+        for key, value in LFRicConstants.ACCESS_MAPPING.items():
+            LFRicConstants.REVERSE_ACCESS_MAPPING[value] = key
 
         LFRicConstants.WRITE_ACCESSES = [
             "gh_write", "gh_readwrite", "gh_inc", "gh_readinc", "gh_sum"]
