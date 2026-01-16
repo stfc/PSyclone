@@ -95,14 +95,13 @@ class AccessType(Enum):
         return rmap.get(self, str(self).lower())
 
     @staticmethod
-    def from_string(access_string: str):
+    def from_string(access_string: str) -> AccessType:
         '''Convert a string (e.g. "read") into the corresponding
         AccessType enum value (AccessType.READ).
 
         :param access_string: Access type as a string.
 
         :returns: Corresponding AccessType enum.
-        :rtype: :py:class:`psyclone.core.access_type.AccessType`
 
         :raises ValueError: if access_string is not a valid access type.
         '''
@@ -115,27 +114,27 @@ class AccessType(Enum):
 
     @staticmethod
     def all_write_accesses() -> list[AccessType]:
-        ''':returns: A list of all access types that involve writing to an
-                     argument in some form.
+        '''
+        :returns: A list of all access types that involve writing to an
+                  argument in some form.
         '''
         return [AccessType.WRITE, AccessType.READWRITE, AccessType.INC,
                 AccessType.READINC, AccessType.REDUCTION]
 
     @staticmethod
-    def all_read_accesses():
-        ''':returns: A list of all access types that involve reading an
-                     argument in some form.
-        :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
+    def all_read_accesses() -> list[AccessType]:
+        '''
+        :returns: A list of all access types that involve reading an
+                  argument in some form.
         '''
         return [AccessType.READ, AccessType.READWRITE, AccessType.INC,
                 AccessType.READINC]
 
     @staticmethod
-    def non_data_accesses():
+    def non_data_accesses() -> list[AccessType]:
         '''
         :returns: all access types that do not touch any data associated with
                   a symbol.
-        :rtype: list[:py:class:`psyclone.core.AccessType`]
         '''
         return [AccessType.CALL, AccessType.CONSTANT, AccessType.INQUIRY]
 
