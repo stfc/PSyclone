@@ -35,7 +35,7 @@
 
 '''
 Python script intended to be passed to PSyclone via the -s option.
-It applies kernel inlining and then fuse the first three loops of
+It applies kernel inlining and then fuses the first three loops of
 the first invoke.
 '''
 
@@ -101,7 +101,8 @@ def apply_all(node_list, transform):
 # -----------------------------------------------------------------------------
 def trans(psyir):
     '''
-    Take the supplied psy object, and fuse loops as much as possible.
+    Take the supplied psy object, apply module inlining and fuse loops as
+    much as possible.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

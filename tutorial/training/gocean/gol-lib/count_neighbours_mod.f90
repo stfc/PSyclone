@@ -27,15 +27,13 @@ contains
 
     !> @brief Computes the new state.
     !>
-    !> This subroutine updates the field 'current' by subtracting the dying
-    !> cells, and adding the newly born cells.
+    !> This subroutine computes a field 'neighbours', storing for
+    !> each cell how many of its 8 neighbours are live in the field
+    !> 'c'.
     !>
-    !> @param[in]  i, j Coordinates of the cell to update.
-    !> @param[out] c    The current state that will be updated.
-    !> @param[in]  die  The field with 1 if the cell dies,
-    !>                  and 0 otherwise.
-    !> @param[in]  born The field with 1 if a new cell is born,
-    !>                  and 0 otherwise.
+    !> @param[in]  i, j       Coordinates of the cell to update.
+    !> @param[out] neighbours On exit contains the number of alive neighbours.
+    !> @param[out] c          The current state that will be updated.
 
     pure subroutine count_neighbours_code(i, j, neighbours, c)
         implicit none

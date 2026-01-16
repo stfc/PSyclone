@@ -46,7 +46,6 @@ EXE = example
 API = lfric
 include ../common.mk
 
-# Path of the included simplified LFRic infrastructure files:
 
 # Various targets
 # ---------------

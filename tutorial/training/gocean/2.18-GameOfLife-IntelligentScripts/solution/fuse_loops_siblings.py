@@ -116,7 +116,8 @@ def apply_all(node_list, transform):
 
 def trans(psyir):
     '''
-    Take the supplied psyir object, and fuse all loops as much as possible.
+    Take the supplied psyir object, apply module inlining, and fuse all loops
+    as much as possible.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

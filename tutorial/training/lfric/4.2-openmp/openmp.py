@@ -44,22 +44,24 @@ from psyclone.transformations import (OMPParallelTrans, OMPLoopTrans,
                                       TransformationError)
 from psyclone.domain.lfric import LFRicKern, LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.psyir.nodes import FileContainer
 
 
-def trans(psy):
+def trans(psyir: FileContainer) -> None:
     '''
-    Take the supplied psy object, add openmp directives
+    Take the supplied psyir object, apply module inlining and add generic
+    OpenMP parallelisation to the code. Also check if loop fusion can
+    be applied. Also check if loop fusion can
+    be applied
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
+    :param psyir: the PSyIR of the PSy-layer.
 
     '''
     omp_parallel = OMPParallelTrans()
     omp_loop = OMPLoopTrans()
     module_inline = KernelModuleInlineTrans()
 
-    for invoke in psy.invokes.invoke_list:
+    for invoke in psyir.walk(InvokeSchedule):
         schedule = invoke.schedule
 
         # Module inline all kernels to help with inlining.

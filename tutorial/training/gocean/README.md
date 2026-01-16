@@ -1,7 +1,7 @@
 # PSyclone's GOcean Domain
 
 The hands-on session under this directory contain a set of
-trainings exercise to introduce the ``gocean`` API and
+training exercise to introduce the ``gocean`` API and
 the required ``dl_esm_inf`` infrastructure library.
 
 ## 2.2-GameOfLife
@@ -10,7 +10,7 @@ use PSyclone itself, but is useful if you want to use the
 ``gocean`` API for a new application and need to learn the details
 about the setup of the infrastructure library.
 You will be coding the Game of Life example using the infrastructure
-library directlry.
+library directly.
 
 This session can be skipped if you are not interested in the details
 of the infrastructure library. None of the following hands-on

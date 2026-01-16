@@ -12,6 +12,7 @@ this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 # PSyclone directory is up two from this file
 ROOT_DIR := $(abspath $(dir $(this_file))../../..)
 
+# Path of the included simplified LFRic infrastructure files:
 LFRIC_PATH = $(ROOT_DIR)/external/lfric_infrastructure/src
 LFRIC_LIB ?= $(LFRIC_PATH)/liblfric.a
 
