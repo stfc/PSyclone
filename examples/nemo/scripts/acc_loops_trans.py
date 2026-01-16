@@ -70,6 +70,12 @@ def trans(psyir):
     acc_region_trans = ACCParallelTrans(default_present=False)
     acc_loop_trans = ACCLoopTrans()
 
+    # TODO #2317: Has structure accesses that can not be offloaded and has
+    # a problematic range to loop expansion of (1:1)
+    if psyir.name.startswith("obs_"):
+        print("Skipping", psyir.name)
+        return
+
     for subroutine in psyir.walk(Routine):
         print(f"Transforming subroutine: {subroutine.name}")
 
