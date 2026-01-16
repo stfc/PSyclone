@@ -50,6 +50,7 @@ use argument_mod,  only : arg_type,            &
                           GH_REAL, GH_INTEGER, &
                           GH_READ, GH_WRITE,   &
                           GH_READWRITE,        &
+                          GH_REDUCTION,        &
                           ANY_SPACE_1, DOF
 
 ! ******************************************************************* !
