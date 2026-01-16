@@ -55,7 +55,7 @@ from psyclone.psyir.nodes import (
 )
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
-    _convert_argument_to_type_info,
+    _convert_argument_to_constant,
     _reference_accesses_all_reads_with_optional_kind,
     _add_read_argument,
     _add_write_argument,
@@ -186,7 +186,7 @@ def test_add_typeinfo_argument():
     sig, _ = ref.get_signature_and_indices()
     assert len(vam) == 1
     assert len(vam[sig]) == 1
-    assert vam[sig][0].access_type == AccessType.TYPE_INFO
+    assert vam[sig][0].access_type == AccessType.CONSTANT
 
     # Test we skip for a Literal
     vam = VariablesAccessMap()
@@ -256,7 +256,7 @@ def test_compute_reference_accesses():
             [a_ref, b_ref, c_ref, d_ref, e_ref,
              ("read", f_ref), ("write", g_ref),
              ("readwrite", h_ref),
-             ("type_info", i_ref),
+             ("constant", i_ref),
              ("inquiry", j_ref),
              ]
     )
@@ -265,12 +265,12 @@ def test_compute_reference_accesses():
             read_indices=[0],
             write_indices=[1],
             readwrite_indices=[2],
-            type_info_indices=[3],
+            constant_indices=[3],
             inquiry_indices=[4],
             read_named_args=["read", "not_present_1"],
             write_named_args=["write", "not_present_2"],
             readwrite_named_args=["readwrite", "not_present_3"],
-            type_info_named_args=["type_info", "not_present_4"],
+            constant_named_args=["constant", "not_present_4"],
             inquiry_named_args=["inquiry", "not_present_5"],
     )
     # We should onyl get the 10 accesses present in the Call.
@@ -287,7 +287,7 @@ def test_compute_reference_accesses():
     assert varaccesses[sig][0].access_type == AccessType.READWRITE
     sig, _ = d_ref.get_signature_and_indices()
     assert len(varaccesses[sig]) == 1
-    assert varaccesses[sig][0].access_type == AccessType.TYPE_INFO
+    assert varaccesses[sig][0].access_type == AccessType.CONSTANT
     sig, _ = e_ref.get_signature_and_indices()
     assert len(varaccesses[sig]) == 1
     assert varaccesses[sig][0].access_type == AccessType.INQUIRY
@@ -302,30 +302,30 @@ def test_compute_reference_accesses():
     assert varaccesses[sig][0].access_type == AccessType.READWRITE
     sig, _ = i_ref.get_signature_and_indices()
     assert len(varaccesses[sig]) == 1
-    assert varaccesses[sig][0].access_type == AccessType.TYPE_INFO
+    assert varaccesses[sig][0].access_type == AccessType.CONSTANT
     sig, _ = j_ref.get_signature_and_indices()
     assert len(varaccesses[sig]) == 1
     assert varaccesses[sig][0].access_type == AccessType.INQUIRY
 
 
-def test_convert_argument_to_type_info():
-    """Test the _convert_argument_to_type_info helper function."""
-    # Test that if we supply a Read-only Reference it results in a TYPE_INFO.
+def test_convert_argument_to_constant():
+    """Test the _convert_argument_to_constant helper function."""
+    # Test that if we supply a Read-only Reference it results in a CONSTANT.
     symbol = DataSymbol("a", INTEGER_TYPE)
     ref = Reference(symbol)
     accesses = ref.reference_accesses()
     sig, _ = ref.get_signature_and_indices()
     assert accesses[sig].is_read_only
-    _convert_argument_to_type_info(ref, accesses)
-    assert accesses[sig][0].access_type == AccessType.TYPE_INFO
+    _convert_argument_to_constant(ref, accesses)
+    assert accesses[sig][0].access_type == AccessType.CONSTANT
 
-    # Test if we supply a mixed read/write reference we don't get a TYPE_INFO.
+    # Test if we supply a mixed read/write reference we don't get a CONSTANT.
     assign = Assignment.create(Reference(symbol), Reference(symbol))
     accesses = assign.reference_accesses()
-    _convert_argument_to_type_info(assign.lhs, accesses)
+    _convert_argument_to_constant(assign.lhs, accesses)
     sig, _ = assign.lhs.get_signature_and_indices()
     for access in accesses[sig]:
-        assert access.access_type != AccessType.TYPE_INFO
+        assert access.access_type != AccessType.CONSTANT
 
 
 def test_reference_accesses_all_reads_with_optional_kind(fortran_reader):
@@ -347,8 +347,8 @@ def test_reference_accesses_all_reads_with_optional_kind(fortran_reader):
         assert ref.access_type == AccessType.READ
 
     refs = _reference_accesses_all_reads_with_optional_kind(intrinsics[1])
-    # First result should be a READ, the kind should be a TYPE_INFO
+    # First result should be a READ, the kind should be a CONSTANT
     sig, _ = intrinsics[1].arguments[0].get_signature_and_indices()
     assert refs[sig][0].access_type == AccessType.READ
     sig, _ = intrinsics[1].arguments[1].get_signature_and_indices()
-    assert refs[sig][0].access_type == AccessType.TYPE_INFO
+    assert refs[sig][0].access_type == AccessType.CONSTANT

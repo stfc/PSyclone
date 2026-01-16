@@ -352,7 +352,7 @@ def test_sympy_writer_type_map_non_canonical(fortran_reader):
 
     writer = SymPyWriter()
     with pytest.raises(VisitorError) as err:
-        _ = writer([assign.rhs])
+        _ = writer.intrinsiccall_node(assign.rhs)
     assert ("Sympy handler can't handle an IntrinsicCall that can't have "
             "argument names automatically added. Use explicit argument names "
             "instead. Failing node was 'SUM(i, j)'."

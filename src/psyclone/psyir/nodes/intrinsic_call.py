@@ -98,7 +98,7 @@ def _add_read_argument(argument: DataNode, var_acc_map: VariablesAccessMap):
     # with none.
     for ref in argument.walk(Reference):
         sig, all_indices = ref.get_signature_and_indices()
-        var_acc_map.add_access(sig, AccessType.READ, ref, all_indices)
+        var_acc_map.add_access(sig, AccessType.READ, ref)
 
 
 def _add_write_argument(argument: Reference, var_acc_map: VariablesAccessMap):
@@ -112,7 +112,7 @@ def _add_write_argument(argument: Reference, var_acc_map: VariablesAccessMap):
     for indices in all_indices:
         for index in indices:
             var_acc_map.update(index.reference_accesses())
-    var_acc_map.add_access(sig, AccessType.WRITE, argument, all_indices)
+    var_acc_map.add_access(sig, AccessType.WRITE, argument)
 
 
 def _add_readwrite_argument(
@@ -128,22 +128,22 @@ def _add_readwrite_argument(
     for indices in all_indices:
         for index in indices:
             var_acc_map.update(index.reference_accesses())
-    var_acc_map.add_access(sig, AccessType.READWRITE, argument, all_indices)
+    var_acc_map.add_access(sig, AccessType.READWRITE, argument)
 
 
 def _add_typeinfo_argument(
     argument: DataNode, var_acc_map: VariablesAccessMap
 ):
-    """Adds a type_info access for argument into var_acc_map
+    """Adds a constant access for argument into var_acc_map
 
-    :param argument: The argument to add a type_info access for.
+    :param argument: The argument to add a constant access for.
     :param var_acc_map: The VariablesAccessMap to add the access into.
     """
     # We can get literal as typeinfo expressions, so we skip them.
     if not isinstance(argument, Reference):
         return
     sig, _ = argument.get_signature_and_indices()
-    var_acc_map.add_access(sig, AccessType.TYPE_INFO, argument)
+    var_acc_map.add_access(sig, AccessType.CONSTANT, argument)
 
 
 def _add_inquiry_argument(argument: DataNode, var_acc_map: VariablesAccessMap):
@@ -167,12 +167,12 @@ def _compute_reference_accesses(
     read_indices: list[int] = None,
     write_indices: list[int] = None,
     readwrite_indices: list[int] = None,
-    type_info_indices: list[int] = None,
+    constant_indices: list[int] = None,
     inquiry_indices: list[int] = None,
     read_named_args: list[str] = None,
     write_named_args: list[str] = None,
     readwrite_named_args: list[str] = None,
-    type_info_named_args: list[str] = None,
+    constant_named_args: list[str] = None,
     inquiry_named_args: list[str] = None,
 ) -> VariablesAccessMap:
     """General helper function for creating the reference_accesses for a
@@ -186,12 +186,12 @@ def _compute_reference_accesses(
     :type node:  :py:class:`psyclone.psyir.nodes.IntrinsicCall`
     :param read_indices: the argument indices of each read access.
     :param write_indices: the argument indices of each write access.
-    :param type_info_indices: the argument indices of each typeinfo access.
+    :param constant_indices: the argument indices of each typeinfo access.
     :param inquiry_indices: the argument indices of each inquiry access.
     :param read_named_args: a list of named arguments that are read accesses.
     :param write_named_args: a list of named arguments that are write
         accesses.
-    :param type_info_named_args: a list of named arguments that are typeinfo
+    :param constant_named_args: a list of named arguments that are typeinfo
         accesses.
     :param inquiry_named_args: a list of named arguments that are inquiry
         accesses.
@@ -216,8 +216,8 @@ def _compute_reference_accesses(
             if ind < len(node.arguments) and node.argument_names[ind] is None:
                 arg = node.arguments[ind]
                 _add_readwrite_argument(arg, reference_accesses)
-    if type_info_indices:
-        for ind in type_info_indices:
+    if constant_indices:
+        for ind in constant_indices:
             if ind < len(node.arguments) and node.argument_names[ind] is None:
                 arg = node.arguments[ind]
                 _add_typeinfo_argument(arg, reference_accesses)
@@ -240,8 +240,8 @@ def _compute_reference_accesses(
                 continue
             arg = node.arguments[node.argument_names.index(name)]
             _add_write_argument(arg, reference_accesses)
-    if type_info_named_args:
-        for name in type_info_named_args:
+    if constant_named_args:
+        for name in constant_named_args:
             if name not in node.argument_names:
                 continue
             arg = node.arguments[node.argument_names.index(name)]
@@ -262,11 +262,11 @@ def _compute_reference_accesses(
     return reference_accesses
 
 
-def _convert_argument_to_type_info(
+def _convert_argument_to_constant(
     argument: DataNode, access_info: VariablesAccessMap
 ) -> None:
     """Helper function for the common case where an argument needs to have
-    a TYPE_INFO access map in access_info instead of a read access.
+    a CONSTANT access map in access_info instead of a read access.
 
     :param argument: The argument whose access needs changing.
     :param access_info: The access map containing the access.
@@ -276,7 +276,7 @@ def _convert_argument_to_type_info(
         sig, _ = argument.get_signature_and_indices()
         var_info = access_info[sig]
         try:
-            var_info.change_read_to_type_info()
+            var_info.change_read_to_constant()
         except InternalError:
             # The argument here is also used in some other way
             # so we do nothing as the other usage has precedence.
@@ -288,7 +288,7 @@ def _reference_accesses_all_reads_with_optional_kind(
 ) -> VariablesAccessMap:
     """Helper function for the common IntrinsicCall case where all
     arguments are read only, with the exception of an optional kind named
-    argument which is instead TYPE_INFO.
+    argument which is instead CONSTANT.
 
     :param node: The IntrinsicCall whose reference_accesses to compute.
     :type node:  :py:class:`psyclone.psyir.nodes.IntrinsicCall`
@@ -305,7 +305,7 @@ def _reference_accesses_all_reads_with_optional_kind(
         accesses = arg.reference_accesses()
         if kind_index == i:
             if isinstance(arg, Reference):
-                _convert_argument_to_type_info(arg, accesses)
+                _convert_argument_to_constant(arg, accesses)
         reference_accesses.update(accesses)
 
     return reference_accesses
@@ -1938,7 +1938,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_named_arguments=["coarray"],
-                    type_info_named_arguments=["kind"],
+                    constant_named_arguments=["kind"],
                 )
             ),
         )
@@ -2997,7 +2997,7 @@ class IntrinsicCall(Call):
                     node,
                     inquiry_named_args=["array"],
                     read_named_args=["dim"],
-                    type_info_named_args=["kind"],
+                    constant_named_args=["kind"],
                 )
             ),
         )
@@ -3018,7 +3018,7 @@ class IntrinsicCall(Call):
                     node,
                     inquiry_named_args=["coarray"],
                     read_named_args=["dim"],
-                    type_info_named_args=["kind"],
+                    constant_named_args=["kind"],
                 )
             ),
         )
@@ -3663,7 +3663,7 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    type_info_named_args=["mold"],
+                    constant_named_args=["mold"],
                 )
             ),
         )
@@ -3700,7 +3700,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     read_named_args=["x", "round"],
-                    type_info_named_args=["mold"],
+                    constant_named_args=["mold"],
                 )
             ),
         )
@@ -4195,7 +4195,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_named_args=["source"],
-                    type_info_named_args=["kind"],
+                    constant_named_args=["kind"],
                 )
             ),
         )
@@ -4316,7 +4316,7 @@ class IntrinsicCall(Call):
                     node,
                     inquiry_named_args=["array"],
                     read_named_args=["dim"],
-                    type_info_named_args=["kind"],
+                    constant_named_args=["kind"],
                 )
             ),
         )
@@ -4424,7 +4424,7 @@ class IntrinsicCall(Call):
                 _compute_reference_accesses(
                     node,
                     inquiry_named_args=["a"],
-                    type_info_named_args=["kind"],
+                    constant_named_args=["kind"],
                 )
             ),
         )
@@ -4667,7 +4667,7 @@ class IntrinsicCall(Call):
                     node,
                     inquiry_named_args=["array"],
                     read_named_args=["dim"],
-                    type_info_named_args=["kind"],
+                    constant_named_args=["kind"],
                 )
             ),
         )
@@ -4688,7 +4688,7 @@ class IntrinsicCall(Call):
                     node,
                     inquiry_named_args=["array"],
                     read_named_args=["dim"],
-                    type_info_named_args=["kind"],
+                    constant_named_args=["kind"],
                 )
             ),
         )

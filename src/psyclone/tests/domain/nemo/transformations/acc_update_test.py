@@ -320,7 +320,7 @@ def test_codeblock(fortran_reader, fortran_writer):
     acc_update.apply(schedule)
     assert isinstance(schedule[1], CodeBlock)
     code = fortran_writer(schedule)
-    assert ('''  !$acc update if_present host(jpi,jpj,jpk,tmask)\n\n'''
+    assert ('''  !$acc update if_present host(jpi,jpj,jpk)\n\n'''
             '''  ! PSyclone CodeBlock (unsupported code) reason:\n'''
             '''  !  - Unsupported statement: Open_Stmt\n'''
             '''  !  - Unsupported statement: Read_Stmt\n'''
