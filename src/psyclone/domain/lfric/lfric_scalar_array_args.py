@@ -205,7 +205,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                             # Replace the symbol with itself to ensure
                             # the ScalarArray is generated after the
                             # dimensions array to avoid compilation errors
-                            self.symtab.swap(array_symbol,array_symbol)
+                            self.symtab.swap(array_symbol, array_symbol)
                         else:
                             # For stub generation, create the symbol
                             array_symbol = self.symtab.find_or_create(
