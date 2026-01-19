@@ -43,18 +43,17 @@ from psyclone.transformations import MoveTrans, TransformationError
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 from psyclone.psyir.transformations import (InlineTrans, LoopFuseTrans,
                                             LoopTiling2DTrans)
-from psyclone.psyir.nodes import (Assignment, Call, IntrinsicCall, Loop,
-                                  Reference, Routine)
+from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
+                                  IntrinsicCall, Loop, Reference, Routine)
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''A complex program that inline all loops, moves the scalar assignment to
     the top so that all loops are next to each other. This allows loops to
     be fused then. After fusion, OpenMP parallelisation is added. Once
     parallelisation has been added, apply loop tiling.
 
     :param psyir: the PSyIR of the provided file.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
 
