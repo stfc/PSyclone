@@ -44,17 +44,17 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern, GOLoop
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import FileContainer
 
 from fuse_loops import trans as fuse_trans
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
-    Take the supplied psy object, and apply module inlingin. Then add
+    Take the supplied PSyIR object, and apply module inlining. Then add
     'omp do' to all loops, and add an outer `omp parallel`.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     omp_parallel = OMPParallelTrans()

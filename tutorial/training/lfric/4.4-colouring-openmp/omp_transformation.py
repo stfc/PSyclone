@@ -31,25 +31,30 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-## Author: J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
 
 '''This script applies OpenMP parallelisation to each loop.
 '''
 
-from psyclone.psyir.nodes import Loop
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import FileContainer, Loop
 from psyclone.transformations import LFRicOMPParallelLoopTrans
 
 
-def trans(psy):
-    '''PSyclone transformation script for the dynamo0p3 api to apply
-    OpenMP parallel to all loops.'''
+def trans(psyir: FileContainer) -> None:
+    """
+    PSyclone transformation script for the LFRic api to apply
+    OpenMP parallel to all loops.
+
+    :param psyir: the PSyIR of the PSy-layer.
+
+    """
 
     otrans = LFRicOMPParallelLoopTrans()
 
     # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
-        print(f"Transforming invoke '{invoke.name}':")
-        schedule = invoke.schedule
+    for schedule in psyir.walk(InvokeSchedule):
+        print(f"Transforming invoke '{schedule.name}':")
         # Apply OpenMP to each of the loops
         for loop in schedule.walk(Loop):
             otrans.apply(loop)

@@ -5,7 +5,7 @@ F90FLAGS ?= -Wall -g -O0 -fopenmp
 # arguments passed to the first invocation of Make. The last entry
 # in this list is the current file.
 this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
-# PSyclone directory is up two from this file
+# PSyclone directory is up three from this file
 ROOT_DIR := $(abspath $(dir $(this_file))../../..)
 
 # The GOL directory is used for KGO in testing

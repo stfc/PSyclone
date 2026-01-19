@@ -40,15 +40,15 @@ kernels.
 '''
 
 from psyclone.gocean1p0 import GOLoop
+from psyclone.psyir.nodes import FileContainer
 from psyclone.psyir.transformations import ValueRangeCheckTrans
 
 
-def trans(psyir):
+def trans(psyir: FileContainer):
     '''
-    Take the supplied psy object, and apply 'omp parallel do' to all loops.
+    Take the supplied PSyIR object, and apply 'omp parallel do' to all loops.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     value_range_check = ValueRangeCheckTrans()
