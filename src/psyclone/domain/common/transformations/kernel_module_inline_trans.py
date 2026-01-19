@@ -464,9 +464,6 @@ class KernelModuleInlineTrans(Transformation):
         # may already be in use, but the equality check below guarantees
         # that if it exists it is only valid when it references the exact same
         # implementation.
-        # TODO #2054 we wouldn't have to deal with any interface symbol if we
-        # could use Call.get_callee() to get the actual kernel implementation
-        # that is called.
         codes_to_inline = node.get_callees()
         interface_sym = None
         if len(codes_to_inline) > 1:
@@ -510,39 +507,13 @@ class KernelModuleInlineTrans(Transformation):
             name_map[code_to_inline.name] = new_sym
 
         if interface_sym:
-            # Deal with the interface symbol - remove any existing import and
-            # then make sure the local symbol is private.
-            #if caller_name != interface_sym.name:
-            #    # If the interface was originally renamed on import, then we
-            #    # must create a new symbol with the local name.
-            #    new_sym = GenericInterfaceSymbol(
-            #        caller_name, routines=[(RoutineSymbol("dummy"), True)])
-            #    new_sym.copy_properties(interface_sym)
-            #else:
-            #    # Otherwise we can use the existing symbol.
-            #    new_sym = interface_sym
-            new_sym = GenericInterfaceSymbol(
-                interface_sym.name+"_inlined_",
-                routines=[(sym, True) for sym in name_map.values()],
-                visibility=Symbol.Visibility.PRIVATE)
+            # Deal with the interface symbol - create a new, local
+            # private version.
             new_sym = container.symbol_table.new_symbol(
                 interface_sym.name+"_inlined_",
                 symbol_type=GenericInterfaceSymbol,
                 routines=[(sym, True) for sym in name_map.values()],
                 visibility=Symbol.Visibility.PRIVATE)
-            #interface_sym.visibility = Symbol.Visibility.PRIVATE
-            # Have to update the RoutineSymbols it contains as we've re-named
-            # the inlined routines.
-            #interface_sym.routines = [(sym, True) for sym in name_map.values()]
-            #interface_sym.replace_symbols_using(container.symbol_table)
-        #else:
-            # No interface but was the original routine symbol renamed
-            # on import?
-            #if caller_name != external_callee_name:
-            #    # It was so we need to rename the inlined routine.
-            #    sym = node.scope.symbol_table.lookup(external_callee_name)
-            #    table = sym.find_symbol_table(node)
-            #    table.rename_symbol(sym, caller_name)
 
         # Update the Kernel to point to the updated PSyIR and set
         # the module-inline flag to avoid generating the kernel imports
@@ -565,4 +536,5 @@ class KernelModuleInlineTrans(Transformation):
                     # pylint: disable=protected-access
                     kern._schedules = updated_routines
         else:
+            # Update the Call to point to the inlined routine.
             node.routine.symbol = new_sym

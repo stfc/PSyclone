@@ -447,7 +447,8 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
         "compute_cv_code_inlined_")
     assert routine_sym
     assert routine_sym.visibility == Symbol.Visibility.PRIVATE
-    assert kern_call.ancestor(Container).children[1].name == "compute_cv_code_inlined_"
+    assert (kern_call.ancestor(Container).children[1].name ==
+            "compute_cv_code_inlined_")
     assert (kern_call.ancestor(Container).symbol_table.
             lookup("compute_cv_code_inlined_").is_modulevar)
 
@@ -528,19 +529,14 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
             # a CodeBlock.
             artrans.apply(coded_kern, options={"force": True})
     output = str(psy.gen).lower()
-    assert "subroutine mixed_code_32" in output
+    assert "subroutine mixed_code_32_inlined_" in output
     assert output.count("!$acc routine seq") == 2
-    assert "subroutine mixed_code_64" in output
-    # Since we don't currently rename module-inlined kernels (TODO #2846),
-    # module-inlining just one instance means that calls to that same Kernel
-    # throughout the whole module use the newly-inlined version.
-    assert ("""subroutine invoke_1(scalar_r_bl, field_r_bl, \
-operator_r_def, f1, f2, m1, a, m2, istp, qr)
-    use function_space_mod, only : basis, diff_basis
-    use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, \
-quadrature_xyoz_type
-    use testkern_qr_mod, only : testkern_qr_code""" in output)
-    assert "mixed_kernel_mod" not in output
+    assert "subroutine mixed_code_64_inlined_" in output
+    assert "call mixed_code_inlined_" in output
+    # We've only module-inlined one instance so the other calls to that same
+    # Kernel should use the original version.
+    assert "mixed_kernel_mod" in output
+    assert output.count("call mixed_code(") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -1050,36 +1046,37 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     intrans.apply(calls[0])
     routines = container.walk(Routine)
     assert len(routines) == 2
-    assert routines[0].name in ["a_sub_inlined_", "my_sub_inlined_"]
-    assert routines[1].name in ["a_sub_inlined_", "my_sub_inlined_"]
+    assert routines[0].name in ["a_sub", "my_sub_inlined_"]
+    assert routines[1].name in ["a_sub", "my_sub_inlined_"]
     # Local copy of routine must be private and in Container symbol table.
     rsym = container.symbol_table.lookup("my_sub_inlined_")
     assert rsym.visibility == Symbol.Visibility.PRIVATE
     output = fortran_writer(psyir)
     assert "subroutine a_sub" in output
-    assert "subroutine my_sub" in output
-    assert "use my_mod, only : my_interface, my_other_sub\n" in output
+    assert "subroutine my_sub_inlined_" in output
+    # USE statement left unchanged.
+    assert "use my_mod, only : my_interface, my_other_sub, my_sub\n" in output
 
     # Module inline the target of the second call.
     intrans.apply(calls[1])
     # Local copy of routine must be private and in Container symbol table.
-    rsym = container.symbol_table.lookup("my_other_sub")
+    rsym = container.symbol_table.lookup("my_other_sub_inlined_")
     assert rsym.visibility == Symbol.Visibility.PRIVATE
     output = fortran_writer(psyir)
-    assert "use my_mod, only : my_interface\n" in output
+    # USE statement left unchanged.
+    assert "use my_mod, only : my_interface, my_other_sub, my_sub\n" in output
 
-    # Finally, inline the call to the interface. This should then remove all
-    # imports from 'my_mod'.
+    # Finally, inline the call to the interface.
     intrans.apply(calls[2])
     routines = container.walk(Routine)
     output = fortran_writer(psyir)
-    assert "use my_mod" not in output
-    assert "subroutine my_other_sub" in output
-    assert "interface my_interface" in output
+    assert "use my_mod, only : my_interface, my_other_sub, my_sub\n" in output
+    assert "subroutine my_other_sub_inlined_" in output
+    assert "interface my_interface_inlined_" in output
     # Check that the calls themselves are unaffected.
-    assert "call my_sub(a)" in output
-    assert "call my_other_sub(b)" in output
-    assert "call my_interface(b)" in output
+    assert "call my_sub_inlined_(a)" in output
+    assert "call my_other_sub_inlined_(b)" in output
+    assert "call my_interface_inlined_(b)" in output
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -1119,15 +1116,12 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
     intrans.apply(call)
 
     assert len(prog_psyir.children) == 2
-    assert set(child.name for child in prog_psyir.children) == {"my_sub",
-                                                                "my_prog"}
+    assert set(child.name for child
+               in prog_psyir.children) == {"my_sub_inlined_", "my_prog"}
     output = fortran_writer(prog_psyir)
 
-    assert "use my_mod" not in output
-
-    # Now that we've 'privatised' the target of the call, the code can be
-    # compiled standalone.
-    assert Compile(tmpdir).string_compiles(output)
+    assert "use my_mod" in output
+    # Can't compile because of the use statement.
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
@@ -1172,23 +1166,19 @@ def test_mod_inline_from_wildcard_import(fortran_reader, fortran_writer,
     calls = prog_psyir.walk(Call)
     intrans.apply(calls[0])
     output = fortran_writer(prog_psyir)
-    # Wildcard import is preserved but the original routine is renamed
-    # to avoid a clash. This renaming avoids clashing with any pre-existing
-    # symbols.
-    assert "use my_mod, old_my_sub_1=>my_sub" in output
-    assert "call my_sub" in output
+    # Wildcard import is preserved
+    assert "use my_mod\n" in output
+    assert "call my_sub_inlined_" in output
     assert ('''end program my_prog
-subroutine my_sub(arg)''' in output)
-    # Two calls in the same scope to a routine of the same name must be to
-    # the same RoutineSymbol
+subroutine my_sub_inlined_(arg)''' in output)
     new_calls = prog_psyir.walk(Call)
-    assert new_calls[0].routine.symbol is new_calls[1].routine.symbol
+    assert new_calls[0].routine.symbol is not new_calls[1].routine.symbol
     # Apply the transformation to the second call. This should fail to validate
     # as there's nothing to do.
-    with pytest.raises(TransformationError) as err:
-        intrans.validate(calls[1])
-    assert ("The target of 'call my_sub(b)' is already module inlined."
-            in str(err.value))
+    intrans.apply(calls[1])
+    output = fortran_writer(prog_psyir)
+    assert "subroutine my_sub_inlined__1" in output
+    assert "call my_sub_inlined__1(" in output
     # We can't compile this because of the use statement.
 
 
@@ -1240,20 +1230,21 @@ def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader,
     calls = prog_psyir.walk(Call)
     intrans.apply(calls[0])
     assert (do_it.walk(Call)[0].routine.symbol is
-            container.symbol_table.lookup("my_sub"))
+            container.symbol_table.lookup("my_sub_inlined_"))
     # Call in second subroutine still refers to imported Symbol in local table.
     again = container.find_routine_psyir("and_again")
     assert (again.walk(Call)[0].routine.symbol is
             again.symbol_table.lookup("my_sub", scope_limit=again))
     # Apply the transformation to the call in the second routine.
     intrans.apply(calls[1])
-    # Now it should refer to the top-level, inlined RoutineSymbol.
-    assert calls[1].routine.symbol is container.symbol_table.lookup("my_sub")
-    assert "my_mod" not in again.symbol_table
-    assert len(container.walk(Routine)) == 3
+    # Now it should refer to another top-level, inlined RoutineSymbol.
+    assert calls[1].routine.symbol is container.symbol_table.lookup(
+        "my_sub_inlined__1")
+    assert "my_mod" in again.symbol_table
+    assert len(container.walk(Routine)) == 4
     # Cannot compile this because we still have a wildcard import from my_mod.
     output = fortran_writer(prog_psyir)
-    assert "use my_mod, old_my_sub_1=>my_sub" in output
+    assert "use my_mod" in output
 
 
 def test_mod_inline_all_calls_updated(monkeypatch, fortran_reader):
@@ -1298,12 +1289,13 @@ def test_mod_inline_all_calls_updated(monkeypatch, fortran_reader):
     for call in calls:
         assert call.routine.symbol is rt_sym0
     intrans.apply(calls[0])
-    # Since all calls previously referenced the same symbol, they should now
-    # all reference the new one.
-    rt_sym1 = container.symbol_table.lookup("my_sub")
+    # All calls previously referenced the same symbol but now the first one
+    # reference the new one.
+    rt_sym1 = container.symbol_table.lookup("my_sub_inlined_")
     assert rt_sym0 is not rt_sym1
-    for call in calls:
-        assert call.routine.symbol is rt_sym1
+    assert calls[0].routine.symbol is rt_sym1
+    for call in calls[1:]:
+        assert call.routine.symbol is rt_sym0
 
 
 def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
@@ -1354,11 +1346,8 @@ def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     csym = calls[0].scope.symbol_table.lookup("my_mod")
     rsym.interface = ImportInterface(csym)
     intrans.apply(calls[0])
-    new_rt = container.symbol_table.lookup("my_sub")
+    new_rt = container.symbol_table.lookup("my_sub_inlined_")
     assert not (new_rt.is_import or new_rt.is_unresolved)
-    ctr_sym = container.symbol_table.lookup("my_mod")
-    (isym,) = container.symbol_table.symbols_imported_from(ctr_sym)
-    assert isym.interface.orig_name == "my_sub"
 
 
 def test_mod_inline_shared_wildcard_import(monkeypatch, tmpdir):
@@ -1412,7 +1401,8 @@ def test_mod_inline_shared_wildcard_import(monkeypatch, tmpdir):
     # Check that eps20 has the correct interface in the inlined Routine.
     # The imports in the inlined routine should have been followed and
     # hence 'eps20' resolved.
-    inlined = container.find_routine_psyir("my_sub", allow_private=True)
+    inlined = container.find_routine_psyir("my_sub_inlined_",
+                                           allow_private=True)
     eps_sym = inlined.symbol_table.lookup("eps20")
     assert not eps_sym.is_unresolved
     assert eps_sym.is_import
