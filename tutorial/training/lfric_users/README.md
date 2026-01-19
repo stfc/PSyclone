@@ -15,6 +15,12 @@ with 0.
 
 ![FEM mesh](../images/fem-grid.svg "Simplified FEM mesh")
 
+New:
+
+<img src="..//images/fem-grid.svg" alt="FEM mesh" title="Simplified FEM mesh"
+     style="max-width: 360px;">
+
+
 Then the kernel `summation_w0_to_w3_kernel` is called, which adds the 8 neighbouring
 vertices of an element up (resulting in 8 for all the finite elements). The summation
 for the top left element is indicated in the image with dashed lines:
