@@ -116,6 +116,7 @@ program main
     vector_space_ptr_3 => vector_space_3
     call field_0%initialise( vector_space = vector_space_ptr_0, name="field_0" )
     call field_3%initialise( vector_space = vector_space_ptr_3, name="field_3" )
+    ! There is no NO_setval_c builtin or kernel, so this will cause an error:
     call invoke( name = 'Initialise_fields',         &
                  NO_setval_c( field_3,     0.0_r_def ), &
                  setval_c( field_0,     1.0_r_def )  &
@@ -124,6 +125,6 @@ program main
 
     field_0_proxy = field_0%get_proxy()
 
-    print *,"minmax of field1", field_0_proxy % get_min(), field_0_proxy % get_max()!
+    print *,"minmax of field1", field_0_proxy % get_min(), field_0_proxy % get_max()
 
 end program main

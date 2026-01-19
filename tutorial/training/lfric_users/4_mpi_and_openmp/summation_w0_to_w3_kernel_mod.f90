@@ -57,8 +57,8 @@ module summation_w0_to_w3_kernel_mod
 
 contains
 
-    ! This kernel adds all 8 values from the field on W0 to the corresponding
-    ! element in W3. It assumes lowest order finite elements.
+    ! This kernel adds all values from the field on W0 to the corresponding
+    ! element in W3.
 
     SUBROUTINE summation_w0_to_w3_kernel_code(nlayers, field_w3, field_w0, ndf_w3, &
                                               undf_w3, map_w3, ndf_w0, undf_w0, map_w0)

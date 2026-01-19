@@ -3,7 +3,7 @@
 # in this list is the current file.
 this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 
-# PSyclone directory is up two from this file
+# PSyclone directory is up three from this file
 ROOT_DIR := $(abspath $(dir $(this_file))../../..)
 PSYCLONE = psyclone --config $(ROOT_DIR)/config/psyclone.cfg --psykal-dsl lfric
 

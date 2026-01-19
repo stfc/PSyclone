@@ -42,7 +42,7 @@ from psyclone.transformations import LFRicOMPParallelLoopTrans
 
 
 def trans(psyir):
-    '''PSyclone transformation script for the dynamo0p3 api to apply
+    '''PSyclone transformation script for the LFRic api to apply
     OpenMP parallel to all loops.'''
 
     otrans = LFRicOMPParallelLoopTrans()

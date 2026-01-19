@@ -33,19 +33,25 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''This script applies OpenMP parallelisation to each loop.
-'''
+"""
+This script applies colouring if required, and then OpenMP parallelisation
+to each loop.
+"""
 
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import FileContainer, Loop
 from psyclone.transformations import (LFRicOMPParallelLoopTrans,
                                       LFRicColourTrans)
 
 
-def trans(psyir):
-    '''PSyclone transformation script for the dynamo0p3 api to apply
-    OpenMP parallel to all loops.'''
+def trans(psyir: FileContainer) -> None:
+    """
+    PSyclone transformation script for the LFRic API to apply
+    colouring if required, and then OpenMP parallel to all loops.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    """
 
     otrans = LFRicOMPParallelLoopTrans()
     const = LFRicConstants()

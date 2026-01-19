@@ -56,6 +56,7 @@ run: compile
 test: transform
 
 test_run: compile
+	cat main_alg_psy.f90 | grep -i "omp *parallel *do *default"  >/dev/null
 	$(MAKE) run | grep " minmax of field1"
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)

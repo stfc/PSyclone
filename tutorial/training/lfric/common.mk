@@ -9,7 +9,7 @@ F90FLAGS ?= -Wall -g -O0
 # arguments passed to the first invocation of Make. The last entry
 # in this list is the current file.
 this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
-# PSyclone directory is up two from this file
+# PSyclone directory is up three from this file
 ROOT_DIR := $(abspath $(dir $(this_file))../../..)
 
 # Path of the included simplified LFRic infrastructure files:
@@ -59,7 +59,8 @@ test-default: $(EXE)
 clean-default:
 	rm -f *.o $(EXE) *.mod time_step_alg_mod.f90 time_step_alg_mod_psy.f90
 
-# The target allclean cleans all also all remote dependencies
+# The target allclean cleans the local directory, and then also all
+# remote dependencies.
 allclean-default: clean
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
 

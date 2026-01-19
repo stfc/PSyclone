@@ -34,8 +34,8 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 # Set to omp_colour_transformation.py for the working solution
-#TRANS= ./omp_colour_transformation.py
-TRANS ?= ./omp_transformation.py
+#SCRIPT= ./omp_colour_transformation.py
+SCRIPT ?= ./omp_transformation.py
 
 API=lfric
 OBJ = main_alg_psy.o main_alg.o summation_w0_to_w0_kernel_mod.o
@@ -55,7 +55,7 @@ transform:
 compile: $(EXE)
 
 # If we want to run the binary, use the script that adds colour transformation:
-test_run: TRANS= ./omp_colour_transformation.py
+test_run: SCRIPT= ./omp_colour_transformation.py
 
 test_run: compile
 	@# If OMP_NUM_THREADS is not define, set it to 3:
@@ -76,8 +76,8 @@ allclean: clean
 
 # This rule invokes the same PSyclone command, but it won't run if
 # the output file already exist, which is useful to avoid recompilation.
-main_alg_psy.f90: main_alg.x90 $(TRANS)
-	$(PSYCLONE) -s $(TRANS) -nodm -l output \
+main_alg_psy.f90: main_alg.x90 $(SCRIPT)
+	$(PSYCLONE) -s $(SCRIPT) -nodm -l output \
 		     -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 # For PSyclone CI:

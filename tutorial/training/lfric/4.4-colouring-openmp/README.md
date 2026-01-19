@@ -20,9 +20,11 @@ Running PSyclone with the OpenMP transformation script:
  
 (or run `make transform`) will raise an exception:
 
-    Transformation Error: Error in DynamoOMPParallelLoopTrans transformation. \
+    Transformation Error: Error in LFRicOMPParallelLoopTrans transformation. \
     The kernel has an argument with INC access. Colouring is required.
 
+Note that there is actually a builtin-operation that will do this operation
+for you without the need to explicitly implement it.
 
 ## Hands-on
 

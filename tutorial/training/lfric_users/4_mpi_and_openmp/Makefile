@@ -52,6 +52,9 @@ compile: $(EXEC)
 run: compile
 	@echo =============================================
 	@echo Warning: this example does not run as MPI job
+	@echo It would just start individual, unconnected
+	@echo processes (since it does not call MPI_Init,
+	@echo nor does it setup a domain decomposition).
 	@echo =============================================
 	./$(EXEC)
 
