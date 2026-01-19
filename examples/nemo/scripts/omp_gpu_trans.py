@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -109,6 +109,7 @@ OFFLOADING_ISSUES = [
     "dtatsd.f90",
     "trcatf.f90",
     "stp2d.f90",
+    "trabbc.f90",
 ]
 
 ASYNC_ISSUES = [

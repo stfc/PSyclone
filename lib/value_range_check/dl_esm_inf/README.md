@@ -81,7 +81,7 @@ $(F90)  ... -L$(PSYDATA_LIB_DIR)/value_range_check/dl_esm_inf -l_value_range_che
 
 BSD 3-Clause License
 
-Copyright (c) 2024-2025, Science and Technology Facilities Council.
+Copyright (c) 2024-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
