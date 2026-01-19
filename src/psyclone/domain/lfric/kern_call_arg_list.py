@@ -988,24 +988,19 @@ class KernCallArgList(ArgOrdering):
             if loop_type == "cells_in_tile":
                 tile_sym = self._symtab.find_or_create_integer_symbol(
                     "tile", tag="tile_loop_idx")
-                array_ref = self.get_array_reference(
-                    self._kern.tilecolourmap,
-                    [Reference(colour_sym), Reference(tile_sym),
-                     Reference(cell_sym)],
-                    tag="tmap" if self._kern.is_intergrid else None)
-                if var_accesses is not None:
-                    var_accesses.add_access(Signature(array_ref.name),
-                                            AccessType.READ,
-                                            self._kern)
+                map_sym = self._symtab.lookup(self._kern.tilecolourmap)
+                array_ref = ArrayReference.create(
+                    map_sym, [Reference(colour_sym), Reference(tile_sym),
+                              Reference(cell_sym)])
             else:
                 symbol = self._kern.colourmap
                 array_ref = ArrayReference.create(
-                        symbol,
-                        [Reference(colour_sym), Reference(cell_sym)])
-                if var_accesses is not None:
-                    var_accesses.add_access(Signature(array_ref.name),
-                                            AccessType.READ,
-                                            self._kern)
+                        symbol, [Reference(colour_sym), Reference(cell_sym)])
+
+            if var_accesses is not None:
+                var_accesses.add_access(Signature(array_ref.name),
+                                        AccessType.READ,
+                                        self._kern)
 
             return (array_ref.debug_string(), array_ref)
 

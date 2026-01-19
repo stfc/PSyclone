@@ -75,12 +75,12 @@ subroutine my_sub
     integer :: a, b
 
     ! Comment on do loop
-    !$omp parallel do
+    !$ompx parallel do
     do a = 1, 10
         ! Comment on assignment
         b = a
     end do
-    !$omp end parallel do
+    !$ompx end parallel do
 end subroutine my_sub
 '''
 

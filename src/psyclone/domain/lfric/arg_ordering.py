@@ -249,8 +249,8 @@ class ArgOrdering:
             intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
 
         if not symbol:
-            symbol = self._symtab.find_or_create(
-                array_name, tag=tag, symbol_type=DataSymbol,
+            symbol = self._symtab.find_or_create_tag(
+                tag=tag, root_name=array_name, symbol_type=DataSymbol,
                 datatype=ArrayType(
                     intrinsic_type,
                     [ArrayType.Extent.DEFERRED for _ in indices]))

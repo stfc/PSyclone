@@ -1,7 +1,5 @@
-! -----------------------------------------------------------------------------
-! BSD 3-Clause License
 !
-! Copyright (c) 2017-2026, Science and Technology Facilities Council
+! Copyright (c) 2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,25 +29,30 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author: A. B. G. Chalk, STFC Daresbury Laboratory
 
-program any_space_example
+Program simple_example
 
-  ! Description: single kernel call in an invoke where the field and operator
-  ! arguments are specified on any_space with basis and differential basis
-  ! functions on any_space for quadrature rule.
-  use field_mod,                only : field_type
-  use operator_mod,             only : operator_type
-  use quadrature_xyoz_mod,      only : quadrature_xyoz_type
-  use testkern_any_space_4_mod, only : testkern_any_space_4_type
+    character, dimension(13), parameter :: j = "some_test_par"
+    integer :: i
+    integer, dimension(1000) :: vals
 
-  implicit none
+    do i = 1, 1000
+        vals(i) = i
+    end do
 
-  type(field_type)           :: a, a_field_with_a_very_long_name
-  type(operator_type)        :: b, c, an_operator_with_a_very_long_name, e
-  type(quadrature_xyoz_type) :: qr
+    ! Don't parallelise this next loop due to the string comparison
+    !$my_dir no_par
+    do i = 2, 1000
+        if(j(3) == "m") then
+            vals(i) = vals(i-1) + 3
+        else
+            vals(i) = vals(i) * 2
+        end if
+    end do
 
-  call invoke(testkern_any_space_4_type(a, b, c, an_operator_with_a_very_long_name, e, a_field_with_a_very_long_name, qr))
+    do i = 1, 1000
+        vals(i) = vals(i) / 2
+    end do
 
-end program any_space_example
+End Program simple_example
