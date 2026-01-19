@@ -23,19 +23,17 @@ $(EXE): $(OBJ)
 
 # This will need an additional flag when using omp_parallel.py
 # to disable backend validation (see README.md)
-%.f90: %.x90 $(SCRIPT)
-	$(PSYCLONE) -s ./$(SCRIPT) -o $*.f90 $<
+$(PROCESSED_SRC): %.processed.f90: %.f90 $(SCRIPT)
+	$(PSYCLONE) --backend-disable-validation -s ./$(SCRIPT) -o $*.processed.f90 $<
 
 %.o: %.f90
 	$(F90) -c $(F90FLAGS) $<
 
-
 # Dependencies:
 # -------------
-$(OBJ): $(INF_LIB)
-gol.o: read_config_mod.o time_step_mod.o
-time_step_mod.o: combine_mod.o compute_born_mod.o compute_die_mod.o \
-	count_neighbours_mod.o output_field_mod.o
+gol.o: read_config_mod.o time_step_mod.processed.o
+time_step_mod.processed.o: combine_mod.processed.o compute_born_mod.processed.o compute_die_mod.processed.o \
+	count_neighbours_mod.processed.o output_field_mod.o
 
 clean:
-	rm -f $(OBJ) $(EXE) *.mod $(SRC_X90:%.x90=%.f90)
+	rm -f $(OBJ) $(EXE) *.mod $(PROCESSED_SRC)

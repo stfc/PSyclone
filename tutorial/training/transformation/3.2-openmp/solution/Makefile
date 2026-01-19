@@ -62,7 +62,6 @@ endif
 
 # Dependencies:
 # -------------
-$(OBJ): $(INF_LIB)
 gol.o: read_config_mod.o time_step_mod.processed.o
 time_step_mod.processed.o: combine_mod.processed.o compute_born_mod.processed.o compute_die_mod.processed.o \
 	count_neighbours_mod.processed.o output_field_mod.o
