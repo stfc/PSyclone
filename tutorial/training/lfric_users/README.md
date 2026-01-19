@@ -18,7 +18,7 @@ with 0.
 New:
 
 <img src="..//images/fem-grid.svg" alt="FEM mesh" title="Simplified FEM mesh"
-     style="max-width: 360px;">
+     style="width: 360;">
 
 
 Then the kernel `summation_w0_to_w3_kernel` is called, which adds the 8 neighbouring
