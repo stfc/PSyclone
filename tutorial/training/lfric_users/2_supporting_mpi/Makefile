@@ -48,6 +48,8 @@ transform:
 compile: $(EXEC)
 
 run: compile
+	@# Turning the examples to work with MPI would required adding Yaxt
+	@# as dependency. So, the examples are all compiled without MPI support.
 	@echo =============================================
 	@echo Warning: this example does not run as MPI job
 	@echo It would just start individual, unconnected

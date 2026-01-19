@@ -59,9 +59,8 @@ def trans(psyir: FileContainer) -> None:
 
     # Loop over all of the Invokes in the PSy object to see if
     # colouring needs to be applied:
-    for invoke in psy.invokes.invoke_list:
-        print(f"Transforming invoke '{invoke.name}':")
-        schedule = invoke.schedule
+    for schedule in psyir.walk(InvokeSchedule):
+        print(f"Transforming invoke '{schedule.name}':")
         for loop in schedule.walk(Loop):
             if loop.field_space.orig_name \
                     not in const.VALID_DISCONTINUOUS_NAMES \

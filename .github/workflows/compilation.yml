@@ -164,7 +164,7 @@ jobs:
         # needs a openacc directive, which fails if the rest of the code is not on GPU
         # Enable OpenMP on CPU (for some run tests)
         USE_GPU=no F90=mpif90 F90FLAGS="-mp -Minfo=all" make -C tutorial/training test_run
-        # Delete any previous foles, and compile the openacc example with openacc:
+        # Delete any previous files, and compile the openacc example with openacc:
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training/gocean/2.14-GameOfLife-openacc/solution allclean
         USE_GPU=yes F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training/gocean/2.14-GameOfLife-openacc/solution test_run
         make -C tutorial/practicals/generic/4_openacc acc_test
