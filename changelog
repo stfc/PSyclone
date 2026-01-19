@@ -1,5 +1,8 @@
-   22) PR #3255 for #3251. Identify uncategorised directives as
+   23) PR #3255 for #3251. Identify uncategorised directives as
    UnknownDirective (instead of CodeBlock) when possible.
+
+   22) PR #3286 for #3207. Update the LFRic integration tests to use the git
+   repos.
 
    21) PR #3264 for #3259. Shorten function_space names if they are above a
    certain threshold. The Fortran backend checks for names that are too long.
