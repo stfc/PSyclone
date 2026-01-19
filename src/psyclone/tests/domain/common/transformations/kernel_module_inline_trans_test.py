@@ -950,48 +950,6 @@ def test_module_inline_interface_with_renamed_import(monkeypatch,
     assert "subroutine my_sub_inlined_(arg)" in result
 
 
-def test_rm_imported_routine_symbol(fortran_reader):
-    '''
-    Tests for the _rm_imported_routine_symbol() utility method.
-    '''
-    intrans = KernelModuleInlineTrans()
-    table = SymbolTable()
-    # Does nothing if the symbol is not an import.
-    here = table.new_symbol("here")
-    intrans._rm_imported_routine_symbol(here, None, table)
-    assert "here" in table
-    csym = table.new_symbol("from_here", symbol_type=ContainerSymbol)
-    # Update the symbol so that it is imported from a Container.
-    here.interface = ImportInterface(csym)
-    intrans._rm_imported_routine_symbol(here, None, table)
-    # Both it and the Container should have been removed.
-    assert "here" not in table
-    assert "from_here" not in table
-    # Repeat for the case where the Container has a wildcard import.
-    csym = table.new_symbol("from_here", symbol_type=ContainerSymbol)
-    psyir = fortran_reader.psyir_from_source('''
-    module from_here
-    contains
-      subroutine here
-      end subroutine here
-    end module from_here
-    ''')
-    sched = psyir.walk(Routine)[0]
-    csym.wildcard_import = True
-    here = table.new_symbol("here", interface=ImportInterface(csym))
-    intrans._rm_imported_routine_symbol(here, sched, table)
-    # Only the Symbol should have been removed (not the ContainerSymbol).
-    assert "here" not in table
-    assert "from_here" in table
-    # There should be an import of a new symbol that prevents a clash between
-    # an inlined routine and the imported symbol of the same name.
-    assert table.lookup("old_here").interface.orig_name == "here"
-    # Repeat - we should not get another imported symbol.
-    here = table.new_symbol("here", interface=ImportInterface(csym))
-    intrans._rm_imported_routine_symbol(here, sched, table)
-    assert len(table.symbols_imported_from(csym)) == 1
-
-
 @pytest.mark.parametrize(
     "mod_use, sub_use",
     [("use my_mod, only: my_sub, my_other_sub, my_interface", ""),
