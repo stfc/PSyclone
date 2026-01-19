@@ -60,7 +60,7 @@ from psyclone.psyir.nodes.intrinsic_call import (
     _add_read_argument,
     _add_write_argument,
     _add_readwrite_argument,
-    _add_typeinfo_argument,
+    _add_constant_argument,
     _add_inquiry_argument,
     _compute_reference_accesses,
 )
@@ -175,13 +175,13 @@ def test_add_readwrite_argument():
     assert vam[sig][0].access_type == AccessType.READ
 
 
-def test_add_typeinfo_argument():
-    """ Test the _add_typeinfo_argument helper function."""
+def test_add_constant_argument():
+    """ Test the _add_constant_argument helper function."""
     # Test we get expected behaviour for a Reference input.
     symbol = DataSymbol("a", INTEGER_TYPE)
     vam = VariablesAccessMap()
     ref = Reference(symbol)
-    _add_typeinfo_argument(ref, vam)
+    _add_constant_argument(ref, vam)
 
     sig, _ = ref.get_signature_and_indices()
     assert len(vam) == 1
@@ -191,7 +191,7 @@ def test_add_typeinfo_argument():
     # Test we skip for a Literal
     vam = VariablesAccessMap()
     lit = Literal("1", INTEGER_TYPE)
-    _add_typeinfo_argument(lit, vam)
+    _add_constant_argument(lit, vam)
     assert len(vam) == 0
 
 

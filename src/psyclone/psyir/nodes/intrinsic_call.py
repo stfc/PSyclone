@@ -131,7 +131,7 @@ def _add_readwrite_argument(
     var_acc_map.add_access(sig, AccessType.READWRITE, argument)
 
 
-def _add_typeinfo_argument(
+def _add_constant_argument(
     argument: DataNode, var_acc_map: VariablesAccessMap
 ):
     """Adds a constant access for argument into var_acc_map
@@ -220,7 +220,7 @@ def _compute_reference_accesses(
         for ind in constant_indices:
             if ind < len(node.arguments) and node.argument_names[ind] is None:
                 arg = node.arguments[ind]
-                _add_typeinfo_argument(arg, reference_accesses)
+                _add_constant_argument(arg, reference_accesses)
     if inquiry_indices:
         for ind in inquiry_indices:
             if ind < len(node.arguments) and node.argument_names[ind] is None:
@@ -245,7 +245,7 @@ def _compute_reference_accesses(
             if name not in node.argument_names:
                 continue
             arg = node.arguments[node.argument_names.index(name)]
-            _add_typeinfo_argument(arg, reference_accesses)
+            _add_constant_argument(arg, reference_accesses)
     if inquiry_named_args:
         for name in inquiry_named_args:
             if name not in node.argument_names:
