@@ -843,7 +843,7 @@ def test_module_inline_with_interfaces(tmpdir):
     kern_calls = invoke.schedule.walk(CodedKern)
     inline_trans = KernelModuleInlineTrans()
     inline_trans.apply(kern_calls[0])
-    sym = kern_calls[0].scope.symbol_table.lookup("mixed_code")
+    sym = kern_calls[0].scope.symbol_table.lookup("mixed_code_inlined_")
     # Check that the inteface symbol is declared and is private.
     assert isinstance(sym, GenericInterfaceSymbol)
     assert sym.visibility == Symbol.Visibility.PRIVATE
@@ -853,10 +853,10 @@ def test_module_inline_with_interfaces(tmpdir):
     gen = str(psy.gen).lower()
     # Both the caller and the callee are in the file and use the interface
     # name.
-    assert "call mixed_code(" in gen
-    assert "interface mixed_code" in gen
-    assert "subroutine mixed_code_64(" in gen
-    assert "subroutine mixed_code_32(" in gen
+    assert "call mixed_code_inlined_(" in gen
+    assert "interface mixed_code_inlined_" in gen
+    assert "subroutine mixed_code_64_inlined_(" in gen
+    assert "subroutine mixed_code_32_inlined_(" in gen
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -892,8 +892,8 @@ def test_module_inline_with_renamed_import(monkeypatch,
     psyir = fortran_reader.psyir_from_source(code)
     intrans.apply(psyir.walk(Call)[0])
     result = fortran_writer(psyir)
-    assert "call local_name(var)" in result
-    assert "subroutine local_name(arg)" in result
+    assert "call my_sub_inlined_(var)" in result
+    assert "subroutine my_sub_inlined_(arg)" in result
 
 
 def test_module_inline_interface_with_renamed_import(monkeypatch,
@@ -923,6 +923,7 @@ def test_module_inline_interface_with_renamed_import(monkeypatch,
     end module my_mod
     ''')
     intrans = KernelModuleInlineTrans()
+    # No parent module in which to insert interface definition.
     code = '''\
     program my_prog
       implicit none
@@ -948,9 +949,9 @@ def test_module_inline_interface_with_renamed_import(monkeypatch,
     psyir = fortran_reader.psyir_from_source(code)
     intrans.apply(psyir.walk(Call)[0])
     result = fortran_writer(psyir)
-    assert "interface local_name" in result
-    assert "call local_name(var)" in result
-    assert "subroutine my_sub(arg)" in result
+    assert "interface my_interface_inlined_" in result
+    assert "call my_interface_inlined_(var)" in result
+    assert "subroutine my_sub_inlined_(arg)" in result
 
 
 def test_rm_imported_routine_symbol(fortran_reader):
@@ -1049,10 +1050,10 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     intrans.apply(calls[0])
     routines = container.walk(Routine)
     assert len(routines) == 2
-    assert routines[0].name in ["a_sub", "my_sub"]
-    assert routines[1].name in ["a_sub", "my_sub"]
+    assert routines[0].name in ["a_sub_inlined_", "my_sub_inlined_"]
+    assert routines[1].name in ["a_sub_inlined_", "my_sub_inlined_"]
     # Local copy of routine must be private and in Container symbol table.
-    rsym = container.symbol_table.lookup("my_sub")
+    rsym = container.symbol_table.lookup("my_sub_inlined_")
     assert rsym.visibility == Symbol.Visibility.PRIVATE
     output = fortran_writer(psyir)
     assert "subroutine a_sub" in output
