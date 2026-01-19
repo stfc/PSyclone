@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2026, Science and Technology Facilities Council.
+# Copyright (c) 2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,9 +30,27 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. B. G. Chalk, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+# Author: A. B. G. Chalk, STFC Daresbury Lab
 
-EXAMPLES=create_and_modify_psyir custom_directives matmul transpose
+from psyclone.psyir.transformations import OMPLoopTrans
+from psyclone.psyir.nodes import Loop, Routine, UnknownDirective
 
-include ../top_level.mk
+
+def trans(psyir):
+    """Find the custom directive and add the associated loop to the list of
+    loops to skip. Parallelise the rest"""
+    for routine in psyir.walk(Routine):
+        psy_dirs = routine.walk(UnknownDirective)
+        loops_to_skip = []
+        for psy_dir in psy_dirs:
+            if psy_dir.directive_string == "my_dir no_par":
+                position = psy_dir.position
+                parent = psy_dir.parent
+                # Remove the directive as we don't need it in the output now.
+                psy_dir.detach()
+                loops_to_skip.append(parent.children[position])
+        for loop in routine.walk(Loop):
+            if loop in loops_to_skip:
+                continue
+            OMPLoopTrans(omp_directive="paralleldo").apply(loop)
