@@ -13,18 +13,12 @@ with 1. The field `field_3` is on the W3 function
 space (red in the diagram) and represents the actual element, it is initialised
 with 0.
 
-![FEM mesh](../images/fem-grid.svg "Simplified FEM mesh")
-
-New:
-
-<img src="..//images/fem-grid.svg" alt="FEM mesh" title="Simplified FEM mesh"
-     style="width: 360;">
-
+![FEM mesh](../images/fem-grid.png "Simplified FEM mesh")
 
 Then the kernel `summation_w0_to_w3_kernel` is called, which adds the 8 neighbouring
 vertices of an element up (resulting in 8 for all the finite elements). The summation
 for the top left element is indicated in the image with dashed lines:
-![FEM mesh with summation](../images/fem-grid-summation.svg "Summation for top left element")
+![FEM mesh with summation](../images/fem-grid-summation.png "Summation for top left element")
 
 Each of the following examples has its own subdirectories with the required files.
 In order to run the tests, change into the subdirectory specified in the heading.
