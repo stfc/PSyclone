@@ -90,9 +90,7 @@ jobs:
         # Fetch the specified version of LFRic apps
         cd /archive/psyclone-tests/latest-run
         rm -rf lfric_apps
-        git clone https://github.com/stfc/lfric_apps
-        cd lfric_apps
-        git checkout ${LFRIC_APPS_HASH}
+        git clone --depth 1 --revision ${LFRIC_APPS_HASH} https://github.com/stfc/lfric_apps
 
     # PSyclone, compile and run MetOffice LFRic Atm with 12 MPI ranks.
     - name: LFRic passthrough (with DistributedMemory)
