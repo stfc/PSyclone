@@ -53,8 +53,7 @@ from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, GenericInterfaceSymbol, ImportInterface,
-    RoutineSymbol, REAL_TYPE, Symbol, SymbolError, SymbolTable,
-    UnresolvedInterface)
+    RoutineSymbol, REAL_TYPE, Symbol, SymbolError, UnresolvedInterface)
 from psyclone.psyir.transformations import (
     TransformationError, OMPDeclareTargetTrans)
 from psyclone.transformations import ACCRoutineTrans

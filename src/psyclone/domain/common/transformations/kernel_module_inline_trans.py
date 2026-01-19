@@ -48,8 +48,8 @@ import warnings
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
-    ContainerSymbol, ImportInterface,
-    GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError, SymbolTable)
+    ContainerSymbol, GenericInterfaceSymbol, RoutineSymbol, Symbol,
+    SymbolError)
 from psyclone.psyir.nodes import (
     Call, Container, FileContainer, Routine, ScopingNode,
     IntrinsicCall, )
