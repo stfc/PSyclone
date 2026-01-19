@@ -818,8 +818,8 @@ class IntrinsicCall(Call):
                     node,
                     # All the unnamed arguments
                     # are write indices.
-                    write_indices=[i for x, i in enumerate(
-                        node.argument_names) if x is None
+                    write_indices=[x for x, i in enumerate(
+                        node.argument_names) if i is None
                     ],
                     read_named_args=["mold", "source"],
                     write_named_args=["stat", "errmsg"],
@@ -843,8 +843,8 @@ class IntrinsicCall(Call):
                     node,
                     # All the unnamed arguments
                     # are write indices.
-                    write_indices=[i for x, i in enumerate(
-                        node.argument_names) if x is None
+                    write_indices=[x for x, i in enumerate(
+                        node.argument_names) if i is None
                     ],
                     write_named_args=["stat"],
                 )
