@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025-2026, Science and Technology Facilities Council
+# Copyright (c) 2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,42 +31,50 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: M. Naylor, University of Cambridge, UK
+# Authors A. B. G. Chalk, STFC Daresbury Lab.
+# -----------------------------------------------------------------------------
 
-F90 ?= gfortran
-F90FLAGS ?= -O2 -fopenmp
+''' This module contains the UnknownDirective node implementation.'''
 
-.PHONY: all
-all: run
+from psyclone.psyir.nodes.directive import StandaloneDirective
 
-.PHONY: clean
-clean:
-	rm -f trans trans_tiled trans_omp trans_omp_tiled
-	rm -f trans_tiled.F90 trans_omp.F90 trans_omp_tiled.F90
 
-allclean: clean
+class UnknownDirective(StandaloneDirective):
+    '''
+    Directive representing PSyclone-specific directives in the tree.
 
-transform: trans_tiled.F90 trans_omp.F90 trans_omp_tiled.F90
+    :param directive_string: The content after the !$psy part of this
+                             node in the tree.
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    '''
 
-compile: trans trans_tiled trans_omp trans_omp_tiled
+    _children_valid_format = "<LeafNode>"
 
-run: compile
-	./trans
-	./trans_tiled
-	./trans_omp
-	./trans_omp_tiled
+    def __init__(self, directive_string: str = "", **kwargs):
+        super().__init__(**kwargs)
+        self._directive_string = directive_string
 
-trans_tiled.F90: trans.F90 tile.py
-	psyclone -s tile.py trans.F90 -o trans_tiled.F90
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
 
-trans_omp.F90: trans.F90 omp.py
-	psyclone -s omp.py trans.F90 -o trans_omp.F90
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
 
-trans_omp_tiled.F90: trans.F90 omp-tile.py
-	psyclone -s omp-tile.py trans.F90 -o trans_omp_tiled.F90
+        '''
+        return False
 
-%: %.F90
-	$(F90) $(F90FLAGS) $< -o $@
+    @property
+    def directive_string(self) -> str:
+        '''
+        :returns: The content of this UnknownDirective node.
+        '''
+        return self._directive_string
 
-notebook:
-	@echo "No compilation supported for lfric/matmul"
+    def begin_string(self) -> str:
+        '''Returns the code string representing this UnknownDirective.'''
+
+        return f"{self.directive_string}"

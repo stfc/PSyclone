@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2026, Science and Technology Facilities Council.
+# Copyright (c) 2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,9 +30,22 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. B. G. Chalk, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+# Authors A. B. G. Chalk, STFC Daresbury Lab.
+# -----------------------------------------------------------------------------
 
-EXAMPLES=create_and_modify_psyir custom_directives matmul transpose
+''' This module contains the test for the UnknownDirective node.'''
 
-include ../top_level.mk
+from psyclone.psyir.nodes import UnknownDirective
+
+
+def test_psydirective():
+    '''Tests the functionality of the UnknownDirective.'''
+
+    direc = UnknownDirective("psy info")
+    assert direc._directive_string == "psy info"
+    assert direc.directive_string == "psy info"
+
+    assert not UnknownDirective._validate_child(None, None)
+
+    assert direc.begin_string() == "psy info"

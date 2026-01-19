@@ -60,7 +60,7 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Call, CodeBlock, Container, Directive, FileContainer,
     IfBlock, IntrinsicCall, Literal, Loop, Member, Node, Range,
     Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
-    WhileLoop)
+    WhileLoop, UnknownDirective)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, CHARACTER_TYPE,
@@ -5801,16 +5801,30 @@ class Fparser2Reader():
 
     def _directive_handler(
         self, node: Fortran2003.Directive, parent: Node
-    ) -> CodeBlock:
+    ) -> Union[CodeBlock, UnknownDirective]:
         '''
         Process a directive and add it to the tree. The current behaviour
-        places the directive into a CodeBlock.
+        places most directives into a CodeBlock.
+
+        Directives starting with !$psy are turned into a UnknownDirective.
 
         :param node: Directive to process.
         :param parent: The parent to add the PSyIR node to.
 
-        :returns: a CodeBlock containing the input Directive.
+        :returns: a CodeBlock containing the input Directive or a
+                  UnknownDirective.
         '''
+        # We don't turn OpenMP extensions or directives we can't output
+        # correctly into Directive nodes. PSyclone currently always
+        # outputs directives starting with !$
+        dont_match = ["!$ompx", "!dir$"]
+        str_rep = str(node).lstrip().lower()
+        to_direc = all([
+            not str_rep.startswith(prefix) for prefix in dont_match
+        ])
+        if to_direc:
+            content = str_rep[2:].lstrip()
+            return UnknownDirective(content)
         code_block = CodeBlock(
             [node],
             CodeBlock.Structure.STATEMENT,
