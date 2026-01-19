@@ -174,7 +174,7 @@ if __name__ == '__main__':
         # Have to pin Sphinx to a pre-9.0 version because of
         # https://github.com/sphinx-doc/sphinx/issues/14223
         extras_require={
-            'doc': ["sphinx==8.3", "sphinxcontrib.bibtex", "sphinx_design",
+            'doc': ["sphinx<=8.3", "sphinxcontrib.bibtex", "sphinx_design",
                     "pydata-sphinx-theme", "sphinx-autodoc-typehints",
                     "autoapi"],
             'test': ["flake8", "pylint", "pytest-cov", "pytest-xdist"],
