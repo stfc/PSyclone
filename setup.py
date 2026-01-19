@@ -171,8 +171,10 @@ if __name__ == '__main__':
         package_dir={"": "src"},
         install_requires=['pyparsing', 'fparser>=0.2.1', 'configparser',
                           'sympy', "Jinja2", 'termcolor', 'graphviz'],
+        # Have to pin Sphinx to a pre-9.0 version because of
+        # https://github.com/sphinx-doc/sphinx/issues/14223
         extras_require={
-            'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx_design",
+            'doc': ["sphinx==8.3", "sphinxcontrib.bibtex", "sphinx_design",
                     "pydata-sphinx-theme", "sphinx-autodoc-typehints",
                     "autoapi"],
             'test': ["flake8", "pylint", "pytest-cov", "pytest-xdist"],
