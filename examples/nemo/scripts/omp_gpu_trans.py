@@ -40,7 +40,8 @@ directives into Nemo code. '''
 import os
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
-    normalise_loops, PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
+    normalise_loops, PARALLELISATION_ISSUES, remove_calls,
+    NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import (
     OMPTargetTrans, OMPDeclareTargetTrans)
@@ -126,6 +127,10 @@ ASYNC_ISSUES = [
     "traadv_fct.f90",
 ]
 
+# Any calls to the named subroutines will be removed from the
+# transformed code.
+CALLS_TO_REMOVE = ["dia_ptr_hst", "dia_ar5_hst"]
+
 
 def trans(psyir):
     ''' Add OpenMP Target and Loop directives to all loops, including the
@@ -190,6 +195,8 @@ def trans(psyir):
                 subroutine.name == 'dom_zgr' or
                 subroutine.name == 'dom_ngb'):
             continue
+
+        remove_calls(subroutine, CALLS_TO_REMOVE)
 
         normalise_loops(
                 subroutine,

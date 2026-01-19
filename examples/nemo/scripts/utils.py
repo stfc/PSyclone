@@ -58,7 +58,7 @@ NEMO_MODULES_TO_IMPORT = [
     "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
     "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc", "abl", "ice1d",
     "sed", "p2zlim", "oce_trc", "p4zpoc", "tide_mod", "sbcwave", "isf_oce",
-    "step_oce", "bdyice", "lbcnfd"
+    "step_oce", "bdyice", "lbcnfd", "diaptr"
 ]
 
 # Files that PSyclone could process but would reduce the performance.
@@ -536,3 +536,22 @@ def add_profile_region(nodes):
             ProfileTrans().apply(nodes)
         except TransformationError:
             pass
+
+
+def remove_calls(sched: Schedule, names: list[str]):
+    '''
+    Removes all calls to the named subroutines from the provided schedule.
+
+    :param sched: the schedule to search for Calls.
+    :param names: the list of (case-insensitive) routine names to remove.
+
+    '''
+    lnames = [name.lower() for name in names]
+    for call in sched.walk(Call):
+        if isinstance(call, IntrinsicCall):
+            continue
+        if call.symbol.name.lower() in lnames:
+            if not isinstance(call.parent, Schedule):
+                # Not a subroutine call so skip.
+                continue
+            call.detach()
