@@ -18,6 +18,7 @@ with 0.
 Then the kernel `summation_w0_to_w3_kernel` is called, which adds the 8 neighbouring
 vertices of an element up (resulting in 8 for all the finite elements). The summation
 for the top left element is indicated in the image with dashed lines:
+
 ![FEM mesh with summation](../images/fem-grid-summation.png "Summation for top left element")
 
 Each of the following examples has its own subdirectories with the required files.
