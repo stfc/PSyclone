@@ -6,12 +6,11 @@ without any DSL-specific features. It does follow the
 GOcean DSL design closely though.
 
 In this exercise you will first add OpenMP directives
-around the four compute kernels. These files have been
-renamed to have the .x90 extension, but this is done
-to keep the Makefile similar between exercises, you can
-easily use the standard .f90 extension (but then you have
-to create new output files for the processed files, and
-these names then need to be used in the Makefile).
+around the four compute kernels. The Makefile is
+set up to convert ``*.f90`` files to ``*.processed.f90`` -
+it has a list ``PSY_SRC`` which contains all the files
+to be transformed using PSyclone.
+
 
 ## Using OMP Parallel Do
 
@@ -25,8 +24,8 @@ In case of using PSyclone's transformation only usage,
 the command line options are slightly different, more
 aligned to typical options used by a compiler:
 
-    psyclone -l output -nodm -s ./omp_trans.py -o count_neighbours_mod.f90 \
-              count_neighbours_mod.x90
+    psyclone -l output -nodm -s ./omp_trans.py -o count_neighbours_mod.processed.f90 \
+              count_neighbours_mod.f90
 
 
 ## Using OMP Parallel and OpenMP Do
@@ -37,7 +36,7 @@ since the overhead of starting and synchronising threads is
 reduced. This was easy to achieve in the GOcean approach of the
 Game of Life, since all loop were contained in the same subroutine.
 But with this application, the calls to the kernels are actually
-in ``time_step_mod.x90``, but the loops are in the individual
+in ``time_step_mod.f90``, but the loops are in the individual
 subroutines. Using the script ``omp_parallel.py`` as a
 starting point, add an OpenMP parallel around all calls in the
 time stepping loop, and individiual ``omp do`` statements around
@@ -48,10 +47,10 @@ Additionally, the calls to ``output_field`` must be enclosed in
 the current state). This can be done by using the
 ``OMPMasterTrans`` transformation.
 
-When running PSyclone on combine_mod.x90, you have to use:
+When running PSyclone on combine_mod.f90, you have to use:
 
     psyclone -l output -nodm --backend-disable-validation  \
-    -s ./omp_parallel.py -o combine_mod.f90 combine_mod.x90
+    -s ./omp_parallel.py -o combine_mod.processed.f90 combine_mod.f90
 
 Otherwise PSyclone will detect the usage of OMP do without an
 enclosing parallel:
