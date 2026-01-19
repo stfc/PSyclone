@@ -49,7 +49,7 @@ include ../../common.mk
 
 # Default target: run PSyclone (even if the output file should already exist)
 transform:
-	$(PSYCLONE) -s $(TRANS) -dm -l output \
+	$(PSYCLONE) -s $(SCRIPT) -dm -l output \
 		     -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 compile: $(EXE)
@@ -85,7 +85,7 @@ test:
 	$(MAKE) transform 2>&1 | grep " The kernel has an argument with INC "\
 	"access but the loop is of type ''. Colouring is required." >/dev/null
 	$(MAKE) clean
-	$(MAKE) TRANS=./omp_colour_transformation.py transform
+	$(MAKE) SCRIPT=./omp_colour_transformation.py transform
 
 
 # Dependencies
