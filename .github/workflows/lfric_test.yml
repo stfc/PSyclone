@@ -94,7 +94,7 @@ jobs:
         cd lfric_apps
         git checkout ${LFRIC_APPS_HASH}
 
-    # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
+    # PSyclone, compile and run MetOffice LFRic Atm with 12 MPI ranks.
     - name: LFRic passthrough (with DistributedMemory)
       id: lfric_dist_mem
       run: |
@@ -114,19 +114,22 @@ jobs:
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/transmute
+        mkdir -p ${OPT_DIR}
+        cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf working-gh-passthrough
-        ./build/local_build.py -j ${NUM_PARALLEL} -v -p psyclone-test -w working-gh-passthrough gungho_model
+        rm -rf working-atm-passthrough
+        ./build/local_build.py -j ${NUM_PARALLEL} -v -p psyclone-test -w working-gh-passthrough gungho_atm
         # Run
-        cd applications/gungho_model/example
-        rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        cd applications/lfric_atm/example
+        rm -f timer.txt lfric_atm-checksums.txt  # In case there were from a previous run
         # Number of OMP threads have to be set even when psyclone does not inject OpenMP
         # because some psykal-lite routines have it.
         export OMP_NUM_THREADS=1
         mpirun -n 12 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
         cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        export VAR_TIME=$(grep "lfric_atm" timer.txt | cut -d'|' -f5)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
@@ -269,10 +272,10 @@ jobs:
         ./build/local_build.py -v -p meto-ex1a -j 16 -w working-atm-transmuted lfric_atm
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
-        # Run the app with 8 threads and no MPI
+        # Run the app with 12 threads and no MPI
         # (with MPI it currently fails to initialise the mesh - even with no psyclone)
         cd applications/lfric_atm/example/
-        OMP_NUM_THREADS=8 mpirun -n 1 ../bin/lfric_atm configuration.nml
+        OMP_NUM_THREADS=12 mpirun -n 1 ../bin/lfric_atm configuration.nml
 
         # And compare the results
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
