@@ -3,14 +3,16 @@ EXE = gol
 SCRIPT ?= omp_trans.py
 include ../common.mk
 
-SRC_X90 = compute_die_mod.x90 compute_born_mod.x90 combine_mod.x90 \
-		  count_neighbours_mod.x90 time_step_mod.x90
+PSY_SRC = compute_die_mod.f90 compute_born_mod.f90 combine_mod.f90 \
+		  count_neighbours_mod.f90 time_step_mod.f90
+PROCESSED_SRC = $(PSY_SRC:%.f90=%.processed.f90)
+
 SRC_F90 = gol.f90 read_config_mod.f90 output_field_mod.f90
 
-OBJ = $(SRC_F90:%.f90=%.o) $(SRC_X90:%.x90=%.o)
+OBJ = $(SRC_F90:%.f90=%.o) $(PROCESSED_SRC:%.f90=%.o)
 
 # Default target: run all transformations
-transform: $(SRC_X90:%.x90=%.f90)
+transform: $(PROCESSED_SRC)
 
 $(EXE): $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)

@@ -33,11 +33,13 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''A simple generic transformation script to apply omp parallel and omp do.
-'''
+"""
+A simple generic transformation script to apply omp parallel and omp do.
+"""
 
-from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
-from psyclone.psyir.nodes import Loop
+from psyclone.transformations import (OMPLoopTrans, OMPMasterTrans,
+                                      OMPParallelTrans)
+from psyclone.psyir.nodes import Call, FileContainer, Loop
 
 # Set up some loop_type inference rules in order to reference useful domain
 # loop constructs by name
@@ -47,19 +49,24 @@ Loop.set_loop_type_inference_rules({
 })
 
 
-def trans(psyir):
-    ''' Transform a specific Schedule by making all loops
+def trans(psyir: FileContainer):
+    """
+    Transform a specific Schedule by making all loops
     over latitudes OpenMP parallel, and adding an omp parallel
-    in the calling subroutine.
+    in the calling subroutine. Also add an omp master region
+    around the output function.
 
     :param psyir: the PSyIR of the provided file.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    """
 
-    '''
     omp_parallel = OMPParallelTrans()
     omp_do = OMPLoopTrans()
+    omp_master = OMPMasterTrans()
 
-    # The argument psyir is a FileContainer
+    # The argument psyir is a FileContainer. Ideally, the build system of
+    # the application would call different scripts for the different
+    # functions - here we use just one script, and then use the name of
+    # the transformed file to trigger different behaviour.
     print("Filename is", psyir.name)
 
     # Apply it to each loop over latitudes containing a kernel
@@ -70,6 +77,14 @@ def trans(psyir):
             # since PSyclone will otherwise prevent you from adding a `omp do`
             # with no surrounding omp parallel.
             omp_do.apply(loop)
-        elif loop.loop_type is None and psyir.name == "time_step_mod.x90":
+        elif loop.loop_type is None and psyir.name == "time_step_mod.f90":
             # Add omp parallel in the time stepping loop
             omp_parallel.apply(loop.loop_body)
+
+    # In the time stepping function, we need to add omp master around
+    # calls to output field (otherwise each thread would print the
+    # output)
+    if psyir.name == "time_step_mod.f90":
+        for call in psyir.walk(Call):
+            if call.routine.name == "output_field":
+                omp_master.apply(call)

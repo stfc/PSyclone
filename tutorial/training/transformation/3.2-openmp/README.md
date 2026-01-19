@@ -43,6 +43,11 @@ starting point, add an OpenMP parallel around all calls in the
 time stepping loop, and individiual ``omp do`` statements around
 any loop.
 
+Additionally, the calls to ``output_field`` must be enclosed in
+``omp master`` regions (otherwise each thread would output
+the current state). This can be done by using the
+``OMPMasterTrans`` transformation.
+
 When running PSyclone on combine_mod.x90, you have to use:
 
     psyclone -l output -nodm --backend-disable-validation  \
