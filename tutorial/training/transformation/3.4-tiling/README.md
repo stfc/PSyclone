@@ -5,7 +5,7 @@ with the actual source code of the called function. Inlining a function
 will reduce the call overhead, and can enable additional compiler
 optimisations. 
 
-At this stage, PSyclone does not yet support inlining in case of its
+At this stage, PSyclone does not yet support inlining in the context of its
 domain-specific language support (which is why we have used
 module inlining previously). But when using PSyclone to transform
 existing code, inlining can be used.

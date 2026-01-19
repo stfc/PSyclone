@@ -20,6 +20,9 @@ contains
 
         integer                                  :: j
 
+        ! Note that the field has an outer halo, so we only
+        ! print the inner region (ignoring the first and last
+        ! row and column).
         do j=lbound(field, 2)+1, ubound(field, 2)-1
             write(*,"(99F2.0)") field(2:ubound(field,1)-1, j)
         enddo

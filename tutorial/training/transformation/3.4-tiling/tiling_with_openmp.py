@@ -36,7 +36,7 @@
 
 '''
 This example inlines all kernels, fuses loops together, applies OpenMP
-parallelisiation, and then tiles the fused loops.
+parallelisation, and then tiles the fused loops.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans

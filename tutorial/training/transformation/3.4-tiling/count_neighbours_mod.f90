@@ -15,6 +15,9 @@ module count_neighbours_mod
     integer :: i
     integer :: j
 
+    ! Note that the fields have an outer halo, so we only
+    ! work on the inner region (ignoring the first and last
+    ! row and column).
     xstart = LBOUND(current, dim=1) + 1
     xstop = UBOUND(current, dim=1) - 1
     ystart = LBOUND(current, dim=2) + 1

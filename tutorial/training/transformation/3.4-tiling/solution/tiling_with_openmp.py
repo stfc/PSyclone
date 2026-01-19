@@ -35,7 +35,7 @@
 
 '''
 This example inlines all kernels, fuses loops together, applies OpenMP
-parallelisiation, and then tiles the fused loops.
+parallelisation, and then tiles the fused loops.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -49,7 +49,9 @@ from psyclone.psyir.nodes import (Assignment, Call, IntrinsicCall, Loop,
 
 def trans(psyir):
     '''A complex program that inline all loops, moves the scalar assignment to
-    the top so that all loops are next to each other
+    the top so that all loops are next to each other. This allows loops to
+    be fused then. After fusion, OpenMP parallelisation is added. Once
+    parallelisation has been added, apply loop tiling.
 
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -127,11 +129,15 @@ def trans(psyir):
                 ref.replace_with(value)
 
     fuse = LoopFuseTrans()
+
     fuse.apply(lat_loops[0], lat_loops[1])
     fuse.apply(lat_loops[0].loop_body[0], lat_loops[0].loop_body[1])
+    # Remove fused loop from list of loops previously collected
     del lat_loops[1]
+
     fuse.apply(lat_loops[0], lat_loops[1])
     fuse.apply(lat_loops[0].loop_body[0], lat_loops[0].loop_body[1])
+    # Remove fused loop from list of loops previously collected
     del lat_loops[1]
 
     # Now add an omp parallel around all loops ...
