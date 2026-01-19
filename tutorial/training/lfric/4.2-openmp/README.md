@@ -8,7 +8,7 @@ the testing functionality included in the LFRic infrastructure
 It uses the simplified infrastructure files used in PSyclone testing,
 and as such can be compiled and run without the need to install LFRic.
 
-![FEM mesh](../images/fem-grid.png "Simplified FEM mesh")
+![FEM mesh](../../images/fem-grid.png "Simplified FEM mesh")
 
 We define two fields, one on the W0 space (blue dots) which is initialised with 1,
 the other will contain the results and it is on the W3 space, and it is initialised
@@ -18,7 +18,7 @@ The kernel `summation_w0_to_w3_kernel` is called, which adds up the 8 neighbouri
 vertices of field (resulting in 8 on the W3 field). The summation
 for the top left element is indicated in the image with dashed lines:
 
-![FEM mesh with summation](../images/fem-grid-summation.png "Summation for top left element")
+![FEM mesh with summation](../../images/fem-grid-summation.png "Summation for top left element")
 
 
 ## Initialising LFRic
