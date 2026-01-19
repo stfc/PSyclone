@@ -28,6 +28,9 @@ contains
         integer                        :: xstart, xstop, ystart, ystop
         integer                        :: i, j
 
+        ! Note that the fields have an outer halo, so we only
+        ! work on the inner region (ignoring the first and last
+        ! row and column).
         xstart = lbound(current, 1)+1
         xstop = ubound(current, 1)-1
         ystart = lbound(current, 2)+1
