@@ -38,9 +38,9 @@ This script applies colouring if required, and then OpenMP parallelisation
 to each loop.
 """
 
-from psyclone.psyir.nodes import Loop
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.psyir.nodes import FileContainer
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import FileContainer, Loop
 from psyclone.transformations import (LFRicOMPParallelLoopTrans,
                                       LFRicColourTrans)
 
