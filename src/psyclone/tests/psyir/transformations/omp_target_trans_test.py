@@ -445,24 +445,24 @@ end subroutine x
 
 
 def test_kind_parameters_ignored(fortran_reader):
-    '''Test that kind parameters used inside REAL calls don't
-    result in dependencies.'''
-    # TODO #3060: Fixing 3060 should avoid this being necessary.
+    '''Test that CONSTANT variables  used in locations that would also
+    be attributed as reads don't result in dependencies.'''
     code = """
     subroutine x()
-      integer, parameter :: wp = 8
+      use some_mod, only: wp
       real, dimension(100) :: a
       real, dimension(100) :: b
+      real, dimension(100) :: c
       integer :: i, j
 
       do i = 1, 100
         a(i) = real(i, wp)
-        a(i) = a(i) + 1.0_wp
+        a(i) = a(i) + c(wp) + 1.0_wp
       end do
 
       do j = 1, 100
         b(j) = real(j, wp)
-        b(j) = b(j) + 2.0_wp
+        b(j) = b(j) + c(wp) + 2.0_wp
       end do
     end subroutine"""
 
