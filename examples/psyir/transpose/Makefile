@@ -44,6 +44,8 @@ clean:
 	rm -f trans trans_tiled trans_omp trans_omp_tiled
 	rm -f trans_tiled.F90 trans_omp.F90 trans_omp_tiled.F90
 
+allclean: clean
+
 transform: trans_tiled.F90 trans_omp.F90 trans_omp_tiled.F90
 
 compile: trans trans_tiled trans_omp trans_omp_tiled
