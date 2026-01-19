@@ -1,6 +1,6 @@
 EXE = gol
 
-TRANS ?= omp_trans.py
+SCRIPT ?= omp_trans.py
 include ../common.mk
 
 SRC_X90 = compute_die_mod.x90 compute_born_mod.x90 combine_mod.x90 \
@@ -19,9 +19,10 @@ $(EXE): $(OBJ)
 # ------------------------
 .precious: $(SRC_X90:%.x90=%.f90)
 
-# This will need an additional flag
-%.f90: %.x90 $(TRANS)
-	$(PSYCLONE) -s ./$(TRANS) -o $*.f90 $<
+# This will need an additional flag when using omp_parallel.py
+# to disable backend validation (see README.md)
+%.f90: %.x90 $(SCRIPT)
+	$(PSYCLONE) -s ./$(SCRIPT) -o $*.f90 $<
 
 %.o: %.f90
 	$(F90) -c $(F90FLAGS) $<

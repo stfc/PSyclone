@@ -35,12 +35,12 @@ $(EXE): $(OBJ)
 # ------------------------
 .precious: $(SRC_X90:%.x90=%.f90)
 
-ifeq ($(SCRIPT), omp_SCRIPT.py)
-%.f90: %.x90 $(SCRIPT)
-	$(PSYCLONE) -s ./$(SCRIPT) -o $*.f90 $<
-else
+ifeq ($(SCRIPT), omp_parallel.py)
 %.f90: %.x90 $(SCRIPT)
 	$(PSYCLONE) --backend-disable-validation -s ./$(SCRIPT) -o $*.f90 $<
+else
+%.f90: %.x90 $(SCRIPT)
+	$(PSYCLONE) -s ./$(SCRIPT) -o $*.f90 $<
 endif
 
 %.o: %.f90

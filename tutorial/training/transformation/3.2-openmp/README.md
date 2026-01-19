@@ -45,8 +45,8 @@ any loop.
 
 When running PSyclone on combine_mod.x90, you have to use:
 
-    psyclone -l output -nodm  -s ./omp_parallel.py -o combine_mod.f90 \
-    combine_mod.x90
+    psyclone -l output -nodm --backend-disable-validation  \
+    -s ./omp_parallel.py -o combine_mod.f90 combine_mod.x90
 
 Otherwise PSyclone will detect the usage of OMP do without an
 enclosing parallel:

@@ -57,7 +57,7 @@ def trans(psyir):
     '''
     # Get the transformation we will apply
     ompt = OMPParallelLoopTrans()
-    # Apply it to each loop over levels containing a kernel
+    # Apply it to each loop over latitude containing a kernel
     for loop in psyir.walk(Loop):
         print("loop", loop.loop_type)
         if loop.loop_type == "lat":
