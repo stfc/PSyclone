@@ -1,3 +1,6 @@
+   24) PR #3284 for #3283. Bug fix for case where same file found via
+   multiple search paths.   
+
    23) PR #3255 for #3251. Identify uncategorised directives as
    UnknownDirective (instead of CodeBlock) when possible.
 
