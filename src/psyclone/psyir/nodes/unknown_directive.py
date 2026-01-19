@@ -45,7 +45,9 @@ class UnknownDirective(StandaloneDirective):
 
     :param directive_string: The content after the !$psy part of this
                              node in the tree.
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
     '''
+
     _children_valid_format = "<LeafNode>"
 
     def __init__(self, directive_string: str = "", **kwargs):

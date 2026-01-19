@@ -37,11 +37,7 @@ F90 ?= gfortran
 F90FLAGS ?= -O2 -fopenmp
 
 .PHONY: all
-all: matmul matmul_tiled matmul_omp matmul_omp_tiled
-	./matmul
-	./matmul_tiled
-	./matmul_omp
-	./matmul_omp_tiled
+all: run
 
 .PHONY: clean
 clean:
@@ -59,13 +55,13 @@ matmul_omp_tiled.F90: matmul.F90 omp-tile.py
 
 transform: matmul_tiled.F90 matmul_omp.F90 matmul_omp_tiled.F90
 
-compile: trans trans_tiled trans_omp trans_omp_tiled
+compile: matmul matmul_tiled matmul_omp matmul_omp_tiled
 
 run: compile
-	./trans
-	./trans_tiles
-	./trans_omp
-	./trans_omp_tiled
+	./matmul
+	./matmul_tiled
+	./matmul_omp
+	./matmul_omp_tiled
 
 %: %.F90
 	$(F90) $(F90FLAGS) $< -o $@

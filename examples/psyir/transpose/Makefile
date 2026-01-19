@@ -37,11 +37,7 @@ F90 ?= gfortran
 F90FLAGS ?= -O2 -fopenmp
 
 .PHONY: all
-all: trans trans_tiled trans_omp trans_omp_tiled
-	./trans
-	./trans_tiled
-	./trans_omp
-	./trans_omp_tiled
+all: run
 
 .PHONY: clean
 clean:
@@ -54,7 +50,7 @@ compile: trans trans_tiled trans_omp trans_omp_tiled
 
 run: compile
 	./trans
-	./trans_tiles
+	./trans_tiled
 	./trans_omp
 	./trans_omp_tiled
 
