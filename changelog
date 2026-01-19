@@ -1,14 +1,22 @@
+   21) PR #3264 for #3259. Shorten function_space names if they are above a
+   certain threshold. The Fortran backend checks for names that are too long.
+
+   20) PR #3119 towards #3060. Adds support for deducing the return types
+   of intrinsic calls.
+
+   19) PR #3278 for #3274. Move access_mapping from config file to constants.
+
    18) PR #3266 for #1858. Adds support for derived-type accessors in
    the Reference2ArrayRangeTrans transformation.
- 
+
    17) PR #3277 for #3276. Update copyright statements for 2026.
- 
+
    16) PR #3258 for #279. Removes Arguments.dofs and generally improves
    testing coverage.
 
    15) PR #3260 for #2884. Allow WHERE with imported symbols by changing
    Ref2ArrayRangeTrans behaviour to do the validations.
- 
+
    14) PR #3254 for #3253. Fix openmp parallel lowering with kernels and
    improve dependency messages
 
