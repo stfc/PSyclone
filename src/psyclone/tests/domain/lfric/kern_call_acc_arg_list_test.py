@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -123,7 +123,7 @@ def test_fs_intergrid():
     arg_list = KernCallAccArgList(restrict_kern)
     arg_list.fs_intergrid(fspace)
     # For the coarse mesh we need undf and the dofmap for the column.
-    assert arg_list._arglist == ['undf_aspc1_fld_m', 'map_aspc1_fld_m']
+    assert arg_list._arglist == ['undf_as1_fld_m', 'map_as1_fld_m']
     fspace = FunctionSpace("w1", prolong_kern.arguments)
     arg_list = KernCallAccArgList(prolong_kern)
     arg_list.fs_intergrid(fspace)

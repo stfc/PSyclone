@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,10 +42,9 @@ on:
   push
 
 env:
-  LFRIC_APPS_REV: 14921
-  LFRIC_CORE_REV: 53845
+  LFRIC_APPS_HASH: 152804e4ba768cf54801f034a20131812ecff0f2
   PYTHON_VERSION: 3.14
-  GCC_VERSION: 14
+  GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_VERSION: 25.1
   NUM_PARALLEL: 16
 
@@ -89,30 +88,19 @@ jobs:
         pip install external/fparser
         pip install .[test]
         # Fetch the specified version of LFRic apps
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load fcm/xyl5qxp
         cd /archive/psyclone-tests/latest-run
-        rm -rf lfric_apps lfric_core
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r ${LFRIC_APPS_REV} https://code.metoffice.gov.uk/svn/lfric_apps/main/trunk/ lfric_apps
-        # Disable XIOS in the gungho_model example configuration
-        cd lfric_apps/applications/gungho_model/example
-        sed -i "s|use_xios_io=.*|use_xios_io=.false.|g" configuration.nml
-        # We need to patch lfric_core to resolve issues with the nvfortran compiler
-        # see https://code.metoffice.gov.uk/trac/lfric/ticket/4621
-        cd /archive/psyclone-tests/latest-run
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r ${LFRIC_CORE_REV} https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
-        cd lfric_core
-        svn patch ${GITHUB_WORKSPACE}/examples/lfric/scripts/KGOs/nvidia_lfric_core.patch
+        rm -rf lfric_apps
+        git clone https://github.com/stfc/lfric_apps
+        cd lfric_apps
+        git checkout ${LFRIC_APPS_HASH}
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
     - name: LFRic passthrough (with DistributedMemory)
       id: lfric_dist_mem
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc@${GCC_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         # TODO #3206: The no-annex-dof configuration fails in LFRic because some kernels lie in
@@ -121,17 +109,14 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use un-patched LFRic core
-        sed -i "s|lfric_core_rev=.*|lfric_core_rev=${LFRIC_CORE_REV}|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=|g" dependencies.sh
         # Ensure no transformations are applied by supplying an empty
         # transformation script.
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf applications/gungho_model/working
-        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -v -p psyclone-test -w working-passthrough
+        rm -rf working-gh-passthrough
+        ./build/local_build.py -j ${NUM_PARALLEL} -v -p psyclone-test -w working-gh-passthrough gungho_model
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -157,17 +142,15 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use the patched LFRic core to support nvfortran
-        sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf applications/gungho_model/working
+        rm -rf working-gh-ompoffload
         export BUILD_START="${SECONDS}"
-        LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -w working-omp-offload
+        LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -v -j ${NUM_PARALLEL} -p psyclone-test \
+          -w working-gh-ompoffload gungho_model
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -193,16 +176,14 @@ jobs:
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use the patched LFRic core to support nvfortran
-        sed -i "s|lfric_core_rev=.*|lfric_core_rev=|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=/archive/psyclone-tests/latest-run/lfric_core|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf applications/gungho_model/working
-        LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -w working-acc-offload
+        rm -rf working-gh-accoffload
+        LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -v -j ${NUM_PARALLEL} -p psyclone-test \
+          -w working-gh-accoffload gungho_model
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=12
@@ -218,23 +199,20 @@ jobs:
       id: lfric_all_trans
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc@${GCC_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use un-patched LFRic core
-        sed -i "s|lfric_core_rev=.*|lfric_core_rev=${LFRIC_CORE_REV}|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf applications/gungho_model/working
-        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -v -w working-all-trans
+        rm -rf working-gh_alltrans
+        ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test -v -w working-gh-alltrans gungho_model
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -250,23 +228,20 @@ jobs:
       id: lfric_colour_tiling
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc@${GCC_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use un-patched LFRic core
-        sed -i "s|lfric_core_rev=.*|lfric_core_rev=${LFRIC_CORE_REV}|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=|g" dependencies.sh
         # PSyclone scripts must now be under 'optimisation/psykal' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test/psykal
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/tiledcolouring_and_omp.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf applications/gungho_model/working
-        ./build/local_build.py -j ${NUM_PARALLEL} -a gungho_model -p psyclone-test -v -w working-omp-tiling
+        rm -rf working-gh-omptiling
+        ./build/local_build.py -j ${NUM_PARALLEL} -p psyclone-test -v -w working-gh-omptiling gungho_model
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
@@ -281,19 +256,17 @@ jobs:
       id: lfric_atm
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc@${GCC_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
         cd ${LFRIC_DIR}
-        # Use un-patched LFRic core
-        sed -i "s|lfric_core_rev=.*|lfric_core_rev=${LFRIC_CORE_REV}|g" dependencies.sh
-        sed -i "s|lfric_core_sources=.*|lfric_core_sources=|g" dependencies.sh
 
         # Build the 'meto-ex1a' platform, that includes psyclone-transmutation
+        rm -rf working-atm-transmuted
         export BUILD_START="${SECONDS}"
-        ./build/local_build.py -a lfric_atm -p meto-ex1a -j 16 -w workdir-lfric-atm-transmuted
+        ./build/local_build.py -v -p meto-ex1a -j 16 -w working-atm-transmuted lfric_atm
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
         # Run the app with 8 threads and no MPI
@@ -322,9 +295,9 @@ jobs:
           sudo apt-get install -y mongodb-mongosh
       - name: Upload results
         run: |
-          export COMMON_FIELDS='branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'", date: new Date()'
-          export COMMON_FIELDS=${COMMON_FIELDS}', github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'"'
-          export COMMON_FIELDS=${COMMON_FIELDS}', lfric_apps_version: '"$LFRIC_APPS_REV"', system: "Rupert"'
+          export COMMON_FIELDS='branch_name: "'"${GITHUB_REF_NAME}"'", commit: "'"${GITHUB_SHA}"'", date: new Date()'
+          export COMMON_FIELDS=${COMMON_FIELDS}', github_job: "'"${GITHUB_RUN_ID}"'"-"'"${GITHUB_RUN_ATTEMPT}"'"'
+          export COMMON_FIELDS=${COMMON_FIELDS}', lfric_apps_commit: "'"${LFRIC_APPS_HASH}"'", system: "Rupert"'
           mongosh \
             "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
             --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -332,7 +305,7 @@ jobs:
             --eval 'db.GitHub_CI.insertMany([
               {
                 ci_test: "LFRic Passthrough with DM",
-                compiler:"gfortran@'"$GCC_VERSION"'",
+                compiler:"'"${GNU_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_dist_mem}}"',
                 '"${COMMON_FIELDS}"'
               },
@@ -356,25 +329,25 @@ jobs:
               },
               {
                 ci_test: "LFRic all transformations",
-                compiler:"gfortran@'"$GCC_VERSION"'",
+                compiler:"'"${GNU_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_all_trans}}"',
                 '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic colour-tiling",
-                compiler:"gfortran@'"$GCC_VERSION"'",
+                compiler:"'"${GNU_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_colour_tiling}}"',
                 '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic_atm",
-                compiler:"gfortran@'"$GCC_VERSION"'",
+                compiler:"'"${GNU_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_atm}}"',
                 '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic_atm build time",
-                compiler:"gfortran@'"$GCC_VERSION"'",
+                compiler:"'"${GNU_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_atm_build}}"',
                 '"${COMMON_FIELDS}"'
               }
