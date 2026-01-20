@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -2626,6 +2626,7 @@ class LFRicInterGrid():
             [ArrayType.Extent.DEFERRED]*2)
         sym = symtab.find_or_create(
                 base_name,
+                tag=base_name,
                 symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
                     f"integer(kind=i_def), pointer :: {base_name}"
@@ -3016,7 +3017,7 @@ class LFRicBasisFunctions(LFRicCollection):
                     dims.append(Literal(value, INTEGER_TYPE))
                 except ValueError:
                     dims.append(Reference(self.symtab.find_or_create(value)))
-            arg = self.symtab.find_or_create(
+            arg = self.symtab.find_or_create_tag(
                 basis, symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                                    dims))
@@ -3257,9 +3258,11 @@ class LFRicBasisFunctions(LFRicCollection):
         # Allocate basis arrays
         for basis in basis_arrays:
             dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
-            symbol = self.symtab.find_or_create(
-                basis, symbol_type=DataSymbol, datatype=UnsupportedFortranType(
-                    f"real(kind=r_def), allocatable :: {basis}{dims}"
+            new_name = self.symtab.next_available_name(basis)
+            symbol = self.symtab.find_or_create_tag(
+                new_name, symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(
+                    f"real(kind=r_def), allocatable :: {new_name}{dims}"
                 ))
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
@@ -3436,11 +3439,13 @@ class LFRicBasisFunctions(LFRicCollection):
                 const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["intrinsic"]
             kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["kind"]
             for name in self.qr_weight_vars["xyoz"]:
-                self.symtab.find_or_create(
-                    name+"_"+qr_arg_name, symbol_type=DataSymbol,
+                new_name = self.symtab.next_available_name(
+                    f"{name}_{qr_arg_name}")
+                self.symtab.find_or_create_tag(
+                    new_name, symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
                         f"{dtype}(kind={kind}), pointer :: "
-                        f"{name}_{qr_arg_name}(:) => null()"))
+                        f"{new_name}(:) => null()"))
 
             # Get the quadrature proxy
             dtp_symbol = self.symtab.lookup(
@@ -3644,7 +3649,7 @@ class LFRicBasisFunctions(LFRicCollection):
                         Reference(self.symtab.lookup(first_dim)),
                         Reference(self.symtab.lookup(
                             basis_fn["fspace"].ndf_name)),
-                        Reference(self.symtab.lookup(op_name))]
+                        Reference(self.symtab.lookup_with_tag(op_name))]
 
                 # insert the basis array call
                 call = Call.create(
@@ -3701,7 +3706,7 @@ class LFRicBasisFunctions(LFRicCollection):
                             Literal('1', INTEGER_TYPE), [])
                     loop.loop_body.addchild(inner_loop)
 
-                    symbol = self.symtab.lookup(op_name)
+                    symbol = self.symtab.lookup_with_tag(op_name)
                     rhs = basis_fn['arg'].generate_method_call(
                         "call_function", function_space=basis_fn['fspace'])
                     rhs.addchild(Reference(self.symtab.lookup(basis_type)))
@@ -3759,7 +3764,7 @@ class LFRicBasisFunctions(LFRicCollection):
             # add the required deallocate call
             dealloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.DEALLOCATE,
-                [Reference(self.symtab.lookup(name)) for name in
+                [Reference(self.symtab.lookup_with_tag(name)) for name in
                  sorted(func_space_var_names)]
             )
             if first:
@@ -3820,7 +3825,7 @@ class LFRicBoundaryConditions(LFRicCollection):
                 bc_fs = op_arg.function_space_to
                 self._boundary_dofs.append(self.BoundaryDofs(op_arg, bc_fs))
 
-    def invoke_declarations(self):
+    def invoke_declarations(self) -> None:
         '''
         Add declarations for any boundary-dofs arrays required by an Invoke.
 
@@ -3838,10 +3843,8 @@ class LFRicBoundaryConditions(LFRicCollection):
                     LFRicTypes("LFRicIntegerScalarDataType")(),
                     [ArrayType.Extent.DEFERRED]*2)
                 )
-            self.symtab.new_symbol(
-                name,
-                symbol_type=DataSymbol,
-                datatype=dtype)
+            self.symtab.find_or_create_tag(
+                name, symbol_type=DataSymbol, datatype=dtype)
 
     def stub_declarations(self):
         '''

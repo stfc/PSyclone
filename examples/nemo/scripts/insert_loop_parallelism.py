@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -126,6 +126,7 @@ if not NEMOV4:
         # nvhpc > 24.11 - Signal 11 issues
         "icerst.f90",  # When enabling ice* parallelisation
         "trcbbl.f90",
+        "trabbc.f90",
         "bdyice.f90",
         "sedfunc.f90",
         "stpmlf.f90",
@@ -239,10 +240,6 @@ def filter_files_by_name(name: str) -> bool:
     if not NEMOV4 and name == "icedyn_rhg_evp.f90":
         return True
 
-    # Many of the obs_ files have problems to be offloaded to the GPU
-    if name.startswith("obs_"):
-        return True
-
     return False
 
 
@@ -265,7 +262,20 @@ def trans(psyir):
 
     for subroutine in psyir.walk(Routine):
 
-        # Skip initialisation subroutines
+        # The exclusion below could be in the FILES_TO_SKIP global parameter,
+        # but in this script, for testing purposes, we exclude them here so the
+        # PSyclone frontend and backend are still tested and it also allows to
+        # insert profiling hooks later on.
+        if psyir.name in SKIP_FOR_PERFORMANCE:
+            continue
+        if NEMOV4 and psyir.name in NEMOV4_EXCLUSIONS:
+            continue
+        if not NEMOV4 and psyir.name in NEMOV5_EXCLUSIONS:
+            continue
+        # ICE routines do not perform well on GPU, so we skip them
+        if psyir.name.startswith("ice"):
+            continue
+        # Skip initialisation and diagnostic subroutines
         if (subroutine.name.endswith('_alloc') or
                 subroutine.name.endswith('_init') or
                 subroutine.name.startswith('init_') or

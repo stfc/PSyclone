@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,7 @@ NEMO_MODULES_TO_IMPORT = [
     "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
     "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc", "abl", "ice1d",
     "sed", "p2zlim", "oce_trc", "p4zpoc", "tide_mod", "sbcwave", "isf_oce",
-    "step_oce", "bdyice",
+    "step_oce", "bdyice", "lbcnfd"
 ]
 
 # Files that PSyclone could process but would reduce the performance.
@@ -228,8 +228,8 @@ def normalise_loops(
                     print(err.value)
 
     if convert_range_loops:
-        if filename == "fldread.f90":
-            # TODO #2951: This file has issues converting StructureRefs
+        if schedule.name in ("fld_def",):
+            # TODO #2951: Fix array assignments with dependencies
             pass
         elif nemo_v4 and filename == "dynspg_ts.f90":
             # TODO #3256: Is there an issue with the L/UBOUND intrinsics

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -416,12 +416,13 @@ def test_get_partial_datatype():
     '''
     fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
+    st = fake_parent.symbol_table
 
     # Entry in symbol table with unmodified properties.
     reader = FortranStringReader("integer :: l1=2")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    datatype, init = processor._get_partial_datatype(node, fake_parent, st, {})
     assert isinstance(datatype, ScalarType)
     assert isinstance(init, Literal)
     assert init.parent is None
@@ -434,7 +435,7 @@ def test_get_partial_datatype():
     reader = FortranStringReader("integer, pointer :: l1 => null()")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    datatype, init = processor._get_partial_datatype(node, fake_parent, st, {})
     assert isinstance(datatype, ScalarType)
     assert isinstance(init, IntrinsicCall)
     assert init.parent is None
@@ -447,7 +448,7 @@ def test_get_partial_datatype():
     reader = FortranStringReader("real*4, target, dimension(10,20) :: l1")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    datatype, init = processor._get_partial_datatype(node, fake_parent, st, {})
     assert isinstance(datatype, ArrayType)
     assert init is None
     assert datatype.intrinsic is ScalarType.Intrinsic.REAL
@@ -463,7 +464,7 @@ def test_get_partial_datatype():
     reader = FortranStringReader(" complex :: c\n")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    dtype, init = processor._get_partial_datatype(node, fake_parent, {})
+    dtype, init = processor._get_partial_datatype(node, fake_parent, st, {})
     assert dtype is None
     assert init is None
     # Check fparser2 tree is unmodified
@@ -475,7 +476,7 @@ def test_get_partial_datatype():
         "integer, pointer :: l1 => null(), l2 => null()")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    datatype, init = processor._get_partial_datatype(node, fake_parent, st, {})
     assert isinstance(datatype, ScalarType)
     assert isinstance(init, IntrinsicCall)
     assert init.parent is None
@@ -901,7 +902,7 @@ def test_unsupported_decln(fortran_reader):
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     with pytest.raises(NotImplementedError) as error:
-        processor._process_decln(fake_parent, symtab, fparser2spec)
+        processor._process_decln(fake_parent, symtab, fparser2spec, {})
     assert "Unrecognised attribute type 'str'" in str(error.value)
 
 
