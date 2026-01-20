@@ -1558,7 +1558,7 @@ def test_apply_raw_subroutine(
     if start:
         modinline_trans = KernelModuleInlineTrans()
         modinline_trans.apply(call)
-        assert "sub" in psyir.children[0].symbol_table
+        assert "sub_inlined_" in psyir.children[0].symbol_table
     inline_trans = InlineTrans()
     inline_trans.apply(call)
     output = fortran_writer(psyir)
@@ -1568,10 +1568,7 @@ def test_apply_raw_subroutine(
         f"{indent}  a = 2.0 * a\n\n"
         f"{indent}end subroutine run_it\n")
     assert expected in output
-    if "use formal" not in output:
-        # Compilation will not work with "use formal" as there is no
-        # mod file.
-        assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmpdir).string_compiles(output)
 
 
 @pytest.mark.parametrize("use1, use2", [
