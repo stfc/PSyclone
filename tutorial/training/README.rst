@@ -28,7 +28,7 @@ examples and implement better solutions later.
 
 The training material is split into four parts, and the files
 and documentation here are only the hands-on section. The full
-training is accompanied by a presentations
+training is accompanied by presentations
 (a slightly outdated version of the slides are available on the `wiki
 <https://github.com/stfc/PSyclone/wiki/Presentations>`_,
 we are working on updating these, see ticket #3270). It

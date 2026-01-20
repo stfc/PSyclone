@@ -11,8 +11,8 @@ contains
     !> for each cell that is currently alive, but should die. Otherwise
     !> the cell is 0.
     !>
-    !> @param[out] die  The output field with 1 if the cell dies,
-    !>                  and 0 otherwise.
+    !> @param[out] die The output field with 1 if the cell dies,
+    !>                 and 0 otherwise.
     !> @param[in]  current The current state.
     !> @param[in]  neighbours The number of live neighbours for each cell.
 
@@ -28,6 +28,9 @@ contains
         integer                        :: xstart, xstop, ystart, ystop
         integer                        :: i, j
 
+        ! Note that the fields have an outer halo, so we only
+        ! work on the inner region (ignoring the first and last
+        ! row and column).
         xstart = lbound(current, 1)+1
         xstop = ubound(current, 1)-1
         ystart = lbound(current, 2)+1

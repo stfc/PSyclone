@@ -7,7 +7,7 @@ simple Fortran programs, assigned to a string variable.
 ## Read and write Fortran source code
 
 Start with using ``handle_fortran.py``. Add the code that converts
-Fortran source code to PSyir, and then convert the PSyIR back to
+Fortran source code to PSyIR, and then convert the PSyIR back to
 a string.
 
 ## Collecting Variable Access Map

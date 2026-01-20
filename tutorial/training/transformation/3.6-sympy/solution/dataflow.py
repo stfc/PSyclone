@@ -75,7 +75,7 @@ end subroutine bar
 reader = FortranReader()
 psyir = reader.psyir_from_source(code)
 routine = psyir.find_routine_psyir("foo")
-varinfo = psyir.children[0].reference_accesses()
+varinfo = routine.reference_accesses()
 
 # Create a writer to be able to include code in the graph
 writer = FortranWriter()

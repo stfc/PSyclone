@@ -45,16 +45,15 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.transformations import OMPParallelLoopTrans
 from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.psyir.nodes import (BinaryOperation, IfBlock, Literal,
-                                  Loop, Routine, Schedule)
+from psyclone.psyir.nodes import (BinaryOperation, FileContainer, IfBlock,
+                                  Literal, Loop, Routine, Schedule)
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
     Create two versions of a loop, depending in iteration count.
 
     :param psyir: the PSyIR of the provided file.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     for routine in psyir.walk(Routine):
