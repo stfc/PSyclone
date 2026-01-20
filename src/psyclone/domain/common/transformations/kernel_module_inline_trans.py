@@ -183,7 +183,7 @@ class KernelModuleInlineTrans(Transformation):
                 f"Cannot apply {self.name} to {kern_or_call} '{kname}' "
                 f"because it accesses data from its outer scope: "
                 f"{err.value}") from err
- 
+
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring them into the subroutine.
         # (We could attempt to rename the local symbol.)
