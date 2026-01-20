@@ -42,7 +42,7 @@ TODO #2683 - rename this to {Privatise,Copy,Move}RoutineToLocalContainerTrans
 and move it to psyir/transformations/.
 
 '''
-from typing import List
+from typing import Any, List, Optional, Union
 import warnings
 
 from psyclone.psyGen import Transformation, CodedKern
@@ -84,17 +84,17 @@ class KernelModuleInlineTrans(Transformation):
                 "Container of the call site.")
 
     # pylint: disable=too-many-branches
-    def validate(self, node, options=None, **kwargs):
+    def validate(self,
+                 node: Union[CodedKern, Call],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs):
         '''
         Checks that the supplied node is a Kernel or Call and that it is
         possible to inline its PSyIR into the parent Container.
 
         :param node: the kernel or call which is the target of the
                      transformation.
-        :type node: :py:class:`psyclone.psyGen.CodedKern` |
-                    :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the target node is not a sub-class of
             psyGen.CodedKern or psyir.nodes.Call or is an IntrinsicCall.
@@ -105,8 +105,6 @@ class KernelModuleInlineTrans(Transformation):
             and there's no Container at the call site to which to add the
             interface definition.
         :raises TransformationError: if the kernel cannot be safely inlined.
-        :raises TransformationError: if the target of the supplied call is
-            already module inlined.
 
         '''
         if not options:
@@ -139,8 +137,6 @@ class KernelModuleInlineTrans(Transformation):
                 f"'{kname}' due to: {error}"
             ) from error
 
-        needs_inline = False
-
         if len(kernels) > 1:
             # We can't 'module' inline a call to an interface if there's no
             # ancestor Container in which to put the interface.
@@ -154,24 +150,10 @@ class KernelModuleInlineTrans(Transformation):
                     f"Cannot module-inline the call to '{kname}' since it is "
                     f"a polymorphic routine (i.e. an interface) and the call-"
                     f"site is not within a module.")
-            iface_sym = node.scope.symbol_table.lookup(kname, otherwise=None)
-            if (not iface_sym or (iface_sym.is_import or
-                                  iface_sym.is_unresolved)):
-                needs_inline = True
 
         # Validate the PSyIR of each routine/kernel.
         for kernel_schedule in kernels:
             self._validate_schedule(node, kname, kern_or_call, kernel_schedule)
-            rt_sym = node.scope.symbol_table.lookup(kernel_schedule.name,
-                                                    otherwise=None)
-            if (not rt_sym or (rt_sym is not kernel_schedule.symbol) or
-                    (rt_sym.is_import or rt_sym.is_unresolved)):
-                needs_inline = True
-
-        if not needs_inline:
-            raise TransformationError(
-                f"The target of '{node.debug_string().strip()}' is already "
-                f"module inlined.")
 
     def _validate_schedule(self, node, kname, kern_or_call, kernel_schedule):
         '''
@@ -187,9 +169,8 @@ class KernelModuleInlineTrans(Transformation):
 
         :raises TransformationError: if the called routine contains accesses
              to data declared in the same module scope or of unknown origin.
-        :raises TransformationError: if the called routine has the same
-             name as an existing Symbol in the calling scope (other than the
-             one representing the routine itself).
+        :raises TransformationError: if the called routine contains a local
+             Symbol that shadows a module name in its outer scope.
 
         '''
         # We do not support kernels that use symbols representing data
@@ -202,53 +183,21 @@ class KernelModuleInlineTrans(Transformation):
                 f"Cannot apply {self.name} to {kern_or_call} '{kname}' "
                 f"because it accesses data from its outer scope: "
                 f"{err.value}") from err
-
+ 
         # We can't transform subroutines that shadow top-level symbol module
-        # names, because we won't be able to bring this into the subroutine
+        # names, because we won't be able to bring them into the subroutine.
+        # (We could attempt to rename the local symbol.)
         symtab = kernel_schedule.ancestor(Container).symbol_table
+        ctr_names = [sym.name.lower() for sym in symtab.containersymbols]
         for scope in kernel_schedule.walk(ScopingNode):
             for symbol in scope.symbol_table.symbols:
-                for mod in symtab.containersymbols:
-                    if (symbol.name.lower() == mod.name.lower() and
-                            not isinstance(symbol, ContainerSymbol)):
-                        raise TransformationError(
-                            f"{kern_or_call} '{kname}' cannot be module-"
-                            f"inlined because the subroutine shadows the "
-                            f"symbol name of the module container "
-                            f"'{symbol.name}'.")
-
-        # If the symbol already exists at the call site it must be referring
-        # to a Routine
-        existing_symbol = node.scope.symbol_table.lookup(kernel_schedule.name,
-                                                         otherwise=None)
-        if existing_symbol and not isinstance(existing_symbol, RoutineSymbol):
-            raise TransformationError(
-                f"Cannot module-inline {kern_or_call} '{kname}' because "
-                f"symbol '{existing_symbol}' with the same name already "
-                f"exists and changing the name of module-inlined "
-                f"subroutines is not supported yet.")
-
-        # Check that the associated Routine isn't already present in the
-        # Container. Strictly speaking, we should check that the interface of
-        # any existing Routine matches that required by the Call but for now
-        # we live with the possibility of a false positive resulting in a
-        # refusal to module inline.
-        parent_container = node.ancestor(Container)
-        for routine in parent_container.walk(Routine, stop_type=Routine):
-            if routine.name.lower() == kname.lower():
-                # Compare the routine to be inlined with the one that
-                # is already present.
-                new_rts = self._prepare_code_to_inline([kernel_schedule])
-                if len(new_rts) == 1 and routine == new_rts[0]:
-                    # It's the same so we can proceed (although all we need to
-                    # do is update the RoutineSymbol referenced by the Call.)
-                    return
-                raise TransformationError(
-                    f"{kern_or_call} '{kname}' cannot be module inlined "
-                    f"into Container '{parent_container.name}' because "
-                    f"a *different* routine with that name "
-                    f"already exists and versioning of module-inlined "
-                    f"subroutines is not implemented yet.")
+                if (symbol.name.lower() in ctr_names and
+                        not isinstance(symbol, ContainerSymbol)):
+                    raise TransformationError(
+                        f"{kern_or_call} '{kname}' cannot be module-"
+                        f"inlined because the subroutine contains a symbol "
+                        f"'{symbol.name}' which shadows the name of a module "
+                        f"in the outer scope.")
 
     @staticmethod
     def _prepare_code_to_inline(
@@ -324,25 +273,22 @@ class KernelModuleInlineTrans(Transformation):
                                 module_symbol.name)
         return copied_routines
 
-    def apply(self, node, options=None, **kwargs):
+    def apply(self,
+              node: Union[CodedKern, Call],
+              options: dict[str, Any] = None,
+              **kwargs):
         ''' Bring the implementation of this kernel/call into this Container.
 
         NOTE: when applying this transformation to a Kernel in a PSyKAl invoke,
-        *all* Kernels of that name in that invoke are marked as inlined.
+        *only* that Kernel call is updated (and marked as inlined).
         Similarly, when applied to a Call to a Routine in a particular scope,
-        all Calls to a routine of that name in that scope are updated.
+        *only* that Call is updated.
 
         :param node: the Kernel or Call to module-inline.
-        :type node: :py:class:`psyclone.psyGen.CodedKern` |
-                    :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
         '''
-        if isinstance(node, CodedKern) and node.module_inline:
-            # This PSyKal Kernel is already module inlined.
-            return
-
         if options:
             # TODO 2668 - options dict is deprecated.
             warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
