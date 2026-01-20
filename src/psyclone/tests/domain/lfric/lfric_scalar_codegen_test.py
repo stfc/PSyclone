@@ -606,30 +606,21 @@ def test_three_scalars(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_scalar_array(tmpdir):
+def test_scalar_array(tmpdir, dist_mem):
     ''' Tests that we generate correct code when a kernel has all three
     types of valid scalar array argument: 'real', 'integer' and 'logical'.
 
     '''
-    psy, invoke = get_invoke("28.scalar_array_invoke.f90", TEST_API, idx=0)
+    psy, invoke = get_invoke("28.scalar_array_invoke.f90", TEST_API,
+                             dist_mem=dist_mem, idx=0)
 
     generated_code = str(psy.gen)
-    expected = (
-        "module scalar_array_invoke_psy\n"
-        "  use constants_mod\n"
-        "  use field_mod, only : field_proxy_type, field_type\n"
-        "  implicit none\n"
-        "  public\n"
-        "\n"
-        "  contains\n"
+    expected_subroutine = (
         "  subroutine invoke_0_testkern_scalar_array_type(afield, "
         "real_array, logical_array, integer_array, a_scalar, "
         "dims_real_array, dims_logical_array, dims_integer_array)\n"
-        "    use mesh_mod, only : mesh_type\n"
-        "    use testkern_scalar_array_mod, only : "
-        "testkern_scalar_array_code\n"
-        "    type(field_type), intent(in) :: afield\n"
-        "    integer(kind=i_def), intent(in) :: a_scalar\n"
+    )
+    expected_declarations = (
         "    integer(kind=i_def), dimension(2), intent(in) :: "
         "dims_real_array\n"
         "    real(kind=r_def), dimension(dims_real_array(1),"
@@ -643,50 +634,15 @@ def test_scalar_array(tmpdir):
         "    integer(kind=i_def), dimension(dims_integer_array(1),"
         "dims_integer_array(2),dims_integer_array(3),dims_integer_array(4)), "
         "intent(in) :: integer_array\n"
-        "    integer(kind=i_def) :: cell\n"
-        "    type(mesh_type), pointer :: mesh => null()\n"
-        "    integer(kind=i_def) :: max_halo_depth_mesh\n"
-        "    real(kind=r_def), pointer, dimension(:) :: afield_data => "
-        "null()\n"
-        "    integer(kind=i_def) :: nlayers_afield\n"
-        "    integer(kind=i_def) :: ndf_w1\n"
-        "    integer(kind=i_def) :: undf_w1\n"
-        "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
-        "    type(field_proxy_type) :: afield_proxy\n"
-        "    integer(kind=i_def) :: loop0_start\n"
-        "    integer(kind=i_def) :: loop0_stop\n"
-        "\n"
-        "    ! Initialise field and/or operator proxies\n"
-        "    afield_proxy = afield%get_proxy()\n"
-        "    afield_data => afield_proxy%data\n"
-        "\n"
-        "    ! Initialise number of layers\n"
-        "    nlayers_afield = afield_proxy%vspace%get_nlayers()\n"
-        "\n"
-        "    ! Create a mesh object\n"
-        "    mesh => afield_proxy%vspace%get_mesh()\n"
-        "    max_halo_depth_mesh = mesh%get_halo_depth()\n"
-        "\n"
-        "    ! Look-up dofmaps for each function space\n"
-        "    map_w1 => afield_proxy%vspace%get_whole_dofmap()\n"
-        "\n"
-        "    ! Initialise number of DoFs for w1\n"
-        "    ndf_w1 = afield_proxy%vspace%get_ndf()\n"
-        "    undf_w1 = afield_proxy%vspace%get_undf()\n"
-        "\n"
-        "    ! Set-up all of the loop bounds\n"
-        "    loop0_start = 1\n"
-        "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-        "\n"
-        "    ! Call kernels and communication routines\n"
-        "    if (afield_proxy%is_dirty(depth=1)) then\n"
-        "      call afield_proxy%halo_exchange(depth=1)\n"
-        "    end if\n"
+    )
+    expected_call = (
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_scalar_array_code(nlayers_afield, "
         "afield_data, dims_real_array, real_array, dims_logical_array, "
         "logical_array, dims_integer_array, integer_array, a_scalar, "
         "ndf_w1, undf_w1, map_w1(:,cell))\n"
     )
-    assert expected in generated_code
+    assert expected_subroutine in generated_code
+    assert expected_declarations in generated_code
+    assert expected_call in generated_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
