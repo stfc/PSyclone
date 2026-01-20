@@ -183,7 +183,7 @@ What happens?
 
 The explanation can be found [here](#explanation-for-missing-parameter).
 
-## Incorrect Naming Scheme (`8_incorrect_naming`)
+## Incorrect Naming Scheme (`7_incorrect_naming`)
 This example shows the importance of naming the files correctly. It is basically the same code
 as in the very first PSyclone example, but the kernel file has been renamed to
 `summation_w0_to_w3_mod.f90`, while the module name is still summation_w0_to_w3_kernel_mod and
@@ -504,7 +504,7 @@ PSyclone will print the error message:
 
 ```bash
     Parse Error: Kernel file 'summation_w0_to_w3_kernel_mod.[fF]90' not found in
-    .../training/users/lfric/8_incorrect_naming
+    .../training/users/lfric/7_incorrect_naming
 ```
 
 Notice that the error message exactly specifies the file name PSyclone is looking for,
