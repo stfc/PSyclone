@@ -70,12 +70,17 @@ def trans(psyir: FileContainer) -> None:
     # if-condition. There are two ways of doing this:
     # 1. Parsing a Fortran expression given as string
     # 2. Creating the tree representation using the PSyIR API
+    # Use an environment variable to select which one you
+    # want to use
 
     if os.environ.get("PARSE_STRING", False):
         # Option 1: Create expression by parsing a Fortran string:
         writer = FortranWriter()
-        expr_str = (f"{writer(outer_loop.stop_expr)} - "
-                    f"{writer(outer_loop.start_expr)} >= 99")
+        # TODO: Create a string with the Fortran condition
+        # loop_stop - loop_start >= 99
+        # 
+        expr_str = (f"{writer(TODO)} - "
+                    f"{writer(TODO)} >= 99")
         print(f"Parsing string '{expr_str}'.")
         reader = FortranReader()
         symbol_table = outer_loop.scope.symbol_table
@@ -93,11 +98,11 @@ def trans(psyir: FileContainer) -> None:
 
         # Create `stop-start`:
         minus = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                       outer_loop.stop_expr.copy(),
-                                       outer_loop.start_expr.copy())
+                                       TODO,
+                                       TODO)
         # Create `stop-start >= 99`:
         expr = BinaryOperation.create(BinaryOperation.Operator.GE,
-                                      minus,
+                                      TODO,
                                       Literal("99", INTEGER_TYPE))
 
     # We first create a new if statement, with the above condition
@@ -107,11 +112,11 @@ def trans(psyir: FileContainer) -> None:
 
     # Then we replace the original loop with this if statement
     # (which detaches the original loop):
-    outer_loop.replace_with(if_block)
+    TODO.replace_with(TODO)
 
-    # Then we add the original loop as child of the if_block
+    # Then add the original loop as child of the if_block
     # which means it becomes the else block:
-    if_block.addchild(Schedule(children=[outer_loop]))
+    if_block.addchild(Schedule(children=[TODO]))
 
     # Now parallelise the copied loop (which is in the if body,
     # i.e. the case which has more than 100 iterations)
