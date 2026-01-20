@@ -83,7 +83,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
     '''
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
-    excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock)
+    excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock,
+                           nodes.UnknownDirective)
 
     @abc.abstractmethod
     def _directive(self, children, collapse=None):
