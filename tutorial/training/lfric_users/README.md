@@ -183,65 +183,6 @@ What happens?
 
 The explanation can be found [here](#explanation-for-missing-parameter).
 
-
-## Invalid OpenMP Transformation (`7_invalid_openmp`)
-Please ignore this for now.
-
-<!-- IGNORE THIS FOR NOW
-## Invalid OpenMP Transformation (`7_invalid_openmp`)
-This example has a slightly different kernel: this kernel adds a field on the W0
-space (vertices) to another field on the W0 space, i.e. it is adding the blue dots
-in the diagram above for two fields. The difference to the kernel used previously
-is that the vertices (blue dots) are shared between neighbouring columns, which is
-not the case for a field on the W3 space. Therefore, the loop over all columns
-cannot be parallelised, since the shared vertices could be read and written by
-different threads at the same time.
-
-Running PSyclone with the OpenMP transformation script:
-
-    psyclone --psykal-dsl lfric -s ./omp_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
-
-What is PSyclone's behaviour? Note that LFRic provides a more
-sophisticated version of the `omp_transformation.py` script, which will change the single
-loop into a nested loop using a transformation called colouring. This in turn
-then allows PSyclone to apply OpenMP parallelisation. PSyclone will always
-internally verify if it is safe to apply a certain transformation, to make
-sure it does not create incorrect code.
-
-The explanation can be found [here]
-TODO: CHANGE THIS TO A PROPER LINK( # explanation-for-invalid-transformation).
-
-Optional: A more advanced usage of a transformation script. This section can be skipped.
-There is a second transformation available in this directory called
-`omp_colour_transformation.py`. As in the scripts used in LFRic, this transformation
-will split the columns into several sets of the same 'colour': columns with the same
-'colour' do not overlap, and therefore can be executed in parallel. The LFRic
-infrastructure provides the colouring information for any field. So instead of having a
-single loop over all columns, there is now an outer loop over all colours. Then its
-inner loop will iterate over all columns of the same columns, i.e. all columns that do not
-overlap and therefore can be executed in parallel. After applying the colouring
-transformation, the inner loop can then be executed in parallel, and the script will apply
-the OpenMP transformation to the inner loop. You can apply this more advanced
-transformation using:
-
-     psyclone --psykal-dsl lfric -s ./omp_colour_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
-
-Check the created psy-layer for the different loop structure created by PSyclone.
-Then you can use `make compile` to compile the example and `OMP_NUM_THREADS=4 ./example`
-to execute the code.
-
-The [explanation](#explanation-for-invalid-transformation) for this optional part will explain
-the loop structure in more detail.
-
-To better see what is happening, you might add a debug print like this
-after importing the omp_lib:
-
-    !$  use omp_lib, only : omp_get_max_threads, omp_get_thread_num
-    !$    print *,"Kernel executed by thread ", omp_get_thread_num(), " of ", omp_get_max_threads(), &
-    !$            " using indices ", map_w3(1), " - ", map_w3(1)+nlayers-1
-
--->
-
 ## Incorrect Naming Scheme (`8_incorrect_naming`)
 This example shows the importance of naming the files correctly. It is basically the same code
 as in the very first PSyclone example, but the kernel file has been renamed to
