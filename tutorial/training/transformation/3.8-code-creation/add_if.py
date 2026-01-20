@@ -1,3 +1,4 @@
+# flake8: noqa
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -78,7 +79,6 @@ def trans(psyir: FileContainer) -> None:
         writer = FortranWriter()
         # TODO: Create a string with the Fortran condition
         # loop_stop - loop_start >= 99
-        # 
         expr_str = (f"{writer(TODO)} - "
                     f"{writer(TODO)} >= 99")
         print(f"Parsing string '{expr_str}'.")
