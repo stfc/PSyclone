@@ -41,7 +41,7 @@ program main
     use partition_mod,          only: partition_type, partitioner_planar, partitioner_interface
     use extrusion_mod,          only: uniform_extrusion_type
     use function_space_mod,     only: function_space_type
-    use fs_continuity_mod,      only: W0, W3
+    use fs_continuity_mod,      only: W0
     use field_mod,              only: field_proxy_type, field_type
     use constants_mod,          only: r_def, i_def, str_def
     use log_mod,                only: initialise_logging, LOG_LEVEL_ALWAYS
@@ -57,11 +57,10 @@ program main
     type(local_mesh_type), pointer             :: local_mesh_ptr
     type(uniform_extrusion_type), target       :: extrusion
     type(uniform_extrusion_type), pointer      :: extrusion_ptr
-    type(function_space_type), target          :: vector_space_0, vector_space_3
-    type(function_space_type), pointer         :: vector_space_ptr_0, vector_space_ptr_3
+    type(function_space_type), target          :: vector_space_0
     procedure (partitioner_interface), pointer :: partitioner_ptr
-    type(field_type)                           :: field_0, field_3
-    type(field_proxy_type)                     :: field_0_proxy
+    type(field_type)                           :: field0_1, field0_2
+    type(field_proxy_type)                     :: field0_proxy
     integer(kind=i_def)                        :: element_order_h = 0
     integer(kind=i_def)                        :: element_order_v = 0
     integer(kind=i_def)                        :: ndata_sz, mesh_id
@@ -106,24 +105,17 @@ program main
                                          element_order_v,  &
                                          W0,               &
                                          ndata_sz)
-    vector_space_3 = function_space_type(mesh%get_id(),    &
-                                         element_order_h,  &
-                                         element_order_v,  &
-                                         W3,               &
-                                         ndata_sz)
 
-    vector_space_ptr_0 => vector_space_0
-    vector_space_ptr_3 => vector_space_3
-    call field_0%initialise( vector_space = vector_space_ptr_0, name="field_0" )
-    call field_3%initialise( vector_space = vector_space_ptr_3, name="field_3" )
+    call field0_1%initialise( vector_space = vector_space_0, name="field0_1" )
+    call field0_2%initialise( vector_space = vector_space_0, name="field0_2" )
     call invoke( name = 'Initialise_fields',         &
-                 setval_c( field_3,     0.0_r_def ), &
-                 setval_c( field_0,     1.0_r_def )  &
+                 setval_c( field0_1,     0.0_r_def ), &
+                 setval_c( field0_2,     1.0_r_def )  &
                  )
-    call invoke( name = 'summation', summation_w0_to_w0_kernel_type(field_3, field_0) )
+    call invoke( name = 'summation', summation_w0_to_w0_kernel_type(field0_1, field0_2) )
 
-    field_0_proxy = field_0%get_proxy()
+    field0_proxy = field0_1%get_proxy()
 
-    print *,"minmax of field1", field_0_proxy % get_min(), field_0_proxy % get_max()!
+    print *,"minmax of field1", field0_proxy % get_min(), field0_proxy % get_max()!
 
 end program main
