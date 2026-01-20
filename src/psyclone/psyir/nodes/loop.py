@@ -39,12 +39,14 @@
 
 ''' This module contains the Loop node implementation.'''
 
+from typing import Union
+
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
+from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol, SymbolTable
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
 
@@ -414,7 +416,10 @@ class Loop(Statement):
         self._check_variable(var)
         self._variable = var
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(
+        self,
+        table_or_symbol: Union[SymbolTable, Symbol]
+    ):
         '''
         Replace the Symbol referred to by this object's `variable` with those
         in the supplied SymbolTable (or just the supplied Symbol instance) if
@@ -423,8 +428,6 @@ class Loop(Statement):
 
         :param table_or_symbol: the symbol table from which to get replacement
             symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if self._variable:
