@@ -122,7 +122,16 @@ The explanation can be found [here](#explanation-for-applying-openmp).
 
 Optional: You can compile this example using `make compile`. Then set the environment
 variable `$OMP_NUM_THREADS` to an appropriate value and execute the compiled binary.
-The kernel will print out which thread number is executing which column indices. More
+
+Add the import of the OpenMP library at the top of the subroutine, and add the
+following debug code:
+
+    !$    use omp_lib, only : omp_get_max_threads, omp_get_thread_num
+    ...
+    !$    print *,"Kernel executed by thread ", omp_get_thread_num(), " of ", omp_get_max_threads(), &
+    !$            " using indices ", map_w3(1), " - ", map_w3(1)+nlayers-1
+
+The kernel will then print out which thread number is executing which column indices. More
 explanations in [this] (#explanation-for-applying-openmp) section.
 
 
@@ -223,6 +232,13 @@ to execute the code.
 
 The [explanation](#explanation-for-invalid-transformation) for this optional part will explain
 the loop structure in more detail.
+
+To better see what is happening, you might add a debug print like this
+after importing the omp_lib:
+
+    !$  use omp_lib, only : omp_get_max_threads, omp_get_thread_num
+    !$    print *,"Kernel executed by thread ", omp_get_thread_num(), " of ", omp_get_max_threads(), &
+    !$            " using indices ", map_w3(1), " - ", map_w3(1)+nlayers-1
 
 -->
 

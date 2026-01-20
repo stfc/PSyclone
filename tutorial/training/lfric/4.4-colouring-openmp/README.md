@@ -45,3 +45,13 @@ The code create should now look like this:
        END DO
        !$omp end parallel do
     END DO
+
+You can add the following debug print statement (after importing
+the OpenMP library at the top of the subroutine):
+
+    !$  use omp_lib, only : omp_get_max_threads, omp_get_thread_num
+    !$    print *,"Kernel executed by thread ", omp_get_thread_num(), " of ", omp_get_max_threads(), &
+    !$            " using indices ", map_w3(1), " - ", map_w3(1)+nlayers-1
+
+When running this example with ``OMP_NUM_THREADS`` set appropriately,
+you can see which threads executes which parts of the field.
