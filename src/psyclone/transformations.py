@@ -274,7 +274,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
             local_options["reduction_ops"] = \
                 list(MAP_REDUCTION_OP_TO_OMP.keys())
 
-        self.validate(node, options=local_options)
+        self.validate(node, options=local_options, **kwargs)
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
