@@ -132,6 +132,7 @@ __all__ = [
         'Literal',
         'Loop',
         'Member',
+        'Node',
         'OperatorClause',
         'Operation',
         'Range',
