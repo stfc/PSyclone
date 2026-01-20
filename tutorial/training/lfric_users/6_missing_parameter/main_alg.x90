@@ -120,7 +120,6 @@ program main
                  setval_c( field_3,     0.0_r_def ), &
                  setval_c( field_0,     1.0_r_def )  &
                  )
-    ! The second parameter (field_0) is missing.
     call invoke( name = 'summation', summation_w0_to_w3_kernel_type(field_3) )
 
     field_0_proxy = field_0%get_proxy()
