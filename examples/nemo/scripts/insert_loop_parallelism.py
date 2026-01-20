@@ -226,11 +226,15 @@ def filter_files_by_name(name: str) -> bool:
     if all_but_file and name == all_but_file:
         return True
 
+    # These work but are skiped to improve performance, they could be in the
+    # FILES_TO_SKIP global parameter, but in this script, for testing purposes,
+    # we exclude them here so the PSyclone frontend and backend are still
+    # tested and it also allows to insert profiling hooks later on.
     if name in SKIP_FOR_PERFORMANCE:
         return True
 
-    # Parallelising this file currently causes a noticeable slowdown
-    # if name.startswith("icethd"):
+    # Parallelising ICE or ICB currently causes a noticeable slowdown
+    # On nemo_main it can be just: if name.startswith("icethd"):
     if not NEMOV4 and name.startswith("ice"):
         return True
     if name.startswith("icb"):
@@ -238,6 +242,10 @@ def filter_files_by_name(name: str) -> bool:
 
     # This file fails for gcc NEMOv5 BENCH
     if not NEMOV4 and name == "icedyn_rhg_evp.f90":
+        return True
+
+    # Many of the obs_ files have problems with OpenACC
+    if name.startswith("obs_") and "acc" in PARALLEL_DIRECTIVES:
         return True
 
     return False
@@ -262,15 +270,6 @@ def trans(psyir):
 
     for subroutine in psyir.walk(Routine):
 
-        # The exclusion below could be in the FILES_TO_SKIP global parameter,
-        # but in this script, for testing purposes, we exclude them here so the
-        # PSyclone frontend and backend are still tested and it also allows to
-        # insert profiling hooks later on.
-        if psyir.name in SKIP_FOR_PERFORMANCE:
-            continue
-        # ICE routines do not perform well on GPU, so we skip them
-        if psyir.name.startswith("ice"):
-            continue
         # Skip initialisation and diagnostic subroutines
         if (subroutine.name.endswith('_alloc') or
                 subroutine.name.endswith('_init') or
