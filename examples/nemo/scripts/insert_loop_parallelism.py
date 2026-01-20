@@ -268,10 +268,6 @@ def trans(psyir):
         # insert profiling hooks later on.
         if psyir.name in SKIP_FOR_PERFORMANCE:
             continue
-        if NEMOV4 and psyir.name in NEMOV4_EXCLUSIONS:
-            continue
-        if not NEMOV4 and psyir.name in NEMOV5_EXCLUSIONS:
-            continue
         # ICE routines do not perform well on GPU, so we skip them
         if psyir.name.startswith("ice"):
             continue
