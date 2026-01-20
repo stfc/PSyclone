@@ -392,11 +392,11 @@ def insert_explicit_loop_parallelism(
                 "and is not the inner loop")
             continue
 
-        if routine_name.startswith("tra") and loop.variable.name == "jn":
-            loop.append_preceding_comment(
-                "PSyclone: Loop not parallelised because it is in a tracer "
-                "routine and is only over tracer species")
-            continue
+        # if routine_name.startswith("tra") and loop.variable.name == "jn":
+        #     loop.append_preceding_comment(
+        #         "PSyclone: Loop not parallelised because it is in a tracer "
+        #         "routine and is only over tracer species")
+        #     continue
 
         if nemo_v4:
             # Skip if it is an array operation loop on an ice routine if along
