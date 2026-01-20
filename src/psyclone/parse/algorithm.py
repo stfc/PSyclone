@@ -37,7 +37,7 @@
 PSyclone-conformant Algorithm code.
 
 '''
-
+from __future__ import annotations
 from collections import OrderedDict
 
 from fparser.two.utils import walk
@@ -55,8 +55,8 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
 
 from psyclone.configuration import Config, LFRIC_API_NAMES
 from psyclone.errors import InternalError
-from psyclone.parse.kernel import BuiltInKernelTypeFactory, get_kernel_ast, \
-    KernelTypeFactory
+from psyclone.parse.kernel import (
+    BuiltInKernelTypeFactory, get_kernel_ast, KernelType, KernelTypeFactory)
 from psyclone.parse.utils import check_api, check_line_length, ParseError, \
     parse_fp2
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -998,27 +998,22 @@ class KernelCall(ParsedCall):
     the generic ParsedCall class adding a module name value and a
     type for distinguishing this class.
 
-    :param str module_name: the name of the kernel module.
-    :param ktype: information about the kernel. Provides access to the \
-    PSyclone description metadata and the code.
-    :type ktype: API-specific specialisation of \
-    :py:class:`psyclone.parse.kernel.KernelType`
-    :param args: a list of Arg instances which capture the relevant \
-    information about the arguments associated with the call to the \
-    kernel.
-    :type arg: list of :py:class:`psyclone.parse.algorithm.Arg`
+    :param module_name: the name of the kernel module.
+    :param ktype: information about the kernel. Provides access to the
+        PSyclone description metadata and the code.
+    :param args: a list of Arg instances which capture the relevant
+        information about the arguments associated with the call to the kernel.
 
     '''
-    def __init__(self, module_name, ktype, args):
+    def __init__(self, module_name: str, ktype: KernelType, args: list[Arg]):
         ParsedCall.__init__(self, ktype, args)
         self._module_name = module_name
 
     @property
-    def type(self):
+    def type(self) -> str:
         '''Specifies that this is a kernel call.
 
         :returns: the type of call as a string.
-        :rtype: str
 
         '''
         return "kernelCall"
@@ -1057,11 +1052,10 @@ class BuiltInCall(ParsedCall):
         return self._func_name
 
     @property
-    def type(self):
+    def type(self) -> str:
         '''Specifies that this is a builtin call.
 
         :returns: the type of call as a string.
-        :rtype: str
 
         '''
         return "BuiltInCall"
