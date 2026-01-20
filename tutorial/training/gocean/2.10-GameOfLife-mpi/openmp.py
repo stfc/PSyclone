@@ -41,17 +41,17 @@ halo-exchange nodes that are added by PSyclone into account.
 
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import FileContainer
 from psyclone.transformations import GOceanOMPParallelLoopTrans
 
 from fuse_loops import trans as fuse_trans
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
     Take the supplied psyir object, and apply simple openmp directives.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     omp_parallel_loop = GOceanOMPParallelLoopTrans()

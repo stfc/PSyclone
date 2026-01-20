@@ -42,19 +42,19 @@ encloses them all in an OpenMP parallel directive.
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import FileContainer
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 
 # pylint: disable=unused-import
 from fuse_loops import trans as fuse_trans   # noqa: F401
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
     Take the supplied psyir object, and add openmp parallel directives
     with individual omp do for the loops of this particular example.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     omp_parallel = OMPParallelTrans()

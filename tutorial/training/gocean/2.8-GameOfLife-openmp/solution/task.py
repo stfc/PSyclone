@@ -42,18 +42,17 @@ directives
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.nodes import OMPParallelDirective
+from psyclone.psyir.nodes import FileContainer, OMPParallelDirective
 from psyclone.psyir.transformations import OMPTaskloopTrans
 from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
     Take the supplied psyir object, apply module inlining and then
     add omp taskloop directives.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     omp_parallel = OMPParallelTrans()

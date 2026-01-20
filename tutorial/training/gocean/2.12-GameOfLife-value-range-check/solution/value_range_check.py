@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import FileContainer
 from psyclone.psyir.transformations import ValueRangeCheckTrans
 
 
-def trans(psyir: FileContainer):
+def trans(psyir: FileContainer) -> None:
     '''
     Take the supplied PSyOR object, and apply 'omp parallel do' to all loops.
 

@@ -37,13 +37,17 @@
 '''
 
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import FileContainer, Loop
 from psyclone.transformations import LFRicOMPParallelLoopTrans
 
 
-def trans(psyir):
-    '''PSyclone transformation script for the LFRic api to apply
-    OpenMP parallel to all loops.'''
+def trans(psyir: FileContainer) -> None:
+    """
+    PSyclone transformation script for the LFRic api to apply
+    OpenMP parallel to all loops.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    """
 
     otrans = LFRicOMPParallelLoopTrans()
 

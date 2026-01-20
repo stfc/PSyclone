@@ -31,19 +31,19 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-## Author: J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
 
 '''This script applies OpenMP parallelisation to each loop.
 '''
 
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.nodes import Loop, Node
+from psyclone.psyir.nodes import FileContainer, Loop
 from psyclone.transformations import (LFRicOMPParallelLoopTrans,
                                       LFRicColourTrans)
 
 
-def trans(psyir: Node):
+def trans(psyir: FileContainer) -> None:
     '''PSyclone transformation script for the LFRic api to apply
     OpenMP parallel to all loops.'''
 

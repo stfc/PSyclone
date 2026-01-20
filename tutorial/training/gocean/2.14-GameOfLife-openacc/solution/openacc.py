@@ -39,21 +39,20 @@ It adds OpenACC directives to execute the code on GPUs.
 
 from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
                                       ACCLoopTrans, ACCRoutineTrans)
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import FileContainer, Loop
 from psyclone.gocean1p0 import GOKern
 from psyclone.psyGen import InvokeSchedule
 
 from fuse_loops import trans as fuse_trans
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
     Take the supplied psyir object, use the existing fuse_loops
     script to do module inlining and fuse the first three loops,
     then apply OpenACC directives.
 
     :param psyir: the PSyIR layer to transform.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     # Use existing fuse script to fuse all loops

@@ -50,7 +50,7 @@ Loop.set_loop_type_inference_rules({
 })
 
 
-def trans(psyir: FileContainer):
+def trans(psyir: FileContainer) -> None:
 """
     Transform a specific Schedule by making all loops
     over latitudes OpenMP parallel, and adding an omp parallel

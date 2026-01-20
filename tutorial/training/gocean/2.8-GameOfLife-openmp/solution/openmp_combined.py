@@ -48,7 +48,7 @@ from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 from fuse_loops_last import trans as fuse_trans  # noqa: F401
 
 
-def trans(psyir: FileContainer):
+def trans(psyir: FileContainer) -> None:
     '''
     Take the supplied PSyIR object and apply module inlining and loop fusion.
     Then apply 'omp do' to all loops and an outer `omp parallel`

@@ -42,15 +42,15 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.gocean1p0 import GOKern, GOLoop   # noqa: F401
 from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import FileContainer
 from psyclone.psyir.transformations import TransformationError   # noqa: F401
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
     Take the supplied psyir object, apply kernel inlining and fuse all loops.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
 

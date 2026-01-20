@@ -40,14 +40,14 @@ It adds kernel extraction to the all kernels.
 
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import FileContainer
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
     Take the supplied psyir object and apply kernel extraction.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     extract = GOceanExtractTrans()

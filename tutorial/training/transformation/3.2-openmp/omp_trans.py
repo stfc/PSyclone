@@ -38,7 +38,7 @@
 '''
 
 from psyclone.transformations import OMPParallelLoopTrans, TransformationError
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import FileContainer, Loop
 
 # Set up some loop_type inference rules in order to reference useful domain
 # loop constructs by name
@@ -48,12 +48,11 @@ Loop.set_loop_type_inference_rules({
 })
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     ''' Transform a specific Schedule by making all loops
     over latitudes OpenMP parallel do.
 
     :param psyir: the PSyIR of the provided file.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     # Get the transformation we will apply

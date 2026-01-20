@@ -47,7 +47,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import FileContainer
 
 
-def apply_all(node_list, transform):
+def apply_all(node_list, transform) -> None:
     '''This subroutine applies the specified transformation, which takes
     two consecutive nodes (e.g. loop fusion), and applies it to a block
     as large as possible. For example given six loops, of which the first
@@ -100,7 +100,7 @@ def apply_all(node_list, transform):
 
 
 # -----------------------------------------------------------------------------
-def trans(psyir: FileContainer):
+def trans(psyir: FileContainer) -> None:
     '''
     Take the supplied PSyIR object, apply module inlining and fuse loops as
     much as possible.

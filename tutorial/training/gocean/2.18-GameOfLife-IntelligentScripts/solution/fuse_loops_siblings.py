@@ -41,8 +41,9 @@ It applies kernel inlining and then loop fusion to all kernel calls.
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.gocean1p0 import GOKern, GOLoop
-from psyclone.psyir.transformations import TransformationError
 from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import FileContainer
+from psyclone.psyir.transformations import TransformationError
 
 
 def apply_all(node_list, transform):
@@ -114,13 +115,12 @@ def apply_all(node_list, transform):
             del siblings[0]
 
 
-def trans(psyir):
+def trans(psyir: FileContainer) -> None:
     '''
     Take the supplied psyir object, apply module inlining, and fuse all loops
     as much as possible.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     # We know that there is only one schedule
