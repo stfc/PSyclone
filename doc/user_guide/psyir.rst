@@ -153,37 +153,37 @@ the code readability.
 
 The homogeneous navigation methods are:
 
-   .. automethod:: psyclone.psyir.nodes.Node.children()
+   .. automethod:: psyclone.psyir.nodes.node.Node.children()
        :no-index:
-   .. automethod:: psyclone.psyir.nodes.Node.siblings()
+   .. automethod:: psyclone.psyir.nodes.node.Node.siblings()
        :no-index:
-   .. automethod:: psyclone.psyir.nodes.Node.parent()
+   .. automethod:: psyclone.psyir.nodes.node.Node.parent()
        :no-index:
-   .. automethod:: psyclone.psyir.nodes.Node.root()
+   .. automethod:: psyclone.psyir.nodes.node.Node.root()
        :no-index:
-   .. automethod:: psyclone.psyir.nodes.Node.walk()
+   .. automethod:: psyclone.psyir.nodes.node.Node.walk()
        :no-index:
-   .. automethod:: psyclone.psyir.nodes.Node.get_sibling_lists()
+   .. automethod:: psyclone.psyir.nodes.node.Node.get_sibling_lists()
        :no-index:
-   .. automethod:: psyclone.psyir.nodes.Node.ancestor()
+   .. automethod:: psyclone.psyir.nodes.node.Node.ancestor()
        :no-index:
-   .. automethod:: psyclone.psyir.nodes.Node.scope()
+   .. automethod:: psyclone.psyir.nodes.node.Node.scope()
        :no-index:
-   .. automethod:: psyclone.psyir.nodes.Node.path_from()
+   .. automethod:: psyclone.psyir.nodes.node.Node.path_from()
        :no-index:
 
 In addition to the navigation methods, nodes also have homogeneous methods to
 interrogate their location and surrounding nodes.
 
-   .. automethod:: psyclone.psyir.nodes.Node.immediately_precedes()
+   .. automethod:: psyclone.psyir.nodes.node.Node.immediately_precedes()
        :no-index:
-   .. automethod:: psyclone.psyir.nodes.Node.immediately_follows()
+   .. automethod:: psyclone.psyir.nodes.node.Node.immediately_follows()
        :no-index:
-   .. automethod:: psyclone.psyir.nodes.Node.position()
+   .. automethod:: psyclone.psyir.nodes.node.Node.position()
        :no-index:
-   .. automethod:: psyclone.psyir.nodes.Node.abs_position()
+   .. automethod:: psyclone.psyir.nodes.node.Node.abs_position()
        :no-index:
-   .. automethod:: psyclone.psyir.nodes.Node.sameParent()
+   .. automethod:: psyclone.psyir.nodes.node.Node.sameParent()
        :no-index:
 
 The semantic navigation methods are:
