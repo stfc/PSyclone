@@ -1,3 +1,5 @@
+   25) PR #3289 for #3288. Pin Sphinx to 8.3 to prevent doc build issues.
+
    24) PR #3284 for #3283. Bug fix for case where same file found via
    multiple search paths.   
 
