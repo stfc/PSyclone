@@ -44,7 +44,7 @@
 
 # pylint: disable=too-many-lines
 import abc
-from typing import Optional
+from enum import Enum, auto
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, VariablesAccessMap
@@ -163,15 +163,27 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     '''Abstract base class for a node representing a call to an LFRic
     built-in.
 
-    :raises NotImplementedError: if a subclass of this abstract class \
+    :raises NotImplementedError: if a subclass of this abstract class
         does not set the value of '_datatype'.
 
     '''
+    class ReductionType(Enum):
+        '''
+        Enumeration of the types of reduction an LFRicBuiltIn can perform.
+        '''
+        #: No reduction.
+        NONE = auto()
+        #: Summation reduction.
+        SUM = auto()
+        #: Global minimum value.
+        MIN = auto()
+        #: Global maximum value.
+        MAX = auto()
+
     _case_name = None
     _datatype = None
-    #: The type of reduction performed by this kernel. By default this is
-    ## None indicating no reduction.
-    _reduction_type = None
+    #: The type of reduction performed by this kernel.
+    _reduction_type: ReductionType = ReductionType.NONE
 
     def __init__(self):
         # Builtins do not accept quadrature
@@ -457,10 +469,9 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         return self._fs_descriptors
 
     @property
-    def reduction_type(self) -> Optional[str]:
+    def reduction_type(self) -> ReductionType:
         '''
-        :returns: the type of reduction operation performed by this Built-in
-            or None if it does not perform a reduction.
+        :returns: the type of reduction operation performed by this Built-in.
         '''
         return self._reduction_type
 
@@ -2364,7 +2375,7 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
     '''
     _case_name = "X_innerproduct_Y"
     _datatype = "real"
-    _reduction_type = "sum"
+    _reduction_type = LFRicBuiltIn.ReductionType.SUM
 
     @classmethod
     def metadata(cls):
@@ -2412,7 +2423,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
     '''
     _case_name = "X_innerproduct_X"
     _datatype = "real"
-    _reduction_type = "sum"
+    _reduction_type = LFRicBuiltIn.ReductionType.SUM
 
     @classmethod
     def metadata(cls):
@@ -2463,7 +2474,7 @@ class LFRicSumXKern(LFRicBuiltIn):
     '''
     _case_name = "sum_X"
     _datatype = "real"
-    _reduction_type = "sum"
+    _reduction_type = LFRicBuiltIn.ReductionType.SUM
 
     @classmethod
     def metadata(cls):
@@ -2772,7 +2783,7 @@ class LFRicMinvalXKern(LFRicBuiltIn):
     '''
     _case_name = "minval_X"
     _datatype = "real"
-    _reduction_type = "min"
+    _reduction_type = LFRicBuiltIn.ReductionType.MIN
 
     @classmethod
     def metadata(cls) -> LFRicKernelMetadata:
@@ -2812,7 +2823,7 @@ class LFRicMaxvalXKern(LFRicBuiltIn):
     '''
     _case_name = "maxval_X"
     _datatype = "real"
-    _reduction_type = "max"
+    _reduction_type = LFRicBuiltIn.ReductionType.MAX
 
     @classmethod
     def metadata(cls) -> LFRicKernelMetadata:

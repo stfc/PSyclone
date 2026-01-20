@@ -183,13 +183,14 @@ class LFRicInvoke(Invoke):
                 if not kern.is_reduction:
                     continue
                 loop = kern.ancestor(LFRicLoop)
-                if kern.reduction_type == "sum":
+                if kern.reduction_type == LFRicBuiltIn.ReductionType.SUM:
                     global_red = LFRicGlobalSum(kern.reduction_arg,
                                                 parent=loop.parent)
                 else:
                     raise GenerationError(
-                        "TODO #2381 - currently only global *sum* "
-                        "reductions are supported.")
+                        f"TODO #2381 - currently only global *sum* "
+                        f"reductions are supported but kernel '{kern.name}' "
+                        f"performs a {kern.reduction_type}")
                 loop.parent.children.insert(loop.position+1, global_red)
 
         # Add the halo depth(s) for any kernel(s) that operate in the halos
