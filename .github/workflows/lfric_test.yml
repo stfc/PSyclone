@@ -119,7 +119,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/does_nothing.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf working-atm-passthrough
-        ./build/local_build.py -j ${NUM_PARALLEL} -v -p psyclone-test -w working-gh-passthrough gungho_atm
+        ./build/local_build.py -j ${NUM_PARALLEL} -v -p psyclone-test -w working-atm-passthrough lfric_atm
         # Run
         cd applications/lfric_atm/example
         rm -f timer.txt lfric_atm-checksums.txt  # In case there were from a previous run
@@ -272,10 +272,9 @@ jobs:
         ./build/local_build.py -v -p meto-ex1a -j 16 -w working-atm-transmuted lfric_atm
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
 
-        # Run the app with 12 threads and no MPI
-        # (with MPI it currently fails to initialise the mesh - even with no psyclone)
+        # Run the app with 2 threads and 6 MPI ranks
         cd applications/lfric_atm/example/
-        OMP_NUM_THREADS=12 mpirun -n 1 ../bin/lfric_atm configuration.nml
+        OMP_NUM_THREADS=2 mpirun -n 6 ../bin/lfric_atm configuration.nml
 
         # And compare the results
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt

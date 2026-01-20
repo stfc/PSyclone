@@ -49,6 +49,7 @@ jobs:
     runs-on: self-hosted
     env:
       LFRIC_APPS_HASH: 152804e4ba768cf54801f034a20131812ecff0f2
+      LFRIC_CORE_HASH: 022b139434b06c2431cf857f35f6bfa1ab8edeed
       PYTHON_VERSION: 3.13
 
     steps:
@@ -102,9 +103,14 @@ jobs:
         cd /archive/psyclone-tests/latest-run
         rm -rf lfric_extraction
         mkdir lfric_extraction
+        cd lfric_extraction
         git clone https://github.com/stfc/lfric_apps
         cd lfric_apps
         git checkout ${LFRIC_APPS_HASH}
+        cd ..
+        git clone https://github.com/stfc/lfric_core
+        cd lfric_core
+        git checkout ${LFRIC_CORE_HASH}
 
     # Compile GungHo with extraction
     - name: GungHo Extraction Compilation
@@ -122,18 +128,20 @@ jobs:
         # Set the directory names for the extraction runs:
         # -----------------------------------------------
         export RUNDIR=/archive/psyclone-tests/latest-run/extraction_test
+        export LFRIC_CORE=${RUNDIR}/lfric_core
         export LFRIC_APPS=${RUNDIR}/lfric_apps
 
         # Copy the lfric source files (BAF copies files into the source tree)
         # -------------------------------------------------------------------
         rm -rf ${RUNDIR}
-        mkdir -p ${LFRIC_APPS}
+        mkdir -p ${RUNDIR}
+        cp -r /archive/psyclone-tests/latest-run/lfric_extraction/lfric_core/ ${RUNDIR}
         cp -r /archive/psyclone-tests/latest-run/lfric_extraction/lfric_apps/ ${RUNDIR}
 
         # Install the BAF scripts into the lfric directories:
         # ---------------------------------------------------
         cd lfric-baf
-        ./install.sh ${LFRIC_APPS}
+        ./install.sh ${LFRIC_CORE} ${LFRIC_APPS}
 
         # Copy the modified extraction script from PSyclone
         # -------------------------------------------------
@@ -149,7 +157,7 @@ jobs:
         mkdir -p $PWD/fab_workspace
         export FAB_WORKSPACE=$PWD/fab_workspace
         # Run the Fab build script
-        ${LFRIC_APPS}/build.sh ./fab_gungho_model_extract.py   \
+        ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py   \
           --profile ${COMPILER_PROFILE} --nproc 4 -fc $LDMPI -ld $LDMPI  -cc $CC
 
         # Run gungho (which will create the NetCDF kernel data files)
