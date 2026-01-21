@@ -53,6 +53,8 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessMap
 from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
                                    LFRicInvokeSchedule, LFRicKern, LFRicLoop)
+from psyclone.domain.common.transformations.kernel_transformation_mixin \
+    import KernelTransformationMixin
 from psyclone.lfric import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
@@ -1687,7 +1689,7 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
                 f"'{type(node)}'.")
 
 
-class LFRicKernelConstTrans(Transformation):
+class LFRicKernelConstTrans(Transformation, KernelTransformationMixin):
     '''Modifies a kernel so that the number of dofs, number of layers and
     number of quadrature points are fixed in the kernel rather than
     being passed in by argument.
@@ -1967,6 +1969,8 @@ class LFRicKernelConstTrans(Transformation):
                 f"Error in LFRicKernelConstTrans transformation. Supplied "
                 f"node must be an LFRic kernel but found '{type(node)}'.")
 
+        self._check_kernel_is_local(node)
+
         if not options:
             options = {}
         cellshape = options.get("cellshape", "quadrilateral")
@@ -2178,7 +2182,9 @@ class ACCEnterDataTrans(Transformation):
         self.check_child_async(sched, async_queue)
 
 
-class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
+class ACCRoutineTrans(Transformation,
+                      MarkRoutineForGPUMixin,
+                      KernelTransformationMixin):
     '''
     Transform a kernel or routine by adding a "!$acc routine" directive
     (causing it to be compiled for the OpenACC accelerator device).
@@ -2273,6 +2279,8 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         super().validate(node, options)
 
         self.validate_it_can_run_on_gpu(node, options)
+
+        self._check_kernel_is_local(node)
 
         if options and "parallelism" in options:
             para = options["parallelism"]
@@ -2423,7 +2431,7 @@ class ACCDataTrans(RegionTrans):
                             f"component is the one being iterated over.")
 
 
-class KernelImportsToArguments(Transformation):
+class KernelImportsToArguments(Transformation, KernelTransformationMixin):
     '''
     Transformation that removes any accesses of imported data from the supplied
     kernel and places them in the caller. The values/references are then passed
@@ -2471,6 +2479,8 @@ class KernelImportsToArguments(Transformation):
                 f"The {self.name} transformation is currently only supported "
                 f"for the GOcean API but got an InvokeSchedule of type: "
                 f"'{type(invoke_schedule).__name__}'")
+
+        self._check_kernel_is_local(node)
 
         # Check that there are no unqualified imports or undeclared symbols
         try:
