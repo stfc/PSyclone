@@ -1767,7 +1767,7 @@ class LFRicKernelConstTrans(Transformation):
         "number_of_layers" arguments are provided to mirror the namelist values
         that are input into an LFRic model when it is run.
 
-        Quadrature support is currently limited to XYoZ in ths
+        Quadrature support is currently limited to XYoZ in this
         transformation. In the case of XYoZ the number of quadrature
         points in the horizontal are set to element_order_h+3, and in the
         vertical to element_order_v+3. These values are set in the LFRic

@@ -51,7 +51,7 @@ from psyclone.utils import transformation_documentation_wrapper
 class IncreaseRankLoopArraysTrans(Transformation):
     ''' This transformation takes a loop and a list of arrays accessed inside
     the loop, and increases those arrays with an additional dimension with the
-    size of the interation space. Then it indexes all accesses with the loop
+    size of the iteration space. Then it indexes all accesses with the loop
     variable, so that each iteration accesses a unique location. Effectively
     making the sub-array private for each iteration of the loop. It also
     indexes assignments outside the loop to iterate over the whole new rank.

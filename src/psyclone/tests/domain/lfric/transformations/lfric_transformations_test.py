@@ -1241,7 +1241,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
 
 def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that we can fuse colour loops , enclose them in an OpenMP
-    parallel region and preceed each by an OpenMP DO for both
+    parallel region and precede each by an OpenMP DO for both
     sequential and distributed-memory code. We also test when annexed
     is False and True as it affects how many halo exchanges are
     generated.

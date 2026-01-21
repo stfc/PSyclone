@@ -315,7 +315,7 @@ class DependencyTools():
                         (indices_1[i1][i2].union(indices_2[i1][i2]),
                          [(i1, i2)]))
                 except IndexError:
-                    # This can happend if the access have a different amount of
+                    # This can happen if the access have a different amount of
                     # index_components, e.g.: a(i) = a*a
                     # This will result in an empty partition and prevent
                     # parallelisation

@@ -46,7 +46,7 @@ module profile_psy_data_mod
   type, extends(PSyDataBaseType) :: profile_PSyDataType
      !> Counts how often this region was executed.
      integer                   :: count
-     !> Time at whith PreStart was called.
+     !> Time at with PreStart was called.
      real(kind=4)              :: start
      !> Overall time spent in this subroutine, i.e. sum
      !> of each individual call.

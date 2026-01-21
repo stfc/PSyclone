@@ -191,7 +191,7 @@ class ChildrenList(list):
     def append(self, item):
         ''' Extends list append method with children node validation.
 
-        :param item: item to be appened to the list.
+        :param item: item to be appended to the list.
         :type item: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -237,7 +237,7 @@ class ChildrenList(list):
     def extend(self, items):
         ''' Extends list extend method with children node validation.
 
-        :param items: list of items to be appened to the list.
+        :param items: list of items to be appended to the list.
         :type items: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''

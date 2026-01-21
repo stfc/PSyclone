@@ -755,7 +755,7 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
     trans.validate(loop, {"privatise_arrays": True})
 
     # Doing the same but with an outer loop around, it must fails because now
-    # it can loop back to the references in each of the branche
+    # it can loop back to the references in each of the branch
     routine = psyir.children[0]
     children = routine.pop_all_children()
     routine.addchild(Loop.create(routine.symbol_table.lookup("i"),

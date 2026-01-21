@@ -1023,7 +1023,7 @@ class Fparser2Reader():
         :param fp2_nodes: list of fparser2 AST nodes constituting the
                           CodeBlock.
         :type fp2_nodes: list of :py:class:`fparser.two.utils.Base`
-        :param message: Include a preceeding comment attached to the CodeBlock.
+        :param message: Include a preceding comment attached to the CodeBlock.
         :type message: Optional[str]
 
         :returns: a CodeBlock instance.
@@ -1186,7 +1186,7 @@ class Fparser2Reader():
             tuple[:py:class:`psyclone.psyir.nodes.DataNode`,
                   :py:class:`psyclone.psyir.nodes.DataNode`]]]
 
-        :raises GenerationError: if invalid Fortran is encounted in the
+        :raises GenerationError: if invalid Fortran is encountered in the
                                  dimensions list.
         :raises NotImplementedError: if the supplied dimension represents an
                                      assumed-size specification.
@@ -3034,7 +3034,7 @@ class Fparser2Reader():
         This handler returns None indicating that the associated
         fparser2 node can be ignored.
 
-        Note that this method contains ignored arguments to comform with
+        Note that this method contains ignored arguments to conform with
         the handler(node, parent) method interface.
 
         :returns: None
