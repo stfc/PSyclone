@@ -551,10 +551,9 @@ def test_scalar_array_different_data_types_invoke():
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
-    const = LFRicConstants()
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(GenerationError):
         _ = psy.gen
-    assert (f"ScalarArray argument(s) ['b'] in Invoke "
-            f"'invoke_real_and_logical_scalars' is/are passed to more than "
-            f"one kernel and the kernel metadata for the corresponding "
-            f"arguments specifies different intrinsic types.")
+    assert ("ScalarArray argument(s) ['b'] in Invoke "
+            "'invoke_real_and_logical_scalars' is/are passed to more than "
+            "one kernel and the kernel metadata for the corresponding "
+            "arguments specifies different intrinsic types.")
