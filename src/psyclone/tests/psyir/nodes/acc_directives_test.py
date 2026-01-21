@@ -688,8 +688,6 @@ def test_accdatadirective_update_data_movement_clauses(fortran_reader,
         "  sto_tmp(ji) = sfactor * sto_tmp(ji)\n"
         "end do\n"
         "end program dtype_read\n")
-    print(psyir.view())
-    print(psyir.debug_string())
     loop = psyir.walk(Loop)[0]
     dtrans = ACCDataTrans()
     dtrans.apply(loop)

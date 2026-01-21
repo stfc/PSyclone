@@ -174,10 +174,9 @@ def test_intrinsiccall_datatype(fortran_reader):
 
 
 def test_intrinsiccall_reference_accesses_error():
-    """Tests the reference_accesses method of intrinsiccall's error
-    case."""
-    # Test computing argument names doesn't work when we have 2 arguments for
-    # SUM with no naming, as it can't determine between the SUM variants.
+    """Test the error case of IntrinsicCall's reference_accesses method."""
+    # If the IntrinsicCall cannot compute the argument names (e.g. for SUM
+    # with no naming), it cannot guarantee the result of reference_accesses.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))

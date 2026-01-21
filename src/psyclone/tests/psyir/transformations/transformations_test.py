@@ -147,7 +147,7 @@ def test_accparalleltrans_validate(fortran_reader):
         end do
         do i = 1, 10
             do j = 1, 10
-                A(i,j) = GET_COMMAND(command)
+                A(i,j) = GET_COMMAND(2)
             end do
         end do
     end subroutine

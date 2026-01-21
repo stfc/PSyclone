@@ -445,7 +445,7 @@ end subroutine x
 
 
 def test_kind_parameters_ignored(fortran_reader):
-    '''Test that CONSTANT variables  used in locations that would also
+    '''Test that CONSTANT variables used in locations that would also
     be attributed as reads don't result in dependencies.'''
     code = """
     subroutine x()

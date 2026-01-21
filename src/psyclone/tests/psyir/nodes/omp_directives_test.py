@@ -934,8 +934,8 @@ def test_infer_sharing_attributes(fortran_reader):
     assert len(sync) == 1
     assert list(sync)[0].name == 'k'
 
-    # Check that kinds on literals are ignored for data sharing clauses
-    # and that if any access to a varible is CONSTANT it is ignored.
+    # Check that constants are ignored, even if in the same loop they appear
+    # in a location that expects a READ
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
             integer, parameter :: ikind = 4

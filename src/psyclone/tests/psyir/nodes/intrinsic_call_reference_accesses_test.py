@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,6 @@ TODO #2341 - tests need to be added for all of the supported intrinsics.
 
 """
 
-# import pytest
-
 from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.psyir.nodes import (
     ArrayReference,
@@ -72,7 +70,7 @@ from psyclone.psyir.symbols import (
 )
 
 
-def test_add_read_argument():
+def test_add_read_argument(fortran_reader):
     """ Test the _add_read_argument helper function."""
     # Test we get expected behaviour for a Reference input.
     symbol = DataSymbol("a", INTEGER_TYPE)
@@ -123,6 +121,37 @@ def test_add_read_argument():
     # This is the same behaviour as an ArrayReference itself would have.
     assert len(vam[sig]) == 1
     assert vam[sig][0].access_type == AccessType.READ
+
+    code = """subroutine test
+    use some_mod
+    integer :: a, b, c
+    integer, dimension(100) :: d
+    integer, parameter :: wp = 8
+
+    a = MAX(a, c + b + some_func(d) + 1_wp)
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic = psyir.walk(IntrinsicCall)[0]
+    vam = VariablesAccessMap()
+    _add_read_argument(intrinsic.arguments[1], vam)
+    sigs = vam.all_signatures
+    print(sigs)
+    #[Signature(b), Signature(c), Signature(d), Signature(some_func), Signature(wp)]
+    assert str(sigs[0]) == "b"
+    assert len(vam[sigs[0]]) == 1
+    assert vam[sigs[0]][0].access_type == AccessType.READ
+    assert str(sigs[1]) == "c"
+    assert len(vam[sigs[1]]) == 1
+    assert vam[sigs[1]][0].access_type == AccessType.READ
+    assert str(sigs[2]) == "d"
+    assert len(vam[sigs[2]]) == 1
+    assert vam[sigs[2]][0].access_type == AccessType.READWRITE
+    assert str(sigs[3]) == "some_func"
+    assert len(vam[sigs[3]]) == 1
+    assert vam[sigs[3]][0].access_type == AccessType.UNKNOWN
+    assert str(sigs[4]) == "wp"
+    assert len(vam[sigs[4]]) == 1
+    assert vam[sigs[4]][0].access_type == AccessType.CONSTANT
 
 
 def test_add_write_argument():
@@ -225,7 +254,6 @@ def test_add_inquiry_argument():
     assert vam[sig][0].access_type == AccessType.READ
 
 
-# FIXME Test _compute_reference_accesses
 def test_compute_reference_accesses():
     """ Test the _compute_reference_accesses helper function."""
     # Create some References to use to test functionality.
@@ -273,7 +301,7 @@ def test_compute_reference_accesses():
             constant_named_args=["constant", "not_present_4"],
             inquiry_named_args=["inquiry", "not_present_5"],
     )
-    # We should onyl get the 10 accesses present in the Call.
+    # We should only get the 10 accesses present in the Call.
     assert len(varaccesses) == 10
 
     sig, _ = a_ref.get_signature_and_indices()

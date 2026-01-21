@@ -87,7 +87,9 @@ IAttr = namedtuple(
 ArgDesc = namedtuple('ArgDesc', 'min_count max_count types arg_names')
 
 
-def _add_read_argument(argument: DataNode, var_acc_map: VariablesAccessMap):
+def _add_read_argument(
+    argument: DataNode, var_acc_map: VariablesAccessMap
+) -> None:
     """Adds a read access for argument into var_acc_map
 
     :param argument: The argument to add a read access for.
@@ -96,19 +98,20 @@ def _add_read_argument(argument: DataNode, var_acc_map: VariablesAccessMap):
     # Find all the reference children of the argument (e.g. we could
     # have a binary operation argument with multiple, or a Literal
     # with none.
-    for ref in argument.walk(Reference):
-        sig, all_indices = ref.get_signature_and_indices()
-        var_acc_map.add_access(sig, AccessType.READ, ref)
+    argument_map = argument.reference_accesses()
+    var_acc_map.update(argument_map)
 
 
-def _add_write_argument(argument: Reference, var_acc_map: VariablesAccessMap):
+def _add_write_argument(
+    argument: Reference, var_acc_map: VariablesAccessMap
+) -> None:
     """Adds a write access for argument into var_acc_map
 
     :param argument: The argument to add a write access for.
     :param var_acc_map: The VariablesAccessMap to add the access into.
     """
     sig, all_indices = argument.get_signature_and_indices()
-    # For Array accesses, these have reads to their indices
+    # For Array accesses, these have accesses to their indices
     for indices in all_indices:
         for index in indices:
             var_acc_map.update(index.reference_accesses())
@@ -117,14 +120,14 @@ def _add_write_argument(argument: Reference, var_acc_map: VariablesAccessMap):
 
 def _add_readwrite_argument(
     argument: Reference, var_acc_map: VariablesAccessMap
-):
+) -> None:
     """Adds a readwrite access for argument into var_acc_map
 
     :param argument: The argument to add a readwrite access for.
     :param var_acc_map: The VariablesAccessMap to add the access into.
     """
     sig, all_indices = argument.get_signature_and_indices()
-    # For Array accesses, these have reads to their indices
+    # For Array accesses, these have accesses to their indices
     for indices in all_indices:
         for index in indices:
             var_acc_map.update(index.reference_accesses())
@@ -132,8 +135,8 @@ def _add_readwrite_argument(
 
 
 def _add_constant_argument(
-    argument: DataNode, var_acc_map: VariablesAccessMap
-):
+    argument: Union[Literal, Reference], var_acc_map: VariablesAccessMap
+) -> None:
     """Adds a constant access for argument into var_acc_map
 
     :param argument: The argument to add a constant access for.
@@ -146,7 +149,9 @@ def _add_constant_argument(
     var_acc_map.add_access(sig, AccessType.CONSTANT, argument)
 
 
-def _add_inquiry_argument(argument: DataNode, var_acc_map: VariablesAccessMap):
+def _add_inquiry_argument(
+    argument: Union[Literal, Reference], var_acc_map: VariablesAccessMap
+) -> None:
     """Adds an inquiry access for argument into var_acc_map
 
     :param argument: The argument to add a inquiry access for.
@@ -155,7 +160,7 @@ def _add_inquiry_argument(argument: DataNode, var_acc_map: VariablesAccessMap):
     if not isinstance(argument, Reference):
         return
     sig, all_indices = argument.get_signature_and_indices()
-    # For Array accesses, these have reads to their indices
+    # For Array accesses, these have accesses to their indices
     for indices in all_indices:
         for index in indices:
             var_acc_map.update(index.reference_accesses())
@@ -163,7 +168,7 @@ def _add_inquiry_argument(argument: DataNode, var_acc_map: VariablesAccessMap):
 
 
 def _compute_reference_accesses(
-    node,
+    node : "IntrinsicCall",
     read_indices: list[int] = None,
     write_indices: list[int] = None,
     readwrite_indices: list[int] = None,
@@ -183,7 +188,6 @@ def _compute_reference_accesses(
     contains the name.
 
     :param node: the IntrinsicCall whose reference_accesses to compute.
-    :type node:  :py:class:`psyclone.psyir.nodes.IntrinsicCall`
     :param read_indices: the argument indices of each read access.
     :param write_indices: the argument indices of each write access.
     :param constant_indices: the argument indices of each typeinfo access.
@@ -794,8 +798,6 @@ class IntrinsicCall(Call):
 
         # Fortran special-case statements (technically not Fortran intrinsics
         # but in PSyIR they are represented as Intrinsics)
-        # TODO 3060 reference_accesses NYI on Intrinsics, they are currently
-        # all set to None.
         ALLOCATE = IAttr(
             name="ALLOCATE",
             is_pure=False,
