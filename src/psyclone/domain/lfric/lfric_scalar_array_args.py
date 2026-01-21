@@ -171,6 +171,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                     # Create the dimensions array symbol
                     dims_array_symbol = self.symtab.find_or_create(
                         "dims_" + arg.name,
+                        tag = "dims_" + arg.name,
                         symbol_type=DataSymbol,
                         datatype=ArrayType(
                             LFRicTypes("LFRicIntegerScalarDataType")(),
@@ -210,6 +211,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                     # Create the dimensions array symbol
                     dims_array_symbol = self.symtab.find_or_create(
                         "dims_" + arg.name,
+                        tag="dims_" + arg.name,
                         symbol_type=DataSymbol,
                         datatype=ArrayType(
                             LFRicTypes("LFRicIntegerScalarDataType")(),

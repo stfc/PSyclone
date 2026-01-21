@@ -255,7 +255,7 @@ class KernCallArgList(ArgOrdering):
             if scalar_arg.is_scalar_array:
                 # If it's a ScalarArray we need to add the dimensions
                 # array to the call
-                dims_sym = self._symtab.lookup("dims_" + scalar_arg.name)
+                dims_sym = self._symtab.lookup_with_tag("dims_" + scalar_arg.name)
                 self.psyir_append(Reference(dims_sym))
             sym = self._symtab.lookup(scalar_arg.name)
             self.psyir_append(Reference(sym))
