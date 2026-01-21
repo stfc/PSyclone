@@ -41,7 +41,7 @@ transform:
 	${PSYCLONE} -s ./add_parallelism.py example.f90 -o output.f90
 
 compile: transform
-	@echo "No compilation supported for nemo/eg8"
+	@echo "No compilation supported for psyir/parallelise_loops"
 
 run: compile
-	@echo "No run targets for nemo/eg8"
+	@echo "No run targets for psyir/parallelise_loops"
