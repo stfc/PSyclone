@@ -510,12 +510,12 @@ module operator_example_psy
   contains
   subroutine invoke_0_assemble_weak_derivative_w3_w2_kernel_type(mapping, \
 coord, qr)
+    use assemble_weak_derivative_w3_w2_kernel_mod, only : \
+assemble_weak_derivative_w3_w2_kernel_code
     use mesh_mod, only : mesh_type
     use function_space_mod, only : BASIS, DIFF_BASIS
     use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, \
 quadrature_xyoz_type
-    use assemble_weak_derivative_w3_w2_kernel_mod, only : \
-assemble_weak_derivative_w3_w2_kernel_code
     type(operator_type), intent(in) :: mapping
     type(field_type), dimension(3), intent(in) :: coord
     type(quadrature_xyoz_type), intent(in) :: qr

@@ -1243,6 +1243,19 @@ class CodedKern(Kern):
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
 
+        # If we have an ancestor InvokeSchedule then add the necessary
+        # symbols.
+        invsched = self.ancestor(InvokeSchedule)
+        if invsched:
+            symtab = invsched.symbol_table
+            csymbol = symtab.find_or_create(
+                self._module_name,
+                symbol_type=ContainerSymbol)
+            _ = symtab.find_or_create(
+                self._name,
+                symbol_type=RoutineSymbol,
+                interface=ImportInterface(csymbol))
+
     def get_interface_symbol(self) -> None:
         '''
         By default, a Kern is not polymorphic and therefore has no interface

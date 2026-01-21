@@ -4336,8 +4336,8 @@ r_tran_operator_type
   subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, \
 scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, \
 field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
-    use mesh_mod, only : mesh_type
     use mixed_kernel_mod, only : mixed_code
+    use mesh_mod, only : mesh_type
     real(kind=r_def), intent(in) :: scalar_r_def
     type(field_type), intent(in) :: field_r_def
     type(operator_type), intent(in) :: operator_r_def

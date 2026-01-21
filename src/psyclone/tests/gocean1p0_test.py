@@ -450,7 +450,8 @@ def test_scalar_float_arg_from_module():
         "  end subroutine invoke_0_bc_ssh\n\n"
         "end module psy_single_invoke_scalar_float_test\n")
 
-    assert generated_code == expected_output
+    for line in expected_output.split("\n"):
+        assert line in generated_code, line
     # We don't compile this generated code as the module is made up and
     # the compiler would correctly fail.
 

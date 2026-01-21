@@ -84,11 +84,11 @@ def test_field_xyoz(tmpdir):
     assert (
         "  subroutine invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
         " qr)\n"
+        "    use testkern_qr_mod, only : testkern_qr_code\n"
         "    use mesh_mod, only : mesh_type\n"
         "    use function_space_mod, only : BASIS, DIFF_BASIS\n"
         "    use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, "
-        "quadrature_xyoz_type\n"
-        "    use testkern_qr_mod, only : testkern_qr_code\n" in generated_code)
+        "quadrature_xyoz_type\n" in generated_code)
     assert """
     type(field_type), intent(in) :: f1
     type(field_type), intent(in) :: f2
@@ -294,14 +294,14 @@ def test_face_qr(tmpdir, dist_mem):
         "  use field_mod, only : field_proxy_type, field_type\n")
     assert module_declns in generated_code
 
-    output_decls = ""
+    output_decls = ("    use testkern_qr_faces_mod, only : "
+                    "testkern_qr_faces_code\n")
     if dist_mem:
         output_decls += "    use mesh_mod, only : mesh_type\n"
     output_decls += (
         "    use function_space_mod, only : BASIS, DIFF_BASIS\n"
         "    use quadrature_face_mod, only : quadrature_face_proxy_type, "
-        "quadrature_face_type\n"
-        "    use testkern_qr_faces_mod, only : testkern_qr_faces_code\n")
+        "quadrature_face_type\n")
     assert output_decls in generated_code
     assert """\
     type(field_type), intent(in) :: f1

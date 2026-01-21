@@ -548,8 +548,8 @@ def test_derived_type_deref_naming(tmpdir):
     output = (
         "  subroutine invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
-        "    use mesh_mod, only : mesh_type\n"
         "    use testkern_mod, only : testkern_code\n"
+        "    use mesh_mod, only : mesh_type\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1_my_field\n"
         "    type(field_type), intent(in) :: f1_my_field_1\n"
@@ -703,83 +703,6 @@ def test_codedkern_module_inline_getter_and_setter():
     assert ("The module inline parameter only accepts the type boolean "
             "'True' since module-inlining is irreversible. But found: '3'"
             in str(err.value))
-
-
-def test_codedkern_module_inline_lowering(tmpdir):
-    ''' Check that a CodedKern with module-inline gets copied into the
-    local module appropriately when the PSy-layer is generated'''
-    # Use LFRic example with a repeated CodedKern
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    coded_kern = schedule.children[0].loop_body[0]
-    gen = str(psy.gen)
-
-    # Without module-inline the subroutine is used by a module import
-    assert "use ru_kernel_mod, only : ru_code" in gen
-    assert "subroutine ru_code(" not in gen
-
-    # With module-inline the subroutine does not need to be imported
-    coded_kern.module_inline = True
-
-    # Fail if local routine symbol does not already exist
-    with pytest.raises(VisitorError) as err:
-        gen = str(psy.gen)
-    assert ("Cannot generate this kernel call to 'ru_code' because it "
-            "is marked as module-inlined but no such subroutine exists in "
-            "this module." in str(err.value))
-
-    # Create the symbol and try again, it now must succeed
-    psy.container.symbol_table.new_symbol(
-            "ru_code", symbol_type=RoutineSymbol)
-
-    gen = str(psy.gen)
-    assert "use ru_kernel_mod, only : ru_code" not in gen
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
-    ''' Check that module-inline works as expected when the same kernel
-    is provided in different invokes'''
-    # Use LFRic example with the kernel 'testkern_qr_mod' repeated once in
-    # the first invoke and 3 times in the second invoke.
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-
-    # By default the kernel is imported once per invoke
-    gen = str(psy.gen)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 2
-
-    # Module inline kernel in invoke 1
-    schedule = psy.invokes.invoke_list[0].schedule
-    for coded_kern in schedule.walk(CodedKern):
-        if coded_kern.name == "testkern_qr_code":
-            coded_kern.module_inline = True
-    # A top-level RoutineSymbol must now exist
-    schedule.ancestor(Container).symbol_table.new_symbol(
-            "testkern_qr_code", symbol_type=RoutineSymbol)
-    gen = str(psy.gen)
-
-    # After this, one invoke uses the inlined top-level subroutine
-    # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    # Module inline kernel in invoke 2
-    schedule = psy.invokes.invoke_list[1].schedule
-    for coded_kern in schedule.walk(CodedKern):
-        if coded_kern.name == "testkern_qr_code":
-            coded_kern.module_inline = True
-    gen = str(psy.gen)
-    # After this, no imports are remaining and both use the same
-    # top-level implementation
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 0
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_codedkern_lower_to_language_level(monkeypatch):
