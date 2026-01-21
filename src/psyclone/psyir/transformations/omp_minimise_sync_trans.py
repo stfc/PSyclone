@@ -219,7 +219,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
             dependency = self._find_next_dependency(
                     directive.dir_body, directive
             )
-            # Want to explicily check if the dependency is False
+            # Want to explicitly check if the dependency is False
             # as that means we have a nowait with an unsatisfiable
             # dependency.
             if dependency is False:
@@ -291,7 +291,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
                             barrier_type: type) -> None:
         '''
         Eliminates barriers of the barrier_type in the input Routine node that
-        satsfies all the dependencies for the input directives.
+        satisfies all the dependencies for the input directives.
 
         :param node: The routine to remove barriers from.
         :param directives: The list of directives whose dependencies must
@@ -515,7 +515,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
 
     def apply(self, node: Routine, **kwargs) -> None:
         '''
-        Applies the transformation, which eliminates unneccessary
+        Applies the transformation, which eliminates unnecessary
         barriers whilst satisfying all of the dependencies.
 
         :param node: the routine to try to remove barriers from.
@@ -534,7 +534,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
             self._eliminate_adjacent_barriers(node, OMPBarrierDirective)
             self._eliminate_barriers(node, cpu_directives, OMPBarrierDirective)
             # We can also remove the final child from each parallel directive
-            # if its a OMPBarrierDirective as they are uneccessary.
+            # if its a OMPBarrierDirective as they are unnecessary.
             for parallel in node.walk(OMPParallelDirective):
                 _eliminate_final_parallel_barrier(parallel)
         # Eliminate OMPTaskwaitDirectives for the gpu_directives

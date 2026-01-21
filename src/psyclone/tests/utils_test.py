@@ -65,7 +65,7 @@ def test_within_virtual_env(monkeypatch):
     monkeypatch.setattr(sys, 'prefix', "prefix")
     assert within_virtual_env()
     # There is no 'real_prefix' attribute. There is a 'base_prefix'
-    # atribute with the same name to the 'prefix' attribute.
+    # attribute with the same name to the 'prefix' attribute.
     monkeypatch.setattr(sys, 'base_prefix', "prefix")
     assert not within_virtual_env()
     # There are no 'real_prefix' or 'base_prefix' attributes.
@@ -96,7 +96,7 @@ def test_transformation_doc_wrapper_non_transformation():
             "but got 'int'" in str(excinfo.value))
 
 
-def test_transformation_doc_wrapper_single_inheritence():
+def test_transformation_doc_wrapper_single_inheritance():
     '''Test the transformation_doc_wrapper.'''
 
     # Create a base transformation class
@@ -158,7 +158,7 @@ def test_transformation_doc_wrapper_single_inheritence():
     assert "Super apply docstring" not in InheritingTrans.apply.__doc__
 
 
-def test_transformation_doc_wrapper_multi_inheritence():
+def test_transformation_doc_wrapper_multi_inheritance():
     '''Test the transformation_doc_wrapper.'''
 
     # Create a base transformation class

@@ -55,7 +55,7 @@ module profile_psy_data_mod
      real(kind=4)              :: min_time
      !> Sum Longest measured time of this region.
      real(kind=4)              :: max_time
-     !> Inidicates if this structure has been initialised.
+     !> Indicates if this structure has been initialised.
      logical                   :: initialised = .false.
   contains
       ! The profiling API uses only the two following calls:

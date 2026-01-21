@@ -1165,7 +1165,7 @@ def test_get_procedure_name_error(fortran_reader):
             "but found" in str(info.value))
 
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM.replace(
-        "code", "hode"))
+        "code", "node"))
     datatype = kernel_psyir.children[0].symbol_table.lookup(
         "testkern_type").datatype
     metadata = LFRicKernelMetadata()
@@ -1174,7 +1174,7 @@ def test_get_procedure_name_error(fortran_reader):
     with pytest.raises(ParseError) as info:
         metadata._get_procedure_name(spec_part)
     assert ("Expecting the type-bound procedure binding-name to be 'code' "
-            "if there is a procedure name, but found 'hode'"
+            "if there is a procedure name, but found 'node'"
             in str(info.value))
 
 

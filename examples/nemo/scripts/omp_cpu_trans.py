@@ -86,7 +86,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    # If the environemnt has ONLY_FILE defined, only process that one file and
+    # If the environment has ONLY_FILE defined, only process that one file and
     # nothing else. This is useful for file-by-file exhaustive tests.
     only_do_file = os.environ.get('ONLY_FILE', False)
     if only_do_file and psyir.name != only_do_file:

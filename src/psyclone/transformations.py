@@ -2126,13 +2126,13 @@ class ACCEnterDataTrans(Transformation):
 
     def check_child_async(self, sched, async_queue):
         '''
-        Common function to check that all kernel/parallel childs have the
+        Common function to check that all kernel/parallel children have the
         same async queue.
 
         :param sched: schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
 
-        :param async_queue: The async queue to expect in childs.
+        :param async_queue: The async queue to expect in children.
         :type async_queue: \
             Optional[bool,int,:py:class:`psyclone.core.Reference`]
         '''
@@ -2174,7 +2174,7 @@ class ACCEnterDataTrans(Transformation):
 
         async_queue = options.get('async_queue', False)
 
-        # check consistency with childs about async_queue
+        # check consistency with children about async_queue
         self.check_child_async(sched, async_queue)
 
 

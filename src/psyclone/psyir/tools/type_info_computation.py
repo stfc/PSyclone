@@ -86,7 +86,7 @@ def compute_precision(
         # TODO 3271 - at the moment this is wrong as default reals are defined
         # as UNDEFINED. This means that the precision of an operation
         # involving a default REAL and a DOUBLE PRECISION will be computed
-        # to be UNDEFINED insteaf of DOUBLE.
+        # to be UNDEFINED instead of DOUBLE.
         if ScalarType.Precision.UNDEFINED in precisions:
             return ScalarType.Precision.UNDEFINED
         if ScalarType.Precision.DOUBLE in precisions:

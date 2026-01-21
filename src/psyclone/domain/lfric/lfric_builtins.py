@@ -211,7 +211,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     def __str__(self):
         metadata = self.metadata()
         plural = ""
-        # Builtins are currenty limited to fields and scalars but add
+        # Builtins are currently limited to fields and scalars but add
         # in a check for field-vectors as well for future proofing.
         if len(metadata.meta_args_get([
                 FieldArgMetadata, FieldVectorArgMetadata])) > 1:
@@ -223,7 +223,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         :raises InternalError: if an unsupported argument type is encountered.

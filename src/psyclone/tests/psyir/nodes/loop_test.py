@@ -551,7 +551,7 @@ def test_set_loop_type_inference_rules():
 
 
 def test_loop_type(fortran_reader):
-    ''' Check that the loop_type method works as expeced '''
+    ''' Check that the loop_type method works as expected '''
     code = '''
     subroutine basic_loop()
       integer, parameter :: jpi=16, jpj=16
@@ -602,7 +602,7 @@ def test_explicitly_private_symbols(fortran_reader):
     a_ref = psyir.walk(Assignment)[0].lhs
     b_ref = psyir.walk(Assignment)[0].rhs
 
-    # By default no loop has explict local symbols
+    # By default no loop has explicit local symbols
     assert len(loops[0].explicitly_private_symbols) == 0
     assert len(loops[1].explicitly_private_symbols) == 0
 

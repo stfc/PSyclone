@@ -49,7 +49,7 @@ def trans(psyir):
     '''
 
     # ------------------------------------------------------
-    # TOOD: import the transformation and create an instance
+    # TODO: import the transformation and create an instance
     # ------------------------------------------------------
     # from ... import ...
     # my_transform = ...()

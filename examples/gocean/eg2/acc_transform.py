@@ -67,7 +67,7 @@ def trans(psyir):
                     ktrans.apply(kern)
                     itrans.apply(kern)
             except TransformationError:
-                # TODO #2856: Currenly we refuse to offload code containing
+                # TODO #2856: Currently we refuse to offload code containing
                 # the REAL intrinsic
                 continue
 

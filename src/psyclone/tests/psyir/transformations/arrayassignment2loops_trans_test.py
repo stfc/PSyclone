@@ -468,7 +468,7 @@ def test_validate_no_assignment_with_array_range_on_lhs():
         "array accessor somewhere in the expression, but found "
         in str(info.value))
 
-    # Array Reference but with acessor that resolve to a single scalar
+    # Array Reference but with accessor that resolve to a single scalar
     array_symbol = DataSymbol("x", ArrayType(INTEGER_TYPE, [10, 10]))
     one = Literal("1", INTEGER_TYPE)
     array_assignment = ArrayReference.create(array_symbol, [one, one.copy()])

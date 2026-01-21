@@ -66,7 +66,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
     ...     integer :: i, j
     ...     real, dimension(N) :: ztmp
     ...     ! (Array) Assignments to the target variable outside the loop are
-    ...     ! permited, but any other use will not pass the validation
+    ...     ! permitted, but any other use will not pass the validation
     ...     ztmp = 0
     ...     ztmp(0) = 1
     ...     do i = -5, M + 3
@@ -178,7 +178,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
         codeblock_names = set()
         # Capture all symbols used outside the loop anywhere other than the
         # top reference of an array assignment. This is because we cannot
-        # guarantee their safty as they could change the rank of an expression
+        # guarantee their safety as they could change the rank of an expression
         # or read location of and index and therefore change the meaning of the
         # code.
         non_supported_outside_loop_symbols = set()
@@ -212,7 +212,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 except KeyError as err:
                     raise TransformationError(
                         f"{self.name} provided array '{array}' does not exist"
-                        f"in this scope."
+                        f" in this scope."
                     ) from err
 
             if (not isinstance(array, Symbol) or not array.is_automatic

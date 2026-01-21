@@ -227,7 +227,7 @@ subroutine conservative_flux_code( nlayers,              &
     ! Calculates number of cells of interest and fraction of a cell to add.
     call frac_and_int_part(departure_dist,n_cells_to_sum,fractional_distance)
 
-    ! Calcuates the left and right integration limits for the fractional cell.
+    ! Calculates the left and right integration limits for the fractional cell.
     call calc_integration_limits( departure_dist,             &
                                   fractional_distance,        &
                                   left_integration_limit,     &

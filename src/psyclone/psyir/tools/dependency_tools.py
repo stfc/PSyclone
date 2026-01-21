@@ -740,7 +740,7 @@ class DependencyTools():
                                                         write_access,
                                                         other_access):
                     # We can capture the loop variable 'write_access' and
-                    # 'other_access' in the lambdas because we immidiately
+                    # 'other_access' in the lambdas because we immediately
                     # return after creating the lambdas, not allowing the
                     # variables to be redefined anymore.
                     # pylint: disable=cell-var-from-loop

@@ -295,7 +295,7 @@ about its extent. It is necessary to distinguish between three cases:
 +--------------------------------------------+--------------------------------+
 |Description                                 | Entry in ``shape`` list        |
 +============================================+================================+
-|An array that has explict bound             | ``ArrayType.ArrayBounds``      |
+|An array that has explicit bound            | ``ArrayType.ArrayBounds``     |
 |expressions.                                | containing two PSyIR DataNodes.|
 +--------------------------------------------+--------------------------------+
 |An array has a definite extent which is not | ``ArrayType.Extent.ATTRIBUTE`` |

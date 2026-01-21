@@ -77,7 +77,7 @@ def test_directive_in_decls():
   integer, dimension(100) :: i ! dir$ aligned""" in out
 
     pytest.xfail(reason="TODO #3178 PSyclone can't store directives in "
-                        "declrations as directives.")
+                        "declarations as directives.")
 
 
 def test_directive_at_end():

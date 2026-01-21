@@ -84,7 +84,7 @@ contains
   !> @brief Wrapper for specific solver routines for solving system A.x = b
   !! @details solves A.x = b for using a choice of solver where A is a mass
   !! matrix for a given space and x and b are fields belonging to that space.
-  !! For a discontinous space the element mass matrix is exactly inverted, for
+  !! For a discontinuous space the element mass matrix is exactly inverted, for
   !! continuous spaces an iterative solver is used.
   !! The current choices of iteratives solver are:
   !! cg: Conjugate gradient method without preconditioning

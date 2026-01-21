@@ -7969,7 +7969,7 @@ def test_colour_trans_tiled_intergrid(dist_mem):
     assert "loop2_stop" not in gen
     assert "    do colour = loop1_start, loop1_stop, 1\n" in gen
 
-    # Chek inner loops over tiles and cells
+    # Check inner loops over tiles and cells
     if dist_mem:
         assert ("last_halo_tile_per_colour_fld_m = "
                 "mesh_fld_m%get_last_halo_tile_all_colours()" in gen)
