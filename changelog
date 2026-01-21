@@ -1,3 +1,11 @@
+   26) PR #3267 for #3265 and #1418. Improves the parsing of Fortran
+   derived types with unsupported components.
+ 
+   25) PR #3289 for #3288. Pin Sphinx to 8.3 to prevent doc build issues.
+
+   24) PR #3284 for #3283. Bug fix for case where same file found via
+   multiple search paths.   
+
    23) PR #3255 for #3251. Identify uncategorised directives as
    UnknownDirective (instead of CodeBlock) when possible.
 
