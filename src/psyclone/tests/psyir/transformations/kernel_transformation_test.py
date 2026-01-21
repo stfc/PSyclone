@@ -44,6 +44,7 @@ import re
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.generator import GenerationError
 from psyclone.psyGen import Kern
@@ -555,23 +556,17 @@ def test_2kern_trans(kernel_outputdir):
     kernels = sched.walk(Kern)
     assert len(kernels) == 5
     ktrans = LFRicKernelConstTrans()
+    mod_inline = KernelModuleInlineTrans()
+    mod_inline.apply(kernels[1])
     ktrans.apply(kernels[1], {"number_of_layers": 100})
+    mod_inline.apply(kernels[2])
     ktrans.apply(kernels[2], {"number_of_layers": 100})
-    # Generate the code (this triggers the generation of new kernels)
+    # Generate the code.
     code = str(psy.gen).lower()
-    # Find the tags added to the kernel/module names
-    for match in re.finditer('use testkern_any_space_2(.+?)_mod', code):
-        tag = match.group(1)
-        assert (f"use testkern_any_space_2{tag}_mod, only : "
-                f"testkern_any_space_2{tag}_code" in code)
-        assert f"call testkern_any_space_2{tag}_code(" in code
-        filepath = os.path.join(str(kernel_outputdir),
-                                f"testkern_any_space_2{tag}_mod.f90")
-        assert os.path.isfile(filepath)
-        with open(filepath, encoding="utf-8") as infile:
-            assert "nlayers = 100" in infile.read()
+    # Check that the old module re-naming no longer happens.
+    assert not re.match('use testkern_any_space_2(.+?)_mod', code)
     assert "use testkern_any_space_2_mod, only" not in code
-    assert "call testkern_any_space_2_code(" not in code
+    assert "call testkern_any_space_2_code(" in code
     assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 

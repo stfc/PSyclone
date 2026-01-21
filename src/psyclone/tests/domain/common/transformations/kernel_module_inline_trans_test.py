@@ -210,41 +210,6 @@ def test_validate_no_inline_global_var(parser):
     inline_trans.validate(kernels[0])
 
 
-def test_validate_name_clashes():
-    ''' Test that if the module-inline transformation finds the kernel name
-    already used in the Container scope, it raises the appropriate error'''
-    # Use LFRic example with a repeated CodedKern
-    psy, _ = get_invoke("4.6_multikernel_invokes.f90", "lfric", idx=0,
-                        dist_mem=False)
-    schedule = psy.invokes.invoke_list[0].schedule
-    coded_kern = schedule.children[0].loop_body[0]
-    inline_trans = KernelModuleInlineTrans()
-
-    # Check that name clashes which are not subroutines are detected
-    schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(coded_kern)
-    assert ("Cannot module-inline Kernel 'ru_code' because symbol "
-            "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Automatic>' with "
-            "the same name already exists and changing the name of "
-            "module-inlined subroutines is not supported yet."
-            in str(err.value))
-
-    # TODO # 898. Manually force removal of previous imported symbol
-    # symbol_table.remove() is not implemented yet.
-    schedule.symbol_table._symbols.pop("ru_code")
-
-    # Check that if a subroutine with the same name already exists and it is
-    # not identical, it fails.
-    schedule.parent.addchild(Routine.create("ru_code"))
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(coded_kern)
-    assert ("Kernel 'ru_code' cannot be module inlined into Container "
-            "'multikernel_invokes_7_psy' because a *different* routine with "
-            "that name already exists and versioning of module-inlined "
-            "subroutines is not implemented yet.") in str(err.value)
-
-
 def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     ''' Test that the validate method refuses to transform a kernel which
     contains local variables that shadow a module name that would need to

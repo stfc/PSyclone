@@ -14,9 +14,9 @@ class KernelTransformationMixin:
         if not isinstance(node, CodedKern):
             return
         rsymbol = node.scope.symbol_table.lookup(node.name, otherwise=None)
-        if not rsymbol:
+        if not rsymbol or rsymbol.is_import or rsymbol.is_unresolved:
             raise TransformationError(
                 f"Cannot transform this Kernel call to '{node.name}' "
                 f"because it is not module inlined (i.e. local to the current "
-                f"module. Use KernelModuleInlineTrans() first."
+                f"module). Use KernelModuleInlineTrans() first."
             )

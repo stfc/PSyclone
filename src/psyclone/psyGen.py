@@ -1399,36 +1399,16 @@ class CodedKern(Kern):
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
 
-        if not self.module_inline:
-            # If it is not module inlined then make sure we generate the kernel
-            # file (and rename it when necessary).
-            self.rename_and_write()
-            # Then find or create the imported RoutineSymbol
-            try:
-                # Limit scope to this Invoke, since a kernel with the same name
-                # may have been inlined from another invoke in the same file,
-                # but we have it here marked as "not module-inlined"
-                rsymbol = symtab.lookup(self._name, scope_limit=symtab.node)
-            except KeyError:
-                csymbol = symtab.find_or_create(
-                        self._module_name,
-                        symbol_type=ContainerSymbol)
-                rsymbol = symtab.new_symbol(
-                        self._name,
-                        symbol_type=RoutineSymbol,
-                        # And allow shadowing in case it is also inlined with
-                        # the same name by another invoke
-                        shadowing=True,
-                        interface=ImportInterface(csymbol))
-        else:
-            # If it's inlined, the symbol must exist
-            try:
-                rsymbol = self.scope.symbol_table.lookup(self._name)
-            except KeyError as err:
-                raise GenerationError(
-                    f"Cannot generate this kernel call to '{self.name}' "
-                    f"because it is marked as module-inlined but no such "
-                    f"subroutine exists in this module.") from err
+        # Limit scope to this Invoke, since a kernel with the same name
+        # may have been inlined from another invoke in the same file,
+        # but we have it here marked as "not module-inlined"
+        rsymbol = symtab.lookup(self._name, #  scope_limit=symtab.node,
+                                otherwise=None)
+        if not rsymbol:
+            import pdb; pdb.set_trace()
+            raise GenerationError(
+                f"Cannot lower this Kernel call to '{self.name}' "
+                f"because no corresponding Symbol exists in this module.")
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node
@@ -1494,119 +1474,6 @@ class CodedKern(Kern):
         if original.endswith(suffix):
             return original[:-len(suffix)] + tag + suffix
         return original + tag + suffix
-
-    def rename_and_write(self):
-        '''
-        Writes the (transformed) AST of this kernel to file and resets the
-        'modified' flag to False. By default (config.kernel_naming ==
-        "multiple"), the kernel is re-named so as to be unique within
-        the kernel output directory stored within the configuration
-        object. Alternatively, if config.kernel_naming is "single"
-        then no re-naming and output is performed if there is already
-        a transformed copy of the kernel in the output dir. (In this
-        case a check is performed that the transformed kernel already
-        present is identical to the one that we would otherwise write
-        to file. If this is not the case then we raise a GenerationError.)
-
-        :raises GenerationError: if config.kernel_naming == "single" and a \
-                                 different, transformed version of this \
-                                 kernel is already in the output directory.
-        :raises NotImplementedError: if the kernel has been transformed but \
-                                     is also flagged for module-inlining.
-
-        '''
-        from psyclone.line_length import FortLineLength
-
-        config = Config.get()
-
-        # If this kernel has not been transformed we do nothing, also if the
-        # kernel has been module-inlined, the routine already exist in the
-        # PSyIR and we don't need to generate a new file with it.
-        if not self.modified or self.module_inline:
-            return
-
-        # Remove any "_mod" if the file follows the PSyclone naming convention
-        orig_mod_name = self.module_name[:]
-        if orig_mod_name.lower().endswith("_mod"):
-            old_base_name = orig_mod_name[:-4]
-        else:
-            old_base_name = orig_mod_name[:]
-
-        # We could create a hash of a string built from the name of the
-        # Algorithm (module), the name/position of the Invoke and the
-        # index of this kernel within that Invoke. However, that creates
-        # a very long name so we simply ensure that kernel names are unique
-        # within the user-supplied kernel-output directory.
-        name_idx = -1
-        fdesc = None
-        while not fdesc:
-            name_idx += 1
-            new_suffix = ""
-
-            new_suffix += f"_{name_idx}"
-            new_name = old_base_name + new_suffix + "_mod.f90"
-
-            try:
-                # Atomically attempt to open the new kernel file (in case
-                # this is part of a parallel build)
-                fdesc = os.open(
-                    os.path.join(config.kernel_output_dir, new_name),
-                    os.O_CREAT | os.O_WRONLY | os.O_EXCL)
-            except (OSError, IOError):
-                # The os.O_CREATE and os.O_EXCL flags in combination mean
-                # that open() raises an error if the file exists
-                if config.kernel_naming == "single":
-                    # If the kernel-renaming scheme is such that we only ever
-                    # create one copy of a transformed kernel then we're done
-                    break
-                continue
-
-        # Use the suffix we have determined to rename all relevant quantities
-        # within the AST of the kernel code.
-        self._rename_psyir(new_suffix)
-
-        # Kernel is now self-consistent so unset the modified flag
-        self.modified = False
-
-        # If we reach this point the kernel needs to be written out into a
-        # file using a PSyIR back-end. At the moment there is no way to choose
-        # which back-end to use, so simply use the Fortran one (and limit the
-        # line length).
-        fortran_writer = FortranWriter(
-            check_global_constraints=config.backend_checks_enabled)
-        # Start from the root of the schedule as we want to output
-        # any module information surrounding the kernel subroutine
-        # as well as the subroutine itself.
-        schedules = self.get_callees()
-        new_kern_code = fortran_writer(schedules[0].root)
-        fll = FortLineLength()
-        new_kern_code = fll.process(new_kern_code)
-
-        if not fdesc:
-            # If we've not got a file descriptor at this point then that's
-            # because the file already exists and the kernel-naming scheme
-            # ("single") means we're not creating a new one.
-            # Check that what we've got is the same as what's in the file
-            with open(os.path.join(config.kernel_output_dir,
-                                   new_name), "r") as ffile:
-                kern_code = ffile.read()
-                if kern_code != new_kern_code:
-                    raise GenerationError(
-                        f"A transformed version of this Kernel "
-                        f"'{self._module_name + '''.f90'''}' already exists "
-                        f"in the kernel-output directory "
-                        f"({config.kernel_output_dir}) but is not the "
-                        f"same as the current, transformed kernel and the "
-                        f"kernel-renaming scheme is set to "
-                        f"'{config.kernel_naming}'. (If you wish to"
-                        f" generate a new, unique kernel for every kernel "
-                        f"that is transformed then use "
-                        f"'--kernel-renaming multiple'.)")
-        else:
-            # Write the modified AST out to file
-            os.write(fdesc, new_kern_code.encode())
-            # Close the new kernel file
-            os.close(fdesc)
 
     def _rename_psyir(self, suffix):
         '''Rename the PSyIR module and kernel names by adding the supplied
