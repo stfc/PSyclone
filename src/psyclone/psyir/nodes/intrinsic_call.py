@@ -168,7 +168,7 @@ def _add_inquiry_argument(
 
 
 def _compute_reference_accesses(
-    node : "IntrinsicCall",
+    node: "IntrinsicCall",
     read_indices: list[int] = None,
     write_indices: list[int] = None,
     readwrite_indices: list[int] = None,

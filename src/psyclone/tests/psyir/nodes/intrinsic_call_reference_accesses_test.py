@@ -135,8 +135,6 @@ def test_add_read_argument(fortran_reader):
     vam = VariablesAccessMap()
     _add_read_argument(intrinsic.arguments[1], vam)
     sigs = vam.all_signatures
-    print(sigs)
-    #[Signature(b), Signature(c), Signature(d), Signature(some_func), Signature(wp)]
     assert str(sigs[0]) == "b"
     assert len(vam[sigs[0]]) == 1
     assert vam[sigs[0]][0].access_type == AccessType.READ
@@ -154,7 +152,7 @@ def test_add_read_argument(fortran_reader):
     assert vam[sigs[4]][0].access_type == AccessType.CONSTANT
 
 
-def test_add_write_argument():
+def test_add_write_argument(fortran_reader):
     """ Test the _add_write_argument helper function."""
     # Test we get expected behaviour for a Reference input.
     symbol = DataSymbol("a", INTEGER_TYPE)
@@ -177,6 +175,39 @@ def test_add_write_argument():
     sig, _ = ref.get_signature_and_indices()
     assert len(vam[sig]) == 1
     assert vam[sig][0].access_type == AccessType.READ
+
+    code = """subroutine test
+    use some_mod
+    integer :: a, b, c
+    integer, dimension(100) :: d
+    integer, parameter :: wp = 8
+
+    CALL RANDOM_NUMBER( d(somefunc(b) + 1.0_wp))
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    # RANDOM_NUMBER doesn't create an IntrinsicCall in the
+    # PSyIR tree, so convert the resultant call into the
+    # IntrinsicCall we need to test.
+    intrinsic = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.RANDOM_NUMBER,
+            [arg.copy() for arg in call.arguments]
+    )
+    vam = VariablesAccessMap()
+    _add_write_argument(intrinsic.arguments[0], vam)
+    sigs = vam.all_signatures
+    assert str(sigs[0]) == "b"
+    assert len(vam[sigs[0]]) == 1
+    assert vam[sigs[0]][0].access_type == AccessType.READWRITE
+    assert str(sigs[1]) == "d"
+    assert len(vam[sigs[1]]) == 1
+    assert vam[sigs[1]][0].access_type == AccessType.WRITE
+    assert str(sigs[2]) == "somefunc"
+    assert len(vam[sigs[2]]) == 1
+    assert vam[sigs[2]][0].access_type == AccessType.UNKNOWN
+    assert str(sigs[3]) == "wp"
+    assert len(vam[sigs[3]]) == 1
+    assert vam[sigs[3]][0].access_type == AccessType.CONSTANT
 
 
 def test_add_readwrite_argument():
