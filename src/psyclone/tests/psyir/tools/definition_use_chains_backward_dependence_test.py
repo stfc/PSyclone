@@ -452,7 +452,7 @@ def test_definition_use_chain_find_backward_accesses_codeblock(
     chains = DefinitionUseChain(routine.walk(Assignment)[1].lhs)
     reaches = chains.find_backward_accesses()
     assert len(reaches) == 1
-    assert reaches[0] is routine.walk(CodeBlock)[0]
+    assert reaches[0] is routine.walk(CodeBlock)[0].children[0]
 
 
 def test_definition_use_chain_find_backward_accesses_codeblock_and_call_nlocal(
@@ -521,7 +521,7 @@ def test_definition_use_chain_find_backward_accesses_codeblock_and_call_local(
     chains = DefinitionUseChain(routine.walk(Assignment)[0].rhs.children[0])
     reaches = chains.find_backward_accesses()
     assert len(reaches) == 1
-    assert reaches[0] is routine.walk(CodeBlock)[0]
+    assert reaches[0] is routine.walk(CodeBlock)[0].children[0]
 
 
 def test_definition_use_chain_find_backward_accesses_call_and_codeblock_nlocal(

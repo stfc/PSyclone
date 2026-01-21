@@ -3372,7 +3372,7 @@ class Fparser2Reader():
                 self.process_comment(child, preceding_comments)
                 continue
             if isinstance(child, Fortran2003.Directive) and not found_do_stmt:
-                directive = self._directive_handler(child, None)
+                directive = self._directive_handler(child, loop.parent)
                 # Add the directive before the loop.
                 loop.parent.addchild(directive)
                 continue
@@ -3429,7 +3429,7 @@ class Fparser2Reader():
             if isinstance(child, Fortran2003.Comment):
                 self.process_comment(child, preceding_comments)
             if isinstance(child, Fortran2003.Directive):
-                direc = self._directive_handler(child, None)
+                direc = self._directive_handler(child, parent)
                 parent.addchild(direc)
 
         # NOTE: The comments are added to the IfBlock node.

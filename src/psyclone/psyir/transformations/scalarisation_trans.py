@@ -38,9 +38,9 @@
 from typing import Optional, Dict, Any, List, Tuple
 
 from psyclone.core import VariablesAccessMap, Signature, SymbolicMaths
-from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Call, CodeBlock, Literal, \
-        IfBlock, Loop, Node, Range, Reference, Routine, StructureReference
+from psyclone.psyir.nodes import (
+    Literal, IfBlock, Loop, Node, Range, Reference, Routine,
+    StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -110,12 +110,6 @@ class ScalarisationTrans(LoopTrans):
         '''
         if not var_accesses[signature].has_indices():
             return False
-        # If any of the accesses are to a CodeBlock then we stop. This can
-        # happen if there is a string access inside a string concatenation,
-        # e.g. NEMO4.
-        for access in var_accesses[signature]:
-            if isinstance(access.node, CodeBlock):
-                return False
         base_symbol = var_accesses[signature][0].node.symbol
         if not base_symbol.is_automatic:
             return False
@@ -307,13 +301,6 @@ class ScalarisationTrans(LoopTrans):
             if has_complex_index:
                 return False
 
-            # If next access is a Call or CodeBlock or Kern then
-            # we have to assume the value is used. These nodes don't
-            # have the is_read property that Reference has, so we need
-            # to be explicit.
-            if isinstance(next_access, (CodeBlock, Call, Kern)):
-                return False
-
             # If the access is a read, then return False
             if next_access.is_read:
                 return False
@@ -389,6 +376,7 @@ class ScalarisationTrans(LoopTrans):
         :param options: a dictionary with options for transformations.
 
         '''
+        self.validate(node)
         # For each array reference in the Loop:
         # Find every access to the same symbol in the loop
         # They all have to be accessed with the same index statement, and

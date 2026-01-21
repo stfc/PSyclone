@@ -985,14 +985,16 @@ class FortranWriter(LanguageWriter):
         except KeyError:
             internal_interface_symbol = None
         if unresolved_symbols and not (
-                symbol_table.wildcard_imports() or internal_interface_symbol):
+                symbol_table.wildcard_imports() or
+                internal_interface_symbol or
+                (symbol_table.node and symbol_table.node.walk(CodeBlock))):
             symbols_txt = ", ".join(
                 ["'" + sym.name + "'" for sym in unresolved_symbols])
             raise VisitorError(
                 f"The following symbols are not explicitly declared or "
                 f"imported from a module and there are no wildcard "
-                f"imports which could be bringing them into scope: "
-                f"{symbols_txt}")
+                f"imports, generic interfaces or CodeBlocks which could be "
+                f"bringing them into scope: {symbols_txt}")
 
         # Check that the names of all symbols are less than the limit
         # imposed by the Fortran standard.
@@ -1082,11 +1084,11 @@ class FortranWriter(LanguageWriter):
         for symbol in node.symbol_table.symbols:
             # TODO #2201 - ContainerSymbols should be accepted but
             # currently are stored in its containing scope.
-            if not isinstance(symbol, RoutineSymbol):
+            if isinstance(symbol, DataSymbol):
                 raise VisitorError(
                     f"In the Fortran backend, a file container should not "
-                    f"have any symbols associated with it other than "
-                    f"RoutineSymbols, but found {str(symbol)}.")
+                    f"have any data symbols associated with it, "
+                    f"but found {str(symbol)}.")
 
         program_nodes = len([child for child in node.children if
                              isinstance(child, Routine) and child.is_program])
