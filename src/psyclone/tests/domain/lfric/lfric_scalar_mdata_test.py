@@ -555,6 +555,6 @@ def test_scalar_array_different_data_types_invoke():
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert (f"ScalarArray argument(s) ['b'] in Invoke "
-            f"'invoke_real_and_logical_scalars' have different metadata for "
-            f"data type ({const.VALID_SCALAR_DATA_TYPES}) in different "
-            f"kernels. This is invalid." in str(excinfo.value))
+            f"'invoke_real_and_logical_scalars' is/are passed to more than "
+            f"one kernel and the kernel metadata for the corresponding "
+            f"arguments specifies different intrinsic types.")
