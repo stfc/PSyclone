@@ -51,7 +51,7 @@ import logging
 import os
 import re
 import sys
-from typing import Union
+from typing import Optional, Union
 
 import psyclone
 from psyclone.errors import PSycloneError, InternalError
@@ -243,10 +243,18 @@ class Config:
         self._backend_intrinsic_named_kwargs = False
 
     # -------------------------------------------------------------------------
-    def load(self, config_file=None):
-        '''Loads a configuration file.
+    def load(self,
+             config_file: str = None,
+             overwrite: Optional[str] = None) -> None:
+        '''Loads a configuration file. The optional 'overwrite' parameter
+        is a space-separated string of key=value pairs which will overwrite
+        values in the config files (e.g.
+        "reproducible_reductions=true run_time_checks=true")
 
-        :param str config_file: Override default configuration file to read.
+        :param config_file: Override default configuration file to read.
+        :param overwrite: Optional string of key-value pairs that will
+            overwrite settings in the config file.
+
         :raises ConfigurationError: if there are errors or inconsistencies in \
                                 the specified config file.
         '''
@@ -285,6 +293,22 @@ class Config:
            not self._config['DEFAULT'].keys():
             raise ConfigurationError(
                 "Configuration file has no [DEFAULT] section", config=self)
+
+        if overwrite:
+            # If overwrite information is specified, parse this information
+            # and use it to overwrite the settings just read:
+            pairs = overwrite.split()
+            for pair in pairs:
+                key, value = pair.split("=")
+                for section in self._config:
+                    if key in self._config[section]:
+                        self._config[section][key] = value
+                        break
+                else:
+                    logger = logging.getLogger(__name__)
+                    msg = f"Unknown config overwrite: '{pair}' - ignored."
+                    logger.error(msg)
+                    raise ConfigurationError(msg)
 
         # The call to the 'read' method above populates a dictionary.
         # All of the entries in that dict are unicode strings so here

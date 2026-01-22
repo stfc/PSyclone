@@ -489,6 +489,12 @@ def main(arguments):
              'module in the same location as the imported source file).'
     )
     parser.add_argument(
+        '--config-opts',
+        help='Settings that will overwrite values in the config file as a '
+             'space-separated list of key=value pairs. Example:'
+             '--config-opts "reproducible_reductions=true run_time_checks=true"'
+    )
+    parser.add_argument(
         '-l', '--limit', dest='limit', default='off',
         choices=['off', 'all', 'output'],
         help="limit the Fortran line length to 132 characters (default "
@@ -645,7 +651,7 @@ def main(arguments):
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
-    Config.get().load(args.config)
+    Config.get().load(args.config, args.config_opts)
 
     # Check whether a PSyKAl API has been specified.
     if args.psykal_dsl is None:

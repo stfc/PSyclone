@@ -44,8 +44,10 @@ Module containing tests relating to PSyclone configuration handling.
 
 import logging
 import os
+from pathlib import Path
 import re
 import sys
+from typing import Optional
 
 import pytest
 
@@ -155,13 +157,14 @@ def int_entry_fixture(request):
     return request.param
 
 
-def get_config(config_file, content):
+def get_config(config_file: Path,
+               content: str,
+               overwrite: Optional[str] = None) -> Config:
     ''' A utility function that creates and populates a temporary
     PSyclone configuration file for testing purposes.
 
     :param config_file: local path to the temporary configuration file.
-    :type config: :py:class:`py._path.local.LocalPath`
-    :param str content: the entry for the temporary configuration file.
+    :param content: the entry for the temporary configuration file.
 
     :returns: a test Config instance.
     :rtype: :py:class:`psyclone.configuration.Config`
@@ -173,7 +176,7 @@ def get_config(config_file, content):
         new_cfg.close()
     # Create and populate a test Config object
     config_obj = Config()
-    config_obj.load(config_file=str(config_file))
+    config_obj.load(config_file=str(config_file), overwrite=overwrite)
     return config_obj
 
 
@@ -794,3 +797,40 @@ def test_intrinsic_settings():
 
     assert ("backend_intrinsic_named_kwargs must be a bool but found "
             "'int'." in str(err.value))
+
+
+def test_config_overwrite(tmpdir: Path, monkeypatch) -> None:
+    """
+    Test that configuration settings can be overwritten.
+    """
+
+    config_file = tmpdir.join("config")
+
+    # Reset the ignore modules of the module manager
+    mod_manager = ModuleManager.get()
+    monkeypatch.setattr(mod_manager, "_ignore_modules", set())
+
+    # First verify unmodified values to be as expected:
+    config = get_config(config_file, _CONFIG_CONTENT)
+    assert config._config["DEFAULT"]["backend_checks_enabled"] == "false"
+    assert config._config["DEFAULT"]["ignore_modules"] == "netcdf, mpi"
+    assert config.backend_checks_enabled is False
+    assert mod_manager.ignores() == set(["netcdf", "mpi"])
+
+    # Now overwrite some values. Reset the module manager (since it stores
+    # the values from the config file / overwrite)
+    monkeypatch.setattr(mod_manager, "_ignore_modules", set())
+
+    config = get_config(config_file, _CONFIG_CONTENT,
+                        overwrite="backend_checks_enabled=True "
+                                  "ignore_modules=a,b")
+    assert config._config["DEFAULT"]["backend_checks_enabled"] == "True"
+    assert config.backend_checks_enabled is True
+    assert config._config["DEFAULT"]["ignore_modules"] == "a,b"
+    assert mod_manager.ignores() == set(["a", "b"])
+
+    # Now test invalid values:
+    with pytest.raises(ConfigurationError) as err:
+        config = get_config(config_file, _CONFIG_CONTENT,
+                            overwrite="DOES_NOT_EXIST=1")
+    assert "Unknown config overwrite: 'DOES_NOT_EXIST=1" in str(err.value)
