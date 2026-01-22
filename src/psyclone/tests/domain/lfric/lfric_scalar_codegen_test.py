@@ -616,11 +616,19 @@ def test_scalar_array(tmpdir, dist_mem):
 
     generated_code = str(psy.gen)
     expected_subroutine = (
-        "  subroutine invoke_0_testkern_scalar_array_type(afield, "
-        "real_array, logical_array, integer_array, a_scalar, "
-        "dims_real_array, dims_logical_array, dims_integer_array)\n"
+       "  subroutine invoke_0(f1, real_array, logical_array, integer_array, "
+       "dims_integer_array, a, f2, f3, f4, b, dims_real_array, "
+       "dims_logical_array, dims_integer_array_1)\n"
     )
+
     expected_declarations = (
+        "    type(field_type), intent(in) :: f1\n"
+        "    integer(kind=i_def), intent(in) :: dims_integer_array\n"
+        "    integer(kind=i_def), intent(in) :: a\n"
+        "    type(field_type), intent(in) :: f2\n"
+        "    type(field_type), intent(in) :: f3\n"
+        "    type(field_type), intent(in) :: f4\n"
+        "    integer(kind=i_def), intent(in) :: b\n"
         "    integer(kind=i_def), dimension(2), intent(in) :: "
         "dims_real_array\n"
         "    real(kind=r_def), dimension(dims_real_array(1),"
@@ -630,19 +638,26 @@ def test_scalar_array(tmpdir, dist_mem):
         "    logical(kind=l_def), dimension(dims_logical_array(1)), "
         "intent(in) :: logical_array\n"
         "    integer(kind=i_def), dimension(4), intent(in) :: "
-        "dims_integer_array\n"
-        "    integer(kind=i_def), dimension(dims_integer_array(1),"
-        "dims_integer_array(2),dims_integer_array(3),dims_integer_array(4)), "
-        "intent(in) :: integer_array\n"
+        "dims_integer_array_1\n"
+        "    integer(kind=i_def), dimension(dims_integer_array_1(1),"
+        "dims_integer_array_1(2),dims_integer_array_1(3),"
+        "dims_integer_array_1(4)), intent(in) :: integer_array\n"
     )
-    expected_call = (
+
+    expected_calls = (
         "    do cell = loop0_start, loop0_stop, 1\n"
-        "      call testkern_scalar_array_code(nlayers_afield, "
-        "afield_data, dims_real_array, real_array, dims_logical_array, "
-        "logical_array, dims_integer_array, integer_array, a_scalar, "
-        "ndf_w1, undf_w1, map_w1(:,cell))\n"
+        "      call testkern_scalar_array_code(nlayers_f1, f1_data, "
+        "dims_real_array, real_array, dims_logical_array, logical_array, "
+        "dims_integer_array_1, integer_array, dims_integer_array, ndf_w1, "
+        "undf_w1, map_w1(:,cell))\n"
+        "    enddo\n",
+        "    do cell = loop1_start, loop1_stop, 1\n"
+        "      call testkern_two_int_scalars_code(nlayers_f1, a, f1_data, "
+        "f2_data, f3_data, f4_data, b, ndf_w1, undf_w1, map_w1(:,cell), "
+        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
+        "    enddo\n"
     )
     assert expected_subroutine in generated_code
     assert expected_declarations in generated_code
-    assert expected_call in generated_code
+    assert expected_calls[0], expected_calls[1] in generated_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
