@@ -48,8 +48,8 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
-      LFRIC_APPS_REV: 7536
-      LFRIC_CORE_REV: 52054
+      LFRIC_APPS_HASH: 152804e4ba768cf54801f034a20131812ecff0f2
+      LFRIC_CORE_HASH: 022b139434b06c2431cf857f35f6bfa1ab8edeed
       PYTHON_VERSION: 3.13
 
     steps:
@@ -100,20 +100,17 @@ jobs:
         cp lib/extract/netcdf/lfric/*90 lfric-baf/infrastructure/build/psyclone/psydata/extract
 
         # Fetch the specified version of LFRic apps
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load fcm/xyl5qxp
         cd /archive/psyclone-tests/latest-run
         rm -rf lfric_extraction
         mkdir lfric_extraction
         cd lfric_extraction
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r ${LFRIC_APPS_REV} https://code.metoffice.gov.uk/svn/lfric_apps/main/trunk/ lfric_apps
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r ${LFRIC_CORE_REV} https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
-        sed -i "s|lfric_core_rev=$LFRIC_CORE_REV|lfric_core_rev=|g" lfric_apps/dependencies.sh
-        sed -i "s|lfric_core_sources=|lfric_core_sources=$PWD/lfric_core|g" lfric_apps/dependencies.sh
-        sed -i "s|use_xios_io=.true.|use_xios_io=.false.|g" lfric_apps/applications/gungho_model/example/configuration.nml
-
+        git clone https://github.com/stfc/lfric_apps
+        cd lfric_apps
+        git checkout ${LFRIC_APPS_HASH}
+        cd ..
+        git clone https://github.com/stfc/lfric_core
+        cd lfric_core
+        git checkout ${LFRIC_CORE_HASH}
 
     # Compile GungHo with extraction
     - name: GungHo Extraction Compilation
@@ -137,7 +134,7 @@ jobs:
         # Copy the lfric source files (BAF copies files into the source tree)
         # -------------------------------------------------------------------
         rm -rf ${RUNDIR}
-        mkdir -p ${LFRIC_CORE} ${LFRIC_APPS}
+        mkdir -p ${RUNDIR}
         cp -r /archive/psyclone-tests/latest-run/lfric_extraction/lfric_core/ ${RUNDIR}
         cp -r /archive/psyclone-tests/latest-run/lfric_extraction/lfric_apps/ ${RUNDIR}
 
