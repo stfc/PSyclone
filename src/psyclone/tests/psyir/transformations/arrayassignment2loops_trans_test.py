@@ -511,9 +511,9 @@ def test_validate_different_num_of_ranges(fortran_reader):
 
 def test_character_validation(fortran_reader):
     '''Check that the validate method returns an exception if the
-    lhs of the assignment contains a character array and the allow_string
+    lhs of the assignment contains a character array and the allow_strings
     option isn't defined, and that it doesn't return an exception if the
-    allow_string option is True.'''
+    allow_strings option is True.'''
 
     code = '''subroutine test()
         character :: a(100)
@@ -529,10 +529,10 @@ def test_character_validation(fortran_reader):
         trans.validate(assign)
     assert (
         "ArrayAssignment2LoopsTrans does not expand ranges on character arrays"
-        " by default (use the'allow_string' option to expand them), but found"
+        " by default (use the'allow_strings' option to expand them), but found"
         in str(info.value))
 
-    trans.validate(assign, options={"allow_string": True})
+    trans.validate(assign, options={"allow_strings": True})
 
     # Check it also works for rhs
     code = '''subroutine test()
@@ -548,7 +548,7 @@ def test_character_validation(fortran_reader):
     with pytest.raises(TransformationError) as info:
         trans.validate(assign, options={"verbose": True})
     errmsg = ("ArrayAssignment2LoopsTrans does not expand ranges on character "
-              "arrays by default (use the'allow_string' option to expand "
+              "arrays by default (use the'allow_strings' option to expand "
               "them)")
     assert errmsg in str(info.value)
     assert errmsg in assign.preceding_comment
@@ -566,7 +566,7 @@ def test_character_validation(fortran_reader):
         trans.validate(assign)
     assert (
         "ArrayAssignment2LoopsTrans does not expand ranges on character arrays"
-        " by default (use the'allow_string' option to expand them), but found"
+        " by default (use the'allow_strings' option to expand them), but found"
         in str(info.value))
 
 
@@ -591,7 +591,7 @@ def test_unsupported_type_character(fortran_reader):
             trans.validate(assign)
         assert (
             "ArrayAssignment2LoopsTrans does not expand ranges on character "
-            "arrays by default (use the'allow_string' option to expand them), "
+            "arrays by default (use the'allow_strings' option to expand them), "
             "but found" in str(info.value))
 
 
@@ -605,7 +605,13 @@ def test_validate_nested_or_invalid_expressions(fortran_reader):
     # This is invalid Fortran but there are no restrictions in the PSyIR.
     psyir = fortran_reader.psyir_from_source('''
     subroutine test
-        use my_variables
+        type :: othertype
+           integer, dimension(10) :: field
+        end type
+        type :: mytype
+            type(othertype), dimension(10) :: field2
+        end type
+        type(mytype) :: mystruct
         mystruct%field2(4)%field(:) = 0
     end subroutine test
     ''')
@@ -622,6 +628,10 @@ def test_validate_nested_or_invalid_expressions(fortran_reader):
     psyir = fortran_reader.psyir_from_source('''
     subroutine test
         use my_variables
+        type :: mytype
+           integer, dimension(10) :: field5
+        end type
+        type(mytype) :: mystruct
         mystruct%field5(indices(:)) = 0.0d0
     end subroutine test
     ''')
@@ -637,6 +647,14 @@ def test_validate_nested_or_invalid_expressions(fortran_reader):
     psyir = fortran_reader.psyir_from_source('''
     subroutine test
         use my_variables
+        type :: othertype
+           integer, dimension(10) :: field3
+        end type
+        type :: mytype
+            type(othertype), dimension(10) :: field2
+            integer, dimension(10) :: field
+        end type
+        type(mytype) :: mystruct
         umask(:,mystruct%field2%field3(:)) = &
             mystruct%field(mystruct%field2%field3(:),:)
     end subroutine test
@@ -712,9 +730,8 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
     assign_with_unresolved = psyir.walk(Assignment)[2]
     with pytest.raises(TransformationError) as info:
         trans.apply(assign_with_unresolved, opts)
-    assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
-            "contains the access 'unresolved' which is not a DataSymbol "
-            "and therefore cannot be guaranteed to be ScalarType. Resolving "
+    assert ("Reference2ArrayRangeTrans could not decide if the reference "
+            "'unresolved' is an array or not. Resolving "
             "the import that brings this variable into scope may help."
             in str(info.value))
     # Knowing that it is a DataSymbol is still not enough
@@ -722,9 +739,8 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
         DataSymbol, datatype=UnresolvedType())
     with pytest.raises(TransformationError) as info:
         trans.apply(assign_with_unresolved)
-    assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
-            "contains the access 'unresolved' which is an UnresolvedType "
-            "and therefore cannot be guaranteed to be ScalarType. Resolving "
+    assert ("Reference2ArrayRangeTrans could not decide if the reference "
+            "'unresolved' is an array or not. Resolving "
             "the import that brings this variable into scope may help."
             in str(info.value))
     with pytest.raises(TransformationError) as info:
@@ -737,10 +753,10 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
 
     with pytest.raises(TransformationError) as info:
         trans.apply(psyir.walk(Assignment)[4], opts)
-    assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
-            "contains the access 'ishtsi(map,scalar)' which is an "
-            "UnresolvedType and therefore cannot be guaranteed to be "
-            "ScalarType" in str(info.value))
+    assert ("Reference2ArrayRangeTrans could not decide if the reference "
+            "'map' is an array or not. Resolving "
+            "the import that brings this variable into scope may help."
+            in str(info.value))
 
     # The end result should look like:
     assert (
@@ -750,19 +766,18 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
         "  do idx_1 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
         "    x(idx_1) = array(idx_1)\n"
         "  enddo\n\n"
-        "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
-        "contains the access 'unresolved' which is not a DataSymbol and "
-        "therefore cannot be guaranteed to be ScalarType. Resolving the import"
-        " that brings this variable into scope may help.\n"
+        "  ! Reference2ArrayRangeTrans could not decide if the reference "
+        "'unresolved' is an array or not. Resolving the import that brings "
+        "this variable into scope may help.\n"
         "  x(:) = unresolved\n\n"
         "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
         "contains the access 'unsupported' which is an UnsupportedFortran"
         "Type('INTEGER, DIMENSION(:), OPTIONAL :: unsupported') and therefore "
         "cannot be guaranteed to be ScalarType.\n"
         "  x(:) = unsupported\n\n"
-        "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
-        "contains the access 'ishtsi(map,scalar)' which is an UnresolvedType "
-        "and therefore cannot be guaranteed to be ScalarType.\n"
+        "  ! Reference2ArrayRangeTrans could not decide if the reference 'map'"
+        " is an array or not. Resolving the import that brings this variable "
+        "into scope may help.\n"
         "  x(:) = ishtsi(map,scalar)\n"
     ) in fortran_writer(psyir)
 
@@ -815,18 +830,17 @@ def test_validate_non_elemental_functions(fortran_reader):
     # are elemental or not
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment3, options={"verbose": True})
-    errormsg = ("ArrayAssignment2LoopsTrans does not accept calls which are "
-                "not guaranteed to be elemental, but found: myfunc")
+    errormsg = ("Reference2ArrayRangeTrans could not decide if the reference "
+                "'y' is an array or not. Resolving the import that brings "
+                "this variable into scope may help.")
     assert errormsg in assignment3.preceding_comment
     assert errormsg in str(err.value)
 
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment4, options={"verbose": True})
-    errormsg = ("ArrayAssignment2LoopsTrans cannot expand expression because "
-                "it contains the access 'var%myfunc(y)' which is an "
-                "UnresolvedType and therefore cannot be guaranteed to be "
-                "ScalarType. Resolving the import that brings this variable "
-                "into scope may help.")
+    errormsg = ("Reference2ArrayRangeTrans could not decide if the reference "
+                "'var' is an array or not. Resolving the import that brings "
+                "this variable into scope may help.")
     assert errormsg in assignment4.preceding_comment
     assert errormsg in str(err.value)
 
