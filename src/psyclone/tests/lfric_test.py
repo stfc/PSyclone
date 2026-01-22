@@ -3425,7 +3425,7 @@ def test_HaloReadAccess_field_not_reader():
 def test_HaloRead_inv_loop_upper(monkeypatch):
     # pylint: disable=invalid-name
     '''The upper bound of a loop in the compute_halo_read_info method within
-    the HaloReadAccesss class should be recognised by the logic. If not an
+    the HaloReadAccess class should be recognised by the logic. If not an
     exception is raised and this test checks that this exception is
     raised correctly
     '''

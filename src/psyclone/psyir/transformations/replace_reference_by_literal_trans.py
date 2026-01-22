@@ -236,7 +236,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         (parameter) symbol from node.parent symbol_table, and from
         node.symbol_table.
         * Second, use this updated param_table to replace reference in node
-        psyir_tree with the corresponsing Literal.
+        psyir_tree with the corresponding Literal.
         * Third, use this updated param_table to replace reference in node
         symbol_table DataSymbol array's dimensions with the corresponding
         Literal.

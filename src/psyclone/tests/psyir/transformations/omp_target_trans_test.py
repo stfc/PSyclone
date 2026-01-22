@@ -188,7 +188,7 @@ def test_omptargettrans_validate(fortran_reader):
             "values are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
             in str(err.value))
 
-    # Check the characters are prevented, unless explictly allowed
+    # Check the characters are prevented, unless explicitly allowed
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[4], options={'verbose': True})
     assert ("OpenMP Target cannot enclose a region that uses characters, "

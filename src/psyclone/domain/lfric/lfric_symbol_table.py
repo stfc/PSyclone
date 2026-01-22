@@ -62,14 +62,14 @@ class LFRicSymbolTable(SymbolTable):
         :py:class:`psyclone.psyir.nodes.Container` or NoneType
     :param default_visibility: optional default visibility value for this \
         symbol table, if not provided it defaults to PUBLIC visibility.
-    :type default_visibillity: \
+    :type default_visibility: \
         :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
     '''
 
     # The container symbol for all precision variables
     _constants_mod = None
-    # A mapping of 'i_def' etc. to the corresponding DataSymbole
+    # A mapping of 'i_def' etc. to the corresponding DataSymbol
     _precision_map = {}
 
     def __init__(self, node=None, default_visibility=Symbol.Visibility.PUBLIC):

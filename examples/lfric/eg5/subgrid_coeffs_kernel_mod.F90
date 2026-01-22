@@ -108,7 +108,7 @@ public subgrid_coeffs_code
 
 contains
 
-!> @brief Compute the subgrid reconstruction coeffiecients for a density field
+!> @brief Compute the subgrid reconstruction coefficients for a density field
 !! @param[in] nlayers Number of layers
 !! @param[out] a0 Coefficient a0
 !! @param[out] a1 Coefficient a1

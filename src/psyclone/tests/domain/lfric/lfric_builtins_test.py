@@ -149,7 +149,7 @@ def test_lfric_builtin_abstract_method():
 
 
 def test_lfric_builtin_init():
-    '''Check initiaisation of the abstract 'LFRicBuiltIn' class.'''
+    '''Check initialisation of the abstract 'LFRicBuiltIn' class.'''
     instance = Dummy2()
     # Check '__init__'
     assert not instance.qr_rules

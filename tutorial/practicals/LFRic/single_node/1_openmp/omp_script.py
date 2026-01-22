@@ -49,7 +49,7 @@ from psyclone.domain.lfric.function_space import FunctionSpace
 def trans(psyir):
     '''PSyclone transformation script for the LFRic API that applies
     OpenMP parallel loop parallelisation. It also outputs a textual
-    representation of the transformated PSyIR.
+    representation of the transformed PSyIR.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

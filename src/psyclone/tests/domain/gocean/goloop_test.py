@@ -286,7 +286,7 @@ def clear_fparser():
     ''' The next test assumes that fparser has not been initialised.
     This is achieved by calling `_setup([])` with an empty list, which
     will remove all currently existing parser classes and functions.
-    At the end of the tests re-initialse parser. This must be done in
+    At the end of the tests re-initialise parser. This must be done in
     a fixture, since in case of a failure we still have to make sure
     that fparser gets properly re-initialised.
     '''

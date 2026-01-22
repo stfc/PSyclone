@@ -564,7 +564,8 @@ class DefinitionUseChain:
         """
         Compute the blocks inside the provided list of nodes.
         Each block is a set of nodes inside a control flow region, and
-        may contain more control flow (which will be handled recusively later).
+        may contain more control flow (which will be handled recursively
+        later).
         Each block also has the control flow node stored that contains the
         block, e.g. for a Loop, the block consisting of loop.body will have
         contain the associated Loop at the same index in the control_flow_nodes

@@ -829,7 +829,7 @@ class HaloExchange(Statement):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
+        '''Return the list of arguments associated with this node. Override the
         base method and simply return our argument. '''
         return [self._field]
 
@@ -914,7 +914,7 @@ class Kern(Statement):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
+        '''Return the list of arguments associated with this node. Override the
         base method and simply return our arguments. '''
         return self.arguments.args
 
