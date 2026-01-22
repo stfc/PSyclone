@@ -351,8 +351,8 @@ def test_lfricscalararray_call_err1():
     with pytest.raises(InternalError) as err:
         LFRicScalarArrayArgs(invoke).invoke_declarations()
     assert ("Found unsupported intrinsic types for the ScalarArray arguments "
-            "['real_array'] to Invoke 'invoke_0_testkern_scalar_array_type'. "
-            "Supported types are ['real', 'integer', 'logical']."
+            "['real_array'] to Invoke 'invoke_0'. Supported types are "
+            "['real', 'integer', 'logical']."
             in str(err.value))
 
 
