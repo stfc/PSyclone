@@ -1,3 +1,6 @@
+   28) PR #3275 for #3216. Allows the specification of private variables
+   for parallel regions in user scripts and removes the option from Loops.
+
    27) PR #3293. Fixes various typos throughout the PSyclone codebase.
 
    26) PR #3267 for #3265 and #1418. Improves the parsing of Fortran
