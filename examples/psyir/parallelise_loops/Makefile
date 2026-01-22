@@ -31,8 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. B. G. Chalk, STFC Daresbury Laboratory
+# Author: S. Siso, STFC Daresbury Laboratory
 
-EXAMPLES=create_and_modify_psyir parallelise_loops custom_directives matmul transpose
+include ../../common.mk
 
-include ../top_level.mk
+GENERATED_FILES= output.f90
+
+transform:
+	${PSYCLONE} -s ./add_parallelism.py example.f90 -o output.f90
+
+compile: transform
+	@echo "No compilation supported for psyir/parallelise_loops"
+
+run: compile
+	@echo "No run targets for psyir/parallelise_loops"

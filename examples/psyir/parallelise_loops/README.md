@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2025, Science and Technology Facilities Council.
+Copyright (c) 2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -31,18 +31,14 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-Authors: A. B. G. Chalk, STFC Daresbury Lab
+Authors: S. Siso, STFC Daresbury Lab
 -->
 
-# Use custom directives
+# Parallelise loops using OpenMP
 
-This directory contains an example of how write PSyclone scripts to transform code
-by taking advantage of information provided by the use of custom Fortran code directives.
+This directory contains an example of how write PSyclone scripts to parallelise
+loops by using an OpenMP transformation with various options to adapt to the
+desired target.
 
-The Fortran code contains a custom directive, ``!$my_dir no_par`` which is
-used by the PSyclone script to skip attempting to parallelise a specific loop.
-
-The example can be compiled using the Makefile, but this is a simple operation:
-``psyclone --keep-directive -s identify_custom_directives.py directive_filtering.F90``.
-The ``--keep-directives`` option is essential to enabling the directive of interest
-to appear in the tree.
+The example can be executed using the Makefile, or directly with the command:
+``psyclone -s add_parallelism.py example.f90``.

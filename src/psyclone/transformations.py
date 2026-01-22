@@ -250,7 +250,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an 'OpenMP PARALLEL DO' directive"
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
         (which must be a Loop). In the generated code this corresponds to
         wrapping the Loop with directives:
@@ -274,7 +274,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
             local_options["reduction_ops"] = \
                 list(MAP_REDUCTION_OP_TO_OMP.keys())
 
-        self.validate(node, options=local_options)
+        self.validate(node, options=local_options, **kwargs)
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location

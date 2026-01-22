@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2026, Science and Technology Facilities Council
+! Copyright (c) 2021-2025, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,31 +31,22 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
-!
-!> @brief Incorrect meta-data for the LFRic built-in operations.
-module lfric_builtins_mod
+! Authors: I. Kavcic, Met Office
+!          A. R. Porter, STFC Daresbury Laboratory
 
-  use argument_mod
-  use kernel_mod
+program single_invoke
 
-  !> Fake built-in that purports to do a reduction into an integer scalar
-  type, public, extends(kernel_type) :: X_innerproduct_Y
-     private
-     type(arg_type) :: meta_args(3) = (/                            &
-          arg_type(GH_SCALAR, GH_INTEGER, GH_REDUCTION),            &
-          arg_type(GH_FIELD,  GH_REAL,    GH_READ, ANY_SPACE_1),    &
-          arg_type(GH_FIELD,  GH_REAL,    GH_READ, ANY_SPACE_1)     &
-          /)
-     integer :: operates_on = DOF
-   contains
-     procedure, nopass :: X_innerproduct_Y_code
-  end type X_innerproduct_Y
+  ! Description: single point-wise operation (min/max of field elements)
+  ! specified in an invoke call.
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
 
-contains
+  implicit none
 
-  subroutine X_innerproduct_Y_code()
-  end subroutine X_innerproduct_Y_code
-  
-end module lfric_builtins_mod
+  type(field_type) :: f1
+  real(r_def)      :: amin, amax
+
+  call invoke( minval_X(amin, f1), &
+               maxval_X(amax, f1) )
+
+end program single_invoke

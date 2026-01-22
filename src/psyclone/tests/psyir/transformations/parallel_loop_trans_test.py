@@ -38,6 +38,7 @@
 ''' pytest tests for the parallel_loop_trans module. '''
 
 import pytest
+import logging
 
 from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.psyir.nodes import (
@@ -201,8 +202,7 @@ def test_paralooptrans_validate_loop_inside_pure(fortran_reader):
                 in str(err.value))
 
 
-def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader,
-                                                        fortran_writer):
+def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader):
     '''
     Test that the 'ignore_dependencies_for' option allows the validate check to
     succeed even when the dependency analysis finds a possible loop-carried
@@ -605,7 +605,8 @@ def test_paralooptrans_apply(fortran_reader):
 
 
 def test_paralooptrans_with_array_privatisation(fortran_reader,
-                                                fortran_writer):
+                                                fortran_writer,
+                                                caplog):
     '''
     Check that the 'privatise_arrays' transformation option allows to ignore
     write-write dependencies by setting the associated variable as 'private'
@@ -655,12 +656,18 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
     assert "ztmp(jj)" not in str(err.value)
     assert "'ztmp'" not in str(err.value)
 
-    # It can still be parallelised by explicitly marking the symbol as private
-    ztmp2 = loop.scope.symbol_table.lookup("ztmp2")
-    loop.explicitly_private_symbols.add(ztmp2)
-    trans.apply(loop, {"privatise_arrays": True})
+    # It can still be parallelised by explictly marking the symbol as private
+    # (and it permits valid loops - in case we have a bulk list of symbols for
+    # all the code, but it will log the symbols not found)
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        trans.apply(loop, {"privatise_arrays": True,
+                           "force_private": ["ztmp2", "symbol_not_in_loop"]})
     assert ("!$omp parallel do default(shared) private(ji,jj,ztmp) "
             "firstprivate(ztmp2)" in fortran_writer(psyir))
+    assert ("ParaTrans has been provided with the 'symbol_not_in_loop' symbol "
+            "name in the 'force_private' option, but there is no such symbol "
+            "in this scope." in caplog.text)
 
     # If the array is accessed after the loop, or is a not an automatic
     # interface, or is not a plain array, the privatisation will fail
@@ -770,8 +777,7 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
             "array privatisation" in str(err.value))
 
     # But it is fine when explicitly requesting the symbol to be private
-    loop.explicitly_private_symbols.add(loop.scope.symbol_table.lookup("ztmp"))
-    trans.validate(loop, {"privatise_arrays": True})
+    trans.validate(loop, {"privatise_arrays": True, "force_private": ["ztmp"]})
 
     # Check if the whole loop body is inside a conditional, this is needed
     # because the privatisation validation will search for the node following
