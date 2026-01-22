@@ -1210,7 +1210,7 @@ class OMPMasterDirective(OMPSerialDirective):
         return "omp end master"
 
 
-class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
+class OMPParallelDirective(DataSharingAttributeMixin, OMPRegionDirective):
     ''' Class representing an OpenMP Parallel directive.
     '''
 
@@ -1638,7 +1638,7 @@ class OMPTaskloopDirective(OMPRegionDirective):
         return "omp end taskloop"
 
 
-class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
+class OMPDoDirective(DataSharingAttributeMixin, OMPRegionDirective):
     '''
     Class representing an OpenMP DO directive in the PSyIR.
 
@@ -2085,7 +2085,7 @@ class OMPTeamsLoopDirective(OMPParallelDoDirective):
     _directive_string = "teams loop"
 
 
-class OMPTargetDirective(OMPRegionDirective, DataSharingAttributeMixin):
+class OMPTargetDirective(DataSharingAttributeMixin, OMPRegionDirective):
     ''' Class for the !$OMP TARGET directive that offloads the code contained
     in its region into an accelerator device.
 

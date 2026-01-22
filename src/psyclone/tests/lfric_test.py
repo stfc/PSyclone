@@ -2790,14 +2790,14 @@ def test_operator_gh_sum_invalid():
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
-        "arg_type(gh_operator, gh_real,    gh_sum,  w2, w2)", 1)
+        "arg_type(gh_operator, gh_real,    gh_reduction, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert ("allowed accesses for operators are ['gh_read', 'gh_write', "
             "'gh_readwrite'] because they behave as discontinuous "
-            "quantities, but found 'gh_sum'" in str(excinfo.value))
+            "quantities, but found 'gh_reduction'" in str(excinfo.value))
 
 
 def test_derived_type_arg(dist_mem, tmpdir):
