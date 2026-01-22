@@ -591,8 +591,8 @@ def test_unsupported_type_character(fortran_reader):
             trans.validate(assign)
         assert (
             "ArrayAssignment2LoopsTrans does not expand ranges on character "
-            "arrays by default (use the'allow_strings' option to expand them), "
-            "but found" in str(info.value))
+            "arrays by default (use the'allow_strings' option to expand them),"
+            " but found" in str(info.value))
 
 
 def test_validate_nested_or_invalid_expressions(fortran_reader):

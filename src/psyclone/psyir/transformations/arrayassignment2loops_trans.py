@@ -218,7 +218,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
             self.validate_options(allow_strings=allow_strings, verbose=verbose,
                                   **kwargs)
         else:
-            #TODO #2668: Deprecate options dictionary.
+            # TODO #2668: Deprecate options dictionary.
             verbose = options.get("verbose", False)
             allow_strings = options.get("allow_strings", False)
 
