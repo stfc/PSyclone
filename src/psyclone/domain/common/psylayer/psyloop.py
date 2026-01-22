@@ -83,7 +83,7 @@ class PSyLoop(Loop):
         '''
         Checks whether two nodes are equal. Two PSyLoop nodes are equal
         if they have equal loop_type, field, field_name, field_space
-        iteraction_space and kernel.
+        iteration_space and kernel.
 
         :param object other: the object to check equality to.
 

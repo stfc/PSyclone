@@ -829,7 +829,7 @@ def test_acc_atomics_validate_global_constraints(fortran_reader, monkeypatch):
             "statement, but found " in str(err.value))
 
 
-def test_acc_atomics_srtings():
+def test_acc_atomics_strings():
     ''' Test the ACCAtomicDirective begin and end strings '''
     atomic = ACCAtomicDirective()
     assert atomic.begin_string() == "acc atomic"

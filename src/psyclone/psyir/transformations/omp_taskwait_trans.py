@@ -314,7 +314,7 @@ class OMPTaskwaitTrans(Transformation):
         :type taskloop_positions: list of int
         :param dependence_positions: positions of the taskloops' dependencies.
         :type dependence_positions: list of int
-        :param dependence_nodes: the nodes respresenting the forward \
+        :param dependence_nodes: the nodes representing the forward \
                                  dependency of each taskloop node.
         :type dependence_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 

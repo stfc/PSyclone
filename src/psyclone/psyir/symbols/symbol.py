@@ -89,7 +89,7 @@ class Symbol(CommentableMixin):
 
         PUBLIC: the symbol is visible in any scoping region that has access to
                 the SymbolTable containing it.
-        PRIVATE: the symbol is only visibile inside the scoping region that
+        PRIVATE: the symbol is only visible inside the scoping region that
                  contains the SymbolTable to which it belongs.
         '''
         PUBLIC = 1

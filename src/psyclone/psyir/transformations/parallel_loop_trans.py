@@ -474,7 +474,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                       reduction_ops=reduction_ops, **kwargs)
 
         logger = logging.getLogger(__name__)
-        explictly_private_symbols = set()
+        explicitly_private_symbols = set()
         for symbol_name in force_private:
             try:
                 sym = node.scope.symbol_table.lookup(symbol_name)
@@ -484,7 +484,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     "%s has been provided with the '%s' symbol name in "
                     "the 'force_private' option, but there is no such "
                     "symbol in this scope.", self.name, symbol_name)
-            explictly_private_symbols.add(sym)
+            explicitly_private_symbols.add(sym)
 
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()
@@ -512,20 +512,20 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     for var_name in message.var_names:
                         self._attempt_privatisation(
                             node, var_name, force_private,
-                            explictly_private_symbols)
+                            explicitly_private_symbols)
 
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
         if collapse:
             # Count the number of perfectly nested loops that can be collapsed
-            num_collapsable_loops = 0
+            num_collapsible_loops = 0
             next_loop = node
             previous_iteration_variables = []
             while isinstance(next_loop, Loop):
                 previous_iteration_variables.append(next_loop.variable)
-                num_collapsable_loops += 1
+                num_collapsible_loops += 1
                 if not isinstance(collapse, bool):
-                    if num_collapsable_loops >= collapse:
+                    if num_collapsible_loops >= collapse:
                         break
 
                 # If it has more than one child, the next loop will not be
@@ -579,15 +579,15 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                                 " false dependency.")
                         break
         else:
-            num_collapsable_loops = None
+            num_collapsible_loops = None
 
         # Add our orphan loop directive setting its parent to the node's
         # parent and its children to the node. This calls down to the sub-class
         # to get the type of directive we require.
-        directive = self._directive([node.detach()], num_collapsable_loops)
+        directive = self._directive([node.detach()], num_collapsible_loops)
         if isinstance(directive, DataSharingAttributeMixin):
             directive.explicitly_private_symbols.update(
-                explictly_private_symbols)
+                explicitly_private_symbols)
 
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)

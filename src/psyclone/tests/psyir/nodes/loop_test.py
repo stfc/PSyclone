@@ -530,7 +530,7 @@ def test_set_loop_type_inference_rules():
 
 
 def test_loop_type(fortran_reader):
-    ''' Check that the loop_type method works as expeced '''
+    ''' Check that the loop_type method works as expected '''
     code = '''
     subroutine basic_loop()
       integer, parameter :: jpi=16, jpj=16

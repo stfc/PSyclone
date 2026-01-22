@@ -170,7 +170,7 @@ class ReductionInferenceTool():
                 op = self._get_reduction_operator(node.parent)
                 if op:
                     # Also check that the parent of the reduction operator
-                    # is an assigment of the candidate reduction variable.
+                    # is an assignment of the candidate reduction variable.
                     if isinstance(node.parent.parent, Assignment):
                         lhs = node.parent.parent.lhs
                         if isinstance(lhs, Reference):

@@ -768,7 +768,7 @@ def test_single_stencil_literal(dist_mem, tmpdir):
 
 def test_stencil_region(dist_mem, tmpdir):
     '''Test that region stencil access with an extent value passed from the
-    algorith layer is handled correctly.
+    algorithm layer is handled correctly.
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.12_single_stencil_region.f90"),
@@ -1809,9 +1809,9 @@ def test_multi_kernel_any_space_stencil_1(dist_mem):
     assert output3 in result
 
 
-def test_lfrickernargs_unexpect_stencil_extent():
+def test_lfrickernargs_unexpected_stencil_extent():
     '''This test checks that we raise an error in LFRicKernelArguments if
-    metadata is provided with an extent value. This is a litle tricky
+    metadata is provided with an extent value. This is a little tricky
     to raise as the parser does not allow this to happen. We therefore
     modify the results from the parser to raise the error.
 

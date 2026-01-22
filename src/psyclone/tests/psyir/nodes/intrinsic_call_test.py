@@ -1970,7 +1970,7 @@ def test_specific_return_types(fortran_reader, code, expected):
 def test_specific_return_types_incorrect_parsed(
     fortran_reader, code, intrinsic, expected
 ):
-    """Test the specific return types of IntrisicCalls that aren't recognised
+    """Test the specific return types of IntrinsicCalls that aren't recognised
     correctly by fparser."""
     psyir = fortran_reader.psyir_from_source(code)
     parsed = psyir.walk(Call)[0]

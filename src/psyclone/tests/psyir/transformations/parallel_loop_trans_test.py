@@ -126,7 +126,7 @@ def test_paralooptrans_validate_pure_calls(fortran_reader, fortran_writer):
     loop.scope.symbol_table.lookup("my_sub2").is_pure = True
     trans.validate(loop)
 
-    # Also allow pure when the fuction definition can be found
+    # Also allow pure when the function definition can be found
     psyir = fortran_reader.psyir_from_source('''
     pure subroutine return_scalar(x, y)
         integer, intent(in) :: x
@@ -207,7 +207,7 @@ def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader):
     Test that the 'ignore_dependencies_for' option allows the validate check to
     succeed even when the dependency analysis finds a possible loop-carried
     dependency, but the user guarantees that it's a false dependency. It also
-    checks that the appopriate comments are added when dependencies are found.
+    checks that the appropriate comments are added when dependencies are found.
 
     '''
     psyir = fortran_reader.psyir_from_source(CODE)
@@ -762,7 +762,7 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
     trans.validate(loop, {"privatise_arrays": True})
 
     # Doing the same but with an outer loop around, it must fails because now
-    # it can loop back to the references in each of the branche
+    # it can loop back to the references in each of the branch
     routine = psyir.children[0]
     children = routine.pop_all_children()
     routine.addchild(Loop.create(routine.symbol_table.lookup("i"),

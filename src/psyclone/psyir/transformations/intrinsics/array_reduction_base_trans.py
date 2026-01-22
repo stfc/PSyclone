@@ -305,7 +305,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             # The ArrayAssignment2LoopsTrans could fail to convert the ranges,
             # unfortunately this can not be tested before modifications to the
             # tree (e.g. in the validate), so the best we can do is reverting
-            # to the orginal statement (with maybe some leftover tmp variable)
+            # to the original statement (with maybe some leftover tmp variable)
             # and produce the error here.
             assignment.replace_with(orig_assignment)
             # pylint: disable=raise-missing-from

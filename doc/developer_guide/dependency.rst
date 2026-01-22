@@ -172,7 +172,7 @@ will have the following prototype assignment as child:
 This assignment will not be generated to code because the lowering method
 replaces the entire CodedKern with the appropriate call. But this child is
 sufficient to provide the `VariablesAccessMap` used by generic PSyIR the
-necessary access information to perform the needed depenency checks.
+necessary access information to perform the needed dependency checks.
 
 LFric does not currently use this virtual assignments, instead it uses
 information provided by the `Argument` class attached to the CodedKern to
