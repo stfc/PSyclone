@@ -319,7 +319,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                             errors.append(
                                 f"The write-write dependency in '{var_name}'"
                                 f" cannot be solved by automatic array "
-                                f"privatisation. Use 'loop.explictly_private"
+                                f"privatisation. Use 'loop.explicitly_private"
                                 f"_symbols.add(symbol)' if *YOU* can guarantee"
                                 f" that it is private.")
                     continue
@@ -482,14 +482,14 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         # loop nest has at least that number of loops in it
         if collapse:
             # Count the number of perfectly nested loops that can be collapsed
-            num_collapsable_loops = 0
+            num_collapsible_loops = 0
             next_loop = node
             previous_iteration_variables = []
             while isinstance(next_loop, Loop):
                 previous_iteration_variables.append(next_loop.variable)
-                num_collapsable_loops += 1
+                num_collapsible_loops += 1
                 if not isinstance(collapse, bool):
-                    if num_collapsable_loops >= collapse:
+                    if num_collapsible_loops >= collapse:
                         break
 
                 # If it has more than one child, the next loop will not be
@@ -543,12 +543,12 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                                 " false dependency.")
                         break
         else:
-            num_collapsable_loops = None
+            num_collapsible_loops = None
 
         # Add our orphan loop directive setting its parent to the node's
         # parent and its children to the node. This calls down to the sub-class
         # to get the type of directive we require.
-        directive = self._directive([node.detach()], num_collapsable_loops)
+        directive = self._directive([node.detach()], num_collapsible_loops)
 
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)

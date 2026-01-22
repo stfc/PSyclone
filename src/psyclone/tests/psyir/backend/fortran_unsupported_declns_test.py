@@ -111,7 +111,7 @@ def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
 def test_fw_unsupportedtype_routine_symbols_error(fortran_writer):
     ''' Check that the backend raises the expected error if a RoutineSymbol
     which is not imported or a Fortran interface (currently an
-    UnsupportedFortanType) is found by the gen_decls. This symbols are
+    UnsupportedFortranType) is found by the gen_decls. This symbols are
     implicitly declared by the routine definition.
 
     '''
@@ -151,7 +151,8 @@ def test_fw_add_accessibility_errors():
     raises the expected errors. '''
     with pytest.raises(TypeError) as err:
         add_accessibility_to_unsupported_declaration("hello")
-    assert str(err.value) == "Expected a Symbol but got 'str'"
+    assert str(err.value) == (
+        "Expected a Symbol or DerivedType component but got 'str'")
     with pytest.raises(TypeError) as err:
         add_accessibility_to_unsupported_declaration(
             DataSymbol("var", INTEGER_TYPE))
@@ -302,3 +303,28 @@ def test_fw_save_common(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     assert "SAVE :: /my_common/\n" in output
     assert "integer, save, public :: var3\n" in output
+
+
+def test_fw_unsupported_type_components_with_visibility(
+            fortran_reader, fortran_writer):
+    ''' Check that the writer can handler type declarations with unsupported
+    components, and these have the visibility attribute modified when needed.
+    '''
+
+    code = '''\
+module mymod
+  type :: test
+     real :: supported
+     real, public :: supported_public
+     real, pointer :: unsupported
+     real, public, pointer :: unsupported_public
+     private
+  end type test
+end module mymod\n'''
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    # Check that the private attribute has been added to supported and
+    # unsupported, component types (because the backend does not use
+    # global visibility statements)
+    assert "real, private :: supported" in output
+    assert "real, pointer, private :: unsupported" in output

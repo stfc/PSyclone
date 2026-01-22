@@ -565,7 +565,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
 
 
 def test_omploop_trans_new_options(sample_psyir):
-    ''' Thest the new options and validation methods work correctly using
+    ''' Test the new options and validation methods work correctly using
     OMPLoopTrans apply'''
     omplooptrans = OMPLoopTrans()
     tree = sample_psyir.copy()
