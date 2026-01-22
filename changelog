@@ -1,3 +1,6 @@
+   29) PR #3275 for #3216. Allows the specification of private variables
+   for parallel regions in user scripts and removes the option from Loops.
+
    28) PR #3263 towards #2381 and #2674. Generalise GH_SUM to GH_REDUCTION
    and begin support for new reduction LFRic Builtins.
 
@@ -9,7 +12,7 @@
    25) PR #3289 for #3288. Pin Sphinx to 8.3 to prevent doc build issues.
 
    24) PR #3284 for #3283. Bug fix for case where same file found via
-   multiple search paths.   
+   multiple search paths.
 
    23) PR #3255 for #3251. Identify uncategorised directives as
    UnknownDirective (instead of CodeBlock) when possible.
