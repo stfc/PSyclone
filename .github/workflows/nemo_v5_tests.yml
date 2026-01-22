@@ -56,7 +56,7 @@ jobs:
       bench_gfortran_omp_cpu: ${{ steps.bench_gfortran_omp_cpu.outputs.time }}
       bench_nvfortran_omp_offload: ${{ steps.bench_nvfortran_omp_offload.outputs.time }}
       bench_nvfortran_omp_offload_build: ${{ steps.bench_nvfortran_omp_offload.outputs.build_time }}
-      orca1_nvfortran_acc_offload: ${{ steps.orca1_nvfortran_acc_offload.outputs.time }}
+      orca1_nvfortran_omp_offload: ${{ steps.orca1_nvfortran_omp_offload.outputs.time }}
       orca2_nvfortran_omp_offload: ${{ steps.orca2_nvfortran_omp_offload.outputs.time }}
       bench_nvfortran_omp_offload_async: ${{ steps.bench_nvfortran_omp_offload_async.outputs.time }}
       orca2_nvfortran_omp_offload_async: ${{ steps.orca2_nvfortran_omp_offload_async.outputs.time }}
@@ -282,7 +282,7 @@ jobs:
         echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
 
     - name: NEMO 5.0 nvidia OpenMP for GPUs (UKMO ORCA1 - managed memory)
-      id: orca1_nvfortran_acc_offload
+      id: orca1_nvfortran_omp_offload
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
@@ -291,14 +291,14 @@ jobs:
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=/archive/psyclone-tests/latest-run/UKMO-NEMOv5
-        export TEST_DIR=ORCA1_ACC_OFFLOAD_NVHPC
+        export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         # We compile at "-O2 -Mnofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -acc -mp=gpu -gpu=mem:managed,math_uniform"
-        export PARALLEL_DIRECTIVES="acc_offloading"
+        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
         export REPRODUCIBLE=1
 
         # Clean up and compile
@@ -312,7 +312,7 @@ jobs:
         # Make sure mpi has been built with cuda support
         ompi_info --parsable --all | grep mpi_built_with_cuda_support:value
         # Run with round robin allocations of GPUs to MPI ranks
-        mpirun -n 2 sh -c 'CUDA_VISIBLE_DEVICES=$OMPI_COMM_WORLD_LOCAL_RANK ./nemo'
+        OMP_NUM_THREADS=4 mpirun -n 2 sh -c 'CUDA_VISIBLE_DEVICES=$OMPI_COMM_WORLD_LOCAL_RANK ./nemo'
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca1.nvhpc.10steps run.stat
         export VAR_TIME=$(grep "local MPI proces" timing.output | head -n 1 | awk '{print $5}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
@@ -531,10 +531,10 @@ jobs:
               '"$COMMON_FIELDS"'
             },
             {
-              ci_test: "NEMOv5 OpenACC for GPU (ORCA1)",
+              ci_test: "NEMOv5 OpenMP for GPU (ORCA1)",
               nemo_version: "NEMO 5.0-RC MO patch",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
-              elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca1_nvfortran_acc_offload}}"',
+              elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca1_nvfortran_omp_offload}}"',
               '"$COMMON_FIELDS"'
             },
             {

@@ -61,7 +61,7 @@ NEMOV4 = os.environ.get('NEMOV4', False)
 PARALLEL_DIRECTIVES = os.environ.get('PARALLEL_DIRECTIVES', '')
 
 # By default, allow optimisations that may change the results, e.g. reductions,
-# offloading instrinsics without math_uniform, ...
+# offloading intrinsics without math_uniform, ...
 REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
 
 # This environment variable informs if profiling hooks have to be inserted.
@@ -94,11 +94,11 @@ SKIP_FOR_PERFORMANCE = [
 ]
 
 # These files change the results from the baseline when psyclone adds
-# parallelisation dirctives
+# parallelisation directives
 PARALLELISATION_ISSUES = []
 
 # These files change the results from the baseline when psyclone adds
-# offloading dirctives
+# offloading directives
 OFFLOADING_ISSUES = []
 
 if not NEMOV4:
@@ -138,14 +138,14 @@ if not NEMOV4:
         "stp2d.f90",
     ])
 
-    if "acc_offloading" in PARALLEL_DIRECTIVES:
-        OFFLOADING_ISSUES.extend([
-            # Fail in OpenACC ORCA2_ICE_PISCES
-            "dynzdf.f90",
-            "trabbl.f90",
-            "trazdf.f90",
-            "zdfsh2.f90",
-        ])
+    # if "acc_offloading" in PARALLEL_DIRECTIVES:
+    #     OFFLOADING_ISSUES.extend([
+    #         # Fail in OpenACC ORCA2_ICE_PISCES
+    #         "dynzdf.f90",
+    #         "trabbl.f90",
+    #         "trazdf.f90",
+    #         "zdfsh2.f90",
+    #     ])
 
 ASYNC_ISSUES = [
     # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
@@ -199,7 +199,7 @@ def select_transformations():
 
     process_directives = process_directives.replace('+', '')
     if process_directives != '':
-        sys.exit(f"Unkown PARALLEL_DIRECTIVES: {process_directives}")
+        sys.exit(f"Unknown PARALLEL_DIRECTIVES: {process_directives}")
 
     return (offload_region_trans, mark_for_gpu_trans,
             gpu_loop_trans, cpu_loop_trans)
@@ -211,22 +211,23 @@ def filter_files_by_name(name: str) -> bool:
         FILES_TO_SKIP, this will still run the files through psyclone.
     '''
     # The two options below are useful for file-by-file exhaustive tests.
-    # If the environemnt has ONLY_FILE defined, only process that one file and
+    # If the environment has ONLY_FILE defined, only process that one file and
     # known-good files that need a "declare target" inside.
     only_file = os.environ.get('ONLY_FILE', False)
     if only_file:
         files_to_do = [only_file]
         if "offloading" in PARALLEL_DIRECTIVES:
-            files_to_do.extend(["lib_fortran.f90", "solfrac_mod.f90"])
-        if name in files_to_do:
+            files_to_do.extend(
+                ["lib_fortran.f90", "solfrac_mod.f90", "sbc_phy.f90"])
+        if name not in files_to_do:
             return True
-    # If the environemnt has ALL_BUT_FILE defined, process all files but
+    # If the environment has ALL_BUT_FILE defined, process all files but
     # the one named file.
     all_but_file = os.environ.get('ALL_BUT_FILE', False)
     if all_but_file and name == all_but_file:
         return True
 
-    # These work but are skiped to improve performance, they could be in the
+    # These work but are skipped to improve performance, they could be in the
     # FILES_TO_SKIP global parameter, but in this script, for testing purposes,
     # we exclude them here so the PSyclone frontend and backend are still
     # tested and it also allows to insert profiling hooks later on.
@@ -242,10 +243,6 @@ def filter_files_by_name(name: str) -> bool:
 
     # This file fails for gcc NEMOv5 BENCH
     if not NEMOV4 and name == "icedyn_rhg_evp.f90":
-        return True
-
-    # Many of the obs_ files have problems with OpenACC
-    if name.startswith("obs_") and "acc" in PARALLEL_DIRECTIVES:
         return True
 
     return False
@@ -267,6 +264,7 @@ def trans(psyir):
 
     disable_profiling_for = []
     enable_async = ASYNC_PARALLEL and psyir.name not in ASYNC_ISSUES
+    privatise_arrays = not (NEMOV4 or "acc" in PARALLEL_DIRECTIVES)
 
     for subroutine in psyir.walk(Routine):
 
@@ -323,7 +321,7 @@ def trans(psyir):
                     region_directive_trans=offload_region_trans,
                     loop_directive_trans=gpu_loop_trans,
                     collapse=True,
-                    privatise_arrays=not NEMOV4,
+                    privatise_arrays=privatise_arrays,
                     enable_reductions=not REPRODUCIBLE,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     asynchronous_parallelism=enable_async,
@@ -335,7 +333,7 @@ def trans(psyir):
                     subroutine,
                     loop_directive_trans=cpu_loop_trans,
                     collapse=False,
-                    privatise_arrays=not NEMOV4,
+                    privatise_arrays=privatise_arrays,
                     enable_reductions=not REPRODUCIBLE,
                     asynchronous_parallelism=enable_async,
             )
