@@ -1,3 +1,6 @@
+   28) PR #3263 towards #2381 and #2674. Generalise GH_SUM to GH_REDUCTION
+   and begin support for new reduction LFRic Builtins.
+
    27) PR #3293. Fixes various typos throughout the PSyclone codebase.
 
    26) PR #3267 for #3265 and #1418. Improves the parsing of Fortran
