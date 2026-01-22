@@ -1,5 +1,8 @@
-   28) PR #3275 for #3216. Allows the specification of private variables
+   29) PR #3275 for #3216. Allows the specification of private variables
    for parallel regions in user scripts and removes the option from Loops.
+
+   28) PR #3263 towards #2381 and #2674. Generalise GH_SUM to GH_REDUCTION
+   and begin support for new reduction LFRic Builtins.
 
    27) PR #3293. Fixes various typos throughout the PSyclone codebase.
 
