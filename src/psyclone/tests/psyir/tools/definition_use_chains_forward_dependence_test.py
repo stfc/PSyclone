@@ -674,7 +674,7 @@ def test_definition_use_chain_find_forward_accesses_while_loop_example(
     assert reaches[2] is routine.walk(Assignment)[2].lhs
 
 
-def test_definition_use_chain_foward_accesses_nested_loop_example(
+def test_definition_use_chain_forward_accesses_nested_loop_example(
     fortran_reader,
 ):
     """Functionality test for the find_forward_accesses routine. This

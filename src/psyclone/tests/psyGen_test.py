@@ -40,7 +40,7 @@
 
 
 # internal classes requiring tests
-# PSy, Invokes, Invoke, Kern, Argumen1ts, Argument, KernelArgument
+# PSy, Invokes, Invoke, Kern, Argument1ts, Argument, KernelArgument
 
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
@@ -196,7 +196,7 @@ def test_transformation_get_options():
     ''' Test that the get_option method behaves in the
     expected way.'''
     class TestTrans(Transformation):
-        '''Utilty transformation to test methods of the abstract
+        '''Utility transformation to test methods of the abstract
         Transformation class.'''
         def apply(self, node, valid: bool = True):
             ...
@@ -235,7 +235,7 @@ def test_transformation_get_valid_options():
     '''Test that the get_valid_options method behaves in the expected
     way.'''
     class TestTrans(Transformation):
-        '''Utilty transformation to test methods of the abstract
+        '''Utility transformation to test methods of the abstract
         Transformation class.'''
         def apply(self, node, valid: bool = True, untyped=False, options={}):
             '''Apply method of TestTrans.'''
@@ -281,7 +281,7 @@ def test_transformation_get_valid_options_no_sphinx():
         from psyclone.psyGen import Transformation
 
         class TestTrans(Transformation):
-            '''Utilty transformation to test methods of the abstract
+            '''Utility transformation to test methods of the abstract
             Transformation class.'''
             def apply(self, node, valid: bool = True, untyped=False):
                 '''Apply method of TestTrans.'''

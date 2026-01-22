@@ -276,7 +276,7 @@ class DriverCreator:
         :param psy_data: the PSyData symbol to be used.
         :param original_symtab: this is needed because read_write_info has
             signatures instead of symbols, and the signature still have to
-            be looked up to retrive the symbol and then the type.
+            be looked up to retrieve the symbol and then the type.
         :param read_write_info: information about all input and output
             parameters.
         :param postfix: a postfix that is added to a variable name to
@@ -603,7 +603,7 @@ class DriverCreator:
                                                    symbol_type=DataSymbol,
                                                    datatype=psy_data_type)
 
-        # Add cmd line hander, read in, and result comparison for the code
+        # Add cmd line handler, read in, and result comparison for the code
         self._add_command_line_handler(program, psy_data, region_name[0],
                                        region_name[1])
 

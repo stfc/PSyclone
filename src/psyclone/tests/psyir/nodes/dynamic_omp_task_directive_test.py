@@ -1249,7 +1249,7 @@ def test_omp_task_directive_output_nonarray_shared_var(
         fortran_reader, fortran_writer, tmpdir
         ):
     ''' Test the code generation generates the correct clauses
-    when an output variable is just a shared vairable '''
+    when an output variable is just a shared variable '''
     code = '''
     subroutine my_subroutine(k)
         integer :: i, ii

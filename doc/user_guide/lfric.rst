@@ -2103,7 +2103,7 @@ conventions, are:
       containing the upper bounds for each rank, ``dims_<array_name>``
       (the lower bound is assumed to be 1 as this is how Fortran passes
       array slices to subroutines by default). Then pass the array of
-      the data type and kind specifed in the metadata. The ScalarArray
+      the data type and kind specified in the metadata. The ScalarArray
       must be denoted with intent ``in`` to match its read-only nature.
 
 4) For each function space in the order they appear in the metadata arguments

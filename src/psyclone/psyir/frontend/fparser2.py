@@ -208,7 +208,7 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
         if (parent_scope.return_symbol and
                 parent_scope.return_symbol.name.lower() == name.lower()):
             # The PSyIR canonicalises functions such that they always have
-            # a RESULT clause. As such, according to the Fortan standard, any
+            # a RESULT clause. As such, according to the Fortran standard, any
             # reference to the name specified in the RESULT clause is to the
             # DataSymbol.
             return parent_scope.return_symbol
@@ -592,7 +592,7 @@ def default_real_type():
 
 
 def get_literal_precision(fparser2_node, psyir_literal_parent):
-    '''Takes a Fortran2003 literal node as input and returns the appropriat
+    '''Takes a Fortran2003 literal node as input and returns the appropriate
      PSyIR precision type for that node. Adds a UnresolvedType DataSymbol in
     the SymbolTable if the precision is given by an undefined symbol.
 
@@ -1023,7 +1023,7 @@ class Fparser2Reader():
         :param fp2_nodes: list of fparser2 AST nodes constituting the
                           CodeBlock.
         :type fp2_nodes: list of :py:class:`fparser.two.utils.Base`
-        :param message: Include a preceeding comment attached to the CodeBlock.
+        :param message: Include a preceding comment attached to the CodeBlock.
         :type message: Optional[str]
 
         :returns: a CodeBlock instance.
@@ -1186,7 +1186,7 @@ class Fparser2Reader():
             tuple[:py:class:`psyclone.psyir.nodes.DataNode`,
                   :py:class:`psyclone.psyir.nodes.DataNode`]]]
 
-        :raises GenerationError: if invalid Fortran is encounted in the
+        :raises GenerationError: if invalid Fortran is encountered in the
                                  dimensions list.
         :raises NotImplementedError: if the supplied dimension represents an
                                      assumed-size specification.
@@ -3034,7 +3034,7 @@ class Fparser2Reader():
         This handler returns None indicating that the associated
         fparser2 node can be ignored.
 
-        Note that this method contains ignored arguments to comform with
+        Note that this method contains ignored arguments to conform with
         the handler(node, parent) method interface.
 
         :returns: None
@@ -3211,7 +3211,7 @@ class Fparser2Reader():
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param variable: the loop variable.
         :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param limits_list: a list of fparser expressions reprsenting the
+        :param limits_list: a list of fparser expressions representing the
             loop bounds.
         :type limits_list: List[:py:class:`fparser.two.utils.Base`]
 
@@ -3900,7 +3900,7 @@ class Fparser2Reader():
                     elif walk(type_spec, Fortran2003.Length_Selector):
                         # This is a character intrinsic type so must
                         # have an assumed length ('*') which we
-                        # tranform to 'star to allow the creation of a
+                        # transform to 'star to allow the creation of a
                         # valid symbol name.
                         type_name = f"{type_name}_star".lower()
                 else:
@@ -5299,7 +5299,7 @@ class Fparser2Reader():
         Fortran.
 
         For example, both sum(a, dim, mask) and sum(dim=dim,
-        mask=mask, array=a) are equivalant in Fortran. The canonical
+        mask=mask, array=a) are equivalent in Fortran. The canonical
         form has all required arguments as positional arguments and
         all optional arguments as named arguments, which would result
         in sum(a, dim=dim, mask=mask) in this case.
@@ -5430,7 +5430,7 @@ class Fparser2Reader():
             # If we will make a CodeBlock to represent this subroutine then
             # we still need to ensure the symbol is in the parent's symbol
             # table. For this case the best we can do is place the symbol
-            # in the tree without a coresponding Routine.
+            # in the tree without a corresponding Routine.
             for routine in parent.children:
                 if isinstance(routine, Routine) and routine.name == name:
                     sym = routine.symbol
@@ -5620,9 +5620,9 @@ class Fparser2Reader():
             # If we will make a CodeBlock to represent this subroutine then
             # we still need to ensure the symbol is in the parent's symbol
             # table. For this case the best we can do is place the symbol
-            # in the tree without a coresponding Routine.
+            # in the tree without a corresponding Routine.
             try:
-                # In some cases the symbol won't be removed when deatching the
+                # In some cases the symbol won't be removed when detaching the
                 # symbol, e.g. if the function is called in something already
                 # declared in the scope. In this case we are ok to catch
                 # the KeyError and continue.

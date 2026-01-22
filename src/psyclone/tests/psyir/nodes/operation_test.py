@@ -616,7 +616,7 @@ def test_unaryop_datatype():
 
 def test_unaryop_operand():
     '''
-    Test the operand peroperty of UnaryOperation.
+    Test the operand property of UnaryOperation.
     '''
     oper = UnaryOperation.Operator.MINUS
     node = Literal("1", INTEGER_SINGLE_TYPE)

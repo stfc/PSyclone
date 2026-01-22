@@ -93,7 +93,7 @@ class AdjointVisitor(PSyIRVisitor):
         '''This method is called if the visitor finds a Schedule node. A copy
         of the schedule is returned, as this does not change when
         converting from tangent linear to adjoint and its children are
-        re-ordered and sorted dependending on whether they are active
+        re-ordered and sorted depending on whether they are active
         or passive nodes.
 
         As a schedule contains variable scoping information, i.e. a
@@ -291,7 +291,7 @@ class AdjointVisitor(PSyIRVisitor):
                                   (node.stop_expr, "upper bound"),
                                   (node.step_expr, "step")]:
             # TODO #2542. References should be iterated with the
-            # reference_acess method when its issues are fixed.
+            # reference_access method when its issues are fixed.
             for ref in expr.walk(Reference):
                 if (isinstance(ref.parent, Call) and
                         ref is ref.parent.children[0]):

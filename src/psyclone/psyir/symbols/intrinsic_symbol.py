@@ -52,7 +52,7 @@ class IntrinsicSymbol(RoutineSymbol):
     :type kwargs: unwrapped dict.
 
     # TODO #2541: Currently name and the intrinsic should match, we really
-    # just need the name, and make all the Intrinsic singature information
+    # just need the name, and make all the Intrinsic signature information
     # live inside the IntrinsicSymbol class.
 
     '''

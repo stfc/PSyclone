@@ -495,7 +495,7 @@ def test_DocstringData_create_from_object():
 
 def test_docstring_is_reversible():
     '''Test that the outputs from the DocstringParser are reversible, i.e.
-    that updating the __doc__ with the output from the docstring geneator
+    that updating the __doc__ with the output from the docstring generator
     function still creates the correct DocData objects.'''
 
     def docstring_object(param1, param2, param3, **kwargs):
@@ -589,7 +589,7 @@ def test_no_sphinx():
 
         data = create_docstring_data(["param", "param"],
                                      "empty", test_function)
-        # This uses the PSyclone versoin of stringify_annotation so we get a
+        # This uses the PSyclone version of stringify_annotation so we get a
         # different datatype expression
         assert isinstance(data, ArgumentData)
         assert (data.datatype ==
