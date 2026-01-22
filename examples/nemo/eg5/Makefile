@@ -48,10 +48,10 @@
 include ../../common.mk
 
 # There are three different extraction libraries that can be used:
-# 1) binary, which uses Fortan binary data files to store the data
+# 1) binary, which uses Fortran binary data files to store the data
 #    (which might not be transferable between different machines or
 #     or different compilers)
-# 2) ascii, which uses Fortan ASCII data files to store the data
+# 2) ascii, which uses Fortran ASCII data files to store the data
 #    (which might depending on compiler not have bitwise identical results)
 # 3) netcdf, which uses NetCDF for writing the data files.
 # The library can be selected by setting TYPE to either 'binary'

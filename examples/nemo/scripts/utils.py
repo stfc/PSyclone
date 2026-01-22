@@ -84,7 +84,7 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
 # These files change the results from the baseline when psyclone adds
-# parallelisation dirctives
+# parallelisation directives
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
@@ -366,7 +366,7 @@ def insert_explicit_loop_parallelism(
     '''
     nemo_v4 = os.environ.get('NEMOV4', False)
     # TODO #2937: These are both in "dynspg_ts.f90", they have a WaW dependency
-    # but we currenlty ignore these.
+    # but we currently ignore these.
     if schedule.name in ("ts_wgt", "ts_rst"):
         return
 
@@ -455,7 +455,7 @@ def insert_explicit_loop_parallelism(
         except TransformationError:
             # This loop cannot be transformed, proceed to next loop.
             # The parallelisation restrictions will be explained with a comment
-            # associted to the loop in the generated output.
+            # associated to the loop in the generated output.
             continue
 
     # If we are adding asynchronous parallelism then we now try to minimise

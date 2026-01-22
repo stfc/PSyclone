@@ -1691,7 +1691,7 @@ class LFRicKernelConstTrans(Transformation):
         "number_of_layers" arguments are provided to mirror the namelist values
         that are input into an LFRic model when it is run.
 
-        Quadrature support is currently limited to XYoZ in ths
+        Quadrature support is currently limited to XYoZ in this
         transformation. In the case of XYoZ the number of quadrature
         points in the horizontal are set to element_order_h+3, and in the
         vertical to element_order_v+3. These values are set in the LFRic
@@ -2050,13 +2050,13 @@ class ACCEnterDataTrans(Transformation):
 
     def check_child_async(self, sched, async_queue):
         '''
-        Common function to check that all kernel/parallel childs have the
+        Common function to check that all kernel/parallel children have the
         same async queue.
 
         :param sched: schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
 
-        :param async_queue: The async queue to expect in childs.
+        :param async_queue: The async queue to expect in children.
         :type async_queue: \
             Optional[bool,int,:py:class:`psyclone.core.Reference`]
         '''
@@ -2098,7 +2098,7 @@ class ACCEnterDataTrans(Transformation):
 
         async_queue = options.get('async_queue', False)
 
-        # check consistency with childs about async_queue
+        # check consistency with children about async_queue
         self.check_child_async(sched, async_queue)
 
 

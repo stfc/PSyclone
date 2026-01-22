@@ -36,7 +36,7 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module contians the LFRicRunTimeChecks class which handles
+''' This module contains the LFRicRunTimeChecks class which handles
 declarations and code generation for run-time checks. The methods
 check fields' function spaces and read-only fields against kernel
 function-space metadata on initialisation. The class inherits from
@@ -198,7 +198,7 @@ class LFRicRunTimeChecks(LFRicCollection):
 
         Whilst the LFRic infrastructure halo exchange would also
         indirectly pick up a readonly field being modified, it would
-        not be picked up where the error occured. Therefore adding
+        not be picked up where the error occurred. Therefore adding
         checks here is still useful.
 
         :param cursor: position where to add the next initialisation

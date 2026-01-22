@@ -310,7 +310,7 @@ class Call(Statement, DataNode):
 
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -379,7 +379,7 @@ class Call(Statement, DataNode):
         '''
         if self.routine and self.routine.symbol:
             return self.routine.symbol
-        # In case of incomplete Calls (wihtout mandatory children), return None
+        # In case of incomplete Calls (without mandatory children), return None
         return None
 
     @property
@@ -426,7 +426,7 @@ class Call(Statement, DataNode):
         '''
         if self.symbol and isinstance(self.symbol, RoutineSymbol):
             return self.symbol.is_elemental
-        # In case of incomplete Calls (wihtout mandatory children), return None
+        # In case of incomplete Calls (without mandatory children), return None
         return None
 
     @property
@@ -438,7 +438,7 @@ class Call(Statement, DataNode):
         '''
         if self.symbol and isinstance(self.symbol, RoutineSymbol):
             return self.symbol.is_pure
-        # In case of incomplete Calls (wihtout mandatory children), return None
+        # In case of incomplete Calls (without mandatory children), return None
         return None
 
     def is_available_on_device(self, device_string: str = "") -> bool:
@@ -532,7 +532,7 @@ class Call(Statement, DataNode):
         rsym = self.routine.symbol
         if rsym.is_unresolved:
             # Search for the Routine in the current file. This search is
-            # stopped if we encouter a wildcard import that could be
+            # stopped if we encounter a wildcard import that could be
             # responsible for shadowing the routine name with an external
             # implementation.
             table = rsym.find_symbol_table(self)

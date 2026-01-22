@@ -565,10 +565,10 @@ def test_array_datatype():
     # is a structure symbol.
     generic_sym = Symbol("test")
     aref6 = ArrayReference(generic_sym)
-    test_struc_sym = DataSymbol("test", StructureType())
+    test_struct_sym = DataSymbol("test", StructureType())
     index = Symbol("temp")
     aref6.addchild(Reference(index))
-    aref6._symbol = test_struc_sym
+    aref6._symbol = test_struct_sym
     assert isinstance(aref6.datatype, UnresolvedType)
 
     # TODO #2448 - we don't handle an array access to something that we
