@@ -727,7 +727,7 @@ def test_apply_with_allocatables(fortran_reader, fortran_writer, tmpdir):
     # Check that:
     # - Local allocatable declarations are hoisted unless it is a non-
     # supported case, which has a warning message added.
-    # - Their ALLOCATEEs have been guarded with a "if (.NOT.ALLOCATED"
+    # - Their ALLOCATEs have been guarded with a "if (.NOT.ALLOCATED"
     # - Their DEALLOCATEs have been removed, respecting other symbols in the
     # same deallocate statements and deleting parent single-line conditions
     assert output == """\

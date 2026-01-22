@@ -112,7 +112,7 @@ def test_invalid_mesh_type():
 
 
 def test_invalid_mesh_specifier():
-    ''' Check that we raise an error if "mesh_arg" is miss-spelt '''
+    ''' Check that we raise an error if "mesh_arg" is misspelt '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = RESTRICT_MDATA.replace("mesh_arg=GH_COARSE",
                                   "mesh_ar=GH_COARSE", 1)
