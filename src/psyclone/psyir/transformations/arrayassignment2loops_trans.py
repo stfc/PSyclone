@@ -241,7 +241,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
         for reference in validation_copy.walk(Reference):
             try:
                 Reference2ArrayRangeTrans().apply(reference)
-            except TransformationError:
+            except TransformationError as err:
                 message = (
                     f"Reference2ArrayRangeTrans could not decide if the "
                     f"reference '{reference.name}' is an array or not. "
@@ -249,7 +249,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
                     f"scope may help.")
                 if verbose:
                     node.append_preceding_comment(message)
-                raise TransformationError(message)
+                raise TransformationError(message) from err
 
         array_accessors = node.lhs.walk(ArrayMixin)
         if not (isinstance(node.lhs, Reference) and array_accessors):

@@ -856,12 +856,12 @@ def test_validate_indirect_indexing(fortran_reader):
       use dom_oce
       INTEGER, DIMENSION(4)  ::   iwewe
       INTEGER, DIMENSION(8,kfld)  :: ishtSi
+      INTEGER :: jf
       ! Assignment with CodeBlock on RHS.
       iwewe(:) = (/ jpwe,jpea,jpwe,jpea /)
       ! Assignment with CodeBlock in array-index expression.
       iwewe(:) = ishtSi((/ jpwe,jpea,jpwe,jpea /), 1)
-      ! Index expression does evaluate to an array but we don't currently
-      ! handle getting a type in this case (TODO #1799).
+      ! Index expression that evaluate to an array is a valid range
       ishtSi(5:8,jf) = ishtSi(iwewe+1, jf)
       ! Index expression contains a call to an unknown function.
       ishtSi(5:8,jf) = ishtSi(my_func(1), jf)
@@ -880,13 +880,9 @@ def test_validate_indirect_indexing(fortran_reader):
     assert ("ArrayAssignment2LoopsTrans does not support array assignments "
             "that contain a CodeBlock anywhere in the expression"
             in str(err.value))
-    # TODO #1799 - this requires that we extended ArrayMixin.datatype to
-    # support array accesses with index expressions that are Operations.
-    with pytest.raises(TransformationError) as err:
-        trans.validate(assignments[2])
-    assert ("cannot expand expression because it contains the access "
-            "'ishtsi(iwewe + 1,jf)' which is an UnresolvedType and therefore "
-            "cannot be guaranteed" in str(err.value))
+    # Index expression that evaluate to an array is a valid range, so the
+    # following statement will be valid
+    trans.validate(assignments[2])
     with pytest.raises(TransformationError) as err:
         trans.validate(assignments[3])
     assert ("ArrayAssignment2LoopsTrans does not accept calls which are not "
@@ -934,16 +930,16 @@ def test_validate_structure(fortran_reader):
     # We don't know the type of these
     with pytest.raises(TransformationError) as err:
         trans.validate(assignments[2])
-    assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
-            "contains the access 'grid1%data(1,jf)' which is an UnresolvedType"
-            " and therefore cannot be guaranteed to be ScalarType"
+    assert ("Reference2ArrayRangeTrans could not decide if the reference "
+            "'grid1' is an array or not. Resolving the import that brings "
+            "this variable into scope may help."
             in str(err.value))
     with pytest.raises(TransformationError) as err:
         trans.validate(assignments[3])
-    assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
-            "contains the access 'grid1%subgrid%map(1,1)' which is an "
-            "UnresolvedType and therefore cannot be guaranteed to be "
-            "ScalarType" in str(err.value))
+    assert ("Reference2ArrayRangeTrans could not decide if the reference "
+            "'grid1' is an array or not. Resolving the import that brings "
+            "this variable into scope may help."
+            in str(err.value))
 
 
 def test_shape_intrinsic(fortran_reader):
