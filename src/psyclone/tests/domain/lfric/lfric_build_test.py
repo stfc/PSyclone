@@ -48,7 +48,7 @@ from psyclone.tests.utilities import Compile, CompileError
 @pytest.fixture(scope="function", autouse=True)
 def reset_infrastructure_compiled_flag():
     '''During testing the compilation path will be modified. Make sure
-    we restore the original path (which actualy contains the compiled
+    we restore the original path (which actually contains the compiled
     files) after each test. Also set the built flag to false to always
     trigger a fresh building of the infrastructure.
 

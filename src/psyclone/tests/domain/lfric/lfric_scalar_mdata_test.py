@@ -199,8 +199,8 @@ def test_ad_scalar_type_no_write():
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)
         assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction ['gh_sum'] access but found 'gh_write'" in
-                str(excinfo.value))
+                "reduction ('gh_reduction') access but found "
+                "'gh_write'" in str(excinfo.value))
 
 
 def test_ad_scalar_type_no_inc():
@@ -216,8 +216,8 @@ def test_ad_scalar_type_no_inc():
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)
         assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction ['gh_sum'] access but found 'gh_inc'" in
-                str(excinfo.value))
+                "reduction ('gh_reduction') access but found "
+                "'gh_inc'" in str(excinfo.value))
 
 
 def test_ad_scalar_type_no_readwrite():
@@ -234,28 +234,28 @@ def test_ad_scalar_type_no_readwrite():
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)
         assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction ['gh_sum'] access but found 'gh_readwrite'" in
-                str(excinfo.value))
+                "reduction ('gh_reduction') access but found "
+                "'gh_readwrite'" in str(excinfo.value))
 
 
 @pytest.mark.parametrize("scalar_type", ["gh_integer", "gh_logical"])
 def test_ad_integer_logical_scalar_type_no_sum(scalar_type):
     ''' Tests that an error is raised when the argument descriptor
-    metadata for an 'integer' or a 'logical' scalar specifies 'GH_SUM'
+    metadata for an 'integer' or a 'logical' scalar specifies 'GH_REDUCTION'
     access (reduction).
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace(
         f"arg_type(gh_scalar,   {scalar_type}, gh_read)",
-        f"arg_type(gh_scalar,   {scalar_type}, gh_sum)", 1)
+        f"arg_type(gh_scalar,   {scalar_type}, gh_reduction)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert (f"reduction access 'gh_sum' is only valid with a real scalar "
-            f"argument, but a scalar argument with '{scalar_type}' data type "
-            in str(excinfo.value))
+    assert (f"reduction access 'gh_reduction' is only valid with a real "
+            f"scalar argument, but a scalar argument with '{scalar_type}' "
+            f"data type " in str(excinfo.value))
 
 
 def test_no_vector_scalar():
@@ -510,14 +510,14 @@ def test_multiple_updated_scalar_args():
     kernel that writes to more than one of its field and scalar arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_scalar,   gh_real,    gh_read)",
-                        "arg_type(gh_scalar,   gh_real,    gh_sum)", 1)
+                        "arg_type(gh_scalar,   gh_real,    gh_reduction)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert ("A user-supplied LFRic kernel must not write/update a scalar "
             "argument but kernel 'testkern_qr_type' has a scalar "
-            "argument with 'gh_sum' access." in str(excinfo.value))
+            "argument with 'gh_reduction' access." in str(excinfo.value))
 
 
 def test_scalar_different_data_types_invoke():

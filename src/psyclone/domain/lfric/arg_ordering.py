@@ -93,7 +93,7 @@ class ArgOrdering:
         path unless a _forced_symtab has been provided.
 
         If no symbol table is available it creates a temporary symbol table
-        for the operation to suceed but it will not be preserved.
+        for the operation to succeed but it will not be preserved.
 
         Note: This could be improved by TODO #2503
 

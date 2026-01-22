@@ -77,6 +77,7 @@ module argument_mod
   integer, public, parameter :: GH_READWRITE = 811
   integer, public, parameter :: GH_INC       = 542
   integer, public, parameter :: GH_READINC   = 420
+  integer, public, parameter :: GH_REDUCTION = 991
   integer, public, parameter :: GH_SUM       = 563
   integer, public, parameter :: GH_MIN       = 718
   integer, public, parameter :: GH_MAX       = 391

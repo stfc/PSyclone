@@ -135,7 +135,7 @@ class LFRicKern(CodedKern):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -764,7 +764,7 @@ class LFRicKern(CodedKern):
 
         # Add wildcard "use" statement for all supported argument
         # kinds (precisions)
-        # TODO #2905: LFRic coding standards don't allow wilcard imports
+        # TODO #2905: LFRic coding standards don't allow wildcard imports
         # so maybe this can be improved when we change the stage where
         # symbols are declared.
         stub_routine.symbol_table.add(

@@ -911,7 +911,7 @@ def test_same_range(fortran_reader):
     # Unless they refer to the same symbol and dimension
     assert array1.same_range(1, array3, 1) is True
 
-    # The assumtion of same size is for the matching slice sections
+    # The assumption of same size is for the matching slice sections
     code = '''
     subroutine test(A)
         use other_mod

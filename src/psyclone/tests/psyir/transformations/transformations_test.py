@@ -565,7 +565,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
 
 
 def test_omploop_trans_new_options(sample_psyir):
-    ''' Thest the new options and validation methods work correctly using
+    ''' Test the new options and validation methods work correctly using
     OMPLoopTrans apply'''
     omplooptrans = OMPLoopTrans()
     tree = sample_psyir.copy()
@@ -578,8 +578,8 @@ def test_omploop_trans_new_options(sample_psyir):
             "'fakeoption2']. Valid options are '['node_type_check', "
             "'verbose', 'collapse', 'force', 'ignore_dependencies_for', "
             "'privatise_arrays', 'sequential', 'nowait', 'reduction_ops', "
-            "'options', 'reprod', 'enable_reductions']."
-            in str(excinfo.value))
+            "'force_private', 'options', 'reprod', 'enable_reductions']."
+            == str(excinfo.value))
 
     # Check we get the relevant error message when submitting multiple
     # options with the wrong type
@@ -591,7 +591,7 @@ def test_omploop_trans_new_options(sample_psyir):
             "'force' option expects type 'bool' but received 'a' "
             "of type 'str'.\n"
             "Please see the documentation and check the provided types."
-            in str(excinfo.value))
+            == str(excinfo.value))
 
     with pytest.raises(TypeError) as excinfo:
         omplooptrans.apply(tree.walk(Loop)[0], collapse="x")

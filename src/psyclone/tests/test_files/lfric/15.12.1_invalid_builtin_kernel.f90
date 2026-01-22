@@ -36,7 +36,7 @@
 
 program single_invoke
 
-  ! Description: single point-wise set operation with mis-spelt name.
+  ! Description: single point-wise set operation with misspelt name.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
 

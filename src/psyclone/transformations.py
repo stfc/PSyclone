@@ -250,7 +250,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an 'OpenMP PARALLEL DO' directive"
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
         (which must be a Loop). In the generated code this corresponds to
         wrapping the Loop with directives:
@@ -274,7 +274,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
             local_options["reduction_ops"] = \
                 list(MAP_REDUCTION_OP_TO_OMP.keys())
 
-        self.validate(node, options=local_options)
+        self.validate(node, options=local_options, **kwargs)
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -1767,7 +1767,7 @@ class LFRicKernelConstTrans(Transformation):
         "number_of_layers" arguments are provided to mirror the namelist values
         that are input into an LFRic model when it is run.
 
-        Quadrature support is currently limited to XYoZ in ths
+        Quadrature support is currently limited to XYoZ in this
         transformation. In the case of XYoZ the number of quadrature
         points in the horizontal are set to element_order_h+3, and in the
         vertical to element_order_v+3. These values are set in the LFRic
@@ -2126,13 +2126,13 @@ class ACCEnterDataTrans(Transformation):
 
     def check_child_async(self, sched, async_queue):
         '''
-        Common function to check that all kernel/parallel childs have the
+        Common function to check that all kernel/parallel children have the
         same async queue.
 
         :param sched: schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
 
-        :param async_queue: The async queue to expect in childs.
+        :param async_queue: The async queue to expect in children.
         :type async_queue: \
             Optional[bool,int,:py:class:`psyclone.core.Reference`]
         '''
@@ -2174,7 +2174,7 @@ class ACCEnterDataTrans(Transformation):
 
         async_queue = options.get('async_queue', False)
 
-        # check consistency with childs about async_queue
+        # check consistency with children about async_queue
         self.check_child_async(sched, async_queue)
 
 

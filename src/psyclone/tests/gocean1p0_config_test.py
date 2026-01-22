@@ -248,7 +248,7 @@ def test_invalid_config_files(tmpdir):
 
 
 def test_debug_mode(tmpdir):
-    '''Test creation of GOcean debug_mode congifuration.
+    '''Test creation of GOcean debug_mode configuration.
     '''
     _CONFIG_CONTENT = '''\
     [DEFAULT]

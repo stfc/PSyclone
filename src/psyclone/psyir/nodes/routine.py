@@ -327,7 +327,7 @@ class Routine(Schedule, CommentableMixin):
                         f"that already contains a resolved symbol with "
                         f"the same name.")
 
-                # Check that the scope doens't contain a Routine or
+                # Check that the scope doesn't contain a Routine or
                 # CodeBlock representing a Routine with this name.
                 routines = new_parent.walk(Routine)
                 for routine in routines:

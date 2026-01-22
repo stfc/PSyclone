@@ -160,7 +160,7 @@ def test_stub_generate_with_scalar_sums_err():
     assert (
         "A user-supplied LFRic kernel must not write/update a scalar "
         "argument but kernel 'simple_with_reduction_type' has a scalar "
-        "argument with 'gh_sum' access." in str(err.value))
+        "argument with 'gh_reduction' access." in str(err.value))
 
 
 def test_stub_generate_with_scalar_array():
