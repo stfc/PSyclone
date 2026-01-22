@@ -492,7 +492,8 @@ def main(arguments):
         '--config-opts',
         help='Settings that will overwrite values in the config file as a '
              'space-separated list of key=value pairs. Example:'
-             '--config-opts "reproducible_reductions=true run_time_checks=true"'
+             '--config-opts "reproducible_reductions=true '
+             'run_time_checks=true".'
     )
     parser.add_argument(
         '-l', '--limit', dest='limit', default='off',
