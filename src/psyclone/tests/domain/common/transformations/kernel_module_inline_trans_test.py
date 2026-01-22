@@ -443,9 +443,9 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     psy, _ = get_invoke("3.1_multi_functions_multi_invokes.f90", "lfric",
                         idx=0, dist_mem=False)
 
-    # By default the kernel is imported once per invoke
+    # By default the kernel is imported just once (in the outer container)
     gen = str(psy.gen)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 2
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
     assert gen.count("end subroutine testkern_qr_code") == 0
 
     # Module inline kernel in invoke 1

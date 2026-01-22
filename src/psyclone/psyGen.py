@@ -41,12 +41,13 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
+from __future__ import annotations
 from dataclasses import dataclass
 import inspect
 import os
 from collections import OrderedDict
 import abc
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import warnings
 
 try:
@@ -58,7 +59,7 @@ except ImportError:
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.parse.algorithm import BuiltInCall
+from psyclone.parse.algorithm import BuiltInCall, KernelCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Container, Literal, Loop, Node, OMPDoDirective,
@@ -1207,14 +1208,11 @@ class CodedKern(Kern):
     Class representing a call to a PSyclone Kernel with a user-provided
     implementation. The kernel may or may not be in-lined.
 
-    :param type KernelArguments: the API-specific sub-class of \
-                                 :py:class:`psyclone.psyGen.Arguments` to \
-                                 create.
+    :param KernelArguments: the API-specific sub-class of
+        :py:class:`psyclone.psyGen.Arguments` to create.
     :param call: Details of the call to this kernel in the Algorithm layer.
-    :type call: :py:class:`psyclone.parse.algorithm.KernelCall`.
     :param parent: the parent of this Node (kernel call) in the Schedule.
-    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`.
-    :param bool check: whether to check for consistency between the \
+    :param check: whether to check for consistency between the
         kernel metadata and the algorithm layer. Defaults to True.
 
     '''
@@ -1222,14 +1220,18 @@ class CodedKern(Kern):
     _text_name = "CodedKern"
     _colour = "magenta"
 
-    def __init__(self, KernelArguments, call, parent=None, check=True):
+    def __init__(self,
+                 KernelArguments: type,
+                 call: KernelCall,
+                 parent: Node = None,
+                 check: bool = True):
         # Set module_name first in case there is an error when
         # processing arguments, as we can then return the module_name
         # from where it happened.
         self._module_name = call.module_name
-        super(CodedKern, self).__init__(parent, call,
-                                        call.ktype.procedure.name,
-                                        KernelArguments, check)
+        super().__init__(parent, call,
+                         call.ktype.procedure.name,
+                         KernelArguments, check)
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._fp2_ast = None  #: The fparser2 AST for the kernel
@@ -1237,24 +1239,25 @@ class CodedKern(Kern):
         self._schedules = None
         #: Whether or not this kernel has been transformed
         self._modified = False
-        #: Whether or not to in-line this kernel into the module containing
-        #: the PSy layer
-        self._module_inline = False
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
 
         # If we have an ancestor InvokeSchedule then add the necessary
         # symbols.
-        invsched = self.ancestor(InvokeSchedule)
-        if invsched:
-            symtab = invsched.symbol_table
+        # TODO #2054 - this 'routine' property can be replaced once this
+        # class sub-classes Call.
+        self.routine: Optional[Reference] = None
+        container = self.ancestor(Container)
+        if container:
+            symtab = container.symbol_table
             csymbol = symtab.find_or_create(
                 self._module_name,
                 symbol_type=ContainerSymbol)
-            _ = symtab.find_or_create(
+            rsymbol = symtab.find_or_create(
                 self._name,
                 symbol_type=RoutineSymbol,
                 interface=ImportInterface(csymbol))
+            self.routine = Reference(rsymbol)
 
     def get_interface_symbol(self) -> None:
         '''
@@ -1341,38 +1344,14 @@ class CodedKern(Kern):
         return f"kernel_{self.name}_{position}"
 
     @property
-    def module_inline(self):
+    def module_inline(self) -> bool:
         '''
         :returns: whether or not this kernel is being module-inlined.
-        :rtype: bool
         '''
-        return self._module_inline
-
-    @module_inline.setter
-    def module_inline(self, value):
-        '''
-        Setter for whether or not to module-inline this kernel.
-
-        :param bool value: whether or not to module-inline this kernel.
-        '''
-        if value is not True:
-            raise TypeError(
-                f"The module inline parameter only accepts the type boolean "
-                f"'True' since module-inlining is irreversible. But found:"
-                f" '{value}'.")
-        # Do the same to all kernels in this invoke with the same name.
-        # This is needed because lowering would otherwise add
-        # an import with the same name and shadow the module-inline routine
-        # symbol.
-        # TODO 1823: The transformation could have more control about this by
-        # giving an option to specify if the module-inline applies to a
-        # single kernel, the whole invoke or the whole algorithm.
-        my_schedule = self.ancestor(InvokeSchedule)
-        for kernel in my_schedule.walk(Kern):
-            if kernel is self:
-                self._module_inline = value
-            elif kernel.name == self.name and kernel.module_inline != value:
-                kernel.module_inline = value
+        if (not self.routine or self.routine.symbol.is_import or
+                self.routine.symbol.is_unresolved):
+            return False
+        return True
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
@@ -1385,7 +1364,7 @@ class CodedKern(Kern):
         '''
         return (self.coloured_name(colour) + " " + self.name + "(" +
                 self.arguments.names + ") " + "[module_inline=" +
-                str(self._module_inline) + "]")
+                str(self.module_inline) + "]")
 
     def lower_to_language_level(self):
         '''

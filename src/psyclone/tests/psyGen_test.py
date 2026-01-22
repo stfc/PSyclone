@@ -662,49 +662,6 @@ def test_codedkern_node_str():
     assert expected_output in out
 
 
-def test_codedkern_module_inline_getter_and_setter():
-    ''' Check that the module_inline setter changes the module inline
-    attribute to all the same kernels in the invoke'''
-    # Use LFRic example with a repeated CodedKern
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    coded_kern_1 = schedule.children[0].loop_body[0]
-    coded_kern_2 = schedule.children[1].loop_body[0]
-
-    # By default they are not module-inlined
-    assert not coded_kern_1.module_inline
-    assert not coded_kern_2.module_inline
-    assert "module_inline=False" in coded_kern_1.node_str()
-    assert "module_inline=False" in coded_kern_2.node_str()
-
-    # It can be turned on (and both kernels change)
-    coded_kern_1.module_inline = True
-    assert coded_kern_1.module_inline
-    assert coded_kern_2.module_inline
-    assert "module_inline=True" in coded_kern_1.node_str()
-    assert "module_inline=True" in coded_kern_2.node_str()
-
-    # It can not be turned off
-    with pytest.raises(TypeError) as err:
-        coded_kern_2.module_inline = False
-    assert ("The module inline parameter only accepts the type boolean "
-            "'True' since module-inlining is irreversible. But found: 'False'"
-            in str(err.value))
-    assert coded_kern_1.module_inline
-    assert coded_kern_2.module_inline
-
-    # And it doesn't accept other types
-    with pytest.raises(TypeError) as err:
-        coded_kern_2.module_inline = 3
-    assert ("The module inline parameter only accepts the type boolean "
-            "'True' since module-inlining is irreversible. But found: '3'"
-            in str(err.value))
-
-
 def test_codedkern_lower_to_language_level(monkeypatch):
     ''' Check that a generic CodedKern can be lowered to a subroutine call
     with the appropriate arguments'''
