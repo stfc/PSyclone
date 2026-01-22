@@ -169,8 +169,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
             for arg in self._scalar_array_args[intent]:
                 if arg._array_ndims >= 1:
                     # Create the dimensions array symbol
-                    dims_array_symbol = self.symtab.find_or_create(
-                        "dims_" + arg.name,
+                    dims_array_symbol = self.symtab.find_or_create_tag(
                         tag="dims_" + arg.name,
                         symbol_type=DataSymbol,
                         datatype=ArrayType(
@@ -185,8 +184,8 @@ class LFRicScalarArrayArgs(LFRicCollection):
                         [Literal(str(idx), INTEGER_TYPE)])
                             for idx in range(1, arg._array_ndims + 1)]
                     # Create the symbol
-                    array_symbol = self.symtab.find_or_create(
-                        arg.name,
+                    array_symbol = self.symtab.find_or_create_tag(
+                        tag=arg.name,
                         symbol_type=DataSymbol,
                         datatype=ArrayType(
                             type_map[arg.intrinsic_type],
@@ -209,8 +208,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
             for arg in self._scalar_array_args[intent]:
                 if arg._array_ndims >= 1:
                     # Create the dimensions array symbol
-                    dims_array_symbol = self.symtab.find_or_create(
-                        "dims_" + arg.name,
+                    dims_array_symbol = self.symtab.find_or_create_tag(
                         tag="dims_" + arg.name,
                         symbol_type=DataSymbol,
                         datatype=ArrayType(
