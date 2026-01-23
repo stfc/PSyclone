@@ -67,7 +67,6 @@ class LFRicRunTimeChecks(LFRicCollection):
         '''
         super().invoke_declarations()
         api_conf = Config.get().api_conf("lfric")
-        print("XX", api_conf.run_time_checks)
         if api_conf.run_time_checks == "none":
             return
 

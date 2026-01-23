@@ -493,7 +493,7 @@ def main(arguments):
         help='Settings that will overwrite values in the config file as a '
              'space-separated list of key=value pairs. Example:'
              '--config-opts "reproducible_reductions=true '
-             'run_time_checks=true".'
+             'run_time_checks=warn".'
     )
     parser.add_argument(
         '-l', '--limit', dest='limit', default='off',
