@@ -37,7 +37,7 @@
 # Modified: O. Brunt, Met Office
 
 '''PSyclone transformation script for the LFRic API to apply all the
-DistibutedMemory, OpenMP coloring and serial transformations possible.
+DistributedMemory, OpenMP coloring and serial transformations possible.
 
 '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans

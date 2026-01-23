@@ -2790,14 +2790,14 @@ def test_operator_gh_sum_invalid():
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
-        "arg_type(gh_operator, gh_real,    gh_sum,  w2, w2)", 1)
+        "arg_type(gh_operator, gh_real,    gh_reduction, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert ("allowed accesses for operators are ['gh_read', 'gh_write', "
             "'gh_readwrite'] because they behave as discontinuous "
-            "quantities, but found 'gh_sum'" in str(excinfo.value))
+            "quantities, but found 'gh_reduction'" in str(excinfo.value))
 
 
 def test_derived_type_arg(dist_mem, tmpdir):
@@ -3425,7 +3425,7 @@ def test_HaloReadAccess_field_not_reader():
 def test_HaloRead_inv_loop_upper(monkeypatch):
     # pylint: disable=invalid-name
     '''The upper bound of a loop in the compute_halo_read_info method within
-    the HaloReadAccesss class should be recognised by the logic. If not an
+    the HaloReadAccess class should be recognised by the logic. If not an
     exception is raised and this test checks that this exception is
     raised correctly
     '''

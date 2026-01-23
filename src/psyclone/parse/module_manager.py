@@ -308,7 +308,7 @@ class ModuleManager:
                     mod_info = ModuleInfo(name, finfo)
                     self._modules[name] = mod_info
                     # A file that has been (or does not require)
-                    # preprocessing always takes precendence.
+                    # preprocessing always takes precedence.
                     if finfo.filename.endswith(".f90"):
                         return mod_info
         return mod_info

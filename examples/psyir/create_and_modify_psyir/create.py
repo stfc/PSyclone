@@ -123,7 +123,7 @@ def create_psyir_tree():
     intr = IntrinsicCall.Intrinsic.MAX
     intrinsic = IntrinsicCall.create(intr, [tmp1(), tmp2(), one()])
 
-    # Intrinisc with named args
+    # Intrinsic with named args
     intr = IntrinsicCall.Intrinsic.DOT_PRODUCT
     intrinsic_named = IntrinsicCall.create(
         intr, [("vector_a", tmp1()), ("vector_b", tmp2())])

@@ -97,7 +97,7 @@ program main
                                1,       &    ! max stencil size
                                .false., &    ! generate_inner_haloes
                                0,       &    ! local rank
-                               1)          ! number of proceses
+                               1)          ! number of processes
     call local_mesh%initialise( global_mesh_ptr, partition )
     call local_mesh%init_cell_owner()
     local_mesh_ptr => local_mesh

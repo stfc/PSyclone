@@ -1693,7 +1693,7 @@ class FortranWriter(LanguageWriter):
         in the PSyIR tree. It returns the directive as a string.
 
         :param node: a StandaloneDirective PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.StandloneDirective`
+        :type node: :py:class:`psyclone.psyir.nodes.StandaloneDirective`
 
         :returns: the Fortran code for this node.
         :rtype: str

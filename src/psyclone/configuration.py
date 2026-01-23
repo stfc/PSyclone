@@ -106,7 +106,7 @@ class Config:
 
     # List of supported API by PSyclone
     _supported_api_list = LFRIC_API_NAMES + GOCEAN_API_NAMES
-    # List for printing purposes (remove duplicates and use prefered names)
+    # List for printing purposes (remove duplicates and use preferred names)
     _curated_api_list = [LFRIC_API_NAMES[0], GOCEAN_API_NAMES[0]]
 
     # List of supported stub API by PSyclone

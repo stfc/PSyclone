@@ -3698,7 +3698,7 @@ class IntrinsicCall(Call):
                 )
             ),
             optional_args={"team": DataNode},
-            # Support for this is not currentl implemented, however it is
+            # Support for this is not currently implemented, however it is
             # an integer or array of integer's depending on arguments, so
             # could be added later. See
             # https://gcc.gnu.org/onlinedocs/gfortran/THIS_005fIMAGE.html
@@ -4282,7 +4282,7 @@ class IntrinsicCall(Call):
         """
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         """
@@ -4374,7 +4374,7 @@ NVFORTRAN_ALL = NVFORTRAN_UNIFORM + (
     IntrinsicCall.Intrinsic.REAL,
 )
 
-# For now the default intrinsics availabe on GPU are the same as nvfortran-all
+# For now the default intrinsics available on GPU are the same as nvfortran-all
 DEFAULT_DEVICE_INTRINISCS = NVFORTRAN_ALL
 
 # TODO #658 this can be removed once we have support for determining the

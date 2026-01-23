@@ -27,7 +27,7 @@ or ASCII extraction library by setting the environment variable
 
     $ TYPE=netcdf make compile
 
-The NetCDF version obvioulsy requires NetCDF to be available (including
+The NetCDF version obviously requires NetCDF to be available (including
 ``nf-config`` to detect
 installation-specific paths). The NetCDF-based extraction library in
 ``../../../../lib/extract/netcdf/generic``

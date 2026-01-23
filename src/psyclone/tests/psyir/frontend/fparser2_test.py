@@ -850,7 +850,7 @@ def test_process_unsupported_declarations(fortran_reader):
     assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
                       UnsupportedFortranType)
 
-    # Test that CodeBlocks and refernces to variables initialised with a
+    # Test that CodeBlocks and references to variables initialised with a
     # CodeBlock are handled correctly
     reader = FortranStringReader(
         "INTEGER, PARAMETER :: happy=1, fbsp=sin(1), "
@@ -1712,7 +1712,7 @@ def test_process_use_stmts_resolving_external_imports(
     ''')
 
     # Add the path to the include_path and set up a frontend instance
-    # witth the module_to_resolve names
+    # with the module_to_resolve names
     monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
     processor = Fparser2Reader(resolve_modules=value)
     reader = FortranStringReader('''
@@ -2044,7 +2044,7 @@ def test_handling_parenthesis_over_binary_op():
 
     # The parent addition does not have explicit parenthesis
     assert not bop1.has_explicit_grouping
-    # But the two inner ones have explict parenthesis syntax
+    # But the two inner ones have explicit parenthesis syntax
     assert bop2.has_explicit_grouping
     assert bop3.has_explicit_grouping
 
