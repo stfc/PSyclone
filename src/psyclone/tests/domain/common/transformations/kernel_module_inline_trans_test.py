@@ -281,13 +281,15 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     monkeypatch.setattr(kern_call, "_schedules", [routine])
 
     container = kern_call.ancestor(Container)
-    assert "compute_cv_code" not in container.symbol_table
+    rsym = container.symbol_table.lookup("compute_cv_code")
+    assert rsym.is_import
 
     inline_trans.apply(kern_call)
 
-    # A RoutineSymbol should have been added to the Container symbol table.
+    # The RoutineSymbol should no longer be an import.
     rsym = container.symbol_table.lookup("compute_cv_code")
     assert isinstance(rsym, RoutineSymbol)
+    assert not rsym.is_import
     assert rsym.visibility == Symbol.Visibility.PRIVATE
 
 
@@ -502,8 +504,7 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
 operator_r_def, f1, f2, m1, a, m2, istp, qr)
     use function_space_mod, only : basis, diff_basis
     use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, \
-quadrature_xyoz_type
-    use testkern_qr_mod, only : testkern_qr_code""" in output)
+quadrature_xyoz_type""" in output)
     assert "mixed_kernel_mod" not in output
     assert LFRicBuild(tmpdir).code_compiles(psy)
 

@@ -838,9 +838,8 @@ class LFRicKern(CodedKern):
             for name in names:
                 rt_psyir = container.find_routine_psyir(name,
                                                         allow_private=True)
-                if not rt_psyir:
-                    import pdb; pdb.set_trace()
-                routines.append(rt_psyir)
+                if rt_psyir:
+                    routines.append(rt_psyir)
 
         # Otherwise, get the PSyIR Kernel Schedule(s) from the original
         # parse tree.

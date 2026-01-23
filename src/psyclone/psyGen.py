@@ -1366,25 +1366,19 @@ class CodedKern(Kern):
                 self.arguments.names + ") " + "[module_inline=" +
                 str(self.module_inline) + "]")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         In-place replacement of CodedKern concept into language level
         PSyIR constructs. The CodedKern is implemented as a Call to a
         routine with the appropriate arguments.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
 
-        # Limit scope to this Invoke, since a kernel with the same name
-        # may have been inlined from another invoke in the same file,
-        # but we have it here marked as "not module-inlined"
-        rsymbol = symtab.lookup(self._name, #  scope_limit=symtab.node,
-                                otherwise=None)
+        rsymbol = symtab.lookup(self._name, otherwise=None)
         if not rsymbol:
-            import pdb; pdb.set_trace()
             raise GenerationError(
                 f"Cannot lower this Kernel call to '{self.name}' "
                 f"because no corresponding Symbol exists in this module.")
