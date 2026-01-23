@@ -734,18 +734,16 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
         "use othermod\n"
         "real :: a(10,10)\n"
         "real :: x\n"
-        "x = maxval(a(:,b(:)))\n"
+        "x = maxval(a(:)+b(3))\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     node = psyir.walk(IntrinsicCall)[0]
     code_before = fortran_writer(psyir)
-    # FIXME
-    return
     with pytest.raises(TransformationError) as info:
         trans.apply(node)
-    assert ("does not support array assignments that contain nested Range "
-            "expressions" in str(info.value))
+    assert ("ArrayAssignment2LoopsTrans does not accept calls which "
+            "are not guaranteed to be elemental" in str(info.value))
     # Check that the failed transformation does not modify the code
     code_after = fortran_writer(psyir)
     assert code_before == code_after
