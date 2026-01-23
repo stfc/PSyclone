@@ -54,7 +54,7 @@ steps. In order to compile the sources, use the target ``compile``:
     make compile
 
 which will first perform the transformation steps before compiling
-any created Fortan source files. If the example also supports running
+any created Fortran source files. If the example also supports running
 a compiled and linked binary, use the target:
 
 .. code-block:: bash

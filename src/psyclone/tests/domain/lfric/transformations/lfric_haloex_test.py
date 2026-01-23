@@ -87,7 +87,7 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
 
     def check_schedule(schedule):
         '''Check this schedule has expected structure (loop, haloexchange,
-        loop). In paricular there should be no halo exchange for the
+        loop). In particular there should be no halo exchange for the
         write-to-gh_inc dependence.
 
         :param schedule: an LFRic API schedule object

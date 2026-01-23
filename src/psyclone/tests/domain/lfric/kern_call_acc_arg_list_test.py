@@ -217,7 +217,7 @@ def test_lfric_stencil():
 
 def test_lfric_field():
     '''Check that the method to generate a field argument returns the
-    field data varaible name and the correct variable access info.
+    field data variable name and the correct variable access info.
 
     '''
     # Use the OpenACC transforms to create the required kernels

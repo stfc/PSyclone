@@ -54,10 +54,11 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     SymbolTable, REAL_TYPE, DataSymbol, INTEGER_TYPE)
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, ProfileTrans, TransformationError)
+    ACCKernelsTrans, ProfileTrans, TransformationError,
+    OMPParallelTrans)
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (
-    GOceanOMPLoopTrans, OMPParallelTrans, LFRicOMPLoopTrans)
+    GOceanOMPLoopTrans, LFRicOMPLoopTrans)
 
 
 # -----------------------------------------------------------------------------

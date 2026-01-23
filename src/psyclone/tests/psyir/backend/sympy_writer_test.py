@@ -340,7 +340,7 @@ def test_sympy_writer_type_map_non_canonical(fortran_reader):
     integer :: i, j, k
     end program test_prog"""
     psyir = fortran_reader.psyir_from_source(source)
-    # Create an ambigious intrinsic.
+    # Create an ambiguous intrinsic.
     routine = psyir.children[0]
     ref_i = Reference(routine.symbol_table.lookup("i"))
     ref_j = Reference(routine.symbol_table.lookup("j"))

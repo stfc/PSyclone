@@ -196,7 +196,7 @@ class FortLineLength():
         return fortran_out[:-1]
 
     def _get_line_type(self, line):
-        ''' Classes lines into diffrent types. This is required as
+        ''' Classes lines into different types. This is required as
         directives need different continuation characters to fortran
         statements. It also enables us to know a little about the
         structure of the line which could be useful at some point.'''

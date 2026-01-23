@@ -91,7 +91,7 @@ class AccessInfo():
     def change_read_to_constant(self):
         '''This changes the access mode from READ to CONSTANT.
 
-        :raises InternalError: if the variable does not have READ acccess.
+        :raises InternalError: if the variable does not have READ access.
         '''
         if self._access_type != AccessType.READ:
             raise InternalError(f"Trying to change variable access from "
@@ -118,7 +118,7 @@ class AccessInfo():
     def has_indices(self) -> bool:
         '''
         Check if the expression is a reference that has indices in any
-        of its compoments.
+        of its components.
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.array_mixin import ArrayMixin

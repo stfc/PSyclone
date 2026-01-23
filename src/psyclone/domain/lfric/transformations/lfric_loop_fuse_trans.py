@@ -223,11 +223,10 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
 
         # 5) Check for reductions
         arg_types = const.VALID_SCALAR_NAMES
-        all_reductions = AccessType.get_valid_reduction_modes()
         node1_red_args = node1.args_filter(arg_types=arg_types,
-                                           arg_accesses=all_reductions)
+                                           arg_accesses=[AccessType.REDUCTION])
         node2_red_args = node2.args_filter(arg_types=arg_types,
-                                           arg_accesses=all_reductions)
+                                           arg_accesses=[AccessType.REDUCTION])
 
         if node1_red_args and node2_red_args:
             raise TransformationError(

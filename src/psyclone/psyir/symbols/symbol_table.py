@@ -72,7 +72,7 @@ class SymbolTable():
     symbol tables into consideration (ones attached to nodes that are
     ancestors of the node that this symbol table is attached to). If the
     default visibility is not specified then it defaults to
-    Symbol.Visbility.PUBLIC.
+    Symbol.Visibility.PUBLIC.
 
     :param node: reference to the Schedule or Container to which this
         symbol table belongs.
@@ -80,7 +80,7 @@ class SymbolTable():
                          :py:class:`psyclone.psyir.nodes.Container`]
     :param default_visibility: optional default visibility value for this
         symbol table, if not provided it defaults to PUBLIC visibility.
-    :type default_visibillity: Optional[
+    :type default_visibility: Optional[
         :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
     :raises TypeError: if node argument is not a Schedule or a Container.
@@ -699,7 +699,7 @@ class SymbolTable():
                 if not (self_imports or other_imports):
                     # Neither table has any wildcard imports.
                     try:
-                        # An unresolved symbol representing an intrinisc is OK
+                        # An unresolved symbol representing an intrinsic is OK
                         _ = IntrinsicCall.Intrinsic[this_sym.name.upper()]
                         # Take this opportunity to specialise the symbol(s).
                         if not isinstance(this_sym, IntrinsicSymbol):
@@ -1018,7 +1018,7 @@ class SymbolTable():
         just show symbols up to a certain scope).
 
         :param name: name of the symbol.
-        :param visibilty: the visibility or list of visibilities that the
+        :param visibility: the visibility or list of visibilities that the
                           symbol must have.
         :param scope_limit: optional Node which limits the symbol
             search space to the symbol tables of the nodes within the
@@ -1112,7 +1112,7 @@ class SymbolTable():
     def __contains__(self, key):
         '''Check if the given key is part of the Symbol Table.
 
-        :param str key: key to check for existance.
+        :param str key: key to check for existence.
 
         :returns: whether the Symbol Table contains the given key.
         :rtype: bool

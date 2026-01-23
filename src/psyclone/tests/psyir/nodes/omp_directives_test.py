@@ -70,8 +70,9 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.transformations.omp_taskloop_trans import OMPTaskloopTrans
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import (
-    LFRicOMPLoopTrans, OMPParallelTrans,
+    LFRicOMPLoopTrans,
     OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPLoopTrans, TransformationError)
 
@@ -606,7 +607,7 @@ def test_directiveinfer_sharing_attributes_lfric():
 def test_infer_sharing_attributes_with_explicitly_private_symbols(
         fortran_reader):
     ''' Tests the infer_sharing_attributes() method when some of the loops have
-    explictly declared private symbols. Also test that non-data accesses to
+    explicitly declared private symbols. Also test that non-data accesses to
     array symbols are ignored.
     '''
     psyir = fortran_reader.psyir_from_source('''
@@ -636,10 +637,10 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
     assert "i" in [x.name for x in pvars]
     assert "j" in [x.name for x in pvars]
 
-    # If the loop has some explict locals, these are listed when getting
+    # If the loop has some explicit locals, these are listed when getting
     # the infer_sharing_attributes
     array_symbol = routine.symbol_table.lookup("array")
-    loop.explicitly_private_symbols.add(array_symbol)
+    directive.explicitly_private_symbols.add(array_symbol)
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 3
     assert len(fpvars) == 0
@@ -650,7 +651,7 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
 
     # Scalar symbols can also be set as explicitly local
     scalar_symbol = routine.symbol_table.lookup("scalar2")
-    loop.explicitly_private_symbols.add(scalar_symbol)
+    directive.explicitly_private_symbols.add(scalar_symbol)
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 4
     assert len(fpvars) == 0
@@ -707,9 +708,8 @@ def test_infer_sharing_attributes_with_codeblocks(
     # Make sure that the write statements inside the loop are CodeBlocks,
     # otherwise we need a new test example
     assert loop.has_descendant(nodes.CodeBlock)
-    loop.explicitly_private_symbols.add(
-            loop.scope.symbol_table.lookup("scalar2"))
-    omplooptrans.apply(loop, node_type_check=False, force=True)
+    omplooptrans.apply(loop, node_type_check=False, force=True,
+                       force_private=["scalar2"])
 
     # Here we mostly check that the infer_sharing attributes doesn't fall
     # over with CodeBlocks. This will often still be defensively firstprivate
@@ -731,7 +731,7 @@ def test_infer_sharing_attributes(fortran_reader):
     with generic code inside the directive body.
     '''
 
-    # Example with arrays, read-only and only-writen-once variables, this are
+    # Example with arrays, read-only and only-written-once variables, this are
     # all shared (only the iteration index is private in this parallel region)
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
@@ -1931,7 +1931,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     # 1. Literal OP Reference BinaryOperation where the operator is not ADD
     # 2. Reference OP Literal BinaryOperation where the operator is not
     # ADD or SUB
-    # 3&4. BinaryOperation OP Refrence BinaryOperation where the sub
+    # 3&4. BinaryOperation OP Reference BinaryOperation where the sub
     # BinaryOperation is not a Literal MUL Literal
     # 5. BinaryOperation OP Reference where OP is not ADD
     # 6&7. Reference ADD BinaryOperation where the sub BinaryOperation is not
@@ -2205,7 +2205,7 @@ def test_omp_serial_compute_accesses_other_fails():
 
 def test_omp_serial_compute_accesses_results():
     '''
-    Tests the _compute_accesses fucntion in OMPSerialDirective
+    Tests the _compute_accesses function in OMPSerialDirective
     '''
     # First result output, BinaryOperation with all Literal Loop
     sing = OMPSingleDirective()
@@ -2234,7 +2234,7 @@ def test_omp_serial_compute_accesses_results():
     assert isinstance(res[1], Literal)
     assert res[1].value == "34"
 
-    # Second result output, BinaryOpeartion with reference start Loop
+    # Second result output, BinaryOperation with reference start Loop
     tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
     task = task.copy()
     loop = Loop.create(
@@ -4410,7 +4410,7 @@ def test_omp_serial_validate_task_dependencies_outin():
 
 def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     '''
-    Test the task dependency chcker adds taskwaits in expected locations.
+    Test the task dependency checker adds taskwaits in expected locations.
     '''
     code = '''subroutine my_subroutine(grid_max, grid_min)
         integer, dimension(100, 100) :: A, B, C, D
@@ -4889,7 +4889,7 @@ def test_add_reduction_clause_validation(fortran_reader, fortran_writer):
 
 @pytest.mark.parametrize("op", ["*", "-", "*"])
 def test_reduction_arith_ops(op, fortran_reader, fortran_writer):
-    ''' Test that reduction loops involing arithmetic reduction operators are
+    ''' Test that reduction loops involving arithmetic reduction operators are
     parallelised.
     '''
     psyir = fortran_reader.psyir_from_source(f'''
@@ -4911,7 +4911,7 @@ def test_reduction_arith_ops(op, fortran_reader, fortran_writer):
 
 @pytest.mark.parametrize("op", [".AND.", ".OR.", ".EQV.", ".NEQV."])
 def test_reduction_logical(op, fortran_reader, fortran_writer):
-    ''' Test that reduction loops involing logical reduction operators are
+    ''' Test that reduction loops involving logical reduction operators are
     parallelised.
     '''
     psyir = fortran_reader.psyir_from_source(f'''
@@ -4933,7 +4933,7 @@ def test_reduction_logical(op, fortran_reader, fortran_writer):
 
 @pytest.mark.parametrize("op", ["MAX", "MIN", "IAND", "IOR", "IEOR"])
 def test_reduction_intrins(op, fortran_reader, fortran_writer):
-    ''' Test that reduction loops involing intrinsic reduction operators are
+    ''' Test that reduction loops involving intrinsic reduction operators are
     parallelised.
     '''
     psyir = fortran_reader.psyir_from_source(f'''
