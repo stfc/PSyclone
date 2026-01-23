@@ -43,12 +43,11 @@ DistributedMemory, OpenMP coloring and serial transformations possible.
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
-from psyclone.psyir.transformations import Matmul2CodeTrans
+from psyclone.psyir.transformations import Matmul2CodeTrans, OMPParallelTrans
 from psyclone.psyir.nodes import IntrinsicCall, KernelSchedule
 from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import LFRicColourTrans, \
                                      LFRicOMPLoopTrans, \
-                                     OMPParallelTrans, \
                                      LFRicRedundantComputationTrans, \
                                      LFRicAsyncHaloExchangeTrans, \
                                      MoveTrans, \
