@@ -5157,12 +5157,23 @@ class IntrinsicCall(Call):
         if None in self.argument_names:
             try:
                 self.compute_argument_names()
-            except NotImplementedError as err:
-                raise InternalError(
-                    f"Can't compute reference accesses for "
-                    f"'{self.debug_string().rstrip()}' due to not being "
-                    f"able to resolve all the argument names."
-                ) from err
+            except NotImplementedError:
+                # If we can't compute argument names, then we have to
+                # do the worst case. All arguments that are references are
+                # READWRITE and all other arguments are READS in this
+                # case as we don't know any details.
+                reads = []
+                readwrites = []
+                for i, arg in enumerate(self.arguments):
+                    if isinstance(arg, Reference):
+                        readwrites.append(i)
+                    else:
+                        reads.append(i)
+                return _compute_reference_accesses(
+                        self,
+                        read_indices=reads,
+                        readwrite_indices=readwrites
+                )
 
         return self.intrinsic.reference_accesses(self)
 

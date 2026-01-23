@@ -44,14 +44,16 @@ TODO #2341 - tests need to be added for all of the supported intrinsics.
 
 import pytest
 
+from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     ArrayReference,
-    Literal,
-    Reference,
-    Schedule,
     Assignment,
-    Call
+    BinaryOperation,
+    Call,
+    Literal,
+    Schedule,
+    Reference,
 )
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
@@ -173,17 +175,30 @@ def test_intrinsiccall_datatype(fortran_reader):
     assert isinstance(call.datatype, UnresolvedType)
 
 
-def test_intrinsiccall_reference_accesses_error():
-    """Test the error case of IntrinsicCall's reference_accesses method."""
+def test_intrinsiccall_reference_accesses_no_arg_names():
+    """Test the case of IntrinsicCall's reference_accesses method where the
+    call to compute_argument_names fails."""
     # If the IntrinsicCall cannot compute the argument names (e.g. for SUM
     # with no naming), it cannot guarantee the result of reference_accesses.
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
+    # References should be READWRITE.
     intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
-    intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
-    with pytest.raises(InternalError) as err:
-        _ = intrinsic.reference_accesses()
-    assert ("Can't compute reference accesses for 'SUM(a, a)' due to not "
-            "being able to resolve all the argument names." in str(err.value))
+    # BinaryOperations should be READ
+    binop = BinaryOperation.create(
+            BinaryOperation.Operator.ADD,
+            Reference(DataSymbol("b", INTEGER_TYPE)),
+            Reference(DataSymbol("c", INTEGER_TYPE))
+    )
+    intrinsic.addchild(binop)
+    var_accs = intrinsic.reference_accesses()
+    sigs = var_accs.all_signatures
+    assert len(sigs) == 3
+    assert str(sigs[0]) == "a"
+    assert var_accs[sigs[0]][0].access_type == AccessType.READWRITE
+    assert str(sigs[1]) == "b"
+    assert var_accs[sigs[1]][0].access_type == AccessType.READ
+    assert str(sigs[2]) == "c"
+    assert var_accs[sigs[2]][0].access_type == AccessType.READ
 
 
 def test_intrinsiccall_is_elemental():
