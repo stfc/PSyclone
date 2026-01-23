@@ -3953,7 +3953,7 @@ def test_lfricruntimechecks_anyspace(tmpdir, monkeypatch):
     # run-time checks are off by default so switch them on
     config = Config.get()
     lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
+    monkeypatch.setattr(lfric_config, "_run_time_checks", "error")
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -3995,7 +3995,7 @@ def test_lfricruntimechecks_vector(tmpdir, monkeypatch):
     # run-time checks are off by default so switch them on
     config = Config.get()
     lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
+    monkeypatch.setattr(lfric_config, "_run_time_checks", "error")
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -4058,7 +4058,7 @@ def test_lfricruntimechecks_multikern(tmpdir, monkeypatch):
     # run-time checks are off by default so switch them on
     config = Config.get()
     lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
+    monkeypatch.setattr(lfric_config, "_run_time_checks", "error")
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -4134,7 +4134,7 @@ def test_lfricruntimechecks_builtins(tmpdir, monkeypatch):
     # run-time checks are off by default so switch them on
     config = Config.get()
     lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
+    monkeypatch.setattr(lfric_config, "_run_time_checks", "error")
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.1_X_plus_Y_builtin.f90"),
                            api=TEST_API)
@@ -4169,7 +4169,7 @@ def test_lfricruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
     # run-time checks are off by default so switch them on
     config = Config.get()
     lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
+    monkeypatch.setattr(lfric_config, "_run_time_checks", "error")
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "11.4_any_discontinuous_space.f90"),
                            api=TEST_API)
@@ -4231,7 +4231,7 @@ def test_lfricruntimechecks_anyw2(tmpdir, monkeypatch):
     # run-time checks are off by default so switch them on
     config = Config.get()
     lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
+    monkeypatch.setattr(lfric_config, "_run_time_checks", "error")
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "21.1_single_invoke_multi_anyw2.f90"),
                            api=TEST_API)
