@@ -147,7 +147,7 @@ def test_accparalleltrans_validate(fortran_reader):
         end do
         do i = 1, 10
             do j = 1, 10
-                A(i,j) = GET_COMMAND(2)
+                A(i, j) = ADJUSTR(command)
             end do
         end do
     end subroutine
@@ -168,14 +168,14 @@ def test_accparalleltrans_validate(fortran_reader):
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[2])
-    assert ("'GET_COMMAND' is not available on the default accelerator "
+    assert ("'ADJUSTR' is not available on the default accelerator "
             "device. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[2], options={'device_string':
                                                    'nvfortran-all'})
-    assert ("'GET_COMMAND' is not available on the 'nvfortran-all' accelerator"
+    assert ("'ADJUSTR' is not available on the 'nvfortran-all' accelerator"
             " device. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
 
