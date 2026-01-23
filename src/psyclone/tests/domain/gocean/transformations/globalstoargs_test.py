@@ -38,7 +38,9 @@
 
 import os
 import pytest
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern
+from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InvokeSchedule
 from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE, INTEGER_TYPE,
@@ -71,9 +73,8 @@ def test_kernelimportstoargumentstrans_wrongapi():
            "type:" in str(err.value)
 
 
-def test_kernelimportsstoargumentstrans_no_outer_module_import():
-    ''' Check that we reject kernels that access data that is declared in the
-    enclosing module. '''
+def test_kernelimportsstoargumentstrans_requires_module_inline():
+    ''' Check that we reject kernels that have not been module inlined. '''
     trans = KernelImportsToArguments()
     path = os.path.join(BASEPATH, "gocean1p0")
     _, invoke_info = parse(os.path.join(path,
@@ -84,76 +85,28 @@ def test_kernelimportsstoargumentstrans_no_outer_module_import():
     kernel = invoke.schedule.coded_kernels()[0]
     with pytest.raises(TransformationError) as err:
         trans.validate(kernel)
-    assert ("contains accesses to 'alpha' which is declared in the callee "
-            "module scope." in str(err.value))
+    assert ("Cannot transform this Kernel call to 'kernel_with_global_code' "
+            "because it is not module inlined" in str(err.value))
 
 
-def test_kernelimportsstoargumentstrans_unsuccessful_get_callees(monkeypatch):
-    ''' Check that the validation produces the correct error when a
-    get_callees method is unsuccessful.
-    '''
-    trans = KernelImportsToArguments()
-    path = os.path.join(BASEPATH, "gocean1p0")
-    _, invoke_info = parse(os.path.join(path,
-                                        "single_invoke_kern_with_global.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    kernel = invoke.schedule.coded_kernels()[0]
-
-    # Monkeypatch get_callees to always produce an error.
-    def raise_error(_):
-        raise SymbolError("some error")
-
-    monkeypatch.setattr(GOKern, "get_callees", raise_error)
-    with pytest.raises(TransformationError) as err:
-        trans.validate(kernel)
-    assert ("Kernel 'kernel_with_global_code' contains undeclared symbol:"
-            in str(err.value))
-
-
-def test_kernelimportstoargumentstrans_no_wildcard_import():
-    ''' Check that the transformation rejects kernels with wildcard
-    imports. '''
-    trans = KernelImportsToArguments()
-    psy, invoke_info = get_invoke(
-        "single_invoke_kern_with_unqualified_use.f90", idx=0, api=API)
-    kernel = invoke_info.schedule.coded_kernels()[0]
-    with pytest.raises(TransformationError) as err:
-        trans.apply(kernel)
-    assert ("'kernel_with_use_code' contains accesses to 'rdt' which is "
-            "unresolved" in str(err.value))
-
-
-@pytest.mark.xfail(reason="Transformation does not set modified property "
-                   "of kernel - #663")
-@pytest.mark.usefixtures("kernel_outputdir")
-def test_kernelimportstoargumentstrans(monkeypatch):
+def test_kernelimportstoargumentstrans(monkeypatch, fortran_writer):
     ''' Check the KernelImportsToArguments transformation with a single kernel
     invoke and an imported variable.'''
     from psyclone.psyGen import Argument
-    from psyclone.psyir.backend.fortran import FortranWriter
 
     trans = KernelImportsToArguments()
     assert trans.name == "KernelImportsToArguments"
-    assert str(trans) == "Convert the imported variables used inside the " \
-        "kernel into arguments and modify the InvokeSchedule to pass them" \
-        " in the kernel call."
+    assert str(trans) == ("Convert the imported variables used inside the "
+                          "kernel into arguments and modify the InvokeSchedule"
+                          " to pass them in the kernel call.")
 
     # Construct a testing InvokeSchedule
-    _, invoke_info = parse(os.path.join(BASEPATH, "gocean1p0",
-                                        "single_invoke_kern_with_use.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("single_invoke_kern_with_use.f90", api=API, idx=0)
     notkernel = invoke.schedule.children[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monkeypatch resolve_type to avoid module searching and importing
-    # in this test. In this case we assume it is a REAL
-    def set_to_real(variable):
-        variable._datatype = REAL_TYPE
-    monkeypatch.setattr(DataSymbol, "resolve_type", set_to_real)
+    mman = ModuleManager.get()
+    mman.add_search_path(BASEPATH)
 
     # Test with invalid node
     with pytest.raises(TransformationError) as err:
@@ -162,6 +115,9 @@ def test_kernelimportstoargumentstrans(monkeypatch):
             " to CodedKern nodes but found 'GOLoop' instead."
             in str(err.value))
 
+    # Kernel has to be module-inlined first.
+    KernelModuleInlineTrans().apply(kernel)
+
     # Test transforming a single kernel
     trans.apply(kernel)
 
@@ -169,8 +125,6 @@ def test_kernelimportstoargumentstrans(monkeypatch):
 
     # The transformation;
     # 1) Has imported the symbol into the InvokeSchedule
-    assert invoke.schedule.symbol_table.lookup("rdt")
-    assert invoke.schedule.symbol_table.lookup("model_mod")
     var = invoke.schedule.symbol_table.lookup("rdt")
     container = invoke.schedule.symbol_table.lookup("model_mod")
     assert var.is_import
@@ -178,30 +132,34 @@ def test_kernelimportstoargumentstrans(monkeypatch):
 
     # 2) Has added the symbol as the last argument in the kernel call
     assert isinstance(kernel.args[-1], Argument)
-    assert kernel.args[-1].name == "rdt"
+    assert kernel.args[-1].name == "magic"
+    assert kernel.args[-2].name == "rdt"
 
     # 3) Has converted the Kernel Schedule symbol into an argument which is
     # in also the last position
-    ksymbol = kernel.get_callees()[0].symbol_table.lookup("rdt")
+    routine = kernel.get_callees()[0]
+    ksymbol = routine.symbol_table.lookup("rdt")
     assert ksymbol.is_argument
-    assert kernel.get_callees()[0].symbol_table.argument_list[-1] == \
-        ksymbol
+    assert routine.symbol_table.argument_list[-2] is ksymbol
+    ksym2 = routine.symbol_table.lookup("magic")
+    assert ksym2.is_argument
+    assert routine.symbol_table.argument_list[-1] is ksym2
+
     assert len(kernel.get_callees()[0].symbol_table.argument_list) == \
         len(kernel.args) + 2  # GOcean kernels have 2 implicit arguments
 
     # Check the kernel code is generated as expected
-    fwriter = FortranWriter()
-    kernel_code = fwriter(kernel.get_callees()[0])
-    assert "subroutine kernel_with_use_code(ji,jj,istep,ssha,tmask,rdt)" \
-        in kernel_code
-    assert "real, intent(inout) :: rdt" in kernel_code
+    kernel_code = fortran_writer(kernel.get_callees()[0])
+    assert "subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, magic)" in kernel_code
+    assert "real(kind=go_wp), intent(in) :: rdt" in kernel_code
+    assert "real(kind=go_wp), intent(inout) :: magic" in kernel_code
 
     # Check that the PSy-layer generated code now contains the use statement
     # and argument call
     generated_code = str(psy.gen)
-    assert "use model_mod, only : rdt" in generated_code
-    assert "call kernel_with_use_code(i, j, oldu_fld, cu_fld%data, " \
-           "cu_fld%grid%tmask, rdt)" in generated_code
+    assert "use model_mod, only : magic, rdt" in generated_code
+    assert ("call kernel_with_use_code(i, j, oldu_fld, cu_fld%data, "
+            "cu_fld%grid%tmask, rdt, magic)" in generated_code)
     assert invoke.schedule.symbol_table.lookup("model_mod")
     assert invoke.schedule.symbol_table.lookup("rdt")
 

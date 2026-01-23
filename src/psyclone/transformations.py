@@ -2462,11 +2462,6 @@ class KernelImportsToArguments(Transformation, KernelTransformationMixin):
         :raises TransformationError: if the supplied node is not a CodedKern.
         :raises TransformationError: if this transformation is not applied to
             a Gocean API Invoke.
-        :raises TransformationError: if the supplied node is a polymorphic
-            Kernel.
-        :raises TransformationError: if the supplied kernel contains wildcard
-            imports of symbols from one or more containers (e.g. a USE without
-            an ONLY clause in Fortran).
         '''
         if not isinstance(node, CodedKern):
             raise TransformationError(
@@ -2480,27 +2475,9 @@ class KernelImportsToArguments(Transformation, KernelTransformationMixin):
                 f"for the GOcean API but got an InvokeSchedule of type: "
                 f"'{type(invoke_schedule).__name__}'")
 
+        # Check that the kernel has already been module-inlined. This also
+        # implies that there are no unqualified imports or undeclared symbols.
         self._check_kernel_is_local(node)
-
-        # Check that there are no unqualified imports or undeclared symbols
-        try:
-            kernels = node.get_callees()
-        except (SymbolError, NotImplementedError) as err:
-            raise TransformationError(
-                f"Kernel '{node.name}' contains undeclared symbol: "
-                f"{err.value}") from err
-
-        for kernel in kernels:
-            try:
-                kernel.check_outer_scope_accesses(
-                    node, "Kernel",
-                    permit_unresolved=False,
-                    ignore_non_data_accesses=True)
-            except SymbolError as err:
-                raise TransformationError(
-                    f"Cannot apply {self.name} to Kernel '{node.name}' "
-                    f"because it accesses data from its outer scope: "
-                    f"{err.value}") from err
 
     def apply(self, node, options=None):
         '''
