@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ def test_init_exception():
         _ = ArrayReductionBaseTrans()
     # Python >= 3.12 tweaks the error message to mention
     # the lack of an implementation and to quote the method names.
-    # We split the check to accomodate for this.
+    # We split the check to accommodate for this.
     assert ("Can't instantiate abstract class ArrayReductionBaseTrans with"
             in str(info.value))
     assert "abstract methods" in str(info.value)
@@ -137,7 +137,7 @@ def test_structure_error(fortran_reader):
 
 def test_lhs(fortran_reader):
     '''Test that an exception is raised when an array-reduction intrinsic
-    is on the LHS of an asssignment. Uses the Maxval2LoopTrans
+    is on the LHS of an assignment. Uses the Maxval2LoopTrans
     transformation (a subclass of ArrayReductionBaseTrans), as it is
     easier to test.
 
@@ -389,7 +389,7 @@ def test_mask(fortran_reader, fortran_writer, tmpdir):
 
 
 def test_mask_array_indexed(fortran_reader, fortran_writer, tmpdir):
-    '''Test that the mask code works if the array iself it used as part of
+    '''Test that the mask code works if the array itself it used as part of
     the mask. In this case it will already be indexed. Use the
     Maxval2LoopTrans transformation (a subclass of
     ArrayReductionBaseTrans), as it is easier to test.

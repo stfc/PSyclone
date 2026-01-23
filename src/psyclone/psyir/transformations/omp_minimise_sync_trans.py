@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -85,7 +85,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
     >>> from psyclone.psyir.nodes import Loop
     >>> from psyclone.psyir.transformations import OMPLoopTrans
     >>> from psyclone.psyir.transformations import OMPMinimiseSyncTrans
-    >>> from psyclone.transformations import OMPParallelTrans
+    >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>>
     >>> psyir = FortranReader().psyir_from_source("""
     ...     subroutine test
@@ -231,7 +231,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
             dependency = self._find_next_dependency(
                     directive.dir_body, directive
             )
-            # Want to explicily check if the dependency is False
+            # Want to explicitly check if the dependency is False
             # as that means we have a nowait with an unsatisfiable
             # dependency.
             if dependency is False:
@@ -303,7 +303,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
                             barrier_type: type) -> None:
         '''
         Eliminates barriers of the barrier_type in the input Routine node that
-        satsfies all the dependencies for the input directives.
+        satisfies all the dependencies for the input directives.
 
         :param node: The routine to remove barriers from.
         :param directives: The list of directives whose dependencies must
@@ -527,7 +527,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
 
     def apply(self, node: Routine, **kwargs) -> None:
         '''
-        Applies the transformation, which eliminates unneccessary
+        Applies the transformation, which eliminates unnecessary
         barriers whilst satisfying all of the dependencies.
 
         :param node: the routine to try to remove barriers from.
@@ -546,7 +546,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
             self._eliminate_adjacent_barriers(node, OMPBarrierDirective)
             self._eliminate_barriers(node, cpu_directives, OMPBarrierDirective)
             # We can also remove the final child from each parallel directive
-            # if its a OMPBarrierDirective as they are uneccessary.
+            # if its a OMPBarrierDirective as they are unnecessary.
             for parallel in node.walk(OMPParallelDirective):
                 _eliminate_final_parallel_barrier(parallel)
             # Finally eliminate any barriers leftover outside of parallel

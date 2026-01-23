@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council
+# Copyright (c) 2023-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -305,7 +305,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             # The ArrayAssignment2LoopsTrans could fail to convert the ranges,
             # unfortunately this can not be tested before modifications to the
             # tree (e.g. in the validate), so the best we can do is reverting
-            # to the orginal statement (with maybe some leftover tmp variable)
+            # to the original statement (with maybe some leftover tmp variable)
             # and produce the error here.
             assignment.replace_with(orig_assignment)
             # pylint: disable=raise-missing-from

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -134,7 +134,7 @@ class LFRicKern(CodedKern):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -535,10 +535,11 @@ class LFRicKern(CodedKern):
                 # Declare array holding map from a given tile-colour-cell to
                 # the index of the cell (this is not initialised until code
                 # lowering)
+                new_name = sched.symbol_table.next_available_name("tmap")
+                decl = f"integer(kind=i_def), pointer :: {new_name}(:,:,:)"
                 tmap = sched.symbol_table.find_or_create_tag(
                     "tilecolourmap", root_name="tmap", symbol_type=DataSymbol,
-                    datatype=UnsupportedFortranType(
-                        "integer(kind=i_def), pointer :: tmap(:,:,:)")).name
+                    datatype=UnsupportedFortranType(decl)).name
 
         return tmap
 
@@ -758,7 +759,7 @@ class LFRicKern(CodedKern):
 
         # Add wildcard "use" statement for all supported argument
         # kinds (precisions)
-        # TODO #2905: LFRic coding standards don't allow wilcard imports
+        # TODO #2905: LFRic coding standards don't allow wildcard imports
         # so maybe this can be improved when we change the stage where
         # symbols are declared.
         stub_routine.symbol_table.add(
@@ -793,7 +794,8 @@ class LFRicKern(CodedKern):
         create_arg_list.generate()
         arg_list = []
         for argument_name in create_arg_list.arglist:
-            arg_list.append(stub_routine.symbol_table.lookup(argument_name))
+            sym = stub_routine.symbol_table.lookup(argument_name)
+            arg_list.append(sym)
         stub_routine.symbol_table.specify_argument_list(arg_list)
 
         return stub_module

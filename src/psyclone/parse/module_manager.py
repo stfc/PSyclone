@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -308,7 +308,7 @@ class ModuleManager:
                     mod_info = ModuleInfo(name, finfo)
                     self._modules[name] = mod_info
                     # A file that has been (or does not require)
-                    # preprocessing always takes precendence.
+                    # preprocessing always takes precedence.
                     if finfo.filename.endswith(".f90"):
                         return mod_info
         return mod_info

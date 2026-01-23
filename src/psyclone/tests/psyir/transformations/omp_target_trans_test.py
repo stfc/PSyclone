@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -188,7 +188,7 @@ def test_omptargettrans_validate(fortran_reader):
             "values are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
             in str(err.value))
 
-    # Check the characters are prevented, unless explictly allowed
+    # Check the characters are prevented, unless explicitly allowed
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[4], options={'verbose': True})
     assert ("OpenMP Target cannot enclose a region that uses characters, "

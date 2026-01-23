@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council
+# Copyright (c) 2017-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,8 @@ generator.py script.'''
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.transformations import OMPParallelTrans, LFRicOMPLoopTrans
+from psyclone.transformations import LFRicOMPLoopTrans
+from psyclone.psyir.transformations import OMPParallelTrans
 
 
 def trans(psyir):

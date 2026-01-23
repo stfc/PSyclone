@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import (
 )
 from psyclone.psyir.transformations.maximal_parallel_region_trans import (
         MaximalParallelRegionTrans)
-from psyclone.transformations import OMPParallelTrans
+from psyclone.psyir.transformations.omp_parallel_trans import OMPParallelTrans
 
 
 class OMPMaximalParallelRegionTrans(MaximalParallelRegionTrans):

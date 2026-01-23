@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -142,7 +142,7 @@ def test_codeblock_get_symbol_names_comments_and_directives():
     subroutine mytest
     integer :: i, j, is
 
-    !$omp dir private(i)
+    !$ompx dir private(i)
     i = i + 1
     !dir$ omp private(j)
     i = j + 1

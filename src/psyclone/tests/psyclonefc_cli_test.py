@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,7 +70,7 @@ def test_psyclonefc(monkeypatch, capsys):
     # This is a successful exit
     assert err.value.code == 0
 
-    # Same for flags not related to a Fortan file
+    # Same for flags not related to a Fortran file
     with pytest.raises(SystemExit) as err:
         compiler_wrapper(['--version'])
     # This is a successful exit

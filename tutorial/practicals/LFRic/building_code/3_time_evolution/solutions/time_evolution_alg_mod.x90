@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2025, Science and Technology Facilities Council.
+! Copyright (c) 2020-2026, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@ module time_evolution_alg_mod
 
 contains
 
-  !> @brief Initalise a perturbation field using mesh and coordinate data
+  !> @brief Initialise a perturbation field using mesh and coordinate data
   !> @param[in, out] perturbation Perturbation field to initialise
   !> @param[in] mesh Partitioned 3D mesh object
   !> @param[in] chi Coordinate fields

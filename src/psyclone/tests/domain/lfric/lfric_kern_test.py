@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -459,7 +459,7 @@ def test_kern_last_cell_all_colours():
     assert symbol.name == "last_halo_cell_all_colours"
     assert len(symbol.datatype.shape) == 2  # It's a 2-dimensional array
 
-    # Delete the symbols and try again inside a loop wihtout a halo
+    # Delete the symbols and try again inside a loop without a halo
     sched.symbol_table._symbols.pop("last_halo_cell_all_colours")
     loop.kernel.parent.parent._upper_bound_name = "not-a-halo"
     symbol = loop.kernel.last_cell_all_colours_symbol

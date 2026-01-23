@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,10 +54,11 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     SymbolTable, REAL_TYPE, DataSymbol, INTEGER_TYPE)
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, ProfileTrans, TransformationError)
+    ACCKernelsTrans, ProfileTrans, TransformationError,
+    OMPParallelTrans)
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (
-    GOceanOMPLoopTrans, OMPParallelTrans, LFRicOMPLoopTrans)
+    GOceanOMPLoopTrans, LFRicOMPLoopTrans)
 
 
 # -----------------------------------------------------------------------------

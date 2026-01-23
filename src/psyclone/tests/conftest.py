@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -102,6 +102,9 @@ def setup_psyclone_config():
     independent of a potential psyclone config file installed by
     the user.
     '''
+    # Ensure any Config object that has already been loaded is wiped.
+    Config._instance = None
+
     config_file = Config.get_repository_config_file()
 
     # In case that PSyclone is installed and tested (e.g. GitHub Actions),

@@ -45,9 +45,9 @@ from psyclone.psyir.nodes import (
 )
 from psyclone.psyir.transformations import (
     MaximalParallelRegionTrans,
-    TransformationError
+    TransformationError,
+    OMPParallelTrans
 )
-from psyclone.transformations import OMPParallelTrans
 
 
 # Dummy class to test MaxParallelRegionTrans' functionality.

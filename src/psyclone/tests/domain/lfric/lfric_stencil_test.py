@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -228,8 +228,7 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         "nlayers_f0, f0_data, f1_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f2_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
-        "map_wtheta(:,cell), ndf_adspc1_f1, undf_adspc1_f1, "
-        "map_adspc1_f1(:,cell))")
+        "map_wtheta(:,cell), ndf_ads1_f1, undf_ads1_f1, map_ads1_f1(:,cell))")
     assert output1 in result
     # Use a different stencil dofmap
     output2 = (
@@ -237,9 +236,8 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         "nlayers_f3, f3_data, f4_data, f4_stencil_size(cell), "
         "f4_stencil_dofmap(:,:,cell), f5_data, f5_stencil_size(cell), "
         "f5_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
-        "map_wtheta(:,cell), ndf_adspc1_f4, "
-        "undf_adspc1_f4, map_adspc1_f4(:,cell), "
-        "ndf_adspc2_f5, undf_adspc2_f5, map_adspc2_f5(:,cell))")
+        "map_wtheta(:,cell), ndf_ads1_f4, undf_ads1_f4, map_ads1_f4(:,cell), "
+        "ndf_ads2_f5, undf_ads2_f5, map_ads2_f5(:,cell))")
     assert output2 in result
     # Check for halo exchanges and correct loop bounds
     if dist_mem:
@@ -770,7 +768,7 @@ def test_single_stencil_literal(dist_mem, tmpdir):
 
 def test_stencil_region(dist_mem, tmpdir):
     '''Test that region stencil access with an extent value passed from the
-    algorith layer is handled correctly.
+    algorithm layer is handled correctly.
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.12_single_stencil_region.f90"),
@@ -1273,8 +1271,8 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
         "f4_data, f4_stencil_size(cell), direction, "
         "f4_stencil_dofmap(:,:,cell), "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_adspc1_f4, undf_adspc1_f4, "
-        "map_adspc1_f4(:,cell))")
+        "map_w2(:,cell), ndf_ads1_f4, undf_ads1_f4, "
+        "map_ads1_f4(:,cell))")
     assert output5 in result
 
     # Check compilation
@@ -1754,15 +1752,15 @@ def test_single_kernel_any_space_stencil(dist_mem, tmpdir):
         "f0_data, f1_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f2_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1(:,cell))")
+        "ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell))")
     assert output2 in result
     output3 = (
         "      call testkern_different_anyspace_stencil_code(nlayers_f3, "
         "f3_data, f4_data, f4_stencil_size(cell), "
         "f4_stencil_dofmap(:,:,cell), f5_data, f5_stencil_size(cell), "
         "f5_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_aspc1_f4, undf_aspc1_f4, map_aspc1_f4(:,cell), ndf_aspc2_f5, "
-        "undf_aspc2_f5, map_aspc2_f5(:,cell))")
+        "ndf_as1_f4, undf_as1_f4, map_as1_f4(:,cell), ndf_as2_f5, "
+        "undf_as2_f5, map_as2_f5(:,cell))")
     # Use a different stencil dofmap
     assert output3 in result
 
@@ -1799,21 +1797,21 @@ def test_multi_kernel_any_space_stencil_1(dist_mem):
         "f0_data, f1_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f2_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1)")
+        "ndf_as1_f1, undf_as1_f1, map_as1_f1)")
     assert output2 in result
     output3 = (
         "      call testkern_different_anyspace_stencil_code(nlayers, "
         "f3_data, f1_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f2_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1, "
-        "ndf_aspc2_f2, undf_aspc2_f2, map_aspc2_f2)")
+        "ndf_as1_f1, undf_as1_f1, map_as1_f1, "
+        "ndf_as2_f2, undf_as2_f2, map_as2_f2)")
     assert output3 in result
 
 
-def test_lfrickernargs_unexpect_stencil_extent():
+def test_lfrickernargs_unexpected_stencil_extent():
     '''This test checks that we raise an error in LFRicKernelArguments if
-    metadata is provided with an extent value. This is a litle tricky
+    metadata is provided with an extent value. This is a little tricky
     to raise as the parser does not allow this to happen. We therefore
     modify the results from the parser to raise the error.
 

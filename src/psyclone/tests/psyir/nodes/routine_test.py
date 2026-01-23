@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -407,7 +407,7 @@ def test_routine_update_parent_symbol_table():
         routine.symbol_table.lookup("test", scope_limit=routine)
     assert container.symbol_table.lookup("test") is routine.symbol
 
-    # Test the update_parent_symbol_table mimicing using replace_with.
+    # Test the update_parent_symbol_table mimicking using replace_with.
     routine2 = Routine(routine.symbol)
     routine.detach()
     container.symbol_table.add(routine.symbol)

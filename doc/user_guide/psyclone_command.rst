@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2025, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2026, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -375,7 +375,7 @@ memory (DM) code (unless otherwise specified in the :ref:`configuration` file).
 Alternatively, whether or not to generate DM code can be specified as an
 argument to the ``psyclone`` command using the ``-dm``/``--dist_mem`` or
 ``-nodm``/``--no_dist_mem`` flags, respectively.
-For exampe the following command will generate GOcean PSyKAl code with DM:
+For example the following command will generate GOcean PSyKAl code with DM:
 
 .. code-block:: console
 

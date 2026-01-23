@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -402,7 +402,7 @@ def test_add_with_tags_1():
             in str(error.value))
 
 
-def test_add_with_tags_hierachical():
+def test_add_with_tags_hierarchical():
     '''Check that add(tag=xxx) in a symbol_table hierarchy works as
     expected.
 
@@ -1141,31 +1141,31 @@ def test_handle_symbol_clash_imported_symbols():
     # Same ContainerSymbol object - no action needed.
     csym = symbols.ContainerSymbol("mustrum")
     table1.add(csym)
-    table1.add(symbols.DataSymbol("wizzard", datatype=symbols.UnresolvedType(),
+    table1.add(symbols.DataSymbol("wizard", datatype=symbols.UnresolvedType(),
                                   interface=symbols.ImportInterface(csym)))
     table2.add(csym)
-    table2.add(symbols.DataSymbol("wizzard", datatype=symbols.UnresolvedType(),
+    table2.add(symbols.DataSymbol("wizard", datatype=symbols.UnresolvedType(),
                                   interface=symbols.ImportInterface(csym)))
-    table1._handle_symbol_clash(table2.lookup("wizzard"), table2)
+    table1._handle_symbol_clash(table2.lookup("wizard"), table2)
     # Different ContainerSymbols but with the same name.
     table3 = symbols.SymbolTable()
     csym2 = symbols.ContainerSymbol("mustrUm")
     table3.add(csym2)
-    table3.add(symbols.DataSymbol("wizzard", datatype=symbols.UnresolvedType(),
+    table3.add(symbols.DataSymbol("wizard", datatype=symbols.UnresolvedType(),
                                   interface=symbols.ImportInterface(csym2)))
-    table1._handle_symbol_clash(table3.lookup("wizzard"), table3)
+    table1._handle_symbol_clash(table3.lookup("wizard"), table3)
     # The target ContainerSymbol should have been updated.
-    assert table3.lookup("wizzard").interface.container_symbol is csym
+    assert table3.lookup("wizard").interface.container_symbol is csym
     # Symbol of the same name imported from different Containers. This should
     # raise an InternalError as it cannot be resolved.
     table4 = symbols.SymbolTable()
     csym3 = symbols.ContainerSymbol("Ridcully")
     table4.add(csym3)
-    table4.add(symbols.DataSymbol("wizzard", datatype=symbols.UnresolvedType(),
+    table4.add(symbols.DataSymbol("wizard", datatype=symbols.UnresolvedType(),
                                   interface=symbols.ImportInterface(csym3)))
     with pytest.raises(InternalError) as err:
-        table1._handle_symbol_clash(table4.lookup("wizzard"), table4)
-    assert ("Symbol 'wizzard' imported from 'mustrum' clashes with a Symbol "
+        table1._handle_symbol_clash(table4.lookup("wizard"), table4)
+    assert ("Symbol 'wizard' imported from 'mustrum' clashes with a Symbol "
             "of the same name imported from 'Ridcully'" in str(err.value))
 
 
@@ -2234,7 +2234,7 @@ def test_deep_copy():
     assert symtab2.lookup("symbol1") in symtab2.argument_list
     assert symtab2._node is None
     assert symtab2.default_visibility == symbols.Symbol.Visibility.PRIVATE
-    # The broken tag has dissapeared
+    # The broken tag has disappeared
     assert "broken" not in symtab2._tags
     assert "not_in_the_st" not in symtab2
 

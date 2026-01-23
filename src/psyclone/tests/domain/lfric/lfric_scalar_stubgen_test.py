@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -135,4 +135,4 @@ def test_stub_generate_with_scalar_sums_err():
     assert (
         "A user-supplied LFRic kernel must not write/update a scalar "
         "argument but kernel 'simple_with_reduction_type' has a scalar "
-        "argument with 'gh_sum' access." in str(err.value))
+        "argument with 'gh_reduction' access." in str(err.value))

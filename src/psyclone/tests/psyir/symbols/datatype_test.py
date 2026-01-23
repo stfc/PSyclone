@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,7 @@ def test_datatype():
     # Python >= 3.9 spots that 'method' should be singular. Prior to this it
     # was plural. Python >= 3.12 tweaks the error message yet again to mention
     # the lack of an implementation and to quote the method name.
-    # We split the check to accomodate for this.
+    # We split the check to accommodate for this.
     assert "Can't instantiate abstract class DataType with" in msg
     assert "abstract method" in msg
     assert "__str__" in msg
@@ -1141,7 +1141,7 @@ def test_structure_type():
 def test_create_structuretype():
     ''' Test the create() method of StructureType. '''
     # One member will have its type defined by a DataTypeSymbol
-    # One memeber will have its initial value defined by the
+    # One member will have its initial value defined by the
     # default.
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     stype = StructureType.create([
@@ -1198,7 +1198,7 @@ def test_structuretype_eq():
         ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
         ("peggy", REAL_TYPE, Symbol.Visibility.PUBLIC,
          Literal("1.0", REAL_TYPE))])
-    # Component wth a different initialisation
+    # Component with a different initialisation
     assert stype != StructureType.create([
         ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
         ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE, None)])

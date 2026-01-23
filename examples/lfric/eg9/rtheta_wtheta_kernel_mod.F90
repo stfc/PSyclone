@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2026,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018-2025, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2026, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@
 !>        equations for horizontally discontinuous temperature basis functions,
 !>        this consists of the term theta*gamma*div(u) + theta u*grad(gamma)
 !> @details Kernel to  compute the rhs of thermodynamic equation for the nonlinear
-!>          equations, in the absense of source terms this is
+!>          equations, in the absence of source terms this is
 !>          rtheta = -(theta*gamma*div(u) + theta u*grad(gamma))
 module rtheta_wtheta_kernel_mod
 

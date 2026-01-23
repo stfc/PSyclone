@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@ include ../../common.mk
 GENERATED_FILES += *.o *.mod inc_field_*_mod.f90 psy*.f90 alg_gen.f90 \
   alg_prof.f90 single*.exe
 
-# Location of the infrastucture code (which is a submodule of the
+# Location of the infrastructure code (which is a submodule of the
 # PSyclone git repo).
 SHARED_DIR ?= ../../../external
 INF_DIR ?= ${SHARED_DIR}/dl_esm_inf/finite_difference

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,8 @@
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, HaloExchange
