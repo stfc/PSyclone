@@ -78,7 +78,7 @@ def trans(psyir):
     '''PSyclone transformation script for the LFRic API to optimise
     the matvec kernel for many-core CPUs. For the moment simply find
     the first matvec kernel in the example, transform the matmul
-    intrinsic to equivalant inline code and then print out its PSyIR
+    intrinsic to equivalent inline code and then print out its PSyIR
     representation and output it as Fortran using the PSyIR Fortran
     back-end.
 

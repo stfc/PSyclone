@@ -371,7 +371,7 @@ def test_reference_accesses(fortran_reader):
     # Check that the lhs has been converted to a write
     assigns[0].reference_accesses()[Signature('g')].is_written()
 
-    # This doen't work for nested references to the same symbol
+    # This doesn't work for nested references to the same symbol
     with pytest.raises(NotImplementedError) as err:
         assigns[1].reference_accesses()
     assert ("The variable 'g' appears more than once on the left-hand side "

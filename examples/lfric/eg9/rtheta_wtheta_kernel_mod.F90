@@ -42,7 +42,7 @@
 !>        equations for horizontally discontinuous temperature basis functions,
 !>        this consists of the term theta*gamma*div(u) + theta u*grad(gamma)
 !> @details Kernel to  compute the rhs of thermodynamic equation for the nonlinear
-!>          equations, in the absense of source terms this is
+!>          equations, in the absence of source terms this is
 !>          rtheta = -(theta*gamma*div(u) + theta u*grad(gamma))
 module rtheta_wtheta_kernel_mod
 

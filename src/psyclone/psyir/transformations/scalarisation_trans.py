@@ -50,7 +50,7 @@ class ScalarisationTrans(LoopTrans):
     '''This transformation takes a Loop and converts any array accesses
     to scalar if the results of the loop are unused, and the initial value
     is unused. For example in the following snippet the value of a(i)
-    is only used inside the loop, so can be turned into a scalar, wheras
+    is only used inside the loop, so can be turned into a scalar, whereas
     the values of b(i) are used in the following loop so are kept as an array:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter

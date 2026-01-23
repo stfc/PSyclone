@@ -39,9 +39,9 @@
 ! Modified by I. Kavcic, Met Office
 !
 !> @brief The kernel computes the rhs of the thermodynamic equation for the nonlinear
-!>        equations, this constists entirely of the advection term u.grad(theta)
+!>        equations, this consists entirely of the advection term u.grad(theta)
 !> @details Kernel to  compute the rhs of thermodynamic equation for the nonlinear
-!>          equations, in the absense of source terms this is purely an advection
+!>          equations, in the absence of source terms this is purely an advection
 !>          term: rtheta = u.grad(theta)
 module rtheta_kernel_mod
 

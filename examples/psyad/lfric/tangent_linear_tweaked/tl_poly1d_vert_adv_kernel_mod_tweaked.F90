@@ -9,7 +9,7 @@
 
 ! This tweaked version of the code 1) splits the real and floor
 ! intrinsics onto their own lines and 2) replaces minval and maxval
-! with equialent inline code.
+! with equivalent inline code.
 
 module tl_poly1d_vert_adv_kernel_mod
 
