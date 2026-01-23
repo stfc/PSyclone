@@ -117,7 +117,7 @@ and an optional API specific section, for example for the
                    r_tran: 8,
                    r_bl: 8,
                    r_um: 8
-   RUN_TIME_CHECKS = false
+   RUN_TIME_CHECKS = none
    NUM_ANY_SPACE = 10
    NUM_ANY_DISCONTINUOUS_SPACE = 10
 
@@ -207,7 +207,8 @@ precision_map               Captures the value of the actual precisions in
                             bytes, see :ref:`lfric-precision-map`
                             
 RUN_TIME_CHECKS             Specifies whether to generate run-time validation
-                            checks, see :ref:`lfric-run-time-checks`.
+                            checks, see :ref:`lfric-run-time-checks`. Must be
+                            one of `none`, `warn` or `error`.
 
 NUM_ANY_SPACE               Sets the number of ``ANY_SPACE`` function spaces
                             in LFRic, see :ref:`lfric-num-any-spaces`.
@@ -249,7 +250,7 @@ The option takes a space-separated list of ``key=value`` pairs, for
 example:
 
 ::
-   psyclone --config-opts="run_time_checks=True reprod_pad_size=27" ...
+   psyclone --config-opts="run_time_checks=warn reprod_pad_size=27" ...
 
 This will overwrite the settings for ``run_time_checks`` and ``reprod_pad_size``
 in the configuration file. You can overwrite any setting in any section (without

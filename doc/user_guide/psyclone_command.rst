@@ -83,7 +83,7 @@ by the command:
       --config-opts CONFIG_OPTS
                             Settings that will overwrite values in the config file as a
                             space-separated list of key=value pairs. Example:
-                            --config-opts "reproducible_reductions=true run_time_checks=true".
+                            --config-opts "reproducible_reductions=true run_time_checks=warn".
       -l {off,all,output}, --limit {off,all,output}
                             limit the Fortran line length to 132 characters (default 'off'). Use
                             'all' to apply limit to both input and output Fortran. Use 'output'
