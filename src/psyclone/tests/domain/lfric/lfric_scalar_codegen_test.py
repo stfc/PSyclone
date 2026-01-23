@@ -659,5 +659,6 @@ def test_scalar_array(tmpdir, dist_mem):
     )
     assert expected_subroutine in generated_code
     assert expected_declarations in generated_code
-    assert expected_calls[0], expected_calls[1] in generated_code
+    assert expected_calls[0] in generated_code
+    assert expected_calls[1] in generated_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
