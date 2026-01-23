@@ -272,7 +272,7 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.VariablesAccessMap`]
 
         :raises NotImplementedError: OpenACC data regions are not currently
-            supported for arrays os scalars.
+            supported for arrays of scalars.
 
         '''
         if scalar_arg.is_scalar_array:
