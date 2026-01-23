@@ -83,7 +83,7 @@ class LFRicRunTimeChecks(LFRicCollection):
         if api_conf.run_time_checks == "error":
             log_level = "LOG_LEVEL_ERROR"
         else:
-            log_level = "LOG_LEVEL_WARN"
+            log_level = "LOG_LEVEL_WARNING"
         self.symtab.find_or_create(
             log_level, symbol_type=DataSymbol,
             datatype=UnresolvedType(),
@@ -173,7 +173,7 @@ class LFRicRunTimeChecks(LFRicCollection):
                 if Config.get().api_conf("lfric").run_time_checks == "error":
                     log_level = "LOG_LEVEL_ERROR"
                 else:
-                    log_level = "LOG_LEVEL_WARN"
+                    log_level = "LOG_LEVEL_WARNING"
 
                 if_body = Call.create(
                     symtab.lookup("log_event"),
@@ -240,7 +240,7 @@ class LFRicRunTimeChecks(LFRicCollection):
             if Config.get().api_conf("lfric").run_time_checks == "error":
                 log_level = "LOG_LEVEL_ERROR"
             else:
-                log_level = "LOG_LEVEL_WARN"
+                log_level = "LOG_LEVEL_WARNING"
             if_body = Call.create(
                 symtab.lookup("log_event"),
                 [Literal(f"In alg '{self._invoke.invokes.psy.orig_name}' "
