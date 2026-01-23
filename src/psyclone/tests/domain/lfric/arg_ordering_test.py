@@ -217,6 +217,14 @@ def test_kernel_stub_invalid_scalar_argument():
     assert (f"Expected argument type to be one of "
             f"{const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES} "
             f"but got 'invalid'" in str(excinfo.value))
+    # Now call KernCallArgList to raise an exception
+    create_arg_list = KernCallArgList(kernel)
+    with pytest.raises(InternalError) as excinfo:
+        create_arg_list.scalar(arg)
+    const = LFRicConstants()
+    assert (f"Expected argument type to be one of "
+            f"{const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES} "
+            f"but got 'invalid'" in str(excinfo.value))
 
 
 def test_arg_ordering_generate_domain_kernel(dist_mem, fortran_writer):
