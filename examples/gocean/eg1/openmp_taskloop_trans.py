@@ -40,8 +40,12 @@ PSyclone.
 '''
 
 from psyclone.psyir.nodes import Loop
-from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
-from psyclone.psyir.transformations import OMPTaskloopTrans, OMPTaskwaitTrans
+from psyclone.transformations import OMPSingleTrans
+from psyclone.psyir.transformations import (
+    OMPTaskloopTrans,
+    OMPTaskwaitTrans,
+    OMPParallelTrans
+)
 
 
 def trans(psyir):

@@ -39,8 +39,9 @@ applied via the -s option in the psyclone command, it is not designed
 to be directly run from python.
 
 '''
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import LFRicOMPParallelLoopTrans, \
-    TransformationError, LFRicColourTrans, OMPParallelTrans, \
+    TransformationError, LFRicColourTrans, \
     LFRicOMPLoopTrans
 from psyclone.psyGen import Loop
 from psyclone.domain.lfric.function_space import FunctionSpace

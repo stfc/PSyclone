@@ -46,8 +46,9 @@ Fortran.
 
 '''
 from psyclone.psyir.nodes import Loop
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import OMPParallelLoopTrans, OMPLoopTrans, \
-    OMPParallelTrans, TransformationError
+    TransformationError
 
 # Set up some loop_type inference rules in order to reference useful domain
 # loop constructs by name
