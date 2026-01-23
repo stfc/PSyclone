@@ -339,9 +339,14 @@ def test_apply_indirect_indexing(fortran_reader, fortran_writer):
       INTEGER, DIMENSION(4)  ::   iwewe
       INTEGER, DIMENSION(8,kfld)  :: ishtSi
       integer :: jf
+      type :: mytype
+         integer, dimension(4) :: field5
+      end type
+      type(mytype) :: mystruct
       do jf = 1, kfld
         ishtSi(5:8,jf) = ishtSi(iwewe, jf)
         ishtSi(1:4,jf) = grid(3)%var(iwewe, jf)
+        mystruct%field5(iwewe(:)) = 0.0d0
       end do
     end program test
     ''')
@@ -349,16 +354,24 @@ def test_apply_indirect_indexing(fortran_reader, fortran_writer):
     trans = ArrayAssignment2LoopsTrans()
     trans.apply(assignments[0])
     trans.apply(assignments[1])
+    trans.apply(assignments[2])
     result = fortran_writer(psyir)
-    assert ('''
+    # Test in the LHS with a non expanded array
+    assert '''
     do idx = 5, 8, 1
       ishtsi(idx,jf) = ishtsi(iwewe(idx + (1 - 5)),jf)
-    enddo''' in result)
-    assert ('''
+    enddo''' in result
+    # Test in the LHS inside a derived type accessor
+    assert '''
     do idx_1 = 1, 4, 1
       ishtsi(idx_1,jf) = grid(3)%var(iwewe(idx_1),jf)
-    enddo
-  enddo''' in result)
+    enddo''' in result
+    # Test in the RHS with an range expression and inside a derived type
+    # accessor
+    assert '''
+    do idx_2 = LBOUND(iwewe, dim=1), UBOUND(iwewe, dim=1), 1
+      mystruct%field5(iwewe(idx_2)) = 0.0d0
+    enddo''' in result
 
 
 def test_apply_outside_routine(fortran_reader, fortran_writer):
@@ -624,26 +637,7 @@ def test_validate_nested_or_invalid_expressions(fortran_reader):
             "that contain nested Range expressions, but found"
             in str(info.value))
 
-    # Case 2: Nested array in another array
-    psyir = fortran_reader.psyir_from_source('''
-    subroutine test
-        use my_variables
-        type :: mytype
-           integer, dimension(10) :: field5
-        end type
-        type(mytype) :: mystruct
-        mystruct%field5(indices(:)) = 0.0d0
-    end subroutine test
-    ''')
-    assignment = psyir.walk(Assignment)[0]
-    with pytest.raises(TransformationError) as info:
-        trans.apply(assignment, options={"verbose": True})
-    errmsg = ("ArrayAssignment2LoopsTrans does not support array assignments "
-              "that contain nested Range expressions")
-    assert errmsg in str(info.value)
-    assert errmsg in assignment.preceding_comment
-
-    # Case 3: Nested array in another array which also have Ranges
+    # Case 2: Nested array in another array which also have Ranges
     psyir = fortran_reader.psyir_from_source('''
     subroutine test
         use my_variables
@@ -710,7 +704,6 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
         x(:) = scalar
         x(:) = array
         x(:) = unresolved
-        x(:) = unsupported
         ! An indirectly-addressed RHS but we can't tell whether or not map is
         ! an array reference
         x(:) = ishtsi(map,scalar)
@@ -743,16 +736,9 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
             "'unresolved' is an array or not. Resolving "
             "the import that brings this variable into scope may help."
             in str(info.value))
-    with pytest.raises(TransformationError) as info:
-        trans.apply(psyir.walk(Assignment)[3], opts)
-    assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
-            "contains the access 'unsupported' which is an Unsupported"
-            "FortranType('INTEGER, DIMENSION(:), OPTIONAL :: unsupported') "
-            "and therefore cannot be guaranteed to be ScalarType."
-            in str(info.value))
 
     with pytest.raises(TransformationError) as info:
-        trans.apply(psyir.walk(Assignment)[4], opts)
+        trans.apply(psyir.walk(Assignment)[3], opts)
     assert ("Reference2ArrayRangeTrans could not decide if the reference "
             "'map' is an array or not. Resolving "
             "the import that brings this variable into scope may help."
@@ -770,11 +756,6 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
         "'unresolved' is an array or not. Resolving the import that brings "
         "this variable into scope may help.\n"
         "  x(:) = unresolved\n\n"
-        "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
-        "contains the access 'unsupported' which is an UnsupportedFortran"
-        "Type('INTEGER, DIMENSION(:), OPTIONAL :: unsupported') and therefore "
-        "cannot be guaranteed to be ScalarType.\n"
-        "  x(:) = unsupported\n\n"
         "  ! Reference2ArrayRangeTrans could not decide if the reference 'map'"
         " is an array or not. Resolving the import that brings this variable "
         "into scope may help.\n"
