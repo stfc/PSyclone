@@ -96,7 +96,7 @@ precision_map = i_def: 4,
                 r_tran: 8,
                 r_bl: 8,
                 r_um: 8
-RUN_TIME_CHECKS = false
+RUN_TIME_CHECKS = none
 NUM_ANY_SPACE = 10
 NUM_ANY_DISCONTINUOUS_SPACE = 10
 '''
@@ -126,7 +126,6 @@ def clear_config_instance():
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS",
                         "COMPUTE_ANNEXED_DOFS",
-                        "RUN_TIME_CHECKS",
                         "BACKEND_CHECKS_ENABLED",
                         "BACKEND_INDENTATION_DISABLED"])
 def bool_entry_fixture(request):
@@ -799,12 +798,12 @@ def test_intrinsic_settings():
             "'int'." in str(err.value))
 
 
-def test_config_overwrite(tmpdir: Path, monkeypatch) -> None:
+def test_config_overwrite(tmp_path: Path, monkeypatch) -> None:
     """
     Test that configuration settings can be overwritten.
     """
 
-    config_file = tmpdir.join("config")
+    config_file = tmp_path / "config"
 
     # Reset the ignore modules of the module manager
     mod_manager = ModuleManager.get()

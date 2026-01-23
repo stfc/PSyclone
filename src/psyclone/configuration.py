@@ -940,8 +940,8 @@ class LFRicConfig(BaseConfig):
         self._config = config
         # Initialise redundant computation setting
         self._compute_annexed_dofs = None
-        # Initialise run_time_checks setting
-        self._run_time_checks = None
+        # Initialise run_time_checks setting - one of "none", "warn", "error"
+        self._run_time_checks = "none"
         # Initialise LFRic datatypes' default kinds (precisions) settings
         self._supported_fortran_datatypes = []
         self._default_kind = {}
@@ -978,15 +978,23 @@ class LFRicConfig(BaseConfig):
                 config=self._config) from err
 
         # Parse setting for run_time_checks flag
-        try:
-            self._run_time_checks = section.getboolean(
-                "run_time_checks")
-        except ValueError as err:
-            raise ConfigurationError(
-                f"Error while parsing RUN_TIME_CHECKS in the "
-                f"'[{section.name}]' section of the configuration file "
-                f"'{config.filename}': {str(err)}.",
-                config=self._config) from err
+        self._run_time_checks = section["run_time_checks"].lower()
+        if self._run_time_checks not in ["none", "warn", "error"]:
+            # Test for old-style boolean value:
+            try:
+                self._run_time_checks = section.getboolean("run_time_checks")
+            except ValueError as err:
+                raise ConfigurationError(
+                    f"Error while parsing RUN_TIME_CHECKS in the "
+                    f"'[{section.name}]' section of the configuration file "
+                    f"'{config.filename}': Found '{self._run_time_checks}', "
+                    f" must be one of 'none', 'warn', 'error'.",
+                    config=self._config) from err
+            if self._run_time_checks:
+                # True - old behaviour is to create an error (and abort)
+                self._run_time_checks = "error"
+            else:
+                self._run_time_checks = "none"
 
         # Parse setting for the supported Fortran datatypes. No
         # need to check whether the keyword is found as it is

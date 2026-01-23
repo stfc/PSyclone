@@ -39,6 +39,7 @@
 Module containing tests for LFRic API configuration handling.
 '''
 
+from pathlib import Path
 import re
 import pytest
 
@@ -70,7 +71,7 @@ precision_map = i_def: 4,
                 r_tran: 8,
                 r_bl: 8,
                 r_um: 8
-RUN_TIME_CHECKS = false
+RUN_TIME_CHECKS = none
 NUM_ANY_SPACE = 10
 NUM_ANY_DISCONTINUOUS_SPACE = 10
 '''
@@ -141,7 +142,7 @@ def test_no_mandatory_option(tmpdir, option):
             in str(err.value))
 
 
-@pytest.mark.parametrize("option", ["COMPUTE_ANNEXED_DOFS", "RUN_TIME_CHECKS"])
+@pytest.mark.parametrize("option", ["COMPUTE_ANNEXED_DOFS"])
 def test_entry_not_bool(tmpdir, option):
     ''' Check that we raise an error if the value of any options expecting
     a boolean value are not Boolean '''
@@ -339,13 +340,45 @@ def test_precision_map():
     assert api_config.precision_map["r_um"] == 8
 
 
-def test_run_time_checks():
+@pytest.mark.parametrize("run_time_check", [("none", "none"),
+                                            ("warn", "warn"),
+                                            ("error", "error"),
+                                            ("false", "none"),
+                                            ("true", "error"),
+                                            ])
+def test_run_time_checks(tmp_path: Path,
+                         run_time_check: tuple[str, str]) -> None:
     '''Check that we load the expected default RUN_TIME_CHECKS value
-    (False)
-
+    and also test that we are backwards compatible (true/false), which
+    must be mapped to "error"/"none".
     '''
-    api_config = Config().get().api_conf(TEST_API)
-    assert not api_config.run_time_checks
+    config_value, expected = run_time_check
+    content = re.sub(r"RUN_TIME_CHECKS = none",
+                     f"RUN_TIME_CHECKS = {config_value}",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    conf = config(tmp_path / "config_lfric", content)
+    api_config = conf.api_conf(TEST_API)
+    assert api_config.run_time_checks == expected
+
+
+def test_run_time_checks_error(tmp_path: Path) -> None:
+    '''Check that we raise an error if we get an invalid value for
+    run_time_check.
+    '''
+    content = re.sub(r"RUN_TIME_CHECKS = none",
+                     "RUN_TIME_CHECKS = INVALID",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(tmp_path / "config_lfric", content)
+
+    assert ("Error while parsing RUN_TIME_CHECKS in the '[lfric]' section of "
+            "the configuration file" in str(err.value))
+    assert ("Found 'invalid',  must be one of 'none', 'warn', 'error'"
+            in str(err.value))
 
 
 def test_num_any_space():

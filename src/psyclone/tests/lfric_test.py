@@ -3881,22 +3881,25 @@ def test_lfricaccenterdatadirective_dataondevice():
 # Class LFRicKernelArguments end
 
 
-def test_lfricinvoke_runtime(tmpdir, monkeypatch):
+@pytest.mark.parametrize("level", [("warn", "LOG_LEVEL_WARN"),
+                                   ("error", "LOG_LEVEL_ERROR")])
+def test_lfricinvoke_runtime(level, tmpdir, monkeypatch):
     '''Test that run-time checks are added to the PSy-layer via LFRicInvoke
     in the expected way (correct location and correct code).
 
     '''
+    level_string, log_level = level
     # run-time checks are off by default so switch them on
     config = Config.get()
     lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
+    monkeypatch.setattr(lfric_config, "_run_time_checks", level_string)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     assert "use testkern_mod, only : testkern_code" in generated_code
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
+    assert f"use log_mod, only : {log_level}, log_event" in generated_code
     assert "use fs_continuity_mod" in generated_code
     assert "use mesh_mod, only : mesh_type" in generated_code
     expected = (
@@ -3910,32 +3913,32 @@ def test_lfricinvoke_runtime(tmpdir, monkeypatch):
         "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
         "tkern_type', the field 'f1' is passed to kernel 'testkern_code' but "
         "its function space is not compatible with the function space specifi"
-        "ed in the kernel metadata 'w1'.\", LOG_LEVEL_ERROR)\n"
+        f"ed in the kernel metadata 'w1'.\", {log_level})\n"
         "    end if\n"
         "    if (f2%which_function_space() /= W2) then\n"
         "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
         "tkern_type', the field 'f2' is passed to kernel 'testkern_code' but "
         "its function space is not compatible with the function space specifi"
-        "ed in the kernel metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
+        f"ed in the kernel metadata 'w2'.\", {log_level})\n"
         "    end if\n"
         "    if (m1%which_function_space() /= W2) then\n"
         "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
         "tkern_type', the field 'm1' is passed to kernel 'testkern_code' but "
         "its function space is not compatible with the function space specifi"
-        "ed in the kernel metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
+        f"ed in the kernel metadata 'w2'.\", {log_level})\n"
         "    end if\n"
         "    if (m2%which_function_space() /= W3) then\n"
         "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
         "tkern_type', the field 'm2' is passed to kernel 'testkern_code' but "
         "its function space is not compatible with the function space specifi"
-        "ed in the kernel metadata 'w3'.\", LOG_LEVEL_ERROR)\n"
+        f"ed in the kernel metadata 'w3'.\", {log_level})\n"
         "    end if\n"
         "\n"
         "    ! Check that read-only fields are not modified\n"
         "    if (f1_proxy%vspace%is_readonly()) then\n"
         "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
         "tkern_type', field 'f1' is on a read-only function space but is modi"
-        "fied by kernel 'testkern_code'.\", LOG_LEVEL_ERROR)\n"
+        f"fied by kernel 'testkern_code'.\", {log_level})\n"
         "    end if\n"
         "\n"
         "    ! Initialise number of layers\n")
