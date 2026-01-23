@@ -169,16 +169,16 @@ def _add_inquiry_argument(
 
 def _compute_reference_accesses(
     node: "IntrinsicCall",
-    read_indices: list[int] = None,
-    write_indices: list[int] = None,
-    readwrite_indices: list[int] = None,
-    constant_indices: list[int] = None,
-    inquiry_indices: list[int] = None,
-    read_named_args: list[str] = None,
-    write_named_args: list[str] = None,
-    readwrite_named_args: list[str] = None,
-    constant_named_args: list[str] = None,
-    inquiry_named_args: list[str] = None,
+    read_indices: Iterable[int] = (),
+    write_indices: Iterable[int] = (),
+    readwrite_indices: Iterable[int] = (),
+    constant_indices: Iterable[int] = (),
+    inquiry_indices: Iterable[int] = (),
+    read_named_args: Iterable[str] = (),
+    write_named_args: Iterable[str] = (),
+    readwrite_named_args: Iterable[str] = (),
+    constant_named_args: Iterable[str] = (),
+    inquiry_named_args: Iterable[str] = (),
 ) -> VariablesAccessMap:
     """General helper function for creating the reference_accesses for a
     general IntrinsicCall.
@@ -205,63 +205,53 @@ def _compute_reference_accesses(
     reference_accesses = VariablesAccessMap()
     # For indices, we only apply them if there is no argument name, othrwise
     # it should be handled by the argument names.
-    if read_indices:
-        for ind in read_indices:
-            if ind < len(node.arguments) and node.argument_names[ind] is None:
-                arg = node.arguments[ind]
-                _add_read_argument(arg, reference_accesses)
-    if write_indices:
-        for ind in write_indices:
-            if ind < len(node.arguments) and node.argument_names[ind] is None:
-                arg = node.arguments[ind]
-                _add_write_argument(arg, reference_accesses)
-    if readwrite_indices:
-        for ind in readwrite_indices:
-            if ind < len(node.arguments) and node.argument_names[ind] is None:
-                arg = node.arguments[ind]
-                _add_readwrite_argument(arg, reference_accesses)
-    if constant_indices:
-        for ind in constant_indices:
-            if ind < len(node.arguments) and node.argument_names[ind] is None:
-                arg = node.arguments[ind]
-                _add_constant_argument(arg, reference_accesses)
-    if inquiry_indices:
-        for ind in inquiry_indices:
-            if ind < len(node.arguments) and node.argument_names[ind] is None:
-                arg = node.arguments[ind]
-                _add_inquiry_argument(arg, reference_accesses)
+    for ind in read_indices:
+        if ind < len(node.arguments) and node.argument_names[ind] is None:
+            arg = node.arguments[ind]
+            _add_read_argument(arg, reference_accesses)
+    for ind in write_indices:
+        if ind < len(node.arguments) and node.argument_names[ind] is None:
+            arg = node.arguments[ind]
+            _add_write_argument(arg, reference_accesses)
+    for ind in readwrite_indices:
+        if ind < len(node.arguments) and node.argument_names[ind] is None:
+            arg = node.arguments[ind]
+            _add_readwrite_argument(arg, reference_accesses)
+    for ind in constant_indices:
+        if ind < len(node.arguments) and node.argument_names[ind] is None:
+            arg = node.arguments[ind]
+            _add_constant_argument(arg, reference_accesses)
+    for ind in inquiry_indices:
+        if ind < len(node.arguments) and node.argument_names[ind] is None:
+            arg = node.arguments[ind]
+            _add_inquiry_argument(arg, reference_accesses)
     # For each named argument provided, we check if they are defined
     # for the given intrinsicCall as they are optional.
-    if read_named_args:
-        for name in read_named_args:
-            if name not in node.argument_names:
-                continue
-            arg = node.arguments[node.argument_names.index(name)]
-            _add_read_argument(arg, reference_accesses)
-    if write_named_args:
-        for name in write_named_args:
-            if name not in node.argument_names:
-                continue
-            arg = node.arguments[node.argument_names.index(name)]
-            _add_write_argument(arg, reference_accesses)
-    if constant_named_args:
-        for name in constant_named_args:
-            if name not in node.argument_names:
-                continue
-            arg = node.arguments[node.argument_names.index(name)]
-            _add_constant_argument(arg, reference_accesses)
-    if inquiry_named_args:
-        for name in inquiry_named_args:
-            if name not in node.argument_names:
-                continue
-            arg = node.arguments[node.argument_names.index(name)]
-            _add_inquiry_argument(arg, reference_accesses)
-    if readwrite_named_args:
-        for name in readwrite_named_args:
-            if name not in node.argument_names:
-                continue
-            arg = node.arguments[node.argument_names.index(name)]
-            _add_readwrite_argument(arg, reference_accesses)
+    for name in read_named_args:
+        if name not in node.argument_names:
+            continue
+        arg = node.arguments[node.argument_names.index(name)]
+        _add_read_argument(arg, reference_accesses)
+    for name in write_named_args:
+        if name not in node.argument_names:
+            continue
+        arg = node.arguments[node.argument_names.index(name)]
+        _add_write_argument(arg, reference_accesses)
+    for name in constant_named_args:
+        if name not in node.argument_names:
+            continue
+        arg = node.arguments[node.argument_names.index(name)]
+        _add_constant_argument(arg, reference_accesses)
+    for name in inquiry_named_args:
+        if name not in node.argument_names:
+            continue
+        arg = node.arguments[node.argument_names.index(name)]
+        _add_inquiry_argument(arg, reference_accesses)
+    for name in readwrite_named_args:
+        if name not in node.argument_names:
+            continue
+        arg = node.arguments[node.argument_names.index(name)]
+        _add_readwrite_argument(arg, reference_accesses)
 
     return reference_accesses
 
@@ -867,7 +857,7 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    # All arguments are unamed and all are written to.
+                    # All arguments are unnamed and all are written to.
                     write_indices=list(range(len(node.arguments))),
                 )
             ),
