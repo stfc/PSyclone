@@ -40,6 +40,7 @@ which module is contained in which file (including full location). '''
 import copy
 from difflib import SequenceMatcher
 import logging
+from pathlib import Path
 from typing import cast, Iterable, Optional, OrderedDict, Union
 import os
 import re
@@ -210,23 +211,32 @@ class ModuleManager:
         self._resolve_indirect_imports = value
 
     # ------------------------------------------------------------------------
-    def add_search_path(self, directories, recursive=True):
+    def add_search_path(self,
+                        directories: Union[str, Path,
+                                           list[str], list[Path]],
+                        recursive: bool = True) -> None:
         '''If the directory is not already contained in the search path,
         add it. Directory can either be a string, in which case it is a single
         directory, or a list of directories, each one a string.
 
         :param directories: the directory/directories to add.
-        :type directories: str | list[str]
 
         :param bool recursive: whether recursively all subdirectories should
             be added to the search path.
 
         '''
-        if isinstance(directories, str):
+        if not isinstance(directories, list):
             # Make sure we always have a list
             directories = [directories]
 
         for directory in directories:
+            if not isinstance(directory, (str, Path)):
+                raise TypeError(f"ModuleManager.add_search_path expects a "
+                                f"string or Path as directory, got "
+                                f"'{directory}', which is "
+                                f"' of type '{type(directory).__name__}'.")
+            # Convert paths to strings
+            directory = str(directory)
             if not os.access(directory, os.R_OK):
                 raise IOError(f"Directory '{directory}' does not exist or "
                               f"cannot be read.")

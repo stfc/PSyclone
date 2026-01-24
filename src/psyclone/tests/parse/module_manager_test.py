@@ -132,6 +132,12 @@ def test_mod_manager_directory_reading() -> None:
     assert ("Directory 'does_not_exist' does not exist or cannot be read"
             in str(err.value))
 
+    with pytest.raises(TypeError) as err:
+        # Invalid Type
+        mod_man.add_search_path(123)
+    assert ("ModuleManager.add_search_path expects a string or Path as "
+            "directory, got '123', which is ' of type 'int'" in str(err.value))
+
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
