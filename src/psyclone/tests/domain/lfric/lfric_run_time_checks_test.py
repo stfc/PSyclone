@@ -45,12 +45,12 @@ from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_base_path
 
 
 # constants
-BASE_PATH = Path(__file__).parents[2] / "test_files" / "lfric"
-
 TEST_API = "lfric"
+BASE_PATH = Path(get_base_path(TEST_API))
 
 
 @pytest.fixture(scope="function", autouse=True)
