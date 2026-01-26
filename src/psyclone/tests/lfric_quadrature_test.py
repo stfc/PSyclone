@@ -78,13 +78,14 @@ def test_field_xyoz(tmpdir):
 
     module_declns = (
         "  use constants_mod\n"
-        "  use field_mod, only : field_proxy_type, field_type\n")
+        "  use field_mod, only : field_proxy_type, field_type\n"
+        "  use testkern_qr_mod, only : testkern_qr_code\n"
+    )
     assert module_declns in generated_code
 
     assert (
         "  subroutine invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
         " qr)\n"
-        "    use testkern_qr_mod, only : testkern_qr_code\n"
         "    use mesh_mod, only : mesh_type\n"
         "    use function_space_mod, only : BASIS, DIFF_BASIS\n"
         "    use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, "
@@ -291,11 +292,11 @@ def test_face_qr(tmpdir, dist_mem):
 
     module_declns = (
         "  use constants_mod\n"
-        "  use field_mod, only : field_proxy_type, field_type\n")
+        "  use field_mod, only : field_proxy_type, field_type\n"
+        "  use testkern_qr_faces_mod, only : testkern_qr_faces_code\n")
     assert module_declns in generated_code
 
-    output_decls = ("    use testkern_qr_faces_mod, only : "
-                    "testkern_qr_faces_code\n")
+    output_decls = ""
     if dist_mem:
         output_decls += "    use mesh_mod, only : mesh_type\n"
     output_decls += (

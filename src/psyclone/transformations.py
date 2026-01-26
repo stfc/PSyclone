@@ -62,7 +62,7 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Container, Directive, Literal, Loop, Node,
     Return, Schedule, PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -2407,7 +2407,9 @@ class KernelImportsToArguments(Transformation, KernelTransformationMixin):
         '''
         Convert the imported variables used inside the kernel into arguments
         and modify the InvokeSchedule to pass the same imported variables to
-        the kernel call.
+        the kernel call. Since it is a pre-requisite that the kernel have been
+        module-inlined first, this transformation must also update all other
+        calls to the same module-inlined routine.
 
         :param node: a kernel call.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
@@ -2425,6 +2427,9 @@ class KernelImportsToArguments(Transformation, KernelTransformationMixin):
         precision_sym_names = [sym.name.lower() for sym in
                                kernel.symbol_table.precision_datasymbols]
         count_imported_vars_removed = 0
+
+        # The arguments that we have to add to the Kernel call.
+        new_kernel_args: list[tuple(str, str)] = []
 
         # Transform each imported variable into an argument.
         # TODO #11: When support for logging is added, we could warn the user
@@ -2489,18 +2494,23 @@ class KernelImportsToArguments(Transformation, KernelTransformationMixin):
                     f"infrastructure does not have any scalar type equivalent "
                     f"to the PSyIR {updated_sym.datatype} type.")
 
-            # Add the imported variable in the call argument list
-            node.arguments.append(updated_sym.name, go_space)
+            # Record the addition to the call argument list
+            new_kernel_args.append((updated_sym.name, go_space))
 
             # Check whether we still need the Container symbol from which
             # this import was originally accessed
-            if not kernel.symbol_table.symbols_imported_from(container) and \
-               not container.wildcard_import:
+            if (not kernel.symbol_table.symbols_imported_from(container) and
+                    not container.wildcard_import):
                 kernel.symbol_table.remove(container)
 
-        if count_imported_vars_removed > 0:
-            node.modified = True
-
+        # Since we've modified the Kernel argument list *and* have removed the
+        # imported symbols from its implementation, we have to make sure we
+        # update the argument lists of all other calls to the inlined kernel.
+        for kern in node.ancestor(Container).walk(CodedKern):
+            if kern.name == node.name:
+                for arg in new_kernel_args:
+                    kern.arguments.append(arg[0], arg[1])
+                    kern.modified = True
 
 # Create a compatibility layer for all existing Dynamo0p3 transformation
 # names. These are just derived classes from the new name which print

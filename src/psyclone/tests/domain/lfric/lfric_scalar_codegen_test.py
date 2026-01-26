@@ -45,6 +45,7 @@ import os
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 
 # Constants
 BASE_PATH = os.path.join(
@@ -59,15 +60,14 @@ def test_real_scalar(tmpdir):
     real scalar argument (plus fields).
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    psy, _ = get_invoke("1_single_invoke.f90", api=TEST_API, idx=0,
+                        dist_mem=True)
     generated_code = str(psy.gen)
+
+    assert "use testkern_mod, only : testkern_code\n" in generated_code
 
     expected = (
         "  subroutine invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
-        "    use testkern_mod, only : testkern_code\n"
         "    use mesh_mod, only : mesh_type\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1\n"
@@ -162,18 +162,16 @@ def test_int_scalar(tmpdir):
     integer scalar argument (plus fields).
 
     '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.6.1_single_invoke_1_int_scalar.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    psy, _ = get_invoke("1.6.1_single_invoke_1_int_scalar.f90", dist_mem=True,
+                        api=TEST_API, idx=0)
     generated_code = str(psy.gen)
+
+    assert ("use testkern_one_int_scalar_mod, only : "
+            "testkern_one_int_scalar_code\n" in generated_code)
 
     expected = (
         "  subroutine invoke_0_testkern_one_int_scalar_type"
         "(f1, iflag, f2, m1, m2)\n"
-        "    use testkern_one_int_scalar_mod, only : "
-        "testkern_one_int_scalar_code\n"
         "    use mesh_mod, only : mesh_type\n"
         "    type(field_type), intent(in) :: f1\n"
         "    integer(kind=i_def), intent(in) :: iflag\n"
@@ -269,18 +267,16 @@ def test_two_real_scalars(tmpdir):
     scalar arguments.
 
     '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.9_single_invoke_2_real_scalars.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    psy, _ = get_invoke("1.9_single_invoke_2_real_scalars.f90", api=TEST_API,
+                        dist_mem=True, idx=0)
     generated_code = str(psy.gen)
+
+    assert ("use testkern_two_real_scalars_mod, only : "
+            "testkern_two_real_scalars_code\n" in generated_code)
 
     expected = (
         "  subroutine invoke_0_testkern_two_real_scalars_type(a, f1, f2, "
         "m1, m2, b)\n"
-        "    use testkern_two_real_scalars_mod, only : "
-        "testkern_two_real_scalars_code\n"
         "    use mesh_mod, only : mesh_type\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1\n"
@@ -377,16 +373,15 @@ def test_two_int_scalars(tmpdir):
     scalar arguments.
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.6_single_invoke_2_int_scalars.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    psy, _ = get_invoke("1.6_single_invoke_2_int_scalars.f90", api=TEST_API,
+                        dist_mem=True, idx=0)
     generated_code = str(psy.gen)
+
+    assert ("use testkern_two_int_scalars_mod, only : "
+            "testkern_two_int_scalars_code\n" in generated_code)
 
     expected = (
         "  subroutine invoke_0(iflag, f1, f2, m1, m2, istep)\n"
-        "    use testkern_two_int_scalars_mod, only : "
-        "testkern_two_int_scalars_code\n"
         "    use mesh_mod, only : mesh_type\n"
         "    integer(kind=i_def), intent(in) :: iflag\n"
         "    type(field_type), intent(in) :: f1\n"
@@ -495,24 +490,22 @@ def test_three_scalars(tmpdir):
     types of valid scalar argument: 'real', 'integer' and 'logical'.
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    psy, _ = get_invoke("1.7_single_invoke_3scalar.f90", api=TEST_API,
+                        dist_mem=True, idx=0)
 
     generated_code = str(psy.gen)
     expected = (
         "module single_invoke_psy\n"
         "  use constants_mod\n"
         "  use field_mod, only : field_proxy_type, field_type\n"
+        "  use testkern_three_scalars_mod, only : "
+        "testkern_three_scalars_code\n"
         "  implicit none\n"
         "  public\n"
         "\n"
         "  contains\n"
         "  subroutine invoke_0_testkern_three_scalars_type(a, f1, f2, m1, "
         "m2, lswitch, istep)\n"
-        "    use testkern_three_scalars_mod, only : "
-        "testkern_three_scalars_code\n"
         "    use mesh_mod, only : mesh_type\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1\n"
