@@ -39,12 +39,11 @@
 import os
 import pytest
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.gocean1p0 import GOKern
 from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InvokeSchedule
 from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE, INTEGER_TYPE,
-                                    CHARACTER_TYPE, Symbol, SymbolError)
+                                    CHARACTER_TYPE, Symbol)
 from psyclone.tests.utilities import get_invoke, make_external_module
 from psyclone.transformations import (KernelImportsToArguments,
                                       TransformationError)
@@ -150,7 +149,8 @@ def test_kernelimportstoargumentstrans(monkeypatch, fortran_writer):
 
     # Check the kernel code is generated as expected
     kernel_code = fortran_writer(kernel.get_callees()[0])
-    assert "subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, magic)" in kernel_code
+    assert ("subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, "
+            "rdt, magic)" in kernel_code)
     assert "real(kind=go_wp), intent(in) :: rdt" in kernel_code
     assert "real(kind=go_wp), intent(inout) :: magic" in kernel_code
 
@@ -165,10 +165,9 @@ def test_kernelimportstoargumentstrans(monkeypatch, fortran_writer):
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_kernelimportstoargumentstrans_constant(monkeypatch):
+def test_kernelimportstoargumentstrans_constant(monkeypatch, fortran_writer):
     ''' Check the KernelImportsToArguments transformation when the import is
     also a constant value, in this case the argument should be read-only.'''
-    from psyclone.psyir.backend.fortran import FortranWriter
     from psyclone.psyir.nodes import Literal
 
     trans = KernelImportsToArguments()
@@ -189,12 +188,12 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
     monkeypatch.setattr(DataSymbol, "resolve_type", create_data_symbol)
     monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
 
-    # Test transforming a single kernel
+    # Test transforming a single kernel. We have to module-inline it first.
+    KernelModuleInlineTrans().apply(kernel)
     trans.apply(kernel)
 
-    fwriter = FortranWriter()
     kernels = kernel.get_callees()
-    kernel_code = fwriter(kernels[0])
+    kernel_code = fortran_writer(kernels[0])
 
     assert ("subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
             "magic)" in kernel_code)
@@ -223,7 +222,8 @@ def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
         return symbol
     monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
 
-    # Test transforming a single kernel
+    # Test transforming a single kernel - have to module-inline it first.
+    KernelModuleInlineTrans().apply(kernel)
     with pytest.raises(TypeError) as err:
         trans.apply(kernel)
     assert ("The imported variable 'rdt' could not be promoted to an argument "
@@ -232,13 +232,10 @@ def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
             in str(err.value))
 
 
-@pytest.mark.usefixtures("kernel_outputdir")
-def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
+def test_kernelimportstoarguments_multiple_kernels():
     ''' Check the KernelImportsToArguments transformation with an invoke with
     three kernel calls, two of them duplicated and the third one sharing the
     same imported module'''
-    from psyclone.psyir.backend.fortran import FortranWriter
-    fwriter = FortranWriter()
 
     # Construct a testing InvokeSchedule
     _, invoke_info = parse(os.path.
@@ -248,62 +245,43 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     trans = KernelImportsToArguments()
+    mod_inline_trans = KernelModuleInlineTrans()
 
     # The kernels are checked before the psy.gen, so they don't include the
     # modified suffix.
     expected = [
         ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
          "magic)",
-         "real, intent(inout) :: rdt"],
+         "real(kind=go_wp), intent(in) :: rdt"],
         ["subroutine kernel_with_use2_code(ji, jj, istep, ssha, tmask, cbfr,"
          " rdt)",
-         "real, intent(inout) :: cbfr\n  real, intent(inout) :: rdt"],
+         "real(kind=go_wp), intent(inout) :: cbfr\n    real(kind=go_wp), "
+         "intent(in) :: rdt"],
         ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
          "magic)",
-         "real, intent(inout) :: rdt\n  real, intent(inout) :: magic"]]
+         "real(kind=go_wp), intent(in) :: rdt\n    real(kind=go_wp), "
+         "intent(inout) :: magic"]]
 
-    # Monkeypatch the resolve_type() methods to avoid searching and
-    # importing of module during this test.
-    def create_data_symbol(arg):
-        symbol = DataSymbol(arg.name, REAL_TYPE,
-                            interface=arg.interface)
-        return symbol
-    monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
-    monkeypatch.setattr(DataSymbol, "resolve_type", create_data_symbol)
+    # Ensure the ModuleManager can find the necessary files.
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(os.path.join(BASEPATH, "gocean1p0"))
 
     for num, kernel in enumerate(invoke.schedule.coded_kernels()):
-        kernels = kernel.get_callees()
-        kschedule = kernels[0]
-
+        mod_inline_trans.apply(kernel)
         trans.apply(kernel)
-
-        # Check the kernel code is generated as expected
-        kernel_code = fwriter(kschedule)
-        for part in expected[num]:
-            assert part in kernel_code
 
     generated_code = str(psy.gen)
 
-    # The following assert checks that imports from the same module are
-    # imported, since the kernels are marked as modified, new suffixes are
-    # given in order to differentiate each of them.
-    assert ("use kernel_with_use_1_mod, only : kernel_with_use_1_code\n"
-            in generated_code)
-    assert ("use kernel_with_use2_0_mod, only : kernel_with_use2_0_code\n"
-            in generated_code)
-    assert ("use kernel_with_use_0_mod, only : kernel_with_use_0_code\n"
-            in generated_code)
+    # Check the kernel code is generated as expected
+    for num in range(len(invoke.schedule.coded_kernels())):
+        for part in expected[num]:
+            assert part in generated_code, part
 
-    # Check the kernel calls have the imported symbol passed as last argument
-    assert ("call kernel_with_use_0_code(i, j, oldu_fld, cu_fld%data, "
-            "cu_fld%grid%tmask, rdt, magic)" in generated_code)
-    assert ("call kernel_with_use_1_code(i, j, oldu_fld, cu_fld%data, "
-            "cu_fld%grid%tmask, rdt, magic)" in generated_code)
-    assert ("call kernel_with_use2_0_code(i, j, oldu_fld, cu_fld%data, "
-            "cu_fld%grid%tmask, cbfr, rdt)" in generated_code)
+    # Kernels not imported anymore.
+    assert "use kernel_with_use_mod" not in generated_code
+    assert "use kernel_with_use2_mod" not in generated_code
 
 
-@pytest.mark.usefixtures("kernel_outputdir")
 def test_kernelimportstoarguments_noimports(fortran_writer):
     ''' Check the KernelImportsToArguments transformation can be applied to
     a kernel that does not contain any import without any effect '''
@@ -316,8 +294,10 @@ def test_kernelimportstoarguments_noimports(fortran_writer):
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    before_code = fortran_writer(psy.container)
     trans = KernelImportsToArguments()
+    mod_inline_trans = KernelModuleInlineTrans()
+    mod_inline_trans.apply(kernel)
+    before_code = fortran_writer(psy.container)
     trans.apply(kernel)
     after_code = fortran_writer(psy.container)
 
@@ -340,6 +320,8 @@ def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch,
     end module model_mod""")
 
     trans = KernelImportsToArguments()
+    mod_inline_trans = KernelModuleInlineTrans()
+
     # Construct a testing InvokeSchedule
     _, invoke = get_invoke("single_invoke_kern_with_use.f90", idx=0, api=API)
     kernel = invoke.schedule.coded_kernels()[0]
@@ -347,6 +329,8 @@ def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch,
     # Add 'rdt' into the symbol table of this Invoke.
     kernel.ancestor(InvokeSchedule).symbol_table.add(
         DataSymbol("rdt", REAL_TYPE))
+
+    mod_inline_trans.apply(kernel)
 
     # Test transforming a single kernel
     with pytest.raises(KeyError) as err:

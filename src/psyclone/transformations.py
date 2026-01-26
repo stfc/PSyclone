@@ -74,7 +74,7 @@ from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
-    SymbolError, UnresolvedType)
+    UnresolvedType)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import (
@@ -2498,6 +2498,8 @@ class KernelImportsToArguments(Transformation, KernelTransformationMixin):
         kernel = kernels[0]
         symtab = kernel.symbol_table
         invoke_symtab = node.ancestor(InvokeSchedule).symbol_table
+        precision_sym_names = [sym.name.lower() for sym in
+                               kernel.symbol_table.precision_datasymbols]
         count_imported_vars_removed = 0
 
         # Transform each imported variable into an argument.
@@ -2514,8 +2516,7 @@ class KernelImportsToArguments(Transformation, KernelTransformationMixin):
                 # If we have a new symbol then we must update the symbol table
                 if updated_sym is not imported_var:
                     kernel.symbol_table.swap(imported_var, updated_sym)
-
-            if updated_sym in kernel.symbol_table.precision_datasymbols:
+            if updated_sym.name.lower() in precision_sym_names:
                 # Symbols specifying compile-time precision can't be passed
                 # as arguments.
                 continue
