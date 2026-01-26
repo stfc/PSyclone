@@ -268,13 +268,7 @@ def _convert_argument_to_constant(
     # If the argument isn't a Reference then we don't do anything.
     if isinstance(argument, Reference):
         sig, _ = argument.get_signature_and_indices()
-        var_info = access_info[sig]
-        try:
-            var_info.change_read_to_constant()
-        except InternalError:
-            # The argument here is also used in some other way
-            # so we do nothing as the other usage has precedence.
-            pass
+        access_info[sig][0].access_type = AccessType.CONSTANT
 
 
 def _reference_accesses_all_reads_with_optional_kind(

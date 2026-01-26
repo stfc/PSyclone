@@ -73,32 +73,6 @@ class AccessInfo():
     def __str__(self) -> str:
         return f"{self._access_type}"
 
-    def change_read_to_write(self) -> None:
-        '''This changes the access mode from READ to WRITE.
-        This is used for processing assignment statements,
-        where the LHS is first considered to be READ,
-        and which is then changed to be WRITE.
-
-        :raises InternalError: if the variable originally does not have\
-            READ access.
-
-        '''
-        if self._access_type != AccessType.READ:
-            raise InternalError("Trying to change variable to 'WRITE' "
-                                "which does not have 'READ' access.")
-        self._access_type = AccessType.WRITE
-
-    def change_read_to_constant(self):
-        '''This changes the access mode from READ to CONSTANT.
-
-        :raises InternalError: if the variable does not have READ access.
-        '''
-        if self._access_type != AccessType.READ:
-            raise InternalError(f"Trying to change variable access from "
-                                f"'READ' to 'CONSTANT' but access type is "
-                                f" '{self._access_type}'.")
-        self._access_type = AccessType.CONSTANT
-
     def component_indices(self):
         '''
         :returns: a tuple of tuples of index expressions; one for every
@@ -133,6 +107,15 @@ class AccessInfo():
         :returns: the access type.
         '''
         return self._access_type
+
+    @access_type.setter
+    def access_type(self, value: AccessType) -> None:
+        '''
+        :param value: the new access type.
+        '''
+        if not isinstance(value, AccessType):
+            raise TypeError(f"Expected AccessType but got '{type(value)}'")
+        self._access_type = value
 
     def is_any_write(self) -> bool:
         '''
@@ -319,34 +302,6 @@ class AccessSequence(list):
         '''
         self.append(AccessInfo(access_type, node))
 
-    def change_read_to_constant(self):
-        '''This function is used to change a READ into a CONSTANT.
-
-        :raises InternalError: if there is an access that is not READ or
-                               INQUIRY or there is > 1 READ accesses.
-        '''
-        read_access = None
-        for acc in self:
-            if acc.access_type == AccessType.READ:
-                if read_access:
-                    raise InternalError(
-                        f"Trying to change variable '{self._signature}' to "
-                        f"'CONSTANT' but it has more than one 'READ' access."
-                    )
-                read_access = acc
-
-            elif acc.access_type not in AccessType.non_data_accesses():
-                raise InternalError(
-                    f"Variable '{self._signature}' has a '{acc.access_type}' "
-                    f"access. change_read_to_constant() expects only "
-                    f"inquiry accesses and a single 'READ' access.")
-
-        if not read_access:
-            raise InternalError(
-                f"Trying to change variable '{self._signature}' to "
-                f"'CONSTANT' but it does not have a 'READ' access.")
-        read_access.change_read_to_constant()
-
     def update(self, access_seq: AccessSequence) -> None:
         '''
         This function adds all accesses from the given access sequence
@@ -363,40 +318,6 @@ class AccessSequence(list):
                              f"access ('{access_seq.signature}').")
         for access_info in access_seq:
             self.add_access(access_info.access_type, access_info.node)
-
-    def change_read_to_write(self) -> None:
-        '''This function is only used when analysing an assignment statement.
-        The LHS has first all variables identified, which will be READ.
-        This function is then called to change the assigned-to variable
-        on the LHS to from READ to WRITE. Since the LHS is stored in a separate
-        AccessSequence class, it is guaranteed that there is only
-        one READ entry for the variable (although there maybe INQUIRY accesses
-        for array bounds).
-
-        :raises InternalError: if there is an access that is not READ or
-                               INQUIRY or there is > 1 READ access.
-        '''
-        read_access = None
-        for acc in self:
-
-            if acc.access_type == AccessType.READ:
-                if read_access:
-                    raise InternalError(
-                        f"Trying to change variable '{self._signature}' to "
-                        f"'WRITE' but it has more than one 'READ' access.")
-                read_access = acc
-
-            elif acc.access_type not in AccessType.non_data_accesses():
-                raise InternalError(
-                    f"Variable '{self._signature}' has a '{acc.access_type}' "
-                    f"access. change_read_to_write() expects only inquiry "
-                    f"accesses and a single 'READ' access.")
-
-        if not read_access:
-            raise InternalError(
-                f"Trying to change variable '{self._signature}' to 'WRITE' but"
-                f" it does not have a 'READ' access.")
-        read_access.change_read_to_write()
 
     def has_indices(self, index_variable: Optional[str] = None) -> bool:
         ''' Checks whether this variable accesses has any index. If the
