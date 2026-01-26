@@ -129,6 +129,9 @@ from psyclone.psyir.transformations.omp_declare_target_trans import \
 from psyclone.psyir.transformations.omp_parallel_trans import (
     OMPParallelTrans,
 )
+from psyclone.psyir.transformations.datanode_extract_trans import (
+    DataNodeExtractTrans
+)
 
 # For AutoAPI documentation generation
 __all__ = [
@@ -181,4 +184,5 @@ __all__ = [
     "OMPDeclareTargetTrans",
     "OMPCriticalTrans",
     "OMPParallelTrans",
+    "DataNodeExtractTrans",
 ]
