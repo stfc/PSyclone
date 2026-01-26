@@ -47,7 +47,6 @@ from psyclone.psyir.nodes import (
     ArrayReference,
     Literal,
     Reference,
-    Assignment,
     BinaryOperation,
     Call
 )

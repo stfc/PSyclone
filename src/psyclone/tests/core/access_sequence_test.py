@@ -42,7 +42,6 @@ import pytest
 from psyclone.core import (AccessInfo, Signature,
                            AccessSequence)
 from psyclone.core.access_type import AccessType
-from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Assignment, Node, Reference, Return, ArrayReference)

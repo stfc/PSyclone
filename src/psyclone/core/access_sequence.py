@@ -45,7 +45,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from psyclone.core.access_type import AccessType
 from psyclone.core.signature import Signature
-from psyclone.errors import InternalError
 
 if TYPE_CHECKING:
     from psyclone.psyir.nodes import Node
