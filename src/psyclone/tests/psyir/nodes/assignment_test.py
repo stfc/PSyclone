@@ -379,6 +379,3 @@ def test_reference_accesses(fortran_reader):
     assert accesses[Signature('g')][0].access_type == AccessType.READ
     assert accesses[Signature('g')][1].node == assigns[1].lhs
     assert accesses[Signature('g')][1].access_type == AccessType.WRITE
-
-    # The third statement also have a nested access, the implicit range has
-    # an implicit use of INQUIRY to find the bounds.
