@@ -287,6 +287,20 @@ class ArrayAssignment2LoopsTrans(Transformation):
                             f"numbers of ranges in their accessors, but found:"
                             f"\n{node.debug_string()}"))
 
+        written_ref = node_copy.walk(Reference)[0]
+        written_sig, written_idx = written_ref.get_signature_and_indices()
+        for ref in node_copy.walk(Reference)[1:]:
+            if ref.symbol is written_ref.symbol:
+                if ref.is_read:
+                    ref_sig, ref_idx = ref.get_signature_and_indices()
+                    if ref_sig == written_sig and ref_idx != written_idx:
+                        raise TransformationError(LazyString(
+                            lambda: f"{self.name} does not support statements "
+                            f"containing dependencies that would generate "
+                            f"loop-carried dependencies when naively "
+                            f"converting them to a loop, but found:"
+                            f"\n{node.debug_string()}"))
+
         # Do not allow to transform expressions with CodeBlocks
         if node_copy.walk(CodeBlock):
             message = (f"{self.name} does not support array assignments that"

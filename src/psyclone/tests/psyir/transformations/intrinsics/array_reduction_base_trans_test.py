@@ -398,17 +398,18 @@ def test_mask_array_indexed(fortran_reader, fortran_writer, tmpdir):
     code = (
         "program sum_test\n"
         "  real :: a(4)\n"
+        "  real :: b(4)\n"
         "  real :: result\n"
         "  a(1) = 2.0\n"
         "  a(2) = 1.0\n"
         "  a(3) = 2.0\n"
         "  a(4) = 1.0\n"
-        "  result = maxval(a, mask=a(1)>a)\n"
+        "  result = maxval(a, mask=b(1)>a)\n"
         "end program\n")
     expected = (
         "  result = -HUGE(result)\n"
         "  do idx = 1, 4, 1\n"
-        "    if (a(1) > a(idx)) then\n"
+        "    if (b(1) > a(idx)) then\n"
         "      result = MAX(result, a(idx))\n"
         "    end if\n"
         "  enddo\n")

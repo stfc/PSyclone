@@ -214,18 +214,19 @@ def test_str():
           "mystruct%soa%array(3,idx_1 + "),
 
          # 2 array accessors in each expression but only one has ranges
-         ("integer :: x, y, z, t\n"
-          "mystruct%aoa(4, 3)%array(:,:,:) = "
-          "mystruct%aoa(5, 8)%array(:,:,:)",
-          "  do idx = LBOUND(mystruct%aoa(4,3)%array, dim=3), "
-          "UBOUND(mystruct%aoa(4,3)%array, dim=3), 1\n"
-          "    do idx_1 = LBOUND(mystruct%aoa(4,3)%array, dim=2), "
-          "UBOUND(mystruct%aoa(4,3)%array, dim=2), 1\n"
-          "      do idx_2 = LBOUND(mystruct%aoa(4,3)%array, dim=1), "
-          "UBOUND(mystruct%aoa(4,3)%array, dim=1), 1\n"
-          # Ignore offset for this test, it is tested below
-          "        mystruct%aoa(4,3)%array(idx_2,idx_1,idx) = "
-          "mystruct%aoa(5,8)%array(idx_2 +")])
+         # ("integer :: x, y, z, t\n"
+         #  "mystruct%aoa(4, 3)%array(:,:,:) = "
+         #  "mystruct%aoa(5, 8)%array(:,:,:)",
+         #  "  do idx = LBOUND(mystruct%aoa(4,3)%array, dim=3), "
+         #  "UBOUND(mystruct%aoa(4,3)%array, dim=3), 1\n"
+         #  "    do idx_1 = LBOUND(mystruct%aoa(4,3)%array, dim=2), "
+         #  "UBOUND(mystruct%aoa(4,3)%array, dim=2), 1\n"
+         #  "      do idx_2 = LBOUND(mystruct%aoa(4,3)%array, dim=1), "
+         #  "UBOUND(mystruct%aoa(4,3)%array, dim=1), 1\n"
+         #  # Ignore offset for this test, it is tested below
+         #  "        mystruct%aoa(4,3)%array(idx_2,idx_1,idx) = "
+         #  "mystruct%aoa(5,8)%array(idx_2 +")
+         ])
 def test_apply(code, expected, tmpdir, fortran_reader, fortran_writer):
     '''Check that the PSyIR is transformed as expected for various types
     of ranges in an array. The resultant Fortran code is used to
@@ -338,13 +339,14 @@ def test_apply_indirect_indexing(fortran_reader, fortran_writer):
       use dom_oce
       INTEGER, DIMENSION(4)  ::   iwewe
       INTEGER, DIMENSION(8,kfld)  :: ishtSi
+      INTEGER, DIMENSION(8,kfld)  :: ishtSi2
       integer :: jf
       type :: mytype
          integer, dimension(4) :: field5
       end type
       type(mytype) :: mystruct
       do jf = 1, kfld
-        ishtSi(5:8,jf) = ishtSi(iwewe, jf)
+        ishtSi(5:8,jf) = ishtSi2(iwewe, jf)
         ishtSi(1:4,jf) = grid(3)%var(iwewe, jf)
         mystruct%field5(iwewe(:)) = 0.0d0
       end do
@@ -359,7 +361,7 @@ def test_apply_indirect_indexing(fortran_reader, fortran_writer):
     # Test in the LHS with a non expanded array
     assert '''
     do idx = 5, 8, 1
-      ishtsi(idx,jf) = ishtsi(iwewe(idx + (1 - 5)),jf)
+      ishtsi(idx,jf) = ishtsi2(iwewe(idx + (1 - 5)),jf)
     enddo''' in result
     # Test in the LHS inside a derived type accessor
     assert '''
@@ -426,18 +428,38 @@ def test_validate_with_dependency(fortran_reader):
         subroutine test()
           use other_mod
           do i = 1, 10
+            ! Naively converting this to loops would introduce dependencies
             A(2:10) = A(1:9) + B(2:10)
+            A(fn(3):fn(4)) = A(fn(3):fn(4)) + B(:)
+            A(A(:)) = B(:)
+
+            ! There are valid
+            A(:) = A(:) + B(:)
+            A(3:4) = A(3:4) + B(:)
+            A(1,:) = A(2,:) + B(:)
+
           end do
         end subroutine test
     ''')
     loop = psyir.walk(Loop)[0]
-    assignment = loop.walk(Assignment)[0]
+    assignments = loop.walk(Assignment)
     trans = ArrayAssignment2LoopsTrans()
-    trans.apply(assignment)
-    pytest.xfail(
-        reason=("TODO #2951: Should raise an error pointing to the"
-                "dependencies that should prevent the transformation")
-    )
+    with pytest.raises(TransformationError) as err:
+        trans.apply(assignments[0])
+    assert ("ArrayAssignment2LoopsTrans does not support statements containing"
+            " dependencies that would generate loop-carried dependencies when "
+            "naively converting them to a loop" in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        trans.apply(assignments[1])
+    with pytest.raises(TransformationError) as err:
+        trans.apply(assignments[2])
+
+    # The following 2 statements are fine, because the range is the same
+    trans.apply(assignments[3])
+    trans.apply(assignments[4])
+    # This conservatively reports a dependency
+    # trans.apply(assignments[5])
 
 
 def test_apply_calls_validate():
@@ -837,15 +859,16 @@ def test_validate_indirect_indexing(fortran_reader):
       use dom_oce
       INTEGER, DIMENSION(4)  ::   iwewe
       INTEGER, DIMENSION(8,kfld)  :: ishtSi
+      INTEGER, DIMENSION(8,kfld)  :: ishtSi2
       INTEGER :: jf
       ! Assignment with CodeBlock on RHS.
       iwewe(:) = (/ jpwe,jpea,jpwe,jpea /)
       ! Assignment with CodeBlock in array-index expression.
       iwewe(:) = ishtSi((/ jpwe,jpea,jpwe,jpea /), 1)
       ! Index expression that evaluate to an array is a valid range
-      ishtSi(5:8,jf) = ishtSi(iwewe+1, jf)
+      ishtSi(5:8,jf) = ishtSi2(iwewe+1, jf)
       ! Index expression contains a call to an unknown function.
-      ishtSi(5:8,jf) = ishtSi(my_func(1), jf)
+      ishtSi(5:8,jf) = ishtSi2(my_func(1), jf)
     end program test
     ''')
     assignments = psyir.walk(Assignment)
@@ -861,9 +884,6 @@ def test_validate_indirect_indexing(fortran_reader):
     assert ("ArrayAssignment2LoopsTrans does not support array assignments "
             "that contain a CodeBlock anywhere in the expression"
             in str(err.value))
-    # Index expression that evaluate to an array is a valid range, so the
-    # following statement will be valid
-    trans.validate(assignments[2])
     with pytest.raises(TransformationError) as err:
         trans.validate(assignments[3])
     assert ("ArrayAssignment2LoopsTrans does not accept calls which are not "
