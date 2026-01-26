@@ -53,7 +53,6 @@ from psyclone.psyir.nodes import (
 )
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
-    _convert_argument_to_constant,
     _reference_accesses_all_reads_with_optional_kind,
     _add_read_argument,
     _add_write_argument,
@@ -365,26 +364,6 @@ def test_compute_reference_accesses():
     sig, _ = j_ref.get_signature_and_indices()
     assert len(varaccesses[sig]) == 1
     assert varaccesses[sig][0].access_type == AccessType.INQUIRY
-
-
-def test_convert_argument_to_constant():
-    """Test the _convert_argument_to_constant helper function."""
-    # Test that if we supply a Read-only Reference it results in a CONSTANT.
-    symbol = DataSymbol("a", INTEGER_TYPE)
-    ref = Reference(symbol)
-    accesses = ref.reference_accesses()
-    sig, _ = ref.get_signature_and_indices()
-    assert accesses[sig].is_read_only
-    _convert_argument_to_constant(ref, accesses)
-    assert accesses[sig][0].access_type == AccessType.CONSTANT
-
-    # Test if we supply a mixed read/write reference we don't get a CONSTANT.
-    assign = Assignment.create(Reference(symbol), Reference(symbol))
-    accesses = assign.reference_accesses()
-    _convert_argument_to_constant(assign.lhs, accesses)
-    sig, _ = assign.lhs.get_signature_and_indices()
-    for access in accesses[sig]:
-        assert access.access_type != AccessType.CONSTANT
 
 
 def test_reference_accesses_all_reads_with_optional_kind(fortran_reader):
