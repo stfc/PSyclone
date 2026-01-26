@@ -39,7 +39,6 @@
 
 ''' Module containing tests for kernel transformations. '''
 
-import os
 import re
 import pytest
 
@@ -54,7 +53,6 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import (
     TransformationError, OMPDeclareTargetTrans)
 from psyclone.transformations import ACCRoutineTrans, LFRicKernelConstTrans
-from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
