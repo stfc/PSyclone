@@ -286,8 +286,9 @@ def test_field_prolong(tmpdir, dist_mem):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    assert ("use prolong_test_kernel_mod, only : prolong_test_kernel_code\n"
+            "  implicit none" in code)
     expected = (
-        "    use prolong_test_kernel_mod, only : prolong_test_kernel_code\n"
         "    use mesh_mod, only : mesh_type\n"
         "    use mesh_map_mod, only : mesh_map_type\n"
         "    type(field_type), intent(in) :: field1\n"
@@ -386,9 +387,10 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    assert ("use restrict_test_kernel_mod, only : restrict_test_kernel_code\n"
+            "  implicit none" in output)
+
     defs = (
-        "    use restrict_test_kernel_mod, "
-        "only : restrict_test_kernel_code\n"
         "    use mesh_mod, only : mesh_type\n"
         "    use mesh_map_mod, only : mesh_map_type\n"
         "    type(field_type), intent(in) :: field1\n"
