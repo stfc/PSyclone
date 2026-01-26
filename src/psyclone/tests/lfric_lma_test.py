@@ -750,10 +750,10 @@ def test_operator_read_level1_halo(tmpdir):
 
 def test_operator_bc_kernel(tmpdir):
     ''' Tests that a kernel with a particular name (starting by
-    'bounday_dofs_') is recognised as a kernel that applies boundary conditions
-    to operators and that appropriate code is added to support this: the
-    function space to get the boundary_dofs is the fs_to of the associated
-    operator).
+    'boundary_dofs_') is recognised as a kernel that applies boundary
+    conditions to operators and that appropriate code is added to support
+    this: the function space to get the boundary_dofs is the fs_to of the
+    associated operator.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,

@@ -4,7 +4,7 @@
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 
-!> Provides basic I/O utilitiy functions.
+!> Provides basic I/O utility functions.
 !>
 module io_utility_mod
 
@@ -61,7 +61,7 @@ contains
   end subroutine
 
   !> Opens a file with built-in error handling. Inability to open the file is
-  !> considered an "error" level occurance.
+  !> considered an "error" level occurrence.
   !>
   !> @todo Currently it is assumed the file is opened for reading. The API
   !>       may have to be extended to support additional options.
@@ -101,7 +101,7 @@ contains
 
   !> Closes a file and release the associated I/O unit with built-in error
   !> handling. Inability to close the file is considered an "error" level
-  !> occurance.
+  !> occurrence.
   !>
   !> @param unit [in] The I/O unit to which the file is attached. This unit is
   !>                  released as part of this call.

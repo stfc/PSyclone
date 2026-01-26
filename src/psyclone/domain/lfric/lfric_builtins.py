@@ -44,6 +44,7 @@
 
 # pylint: disable=too-many-lines
 import abc
+from enum import Enum, auto
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, VariablesAccessMap
@@ -162,12 +163,27 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     '''Abstract base class for a node representing a call to an LFRic
     built-in.
 
-    :raises NotImplementedError: if a subclass of this abstract class \
+    :raises NotImplementedError: if a subclass of this abstract class
         does not set the value of '_datatype'.
 
     '''
+    class ReductionType(Enum):
+        '''
+        Enumeration of the types of reduction an LFRicBuiltIn can perform.
+        '''
+        #: No reduction.
+        NONE = auto()
+        #: Summation reduction.
+        SUM = auto()
+        #: Global minimum value.
+        MIN = auto()
+        #: Global maximum value.
+        MAX = auto()
+
     _case_name = None
     _datatype = None
+    #: The type of reduction performed by this kernel.
+    _reduction_type: ReductionType = ReductionType.NONE
 
     def __init__(self):
         # Builtins do not accept quadrature
@@ -211,7 +227,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     def __str__(self):
         metadata = self.metadata()
         plural = ""
-        # Builtins are currenty limited to fields and scalars but add
+        # Builtins are currently limited to fields and scalars but add
         # in a check for field-vectors as well for future proofing.
         if len(metadata.meta_args_get([
                 FieldArgMetadata, FieldVectorArgMetadata])) > 1:
@@ -223,7 +239,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         :raises InternalError: if an unsupported argument type is encountered.
@@ -311,6 +327,10 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         write_count = 0  # Only one argument must be written to
         field_count = 0  # We must have one or more fields as arguments
         spaces = set()   # All field arguments must be on the same space
+        # Built-ins update fields DoF by DoF and therefore can have
+        # WRITE/READWRITE access
+        write_access_modes = [AccessType.REDUCTION, AccessType.WRITE,
+                              AccessType.READWRITE]
         # Field data types must be the same except for the conversion built-ins
         data_types = set()
         for arg in self.arg_descriptors:
@@ -328,10 +348,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                     f"must have one of {const.VALID_BUILTIN_DATA_TYPES} as "
                     f"a data type but kernel '{self.name}' has an argument "
                     f"of data type '{arg.data_type}'.")
-            # Built-ins update fields DoF by DoF and therefore can have
-            # WRITE/READWRITE access
-            if arg.access in [AccessType.WRITE, AccessType.SUM,
-                              AccessType.READWRITE]:
+            # Check for write accesses
+            if arg.access in write_access_modes:
                 write_count += 1
             if arg.argument_type in const.VALID_FIELD_NAMES:
                 field_count += 1
@@ -449,6 +467,13 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
         '''
         return self._fs_descriptors
+
+    @property
+    def reduction_type(self) -> ReductionType:
+        '''
+        :returns: the type of reduction operation performed by this Built-in.
+        '''
+        return self._reduction_type
 
     def get_dof_loop_index_symbol(self):
         '''
@@ -2350,6 +2375,7 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
     '''
     _case_name = "X_innerproduct_Y"
     _datatype = "real"
+    _reduction_type = LFRicBuiltIn.ReductionType.SUM
 
     @classmethod
     def metadata(cls):
@@ -2361,7 +2387,7 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
         '''
         gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
         return cls._builtin_metadata([
-            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            ScalarArgMetadata(gh_datatype, "gh_reduction"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
@@ -2397,6 +2423,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
     '''
     _case_name = "X_innerproduct_X"
     _datatype = "real"
+    _reduction_type = LFRicBuiltIn.ReductionType.SUM
 
     @classmethod
     def metadata(cls):
@@ -2408,7 +2435,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
         '''
         gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
         return cls._builtin_metadata([
-            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            ScalarArgMetadata(gh_datatype, "gh_reduction"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self) -> Node:
@@ -2447,6 +2474,7 @@ class LFRicSumXKern(LFRicBuiltIn):
     '''
     _case_name = "sum_X"
     _datatype = "real"
+    _reduction_type = LFRicBuiltIn.ReductionType.SUM
 
     @classmethod
     def metadata(cls):
@@ -2458,7 +2486,7 @@ class LFRicSumXKern(LFRicBuiltIn):
         '''
         gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
         return cls._builtin_metadata([
-            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            ScalarArgMetadata(gh_datatype, "gh_reduction"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def __str__(self):
@@ -2742,6 +2770,90 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)
+
+# ------------------------------------------------------------------- #
+# ============ Minimum, maximum value of real field elements) ======= #
+# ------------------------------------------------------------------- #
+
+
+class LFRicMinvalXKern(LFRicBuiltIn):
+    '''
+    Computes the (global) minimum scalar value held in
+    the supplied field.
+    '''
+    _case_name = "minval_X"
+    _datatype = "real"
+    _reduction_type = LFRicBuiltIn.ReductionType.MIN
+
+    @classmethod
+    def metadata(cls) -> LFRicKernelMetadata:
+        """
+        :returns: kernel metadata describing this built-in.
+        """
+        return cls._builtin_metadata([
+            ScalarArgMetadata("gh_real", "gh_reduction"),
+            FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
+
+    def __str__(self):
+        return (f"Built-in: {self._case_name} (compute the global minimum "
+                f"value contained in a field)")
+
+    def lower_to_language_level(self) -> Node:
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+
+        '''
+        super().lower_to_language_level()
+        # Get indexed references for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar reduction argument.
+        lhs = self._reduction_reference()
+        minval = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
+                                      [lhs.copy(), arg_refs[0]])
+        return self._replace_with_assignment(lhs, minval)
+
+
+class LFRicMaxvalXKern(LFRicBuiltIn):
+    '''
+    Computes the (global) maximum scalar value held in
+    the supplied field.
+    '''
+    _case_name = "maxval_X"
+    _datatype = "real"
+    _reduction_type = LFRicBuiltIn.ReductionType.MAX
+
+    @classmethod
+    def metadata(cls) -> LFRicKernelMetadata:
+        """
+        :returns: kernel metadata describing this built-in.
+        """
+        return cls._builtin_metadata([
+            ScalarArgMetadata("gh_real", "gh_reduction"),
+            FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
+
+    def __str__(self):
+        return (f"Built-in: {self._case_name} (compute the global maximum "
+                f"value contained in a field)")
+
+    def lower_to_language_level(self) -> Node:
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+
+        '''
+        super().lower_to_language_level()
+        # Get indexed references for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar reduction argument.
+        lhs = self._reduction_reference()
+        minval = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                      [lhs.copy(), arg_refs[0]])
+        return self._replace_with_assignment(lhs, minval)
 
 # ------------------------------------------------------------------- #
 # ============== Converting real to integer field elements ========== #
@@ -3270,6 +3382,9 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Minimum of a real scalar value and real field elements
     "min_aX": LFRicMinAXKern,
     "inc_min_aX": LFRicIncMinAXKern,
+    # Minimum and maximum values contained in a field
+    "minval_X": LFRicMinvalXKern,
+    "maxval_X": LFRicMaxvalXKern,
     # Converting real to integer field elements
     "real_to_int_X": LFRicRealToIntXKern,
     # Converting real to real field elements

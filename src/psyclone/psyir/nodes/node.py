@@ -191,7 +191,7 @@ class ChildrenList(list):
     def append(self, item):
         ''' Extends list append method with children node validation.
 
-        :param item: item to be appened to the list.
+        :param item: item to be appended to the list.
         :type item: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -237,7 +237,7 @@ class ChildrenList(list):
     def extend(self, items):
         ''' Extends list extend method with children node validation.
 
-        :param items: list of items to be appened to the list.
+        :param items: list of items to be appended to the list.
         :type items: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -529,7 +529,7 @@ class Node():
     def annotations(self):
         ''' Return the list of annotations attached to this Node.
 
-        :returns: List of anotations
+        :returns: List of annotations
         :rtype: list of str
         '''
         return self._annotations
@@ -1317,10 +1317,10 @@ class Node():
     def following_node(self, same_routine_scope=True):
         '''
         :param bool same_routine_scope: an optional (default `True`) argument
-            that enables returing only nodes from the same ancestor routine.
+            that enables returning only nodes from the same ancestor routine.
 
-        :returns: the next node (the next sibiling, or if it doesn't have one
-            the first next sibiling of its ancestors).
+        :returns: the next node (the next sibling, or if it doesn't have one
+            the first next sibling of its ancestors).
         :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         '''
@@ -1343,14 +1343,14 @@ class Node():
         `same_routine_scope` argument is set to `True` (default) then only
         nodes inside the same ancestor routine are returned.
         If `include_children` is set to `True` (default) children of itself
-        are also returned, otherwise it starts at the next sibiling.
+        are also returned, otherwise it starts at the next sibling.
 
         :param bool same_routine_scope: an optional (default `True`) argument
             that restricts the returned nodes to those belonging to the same
             ancestor routine.
         :param bool include_children: an optional (default `True`) argument
             that enables including own children, instead of starting from
-            the next sibiling.
+            the next sibling.
 
         :returns: the list of nodes that follow this one.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
@@ -1550,7 +1550,7 @@ class Node():
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -1728,7 +1728,7 @@ class Node():
         this node has been created. It currently only works with Fortran
         Statements or subchildren of them.
 
-        :returns: a string specifing the origin of this node.
+        :returns: a string specifying the origin of this node.
         :rtype: str
         '''
         name = self.coloured_name(False)
@@ -1738,13 +1738,13 @@ class Node():
         # Try to populate the line/src/filename using the ancestor Statement
         from psyclone.psyir.nodes.statement import Statement
         node = self.ancestor(Statement, include_self=True)
-        # TODO #2062: The part below is tighly coupled to fparser tree
+        # TODO #2062: The part below is tightly coupled to fparser tree
         # structure and ideally should be moved the appropriate frontend,
         # but we don't necessarely want to do all this string manipulation
         # ahead of time as it is rarely needed. One option is for the frontend
         # to provide a callable that this method will invoke to generate the
-        # string. Other frontends or PSyIR not comming from code could provide
-        # a completely different implementation in the Callable oject.
+        # string. Other frontends or PSyIR not coming from code could provide
+        # a completely different implementation in the Callable object.
         if node and node._ast:
             if hasattr(node._ast, 'item') and node._ast.item:
                 if hasattr(node._ast.item, 'reader'):

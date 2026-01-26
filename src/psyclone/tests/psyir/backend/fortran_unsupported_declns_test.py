@@ -111,7 +111,7 @@ def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
 def test_fw_unsupportedtype_routine_symbols_error(fortran_writer):
     ''' Check that the backend raises the expected error if a RoutineSymbol
     which is not imported or a Fortran interface (currently an
-    UnsupportedFortanType) is found by the gen_decls. This symbols are
+    UnsupportedFortranType) is found by the gen_decls. This symbols are
     implicitly declared by the routine definition.
 
     '''

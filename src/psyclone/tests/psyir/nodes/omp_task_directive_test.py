@@ -45,8 +45,8 @@ from psyclone.psyir.nodes import Schedule, \
     OMPSharedClause, OMPDependClause, DynamicOMPTaskDirective, \
     OMPSingleDirective
 from psyclone.errors import GenerationError
-from psyclone.transformations import OMPSingleTrans, \
-    OMPParallelTrans
+from psyclone.transformations import OMPSingleTrans
+from psyclone.psyir.transformations import OMPParallelTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")

@@ -60,7 +60,7 @@ from psyclone.tests.utilities import get_invoke
 
 def setup_module():
     '''
-    This setup routine ensures that any pre-exisiting Config object is
+    This setup routine ensures that any pre-existing Config object is
     wiped when this module is first entered and the teardown function below
     guarantees it for subsequent tests.  (Necessary when running tests in
     parallel.)

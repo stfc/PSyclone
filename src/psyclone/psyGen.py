@@ -75,9 +75,6 @@ from psyclone.psyir.symbols.symbol_table import SymbolTable
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 
-# Mapping of access type to operator.
-REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
-
 
 def object_index(alist, item):
     '''
@@ -589,7 +586,7 @@ class Invoke():
         for arg in self.unique_declarations(argument_types,
                                             intrinsic_type=intrinsic_type):
             first_arg = self.first_access(arg.declaration_name)
-            if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
+            if first_arg.access in [AccessType.WRITE, AccessType.REDUCTION]:
                 # If the first access is a write then the intent is
                 # out irrespective of any other accesses. Note,
                 # sum_args behave as if they are write_args from the
@@ -830,7 +827,7 @@ class HaloExchange(Statement):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
+        '''Return the list of arguments associated with this node. Override the
         base method and simply return our argument. '''
         return [self._field]
 
@@ -897,11 +894,10 @@ class Kern(Statement):
         self._arg_descriptors = None
 
         # Initialise any reduction information
-        reduction_modes = AccessType.get_valid_reduction_modes()
         const = Config.get().api_conf().get_constants()
         args = args_filter(self._arguments.args,
                            arg_types=const.VALID_SCALAR_NAMES,
-                           arg_accesses=reduction_modes)
+                           arg_accesses=[AccessType.REDUCTION])
         if args:
             self._reduction = True
             if len(args) != 1:
@@ -915,7 +911,7 @@ class Kern(Statement):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
+        '''Return the list of arguments associated with this node. Override the
         base method and simply return our arguments. '''
         return self.arguments.args
 
@@ -1042,15 +1038,6 @@ class Kern(Statement):
         '''
         tag = f"{self.name}:{self._reduction_arg.name}:local"
         local_symbol = table.lookup_with_tag(tag)
-        reduction_access = self._reduction_arg.access
-        if reduction_access not in REDUCTION_OPERATOR_MAPPING:
-            api_strings = [access.api_specific_name()
-                           for access in REDUCTION_OPERATOR_MAPPING]
-            raise GenerationError(
-                f"Unsupported reduction access "
-                f"'{reduction_access.api_specific_name()}' found in "
-                f"LFRicBuiltIn:reduction_sum_loop(). Expected one of "
-                f"{api_strings}.")
         symtab = table
         thread_idx = symtab.lookup_with_tag("omp_thread_index")
         nthreads = symtab.lookup_with_tag("omp_num_threads")
@@ -1646,20 +1633,20 @@ class Arguments():
     def args(self):
         return self._args
 
-    def iteration_space_arg(self):
+    def iteration_space_arg(self) -> str:
         '''
         Returns an argument that can be iterated over, i.e. modified
         (has WRITE, READWRITE or INC access), but not the result of
         a reduction operation.
 
         :returns: a Fortran argument name
-        :rtype: string
+
         :raises GenerationError: if none such argument is found.
 
         '''
         for arg in self._args:
             if arg.access in AccessType.all_write_accesses() and \
-                    arg.access not in AccessType.get_valid_reduction_modes():
+                    arg.access != AccessType.REDUCTION:
                 return arg
         raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
                               "we assume there is at least one writer, "

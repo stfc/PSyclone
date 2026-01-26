@@ -398,7 +398,7 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
-    ''' Test that we can succesfully inline a basic kernel subroutine
+    ''' Test that we can successfully inline a basic kernel subroutine
     routine into the PSy layer module using a transformation '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
                              idx=0, dist_mem=False)
@@ -808,7 +808,7 @@ def test_module_inline_with_interfaces(tmpdir):
     inline_trans = KernelModuleInlineTrans()
     inline_trans.apply(kern_calls[0])
     sym = kern_calls[0].scope.symbol_table.lookup("mixed_code")
-    # Check that the inteface symbol is declared and is private.
+    # Check that the interface symbol is declared and is private.
     assert isinstance(sym, GenericInterfaceSymbol)
     assert sym.visibility == Symbol.Visibility.PRIVATE
     # Check that module-inlining the second kernel call (which is to the
@@ -1271,7 +1271,7 @@ def test_mod_inline_all_calls_updated(monkeypatch, fortran_reader):
 
 def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     '''
-    Test that module inlining proceeeds successfully when the parent
+    Test that module inlining proceeds successfully when the parent
     Container happens to contain an unresolved RoutineSymbol representing
     the target Routine. In the usual scheme of things this should never
     happen as the frontend will put an unresolved Symbol in the table that

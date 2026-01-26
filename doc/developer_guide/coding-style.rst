@@ -162,7 +162,7 @@ Logging
 PSyclone supports the Python ``logging`` module, to help report useful
 information throughout the code. By default the logging infrastructure
 is switched off, but can be enabled either through the PSyclone command's
-options or programatically with:
+options or programmatically with:
 
 .. code-block:: python
 

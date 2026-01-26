@@ -1037,7 +1037,7 @@ class ACCWaitDirective(ACCStandaloneDirective):
         # check
         if (wait_queue is not None
            and not isinstance(wait_queue, (int, Reference))):
-            raise TypeError("Invalid value type as wait_group, shoule be"
+            raise TypeError("Invalid value type as wait_group, should be"
                             "in (None, int, Signature) !")
 
         # set
