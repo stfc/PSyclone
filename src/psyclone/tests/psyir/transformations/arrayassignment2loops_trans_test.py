@@ -654,10 +654,11 @@ def test_validate_nested_or_invalid_expressions(fortran_reader):
     assignment.lhs.member.indices[0].replace_with(Range.create(
         Literal("1", INTEGER_TYPE), Literal("10", INTEGER_TYPE)))
     with pytest.raises(TransformationError) as info:
-        trans.apply(assignment)
+        trans.apply(assignment, verbose=True)
     assert ("ArrayAssignment2LoopsTrans does not support array assignments "
             "that contain nested Range expressions, but found"
             in str(info.value))
+    assert "contain nested Range expressions" in assignment.preceding_comment
 
     # Case 2: Nested array in another array which also have Ranges
     psyir = fortran_reader.psyir_from_source('''
