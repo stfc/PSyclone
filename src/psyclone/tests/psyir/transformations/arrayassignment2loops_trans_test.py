@@ -214,18 +214,17 @@ def test_str():
           "mystruct%soa%array(3,idx_1 + "),
 
          # 2 array accessors in each expression but only one has ranges
-         # ("integer :: x, y, z, t\n"
-         #  "mystruct%aoa(4, 3)%array(:,:,:) = "
-         #  "mystruct%aoa(5, 8)%array(:,:,:)",
-         #  "  do idx = LBOUND(mystruct%aoa(4,3)%array, dim=3), "
-         #  "UBOUND(mystruct%aoa(4,3)%array, dim=3), 1\n"
-         #  "    do idx_1 = LBOUND(mystruct%aoa(4,3)%array, dim=2), "
-         #  "UBOUND(mystruct%aoa(4,3)%array, dim=2), 1\n"
-         #  "      do idx_2 = LBOUND(mystruct%aoa(4,3)%array, dim=1), "
-         #  "UBOUND(mystruct%aoa(4,3)%array, dim=1), 1\n"
-         #  # Ignore offset for this test, it is tested below
-         #  "        mystruct%aoa(4,3)%array(idx_2,idx_1,idx) = "
-         #  "mystruct%aoa(5,8)%array(idx_2 +")
+         ("integer :: x, y, z, t\n"
+          "mystruct%aoa(4, 3)%array(:,:,:) = "
+          "mystruct%aoa(4, 3)%array(:,:,:)",
+          "  do idx = LBOUND(mystruct%aoa(4,3)%array, dim=3), "
+          "UBOUND(mystruct%aoa(4,3)%array, dim=3), 1\n"
+          "    do idx_1 = LBOUND(mystruct%aoa(4,3)%array, dim=2), "
+          "UBOUND(mystruct%aoa(4,3)%array, dim=2), 1\n"
+          "      do idx_2 = LBOUND(mystruct%aoa(4,3)%array, dim=1), "
+          "UBOUND(mystruct%aoa(4,3)%array, dim=1), 1\n"
+          "        mystruct%aoa(4,3)%array(idx_2,idx_1,idx) = "
+          "mystruct%aoa(4,3)%array(idx_2,idx_1,idx)")
          ])
 def test_apply(code, expected, tmpdir, fortran_reader, fortran_writer):
     '''Check that the PSyIR is transformed as expected for various types
