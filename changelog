@@ -1,3 +1,6 @@
+   32) PR #3299 for #3297. Fix intermittent test failures by more consistent
+   use of str and Path in the ModuleManager.
+ 
    31) PR #3101 for #1312. Implements support for ScalarArray arguments to
    LFRic kernels.
  
