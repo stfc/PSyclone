@@ -55,6 +55,7 @@ from psyclone.configuration import (BaseConfig, ConfigurationError,
                                     Config, VALID_KERNEL_NAMING_SCHEMES)
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.generator import main
 from psyclone.parse import ModuleManager
 
 
@@ -794,3 +795,24 @@ def test_intrinsic_settings():
 
     assert ("backend_intrinsic_named_kwargs must be a bool but found "
             "'int'." in str(err.value))
+
+
+def test_cmd_line_flag_override(tmp_path):
+    '''Test that any specification of a configuration file on the command
+    line overrides all others.'''
+    from psyclone.domain.common import DriverCreator
+    cfg_file = tmp_path / "psyclone_test.cfg"
+    content = _CONFIG_CONTENT
+    content = re.sub(r"^FORTRAN_STANDARD = f2003",
+                     "FORTRAN_STANDARD = invalid",
+                     content, flags=re.MULTILINE)
+    with open(cfg_file, mode="w", encoding="utf-8") as ffile:
+        ffile.write(content)
+    f90_file = tmp_path / "a_test.f90"
+    my_prog = """
+    program a_test
+      write(*,*) 'hello'
+    end program a_test"""
+    with open(f90_file, mode="w", encoding="utf-8") as ffile:
+        ffile.write(my_prog)
+    main(["--config", str(cfg_file), str(f90_file)])
