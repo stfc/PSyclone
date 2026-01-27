@@ -38,9 +38,9 @@
 A simple generic transformation script to apply omp parallel and omp do.
 """
 
-from psyclone.transformations import (OMPLoopTrans, OMPMasterTrans,
-                                      OMPParallelTrans)
+from psyclone.transformations import OMPLoopTrans, OMPMasterTrans
 from psyclone.psyir.nodes import Call, FileContainer, Loop
+from psyclone.psyir.transformations import OMPParallelTrans
 
 # Set up some loop_type inference rules in order to reference useful domain
 # loop constructs by name
