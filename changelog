@@ -1,3 +1,9 @@
+   32) PR #3299 for #3297. Fix intermittent test failures by more consistent
+   use of str and Path in the ModuleManager.
+ 
+   31) PR #3101 for #1312. Implements support for ScalarArray arguments to
+   LFRic kernels.
+ 
    30) PR #3280 towards #2971. Move OMPParallelTrans to psyir.transformations. 
 
    29) PR #3275 for #3216. Allows the specification of private variables

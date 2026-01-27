@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner, O. Brunt
+# and A. Pirrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -196,7 +197,8 @@ class LFRicKern(CodedKern):
             elif descriptor.argument_type.lower() == "gh_field":
                 pre = "field_"
             elif (descriptor.argument_type.lower() in
-                  const.VALID_SCALAR_NAMES):
+                  (const.VALID_SCALAR_NAMES +
+                   const.VALID_ARRAY_NAMES)):
                 if descriptor.data_type.lower() == "gh_real":
                     pre = "rscalar_"
                 elif descriptor.data_type.lower() == "gh_integer":
@@ -208,6 +210,9 @@ class LFRicKern(CodedKern):
                         f"Expected one of {const.VALID_SCALAR_DATA_TYPES} "
                         f"data types for a scalar argument but found "
                         f"'{descriptor.data_type}'.")
+                if (descriptor.argument_type.lower() in
+                        const.VALID_ARRAY_NAMES):
+                    pre += "array_"
             else:
                 raise GenerationError(
                     f"LFRicKern.load_meta() expected one of "
@@ -773,15 +778,16 @@ class LFRicKern(CodedKern):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import (
-            LFRicCellIterators, LFRicScalarArgs, LFRicFields,
-            LFRicDofmaps, LFRicStencils)
+            LFRicCellIterators, LFRicScalarArgs, LFRicScalarArrayArgs,
+            LFRicFields, LFRicDofmaps, LFRicStencils)
         from psyclone.lfric import (
             LFRicFunctionSpaces, LFRicCMAOperators, LFRicBoundaryConditions,
             LFRicLMAOperators, LFRicMeshProperties, LFRicBasisFunctions,
             LFRicReferenceElement)
         for entities in [LFRicCellIterators, LFRicDofmaps, LFRicFunctionSpaces,
-                         LFRicCMAOperators, LFRicScalarArgs, LFRicFields,
-                         LFRicLMAOperators, LFRicStencils, LFRicBasisFunctions,
+                         LFRicCMAOperators, LFRicScalarArgs,
+                         LFRicScalarArrayArgs, LFRicFields, LFRicLMAOperators,
+                         LFRicStencils, LFRicBasisFunctions,
                          LFRicBoundaryConditions, LFRicReferenceElement,
                          LFRicMeshProperties]:
             entities(self).stub_declarations()

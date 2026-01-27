@@ -40,7 +40,6 @@
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
 import warnings
-from pathlib import Path
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -1324,20 +1323,21 @@ def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     assert isym.interface.orig_name == "my_sub"
 
 
-def test_mod_inline_shared_wildcard_import(monkeypatch, tmpdir):
+def test_mod_inline_shared_wildcard_import(monkeypatch, tmp_path,
+                                           clear_module_manager_instance):
     '''
     Check that symbols are resolved correctly when module inlining, provided
     the frontend is told to chase the imports.
 
     '''
-    with open(Path(tmpdir, "ice_params.f90"), "w") as ffile:
+    with open(tmp_path / "ice_params.f90", "w") as ffile:
         ffile.write('''\
     module ice_params
       real, parameter :: eps20 = 1.023
     end module ice_params''')
     # Create the module containing the subroutine definition that accesses
     # eps20.
-    with open(Path(tmpdir, "my_mod.f90"), "w") as ffile:
+    with open(tmp_path / "my_mod.f90", "w") as ffile:
         ffile.write('''\
     module my_mod
       use ice_params
@@ -1365,7 +1365,7 @@ def test_mod_inline_shared_wildcard_import(monkeypatch, tmpdir):
     end module this_mod'''
     # Tell the ModuleManager to chase imports from specific modules.
     ModuleManager.get().resolve_indirect_imports = ["ice_params", "my_mod"]
-    ModuleManager.get().add_search_path([tmpdir])
+    ModuleManager.get().add_search_path(tmp_path)
     reader = FortranReader(resolve_modules=["ice_params", "my_mod"])
     psyir = reader.psyir_from_source(code)
     container = psyir.children[0]
