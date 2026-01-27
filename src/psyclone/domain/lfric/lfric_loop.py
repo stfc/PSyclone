@@ -697,7 +697,7 @@ class LFRicLoop(PSyLoop):
 
         '''
         const = LFRicConstants()
-        if arg.is_scalar or arg.is_operator:
+        if arg.is_scalar or arg.is_operator or arg.is_scalar_array:
             # Scalars and operators do not have halos
             return False
         if arg.is_field:
