@@ -94,8 +94,8 @@ from psyclone.psyir.transformations.loop_tiling_2d_trans \
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.value_range_check_trans import (
     ValueRangeCheckTrans)
-from psyclone.psyir.transformations.maximal_parallel_region_trans import (
-    MaximalParallelRegionTrans)
+from psyclone.psyir.transformations.maximal_region_trans import (
+    MaximalRegionTrans)
 from psyclone.psyir.transformations.omp_critical_trans import (
     OMPCriticalTrans)
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
@@ -128,8 +128,8 @@ from psyclone.psyir.transformations.omp_taskloop_trans import \
     OMPTaskloopTrans
 from psyclone.psyir.transformations.omp_declare_target_trans import \
     OMPDeclareTargetTrans
-from psyclone.psyir.transformations.omp_maximal_parallel_region_trans import (
-    OMPMaximalParallelRegionTrans
+from psyclone.psyir.transformations.maximal_omp_parallel_region_trans import (
+    MaximalOMPParallelRegionTrans
 )
 from psyclone.psyir.transformations.omp_parallel_trans import (
     OMPParallelTrans,
@@ -184,8 +184,8 @@ __all__ = [
     "ParallelRegionTrans",
     "OMPTaskloopTrans",
     "OMPDeclareTargetTrans",
-    "MaximalParallelRegionTrans",
+    "MaximalRegionTrans",
     "OMPCriticalTrans",
-    "OMPMaximalParallelRegionTrans",
+    "MaximalOMPParallelRegionTrans",
     "OMPParallelTrans",
 ]

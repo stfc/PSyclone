@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
 
-'''This module contains the tests for the MaximalParallelRegionTrans.'''
+'''This module contains the tests for the MaximalRegionTrans.'''
 
 import pytest
 
@@ -44,16 +44,16 @@ from psyclone.psyir.nodes import (
     OMPParallelDirective,
 )
 from psyclone.psyir.transformations import (
-    MaximalParallelRegionTrans,
+    MaximalRegionTrans,
     TransformationError,
     OMPParallelTrans
 )
 
 
 # Dummy class to test MaxParallelRegionTrans' functionality.
-class MaxParTrans(MaximalParallelRegionTrans):
+class MaxParTrans(MaximalRegionTrans):
     # The apply function will do OMPParallelTrans around allowed regions.
-    _parallel_transformation = OMPParallelTrans
+    _transformation = OMPParallelTrans
     # We're only allowing assignment because its straightforward to test with.
     _allowed_nodes = (Assignment, )
     # Should parallelise any found region that contains an assignment.
@@ -73,8 +73,8 @@ class MaxParTrans(MaximalParallelRegionTrans):
         ("if(.true.) then\nj=3\nelse\ncall a_function()\nendif", False),
     ]
 )
-def test_can_be_in_parallel_region(fortran_reader, statement, expected):
-    '''Test the _can_be_in_parallel_region function of
+def test_can_be_in_region(fortran_reader, statement, expected):
+    '''Test the _can_be_in_region function of
     MaxParallelRegionTrans.'''
     code = f"""
     subroutine test
@@ -86,7 +86,7 @@ def test_can_be_in_parallel_region(fortran_reader, statement, expected):
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     trans = MaxParTrans()
-    assert trans._can_be_in_parallel_region(routine.children[0]) == expected
+    assert trans._can_be_in_region(routine.children[0]) == expected
 
 
 def test_validate(fortran_reader):
