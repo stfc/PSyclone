@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic and L. Turner, Met Office
+# Modified I. Kavcic, L. Turner and A. Pirrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the LFric classes based on ArgOrdering.'''
@@ -198,9 +198,9 @@ def test_unexpected_type_error(dist_mem):
         f"but found 'invalid'" in str(excinfo.value))
 
 
-def test_kernel_stub_invalid_scalar_argument():
+def test_kernel_invalid_scalar_argument():
     ''' Check that we raise an exception if an unexpected datatype is found
-    when using the KernStubArgList scalar method. '''
+    when using the KernStubArgList or KernCallArgList scalar methods. '''
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
 
     metadata = LFRicKernMetadata(ast)
@@ -214,7 +214,15 @@ def test_kernel_stub_invalid_scalar_argument():
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.scalar(arg)
     const = LFRicConstants()
-    assert (f"Expected argument type to be one of {const.VALID_SCALAR_NAMES} "
+    assert (f"Expected argument type to be one of "
+            f"{const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES} "
+            f"but got 'invalid'" in str(excinfo.value))
+    # Now call KernCallArgList to raise an exception
+    create_arg_list = KernCallArgList(kernel)
+    with pytest.raises(InternalError) as excinfo:
+        create_arg_list.scalar(arg)
+    assert (f"Expected argument type to be one of "
+            f"{const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES} "
             f"but got 'invalid'" in str(excinfo.value))
 
 
