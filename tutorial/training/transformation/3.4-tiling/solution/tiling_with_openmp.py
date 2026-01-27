@@ -40,22 +40,24 @@ parallelisation, and then tiles the fused loops.
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.transformations import MoveTrans, TransformationError
-from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
+from psyclone.transformations import OMPLoopTrans
 from psyclone.psyir.transformations import (InlineTrans, LoopFuseTrans,
-                                            LoopTiling2DTrans)
+                                            LoopTiling2DTrans,
+                                            OMPParallelTrans)
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Loop, Reference, Routine)
 
 
 def trans(psyir: FileContainer) -> None:
-    '''A complex program that inline all loops, moves the scalar assignment to
+    """
+    A complex program that inline all loops, moves the scalar assignment to
     the top so that all loops are next to each other. This allows loops to
     be fused then. After fusion, OpenMP parallelisation is added. Once
     parallelisation has been added, apply loop tiling.
 
     :param psyir: the PSyIR of the provided file.
 
-    '''
+    """
 
     # First inline all kernels. We first need to 'module inline' each
     # subroutine, i.e. copy the subroutine into the current module using

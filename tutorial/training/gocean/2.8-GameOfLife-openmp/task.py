@@ -43,10 +43,11 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern, GOLoop
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import FileContainer, OMPParallelDirective
-from psyclone.transformations import (OMPLoopTrans, OMPParallelLoopTrans, 
-                                      OMPParallelTrans, OMPTaskloopTrans,
-                                      GOceanOMPParallelLoopTrans,
-                                      OMPSingleTrans)
+from psyclone.psyir.transformations import OMPParallelTrans
+from psyclone.transformations import (GOceanOMPParallelLoopTrans,
+                                      OMPLoopTrans, OMPParallelLoopTrans,
+                                      OMPSingleTrans, OMPTaskloopTrans)
+                                      ,
 
 
 from fuse_loops import trans as fuse_trans

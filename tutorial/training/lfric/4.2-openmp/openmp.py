@@ -40,11 +40,11 @@ It adds a generic OpenMP parallelisation to the code.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.transformations import (OMPParallelTrans, OMPLoopTrans,
-                                      TransformationError)
 from psyclone.domain.lfric import LFRicKern, LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.psyir.nodes import FileContainer
+from psyclone.psyir.transformations import OMPParallelTrans
+from psyclone.transformations import OMPLoopTrans, TransformationError
 
 
 def trans(psyir: FileContainer) -> None:

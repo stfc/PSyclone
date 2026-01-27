@@ -43,8 +43,8 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import FileContainer, OMPParallelDirective
-from psyclone.psyir.transformations import OMPTaskloopTrans
-from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+from psyclone.psyir.transformations import OMPParallelTrans, OMPTaskloopTrans
+from psyclone.transformations import OMPSingleTrans
 
 
 def trans(psyir: FileContainer) -> None:

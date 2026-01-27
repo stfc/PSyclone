@@ -43,7 +43,8 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern, GOLoop
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import FileContainer
-from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
+from psyclone.psyir.transformations import OMPParallelTrans
+from psyclone.transformations import OMPLoopTrans
 
 from fuse_loops_last import trans as fuse_trans  # noqa: F401
 

@@ -41,9 +41,10 @@ parallelisation, and then tiles the fused loops.
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.transformations import MoveTrans, TransformationError
-from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
+from psyclone.transformations import OMPLoopTrans
 from psyclone.psyir.transformations import (InlineTrans, LoopFuseTrans,
-                                            LoopTiling2DTrans)
+                                            LoopTiling2DTrans,
+                                            OMPParallelTrans)
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer, Loop,
                                   Reference)
 
