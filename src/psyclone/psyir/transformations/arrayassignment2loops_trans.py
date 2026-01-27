@@ -287,13 +287,33 @@ class ArrayAssignment2LoopsTrans(Transformation):
                             f"numbers of ranges in their accessors, but found:"
                             f"\n{node.debug_string()}"))
 
+        # Check if there is any dependency between the written reference and
+        # any other
         written_ref = node_copy.walk(Reference)[0]
-        written_sig, written_idx = written_ref.get_signature_and_indices()
+        written_sig, written_idxs = written_ref.get_signature_and_indices()
         for ref in node_copy.walk(Reference)[1:]:
             if ref.symbol is written_ref.symbol:
-                if ref.is_read:
-                    ref_sig, ref_idx = ref.get_signature_and_indices()
-                    if ref_sig == written_sig and ref_idx != written_idx:
+                if ref.is_read:  # This is here to skip INQUIRY accesses
+                    ref_sig, ref_idxs = ref.get_signature_and_indices()
+                    if ref_sig != written_sig:
+                        # The accessor is different, there is no dependency
+                        # (unless its pointers - we ignore these)
+                        continue
+                    found_dependency = False
+                    for c1, c2 in zip(ref_idxs, written_idxs):
+                        for i1, i2 in zip(c1, c2):
+                            # The assumptions below are only true because we
+                            # don't support impure functions that could
+                            # introduce additional writes.
+                            # If none of the accesses are ranges, this will be
+                            # a loop-invariant
+                            if isinstance(i1, Range) or isinstance(i2, Range):
+                                # If the index is not exactly the same there
+                                # could be a loop-carried dependency
+                                if i1 != i2:
+                                    found_dependency = True
+                                    break
+                    if found_dependency:
                         raise TransformationError(LazyString(
                             lambda: f"{self.name} does not support statements "
                             f"containing dependencies that would generate "

@@ -430,10 +430,11 @@ def test_validate_with_dependency(fortran_reader):
           do i = 1, 10
             ! Naively converting this to loops would introduce dependencies
             A(2:10) = A(1:9) + B(2:10)
-            A(fn(3):fn(4)) = A(fn(3):fn(4)) + B(:)
+            A(fn(3):fn(4)) = A(fn(3):fn(4)) + B(:) ! fn is not known to be pure
             A(A(:)) = B(:)
+            A(globalvar,:) = A(globalvar, :) + fn(3) ! fn may update globalvar
 
-            ! There are valid
+            ! These are valid
             A(:) = A(:) + B(:)
             A(3:4) = A(3:4) + B(:)
             A(1,:) = A(2,:) + B(:)
@@ -450,16 +451,20 @@ def test_validate_with_dependency(fortran_reader):
             " dependencies that would generate loop-carried dependencies when "
             "naively converting them to a loop" in str(err.value))
 
+    # Some of them fail with other unsupported error messages, but we keep them
+    # here in case the other issue is resolved, this should still fail due to
+    # the possible dependency
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[1])
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[2])
+    with pytest.raises(TransformationError) as err:
+        trans.apply(assignments[3])
 
     # The following 2 statements are fine, because the range is the same
-    trans.apply(assignments[3])
     trans.apply(assignments[4])
-    # This conservatively reports a dependency
-    # trans.apply(assignments[5])
+    trans.apply(assignments[5])
+    trans.apply(assignments[6])
 
 
 def test_apply_calls_validate():
