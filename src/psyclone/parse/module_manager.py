@@ -224,6 +224,8 @@ class ModuleManager:
         :param bool recursive: whether recursively all subdirectories should
             be added to the search path.
 
+        :raises RuntimeError: if one of the directories specified is neither
+            a string nor a Path.
         '''
         if not isinstance(directories, list):
             # Make sure we always have a list
