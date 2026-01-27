@@ -37,7 +37,12 @@
 
 import pytest
 
-from psyclone.psyir.nodes import Assignment
+from psyclone.psyir.nodes import (
+    Assignment, Reference
+)
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE
+)
 from psyclone.psyir.transformations import (
     DataNodeExtractTrans, TransformationError
 )
@@ -68,7 +73,58 @@ def test_datanodeextracttrans_validate(fortran_reader):
         dtrans.validate(assign.rhs)
     assert ("Input node's datatype cannot be computed, so the "
             "DataNodeExtractTrans cannot be applied. Input node "
-           "was 'b + a'" in str(err.value))
+            "was 'b + a'" in str(err.value))
+
+    code = """subroutine test
+        character(len=25) :: a, b
+
+        b = a
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as err:
+        dtrans.validate(assign.rhs)
+    assert ("Input node's datatype cannot be computed, so the "
+            "DataNodeExtractTrans cannot be applied. Input node "
+            "was 'a'" in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        dtrans.validate("abc")
+    assert ("Input node to DataNodeExtractTrans should be a "
+            "DataNode but got 'str'." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        dtrans.validate(assign.rhs, storage_name=1)
+    assert ("'DataNodeExtractTrans' received options with the wrong types:\n"
+            "'storage_name' option expects type 'str' but received '1' of "
+            "type 'int'.\nPlease see the documentation and check the "
+            "provided types." in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        dtrans.validate(Reference(DataSymbol("a", INTEGER_TYPE)))
+    assert ("Input node to DataNodeExtractTrans has no ancestor Statement "
+            "node which is not supported." in str(err.value))
+
+    code = """module some_mod
+    contains
+    integer function some_func(a, b)
+        integer :: a, b
+        a = a + b
+        some_func = a + b
+    end function
+    subroutine test()
+        integer :: a, b
+
+        a = a + some_func(a,b)
+    end subroutine test
+    end module"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[2]
+    with pytest.raises(TransformationError) as err:
+        dtrans.validate(assign.rhs)
+    assert ("Input node to DataNodeExtractTrans contains a call that is not "
+            "guaranteed to be pure. Input node is 'a + some_func(a, b)'."
+            in str(err.value))
 
 
 def test_datanodeextractrans_apply(fortran_reader, fortran_writer):
@@ -102,3 +158,36 @@ def test_datanodeextractrans_apply(fortran_reader, fortran_writer):
     assert "integer :: temporary" in out
     assert "temporary = INT(a)" in out
     assert "b = temporary" in out
+
+    code = """subroutine test()
+        real, dimension(100) :: b
+        integer :: i
+
+        do i = 1, 100
+          b(i) = REAL(i)
+        end do
+     end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+    dtrans.apply(assign.rhs, storage_name="temporary")
+    out = fortran_writer(psyir)
+    assert "  real :: temporary" in out
+    assert """  do i = 1, 100, 1
+    temporary = REAL(i)
+    b(i) = temporary
+  enddo""" in out
+
+    code = """subroutine test()
+    integer, dimension(2:6) :: a
+    integer, dimension(1:3) :: b
+
+    a(2:4) = 3 * b
+
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+    dtrans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    assert "  integer, dimension(3) :: tmp" in out
+    assert """  tmp = 3 * b
+  a(:4) = tmp""" in out

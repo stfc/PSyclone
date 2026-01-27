@@ -37,8 +37,18 @@
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import DataNode, Reference, Assignment, Statement
-from psyclone.psyir.symbols.datatypes import UnresolvedType, ArrayType
+from psyclone.psyir.nodes import (
+    DataNode,
+    Reference,
+    Assignment,
+    Statement,
+    Call
+)
+from psyclone.psyir.symbols.datatypes import (
+    ArrayType,
+    UnresolvedType,
+    UnsupportedFortranType,
+)
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.utils import transformation_documentation_wrapper
 
@@ -85,20 +95,39 @@ class DataNodeExtractTrans(Transformation):
         :raises TransformationError: if the input node's datatype can't be
                                      resolved.
         :raises TransformationError: if the input node's datatype is an array
-                                     but any of the array's dimensions are
-                                     unknown.
+            but any of the array's dimensions are unknown.
+        :raises TransformationError: if the input node doesn't have an
+            ancestor statement.
+        :raises TransformationError: if the input node contains a call
+            that isn't guaranteed to be pure.
         """
         # Validate the input options and types.
         self.validate_options(**kwargs)
 
-        if isinstance(node.datatype, UnresolvedType):
+        if not isinstance(node, DataNode):
+            raise TypeError(
+                f"Input node to DataNodeExtractTrans should be a "
+                f"DataNode but got '{type(node).__name__}'."
+            )
+
+        dtype = node.datatype
+
+        calls = node.walk(Call)
+        for call in calls:
+            if not call.is_pure:
+                raise TransformationError(
+                    f"Input node to DataNodeExtractTrans contains a call "
+                    f"that is not guaranteed to be pure. Input node is "
+                    f"'{node.debug_string().strip()}'."
+                )
+
+        if isinstance(dtype, (UnresolvedType, UnsupportedFortranType)):
             raise TransformationError(
                 f"Input node's datatype cannot be computed, so the "
                 f"DataNodeExtractTrans cannot be applied. Input node was "
                 f"'{node.debug_string().strip()}'."
             )
 
-        dtype = node.datatype
         if isinstance(dtype, ArrayType):
             for element in dtype.shape:
                 if element in [ArrayType.Extent.DEFERRED,
@@ -109,14 +138,19 @@ class DataNodeExtractTrans(Transformation):
                         f"Input node was '{node.debug_string().strip()}'."
                     )
 
+        if node.ancestor(Statement) is None:
+            raise TransformationError(
+                "Input node to DataNodeExtractTrans has no ancestor "
+                "Statement node which is not supported."
+            )
+
     def apply(self, node: DataNode, storage_name: str = "", **kwargs):
-        """Applies the DataNodeExtractTransApplies to the input arguments.
+        """Applies the DataNodeExtractTrans to the input arguments.
 
         :param node: The datanode to extract.
         :param storage_name: The name of the temporary variable to store
-                             the result of the input node in. The default
-                             is tmp(_...) based on the rules defined
-                             in the SymbolTable class.
+            the result of the input node in. The default is tmp(_...)
+            based on the rules defined in the SymbolTable class.
         """
         # Call validate to check inputs are valid.
         self.validate(node, storage_name=storage_name, **kwargs)
@@ -155,3 +189,6 @@ class DataNodeExtractTrans(Transformation):
 
         # Add the assignment into the tree.
         parent.addchild(assign, pos)
+
+
+__all__ = ["DataNodeExtractTrans"]
