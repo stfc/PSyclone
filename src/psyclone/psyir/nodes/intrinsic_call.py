@@ -256,27 +256,6 @@ def _compute_reference_accesses(
     return reference_accesses
 
 
-def _convert_argument_to_constant(
-    argument: DataNode, access_info: VariablesAccessMap
-) -> None:
-    """Helper function for the common case where an argument needs to have
-    a CONSTANT access map in access_info instead of a read access.
-
-    :param argument: The argument whose access needs changing.
-    :param access_info: The access map containing the access.
-    """
-    # If the argument isn't a Reference then we don't do anything.
-    if isinstance(argument, Reference):
-        sig, _ = argument.get_signature_and_indices()
-        var_info = access_info[sig]
-        try:
-            var_info.change_read_to_constant()
-        except InternalError:
-            # The argument here is also used in some other way
-            # so we do nothing as the other usage has precedence.
-            pass
-
-
 def _reference_accesses_all_reads_with_optional_kind(
     node,
 ) -> VariablesAccessMap:
@@ -299,7 +278,8 @@ def _reference_accesses_all_reads_with_optional_kind(
         accesses = arg.reference_accesses()
         if kind_index == i:
             if isinstance(arg, Reference):
-                _convert_argument_to_constant(arg, accesses)
+                sig, _ = arg.get_signature_and_indices()
+                accesses[sig][-1].access_type = AccessType.CONSTANT
         reference_accesses.update(accesses)
 
     return reference_accesses
