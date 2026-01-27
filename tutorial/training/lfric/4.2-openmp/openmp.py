@@ -51,8 +51,7 @@ def trans(psyir: FileContainer) -> None:
     '''
     Take the supplied psyir object, apply module inlining and add generic
     OpenMP parallelisation to the code. Also check if loop fusion can
-    be applied. Also check if loop fusion can
-    be applied
+    be applied.
 
     :param psyir: the PSyIR of the PSy-layer.
 

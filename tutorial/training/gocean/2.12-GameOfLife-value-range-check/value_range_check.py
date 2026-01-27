@@ -46,7 +46,8 @@ from psyclone.psyir.transformations import ValueRangeCheckTrans
 
 def trans(psyir: FileContainer) -> None:
     '''
-    Take the supplied PSyIR object, and apply 'omp parallel do' to all loops.
+    Take the supplied PSyIR object, and apply the value range change
+    transformation to all loops.
 
     :param psyir: the PSyIR of the PSy-layer.
 
@@ -57,5 +58,3 @@ def trans(psyir: FileContainer) -> None:
         # Apply nan-testing to all loops that are outer loops:
         if loop.type ...
         ...
-
-    return psy

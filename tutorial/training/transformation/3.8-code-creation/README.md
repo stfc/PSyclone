@@ -9,12 +9,12 @@ created code.
 The task here is to create an alternative version of a loop. When
 optimising code, it can be useful to have two different versions of
 the same loop depending on loop length. For example, if the loop
-length it long enough, vectorisation might give a speed benefit,
+length is long enough, vectorisation might give a speed benefit,
 while if the loop is too short, vectorisation will have too much
 start-up overhead, causing a slow-down. Or only if the loop length
-is large enough it is worth to parallelise a loop.
+is large enough is it worth parallelising.
 
-Of course, two versions of the could be implemented in the original source
+Of course, two versions of the loop could be implemented in the original source
 code, but that has the well-known disadvantages of having to maintain
 two mostly identical source codes (e.g. a science change to the code
 would need to be done in two versions of the loop). With PSyclone,
