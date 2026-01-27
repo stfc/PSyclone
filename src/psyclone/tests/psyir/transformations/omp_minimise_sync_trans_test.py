@@ -42,12 +42,12 @@ from psyclone.psyir.nodes import (
         OMPTargetDirective, OMPParallelDirective)
 from psyclone.psyir.transformations import (
         OMPLoopTrans, OMPMinimiseSyncTrans,
-        OMPTargetTrans, TransformationError
+        OMPTargetTrans, TransformationError,
+        OMPParallelTrans
 )
 from psyclone.psyir.transformations.omp_minimise_sync_trans import (
         _eliminate_final_parallel_barrier
 )
-from psyclone.transformations import OMPParallelTrans
 
 
 def test_omp_remove_barrier_trans_str():
