@@ -85,8 +85,8 @@ from psyclone.transformations import (LFRicRedundantComputationTrans,
                                       LFRicKernelConstTrans,
                                       LFRicColourTrans,
                                       LFRicOMPLoopTrans,
-                                      OMPParallelTrans,
                                       Transformation)
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.psyir.backend.visitor import VisitorError
 
 

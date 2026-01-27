@@ -261,7 +261,8 @@ class KernCallAccArgList(KernCallArgList):
     def scalar(self, scalar_arg, var_accesses=None):
         '''
         Override the default implementation as there's no need to specify
-        scalars for an OpenACC data region.
+        scalar values for an OpenACC data region. But there is a need for
+        ScalarArrays.
 
         :param scalar_arg: the kernel argument.
         :type scalar_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
@@ -270,7 +271,14 @@ class KernCallAccArgList(KernCallArgList):
         :type var_accesses: Optional[
             :py:class:`psyclone.core.VariablesAccessMap`]
 
+        :raises NotImplementedError: OpenACC data regions are not currently
+            supported for arrays of scalars.
+
         '''
+        if scalar_arg.is_scalar_array:
+            raise NotImplementedError(
+                "OpenACC data regions are not currently supported for arrays"
+                " of scalars.")
 
 
 # ============================================================================
