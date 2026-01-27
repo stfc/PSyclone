@@ -4305,7 +4305,7 @@ def test_read_only_fields_hex(tmpdir):
     assert expected in generated_code
 
 
-def test_mixed_precision_args(tmpdir):
+def test_mixed_precision_args(tmp_path):
     '''
     Test that correct code is generated for the PSy-layer when there
     are scalars, fields and operators with different precision
@@ -4322,6 +4322,7 @@ def test_mixed_precision_args(tmpdir):
     assert """
   use field_mod, only : field_proxy_type, field_type
   use operator_mod, only : operator_proxy_type, operator_type
+  use mixed_kernel_mod, only : mixed_code
   use r_solver_field_mod, only : r_solver_field_proxy_type, r_solver_field_type
   use r_solver_operator_mod, only : r_solver_operator_proxy_type, \
 r_solver_operator_type
@@ -4336,7 +4337,6 @@ r_tran_operator_type
   subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, \
 scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, \
 field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
-    use mixed_kernel_mod, only : mixed_code
     use mesh_mod, only : mesh_type
     real(kind=r_def), intent(in) :: scalar_r_def
     type(field_type), intent(in) :: field_r_def
@@ -4388,7 +4388,7 @@ operator_r_tran_local_stencil => null()
 """ in generated_code
 
     # Test compilation
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_lfricpsy_gen_container_routines(tmpdir):

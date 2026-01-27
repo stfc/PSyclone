@@ -42,8 +42,6 @@ LFRic scalar arguments.
 '''
 
 import os
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 

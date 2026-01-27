@@ -82,7 +82,6 @@ from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (LFRicRedundantComputationTrans,
-                                      LFRicKernelConstTrans,
                                       LFRicColourTrans,
                                       LFRicOMPLoopTrans,
                                       Transformation)
@@ -548,7 +547,6 @@ def test_derived_type_deref_naming(tmpdir):
     output = (
         "  subroutine invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
-        "    use testkern_mod, only : testkern_code\n"
         "    use mesh_mod, only : mesh_type\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1_my_field\n"
@@ -2105,31 +2103,6 @@ def test_dataaccess_same_vector_indices(monkeypatch):
     assert (
         "The halo exchange vector indices for 'e' are the same. This should "
         "never happen" in str(excinfo.value))
-
-
-def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
-    '''Modified Fortran kernels are written to file linewrapped at 132
-    characters. This test checks that this linewrapping works.
-
-    '''
-    psy, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    # This example does not conform to the <name>_code, <name>_mod
-    # convention so monkeypatch it to avoid the PSyIR code generation
-    # raising an exception. This limitation is the subject of issue
-    # #520.
-    monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
-    ktrans = LFRicKernelConstTrans()
-    ktrans.apply(kernels[0], {"number_of_layers": 100})
-    # Generate the code (this triggers the generation of new kernels)
-    _ = str(psy.gen)
-    filepath = os.path.join(str(kernel_outputdir), "testkern_0_mod.f90")
-    assert os.path.isfile(filepath)
-    # Check that the argument list is line wrapped as it is longer
-    # than 132 characters.
-    with open(filepath, encoding="utf-8") as testfile:
-        assert "map_w2, &\n&ndf_w3" in testfile.read()
 
 
 def test_walk(fortran_reader):

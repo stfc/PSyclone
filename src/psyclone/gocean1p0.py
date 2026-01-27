@@ -1329,9 +1329,7 @@ class GOKernelArgument(KernelArgument):
             pass
 
         # Otherwise it's some form of Reference
-        symbol = self._call.scope.symbol_table.lookup(self.name, otherwise=None)
-        if not symbol:
-            import pdb; pdb.set_trace()
+        symbol = self._call.scope.symbol_table.lookup(self.name)
 
         # Gocean field arguments are StructureReferences to the %data attribute
         if self.argument_type == "field":

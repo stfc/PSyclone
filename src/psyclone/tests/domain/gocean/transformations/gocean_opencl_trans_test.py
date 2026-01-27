@@ -300,8 +300,7 @@ end subroutine'''
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-@pytest.mark.usefixtures("kernel_outputdir")
-def test_invoke_opencl_initialisation_grid():
+def test_invoke_opencl_initialisation_grid(kernel_outputdir):
     ''' Test that generating OpenCL generation code when there are grid
     property accesses generated the proper grid on device initialisation
     code '''
@@ -425,8 +424,7 @@ ystop - 1)
     assert "call dx%write_to_device" in candidates
     assert "call write_grid_buffers(in_fld)" in candidates
 
-    # TODO 284: Currently this example cannot be compiled because it needs to
-    # import a module which won't be found on kernel_outputdir
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_opencl_routines_initialisation(kernel_outputdir):
@@ -645,14 +643,14 @@ def test_psy_init_multiple_kernels(kernel_outputdir, mod_inline_trans):
             psy, dependencies=["model_mod.f90"])
 
 
-def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
+def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch,
+                                            mod_inline_trans):
     ''' Test that we create the appropriate subroutine to initialise an
     hybrid MPI-OpenCL environment with multiple devices per node. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0, dist_mem=True)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
     # for the GOcean gen_ocl() code generation.
-    mod_inline_trans = KernelModuleInlineTrans()
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         mod_inline_trans.apply(kernel)
@@ -688,14 +686,13 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_psy_init_with_options(kernel_outputdir):
+def test_psy_init_with_options(kernel_outputdir, mod_inline_trans):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment with the provided non-default options. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
     # for the GOcean gen_ocl() code generation.
-    mod_inline_trans = KernelModuleInlineTrans()
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         mod_inline_trans.apply(kernel)
@@ -713,7 +710,8 @@ def test_psy_init_with_options(kernel_outputdir):
 
 
 @pytest.mark.parametrize("debug_mode", [True, False])
-def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
+def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode,
+                                   mod_inline_trans):
     ''' Check that the Invoke OpenCL produce the expected kernel enqueue
     statement to launch OpenCL kernels. '''
     api_config = Config.get().api_conf("gocean")
@@ -722,7 +720,6 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
     # for the GOcean gen_ocl() code generation.
-    mod_inline_trans = KernelModuleInlineTrans()
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         mod_inline_trans.apply(kernel)
@@ -786,7 +783,7 @@ C_NULL_PTR)'''
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_opencl_kernel_boundaries_validation():
+def test_opencl_kernel_boundaries_validation(mod_inline_trans):
     ''' Check that the OpenCL transformation can not be applied if the
     kernel loop doesn't iterate the whole grid.
     '''
@@ -805,7 +802,6 @@ def test_opencl_kernel_boundaries_validation():
             "GOOpenCLTrans." in str(err.value))
 
     # After move the boundaries the OpenCL transformation should pass
-    mod_inline_trans = KernelModuleInlineTrans()
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         mod_inline_trans.apply(kernel)
@@ -813,7 +809,7 @@ def test_opencl_kernel_boundaries_validation():
     otrans.apply(sched)
 
 
-def test_opencl_options_validation():
+def test_opencl_options_validation(mod_inline_trans):
     ''' Check that OpenCL options which are not supported provide appropriate
     errors.
     '''
@@ -821,7 +817,6 @@ def test_opencl_options_validation():
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
     # for the GOcean gen_ocl() code generation.
-    mod_inline_trans = KernelModuleInlineTrans()
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         mod_inline_trans.apply(kernel)
@@ -875,7 +870,8 @@ def test_opencl_options_validation():
 @pytest.mark.usefixtures("kernel_outputdir")
 @pytest.mark.parametrize("option_to_check", ['enable_profiling',
                                              'out_of_order'])
-def test_opencl_multi_invoke_options_validation(option_to_check):
+def test_opencl_multi_invoke_options_validation(option_to_check,
+                                                mod_inline_trans):
     ''' Check that the OpenCL options constrains are enforced when there are
     multiple invokes.
     '''
@@ -884,7 +880,6 @@ def test_opencl_multi_invoke_options_validation(option_to_check):
     invoke2_schedule = psy.invokes.invoke_list[1].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
     # for the GOcean gen_ocl() code generation.
-    mod_inline_trans = KernelModuleInlineTrans()
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in invoke1_schedule.coded_kernels():
         mod_inline_trans.apply(kernel)
@@ -904,7 +899,7 @@ def test_opencl_multi_invoke_options_validation(option_to_check):
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_opencl_options_effects():
+def test_opencl_options_effects(mod_inline_trans):
     ''' Check that the OpenCL options produce the expected changes in the
     PSy layer.
     '''
@@ -913,7 +908,6 @@ def test_opencl_options_effects():
 
     # Currently, moving the boundaries inside the kernel is a prerequisite
     # for the GOcean gen_ocl() code generation.
-    mod_inline_trans = KernelModuleInlineTrans()
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         mod_inline_trans.apply(kernel)
@@ -982,7 +976,7 @@ def test_opencl_options_effects():
 
 @pytest.mark.parametrize("dist_mem", [True, False])
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_multiple_command_queues(dist_mem):
+def test_multiple_command_queues(dist_mem, mod_inline_trans):
     ''' Check that barriers (with clFinish) are inserted when a kernel (or a
     haloexchange in distributed memory) is dispatched to a different queue than
     its dependency predecessor. '''
@@ -990,7 +984,6 @@ def test_multiple_command_queues(dist_mem):
                         dist_mem=dist_mem)
     sched = psy.invokes.invoke_list[0].schedule
 
-    mod_inline_trans = KernelModuleInlineTrans()
     # Set the boundaries inside the kernel
     trans = GOMoveIterationBoundariesInsideKernelTrans()
 
@@ -1028,13 +1021,12 @@ def test_multiple_command_queues(dist_mem):
         assert kernelbarrier in generated_code
 
 
-def test_set_kern_args(kernel_outputdir):
+def test_set_kern_args(kernel_outputdir, mod_inline_trans):
     ''' Check that we generate the necessary code to set kernel arguments. '''
     psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
     # for the GOcean gen_ocl() code generation.
-    mod_inline_trans = KernelModuleInlineTrans()
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         mod_inline_trans.apply(kernel)
@@ -1096,14 +1088,13 @@ def test_set_kern_args(kernel_outputdir):
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_set_kern_args_real_grid_property(tmp_path):
+def test_set_kern_args_real_grid_property(kernel_outputdir, mod_inline_trans):
     ''' Check that we generate correct code to set a real scalar grid
     property. '''
-    psy, _ = get_invoke("driver_test.f90", API, idx=0)
-    sched = psy.invokes.invoke_list[0].schedule
+    psy, invoke = get_invoke("driver_test.f90", API, idx=0)
+    sched = invoke.schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
     # for the GOcean gen_ocl() code generation.
-    mod_inline_trans = KernelModuleInlineTrans()
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
         mod_inline_trans.apply(kernel)
@@ -1131,9 +1122,7 @@ in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
     INTEGER, INTENT(IN), TARGET :: ystart
     INTEGER, INTENT(IN), TARGET :: ystop'''
     assert expected in generated_code
-    # TODO 284: Currently this example cannot be compiled because it needs to
-    # import a module which won't be found on kernel_outputdir
-    assert GOceanOpenCLBuild(tmp_path).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_set_kern_float_arg(kernel_outputdir, mod_inline_trans):

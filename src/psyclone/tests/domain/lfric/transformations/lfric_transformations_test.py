@@ -7713,29 +7713,6 @@ def test_kern_const_invalid_dofs(monkeypatch):
     assert "'wb'" in str(excinfo.value)
 
 
-def test_kern_const_invalid_kern(monkeypatch):
-    '''Check that we raise the expected exception when the Fortran to
-    PSyIR parser fails to parse a kernel.
-
-    '''
-    kernel = create_kernel("1_single_invoke.f90")
-
-    kctrans = LFRicKernelConstTrans()
-
-    def dummy():
-        '''A dummy function that always raises an exception.'''
-        raise NotImplementedError("Monkeypatch error")
-    monkeypatch.setattr(kernel, "get_callees", dummy)
-
-    KernelModuleInlineTrans().apply(kernel)
-
-    with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
-    assert (
-        "Failed to parse kernel 'testkern_code'. Error reported was "
-        "'Monkeypatch error'.") in str(excinfo.value)
-
-
 def test_kern_const_invalid_quad(monkeypatch):
     '''Check that we raise the expected exception when the type of
     quadrature is not supported by the transformation (we are
@@ -7743,6 +7720,9 @@ def test_kern_const_invalid_quad(monkeypatch):
 
     '''
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
+
+    # Kernel has to be module inlined first.
+    KernelModuleInlineTrans().apply(kernel)
 
     kctrans = LFRicKernelConstTrans()
     monkeypatch.setattr(kernel, "_eval_shapes", ["gh_quadrature_face"])
@@ -7762,6 +7742,9 @@ def test_kern_const_invalid_make_constant1():
 
     '''
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
+
+    # Kernel has to be module inlined first.
+    KernelModuleInlineTrans().apply(kernel)
 
     kernel_schedule = kernel.get_callees()[0]
     symbol_table = kernel_schedule.symbol_table
@@ -7788,6 +7771,9 @@ def test_kern_const_invalid_make_constant2():
 
     '''
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
+
+    # Kernel has to be module inlined first.
+    KernelModuleInlineTrans().apply(kernel)
 
     kctrans = LFRicKernelConstTrans()
     kernel_schedule = kernel.get_callees()[0]

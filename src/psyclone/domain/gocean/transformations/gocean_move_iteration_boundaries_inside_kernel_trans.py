@@ -125,7 +125,6 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
         '''
         self.validate(node, options)
 
-        invoke_sched = node.ancestor(InvokeSchedule)
         self._boundary_values_declare_and_init(node)
 
         # Check that this transformation hasn't already been applied to
@@ -266,6 +265,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
         outer_loop.iteration_space = "go_all_pts"
 
         return (inv_xstart, inv_xstop, inv_ystart, inv_ystop)
+
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ['GOMoveIterationBoundariesInsideKernelTrans']
