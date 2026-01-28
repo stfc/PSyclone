@@ -46,7 +46,7 @@ env:
   NETCDF_C_VERSION: 4.9
   NETCDF_FORTRAN_VERSION: 4.6
   NVFORTRAN_VERSION: 25.7
-  ONEAPI_VERSION: 2025.0
+  INTEL_TOOLCHAIN: intel25_3_openmpi
   PERL_VERSION: 5.42
   PYTHON_VERSION: 3.14
   NUM_PARALLEL: 16
@@ -200,8 +200,8 @@ jobs:
       id: nemo_omp_cpu
       run: |
         # Load environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%oneapi@${ONEAPI_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${INTEL_TOOLCHAIN}
         source .runner_venv/bin/activate
 
         # Set up envvars
@@ -297,7 +297,7 @@ jobs:
             {
               ci_test: "NEMOv4 OpenMP for CPU",
               nemo_version: "NEMO ECMWF 4.0 V40 with mpp",
-              compiler:"intel-'"$ONEAPI_VERSION"'",
+              compiler:"'"${INTEL_TOOLCHAIN}"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_omp_cpu}}"',
               '"$COMMON_FIELDS"'
             },

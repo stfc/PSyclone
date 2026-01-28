@@ -42,9 +42,10 @@ on:
   push
 
 env:
-  NVFORTRAN_VERSION: 25.1
-  ONEAPI_VERSION: 2025.0
-  GCC_VERSION: 14
+  GNU_TOOLCHAIN: gnu14_openmpi
+  NVHPC_TOOLCHAIN: nvhpc26_1_openmpi
+  AMD_TOOLCHAIN: afar22_2_openmpi
+  INTEL_TOOLCHAIN: intel25_3_openmpi
   NUM_PARALLEL: 16
 
 jobs:
@@ -96,8 +97,8 @@ jobs:
       if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%gcc@${GCC_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${INTEL_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -127,8 +128,8 @@ jobs:
       if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -159,8 +160,8 @@ jobs:
       if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%oneapi@${ONEAPI_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${INTEL_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -188,8 +189,8 @@ jobs:
       id: bench_gfortran_omp_cpu
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%gcc@${GCC_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -221,8 +222,8 @@ jobs:
       id: bench_nvfortran_omp_offload
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -283,8 +284,8 @@ jobs:
       id: orca1_nvfortran_omp_offload
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -318,8 +319,8 @@ jobs:
       id: orca2_nvfortran_omp_offload
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -353,8 +354,8 @@ jobs:
       id: bench_nvfortran_omp_offload_async
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -411,8 +412,8 @@ jobs:
       id: orca2_nvfortran_omp_offload_async
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -447,8 +448,8 @@ jobs:
       if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -503,49 +504,49 @@ jobs:
             {
               ci_test: "NEMOv5 OpenMP for CPU (BENCH)",
               nemo_version: "NEMO 5.0-RC MO patch",
-              compiler:"gfortran-'"$GCC_VERSION"'",
+              compiler:"'"${GNU_TOOLCHAIN}"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_gfortran_omp_cpu}}"',
               '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv5 OpenMP for GPU (BENCH)",
               nemo_version: "NEMO 5.0-RC MO patch",
-              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              compiler:"'"${NVHPC_TOOLCHAIN}"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_nvfortran_omp_offload}}"',
               '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv5 OpenMP for GPU (BENCH) build time",
               nemo_version: "NEMO 5.0-RC MO patch",
-              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              compiler:"'"${NVHPC_TOOLCHAIN}"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_nvfortran_omp_offload_build}}"',
               '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv5 OpenMP for GPU (ORCA1)",
               nemo_version: "NEMO 5.0-RC MO patch",
-              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              compiler:"'"${NVHPC_TOOLCHAIN}"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca1_nvfortran_omp_offload}}"',
               '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv5 OpenMP for GPU (ORCA2)",
               nemo_version: "NEMO 5.0-RC MO patch",
-              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              compiler:"'"${NVHPC_TOOLCHAIN}"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca2_nvfortran_omp_offload}}"',
               '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv5 OpenMP for GPU Async (BENCH)",
               nemo_version: "NEMO 5.0-RC MO patch",
-              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              compiler:"'"${NVHPC_TOOLCHAIN}"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.bench_nvfortran_omp_offload_async}}"',
               '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv5 OpenMP for GPU Async (ORCA2)",
               nemo_version: "NEMO 5.0-RC MO patch",
-              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              compiler:"'"${NVHPC_TOOLCHAIN}"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.orca2_nvfortran_omp_offload_async}}"',
               '"$COMMON_FIELDS"'
             }])'
