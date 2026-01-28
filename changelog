@@ -1,3 +1,6 @@
+   34) PR #3307 for #3305. Fix default value instantiation that was loading
+   the configuration file at import-time.
+
    33) PR #3145 for #1623. Adds extensive training material using both the
    GOcean and LFRic APIs.
  
