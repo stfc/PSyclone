@@ -1,3 +1,5 @@
+   35) PR #3202. Update nvidia compiler module version.
+
    34) PR #3307 for #3305. Fix default value instantiation that was loading
    the configuration file at import-time.
 
