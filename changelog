@@ -1,3 +1,6 @@
+   33) PR #3145 for #1623. Adds extensive training material using both the
+   GOcean and LFRic APIs.
+ 
    32) PR #3299 for #3297. Fix intermittent test failures by more consistent
    use of str and Path in the ModuleManager.
  
