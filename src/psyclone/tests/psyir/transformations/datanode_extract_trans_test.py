@@ -35,8 +35,10 @@
 
 '''This module contains the DataNodeExtractTrans class.'''
 
+import os
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.psyir.nodes import (
     Assignment, Reference
 )
@@ -127,7 +129,8 @@ def test_datanodeextracttrans_validate(fortran_reader):
             in str(err.value))
 
 
-def test_datanodeextractrans_apply(fortran_reader, fortran_writer):
+def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
+                                   monkeypatch):
     """Tests the apply function of the DataNodeExtractTrans."""
     dtrans = DataNodeExtractTrans()
     code = """subroutine test()
@@ -191,3 +194,49 @@ def test_datanodeextractrans_apply(fortran_reader, fortran_writer):
     assert "  integer, dimension(3) :: tmp" in out
     assert """  tmp = 3 * b
   a(:4) = tmp""" in out
+
+    # Test the imports are handled correctly.
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            integer :: some_var
+        end module a_mod
+        ''')
+    code = """subroutine test()
+        use a_mod
+        integer :: b
+        b = some_var
+        end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    psyir.children[0].symbol_table.resolve_imports()
+    assign = psyir.walk(Assignment)[0]
+    dtrans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    assert """  integer :: tmp
+
+  tmp = some_var
+  b = tmp""" in out
+
+    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module b_mod
+            integer, dimension(25, 50) :: some_var
+        end module b_mod
+        ''')
+    code = """subroutine test()
+        use b_mod
+        integer, dimension(25, 50) :: b
+        b = some_var
+        end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    psyir.children[0].symbol_table.resolve_imports()
+    assign = psyir.walk(Assignment)[0]
+    dtrans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    assert """  integer, dimension(25,50) :: tmp
+
+  tmp = some_var
+  b = tmp""" in out
