@@ -77,7 +77,10 @@ FILES_TO_SKIP = [
     "icefrm.f90",  # Has an unsupported implicit symbol declaration
 ]
 
-NEMOV5_EXCLUSIONS = []
+NEMOV5_EXCLUSIONS = [
+    # get_cssrcsurf produces signal SIGFPE, Arithmetic exception
+    "sbcclo.f90",
+]
 
 NEMOV4_EXCLUSIONS = [
     "dynspg_ts.f90",
@@ -110,7 +113,6 @@ OFFLOADING_ISSUES = [
     "trcatf.f90",
     "stp2d.f90",
     "trabbc.f90",
-    "sbcclo.f90",
 ]
 
 ASYNC_ISSUES = [
