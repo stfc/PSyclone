@@ -110,13 +110,13 @@ OFFLOADING_ISSUES = [
     "trcatf.f90",
     "stp2d.f90",
     "trabbc.f90",
+    "sbcclo.f90",
 ]
 
 ASYNC_ISSUES = [
     # TODO #3220: Explore the cause of the async issues
     # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
     # (often invalid pointer dereference) in get_cstrgsurf
-    "sbcclo.f90",
     "trcldf.f90",
     # Runtime Error: Illegal address during kernel execution with
     # asynchronicity.
