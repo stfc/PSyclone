@@ -47,6 +47,7 @@ env:
   AMD_TOOLCHAIN: afar22_2_openmpi
   INTEL_TOOLCHAIN: intel25_3_openmpi
   NUM_PARALLEL: 16
+  PYTHON_VERSION: 3.14
 
 jobs:
   run_if_on_mirror:
