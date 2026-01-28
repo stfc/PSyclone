@@ -646,7 +646,7 @@ class DriverCreator:
                              postfix: str,
                              region_name: tuple[str, str],
                              vars_to_ignore: list[tuple[str, Signature]],
-                             writer: LanguageWriter = FortranWriter()) -> str:
+                             writer: Optional[LanguageWriter] = None) -> str:
         # pylint: disable=too-many-arguments, too-many-locals
         '''This function uses the `create()` function to get the PSyIR of a
         stand-alone driver, and then uses the provided language writer
@@ -678,7 +678,7 @@ class DriverCreator:
             they still need to be declared).
         :param language_writer: a backend visitor to convert PSyIR
             representation to the selected language. It defaults to
-            the FortranWriter.
+            the FortranWriter if not supplied.
 
         :returns: the driver in the selected language.
 
@@ -704,6 +704,9 @@ class DriverCreator:
             mod_info = mod_manager.get_module_info(module)
             out.append(mod_info.get_source_code())
 
+        if writer is None:
+            writer = FortranWriter()
+
         out.append(writer(file_container))
 
         return "\n".join(out)
@@ -716,7 +719,7 @@ class DriverCreator:
                      postfix: str,
                      region_name: tuple[str, str],
                      vars_to_ignore: list[tuple[str, Signature]],
-                     writer: LanguageWriter = FortranWriter()) -> None:
+                     writer: Optional[LanguageWriter] = None) -> None:
         # pylint: disable=too-many-arguments
         '''This function uses the `get_driver_as_string()` function to get a
         a stand-alone driver, and then writes this source code to a file. The
@@ -750,6 +753,8 @@ class DriverCreator:
         '''
         if self._region_name is not None:
             region_name = self._region_name
+        if writer is None:
+            writer = FortranWriter()
         code = self.get_driver_as_string(nodes, read_write_info, prefix,
                                          postfix, region_name,
                                          vars_to_ignore, writer=writer)
