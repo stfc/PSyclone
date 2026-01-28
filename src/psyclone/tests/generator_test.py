@@ -59,7 +59,7 @@ from fparser.two.parser import ParserFactory
 
 from psyclone import generator
 from psyclone.alg_gen import NoInvokesError
-from psyclone.configuration import Config
+from psyclone.configuration import Config, ConfigurationError
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
@@ -2089,3 +2089,26 @@ def test_intrinsic_control_settings(tmpdir, caplog):
         my_file.write(code)
     main([filename, "--backend-add-all-intrinsic-arg-names"])
     assert Config.get().backend_intrinsic_named_kwargs is True
+
+
+def test_config_overwrite() -> None:
+    ''' Test that configuration settings can be overwritten.
+    '''
+
+    # First make sure that the default values are as expected:
+    assert Config.get().reprod_pad_size == 8
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_files", "lfric",
+                            "1_single_invoke.f90")
+
+    # Overwrite the config file's reprod_pad_size setting:
+    main([filename, "--config-opts", "reprod_pad_size=27"])
+    assert Config.get().reprod_pad_size == 27
+
+    # Check error handling
+    with pytest.raises(ConfigurationError) as err:
+        main([filename, "--config-opts", "DOES_NOT_EXIST=27"])
+    assert "Unknown config overwrite: 'DOES_NOT_EXIST=27'" in str(err.value)
+
+    # Delete this config instance, so we don't affect any other tests
+    Config._instance = None
