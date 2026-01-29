@@ -90,4 +90,4 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
 
         :param nodes: can be a single node, a schedule or a list of nodes.
         '''
-        super().apply(self, nodes, **kwargs)
+        super().apply(nodes, **kwargs)

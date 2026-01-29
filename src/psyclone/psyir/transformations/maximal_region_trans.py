@@ -73,8 +73,8 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     _allowed_nodes = ()
     # Tuple of nodes that there must be at least one of inside the block
     # to be transformed, else the block can be ignored (e.g. a block of
-    # only barriers doesn't need to be transformed).
-    _required_nodes = ()
+    # only barriers doesn't need to be transformed). Defaults to any Node.
+    _required_nodes = (Node)
 
     def _can_be_in_region(self, node: Node) -> bool:
         '''Returns whether the provided node can be included in a
@@ -113,7 +113,83 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         # All other node types we default to False.
         return False
 
-    def validate(self, nodes: Union[Node, Schedule, List[Node]], **kwargs):
+    def _compute_transformable_sections(
+            self, node_list: list[Node]
+    ) -> list[list[Node]]:
+        '''
+        Computes the sections of the input node_list to apply the
+        transformation to.
+
+        :param node_list: The node_list passed into this Transformation.
+        :returns: The list of node_lists to apply this class'
+            _transformation class to.
+        '''
+        # Find the largest sections we can surround with the transformation.
+        all_blocks = []
+        current_block = []
+        for child in node_list:
+            # If the child can be added to a transformed region then add it
+            # to the current block of nodes.
+            if self._can_be_in_region(child):
+                current_block.append(child)
+            else:
+                # Otherwise, if the current_block contains any children,
+                # add them to the list of regions to be transformed and reset
+                # the current_block.
+                if current_block:
+                    for node in current_block:
+                        if node.walk(self._required_nodes,
+                                     stop_type=self._required_nodes):
+                            all_blocks.append(current_block)
+                            break
+                    current_block = []
+                # Need to recurse on some node types
+                if isinstance(child, IfBlock):
+                    if_blocks = self._compute_transformable_sections(
+                            child.if_body
+                    )
+                    all_blocks.extend(if_blocks)
+                    if child.else_body:
+                        else_blocks = self._compute_transformable_sections(
+                            child.else_body
+                        )
+                        all_blocks.extend(else_blocks)
+                if isinstance(child, (Loop, WhileLoop)):
+                    loop_blocks = self._compute_transformable_sections(
+                        child.loop_body
+                    )
+                    all_blocks.extend(loop_blocks)
+        # If any nodes are left in the current block at the end of the
+        # node_list, then add them to a transformed region
+        if current_block:
+            for node in current_block:
+                if node.walk(self._required_nodes,
+                             stop_type=self._required_nodes):
+                    all_blocks.append(current_block)
+                    break
+
+        return all_blocks
+
+
+    def _handle_invalid_block(self, err: TransformationError,
+                              block: list[Node],
+                              all_blocks: list[list[Node]]):
+        '''
+        Function to handle what happens when a discovered block fails
+        validation for the relevant transformation. Children classes
+        are free to implement their own version of this routine. The
+        default implementation removes the block from the list of blocks
+        and continues.
+
+        :param err: The TransformationError raised by the transformation's
+            validate function.
+        :param block: The block that failed validation.
+        :param all_blocks: The list of all of the blocks found during
+            application of this transformation.
+        '''
+        all_blocks.remove(block)
+
+    def validate(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
         '''Validates whether this transformation can be applied to the
         nodes provided.
 
@@ -153,38 +229,20 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         par_trans = self._transformation()
 
-        # Find the largest sections we can surround with the transformation.
-        current_block = []
-        for child in node_list:
-            # If the child can be added to a transformed region then add it
-            # to the current block of nodes.
-            if self._can_be_in_region(child):
-                current_block.append(child)
-            else:
-                # Otherwise, if the current_block contains any children,
-                # add them to a transformed region if we should and reset
-                # the current_block.
-                if current_block:
-                    for node in current_block:
-                        if node.walk(self._required_nodes,
-                                     stop_type=self._required_nodes):
-                            par_trans.apply(current_block)
-                            break
-                    current_block = []
-                # Need to recurse on some node types
-                if isinstance(child, IfBlock):
-                    self.apply(child.if_body)
-                    if child.else_body:
-                        self.apply(child.else_body)
-                if isinstance(child, Loop):
-                    self.apply(child.loop_body)
-                if isinstance(child, WhileLoop):
-                    self.apply(child.loop_body)
-        # If any nodes are left in the current block at the end of the
-        # node_list, then add them to a transformed region
-        if current_block:
-            for node in current_block:
-                if node.walk(self._required_nodes,
-                             stop_type=self._required_nodes):
-                    par_trans.apply(current_block)
-                    break
+        all_blocks = self._compute_transformable_sections(node_list)
+
+        # Check that the transformation can be applied to all of the found
+        # blocks.
+        for block in all_blocks:
+            try:
+                par_trans.validate(block)
+            except TransformationError as err:
+                # Perform class specific behaviour for a block that fails
+                # transformation validation.
+                self._handle_invalid_block(err, block, all_blocks)
+
+        # Apply the transformation to all of the blocks found.
+        for block in all_blocks:
+            par_trans.apply(block)
+
+

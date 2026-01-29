@@ -42,7 +42,7 @@ from psyclone.psyir.transformations import (
         OMPLoopTrans,
         OMPMinimiseSyncTrans,
         TransformationError,
-        OMPMaximalParallelRegionTrans
+        MaximalOMPParallelRegionTrans
 )
 from psyclone.psyir.nodes import (
         Assignment,
@@ -84,5 +84,5 @@ def trans(psyir):
     # Apply the largest possible parallel regions and remove any barriers that
     # can be removed.
     for routine in psyir.walk(Routine):
-        OMPMaximalParallelRegionTrans().apply(routine)
+        MaximalOMPParallelRegionTrans().apply(routine)
         minsync_trans.apply(routine)
