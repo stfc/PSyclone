@@ -86,7 +86,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
     <BLANKLINE>
 
     By default the transformation will reject character arrays, though this
-    can be overriden by setting the 'allow_string' option to True. Note that
+    can be overridden by setting the 'allow_string' option to True. Note that
     PSyclone expresses syntax such as `character(LEN=100)` as
     UnsupportedFortranType, and this transformation will convert unknown or
     unsupported types to loops.
@@ -156,7 +156,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
                                     Reference(loop_variable_symbol),
                                     offset)
                     range_to_replace.replace_with(index_expr)
-                    break  # We just substitue one per top-level array
+                    break  # We just substitute one per top-level array
 
             # Replace the assignment with the new explicit loop structure
             start, stop, step = lhs_range.pop_all_children()
@@ -172,8 +172,8 @@ class ArrayAssignment2LoopsTrans(Transformation):
         '''Perform various checks to ensure that it is valid to apply the
         ArrayAssignment2LoopsTrans transformation to the supplied PSyIR Node.
 
-        By default the validate function will throw an TransofmrationError
-        on character arrays, though this can be overriden by setting the
+        By default the validate function will throw an TransformationError
+        on character arrays, though this can be overridden by setting the
         allow_string option to True. Note that PSyclone expresses syntax such
         as `character(LEN=100)` as UnsupportedFortranType, and this
         transformation will convert unknown or unsupported types to loops.
@@ -254,7 +254,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
                             f"numbers of ranges in their accessors, but found:"
                             f"\n{node.debug_string()}"))
 
-        # Any errors below this point will optionally log the resason, which
+        # Any errors below this point will optionally log the reason, which
         # at the moment means adding a comment in the output code
         verbose = options.get("verbose", False)
 
@@ -372,7 +372,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
             child of character type.
 
         '''
-        # Whether or not to log the resason for raising an error. At the moment
+        # Whether or not to log the reason for raising an error. At the moment
         # "logging" means adding a comment in the output code.
         verbose = options.get("verbose", False)
 

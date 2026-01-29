@@ -108,7 +108,7 @@ def test_init():
     assert isinstance(invoke_trans, RaisePSyIR2LFRicAlgTrans)
 
 
-def test_structure_contructor(fortran_reader):
+def test_structure_constructor(fortran_reader):
     '''Test that validation does not raise an exception if the fparser2
     node is a structure constructor.
 

@@ -123,7 +123,7 @@ def test_fs_intergrid():
     arg_list = KernCallAccArgList(restrict_kern)
     arg_list.fs_intergrid(fspace)
     # For the coarse mesh we need undf and the dofmap for the column.
-    assert arg_list._arglist == ['undf_aspc1_fld_m', 'map_aspc1_fld_m']
+    assert arg_list._arglist == ['undf_as1_fld_m', 'map_as1_fld_m']
     fspace = FunctionSpace("w1", prolong_kern.arguments)
     arg_list = KernCallAccArgList(prolong_kern)
     arg_list.fs_intergrid(fspace)
@@ -217,7 +217,7 @@ def test_lfric_stencil():
 
 def test_lfric_field():
     '''Check that the method to generate a field argument returns the
-    field data varaible name and the correct variable access info.
+    field data variable name and the correct variable access info.
 
     '''
     # Use the OpenACC transforms to create the required kernels
@@ -241,3 +241,28 @@ def test_lfric_field():
     assert "f2_data: READ" in var_info
     assert "m1_data: READ" in var_info
     assert "m2_data: READ" in var_info
+
+
+def test_lfric_scalar():
+    '''Check that the scalar method throws a NotImplementedError for
+    ScalarArrays.
+
+    '''
+    # Use the OpenACC transforms to create the required kernels
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, invoke = get_invoke("28.scalar_array_invoke.f90",
+                           "lfric",
+                           idx=0, dist_mem=False)
+    sched = invoke.schedule
+    acc_par_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
+
+    # Find the first kernel:
+    kern = invoke.schedule.walk(psyGen.CodedKern)[0]
+    create_acc_arg_list = KernCallAccArgList(kern)
+    var_accesses = VariablesAccessMap()
+    with pytest.raises(NotImplementedError) as excinfo:
+        create_acc_arg_list.generate(var_accesses=var_accesses)
+    assert ("OpenACC data regions are not currently supported for arrays"
+            " of scalars.") in str(excinfo)

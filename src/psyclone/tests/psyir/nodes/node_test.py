@@ -1625,7 +1625,7 @@ def test_origin_string(fortran_reader):
     assert "ssha(ji,jj) = 0.0_go_wp" in string
 
     # If its not a Statement, the line span, filename and original source are
-    # currenlty unknown
+    # currently unknown
     string = psyir.walk(Routine)[0].origin_string()
     assert ("Routine from line <unknown> of file '<unknown>':\n"
             "> <unknown>" in string)
@@ -1887,7 +1887,7 @@ def test_following_node(fortran_reader):
     assignments = psyir.walk(Assignment)
     routines = psyir.walk(Routine)
 
-    # If it has a following sibiling, this is the following_node
+    # If it has a following sibling, this is the following_node
     assert loops[1].following_node() is assignments[1]
     assert routines[0].following_node() is routines[1]
 

@@ -42,7 +42,8 @@ generator.py script.'''
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.transformations import OMPParallelTrans, LFRicOMPLoopTrans
+from psyclone.transformations import LFRicOMPLoopTrans
+from psyclone.psyir.transformations import OMPParallelTrans
 
 
 def trans(psyir):

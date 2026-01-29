@@ -416,12 +416,13 @@ def test_get_partial_datatype():
     '''
     fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
+    st = fake_parent.symbol_table
 
     # Entry in symbol table with unmodified properties.
     reader = FortranStringReader("integer :: l1=2")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    datatype, init = processor._get_partial_datatype(node, fake_parent, st, {})
     assert isinstance(datatype, ScalarType)
     assert isinstance(init, Literal)
     assert init.parent is None
@@ -434,7 +435,7 @@ def test_get_partial_datatype():
     reader = FortranStringReader("integer, pointer :: l1 => null()")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    datatype, init = processor._get_partial_datatype(node, fake_parent, st, {})
     assert isinstance(datatype, ScalarType)
     assert isinstance(init, IntrinsicCall)
     assert init.parent is None
@@ -447,7 +448,7 @@ def test_get_partial_datatype():
     reader = FortranStringReader("real*4, target, dimension(10,20) :: l1")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    datatype, init = processor._get_partial_datatype(node, fake_parent, st, {})
     assert isinstance(datatype, ArrayType)
     assert init is None
     assert datatype.intrinsic is ScalarType.Intrinsic.REAL
@@ -463,7 +464,7 @@ def test_get_partial_datatype():
     reader = FortranStringReader(" complex :: c\n")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    dtype, init = processor._get_partial_datatype(node, fake_parent, {})
+    dtype, init = processor._get_partial_datatype(node, fake_parent, st, {})
     assert dtype is None
     assert init is None
     # Check fparser2 tree is unmodified
@@ -475,7 +476,7 @@ def test_get_partial_datatype():
         "integer, pointer :: l1 => null(), l2 => null()")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    datatype, init = processor._get_partial_datatype(node, fake_parent, st, {})
     assert isinstance(datatype, ScalarType)
     assert isinstance(init, IntrinsicCall)
     assert init.parent is None
@@ -849,7 +850,7 @@ def test_process_unsupported_declarations(fortran_reader):
     assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
                       UnsupportedFortranType)
 
-    # Test that CodeBlocks and refernces to variables initialised with a
+    # Test that CodeBlocks and references to variables initialised with a
     # CodeBlock are handled correctly
     reader = FortranStringReader(
         "INTEGER, PARAMETER :: happy=1, fbsp=sin(1), "
@@ -901,7 +902,7 @@ def test_unsupported_decln(fortran_reader):
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     with pytest.raises(NotImplementedError) as error:
-        processor._process_decln(fake_parent, symtab, fparser2spec)
+        processor._process_decln(fake_parent, symtab, fparser2spec, {})
     assert "Unrecognised attribute type 'str'" in str(error.value)
 
 
@@ -1678,13 +1679,13 @@ def test_process_use_stmts_with_accessibility_statements(parser):
                           ["other1", "other2"],  # Precise name enabled
                           False])                # Disabled
 def test_process_use_stmts_resolving_external_imports(
-        parser, tmpdir, monkeypatch, value):
+        parser, tmp_path, monkeypatch, value):
     ''' Test that if the Fparser2Reader if provided with a list of
     modules_to_import this are used to resolve external symbol information
     by the frontend.'''
 
     # Write a first module into a tmp file
-    other1 = str(tmpdir.join("other1.f90"))
+    other1 = tmp_path / "other1.f90"
     with open(other1, "w", encoding='utf-8') as my_file:
         my_file.write('''
     module other1
@@ -1701,7 +1702,7 @@ def test_process_use_stmts_resolving_external_imports(
     ''')
 
     # Write a second module to a tmp file
-    other2 = str(tmpdir.join("other2.F90"))
+    other2 = tmp_path / "other2.F90"
     with open(other2, "w", encoding='utf-8') as my_file:
         my_file.write('''
     module other2
@@ -1711,8 +1712,8 @@ def test_process_use_stmts_resolving_external_imports(
     ''')
 
     # Add the path to the include_path and set up a frontend instance
-    # witth the module_to_resolve names
-    monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
+    # with the module_to_resolve names
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
     processor = Fparser2Reader(resolve_modules=value)
     reader = FortranStringReader('''
     module test
@@ -1772,13 +1773,13 @@ def test_process_use_stmts_resolving_external_imports(
 
 
 def test_process_resolving_modules_give_correct_types(
-        parser, tmpdir, monkeypatch):
+        parser, tmp_path, monkeypatch):
     ''' Test that if the Fparser2Reader is provided with a list of
     modules_to_import these are used to resolve external symbol information
     by the frontend.'''
 
     # Write a first module into a tmp file
-    other1 = str(tmpdir.join("other.f90"))
+    other1 = tmp_path / "other.f90"
     with open(other1, "w", encoding='utf-8') as my_file:
         my_file.write('''
     module other
@@ -1822,7 +1823,7 @@ def test_process_resolving_modules_give_correct_types(
     # If we populate the module_to_resolve and add the include_path
     # then we know if they are arrays and pure/elemental
     processor = Fparser2Reader(resolve_modules=["other"])
-    monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
     psyir = processor._module_handler(module, None)
     assigns = psyir.walk(Assignment)
     assert isinstance(assigns[0].rhs, ArrayReference)
@@ -2043,7 +2044,7 @@ def test_handling_parenthesis_over_binary_op():
 
     # The parent addition does not have explicit parenthesis
     assert not bop1.has_explicit_grouping
-    # But the two inner ones have explict parenthesis syntax
+    # But the two inner ones have explicit parenthesis syntax
     assert bop2.has_explicit_grouping
     assert bop3.has_explicit_grouping
 

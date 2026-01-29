@@ -43,7 +43,8 @@
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, HaloExchange
@@ -696,7 +697,7 @@ class LFRicLoop(PSyLoop):
 
         '''
         const = LFRicConstants()
-        if arg.is_scalar or arg.is_operator:
+        if arg.is_scalar or arg.is_operator or arg.is_scalar_array:
             # Scalars and operators do not have halos
             return False
         if arg.is_field:

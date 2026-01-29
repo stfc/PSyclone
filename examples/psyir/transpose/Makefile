@@ -37,16 +37,24 @@ F90 ?= gfortran
 F90FLAGS ?= -O2 -fopenmp
 
 .PHONY: all
-all: trans trans_tiled trans_omp trans_omp_tiled
-	./trans
-	./trans_tiled
-	./trans_omp
-	./trans_omp_tiled
+all: run
 
 .PHONY: clean
 clean:
 	rm -f trans trans_tiled trans_omp trans_omp_tiled
 	rm -f trans_tiled.F90 trans_omp.F90 trans_omp_tiled.F90
+
+allclean: clean
+
+transform: trans_tiled.F90 trans_omp.F90 trans_omp_tiled.F90
+
+compile: trans trans_tiled trans_omp trans_omp_tiled
+
+run: compile
+	./trans
+	./trans_tiled
+	./trans_omp
+	./trans_omp_tiled
 
 trans_tiled.F90: trans.F90 tile.py
 	psyclone -s tile.py trans.F90 -o trans_tiled.F90
@@ -59,3 +67,6 @@ trans_omp_tiled.F90: trans.F90 omp-tile.py
 
 %: %.F90
 	$(F90) $(F90FLAGS) $< -o $@
+
+notebook:
+	@echo "No compilation supported for lfric/matmul"

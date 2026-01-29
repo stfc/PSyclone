@@ -33,7 +33,7 @@
 ! Modified I. Kavcic, Met Office
 
 
-!> An implemention of the PSyData API for profiling which wraps the use of Dr Hook.
+!> An implementation of the PSyData API for profiling which wraps the use of Dr Hook.
 
 module profile_psy_data_mod
 

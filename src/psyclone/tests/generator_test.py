@@ -901,11 +901,8 @@ end subroutine a
 
     with caplog.at_level(logging.WARNING):
         main([filename, "--keep-directives"])
-        assert caplog.records[0].levelname == "WARNING"
-        assert ("keep_directives requires keep_comments so "
-                "PSyclone enabled keep_comments."
-                in caplog.record_tuples[0][2])
-    output, _ = capsys.readouterr()
+    assert ("keep_directives requires keep_comments so "
+            "PSyclone enabled keep_comments." in caplog.text)
 
 
 def test_conditional_openmp_statements(capsys, tmpdir_factory):
@@ -1308,10 +1305,8 @@ end subroutine test"""
         assert error.value.code == 1
         out, err = capsys.readouterr()
         assert ("Failed to create PSyIR from file " in err)
-        assert caplog.records[0].levelname == "INFO"
-        assert ("' doesn't end with a recognised "
-                "file extension. Assuming free form." in
-                caplog.record_tuples[0][2])
+        assert ("' doesn't end with a recognised file extension. Assuming "
+                "free form." in caplog.text)
 
 
 @pytest.mark.parametrize("validate", [True, False])

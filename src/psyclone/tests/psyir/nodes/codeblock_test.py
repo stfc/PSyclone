@@ -142,7 +142,7 @@ def test_codeblock_get_symbol_names_comments_and_directives():
     subroutine mytest
     integer :: i, j, is
 
-    !$omp dir private(i)
+    !$ompx dir private(i)
     i = i + 1
     !dir$ omp private(j)
     i = j + 1

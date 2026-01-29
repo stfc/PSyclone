@@ -255,10 +255,10 @@ def test_create_schedule_active_variables(fortran_reader):
     assert adj_visitor._active_variables[1].name == "b"
     assert adj_visitor._active_variables[2].name == "c"
 
-    adj_visitor = AdjointVisitor(["non-existant"])
+    adj_visitor = AdjointVisitor(["non-existent"])
     with pytest.raises(KeyError) as info:
         _ = adj_visitor.schedule_node(tl_schedule)
-    assert ("Could not find 'non-existant' in the Symbol Table."
+    assert ("Could not find 'non-existent' in the Symbol Table."
             in str(info.value))
 
 

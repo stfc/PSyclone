@@ -40,8 +40,9 @@ invoke. This script can be applied via the -s option in the psyclone
 command.
 
 '''
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import LFRicOMPParallelLoopTrans, \
-    TransformationError, LFRicColourTrans, OMPParallelTrans, \
+    TransformationError, LFRicColourTrans, \
     LFRicOMPLoopTrans
 from psyclone.psyGen import Loop
 from psyclone.domain.lfric import LFRicConstants
@@ -50,7 +51,7 @@ from psyclone.domain.lfric import LFRicConstants
 def trans(psyir):
     '''PSyclone transformation script for the LFRic API that applies
     loop colouring and OpenMP parallel loop parallelisation. It also
-    outputs a textual representation of the transformated PSyIR.
+    outputs a textual representation of the transformed PSyIR.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

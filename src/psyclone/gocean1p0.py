@@ -1025,7 +1025,7 @@ class GOKern(CodedKern):
         write_accesses = []
         read_accesses = []
         for arg in self.arguments.args:
-            # Literals can be ignores as they don't change the acces pattern
+            # Literals can be ignores as they don't change the access pattern
             if arg.is_literal:
                 continue
             # For grid properties we need StructureReferences to the property
@@ -1837,7 +1837,7 @@ class GO1p0Descriptor(Descriptor):
                             that contains this metadata.
     :param kernel_arg: the relevant part of the parser's AST.
     :type kernel_arg: :py:class:`psyclone.expression.FunctionVar`
-    :param int metadata_index: the postion of this argument in the list of \
+    :param int metadata_index: the position of this argument in the list of \
                                arguments specified in the metadata.
 
     :raises ParseError: if a kernel argument has an invalid grid-point type.
@@ -1902,12 +1902,13 @@ class GO1p0Descriptor(Descriptor):
                 f"expects 2 or 3 arguments but found '{len(kernel_arg.args)}' "
                 f"in '{kernel_arg.args}'")
 
-        api_config = Config.get().api_conf("gocean")
-        access_mapping = api_config.get_access_mapping()
+        config = Config.get()
+        api_config = config.api_conf("gocean")
+        access_mapping = config.get_constants().ACCESS_MAPPING
         try:
             access_type = access_mapping[access]
         except KeyError as err:
-            valid_names = api_config.get_valid_accesses_api()
+            valid_names = sorted(access_mapping.keys())
             raise ParseError(
                 f"Meta-data error in kernel {kernel_name}: argument access is "
                 f"given as '{access}' but must be one of {valid_names}"

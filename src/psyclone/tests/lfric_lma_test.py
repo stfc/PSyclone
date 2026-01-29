@@ -750,10 +750,10 @@ def test_operator_read_level1_halo(tmpdir):
 
 def test_operator_bc_kernel(tmpdir):
     ''' Tests that a kernel with a particular name (starting by
-    'bounday_dofs_') is recognised as a kernel that applies boundary conditions
-    to operators and that appropriate code is added to support this: the
-    function space to get the boundary_dofs is the fs_to of the associated
-    operator).
+    'boundary_dofs_') is recognised as a kernel that applies boundary
+    conditions to operators and that appropriate code is added to support
+    this: the function space to get the boundary_dofs is the fs_to of the
+    associated operator.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -768,8 +768,8 @@ def test_operator_bc_kernel(tmpdir):
     assert output2 in generated_code
     output3 = (
         "call enforce_operator_bc_code(cell, nlayers_op_a, "
-        "op_a_proxy%ncell_3d, op_a_local_stencil, ndf_aspc1_op_a, "
-        "ndf_aspc2_op_a, boundary_dofs_op_a)")
+        "op_a_proxy%ncell_3d, op_a_local_stencil, ndf_as1_op_a, "
+        "ndf_as2_op_a, boundary_dofs_op_a)")
     assert output3 in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -792,7 +792,7 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     monkeypatch.setattr(arg, "_argument_type", value="gh_field")
     # We have to populate the Symbol table to get to the desired error.
     schedule.symbol_table.find_or_create_tag("op_a:data")
-    schedule.symbol_table.find_or_create("undf_aspc1_op_a",
+    schedule.symbol_table.find_or_create("undf_as1_op_a",
                                          symbol_type=symbols.DataSymbol,
                                          datatype=symbols.UnresolvedType())
     with pytest.raises(VisitorError) as excinfo:
@@ -816,7 +816,7 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     arg = call.arguments.args[0]
     # We have to populate the Symbol table to get to the desired error.
     schedule.symbol_table.find_or_create_tag("op_a:data")
-    schedule.symbol_table.find_or_create("undf_aspc1_op_a",
+    schedule.symbol_table.find_or_create("undf_as1_op_a",
                                          symbol_type=symbols.DataSymbol,
                                          datatype=symbols.UnresolvedType())
     # Make the list of arguments invalid by duplicating (a copy of)
@@ -919,7 +919,7 @@ op_6_ncell_3d, op_6, op_7_ncell_3d, op_7, op_8_ncell_3d, op_8, op_9_ncell_3d, \
 op_9, op_10_ncell_3d, op_10, op_11_ncell_3d, op_11, op_12_ncell_3d, op_12, \
 op_13_ncell_3d, op_13, ndf_w0, ndf_w1, ndf_w2, ndf_w2h, ndf_w2v, \
 ndf_w2broken, ndf_w2trace, ndf_w2htrace, ndf_w2vtrace, ndf_w3, ndf_wtheta, \
-ndf_aspc1_op_12, ndf_adspc1_op_13)
+ndf_as1_op_12, ndf_ads1_op_13)
     use constants_mod
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_w0
@@ -933,8 +933,8 @@ ndf_aspc1_op_12, ndf_adspc1_op_13)
     integer(kind=i_def), intent(in) :: ndf_w2vtrace
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: ndf_wtheta
-    integer(kind=i_def), intent(in) :: ndf_aspc1_op_12
-    integer(kind=i_def), intent(in) :: ndf_adspc1_op_13
+    integer(kind=i_def), intent(in) :: ndf_as1_op_12
+    integer(kind=i_def), intent(in) :: ndf_ads1_op_13
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: op_1_ncell_3d
     real(kind=r_def), dimension(op_1_ncell_3d,ndf_w0,ndf_w0), intent(inout) \
@@ -970,11 +970,11 @@ intent(inout) :: op_9
     real(kind=r_def), dimension(op_11_ncell_3d,ndf_wtheta,ndf_wtheta\
 ), intent(inout) :: op_11
     integer(kind=i_def), intent(in) :: op_12_ncell_3d
-    real(kind=r_def), dimension(op_12_ncell_3d,ndf_aspc1_op_12,\
-ndf_aspc1_op_12), intent(in) :: op_12
+    real(kind=r_def), dimension(op_12_ncell_3d,ndf_as1_op_12,\
+ndf_as1_op_12), intent(in) :: op_12
     integer(kind=i_def), intent(in) :: op_13_ncell_3d
-    real(kind=r_def), dimension(op_13_ncell_3d,ndf_adspc1_op_13,\
-ndf_adspc1_op_13), intent(in) :: op_13
+    real(kind=r_def), dimension(op_13_ncell_3d,ndf_ads1_op_13,\
+ndf_ads1_op_13), intent(in) :: op_13
 
 
   end subroutine dummy_code
@@ -1031,9 +1031,9 @@ def test_stub_operator_different_spaces(fortran_writer):
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     result = fortran_writer(kernel.gen_stub)
-    assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, ndf_adspc2_op_1)"
+    assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, ndf_ads2_op_1)"
             in result)
-    assert "dimension(op_1_ncell_3d,ndf_w3,ndf_adspc2_op_1)" in result
+    assert "dimension(op_1_ncell_3d,ndf_w3,ndf_ads2_op_1)" in result
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     assert "function_space_to[3]='w3'" in result

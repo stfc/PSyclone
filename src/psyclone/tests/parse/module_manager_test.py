@@ -38,6 +38,7 @@
 
 import logging
 import os
+from pathlib import Path
 import pytest
 
 from psyclone.errors import InternalError
@@ -114,6 +115,8 @@ def test_mod_manager_directory_reading() -> None:
     # to the search path
     mod_man.add_search_path(["d1"])
     assert list(mod_man._remaining_search_paths) == ["d1", "d1/d3"]
+    mod_man.add_search_path([Path("d1")])
+    assert list(mod_man._remaining_search_paths) == ["d1", "d1/d3"]
     mod_man.add_search_path(["d1/d3"])
     assert list(mod_man._remaining_search_paths) == ["d1", "d1/d3"]
 
@@ -121,8 +124,8 @@ def test_mod_manager_directory_reading() -> None:
     mod_man.add_search_path(["d2"], recursive=False)
     assert list(mod_man._remaining_search_paths) == ["d1", "d1/d3", "d2"]
     # Added same path again with recursive, which should only
-    # add the new subdirectories
-    mod_man.add_search_path(["d2"], recursive=True)
+    # add the new subdirectories. Also use a Path
+    mod_man.add_search_path([Path("d2")], recursive=True)
     assert list(mod_man._remaining_search_paths) == ["d1", "d1/d3", "d2",
                                                      "d2/d4"]
 
@@ -131,6 +134,12 @@ def test_mod_manager_directory_reading() -> None:
         mod_man.add_search_path("does_not_exist")
     assert ("Directory 'does_not_exist' does not exist or cannot be read"
             in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        # Invalid Type
+        mod_man.add_search_path(123)
+    assert ("ModuleManager.add_search_path expects a string or Path as "
+            "directory, got '123', which is ' of type 'int'" in str(err.value))
 
 
 # ----------------------------------------------------------------------------
@@ -207,7 +216,11 @@ def test_mod_manager_get_module_info() -> None:
     '''
 
     mod_man = ModuleManager.get()
-    mod_man.add_search_path("d1")
+    # Using Path here means that we test that the error message at
+    # the end works as expected (otherwise an error in the module manager
+    # happens trying to use `",".join(...)` with a Path). So, this
+    # Path makes sure that the ModuleManager correctly handles the Path.
+    mod_man.add_search_path(Path("d1"))
     mod_man.add_search_path("d2")
     assert list(mod_man._remaining_search_paths) == ["d1", "d1/d3", "d2",
                                                      "d2/d4"]

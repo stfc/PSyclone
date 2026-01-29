@@ -3,7 +3,7 @@
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
-!> @brief This version is for use on discontinous spaces and over-writes the
+!> @brief This version is for use on discontinuous spaces and over-writes the
 !>        output field entirely, hence can only be used for W3 spaces
 module dg_matrix_vector_kernel_mod
 

@@ -498,7 +498,7 @@ class SIRWriter(PSyIRVisitor):
         contents of the 'then' part of an 'if' statement and the
         contents of the 'else' part of an 'if' statement. The schedule
         has no content so simply calls its children and returns the
-        agregated result.
+        aggregated result.
 
         :param node: a Schedule PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Schedule`
