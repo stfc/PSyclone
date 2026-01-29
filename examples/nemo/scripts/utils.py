@@ -40,14 +40,14 @@ from typing import List, Union
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Assignment, Loop, Directive, Node, Reference, CodeBlock, Call, Return,
-    IfBlock, Routine, Schedule, IntrinsicCall, StructureReference)
+    Assignment, Loop, Directive, Node, Reference, CodeBlock, Call,
+    Routine, Schedule, IntrinsicCall, StructureReference)
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
     OMPMinimiseSyncTrans, Reference2ArrayRangeTrans,
-    ScalarisationTrans, IncreaseRankLoopArraysTrans)
+    ScalarisationTrans, IncreaseRankLoopArraysTrans, MaximalRegionTrans)
 from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
@@ -491,5 +491,5 @@ def add_profiling(children: Union[List[Node], Schedule]):
     parent_routine = children[0].ancestor(Routine)
     if parent_routine and parent_routine.return_symbol:
         return
-    
+
     MaximalProfilingTrans.apply(children)
