@@ -120,14 +120,6 @@ class DataNodeExtractTrans(Transformation):
                     f"that is not guaranteed to be pure. Input node is "
                     f"'{node.debug_string().strip()}'."
                 )
-
-        if isinstance(dtype, (UnresolvedType, UnsupportedFortranType)):
-            raise TransformationError(
-                f"Input node's datatype cannot be computed, so the "
-                f"DataNodeExtractTrans cannot be applied. Input node was "
-                f"'{node.debug_string().strip()}'."
-            )
-
         if isinstance(dtype, ArrayType):
             for element in dtype.shape:
                 if element in [ArrayType.Extent.DEFERRED,
@@ -137,11 +129,34 @@ class DataNodeExtractTrans(Transformation):
                         f"so the DataNodeExtractTrans cannot be applied. "
                         f"Input node was '{node.debug_string().strip()}'."
                     )
+                # Otherwise we have an ArrayBounds
+                symbols = set()
+                if isinstance(element.lower, DataNode):
+                    symbols.update(element.lower.get_all_accessed_symbols())
+                if isinstance(element.upper, DataNode):
+                    symbols.update(element.upper.get_all_accessed_symbols())
+                scope_symbols = node.scope.symbol_table.get_symbols()
+                for sym in symbols:
+                    scoped_name_sym = scope_symbols.get(sym.name, None)
+                    if scoped_name_sym and not sym is scoped_name_sym:
+                        raise TransformationError(
+                            f"Input node contains an imported symbol whose "
+                            f"name collides with an existing symbol, so the "
+                            f"DataNodeExtractTrans cannot be applied. "
+                            f"Clashing symbol name is '{sym.name}'."
+                        )
 
         if node.ancestor(Statement) is None:
             raise TransformationError(
                 "Input node to DataNodeExtractTrans has no ancestor "
                 "Statement node which is not supported."
+            )
+
+        if isinstance(dtype, (UnresolvedType, UnsupportedFortranType)):
+            raise TransformationError(
+                f"Input node's datatype cannot be computed, so the "
+                f"DataNodeExtractTrans cannot be applied. Input node was "
+                f"'{node.debug_string().strip()}'."
             )
 
     def apply(self, node: DataNode, storage_name: str = "", **kwargs):
@@ -172,6 +187,25 @@ class DataNodeExtractTrans(Transformation):
                 allow_renaming=False,
                 datatype=datatype
             )
+
+        # FIXME Make sure the shape is all in the symbol table. We know that
+        # all symbols we find can be safely added as otherwise validate will
+        # fail.
+        # This is an oversimplification because we could have multiple
+        # references to the same symbol...
+        if isinstance(datatype, ArrayType):
+            for element in dtype.shape:
+                symbols = set()
+                if isinstance(element.lower, DataNode):
+                    symbols.update(element.lower.get_all_accessed_symbols())
+                if isinstance(element.upper, DataNode):
+                    symbols.update(element.upper.get_all_accessed_symbols())
+                scope_symbols = node.scope.symbol_table.get_symbols()
+                for sym in symbols:
+                    scoped_name_sym = scope_symbols.get(sym.name, None)
+                    if not scoped_name_sym:
+                       sym_copy = symbol.copy()
+                       node.scope.symbol_table.add(sym_copy)
 
         # Create a Reference to the new symbol
         new_ref = Reference(symbol)

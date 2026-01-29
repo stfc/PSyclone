@@ -50,7 +50,7 @@ from psyclone.psyir.transformations import (
 )
 
 
-def test_datanodeextracttrans_validate(fortran_reader):
+def test_datanodeextracttrans_validate(fortran_reader, tmpdir, monkeypatch):
     """Tests the validate function of the DataNodeExtractTrans."""
     dtrans = DataNodeExtractTrans()
     code = """subroutine test(a, b, c)
@@ -127,6 +127,30 @@ def test_datanodeextracttrans_validate(fortran_reader):
     assert ("Input node to DataNodeExtractTrans contains a call that is not "
             "guaranteed to be pure. Input node is 'a + some_func(a, b)'."
             in str(err.value))
+
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            use some_mod, only: i
+            integer, dimension(25, i) :: some_var
+        end module a_mod
+        ''')
+    code = """subroutine test()
+        use a_mod, only: some_var
+        integer, dimension(25, 50) :: b
+        integer :: i
+        b = some_var
+        end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    psyir.children[0].symbol_table.resolve_imports()
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as err:
+        dtrans.validate(assign.rhs)
+    assert ("Input node contains an imported symbol whose name collides "
+            "with an existing symbol, so the DataNodeExtractTrans cannot be "
+            "applied. Clashing symbol name is 'i'." in str(err.value))
 
 
 def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
@@ -240,3 +264,26 @@ def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
 
   tmp = some_var
   b = tmp""" in out
+
+    filename = os.path.join(str(tmpdir), "c_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module c_mod
+            use some_mod, only: i
+            integer, dimension(25, i) :: some_var
+        end module c_mod
+        ''')
+    code = """subroutine test()
+        use c_mod, only: some_var
+        integer, dimension(25, 50) :: b
+        b = some_var
+        end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    psyir.children[0].symbol_table.resolve_imports()
+    assign = psyir.walk(Assignment)[0]
+    dtrans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    print(psyir.walk(Assignment)[0].rhs.symbol.shape[1].upper.symbol.interface)
+    print(psyir.walk(Assignment)[0].rhs.symbol.shape[1].upper.symbol.is_unknown_interface)
+    print(out)
+    assert False
