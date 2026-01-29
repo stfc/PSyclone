@@ -36,7 +36,7 @@
 '''This module contains the MaximalRegionTrans.'''
 
 import abc
-from typing import Union, List
+from typing import Union
 
 from psyclone.psyir.nodes import (
     Node,
@@ -170,7 +170,6 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         return all_blocks
 
-
     def _handle_invalid_block(self, err: TransformationError,
                               block: list[Node],
                               all_blocks: list[list[Node]]):
@@ -244,5 +243,3 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         # Apply the transformation to all of the blocks found.
         for block in all_blocks:
             par_trans.apply(block)
-
-
