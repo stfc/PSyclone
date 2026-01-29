@@ -44,7 +44,6 @@ on:
 env:
   GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_TOOLCHAIN: nvhpc26_1_openmpi
-  AMD_TOOLCHAIN: afar22_2_openmpi
   INTEL_TOOLCHAIN: intel25_3_openmpi
   PYTHON_VERSION: 3.14
   NUM_PARALLEL: 16
