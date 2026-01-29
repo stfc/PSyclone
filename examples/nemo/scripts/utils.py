@@ -291,7 +291,8 @@ def increase_rank_and_reorder_nemov5_loops(routine: Routine):
         "dyn_zdf": ['zwd', 'zwi', 'zws'],
         "tra_zdf_imp": ['zwd', 'zwi', 'zws', 'zwt'],
         "tke_tke": ['zice_fra', 'zd_lw', 'zd_up', 'zdiag', 'zwlc2', 'zpelc',
-                    'imlc', 'zhlc', 'zus3']
+                    'imlc', 'zhlc', 'zus3'],
+        "tke_avn": ['zmxlm', 'zmxld']
     }
 
     if routine.name not in selection:

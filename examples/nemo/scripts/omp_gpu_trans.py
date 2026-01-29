@@ -80,6 +80,7 @@ FILES_TO_SKIP = [
 NEMOV5_EXCLUSIONS = [
     # get_cssrcsurf produces signal SIGFPE, Arithmetic exception
     "sbcclo.f90",
+    "fldread.f90",
 ]
 
 NEMOV4_EXCLUSIONS = [
@@ -175,8 +176,10 @@ def trans(psyir):
             continue
         if not NEMOV4 and psyir.name in NEMOV5_EXCLUSIONS:
             continue
-        # ICE routines do not perform well on GPU, so we skip them
+        # ICE and ICB routines do not perform well on GPU, so we skip them
         if psyir.name.startswith("ice"):
+            continue
+        if psyir.name.startswith("icb"):
             continue
         # Skip initialisation and diagnostic subroutines
         if (subroutine.name.endswith('_alloc') or
@@ -187,6 +190,12 @@ def trans(psyir):
                 subroutine.name == 'dom_zgr' or
                 subroutine.name == 'dom_ngb'):
             continue
+        if subroutine.name == "solfrac_mod.f90":
+            # Bring these solfrac parameters to the subroutine as nvidia
+            # does not permit offloaded kernels to access module parameters
+            symtab = subroutine.symbol_table
+            symtab.add(symtab.lookup("pp_wgt"))
+            symtab.add(symtab.lookup("pp_len"))
 
         normalise_loops(
                 subroutine,
