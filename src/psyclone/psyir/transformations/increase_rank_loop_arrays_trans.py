@@ -197,9 +197,12 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     # we will just be repeated to each index of the new rank
                     continue
                 if (isinstance(check.parent, IntrinsicCall) and
+                        check.parent.is_inquiry and
                         "dim" in check.parent.argument_names):
-                    # Intrinsics calls to a given 'dim' are still ok because
-                    # they still get the same rank
+                    # Inquiry intrinsics calls to a given 'dim' are still ok
+                    # because the specific dims still match (the new dimension
+                    # is the outer one) and the per-rank information is still
+                    # the same
                     continue
                 # Everything else is currently forbidden
                 non_supported_outside_loop_symbols.add(check.symbol)

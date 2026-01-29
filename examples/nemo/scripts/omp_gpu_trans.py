@@ -80,7 +80,6 @@ FILES_TO_SKIP = [
 NEMOV5_EXCLUSIONS = [
     # get_cssrcsurf produces signal SIGFPE, Arithmetic exception
     "sbcclo.f90",
-    "fldread.f90",
 ]
 
 NEMOV4_EXCLUSIONS = [
