@@ -1,3 +1,5 @@
+   36) PR #3308. Update Spack environment to use updated compiler versions.
+ 
    35) PR #3202. Update nvidia compiler module version.
 
    34) PR #3307 for #3305. Fix default value instantiation that was loading
