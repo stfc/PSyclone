@@ -142,65 +142,49 @@ def _compute_reference_accesses(
     :returns: the reference accesses of node.
     """
     reference_accesses = VariablesAccessMap()
-    # For indices, we only apply them if there is no argument name, othrwise
-    # it should be handled by the argument names.
-    for ind in read_indices:
-        if ind < len(node.arguments) and node.argument_names[ind] is None:
-            arg = node.arguments[ind]
+    for ind, arg in enumerate(node.arguments):
+        # For indices, we only apply them if there is no argument name,
+        # otherwise it should be handled by the argument names.
+        if ind in read_indices:
             _add_argument_of_access_type(arg, reference_accesses,
                                          AccessType.READ)
-    for ind in write_indices:
-        if ind < len(node.arguments) and node.argument_names[ind] is None:
-            arg = node.arguments[ind]
+            continue
+        if ind in write_indices:
             _add_argument_of_access_type(arg, reference_accesses,
                                          AccessType.WRITE)
-    for ind in readwrite_indices:
-        if ind < len(node.arguments) and node.argument_names[ind] is None:
-            arg = node.arguments[ind]
+            continue
+        if ind in readwrite_indices:
             _add_argument_of_access_type(arg, reference_accesses,
                                          AccessType.READWRITE)
-    for ind in constant_indices:
-        if ind < len(node.arguments) and node.argument_names[ind] is None:
-            arg = node.arguments[ind]
+            continue
+        if ind in constant_indices:
             _add_argument_of_access_type(arg, reference_accesses,
                                          AccessType.CONSTANT)
-    for ind in inquiry_indices:
-        if ind < len(node.arguments) and node.argument_names[ind] is None:
-            arg = node.arguments[ind]
+            continue
+        if ind in inquiry_indices:
             _add_argument_of_access_type(arg, reference_accesses,
                                          AccessType.INQUIRY)
-    # For each named argument provided, we check if they are defined
-    # for the given intrinsicCall as they are optional.
-    for name in read_named_args:
-        if name not in node.argument_names:
             continue
-        arg = node.arguments[node.argument_names.index(name)]
-        _add_argument_of_access_type(arg, reference_accesses,
-                                     AccessType.READ)
-    for name in write_named_args:
-        if name not in node.argument_names:
+        if node.argument_names[ind] in read_named_args:
+            _add_argument_of_access_type(arg, reference_accesses,
+                                         AccessType.READ)
             continue
-        arg = node.arguments[node.argument_names.index(name)]
-        _add_argument_of_access_type(arg, reference_accesses,
-                                     AccessType.WRITE)
-    for name in constant_named_args:
-        if name not in node.argument_names:
+        if node.argument_names[ind] in write_named_args:
+            _add_argument_of_access_type(arg, reference_accesses,
+                                         AccessType.WRITE)
             continue
-        arg = node.arguments[node.argument_names.index(name)]
-        _add_argument_of_access_type(arg, reference_accesses,
-                                     AccessType.CONSTANT)
-    for name in inquiry_named_args:
-        if name not in node.argument_names:
+        if node.argument_names[ind] in constant_named_args:
+            _add_argument_of_access_type(arg, reference_accesses,
+                                         AccessType.CONSTANT)
             continue
-        arg = node.arguments[node.argument_names.index(name)]
-        _add_argument_of_access_type(arg, reference_accesses,
-                                     AccessType.INQUIRY)
-    for name in readwrite_named_args:
-        if name not in node.argument_names:
+        if node.argument_names[ind] in inquiry_named_args:
+            _add_argument_of_access_type(arg, reference_accesses,
+                                         AccessType.INQUIRY)
             continue
-        arg = node.arguments[node.argument_names.index(name)]
-        _add_argument_of_access_type(arg, reference_accesses,
-                                     AccessType.READWRITE)
+        if node.argument_names[ind] in readwrite_named_args:
+            _add_argument_of_access_type(arg, reference_accesses,
+                                         AccessType.READWRITE)
+            continue
 
     return reference_accesses
 
