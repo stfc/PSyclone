@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#         I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office;
+#         I. Kavcic, A. Coughtrie, L. Turner, O. Brunt
+#         and A. Pirrie, Met Office;
 #         C. M. Maynard, Met Office/University of Reading;
 #         J. Henrichs, Bureau of Meteorology.
 
@@ -48,7 +49,7 @@ from fparser import api as fpapi
 
 from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
                                    LFRicKern, LFRicKernMetadata,
-                                   LFRicScalarArgs)
+                                   LFRicScalarArgs, LFRicScalarArrayArgs)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -331,6 +332,30 @@ def test_lfricscalars_call_err1():
             in str(err.value))
 
 
+def test_lfricscalararray_call_err1():
+    ''' Check that the LFRicScalarArrayArgs constructor raises the
+    expected internal error if it encounters an unrecognised
+    intrinsic type of ScalarArray when generating a kernel call.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "28.scalar_array_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+    # Sabotage the scalar argument to make it have an invalid intrinsic type
+    scalar_arr_arg = kernel.arguments.args[1]
+    scalar_arr_arg._intrinsic_type = "double-type"
+    with pytest.raises(InternalError) as err:
+        LFRicScalarArrayArgs(invoke).invoke_declarations()
+    assert ("Found unsupported intrinsic types for the ScalarArray arguments "
+            "['real_array'] to Invoke 'invoke_0'. Supported types are "
+            "['real', 'integer', 'logical']."
+            in str(err.value))
+
+
 def test_lfricscalarargs_mp():
     '''Check that the precision of a new scalar integer datatype is
     declared in the psy-layer.
@@ -513,3 +538,22 @@ def test_scalar_different_data_types_invoke():
             f"'invoke_real_and_integer_scalars' have different metadata for "
             f"data type ({const.VALID_SCALAR_DATA_TYPES}) in different "
             f"kernels. This is invalid." in str(excinfo.value))
+
+
+def test_scalar_array_different_data_types_invoke():
+    ''' Tests that the same scalar cannot have different data types
+    in different kernels within the same Invoke.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "28.1_multikernel_invokes_scalar_array_invalid.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+
+    with pytest.raises(GenerationError):
+        _ = psy.gen
+    assert ("ScalarArray argument(s) ['b'] in Invoke "
+            "'invoke_real_and_logical_scalars' is/are passed to more than "
+            "one kernel and the kernel metadata for the corresponding "
+            "arguments specifies different intrinsic types.")
