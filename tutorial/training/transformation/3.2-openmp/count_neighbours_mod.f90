@@ -1,0 +1,43 @@
+module count_neighbours_mod
+
+    private
+    public count_neighbours
+
+contains
+    !> @brief Counts how many live cell surround each cell.
+    !>
+    !> This subroutine computes a field 'neighbours', storing for
+    !> each cell how many of its 8 neighbours are live.
+    !>
+    !> @param[out] neighbours On exit contains the number of alive neighbours.
+    !> @param[in]  current    The current state.
+
+    subroutine count_neighbours(neighbours, current)
+
+        implicit none
+        real(kind=8), dimension(:,:), allocatable, intent(inout) :: neighbours
+        real(kind=8), dimension(:,:), allocatable, intent(in) :: current
+
+        integer                        :: xstart, xstop, ystart, ystop
+        integer                        :: i, j
+
+        ! The outer elements is the 'boundary' area, which is set to 0.
+        ! We only loop over the internal points
+        xstart = lbound(current, 1)+1
+        xstop = ubound(current, 1)-1
+        ystart = lbound(current, 2)+1
+        ystop = ubound(current, 2)-1
+
+        do j=ystart, ystop
+            do i=xstart, xstop
+                neighbours(i, j) = &
+                      current(i-1, j-1) + current(i, j-1) + current(i+1, j-1) &
+                    + current(i-1, j  )                   + current(i+1, j  ) &
+                    + current(i-1, j+1) + current(i, j+1) + current(i+1, j+1)
+            enddo
+        enddo
+
+    end subroutine count_neighbours
+
+end module count_neighbours_mod
+
