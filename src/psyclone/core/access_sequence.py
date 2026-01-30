@@ -113,7 +113,9 @@ class AccessInfo():
         :param value: the new access type.
         '''
         if not isinstance(value, AccessType):
-            raise TypeError(f"Expected AccessType but got '{type(value)}'")
+            raise TypeError(
+                f"Expected AccessType but got '{type(value).__name__}'."
+            )
         self._access_type = value
 
     def is_any_write(self) -> bool:

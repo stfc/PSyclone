@@ -70,6 +70,10 @@ def test_access_info() -> None:
     access_info = AccessInfo(AccessType.INQUIRY, Node())
     assert not access_info.is_data_access
 
+    with pytest.raises(TypeError) as err:
+        access_info.access_type = 2
+    assert "Expected AccessType but got 'int'." in str(err.value)
+
 
 def test_access_info_is_any_read_or_write():
     ''' Test the AccessInfo is_any_read/write methods. '''
