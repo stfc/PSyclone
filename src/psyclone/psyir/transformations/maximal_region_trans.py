@@ -232,7 +232,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         # Check that the transformation can be applied to all of the found
         # blocks.
-        for block in all_blocks:
+        for block in all_blocks[:]:
             try:
                 par_trans.validate(block)
             except TransformationError as err:

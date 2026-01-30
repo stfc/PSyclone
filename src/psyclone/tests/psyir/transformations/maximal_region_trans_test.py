@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@
 
 import pytest
 
+from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Assignment,
     IfBlock,
@@ -244,3 +245,56 @@ def test_apply(fortran_reader):
     assert len(nodes[0].if_body.children) == 2
     assert isinstance(nodes[0].if_body.children[1], OMPParallelDirective)
     assert isinstance(nodes[0].else_body.children[0], OMPParallelDirective)
+
+    # Dummy class to test failing validation.
+    class Faketrans(Transformation):
+        '''Dummy transformation to test failing validation.'''
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._validate_count = 0
+
+        def validate(self, node, **kwargs):
+            if self._validate_count < 1:
+                self._validate_count = self._validate_count + 1
+                return
+            raise TransformationError("")
+
+        def apply(self, node, **kwargs):
+            OMPParallelTrans().apply(node, **kwargs)
+
+    class OneParTrans(MaximalRegionTrans):
+        '''Dummy MaximalRegionTrans that uses our FakeTrans'''
+        _transformation = Faketrans
+        _allowed_nodes = (Assignment, )
+        _required_nodes = (Assignment, )
+
+    code = """subroutine x
+    use some_mod
+    integer :: i, j
+
+    if(i == 1) then
+        call something()
+        i = 2
+    else
+        i = 3
+    end if
+
+    do i = 1,5
+       call something()
+       j = 2
+    end do
+
+    do while(j == 3)
+      call something()
+      j = j + 2
+    end do
+    end subroutine x"""
+    # Each of the nodes should contain OMPParallels inside them and there
+    # should be no top level OMPParallelDirective
+    psyir = fortran_reader.psyir_from_source(code)
+    nodes = psyir.walk(Routine)[0].children[:]
+    mtrans = OneParTrans()
+    mtrans.apply(nodes)
+    # Validate fails on all but the first try so we only get one resulting
+    # OMPParallelDirective
+    assert len(psyir.walk(OMPParallelDirective)) == 1
