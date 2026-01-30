@@ -53,11 +53,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
     _reference_accesses_all_reads_with_optional_kind,
-    _add_read_argument,
-    _add_write_argument,
-    _add_readwrite_argument,
-    _add_constant_argument,
-    _add_inquiry_argument,
+    _add_argument_of_access_type,
     _compute_reference_accesses,
 )
 from psyclone.psyir.symbols import (
@@ -68,13 +64,13 @@ from psyclone.psyir.symbols import (
 )
 
 
-def test_add_read_argument(fortran_reader):
-    """ Test the _add_read_argument helper function."""
+def test_add_argument_of_access_type_read(fortran_reader):
+    """ Test the _add_argument_of_access_type helper function with a READ."""
     # Test we get expected behaviour for a Reference input.
     symbol = DataSymbol("a", INTEGER_TYPE)
     vam = VariablesAccessMap()
     ref = Reference(symbol)
-    _add_read_argument(ref, vam)
+    _add_argument_of_access_type(ref, vam, AccessType.READ)
 
     sig, _ = ref.get_signature_and_indices()
     assert len(vam) == 1
@@ -84,7 +80,7 @@ def test_add_read_argument(fortran_reader):
     # Test we get expected behaviour for a Literal input.
     vam = VariablesAccessMap()
     lit = Literal("1", INTEGER_TYPE)
-    _add_read_argument(lit, vam)
+    _add_argument_of_access_type(lit, vam, AccessType.READ)
     assert len(vam) == 0
 
     # Test we get expected behaviour for a Binop with 2 References.
@@ -96,7 +92,7 @@ def test_add_read_argument(fortran_reader):
         ref1, ref2
     )
     vam = VariablesAccessMap()
-    _add_read_argument(binop, vam)
+    _add_argument_of_access_type(binop, vam, AccessType.READ)
     assert len(vam) == 2
     sig, _ = ref1.get_signature_and_indices()
     assert len(vam[sig]) == 1
@@ -111,7 +107,7 @@ def test_add_read_argument(fortran_reader):
     ref3 = Reference(symbol2)
     ref = ArrayReference.create(symbol, [ref3])
     vam = VariablesAccessMap()
-    _add_read_argument(ref, vam)
+    _add_argument_of_access_type(ref, vam, AccessType.READ)
     sig, _ = ref.get_signature_and_indices()
     assert len(vam[sig]) == 1
     assert vam[sig][0].access_type == AccessType.READ
@@ -131,7 +127,7 @@ def test_add_read_argument(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     intrinsic = psyir.walk(IntrinsicCall)[0]
     vam = VariablesAccessMap()
-    _add_read_argument(intrinsic.arguments[1], vam)
+    _add_argument_of_access_type(intrinsic.arguments[1], vam, AccessType.READ)
     sigs = vam.all_signatures
     assert str(sigs[0]) == "b"
     assert len(vam[sigs[0]]) == 1
@@ -150,13 +146,13 @@ def test_add_read_argument(fortran_reader):
     assert vam[sigs[4]][0].access_type == AccessType.CONSTANT
 
 
-def test_add_write_argument(fortran_reader):
-    """ Test the _add_write_argument helper function."""
+def test_add_argument_of_access_type_write(fortran_reader):
+    """ Test the _add_argument_of_access_type helper function with a WRITE."""
     # Test we get expected behaviour for a Reference input.
     symbol = DataSymbol("a", INTEGER_TYPE)
     vam = VariablesAccessMap()
     ref = Reference(symbol)
-    _add_write_argument(ref, vam)
+    _add_argument_of_access_type(ref, vam, AccessType.WRITE)
 
     sig, _ = ref.get_signature_and_indices()
     assert len(vam) == 1
@@ -166,7 +162,7 @@ def test_add_write_argument(fortran_reader):
     symbol = DataSymbol("c", ArrayType(INTEGER_TYPE, [2]))
     aref = ArrayReference.create(symbol, [ref])
     vam = VariablesAccessMap()
-    _add_write_argument(aref, vam)
+    _add_argument_of_access_type(aref, vam, AccessType.WRITE)
     sig, _ = aref.get_signature_and_indices()
     assert len(vam[sig]) == 1
     assert vam[sig][0].access_type == AccessType.WRITE
@@ -192,7 +188,9 @@ def test_add_write_argument(fortran_reader):
             [arg.copy() for arg in call.arguments]
     )
     vam = VariablesAccessMap()
-    _add_write_argument(intrinsic.arguments[0], vam)
+    _add_argument_of_access_type(
+            intrinsic.arguments[0], vam, AccessType.WRITE
+    )
     sigs = vam.all_signatures
     assert str(sigs[0]) == "b"
     assert len(vam[sigs[0]]) == 1
@@ -208,13 +206,14 @@ def test_add_write_argument(fortran_reader):
     assert vam[sigs[3]][0].access_type == AccessType.CONSTANT
 
 
-def test_add_readwrite_argument():
-    """ Test the _add_readwrite_argument helper function."""
+def test_add_argument_of_access_type_readwrite():
+    """ Test the _add_argument_of_access_type helper function with a
+    READWRITE."""
     # Test we get expected behaviour for a Reference input.
     symbol = DataSymbol("a", INTEGER_TYPE)
     vam = VariablesAccessMap()
     ref = Reference(symbol)
-    _add_readwrite_argument(ref, vam)
+    _add_argument_of_access_type(ref, vam, AccessType.READWRITE)
 
     sig, _ = ref.get_signature_and_indices()
     assert len(vam) == 1
@@ -224,7 +223,7 @@ def test_add_readwrite_argument():
     symbol = DataSymbol("c", ArrayType(INTEGER_TYPE, [2]))
     aref = ArrayReference.create(symbol, [ref])
     vam = VariablesAccessMap()
-    _add_readwrite_argument(aref, vam)
+    _add_argument_of_access_type(aref, vam, AccessType.READWRITE)
     sig, _ = aref.get_signature_and_indices()
     assert len(vam[sig]) == 1
     assert vam[sig][0].access_type == AccessType.READWRITE
@@ -233,13 +232,14 @@ def test_add_readwrite_argument():
     assert vam[sig][0].access_type == AccessType.READ
 
 
-def test_add_constant_argument():
-    """ Test the _add_constant_argument helper function."""
+def test_add_argument_of_access_type_constant():
+    """ Test the _add_argument_of_access_type helper function with a
+    CONSTANT."""
     # Test we get expected behaviour for a Reference input.
     symbol = DataSymbol("a", INTEGER_TYPE)
     vam = VariablesAccessMap()
     ref = Reference(symbol)
-    _add_constant_argument(ref, vam)
+    _add_argument_of_access_type(ref, vam, AccessType.CONSTANT)
 
     sig, _ = ref.get_signature_and_indices()
     assert len(vam) == 1
@@ -249,16 +249,17 @@ def test_add_constant_argument():
     # Test we skip for a Literal
     vam = VariablesAccessMap()
     lit = Literal("1", INTEGER_TYPE)
-    _add_constant_argument(lit, vam)
+    _add_argument_of_access_type(lit, vam, AccessType.CONSTANT)
     assert len(vam) == 0
 
 
-def test_add_inquiry_argument():
-    """ Test the _add_inquiry_argument helper function."""
+def test_add_argument_of_access_type_inquiry():
+    """ Test the _add_argument_of_access_type helper function with an
+    INQUIRY."""
     symbol = DataSymbol("a", INTEGER_TYPE)
     vam = VariablesAccessMap()
     ref = Reference(symbol)
-    _add_inquiry_argument(ref, vam)
+    _add_argument_of_access_type(ref, vam, AccessType.INQUIRY)
 
     sig, _ = ref.get_signature_and_indices()
     assert len(vam) == 1
@@ -268,13 +269,13 @@ def test_add_inquiry_argument():
     # Test we skip for a Literal
     vam = VariablesAccessMap()
     lit = Literal("1", INTEGER_TYPE)
-    _add_inquiry_argument(lit, vam)
+    _add_argument_of_access_type(lit, vam, AccessType.INQUIRY)
     assert len(vam) == 0
 
     symbol = DataSymbol("c", ArrayType(INTEGER_TYPE, [2]))
     aref = ArrayReference.create(symbol, [ref])
     vam = VariablesAccessMap()
-    _add_inquiry_argument(aref, vam)
+    _add_argument_of_access_type(aref, vam, AccessType.INQUIRY)
     sig, _ = aref.get_signature_and_indices()
     assert len(vam[sig]) == 1
     assert vam[sig][0].access_type == AccessType.INQUIRY

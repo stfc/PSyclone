@@ -87,84 +87,23 @@ IAttr = namedtuple(
 ArgDesc = namedtuple('ArgDesc', 'min_count max_count types arg_names')
 
 
-def _add_read_argument(
-    argument: DataNode, var_acc_map: VariablesAccessMap
+def _add_argument_of_access_type(
+    argument: DataNode, var_acc_map: VariablesAccessMap,
+    access_type: AccessType
 ) -> None:
-    """Adds a read access for argument into var_acc_map
+    '''
+    Adds an argument to the provided VariablesAccessMap with
+    the provided access_type
 
-    :param argument: The argument to add a read access for.
-    :param var_acc_map: The VariablesAccessMap to add the access into.
-    """
-    # Find all the reference children of the argument (e.g. we could
-    # have a binary operation argument with multiple, or a Literal
-    # with none.
-    argument_map = argument.reference_accesses()
-    var_acc_map.update(argument_map)
-
-
-def _add_write_argument(
-    argument: Reference, var_acc_map: VariablesAccessMap
-) -> None:
-    """Adds a write access for argument into var_acc_map
-
-    :param argument: The argument to add a write access for.
-    :param var_acc_map: The VariablesAccessMap to add the access into.
-    """
-    sig, all_indices = argument.get_signature_and_indices()
-    # For Array accesses, these have accesses to their indices
-    for indices in all_indices:
-        for index in indices:
-            var_acc_map.update(index.reference_accesses())
-    var_acc_map.add_access(sig, AccessType.WRITE, argument)
-
-
-def _add_readwrite_argument(
-    argument: Reference, var_acc_map: VariablesAccessMap
-) -> None:
-    """Adds a readwrite access for argument into var_acc_map
-
-    :param argument: The argument to add a readwrite access for.
-    :param var_acc_map: The VariablesAccessMap to add the access into.
-    """
-    sig, all_indices = argument.get_signature_and_indices()
-    # For Array accesses, these have accesses to their indices
-    for indices in all_indices:
-        for index in indices:
-            var_acc_map.update(index.reference_accesses())
-    var_acc_map.add_access(sig, AccessType.READWRITE, argument)
-
-
-def _add_constant_argument(
-    argument: Union[Literal, Reference], var_acc_map: VariablesAccessMap
-) -> None:
-    """Adds a constant access for argument into var_acc_map
-
-    :param argument: The argument to add a constant access for.
-    :param var_acc_map: The VariablesAccessMap to add the access into.
-    """
-    # We can get literal as typeinfo expressions, so we skip them.
-    if not isinstance(argument, Reference):
-        return
-    sig, _ = argument.get_signature_and_indices()
-    var_acc_map.add_access(sig, AccessType.CONSTANT, argument)
-
-
-def _add_inquiry_argument(
-    argument: Union[Literal, Reference], var_acc_map: VariablesAccessMap
-) -> None:
-    """Adds an inquiry access for argument into var_acc_map
-
-    :param argument: The argument to add a inquiry access for.
-    :param var_acc_map: The VariablesAccessMap to add the access into.
-    """
-    if not isinstance(argument, Reference):
-        return
-    sig, all_indices = argument.get_signature_and_indices()
-    # For Array accesses, these have accesses to their indices
-    for indices in all_indices:
-        for index in indices:
-            var_acc_map.update(index.reference_accesses())
-    var_acc_map.add_access(sig, AccessType.INQUIRY, argument)
+    :param argument: The argument to add to the VariablesAccessMap.
+    :param var_acc_map: The VariablesAccesMap to populate.
+    :param access_type: The access type to use for the input argument.
+    '''
+    accesses = argument.reference_accesses()
+    if isinstance(argument, Reference):
+        sig, _ = argument.get_signature_and_indices()
+        accesses[sig][-1].access_type = access_type
+    var_acc_map.update(accesses)
 
 
 def _compute_reference_accesses(
@@ -208,50 +147,60 @@ def _compute_reference_accesses(
     for ind in read_indices:
         if ind < len(node.arguments) and node.argument_names[ind] is None:
             arg = node.arguments[ind]
-            _add_read_argument(arg, reference_accesses)
+            _add_argument_of_access_type(arg, reference_accesses,
+                                         AccessType.READ)
     for ind in write_indices:
         if ind < len(node.arguments) and node.argument_names[ind] is None:
             arg = node.arguments[ind]
-            _add_write_argument(arg, reference_accesses)
+            _add_argument_of_access_type(arg, reference_accesses,
+                                         AccessType.WRITE)
     for ind in readwrite_indices:
         if ind < len(node.arguments) and node.argument_names[ind] is None:
             arg = node.arguments[ind]
-            _add_readwrite_argument(arg, reference_accesses)
+            _add_argument_of_access_type(arg, reference_accesses,
+                                         AccessType.READWRITE)
     for ind in constant_indices:
         if ind < len(node.arguments) and node.argument_names[ind] is None:
             arg = node.arguments[ind]
-            _add_constant_argument(arg, reference_accesses)
+            _add_argument_of_access_type(arg, reference_accesses,
+                                         AccessType.CONSTANT)
     for ind in inquiry_indices:
         if ind < len(node.arguments) and node.argument_names[ind] is None:
             arg = node.arguments[ind]
-            _add_inquiry_argument(arg, reference_accesses)
+            _add_argument_of_access_type(arg, reference_accesses,
+                                         AccessType.INQUIRY)
     # For each named argument provided, we check if they are defined
     # for the given intrinsicCall as they are optional.
     for name in read_named_args:
         if name not in node.argument_names:
             continue
         arg = node.arguments[node.argument_names.index(name)]
-        _add_read_argument(arg, reference_accesses)
+        _add_argument_of_access_type(arg, reference_accesses,
+                                     AccessType.READ)
     for name in write_named_args:
         if name not in node.argument_names:
             continue
         arg = node.arguments[node.argument_names.index(name)]
-        _add_write_argument(arg, reference_accesses)
+        _add_argument_of_access_type(arg, reference_accesses,
+                                     AccessType.WRITE)
     for name in constant_named_args:
         if name not in node.argument_names:
             continue
         arg = node.arguments[node.argument_names.index(name)]
-        _add_constant_argument(arg, reference_accesses)
+        _add_argument_of_access_type(arg, reference_accesses,
+                                     AccessType.CONSTANT)
     for name in inquiry_named_args:
         if name not in node.argument_names:
             continue
         arg = node.arguments[node.argument_names.index(name)]
-        _add_inquiry_argument(arg, reference_accesses)
+        _add_argument_of_access_type(arg, reference_accesses,
+                                     AccessType.INQUIRY)
     for name in readwrite_named_args:
         if name not in node.argument_names:
             continue
         arg = node.arguments[node.argument_names.index(name)]
-        _add_readwrite_argument(arg, reference_accesses)
+        _add_argument_of_access_type(arg, reference_accesses,
+                                     AccessType.READWRITE)
 
     return reference_accesses
 
