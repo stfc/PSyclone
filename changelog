@@ -1,3 +1,19 @@
+   36) PR #3308. Update Spack environment to use updated compiler versions.
+ 
+   35) PR #3202. Update nvidia compiler module version.
+
+   34) PR #3307 for #3305. Fix default value instantiation that was loading
+   the configuration file at import-time.
+
+   33) PR #3145 for #1623. Adds extensive training material using both the
+   GOcean and LFRic APIs.
+ 
+   32) PR #3299 for #3297. Fix intermittent test failures by more consistent
+   use of str and Path in the ModuleManager.
+ 
+   31) PR #3101 for #1312. Implements support for ScalarArray arguments to
+   LFRic kernels.
+ 
    30) PR #3280 towards #2971. Move OMPParallelTrans to psyir.transformations. 
 
    29) PR #3275 for #3216. Allows the specification of private variables
