@@ -283,7 +283,3 @@ def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
     assign = psyir.walk(Assignment)[0]
     dtrans.apply(assign.rhs)
     out = fortran_writer(psyir)
-    print(psyir.walk(Assignment)[0].rhs.symbol.shape[1].upper.symbol.interface)
-    print(psyir.walk(Assignment)[0].rhs.symbol.shape[1].upper.symbol.is_unknown_interface)
-    print(out)
-    assert False

@@ -49,7 +49,7 @@ from psyclone.psyir.symbols.datatypes import (
     UnresolvedType,
     UnsupportedFortranType,
 )
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import DataSymbol, ImportInterface
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -138,7 +138,19 @@ class DataNodeExtractTrans(Transformation):
                 scope_symbols = node.scope.symbol_table.get_symbols()
                 for sym in symbols:
                     scoped_name_sym = scope_symbols.get(sym.name, None)
-                    if scoped_name_sym and not sym is scoped_name_sym:
+                    if scoped_name_sym and sym is not scoped_name_sym:
+                        # If its an imported symbol we need to check if its
+                        # the same import interface.
+                        if (isinstance(sym.interface, ImportInterface) and
+                            isinstance(scoped_name_sym.interface,
+                                       ImportInterface)):
+                            # If they have the same container symbol name
+                            # then its fine, otherwise we fall into the
+                            # TransformationError
+                            if (sym.interface.container_symbol.name ==
+                                scoped_name_sym.interface.
+                                    container_symbol.name):
+                                continue
                         raise TransformationError(
                             f"Input node contains an imported symbol whose "
                             f"name collides with an existing symbol, so the "
@@ -194,7 +206,7 @@ class DataNodeExtractTrans(Transformation):
         # This is an oversimplification because we could have multiple
         # references to the same symbol...
         if isinstance(datatype, ArrayType):
-            for element in dtype.shape:
+            for element in datatype.shape:
                 symbols = set()
                 if isinstance(element.lower, DataNode):
                     symbols.update(element.lower.get_all_accessed_symbols())
@@ -203,9 +215,28 @@ class DataNodeExtractTrans(Transformation):
                 scope_symbols = node.scope.symbol_table.get_symbols()
                 for sym in symbols:
                     scoped_name_sym = scope_symbols.get(sym.name, None)
+                    # If no symbol with the name exists then create one.
                     if not scoped_name_sym:
-                       sym_copy = symbol.copy()
-                       node.scope.symbol_table.add(sym_copy)
+                        sym_copy = symbol.copy()
+                        if isinstance(sym_copy.interface, ImportInterface):
+                            # Check if the ContainerSymbol is already in the
+                            # interface
+                            container = scope_symbols.get(
+                                sym_copy.interface.container_symbol.name,
+                                None
+                            )
+                            if container is None:
+                                # Add the container symbol the the symbol table
+                                # and we're ok with this symbol.
+                                node.scope.symbol_table.add(
+                                     sym_copy.interface.container_symbol
+                                 )
+                            # If we find the container then we need to update
+                            # the interface to use the container listed.
+                            else:
+                                sym_copy.interface.container_symbol = \
+                                        container
+                        node.scope.symbol_table.add(sym_copy)
 
         # Create a Reference to the new symbol
         new_ref = Reference(symbol)
