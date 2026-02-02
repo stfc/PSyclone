@@ -1679,13 +1679,13 @@ def test_process_use_stmts_with_accessibility_statements(parser):
                           ["other1", "other2"],  # Precise name enabled
                           False])                # Disabled
 def test_process_use_stmts_resolving_external_imports(
-        parser, tmpdir, monkeypatch, value):
+        parser, tmp_path, monkeypatch, value):
     ''' Test that if the Fparser2Reader if provided with a list of
     modules_to_import this are used to resolve external symbol information
     by the frontend.'''
 
     # Write a first module into a tmp file
-    other1 = str(tmpdir.join("other1.f90"))
+    other1 = tmp_path / "other1.f90"
     with open(other1, "w", encoding='utf-8') as my_file:
         my_file.write('''
     module other1
@@ -1702,7 +1702,7 @@ def test_process_use_stmts_resolving_external_imports(
     ''')
 
     # Write a second module to a tmp file
-    other2 = str(tmpdir.join("other2.F90"))
+    other2 = tmp_path / "other2.F90"
     with open(other2, "w", encoding='utf-8') as my_file:
         my_file.write('''
     module other2
@@ -1713,7 +1713,7 @@ def test_process_use_stmts_resolving_external_imports(
 
     # Add the path to the include_path and set up a frontend instance
     # with the module_to_resolve names
-    monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
     processor = Fparser2Reader(resolve_modules=value)
     reader = FortranStringReader('''
     module test
@@ -1773,13 +1773,13 @@ def test_process_use_stmts_resolving_external_imports(
 
 
 def test_process_resolving_modules_give_correct_types(
-        parser, tmpdir, monkeypatch):
+        parser, tmp_path, monkeypatch):
     ''' Test that if the Fparser2Reader is provided with a list of
     modules_to_import these are used to resolve external symbol information
     by the frontend.'''
 
     # Write a first module into a tmp file
-    other1 = str(tmpdir.join("other.f90"))
+    other1 = tmp_path / "other.f90"
     with open(other1, "w", encoding='utf-8') as my_file:
         my_file.write('''
     module other
@@ -1823,7 +1823,7 @@ def test_process_resolving_modules_give_correct_types(
     # If we populate the module_to_resolve and add the include_path
     # then we know if they are arrays and pure/elemental
     processor = Fparser2Reader(resolve_modules=["other"])
-    monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
     psyir = processor._module_handler(module, None)
     assigns = psyir.walk(Assignment)
     assert isinstance(assigns[0].rhs, ArrayReference)
