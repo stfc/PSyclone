@@ -217,7 +217,7 @@ class DataNodeExtractTrans(Transformation):
                     scoped_name_sym = scope_symbols.get(sym.name, None)
                     # If no symbol with the name exists then create one.
                     if not scoped_name_sym:
-                        sym_copy = symbol.copy()
+                        sym_copy = sym.copy()
                         if isinstance(sym_copy.interface, ImportInterface):
                             # Check if the ContainerSymbol is already in the
                             # interface
