@@ -1364,12 +1364,7 @@ class CodedKern(Kern):
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
 
-        rsymbol = symtab.lookup(self._name, otherwise=None)
-        if not rsymbol:
-            raise GenerationError(
-                f"Cannot lower this Kernel call to '{self.name}' "
-                f"because no corresponding Symbol exists in this module.")
-
+        rsymbol = symtab.lookup(self._name)
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node
         call_node = Call.create(rsymbol, self.arguments.psyir_expressions())
@@ -1378,13 +1373,13 @@ class CodedKern(Kern):
         self.replace_with(call_node)
         return call_node
 
-    def incremented_arg(self):
-        ''' Returns the argument that has INC access. Raises a
-        FieldNotFoundError if none is found.
+    def incremented_arg(self) -> str:
+        ''' Returns the argument that has INC access.
 
-        :rtype: str
-        :raises FieldNotFoundError: if none is found.
         :returns: a Fortran argument name.
+
+        :raises FieldNotFoundError: if no incremented argument is found.
+
         '''
         for arg in self.arguments.args:
             if arg.access == AccessType.INC:
