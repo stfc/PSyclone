@@ -41,6 +41,9 @@ for f90 free format is the default)'''
 
 import re
 
+from fparser.common.readfortran import Comment, FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
+
 from psyclone.errors import InternalError
 
 
@@ -179,6 +182,19 @@ class FortLineLength():
                     break_point = find_break_point(
                         line, self._line_length-len(c_end), key_list)
 
+                import pdb; pdb.set_trace()
+                if line_type != "comment":
+                    line_no_indent = line.lstrip()
+                    indent_size = len(line) - len(line_no_indent)
+                    # FortranStringReader will return separate Line and Comment
+                    # objects for a source line containing an in-line comment.
+                    freader = FortranStringReader(line, ignore_comments=False)
+                    freader.set_format(FortranFormat(True, True))
+                    fline = freader.next()
+                    if ((break_point - indent_size) > len(fline.line) and
+                            isinstance(freader.next(), Comment)):
+                        line_type = "comment"
+
                 fortran_out += line[:break_point] + c_end + "\n"
                 line = line[break_point:]
                 while len(line) + len(c_start) > self._line_length:
@@ -195,7 +211,7 @@ class FortLineLength():
         # We add an extra newline so remove it when we return
         return fortran_out[:-1]
 
-    def _get_line_type(self, line):
+    def _get_line_type(self, line) -> str:
         ''' Classes lines into different types. This is required as
         directives need different continuation characters to fortran
         statements. It also enables us to know a little about the

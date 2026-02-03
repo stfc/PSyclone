@@ -211,6 +211,18 @@ def test_multiple_lines_comment():
     assert output_file == expected_output
 
 
+def test_inline_comment():
+    '''Test that an in-line comment that takes us over the length limit is
+    wrapped correctly.'''
+    input_code = ("            wfx_err_sub(ji,jj) = wfx_err_sub(ji,jj) - "
+                  "pevap_rema(ji,jj) * a_i(ji,jj,jl_cat) * r1_Dt_ice  ! "
+                  "<=0 (net evap for the ocean in kg.m-2.s-1)")
+    fll = FortLineLength(line_length=132)
+    output = fll.process(input_code)
+    print(output)
+    assert "for the &\n!& ocean in kg.m-2.s-1)\n" in output
+
+    
 def test_exception_line_too_long():
     ''' Test that output lines are not longer than the maximum
     specified'''
@@ -245,8 +257,6 @@ def test_break_types_multi_line():
 
     fll = FortLineLength(line_length=24)
     output_file = fll.process(input_file)
-    print("("+output_file+")")
-    print(expected_output)
     assert output_file == expected_output
 
 
@@ -266,8 +276,6 @@ def test_edge_conditions_statements():
         "INTEGER &\n&INTEGER\n")
     fll = FortLineLength(line_length=len("INTEGER INTEGE"))
     output_string = fll.process(input_string)
-    print(output_string)
-    print(expected_output)
     assert output_string == expected_output
 
     input_string = (
