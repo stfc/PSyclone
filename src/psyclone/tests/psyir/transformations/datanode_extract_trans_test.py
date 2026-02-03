@@ -182,6 +182,37 @@ def test_datanodeextracttrans_validate(fortran_reader, tmpdir, monkeypatch):
     assign = psyir.walk(Assignment)[0]
     dtrans.validate(assign.rhs)
 
+    # Check validation raise an error when the shape contains a symbol from
+    # a module that overlaps with a symbol in the scope.
+    filename = os.path.join(str(tmpdir), "tmpmod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module tmpmod
+            integer, parameter :: i = 25
+            integer, parameter :: j = 30
+        end module tmpmod
+        ''')
+    filename = os.path.join(str(tmpdir), "f_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module f_mod
+            use tmpmod, only: i
+            integer, dimension(25, i) :: some_var
+        end module f_mod
+        ''')
+    code = """subroutine test()
+        use f_mod, only: some_var
+        integer :: tmpmod
+        tmpmod = some_var
+        end subroutine test"""
+    psyir = FortranReader(resolve_modules=True).psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as err:
+        dtrans.validate(assign.rhs)
+    assert ("Input node contains an imported symbol whose containing module "
+            "collides with an existing symbol. Colliding name is 'tmpmod'."
+            in str(err.value))
+
 
 def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
                                    monkeypatch):

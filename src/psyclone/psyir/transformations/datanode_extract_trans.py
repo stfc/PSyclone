@@ -49,7 +49,8 @@ from psyclone.psyir.symbols.datatypes import (
     UnresolvedType,
     UnsupportedFortranType,
 )
-from psyclone.psyir.symbols import DataSymbol, ImportInterface
+from psyclone.psyir.symbols import (
+    DataSymbol, ImportInterface, ContainerSymbol)
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -139,24 +140,27 @@ class DataNodeExtractTrans(Transformation):
                 for sym in symbols:
                     scoped_name_sym = scope_symbols.get(sym.name, None)
                     if scoped_name_sym and sym is not scoped_name_sym:
-                        # If its an imported symbol we need to check if its
-                        # the same import interface.
-                        if (isinstance(sym.interface, ImportInterface) and
-                            isinstance(scoped_name_sym.interface,
-                                       ImportInterface)):
-                            # If they have the same container symbol name
-                            # then its fine, otherwise we fall into the
-                            # TransformationError
-                            if (sym.interface.container_symbol.name ==
-                                scoped_name_sym.interface.
-                                    container_symbol.name):
-                                continue
                         raise TransformationError(
                             f"Input node contains an imported symbol whose "
                             f"name collides with an existing symbol, so the "
                             f"DataNodeExtractTrans cannot be applied. "
                             f"Clashing symbol name is '{sym.name}'."
                         )
+                    # If its an imported symbol we need to check if its
+                    # the same import interface.
+                    if isinstance(sym.interface, ImportInterface):
+                        scoped_name_sym = scope_symbols.get(
+                                sym.interface.container_symbol.name,
+                                None
+                        )
+                        if scoped_name_sym and not isinstance(
+                                scoped_name_sym, ContainerSymbol):
+                            raise TransformationError(
+                                f"Input node contains an imported symbol "
+                                f"whose containing module collides with an "
+                                f"existing symbol. Colliding name is "
+                                f"'{sym.interface.container_symbol.name}'."
+                                )
 
         if node.ancestor(Statement) is None:
             raise TransformationError(
