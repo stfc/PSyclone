@@ -159,14 +159,16 @@ def int_entry_fixture(request):
 def get_config(config_file: Path,
                content: str,
                overwrite: Optional[str] = None) -> Config:
-    ''' A utility function that creates and populates a temporary
+    '''
+    A utility function that creates and populates a temporary
     PSyclone configuration file for testing purposes.
 
     :param config_file: local path to the temporary configuration file.
     :param content: the entry for the temporary configuration file.
+    :param overwrite: Optional string of key-value pairs that will
+        overwrite settings in the config file.
 
     :returns: a test Config instance.
-    :rtype: :py:class:`psyclone.configuration.Config`
 
     '''
     # Create and populate a temporary config file
@@ -832,4 +834,5 @@ def test_config_overwrite(tmp_path: Path, monkeypatch) -> None:
     with pytest.raises(ConfigurationError) as err:
         config = get_config(config_file, _CONFIG_CONTENT,
                             overwrite="DOES_NOT_EXIST=1")
-    assert "Unknown config overwrite: 'DOES_NOT_EXIST=1" in str(err.value)
+    assert ("Attempt to overwrite unknown configuration option: "
+            "'DOES_NOT_EXIST=1" in str(err.value))

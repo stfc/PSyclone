@@ -244,7 +244,7 @@ class Config:
 
     # -------------------------------------------------------------------------
     def load(self,
-             config_file: str = None,
+             config_file: Optional[str] = None,
              overwrite: Optional[str] = None) -> None:
         '''Loads a configuration file. The optional 'overwrite' parameter
         is a space-separated string of key=value pairs which will overwrite
@@ -255,8 +255,11 @@ class Config:
         :param overwrite: Optional string of key-value pairs that will
             overwrite settings in the config file.
 
-        :raises ConfigurationError: if there are errors or inconsistencies in \
-                                the specified config file.
+        :raises ConfigurationError: if there are errors or inconsistencies in
+            the specified config file.
+
+        :raises ConfigurationError: if a user-provided overwrite string
+            contains an invalid key.
         '''
         # pylint: disable=too-many-branches, too-many-statements
         if config_file:
@@ -306,7 +309,8 @@ class Config:
                         break
                 else:
                     logger = logging.getLogger(__name__)
-                    msg = f"Unknown config overwrite: '{pair}' - ignored."
+                    msg = (f"Attempt to overwrite unknown configuration "
+                           f"option: '{pair}'.")
                     logger.error(msg)
                     raise ConfigurationError(msg)
 

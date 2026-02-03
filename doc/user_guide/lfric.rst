@@ -3951,7 +3951,7 @@ performance costs associated with run-time checks they may be switched
 on or off by the `RUN_TIME_CHECKS` option in the configuration file
 (or by using the ``--config-opts`` command line option to overwrite
 the setting in the configuration file). The value of `RUN_TIME_CHECKS`
-must be on of:
+must be one of:
 
 - `none` No runtime checks will be added (default)
 - `warn` Runtime checks will be added, and violations will cause a warning

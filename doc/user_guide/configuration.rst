@@ -242,15 +242,16 @@ grid-properties         This key contains definitions to access various grid
 
 Overwriting Config Settings on the Command Line
 -----------------------------------------------
+
 PSyclone provides the command line option ``--config-opts`` to overwrite
 settings in the configuration file. This can be convenient to test different
 scenarios without having to maintain a config files for each of them.
 
 The option takes a space-separated list of ``key=value`` pairs, for
 example:
-
 ::
-   psyclone --config-opts="run_time_checks=warn reprod_pad_size=27" ...
+
+    psyclone --config-opts="run_time_checks=warn reprod_pad_size=27" ...
 
 This will overwrite the settings for ``run_time_checks`` and ``reprod_pad_size``
 in the configuration file. You can overwrite any setting in any section (without

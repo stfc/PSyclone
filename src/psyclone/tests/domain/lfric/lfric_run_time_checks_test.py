@@ -36,27 +36,22 @@
 #          C. M. Maynard, Met Office/University of Reading,
 #          J. Henrichs, Bureau of Meteorology.
 
-''' This module tests the LFRic API using pytest. '''
+"""
+This module tests the run-time checks functionality with the LFRic API
+using pytest.
+"""
+
 
 from pathlib import Path
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import get_base_path
+from psyclone.tests.utilities import get_invoke
 
 
 # constants
 TEST_API = "lfric"
-BASE_PATH = Path(get_base_path(TEST_API))
-
-
-@pytest.fixture(scope="function", autouse=True)
-def setup():
-    '''Make sure that all tests here use lfric as API.'''
-    Config.get().api = "lfric"
 
 
 @pytest.mark.parametrize("level", [("warn", "LOG_LEVEL_WARNING"),
@@ -73,10 +68,7 @@ def test_lfricinvoke_runtime(level: tuple[str, str],
     config = Config.get()
     lfric_config = config.api_conf("lfric")
     monkeypatch.setattr(lfric_config, "_run_time_checks", level_string)
-    _, invoke_info = parse(str(BASE_PATH / "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmp_path).code_compiles(psy)
+    psy, _ = get_invoke("1_single_invoke.f90", TEST_API, idx=0, dist_mem=True)
     generated_code = str(psy.gen)
     assert "use testkern_mod, only : testkern_code" in generated_code
     assert f"use log_mod, only : {log_level}, log_event" in generated_code
@@ -123,20 +115,20 @@ def test_lfricinvoke_runtime(level: tuple[str, str],
         "\n"
         "    ! Initialise number of layers\n")
     assert expected in generated_code
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
-def test_lfricinvoke_runtime_disabled() -> None:
+def test_lfricinvoke_runtime_disabled(tmp_path) -> None:
     '''Test that no tests are added if they are disabled. This is the same
     example as the previous one, so just check that the generated code does
     not contain any "LOG_LEVEL" strings.
     '''
 
-    _, invoke_info = parse(str(BASE_PATH / "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    psy, _ = get_invoke("1_single_invoke.f90", TEST_API, idx=0, dist_mem=True)
     generated_code = str(psy.gen)
 
     assert "LOG_LEVEL" not in generated_code
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_lfricruntimechecks_anyspace(tmp_path: Path,
@@ -149,9 +141,7 @@ def test_lfricruntimechecks_anyspace(tmp_path: Path,
     config = Config.get()
     lfric_config = config.api_conf("lfric")
     monkeypatch.setattr(lfric_config, "_run_time_checks", "error")
-    _, invoke_info = parse(str(BASE_PATH / "11_any_space.f90"), api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmp_path).code_compiles(psy)
+    psy, _ = get_invoke("11_any_space.f90", TEST_API, idx=0, dist_mem=True)
     generated_code = str(psy.gen)
     assert "use function_space_mod, only : BASIS, DIFF_BASIS" in generated_code
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
@@ -182,6 +172,7 @@ def test_lfricruntimechecks_anyspace(tmp_path: Path,
         "\n"
         "    ! Initialise number of layers\n")
     assert expected2 in generated_code
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_lfricruntimechecks_vector(tmp_path: Path,
@@ -191,11 +182,8 @@ def test_lfricruntimechecks_vector(tmp_path: Path,
     config = Config.get()
     lfric_config = config.api_conf("lfric")
     monkeypatch.setattr(lfric_config, "_run_time_checks", "error")
-    _, invoke_info = parse(str(BASE_PATH / "8_vector_field_2.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-
-    assert LFRicBuild(tmp_path).code_compiles(psy)
+    psy, _ = get_invoke("8_vector_field_2.f90", TEST_API,
+                        dist_mem=True, idx=0)
 
     generated_code = str(psy.gen)
     assert ("use testkern_coord_w0_2_mod, only : testkern_coord_w0_2_code"
@@ -241,6 +229,7 @@ def test_lfricruntimechecks_vector(tmp_path: Path,
         "\n"
         "    ! Initialise number of layers\n")
     assert expected2 in generated_code
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_lfricruntimechecks_multikern(tmp_path: Path,
@@ -255,10 +244,8 @@ def test_lfricruntimechecks_multikern(tmp_path: Path,
     config = Config.get()
     lfric_config = config.api_conf("lfric")
     monkeypatch.setattr(lfric_config, "_run_time_checks", "error")
-    _, invoke_info = parse(str(BASE_PATH / "1.2_multi_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmp_path).code_compiles(psy)
+    psy, _ = get_invoke("1.2_multi_invoke.f90", TEST_API, idx=0,
+                        dist_mem=True)
     generated_code = str(psy.gen)
     assert "use testkern_mod, only : testkern_code" in generated_code
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
@@ -323,6 +310,7 @@ def test_lfricruntimechecks_multikern(tmp_path: Path,
         "\n"
         "    ! Initialise number of layers\n")
     assert expected2 in generated_code
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_lfricruntimechecks_builtins(tmp_path: Path,
@@ -332,10 +320,8 @@ def test_lfricruntimechecks_builtins(tmp_path: Path,
     config = Config.get()
     lfric_config = config.api_conf("lfric")
     monkeypatch.setattr(lfric_config, "_run_time_checks", "error")
-    _, invoke_info = parse(str(BASE_PATH / "15.1.1_X_plus_Y_builtin.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmp_path).code_compiles(psy)
+    psy, _ = get_invoke("15.1.1_X_plus_Y_builtin.f90", TEST_API, idx=0,
+                        dist_mem=True)
     generated_code = str(psy.gen)
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
     assert "use mesh_mod, only : mesh_type" in generated_code
@@ -354,6 +340,7 @@ def test_lfricruntimechecks_builtins(tmp_path: Path,
         "\n"
         "    ! Create a mesh object\n")
     assert expected_code2 in generated_code
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_lfricruntimechecks_anydiscontinuous(
@@ -368,10 +355,8 @@ def test_lfricruntimechecks_anydiscontinuous(
     config = Config.get()
     lfric_config = config.api_conf("lfric")
     monkeypatch.setattr(lfric_config, "_run_time_checks", "error")
-    _, invoke_info = parse(str(BASE_PATH / "11.4_any_discontinuous_space.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmp_path).code_compiles(psy)
+    psy, _ = get_invoke("11.4_any_discontinuous_space.f90", TEST_API, idx=0,
+                        dist_mem=True)
     generated_code = str(psy.gen)
     assert ("use testkern_any_discontinuous_space_op_1_mod, only : testkern_"
             "any_discontinuous_space_op_1_code") in generated_code
@@ -417,6 +402,7 @@ def test_lfricruntimechecks_anydiscontinuous(
         "\n"
         "    ! Initialise number of layers\n")
     assert expected2 in generated_code
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_lfricruntimechecks_anyw2(tmp_path: Path,
@@ -430,11 +416,8 @@ def test_lfricruntimechecks_anyw2(tmp_path: Path,
     config = Config.get()
     lfric_config = config.api_conf("lfric")
     monkeypatch.setattr(lfric_config, "_run_time_checks", "error")
-    _, invoke_info = parse(str(BASE_PATH /
-                               "21.1_single_invoke_multi_anyw2.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmp_path).code_compiles(psy)
+    psy, _ = get_invoke("21.1_single_invoke_multi_anyw2.f90", TEST_API,
+                        idx=0, dist_mem=True)
     generated_code = str(psy.gen)
     assert ("use testkern_multi_anyw2_mod, only : testkern_multi_anyw2_code\n"
             in generated_code)
@@ -482,3 +465,4 @@ def test_lfricruntimechecks_anyw2(tmp_path: Path,
         "\n"
         "    ! Initialise number of layers\n")
     assert expected2 in generated_code
+    assert LFRicBuild(tmp_path).code_compiles(psy)

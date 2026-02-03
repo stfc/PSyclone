@@ -1266,9 +1266,9 @@ end subroutine test"""
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     assert error.value.code == 1
-    out, err = capsys.readouterr()
-    assert ("Failed to create PSyIR from file " in err)
-    assert ("File was treated as free form" in err)
+    _, err = capsys.readouterr()
+    assert "Failed to create PSyIR from file " in err
+    assert "File was treated as free form" in err
 
     # Check that if we use a fixed form file extension we get the expected
     # behaviour.
@@ -1303,8 +1303,8 @@ end subroutine test"""
         with pytest.raises(SystemExit) as error:
             main([inputfile])
         assert error.value.code == 1
-        out, err = capsys.readouterr()
-        assert ("Failed to create PSyIR from file " in err)
+        _, err = capsys.readouterr()
+        assert "Failed to create PSyIR from file " in err
         assert ("' doesn't end with a recognised file extension. Assuming "
                 "free form." in caplog.text)
 
@@ -2078,7 +2078,7 @@ def test_ignore_pattern():
     assert mod_man._ignore_files == set(["abc1", "abc2"])
 
 
-def test_intrinsic_control_settings(tmpdir, caplog):
+def test_intrinsic_control_settings(tmpdir):
     '''Checks that the intrinsic output control settings update the config
     correctly'''
     # Create dummy piece of code.
@@ -2108,7 +2108,5 @@ def test_config_overwrite() -> None:
     # Check error handling
     with pytest.raises(ConfigurationError) as err:
         main([filename, "--config-opts", "DOES_NOT_EXIST=27"])
-    assert "Unknown config overwrite: 'DOES_NOT_EXIST=27'" in str(err.value)
-
-    # Delete this config instance, so we don't affect any other tests
-    Config._instance = None
+    assert ("Attempt to overwrite unknown configuration option: "
+            "'DOES_NOT_EXIST=27'" in str(err.value))

@@ -67,10 +67,11 @@ class LFRicRunTimeChecks(LFRicCollection):
         '''
         super().invoke_declarations()
         api_conf = Config.get().api_conf("lfric")
+
+        # Only add if run-time checks are requested
         if api_conf.run_time_checks == "none":
             return
 
-        # Only add if run-time checks are requested
         const = LFRicConstants()
         csym = self.symtab.find_or_create(
             const.UTILITIES_MOD_MAP["logging"]["module"],
@@ -147,7 +148,7 @@ class LFRicRunTimeChecks(LFRicCollection):
 
                 if_condition = None
                 for name in function_space_names:
-                    if arg._vector_size > 1:
+                    if arg.vector_size > 1:
                         call = Call.create(ArrayOfStructuresReference.create(
                             field_symbol, [Literal('1', INTEGER_TYPE)],
                             ["which_function_space"]))
