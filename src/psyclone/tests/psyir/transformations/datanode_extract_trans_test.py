@@ -39,6 +39,7 @@ import os
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Assignment, Reference
 )
@@ -151,6 +152,35 @@ def test_datanodeextracttrans_validate(fortran_reader, tmpdir, monkeypatch):
     assert ("Input node contains an imported symbol whose name collides "
             "with an existing symbol, so the DataNodeExtractTrans cannot be "
             "applied. Clashing symbol name is 'i'." in str(err.value))
+
+    # Check validation works when the shape contains a symbol from an
+    # existing module
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            use some_mod, only: i
+            integer, dimension(25, i) :: some_var
+        end module a_mod
+        ''')
+    filename = os.path.join(str(tmpdir), "some_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module some_mod
+            integer, parameter :: i = 25
+            integer, parameter :: j = 30
+        end module some_mod
+        ''')
+    code = """subroutine test()
+        use a_mod, only: some_var
+        use some_mod, only: j
+        j = some_var(1,3)
+        end subroutine test"""
+    # We need to resolve the module in the Frontend to avoid some_Var
+    # becoming a call.
+    psyir = FortranReader(resolve_modules=True).psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+    dtrans.validate(assign.rhs)
 
 
 def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
@@ -283,3 +313,46 @@ def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
     assign = psyir.walk(Assignment)[0]
     dtrans.apply(assign.rhs)
     out = fortran_writer(psyir)
+    assert """  use some_mod, only : i
+  integer, dimension(25,50) :: b
+  integer, dimension(25,i) :: tmp
+
+  tmp = some_var
+  b = tmp""" in out
+
+    # Check that modules in a shape from an imported module are
+    # correctly added to the output if the module is already
+    # present as a Container.
+    filename = os.path.join(str(tmpdir), "f_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module f_mod
+            use g_mod, only: i
+            integer, dimension(25, i) :: some_var
+        end module f_mod
+        ''')
+    filename = os.path.join(str(tmpdir), "g_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module g_mod
+            integer, parameter :: i = 25
+            integer, dimension(25, i) :: j = 30
+        end module g_mod
+        ''')
+    code = """subroutine test()
+        use g_mod, only: j
+        use f_mod, only: some_var
+        j = some_var
+        end subroutine test"""
+    # We need to resolve the module in the Frontend to avoid some_Var
+    # becoming a call.
+    psyir = FortranReader(resolve_modules=True).psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+    dtrans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    assert """  use g_mod, only : i, j
+  use f_mod, only : some_var
+  integer, dimension(25,i) :: tmp
+
+  tmp = some_var
+  j = tmp""" in out
