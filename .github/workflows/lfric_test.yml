@@ -42,10 +42,10 @@ on:
   push
 
 env:
-  LFRIC_APPS_HASH: bc2249045eeac3c332123b0031930681f2cc2445
+  LFRIC_APPS_HASH: 0f10e77a0d59901396719f475b658a51fb595a10
   PYTHON_VERSION: 3.14
   GNU_TOOLCHAIN: gnu14_openmpi
-  NVHPC_VERSION: 25.1
+  NVHPC_TOOLCHAIN: nvhpc25_11_openmpi
   NUM_PARALLEL: 16
 
 jobs:
@@ -100,7 +100,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment %${GNU_TOOLCHAIN}
+        spack unload && spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         # TODO #3206: The no-annex-dof configuration fails in LFRic because some kernels lie in
@@ -134,9 +134,8 @@ jobs:
       id: lfric_omp_offload
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%nvhpc@${NVHPC_VERSION}
-        spack load nvhpc
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load lfric-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -168,9 +167,8 @@ jobs:
       id: lfric_acc_offload
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%nvhpc@${NVHPC_VERSION}
-        spack load nvhpc
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load lfric-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -200,7 +198,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment %${GNU_TOOLCHAIN}
+        spack unload && spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -229,7 +227,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment %${GNU_TOOLCHAIN}
+        spack unload && spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -257,7 +255,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment %${GNU_TOOLCHAIN}
+        spack unload && spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
@@ -311,19 +309,19 @@ jobs:
               },
               {
                 ci_test: "LFRic OpenMP offloading",
-                compiler:"nvhpc@'"$NVHPC_VERSION"'",
+                compiler:"'"${NVHPC_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_omp_offload}}"',
                 '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic OpenMP offloading build time",
-                compiler:"nvhpc@'"$NVHPC_VERSION"'",
+                compiler:"'"${NVHPC_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_omp_offload_build}}"',
                 '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic OpenACC",
-                compiler:"nvhpc@'"$NVHPC_VERSION"'",
+                compiler:"'"${NVHPC_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_acc_offload}}"',
                 '"${COMMON_FIELDS}"'
               },

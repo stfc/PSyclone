@@ -57,6 +57,7 @@ from psyclone.configuration import (BaseConfig, ConfigurationError,
                                     Config, VALID_KERNEL_NAMING_SCHEMES)
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 
 
@@ -79,8 +80,6 @@ BACKEND_CHECKS_ENABLED = false
 BACKEND_INDENTATION_DISABLED = false
 FORTRAN_STANDARD = f2003
 [lfric]
-access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
-                 gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
 supported_fortran_datatypes = real, integer, logical
 default_kind = real: r_def, integer: i_def, logical: l_def
@@ -627,8 +626,15 @@ def test_deprecated_access_mapping(tmpdir, caplog):
     '''
     config_file = tmpdir.join("config")
 
+    content = _CONFIG_CONTENT
+    # Put in the deprecated entry.
+    content = content.replace(
+        "[lfric]\n",
+        ("[lfric]\naccess_mapping = gh_read: read, gh_write: write, "
+         "gh_readwrite: readwrite,\n                 gh_inc: inc, "
+         "gh_sum: sum\n"))
     with caplog.at_level(logging.WARN):
-        _ = get_config(config_file, _CONFIG_CONTENT)
+        _ = get_config(config_file, content)
 
     assert "Configuration file contains an ACCESS_MAPPING entry" in caplog.text
 
@@ -798,6 +804,51 @@ def test_intrinsic_settings():
 
     assert ("backend_intrinsic_named_kwargs must be a bool but found "
             "'int'." in str(err.value))
+
+
+def test_cmd_line_flag_override(tmp_path, monkeypatch):
+    '''Test that any specification of a configuration file on the command
+    line overrides all others.'''
+
+    # Ensure that PSYCLONE_CONFIG is not set
+    monkeypatch.delitem(os.environ, "PSYCLONE_CONFIG", raising=False)
+    # Unload all psyclone modules
+    for key in list(sys.modules.keys()):
+        if key.startswith("psyclone"):
+            monkeypatch.delitem(sys.modules, key)
+
+    # We want to monkeypatch Config so that we catch any attempt to load
+    # a new one.
+    # pylint: disable=import-outside-toplevel, redefined-outer-name, reimported
+    from psyclone.configuration import Config
+
+    def fake_load(_, config_file=None, overwrite=None):
+        raise InternalError(f"config being loaded: '{config_file}'")
+    monkeypatch.setattr(Config, "load", fake_load)
+
+    # Importing this module should not trigger Config.load()
+    from psyclone.generator import main
+
+    cfg_file = tmp_path / "psyclone_test.cfg"
+    content = _CONFIG_CONTENT
+    content = re.sub(r"^FORTRAN_STANDARD = f2003",
+                     "FORTRAN_STANDARD = invalid",
+                     content, flags=re.MULTILINE)
+    with open(cfg_file, mode="w", encoding="utf-8") as ffile:
+        ffile.write(content)
+    f90_file = tmp_path / "a_test.f90"
+    my_prog = """
+    program a_test
+      write(*,*) 'hello'
+    end program a_test"""
+    with open(f90_file, mode="w", encoding="utf-8") as ffile:
+        ffile.write(my_prog)
+
+    # Check that the load() is triggered with the correct file name.
+    with pytest.raises(InternalError) as err:
+        main(["--config", str(cfg_file), str(f90_file)])
+    assert re.search(r"loaded: '[a-z\/\\\-_q0-9]*psyclone_test.cfg'",
+                     str(err.value), re.I)
 
 
 def test_config_overwrite(tmp_path: Path, monkeypatch) -> None:
