@@ -40,14 +40,14 @@ from typing import List, Union
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Assignment, Loop, Directive, Node, Reference, CodeBlock, Call, Return,
-    IfBlock, Routine, Schedule, IntrinsicCall, StructureReference)
+    Assignment, Loop, Directive, Node, Reference, CodeBlock, Call,
+    Routine, Schedule, IntrinsicCall, StructureReference)
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
     OMPMinimiseSyncTrans, Reference2ArrayRangeTrans,
-    ScalarisationTrans, IncreaseRankLoopArraysTrans)
+    ScalarisationTrans, IncreaseRankLoopArraysTrans, MaximalRegionTrans)
 from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
@@ -474,6 +474,11 @@ def add_profiling(children: Union[List[Node], Schedule]):
         attempt to add profiling regions.
 
     '''
+    class MaximalProfilingTrans(MaximalRegionTrans):
+        '''Applies Profiling to the largest possible region.'''
+        _allowed_nodes = [Assignment, Call, CodeBlock]
+        _transformation = ProfileTrans
+
     if children and isinstance(children, Schedule):
         # If we are given a Schedule, we look at its children.
         children = children.children
@@ -487,55 +492,4 @@ def add_profiling(children: Union[List[Node], Schedule]):
     if parent_routine and parent_routine.return_symbol:
         return
 
-    node_list = []
-    for child in children[:]:
-        # Do we want this node to be included in a profiling region?
-        if child.walk((Directive, Return)):
-            # It contains a directive or return statement so we put what we
-            # have so far inside a profiling region.
-            add_profile_region(node_list)
-            # A node that is not included in a profiling region marks the
-            # end of the current candidate region so reset the list.
-            node_list = []
-            # Now we go down a level and try again without attempting to put
-            # profiling below directives or within Assignments
-            if isinstance(child, IfBlock):
-                add_profiling(child.if_body)
-                add_profiling(child.else_body)
-            elif not isinstance(child, (Assignment, Directive)):
-                add_profiling(child.children)
-        else:
-            # We can add this node to our list for the current region
-            node_list.append(child)
-    add_profile_region(node_list)
-
-
-def add_profile_region(nodes):
-    '''
-    Attempt to put the supplied list of nodes within a profiling region.
-
-    :param nodes: list of sibling PSyIR nodes to enclose.
-    :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    if nodes:
-        # Check whether we should be adding profiling inside this routine
-        routine_name = nodes[0].ancestor(Routine).name.lower()
-        if any(ignore in routine_name for ignore in PROFILING_IGNORE):
-            return
-        if len(nodes) == 1:
-            if isinstance(nodes[0], CodeBlock) and \
-               len(nodes[0].get_ast_nodes) == 1:
-                # Don't create profiling regions for CodeBlocks consisting
-                # of a single statement
-                return
-            if isinstance(nodes[0], IfBlock) and \
-               "was_single_stmt" in nodes[0].annotations and \
-               isinstance(nodes[0].if_body[0], CodeBlock):
-                # We also don't put single statements consisting of
-                # 'IF(condition) CALL blah()' inside profiling regions
-                return
-        try:
-            ProfileTrans().apply(nodes)
-        except TransformationError:
-            pass
+    MaximalProfilingTrans.apply(children)
