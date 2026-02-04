@@ -3948,7 +3948,16 @@ Run-time Checks
 PSyclone performs static consistency checks where possible. When this
 is not possible PSyclone can generate run-time checks. As there may be
 performance costs associated with run-time checks they may be switched
-on or off by the `RUN_TIME_CHECKS` option in the configuration file.
+on or off by the `RUN_TIME_CHECKS` option in the configuration file
+(or by using the ``--config-opts`` command line option to overwrite
+the setting in the configuration file). The value of `RUN_TIME_CHECKS`
+must be one of:
+
+- `none` No runtime checks will be added (default)
+- `warn` Runtime checks will be added, and violations will cause a warning
+  message to be logged.
+- `error` Runtime checks will be added, and violations will cause an error
+  message to be logged. The application will then abort.
 
 Currently run-time checks can be generated to:
 

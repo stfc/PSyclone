@@ -44,8 +44,10 @@ Module containing tests relating to PSyclone configuration handling.
 
 import logging
 import os
+from pathlib import Path
 import re
 import sys
+from typing import Optional
 
 import pytest
 
@@ -93,7 +95,7 @@ precision_map = i_def: 4,
                 r_tran: 8,
                 r_bl: 8,
                 r_um: 8
-RUN_TIME_CHECKS = false
+RUN_TIME_CHECKS = none
 NUM_ANY_SPACE = 10
 NUM_ANY_DISCONTINUOUS_SPACE = 10
 '''
@@ -123,7 +125,6 @@ def clear_config_instance():
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS",
                         "COMPUTE_ANNEXED_DOFS",
-                        "RUN_TIME_CHECKS",
                         "BACKEND_CHECKS_ENABLED",
                         "BACKEND_INDENTATION_DISABLED"])
 def bool_entry_fixture(request):
@@ -154,16 +155,19 @@ def int_entry_fixture(request):
     return request.param
 
 
-def get_config(config_file, content):
-    ''' A utility function that creates and populates a temporary
+def get_config(config_file: Path,
+               content: str,
+               overwrite: Optional[str] = None) -> Config:
+    '''
+    A utility function that creates and populates a temporary
     PSyclone configuration file for testing purposes.
 
     :param config_file: local path to the temporary configuration file.
-    :type config: :py:class:`py._path.local.LocalPath`
-    :param str content: the entry for the temporary configuration file.
+    :param content: the entry for the temporary configuration file.
+    :param overwrite: Optional string of key-value pairs that will
+        overwrite settings in the config file.
 
     :returns: a test Config instance.
-    :rtype: :py:class:`psyclone.configuration.Config`
 
     '''
     # Create and populate a temporary config file
@@ -172,7 +176,7 @@ def get_config(config_file, content):
         new_cfg.close()
     # Create and populate a test Config object
     config_obj = Config()
-    config_obj.load(config_file=str(config_file))
+    config_obj.load(config_file=str(config_file), overwrite=overwrite)
     return config_obj
 
 
@@ -815,10 +819,10 @@ def test_cmd_line_flag_override(tmp_path, monkeypatch):
 
     # We want to monkeypatch Config so that we catch any attempt to load
     # a new one.
-    # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel, redefined-outer-name, reimported
     from psyclone.configuration import Config
 
-    def fake_load(_, config_file=None):
+    def fake_load(_, config_file=None, overwrite=None):
         raise InternalError(f"config being loaded: '{config_file}'")
     monkeypatch.setattr(Config, "load", fake_load)
 
@@ -845,3 +849,41 @@ def test_cmd_line_flag_override(tmp_path, monkeypatch):
         main(["--config", str(cfg_file), str(f90_file)])
     assert re.search(r"loaded: '[a-z\/\\\-_q0-9]*psyclone_test.cfg'",
                      str(err.value), re.I)
+
+
+def test_config_overwrite(tmp_path: Path, monkeypatch) -> None:
+    """
+    Test that configuration settings can be overwritten.
+    """
+
+    config_file = tmp_path / "config"
+
+    # Reset the ignore modules of the module manager
+    mod_manager = ModuleManager.get()
+    monkeypatch.setattr(mod_manager, "_ignore_modules", set())
+
+    # First verify unmodified values to be as expected:
+    config = get_config(config_file, _CONFIG_CONTENT)
+    assert config._config["DEFAULT"]["backend_checks_enabled"] == "false"
+    assert config._config["DEFAULT"]["ignore_modules"] == "netcdf, mpi"
+    assert config.backend_checks_enabled is False
+    assert mod_manager.ignores() == set(["netcdf", "mpi"])
+
+    # Now overwrite some values. Reset the module manager (since it stores
+    # the values from the config file / overwrite)
+    monkeypatch.setattr(mod_manager, "_ignore_modules", set())
+
+    config = get_config(config_file, _CONFIG_CONTENT,
+                        overwrite="backend_checks_enabled=True "
+                                  "ignore_modules=a,b")
+    assert config._config["DEFAULT"]["backend_checks_enabled"] == "True"
+    assert config.backend_checks_enabled is True
+    assert config._config["DEFAULT"]["ignore_modules"] == "a,b"
+    assert mod_manager.ignores() == set(["a", "b"])
+
+    # Now test invalid values:
+    with pytest.raises(ConfigurationError) as err:
+        config = get_config(config_file, _CONFIG_CONTENT,
+                            overwrite="DOES_NOT_EXIST=1")
+    assert ("Attempt to overwrite unknown configuration option: "
+            "'DOES_NOT_EXIST=1" in str(err.value))
