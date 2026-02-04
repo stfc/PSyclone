@@ -257,8 +257,8 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     # generated
 
     # Use statements
-    assert "    use testkern_mod, only : testkern_code\n" in code
-    assert "    use testkern_dofs_mod, only : testkern_dofs_code\n" in code
+    assert "  use testkern_mod, only : testkern_code\n" in code
+    assert "  use testkern_dofs_mod, only : testkern_dofs_code\n" in code
     if dist_mem:
         # Check mesh_mod is added to use statements
         assert "    use mesh_mod, only : mesh_type\n" in code

@@ -198,15 +198,17 @@ class GOOpenCLTrans(Transformation):
         # any form of global data (that is not a routine argument or just
         # type information).
         for kern in node.kernels():
-            KernelModuleInlineTrans().validate(kern)
-
+            if not kern.module_inline:
+                KernelModuleInlineTrans().validate(kern)
             for ksched in kern.get_callees():
 
-                global_variables = set(ksched.symbol_table.imported_symbols)
-                prec_symbols = set(ksched.symbol_table.precision_datasymbols)
-                if global_variables.difference(prec_symbols):
-                    names = sorted([sym.name for sym in
-                                    global_variables.difference(prec_symbols)])
+                global_variables = set(sym.name for sym in
+                                       ksched.symbol_table.imported_symbols)
+                prec_sym_names = set(sym.name for sym in
+                                     ksched.symbol_table.precision_datasymbols)
+                non_prec_vars = global_variables.difference(prec_sym_names)
+                if non_prec_vars:
+                    names = sorted(non_prec_vars)
                     raise TransformationError(
                         f"The Symbol Table for kernel '{kern.name}' contains "
                         f"the following symbols with 'global' scope: {names}. "

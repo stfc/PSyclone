@@ -51,7 +51,7 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, ImportInterface,
     GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError, SymbolTable)
 from psyclone.psyir.nodes import (
-    Call, Container, FileContainer, Routine, ScopingNode,
+    Call, Container, FileContainer, Reference, Routine, ScopingNode,
     IntrinsicCall, )
 from psyclone.utils import transformation_documentation_wrapper
 
@@ -620,6 +620,9 @@ class KernelModuleInlineTrans(Transformation):
                 sym = node.scope.symbol_table.lookup(external_callee_name)
                 table = sym.find_symbol_table(node)
                 table.rename_symbol(sym, caller_name)
+                new_sym = sym
+            else:
+                new_sym = node.scope.symbol_table.lookup(caller_name)
 
         # Update the Kernel to point to the updated PSyIR and set
         # the module-inline flag to avoid generating the kernel imports
@@ -637,6 +640,6 @@ class KernelModuleInlineTrans(Transformation):
             # point to the module-inlined version.
             for kern in cntr.walk(CodedKern, stop_type=CodedKern):
                 if kern.name == node.name:
-                    kern.module_inline = True
                     # pylint: disable=protected-access
                     kern._schedules = updated_routines
+                    kern.routine = Reference(new_sym)

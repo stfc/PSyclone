@@ -40,6 +40,7 @@ Routine directive. PSyclone can apply this transformation script via its
  -s option.
 
 '''
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyGen import CodedKern, InvokeSchedule
 from psyclone.psyir.transformations import ACCKernelsTrans
@@ -60,6 +61,7 @@ def trans(psyir):
 
     ctrans = LFRicColourTrans()
     enter_data_trans = ACCEnterDataTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
     kernel_trans = ACCKernelsTrans()
     rtrans = ACCRoutineTrans()
 
@@ -86,4 +88,6 @@ def trans(psyir):
         # adds '!$acc routine' which ensures the kernel is compiled for the
         # OpenACC device.
         for kernel in subroutine.walk(CodedKern):
+            # Module inlining is a pre-requisite for kernel transformations.
+            mod_inline_trans.apply(kernel)
             rtrans.apply(kernel)
