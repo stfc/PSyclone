@@ -1,3 +1,6 @@
+   37) PR #3295 for #3292. Add command-line flag to permit config-file
+   settings to be overridden.
+ 
    36) PR #3308. Update Spack environment to use updated compiler versions.
  
    35) PR #3202. Update nvidia compiler module version.
