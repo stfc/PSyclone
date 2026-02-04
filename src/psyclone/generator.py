@@ -621,13 +621,21 @@ def main(arguments):
 
     # Set the logging system up.
     loglevel = LOG_LEVELS[args.log_level]
+    logger_psyclone = logging.getLogger("psyclone")
+    logger_fparser = logging.getLogger("fparser")
     if args.log_file:
-        logname = args.log_file
-        logging.basicConfig(filename=logname,
-                            level=loglevel)
+        handler = logging.FileHandler(args.log_file, mode="a",
+                                      encoding="utf-8")
+
     else:
-        logging.basicConfig(level=loglevel)
-    logger = logging.getLogger(__name__)
+        handler = logging.StreamHandler()
+
+    formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+    for logger in [logger_fparser, logger_psyclone]:
+        logger.setLevel(loglevel)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
     logger.debug("Logging system initialised. Level is %s.", args.log_level)
 
     # Validate that the given arguments are for the right operation mode
