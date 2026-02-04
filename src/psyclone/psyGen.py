@@ -68,7 +68,6 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
     UnresolvedType, ImportInterface, INTEGER_TYPE, RoutineSymbol)
-from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -1105,27 +1104,16 @@ class Kern(Statement):
         return self._arguments
 
     @property
-    def name(self):
+    def name(self) -> str:
         '''
         :returns: the name of the kernel.
-        :rtype: str
         '''
         return self._name
 
-    @name.setter
-    def name(self, value):
+    def is_coloured(self) -> bool:
         '''
-        Set the name of the kernel.
-
-        :param str value: The name of the kernel.
-        '''
-        self._name = value
-
-    def is_coloured(self):
-        '''
-        :returns: True if this kernel is being called from within a \
+        :returns: True if this kernel is being called from within a
                   coloured loop.
-        :rtype: bool
         '''
         parent_loop = self.ancestor(Loop)
         while parent_loop:
@@ -1412,86 +1400,6 @@ class CodedKern(Kern):
         reader = FortranStringReader(fortran)
         self._fp2_ast = my_parser(reader)
         return self._fp2_ast
-
-    @staticmethod
-    def _new_name(original, tag, suffix):
-        '''
-        Construct a new name given the original, a tag and a suffix (which
-        may or may not terminate the original name). If suffix is present
-        in the original name then the `tag` is inserted before it.
-
-        :param str original: The original name
-        :param str tag: Tag to insert into new name
-        :param str suffix: Suffix with which to end new name.
-        :returns: New name made of original + tag + suffix
-        :rtype: str
-        '''
-        if original.endswith(suffix):
-            return original[:-len(suffix)] + tag + suffix
-        return original + tag + suffix
-
-    def _rename_psyir(self, suffix):
-        '''Rename the PSyIR module and kernel names by adding the supplied
-        suffix to the names. This change affects the KernCall and
-        KernelSchedule nodes as well as the kernel metadata declaration.
-
-        :param str suffix: the string to insert into the quantity names.
-
-        '''
-        # We need to get the kernel schedule before modifying self.name.
-        kern_schedules = self.get_callees()
-        container = kern_schedules[0].ancestor(Container)
-
-        # Use the suffix to create a new kernel name.  This will
-        # conform to the PSyclone convention of ending in "_code"
-        orig_mod_name = self.module_name[:]
-        new_mod_name = self._new_name(orig_mod_name, suffix, "_mod")
-
-        # If the kernel is polymorphic, we can just change the name of
-        # the interface.
-        interface_sym = self.get_interface_symbol()
-        if interface_sym:
-            orig_kern_name = interface_sym.name
-            new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
-            container.symbol_table.rename_symbol(interface_sym, new_kern_name)
-            self.name = new_kern_name
-        else:
-            kern_schedule = kern_schedules[0]
-            orig_kern_name = kern_schedule.name[:]
-            new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
-
-            # Change the name of this kernel and the associated
-            # module. These names are used when generating the PSy-layer.
-            self.name = new_kern_name[:]
-            kern_schedule.name = new_kern_name[:]
-
-        self._module_name = new_mod_name[:]
-        container.name = new_mod_name[:]
-
-        # Ensure the metadata points to the correct procedure now. Since this
-        # routine is general purpose, we won't always have a domain-specific
-        # Container here and if we don't, it won't have a 'metadata' property.
-        if hasattr(container, "metadata"):
-            container.metadata.procedure_name = new_kern_name[:]
-        # TODO #928 - until the LFRic KernelInterface is fully functional, we
-        # can't raise language-level PSyIR to LFRic and therefore we have to
-        # manually fix the name of the procedure within the text that stores
-        # the kernel metadata.
-        container_table = container.symbol_table
-        for sym in container_table.datatypesymbols:
-            if isinstance(sym.datatype, UnsupportedFortranType):
-                # If the DataTypeSymbol is a KernelMetadata Type, change its
-                # kernel code name
-                for line in sym.datatype.declaration.split('\n'):
-                    if "PROCEDURE," in line:
-                        newl = f"PROCEDURE, NOPASS :: code => {new_kern_name}"
-                        new_declaration = sym.datatype.declaration.replace(
-                                                            line, newl)
-                        # pylint: disable=protected-access
-                        sym._datatype = UnsupportedFortranType(
-                            new_declaration,
-                            partial_datatype=sym.datatype.partial_datatype)
-                        break  # There is only one such statement per type
 
     @property
     def modified(self):

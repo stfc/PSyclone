@@ -1801,12 +1801,7 @@ class LFRicKernelConstTrans(Transformation, KernelTransformationMixin):
 
         arg_list_info = KernCallArgList(kernel)
         arg_list_info.generate()
-        try:
-            kernel_schedules = kernel.get_callees()
-        except NotImplementedError as excinfo:
-            raise TransformationError(
-                f"Failed to parse kernel '{kernel.name}'. Error reported was "
-                f"'{excinfo}'.") from excinfo
+        kernel_schedules = kernel.get_callees()
 
         for kernel_schedule in kernel_schedules:
             symbol_table = kernel_schedule.symbol_table

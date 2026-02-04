@@ -206,8 +206,18 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
             if_statement = IfBlock.create(condition, [Return()])
             kschedule.children.insert(0, if_statement)
 
-    def _boundary_values_declare_and_init(self, node):
+    def _boundary_values_declare_and_init(
+            self, node: GOKern) -> tuple[DataSymbol, DataSymbol,
+                                         DataSymbol, DataSymbol]:
         '''
+        Declare and initialise the loop boundary values required for
+        the supplied kernel.
+
+        :param node: the GOcean kernel for which the loop boundaries are
+                     required.
+
+        :returns: a tuple of the DataSymbols representing the x-start, x-stop,
+                  y-start and y-stop loop limits, in that order.
         '''
         # Get useful references
         invoke_st = node.ancestor(InvokeSchedule).symbol_table
