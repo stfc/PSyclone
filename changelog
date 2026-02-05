@@ -1,3 +1,6 @@
+   38) PR #3311 for #3310. Small optimisation to the dependence-analysis
+   functionality for array indices consisting of simple References.
+ 
    37) PR #3295 for #3292. Add command-line flag to permit config-file
    settings to be overridden and extend possible settings for the
    runtime warnings option.
