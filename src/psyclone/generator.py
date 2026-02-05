@@ -635,7 +635,8 @@ def main(arguments):
         logger.setLevel(LOG_LEVELS[args.log_level])
         handler.setFormatter(formatter)
         # Certain tests call main several times, which would add handlers
-        # over and over. Only attach a handler once:
+        # over and over (which results in duplicated messages).
+        # Only attach a handler once:
         if len(logger.handlers) == 0:
             logger.addHandler(handler)
 

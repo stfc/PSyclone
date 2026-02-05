@@ -115,6 +115,11 @@ def setup_logging():
     """
 
     logger_psyclone = logging.getLogger('psyclone')
+    # In case that some tests have added handlers - remove them all
+    while logger_psyclone.handlers:
+        logger_psyclone.removeHandler(logger_psyclone.handlers[0])
+
+    # Then add exactly one handler (which is done what happens in main):
     handler = logging.StreamHandler()
     logger_psyclone.addHandler(handler)
     # Disable the logger, which is the default

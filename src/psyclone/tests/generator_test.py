@@ -786,7 +786,45 @@ def test_main_invalid_api(capsys):
     assert output == expected_output
 
 
-def test_main_api(capsys, caplog):
+def test_main_logger(capsys, caplog):
+    """
+    Test the setup of the logger.
+    """
+
+    # The conftest `setup_logging` fixture will add a handler to the
+    # PSyclone top-level logger - meaning the corresponding line in
+    # generator.py is not executed. Remove the handler here so we
+    # trigger adding a handler in generator.py
+    logger = logging.getLogger("psyclone")
+    logger.removeHandler(logger.handlers[0])
+
+    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    # Give invalid logging level
+    # Reset capsys
+    capsys.readouterr()
+    with pytest.raises(SystemExit):
+        main([filename, "-api", "lfric", "--log-level", "fail"])
+    _, err = capsys.readouterr()
+    # Error message check truncated as Python 3.13 changes how the
+    # array is output.
+    assert ("error: argument --log-level: invalid choice: 'fail'"
+            in err)
+
+    # Test we get the logging debug correctly with caplog. This
+    # overrides the file output that PSyclone attempts.
+    caplog.clear()
+    # Pytest fully controls the logging level, overriding anything we
+    # set in generator.main so we can't test for it.
+    with caplog.at_level(logging.DEBUG):
+        main([filename, "-api", "dynamo0.3", "--log-level", "DEBUG",
+              "--log-file", "test.out"])
+        assert Config.get().api == "lfric"
+        assert caplog.records[0].levelname == "DEBUG"
+        assert ("Logging system initialised. Level is DEBUG." in
+                caplog.record_tuples[0][2])
+
+
+def test_main_api():
     ''' Test that the API can be set by a command line parameter, also using
     the API name aliases. '''
 
@@ -815,30 +853,6 @@ def test_main_api(capsys, caplog):
 
     main([filename, "-api", "dynamo0.3"])
     assert Config.get().api == "lfric"
-
-    # Give invalid logging level
-    # Reset capsys
-    capsys.readouterr()
-    with pytest.raises(SystemExit):
-        main([filename, "-api", "dynamo0.3", "--log-level", "fail"])
-    _, err = capsys.readouterr()
-    # Error message check truncated as Python 3.13 changes how the
-    # array is output.
-    assert ("error: argument --log-level: invalid choice: 'fail'"
-            in err)
-
-    # Test we get the logging debug correctly with caplog. This
-    # overrides the file output that PSyclone attempts.
-    caplog.clear()
-    # Pytest fully controls the logging level, overriding anything we
-    # set in generator.main so we can't test for it.
-    with caplog.at_level(logging.DEBUG):
-        main([filename, "-api", "dynamo0.3", "--log-level", "DEBUG",
-              "--log-file", "test.out"])
-        assert Config.get().api == "lfric"
-        assert caplog.records[0].levelname == "DEBUG"
-        assert ("Logging system initialised. Level is DEBUG." in
-                caplog.record_tuples[0][2])
 
 
 def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory):
