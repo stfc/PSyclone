@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -412,7 +412,7 @@ def test_psylayer_flatten_same_symbols():
 variable_access_patterns", "invoke_3-compute_kernel_code-r0", 10, 6)
     """ in code
 
-    # Bring the data back to the orginal structure at the end of the region1
+    # Bring the data back to the original structure at the end of the region1
     # and then flatten it again to prepare for the second region
     assert """
     CALL extract_psy_data % PostEnd
@@ -440,7 +440,7 @@ variable_access_patterns", "invoke_3-compute_kernel_code-r0", 10, 6)
 various_variable_access_patterns", "invoke_3-compute_kernel_code-r1", 10, 6)
     """ in code
 
-    # Bring data back and flatten agian a thrid time
+    # Bring data back and flatten again a third time
     assert """
     CALL extract_psy_data_1 % PostEnd
     in_fld%grid%gphiu = in_fld_grid_gphiu_1

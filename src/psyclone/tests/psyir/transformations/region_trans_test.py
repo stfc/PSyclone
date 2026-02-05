@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -185,7 +185,7 @@ def test_validate_errors(fortran_reader):
     assert "Children are not consecutive children of one parent:" \
            in str(err.value)
 
-    # Check when list of nodes contains >1 Schdule. Have to use an IfBlock to
+    # Check when list of nodes contains >1 Schedule. Have to use an IfBlock to
     # exercise this case.
     psyir = fortran_reader.psyir_from_source('''
     program my_prog

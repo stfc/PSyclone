@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    # If the environemnt has ONLY_FILE defined, only process that one file and
+    # If the environment has ONLY_FILE defined, only process that one file and
     # nothing else. This is useful for file-by-file exhaustive tests.
     only_do_file = os.environ.get('ONLY_FILE', False)
     if only_do_file and psyir.name != only_do_file:

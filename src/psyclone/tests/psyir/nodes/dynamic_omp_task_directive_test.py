@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,8 +45,8 @@ from psyclone.psyir.nodes import Assignment, BinaryOperation, \
         DynamicOMPTaskDirective, Literal, Loop, Reference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.tests.utilities import Compile
-from psyclone.transformations import OMPSingleTrans, \
-    OMPParallelTrans
+from psyclone.transformations import OMPSingleTrans
+from psyclone.psyir.transformations import OMPParallelTrans
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -1249,7 +1249,7 @@ def test_omp_task_directive_output_nonarray_shared_var(
         fortran_reader, fortran_writer, tmpdir
         ):
     ''' Test the code generation generates the correct clauses
-    when an output variable is just a shared vairable '''
+    when an output variable is just a shared variable '''
     code = '''
     subroutine my_subroutine(k)
         integer :: i, ii

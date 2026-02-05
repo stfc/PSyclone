@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -372,8 +372,8 @@ def test_lfric_cma(fortran_writer):
     assert "cma_op1_cma_matrix: WRITE," in var_info
     assert "cma_op1_ncol: WRITE+READ," in var_info
     assert "cma_op1_nrow: WRITE+READ," in var_info
-    assert "cbanded_map_adspc1_lma_op1: WRITE+READ," in var_info
-    assert "cbanded_map_adspc2_lma_op1: WRITE+READ," in var_info
+    assert "cbanded_map_ads1_lma_op1: WRITE+READ," in var_info
+    assert "cbanded_map_ads2_lma_op1: WRITE+READ," in var_info
     assert "lma_op1_local_stencil: WRITE+READ," in var_info
     assert "lma_op1_proxy%ncell_3d: READ," in var_info
 
@@ -385,8 +385,8 @@ def test_lfric_cma2():
     '''
     psy, invoke_info = get_invoke("20.1_cma_apply.f90", "lfric", idx=0)
     var_info = str(invoke_info.schedule.reference_accesses())
-    assert "cma_indirection_map_aspc1_field_a: READ," in var_info
-    assert "cma_indirection_map_aspc2_field_b: READ," in var_info
+    assert "cma_indirection_map_as1_field_a: READ," in var_info
+    assert "cma_indirection_map_as2_field_b: READ," in var_info
 
 
 def test_lfric_stencils():
@@ -440,7 +440,7 @@ def test_lfric_stencil_xory_vector():
 
 def test_lfric_operator_bc_kernel():
     '''Tests that a kernel that applies boundary conditions to operators
-    detects the right implicit paramaters.
+    detects the right implicit parameters.
 
     '''
     psy, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
@@ -617,8 +617,8 @@ def test_lfric_stub_banded_dofmap():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "cbanded_map_adspc1_op_1: READ," in var_info
-    assert "cbanded_map_adspc2_op_1: READ" in var_info
+    assert "cbanded_map_ads1_op_1: READ," in var_info
+    assert "cbanded_map_ads2_op_1: READ" in var_info
 
 
 def test_lfric_stub_indirection_dofmap():
@@ -632,8 +632,8 @@ def test_lfric_stub_indirection_dofmap():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "cma_indirection_map_aspc1_field_1: READ," in var_info
-    assert "cma_indirection_map_aspc2_field_2: READ" in var_info
+    assert "cma_indirection_map_as1_field_1: READ," in var_info
+    assert "cma_indirection_map_as2_field_2: READ" in var_info
 
 
 def test_lfric_stub_boundary_dofmap():

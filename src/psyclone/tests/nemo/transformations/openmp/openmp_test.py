@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,8 @@ import pytest
 from psyclone.errors import GenerationError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, Loop
-from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
-    OMPParallelLoopTrans
+from psyclone.psyir.transformations import OMPParallelTrans
+from psyclone.transformations import OMPLoopTrans, OMPParallelLoopTrans
 
 NEMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "..", "..", "test_files")
@@ -111,7 +111,7 @@ def test_omp_private_declaration(fortran_reader, fortran_writer):
         os.path.join(NEMO_BASE_PATH, "explicit_do_two_loops.f90")
     )
     schedule = psyir.children[0]
-    omp_parallel = TransInfo().get_trans_name('OMPParallelTrans')
+    omp_parallel = OMPParallelTrans()
 
     # Apply "omp parallel" around one assignment to a scalar variable
     # and a loop using this variable as loop boundary. Parallelising an

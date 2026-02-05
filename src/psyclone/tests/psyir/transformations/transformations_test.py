@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,12 +57,12 @@ from psyclone.psyir.transformations import (
 from psyclone.tests.utilities import get_invoke, Compile
 from psyclone.transformations import (
     ACCEnterDataTrans, ACCLoopTrans,
-    ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans,
+    ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans,
     OMPSingleTrans, OMPMasterTrans)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.transformations import (
-    OMPTaskloopTrans, OMPDeclareTargetTrans)
+    OMPTaskloopTrans, OMPDeclareTargetTrans, OMPParallelTrans)
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -565,7 +565,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
 
 
 def test_omploop_trans_new_options(sample_psyir):
-    ''' Thest the new options and validation methods work correctly using
+    ''' Test the new options and validation methods work correctly using
     OMPLoopTrans apply'''
     omplooptrans = OMPLoopTrans()
     tree = sample_psyir.copy()
@@ -578,8 +578,8 @@ def test_omploop_trans_new_options(sample_psyir):
             "'fakeoption2']. Valid options are '['node_type_check', "
             "'verbose', 'collapse', 'force', 'ignore_dependencies_for', "
             "'privatise_arrays', 'sequential', 'nowait', 'reduction_ops', "
-            "'options', 'reprod', 'enable_reductions']."
-            in str(excinfo.value))
+            "'force_private', 'options', 'reprod', 'enable_reductions']."
+            == str(excinfo.value))
 
     # Check we get the relevant error message when submitting multiple
     # options with the wrong type
@@ -591,7 +591,7 @@ def test_omploop_trans_new_options(sample_psyir):
             "'force' option expects type 'bool' but received 'a' "
             "of type 'str'.\n"
             "Please see the documentation and check the provided types."
-            in str(excinfo.value))
+            == str(excinfo.value))
 
     with pytest.raises(TypeError) as excinfo:
         omplooptrans.apply(tree.walk(Loop)[0], collapse="x")

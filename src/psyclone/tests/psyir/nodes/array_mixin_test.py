@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -911,7 +911,7 @@ def test_same_range(fortran_reader):
     # Unless they refer to the same symbol and dimension
     assert array1.same_range(1, array3, 1) is True
 
-    # The assumtion of same size is for the matching slice sections
+    # The assumption of same size is for the matching slice sections
     code = '''
     subroutine test(A)
         use other_mod

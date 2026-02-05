@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -652,7 +652,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 # We have a Literal step value, and a Literal in
                 # the Binary Operation. These Literals must both be
                 # Integer types, so we will convert them to integers
-                # and do some divison.
+                # and do some division.
                 step_val = int(parent_loop.step_expr.value)
                 literal_val = int(literal.value)
                 divisor = math.ceil(literal_val / step_val)
@@ -707,7 +707,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # We have a Literal step value, and a Literal in
                     # the Binary Operation. These Literals must both be
                     # Integer types, so we will convert them to integers
-                    # and do some divison.
+                    # and do some division.
                     step_val = int(parent_loop.step_expr.value)
                     literal_val = int(literal.value)
                     divisor = math.ceil(literal_val / step_val)

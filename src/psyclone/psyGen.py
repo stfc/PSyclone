@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -73,9 +73,6 @@ from psyclone.psyir.symbols.symbol_table import SymbolTable
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
-
-# Mapping of access type to operator.
-REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
 
 def object_index(alist, item):
@@ -232,9 +229,6 @@ class PSy():
         '''
         return self._container
 
-    def __str__(self):
-        return "PSy"
-
     @property
     def invokes(self):
         ''':returns: the list of invokes.
@@ -309,9 +303,6 @@ class Invokes():
             my_invoke = invoke_cls(alg_invocation, idx, self)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
-
-    def __str__(self):
-        return "Invokes object containing "+str(self.names)
 
     @property
     def psy(self):
@@ -430,17 +421,6 @@ class Invoke():
                 else:
                     # literals have no name
                     pass
-
-        # work out the unique dofs required in this subroutine
-        self._dofs = {}
-        for kern_call in self._schedule.coded_kernels():
-            dofs = kern_call.arguments.dofs
-            for dof in dofs:
-                if dof not in self._dofs:
-                    # Only keep the first occurrence for the moment. We will
-                    # need to change this logic at some point as we need to
-                    # cope with writes determining the dofs that are used.
-                    self._dofs[dof] = [kern_call, dofs[dof][0]]
 
     def __str__(self):
         return self._name+"("+", ".join([str(arg) for arg in
@@ -605,7 +585,7 @@ class Invoke():
         for arg in self.unique_declarations(argument_types,
                                             intrinsic_type=intrinsic_type):
             first_arg = self.first_access(arg.declaration_name)
-            if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
+            if first_arg.access in [AccessType.WRITE, AccessType.REDUCTION]:
                 # If the first access is a write then the intent is
                 # out irrespective of any other accesses. Note,
                 # sum_args behave as if they are write_args from the
@@ -846,68 +826,9 @@ class HaloExchange(Statement):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
+        '''Return the list of arguments associated with this node. Override the
         base method and simply return our argument. '''
         return [self._field]
-
-    def check_vector_halos_differ(self, node):
-        '''Helper method which checks that two halo exchange nodes (one being
-        self and the other being passed by argument) operating on the
-        same field, both have vector fields of the same size and use
-        different vector indices. If this is the case then the halo
-        exchange nodes do not depend on each other. If this is not the
-        case then an internal error will have occured and we raise an
-        appropriate exception.
-
-        :param node: a halo exchange which should exchange the same field as \
-                     self.
-        :type node: :py:class:`psyclone.psyGen.HaloExchange`
-        :raises GenerationError: if the argument passed is not a halo exchange.
-        :raises GenerationError: if the field name in the halo exchange \
-                                 passed in has a different name to the field \
-                                 in this halo exchange.
-        :raises GenerationError: if the field in this halo exchange is not a \
-                                 vector field
-        :raises GenerationError: if the vector size of the field in this halo \
-                                 exchange is different to vector size of the \
-                                 field in the halo exchange passed by argument.
-        :raises GenerationError: if the vector index of the field in this \
-                                 halo exchange is the same as the vector \
-                                 index of the field in the halo exchange \
-                                 passed by argument.
-
-        '''
-
-        if not isinstance(node, HaloExchange):
-            raise GenerationError(
-                "Internal error, the argument passed to "
-                "HaloExchange.check_vector_halos_differ() is not "
-                "a halo exchange object")
-
-        if self.field.name != node.field.name:
-            raise GenerationError(
-                f"Internal error, the halo exchange object passed to "
-                f"HaloExchange.check_vector_halos_differ() has a different "
-                f"field name '{node.field.name}' to self '{self.field.name}'")
-
-        if self.field.vector_size <= 1:
-            raise GenerationError(
-                "Internal error, HaloExchange.check_vector_halos_differ() "
-                "a halo exchange depends on another halo exchange but the "
-                f"vector size of field '{self.field.name}' is 1")
-
-        if self.field.vector_size != node.field.vector_size:
-            raise GenerationError(
-                f"Internal error, HaloExchange.check_vector_halos_differ() "
-                f"a halo exchange depends on another halo exchange but the "
-                f"vector sizes for field '{self.field.name}' differ")
-
-        if self.vector_index == node.vector_index:
-            raise GenerationError(
-                f"Internal error, HaloExchange.check_vector_halos_differ() "
-                f"a halo exchange depends on another halo exchange but both "
-                f"vector id's ('{self.vector_index}') of field "
-                f"'{self.field.name}' are the same")
 
     def node_str(self, colour=True):
         '''
@@ -972,11 +893,10 @@ class Kern(Statement):
         self._arg_descriptors = None
 
         # Initialise any reduction information
-        reduction_modes = AccessType.get_valid_reduction_modes()
         const = Config.get().api_conf().get_constants()
         args = args_filter(self._arguments.args,
                            arg_types=const.VALID_SCALAR_NAMES,
-                           arg_accesses=reduction_modes)
+                           arg_accesses=[AccessType.REDUCTION])
         if args:
             self._reduction = True
             if len(args) != 1:
@@ -990,7 +910,7 @@ class Kern(Statement):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
+        '''Return the list of arguments associated with this node. Override the
         base method and simply return our arguments. '''
         return self.arguments.args
 
@@ -1117,15 +1037,6 @@ class Kern(Statement):
         '''
         tag = f"{self.name}:{self._reduction_arg.name}:local"
         local_symbol = table.lookup_with_tag(tag)
-        reduction_access = self._reduction_arg.access
-        if reduction_access not in REDUCTION_OPERATOR_MAPPING:
-            api_strings = [access.api_specific_name()
-                           for access in REDUCTION_OPERATOR_MAPPING]
-            raise GenerationError(
-                f"Unsupported reduction access "
-                f"'{reduction_access.api_specific_name()}' found in "
-                f"LFRicBuiltIn:reduction_sum_loop(). Expected one of "
-                f"{api_strings}.")
         symtab = table
         thread_idx = symtab.lookup_with_tag("omp_thread_index")
         nthreads = symtab.lookup_with_tag("omp_num_threads")
@@ -1869,20 +1780,20 @@ class Arguments():
     def args(self):
         return self._args
 
-    def iteration_space_arg(self):
+    def iteration_space_arg(self) -> str:
         '''
         Returns an argument that can be iterated over, i.e. modified
         (has WRITE, READWRITE or INC access), but not the result of
         a reduction operation.
 
         :returns: a Fortran argument name
-        :rtype: string
+
         :raises GenerationError: if none such argument is found.
 
         '''
         for arg in self._args:
             if arg.access in AccessType.all_write_accesses() and \
-                    arg.access not in AccessType.get_valid_reduction_modes():
+                    arg.access != AccessType.REDUCTION:
                 return arg
         raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
                               "we assume there is at least one writer, "

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#         I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office;
+#         I. Kavcic, A. Coughtrie, L. Turner, O. Brunt
+#         and A. Pirrie, Met Office;
 #         C. M. Maynard, Met Office/University of Reading;
 #         J. Henrichs, Bureau of Meteorology.
 
@@ -48,7 +49,7 @@ from fparser import api as fpapi
 
 from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
                                    LFRicKern, LFRicKernMetadata,
-                                   LFRicScalarArgs)
+                                   LFRicScalarArgs, LFRicScalarArrayArgs)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -198,8 +199,8 @@ def test_ad_scalar_type_no_write():
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)
         assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction ['gh_sum'] access but found 'gh_write'" in
-                str(excinfo.value))
+                "reduction ('gh_reduction') access but found "
+                "'gh_write'" in str(excinfo.value))
 
 
 def test_ad_scalar_type_no_inc():
@@ -215,8 +216,8 @@ def test_ad_scalar_type_no_inc():
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)
         assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction ['gh_sum'] access but found 'gh_inc'" in
-                str(excinfo.value))
+                "reduction ('gh_reduction') access but found "
+                "'gh_inc'" in str(excinfo.value))
 
 
 def test_ad_scalar_type_no_readwrite():
@@ -233,28 +234,28 @@ def test_ad_scalar_type_no_readwrite():
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)
         assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction ['gh_sum'] access but found 'gh_readwrite'" in
-                str(excinfo.value))
+                "reduction ('gh_reduction') access but found "
+                "'gh_readwrite'" in str(excinfo.value))
 
 
 @pytest.mark.parametrize("scalar_type", ["gh_integer", "gh_logical"])
 def test_ad_integer_logical_scalar_type_no_sum(scalar_type):
     ''' Tests that an error is raised when the argument descriptor
-    metadata for an 'integer' or a 'logical' scalar specifies 'GH_SUM'
+    metadata for an 'integer' or a 'logical' scalar specifies 'GH_REDUCTION'
     access (reduction).
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace(
         f"arg_type(gh_scalar,   {scalar_type}, gh_read)",
-        f"arg_type(gh_scalar,   {scalar_type}, gh_sum)", 1)
+        f"arg_type(gh_scalar,   {scalar_type}, gh_reduction)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert (f"reduction access 'gh_sum' is only valid with a real scalar "
-            f"argument, but a scalar argument with '{scalar_type}' data type "
-            in str(excinfo.value))
+    assert (f"reduction access 'gh_reduction' is only valid with a real "
+            f"scalar argument, but a scalar argument with '{scalar_type}' "
+            f"data type " in str(excinfo.value))
 
 
 def test_no_vector_scalar():
@@ -328,6 +329,30 @@ def test_lfricscalars_call_err1():
     assert ("Found unsupported intrinsic types for the scalar arguments "
             "['a'] to Invoke 'invoke_0_testkern_three_scalars_type'. "
             "Supported types are ['real', 'integer', 'logical']."
+            in str(err.value))
+
+
+def test_lfricscalararray_call_err1():
+    ''' Check that the LFRicScalarArrayArgs constructor raises the
+    expected internal error if it encounters an unrecognised
+    intrinsic type of ScalarArray when generating a kernel call.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "28.scalar_array_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+    # Sabotage the scalar argument to make it have an invalid intrinsic type
+    scalar_arr_arg = kernel.arguments.args[1]
+    scalar_arr_arg._intrinsic_type = "double-type"
+    with pytest.raises(InternalError) as err:
+        LFRicScalarArrayArgs(invoke).invoke_declarations()
+    assert ("Found unsupported intrinsic types for the ScalarArray arguments "
+            "['real_array'] to Invoke 'invoke_0'. Supported types are "
+            "['real', 'integer', 'logical']."
             in str(err.value))
 
 
@@ -485,14 +510,14 @@ def test_multiple_updated_scalar_args():
     kernel that writes to more than one of its field and scalar arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_scalar,   gh_real,    gh_read)",
-                        "arg_type(gh_scalar,   gh_real,    gh_sum)", 1)
+                        "arg_type(gh_scalar,   gh_real,    gh_reduction)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert ("A user-supplied LFRic kernel must not write/update a scalar "
             "argument but kernel 'testkern_qr_type' has a scalar "
-            "argument with 'gh_sum' access." in str(excinfo.value))
+            "argument with 'gh_reduction' access." in str(excinfo.value))
 
 
 def test_scalar_different_data_types_invoke():
@@ -513,3 +538,22 @@ def test_scalar_different_data_types_invoke():
             f"'invoke_real_and_integer_scalars' have different metadata for "
             f"data type ({const.VALID_SCALAR_DATA_TYPES}) in different "
             f"kernels. This is invalid." in str(excinfo.value))
+
+
+def test_scalar_array_different_data_types_invoke():
+    ''' Tests that the same scalar cannot have different data types
+    in different kernels within the same Invoke.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "28.1_multikernel_invokes_scalar_array_invalid.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+
+    with pytest.raises(GenerationError):
+        _ = psy.gen
+    assert ("ScalarArray argument(s) ['b'] in Invoke "
+            "'invoke_real_and_logical_scalars' is/are passed to more than "
+            "one kernel and the kernel metadata for the corresponding "
+            "arguments specifies different intrinsic types.")

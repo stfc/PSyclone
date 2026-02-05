@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,20 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import CodeBlock, FileContainer
 from psyclone.psyir.symbols import RoutineSymbol
+
+
+def test_empty_program_handler(parser):
+    '''Test that the program handler still returns a FileContainer
+    for an empty program.
+    '''
+    code = ""
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    psyir = processor._program_handler(parse_tree, None)
+    assert isinstance(psyir, FileContainer)
+    assert psyir.parent is None
+    assert len(psyir.children) == 0
 
 
 def test_program_handler(parser):

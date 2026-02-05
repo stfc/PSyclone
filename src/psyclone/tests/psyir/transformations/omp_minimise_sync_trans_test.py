@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,12 +42,12 @@ from psyclone.psyir.nodes import (
         OMPTargetDirective, OMPParallelDirective)
 from psyclone.psyir.transformations import (
         OMPLoopTrans, OMPMinimiseSyncTrans,
-        OMPTargetTrans, TransformationError
+        OMPTargetTrans, TransformationError,
+        OMPParallelTrans
 )
 from psyclone.psyir.transformations.omp_minimise_sync_trans import (
         _eliminate_final_parallel_barrier
 )
-from psyclone.transformations import OMPParallelTrans
 
 
 def test_omp_remove_barrier_trans_str():
@@ -249,7 +249,7 @@ def test_basic_barrier_removal(fortran_reader, fortran_writer):
     paralleltrans.apply(routine.children[:])
 
     # The initial implementation would give 3 barriers (since we add one
-    # at the end for safety which is unneccessary but maximises safety).
+    # at the end for safety which is unnecessary but maximises safety).
     assert len(psyir.walk(OMPBarrierDirective)) == 3
 
     rtrans = OMPMinimiseSyncTrans()
@@ -350,7 +350,7 @@ def test_dependency_before_directive(fortran_reader, fortran_writer):
         targettrans.apply(loop, options={"nowait": True})
 
     # We have if we imagine we have loops BCDA b->c,c->b, d->a and a->d
-    # depdendencies. The a->d barrier is covered by b->c, and the c->b barrier
+    # dependencies. The a->d barrier is covered by b->c, and the c->b barrier
     # is covered by the d->a barrier.
     assert len(psyir.walk(OMPTaskwaitDirective)) == 5
 
@@ -419,7 +419,7 @@ def test_dependency_before_directive_while(fortran_reader, fortran_writer):
         targettrans.apply(loop, options={"nowait": True})
 
     # We have if we imagine we have loops BCDA b->c,c->b, d->a and a->d
-    # depdendencies. The a->d barrier is covered by b->c, and the c->b barrier
+    # dependencies. The a->d barrier is covered by b->c, and the c->b barrier
     # is covered by the d->a barrier.
     assert len(psyir.walk(OMPTaskwaitDirective)) == 5
 

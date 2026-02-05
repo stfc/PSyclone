@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,7 +70,7 @@ def test_whileloop_node_str():
     assert coloured_loop+"[annotations='was_unconditional']" in output
 
 
-def test_whileloop_create_and_refence_accesses():
+def test_whileloop_create_and_reference_accesses():
     '''Test that the create method in the WhileLoop class correctly creates
     a WhileLoop instance and that the reference_access method correctly
     captures variable accesses.'''

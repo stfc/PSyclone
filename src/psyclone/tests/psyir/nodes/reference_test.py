@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -618,10 +618,10 @@ def test_reference_component_indices(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     refs = psyir.walk(Reference)
     array_accessor = psyir.walk(ArrayMixin)
-    # A scalar is a tuple with an emtpy tuple
+    # A scalar is a tuple with an empty tuple
     assert refs[0].component_indices() == tuple(tuple())
     # A structure accessor without array is a tuple with an empty tuple
-    # for each compoment
+    # for each component
     assert refs[1].component_indices() == (tuple(), tuple(), tuple())
     # An array is a single-element tuple, with the nodes representing the
     # indices in the tuple
@@ -735,7 +735,7 @@ def test_reference_enters_and_escapes_scope(fortran_reader):
     # All values of b and c are overwritten, so they do not escape the scope
     assert not b_ref.escapes_scope(loop)
     assert not c_ref.escapes_scope(loop)
-    # TODO #3215: All values of 'd' are also overwitten, but we cannot check
+    # TODO #3215: All values of 'd' are also overwritten, but we cannot check
     # this yet
     assert d_ref.escapes_scope(loop)
 

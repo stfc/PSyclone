@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council
+# Copyright (c) 2021-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -108,7 +108,7 @@ def test_init():
     assert isinstance(invoke_trans, RaisePSyIR2LFRicAlgTrans)
 
 
-def test_structure_contructor(fortran_reader):
+def test_structure_constructor(fortran_reader):
     '''Test that validation does not raise an exception if the fparser2
     node is a structure constructor.
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -565,10 +565,10 @@ def test_array_datatype():
     # is a structure symbol.
     generic_sym = Symbol("test")
     aref6 = ArrayReference(generic_sym)
-    test_struc_sym = DataSymbol("test", StructureType())
+    test_struct_sym = DataSymbol("test", StructureType())
     index = Symbol("temp")
     aref6.addchild(Reference(index))
-    aref6._symbol = test_struc_sym
+    aref6._symbol = test_struct_sym
     assert isinstance(aref6.datatype, UnresolvedType)
 
     # TODO #2448 - we don't handle an array access to something that we

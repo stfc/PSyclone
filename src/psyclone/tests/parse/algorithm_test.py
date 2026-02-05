@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -346,7 +346,7 @@ def test_parser_invokeinfo_datatypes_clash():
     exception if a symbol has the same name but a different type. This
     is simply a limitation of the current implementation as we do not
     capture the context of a symbol so do not deal with variable
-    scope. This limitation will disapear when the PSyIR is used to
+    scope. This limitation will disappear when the PSyIR is used to
     determine datatypes, see issue #753.
 
     '''
@@ -438,7 +438,7 @@ def test_parser_updateargtomodulemap_invalid():
 
 
 def test_parser_caseinsensitive1():
-    '''Check that the test for the existance of a builtin call in a use
+    '''Check that the test for the existence of a builtin call in a use
     statement is case insensitive.
 
     '''
@@ -452,7 +452,7 @@ def test_parser_caseinsensitive1():
 
 
 def test_parser_caseinsensitive2(monkeypatch):
-    '''Check that the test for the existance of a kernel call in a use
+    '''Check that the test for the existence of a kernel call in a use
     statement is case insensitive.
 
     '''

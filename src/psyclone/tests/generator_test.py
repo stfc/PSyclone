@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,7 @@ from fparser.two.parser import ParserFactory
 
 from psyclone import generator
 from psyclone.alg_gen import NoInvokesError
-from psyclone.configuration import Config
+from psyclone.configuration import Config, ConfigurationError
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
@@ -901,11 +901,8 @@ end subroutine a
 
     with caplog.at_level(logging.WARNING):
         main([filename, "--keep-directives"])
-        assert caplog.records[0].levelname == "WARNING"
-        assert ("keep_directives requires keep_comments so "
-                "PSyclone enabled keep_comments."
-                in caplog.record_tuples[0][2])
-    output, _ = capsys.readouterr()
+    assert ("keep_directives requires keep_comments so "
+            "PSyclone enabled keep_comments." in caplog.text)
 
 
 def test_conditional_openmp_statements(capsys, tmpdir_factory):
@@ -1269,9 +1266,9 @@ end subroutine test"""
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     assert error.value.code == 1
-    out, err = capsys.readouterr()
-    assert ("Failed to create PSyIR from file " in err)
-    assert ("File was treated as free form" in err)
+    _, err = capsys.readouterr()
+    assert "Failed to create PSyIR from file " in err
+    assert "File was treated as free form" in err
 
     # Check that if we use a fixed form file extension we get the expected
     # behaviour.
@@ -1306,12 +1303,10 @@ end subroutine test"""
         with pytest.raises(SystemExit) as error:
             main([inputfile])
         assert error.value.code == 1
-        out, err = capsys.readouterr()
-        assert ("Failed to create PSyIR from file " in err)
-        assert caplog.records[0].levelname == "INFO"
-        assert ("' doesn't end with a recognised "
-                "file extension. Assuming free form." in
-                caplog.record_tuples[0][2])
+        _, err = capsys.readouterr()
+        assert "Failed to create PSyIR from file " in err
+        assert ("' doesn't end with a recognised file extension. Assuming "
+                "free form." in caplog.text)
 
 
 @pytest.mark.parametrize("validate", [True, False])
@@ -2083,7 +2078,7 @@ def test_ignore_pattern():
     assert mod_man._ignore_files == set(["abc1", "abc2"])
 
 
-def test_intrinsic_control_settings(tmpdir, caplog):
+def test_intrinsic_control_settings(tmpdir):
     '''Checks that the intrinsic output control settings update the config
     correctly'''
     # Create dummy piece of code.
@@ -2094,3 +2089,24 @@ def test_intrinsic_control_settings(tmpdir, caplog):
         my_file.write(code)
     main([filename, "--backend-add-all-intrinsic-arg-names"])
     assert Config.get().backend_intrinsic_named_kwargs is True
+
+
+def test_config_overwrite() -> None:
+    ''' Test that configuration settings can be overwritten.
+    '''
+
+    # First make sure that the default values are as expected:
+    assert Config.get().reprod_pad_size == 8
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_files", "lfric",
+                            "1_single_invoke.f90")
+
+    # Overwrite the config file's reprod_pad_size setting:
+    main([filename, "--config-opts", "reprod_pad_size=27"])
+    assert Config.get().reprod_pad_size == 27
+
+    # Check error handling
+    with pytest.raises(ConfigurationError) as err:
+        main([filename, "--config-opts", "DOES_NOT_EXIST=27"])
+    assert ("Attempt to overwrite unknown configuration option: "
+            "'DOES_NOT_EXIST=27'" in str(err.value))

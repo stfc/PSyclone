@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council
+# Copyright (c) 2019-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -498,7 +498,7 @@ class SIRWriter(PSyIRVisitor):
         contents of the 'then' part of an 'if' statement and the
         contents of the 'else' part of an 'if' statement. The schedule
         has no content so simply calls its children and returns the
-        agregated result.
+        aggregated result.
 
         :param node: a Schedule PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Schedule`

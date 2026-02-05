@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -77,7 +77,10 @@ FILES_TO_SKIP = [
     "icefrm.f90",  # Has an unsupported implicit symbol declaration
 ]
 
-NEMOV5_EXCLUSIONS = []
+NEMOV5_EXCLUSIONS = [
+    # get_cssrcsurf produces signal SIGFPE, Arithmetic exception
+    "sbcclo.f90",
+]
 
 NEMOV4_EXCLUSIONS = [
     "dynspg_ts.f90",
@@ -109,13 +112,13 @@ OFFLOADING_ISSUES = [
     "dtatsd.f90",
     "trcatf.f90",
     "stp2d.f90",
+    "trabbc.f90",
 ]
 
 ASYNC_ISSUES = [
     # TODO #3220: Explore the cause of the async issues
     # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
     # (often invalid pointer dereference) in get_cstrgsurf
-    "sbcclo.f90",
     "trcldf.f90",
     # Runtime Error: Illegal address during kernel execution with
     # asynchronicity.
@@ -136,13 +139,13 @@ def trans(psyir):
 
     '''
     # The two options below are useful for file-by-file exhaustive tests.
-    # If the environemnt has ONLY_FILE defined, only process that one file and
+    # If the environment has ONLY_FILE defined, only process that one file and
     # known-good files that need a "declare target" inside.
     only_do_file = os.environ.get('ONLY_FILE', False)
     only_do_files = (only_do_file, "lib_fortran.f90", "solfrac_mod.f90")
     if only_do_file and psyir.name not in only_do_files:
         return
-    # If the environemnt has ALL_BUT_FILE defined, process all files but
+    # If the environment has ALL_BUT_FILE defined, process all files but
     # the one named file.
     all_but_file = os.environ.get('ALL_BUT_FILE', False)
     if all_but_file and psyir.name == all_but_file:
@@ -176,9 +179,6 @@ def trans(psyir):
             continue
         # ICE routines do not perform well on GPU, so we skip them
         if psyir.name.startswith("ice"):
-            continue
-        # Many of the obs_ files have problems to be offloaded to the GPU
-        if psyir.name.startswith("obs_"):
             continue
         # Skip initialisation and diagnostic subroutines
         if (subroutine.name.endswith('_alloc') or
