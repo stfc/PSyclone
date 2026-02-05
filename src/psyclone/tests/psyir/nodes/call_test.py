@@ -632,7 +632,7 @@ def test_call_node_reconcile_reorder():
     # Swap position of arguments
     call.children.extend([op2.detach(), op1.detach()])
 
-    # Now the private _argument_names are inconsistent with thir node ids
+    # Now the private _argument_names are inconsistent with this node ids
     assert len(call._argument_names) == 2
     assert call._argument_names[0] != (id(call.arguments[0]), "name1")
     assert call._argument_names[1] != (id(call.arguments[1]), "name2")
@@ -663,7 +663,7 @@ def test_copy():
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("2", INTEGER_TYPE)
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
-    # Call copy with consitent internal state of _arguments_name
+    # Call copy with consistent internal state of _arguments_name
     call2 = call.copy()
     assert call._argument_names[0] == (id(call.arguments[0]), "name1")
     assert call._argument_names[1] == (id(call.arguments[1]), "name2")

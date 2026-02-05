@@ -52,8 +52,8 @@ by the command:
 
 
   > psyclone -h
-    usage: psyclone [-h] [-v] [-c CONFIG] [-s SCRIPT] [--enable-cache] [-l {off,all,output}]
-                    [-p {invokes,routines,kernels}]
+    usage: psyclone [-h] [-v] [-c CONFIG] [-s SCRIPT] [--enable-cache] [--config-opts CONFIG_OPTS]
+                    [-l {off,all,output}] [-p {invokes,routines,kernels}]
                     [-o OUTPUT_FILE] [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE]
                     [-okern OUTPUT_KERNEL_PATH] [-dm] [-nodm]
                     [--kernel-renaming {multiple,single}]
@@ -80,6 +80,10 @@ by the command:
       --enable-cache        whether to enable caching of imported module dependencies (if
                             enabled, it will generate a .psycache file of each imported module in
                             the same location as the imported source file).
+      --config-opts CONFIG_OPTS
+                            Settings that will overwrite values in the config file as a
+                            space-separated list of key=value pairs. Example:
+                            --config-opts "reproducible_reductions=true run_time_checks=warn".
       -l {off,all,output}, --limit {off,all,output}
                             limit the Fortran line length to 132 characters (default 'off'). Use
                             'all' to apply limit to both input and output Fortran. Use 'output'
@@ -375,7 +379,7 @@ memory (DM) code (unless otherwise specified in the :ref:`configuration` file).
 Alternatively, whether or not to generate DM code can be specified as an
 argument to the ``psyclone`` command using the ``-dm``/``--dist_mem`` or
 ``-nodm``/``--no_dist_mem`` flags, respectively.
-For exampe the following command will generate GOcean PSyKAl code with DM:
+For example the following command will generate GOcean PSyKAl code with DM:
 
 .. code-block:: console
 

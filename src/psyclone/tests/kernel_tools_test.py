@@ -71,8 +71,6 @@ def test_run_default_mode(capsys):
 
 def test_run(capsys, tmpdir):
     ''' Basic test for the run() routine. '''
-    # Use an LFRic kernel so that we check that the default API
-    # (lfric) is picked up correctly
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "lfric", "testkern_w0_mod.f90")
     kernel_tools.run([str(kern_file), "-api", "lfric", "--limit", "output",

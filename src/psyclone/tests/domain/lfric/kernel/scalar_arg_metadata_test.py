@@ -127,7 +127,7 @@ def test_check_datatype():
 def test_check_access():
     '''Test the check_access method works as expected.'''
     ScalarArgMetadata.check_access("GH_READ")
-    ScalarArgMetadata.check_access("gh_sum")
+    ScalarArgMetadata.check_access("gh_reduction")
     with pytest.raises(ValueError) as info:
         ScalarArgMetadata.check_access("invalid")
     const = LFRicConstants()

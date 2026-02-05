@@ -965,7 +965,7 @@ PSy-layer concepts
   are the singular units of computation that can be found inside a
   `PSyLoop`.
 * The `HaloExchange` is a distributed-memory concept in the PSy-layer.
-* The `GlobalReduction` is a distributed-memory concept in the PSy-layer.
+* The `GlobalSum` is a distributed-memory concept in the PSy-layer.
 
 
 Other specializations

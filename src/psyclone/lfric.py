@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner, O. Brunt
+# and A. Pirrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -56,14 +57,13 @@ from psyclone.core import AccessType, Signature, SymbolicMaths
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (
     FunctionSpace, KernCallAccArgList, KernCallArgList, LFRicCollection,
-    LFRicConstants, LFRicSymbolTable, LFRicKern,
-    LFRicTypes, LFRicLoop)
+    LFRicConstants, LFRicSymbolTable, LFRicKern, LFRicTypes, LFRicLoop)
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (Arguments, DataAccess, InvokeSchedule, Kern,
-                             KernelArgument, HaloExchange)
+                             KernelArgument, HaloExchange, GlobalSum)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Reference, ACCEnterDataDirective, ArrayOfStructuresReference,
@@ -1313,21 +1313,6 @@ class LFRicProxies(LFRicCollection):
                 rank = 1 if arg not in op_args else 3
                 self._add_symbol(new_name, tag, intrinsic_type, arg, rank)
 
-        if self._invoke.schedule.reductions():
-            # We have one or more reductions so we need to obtain the MPI
-            # object from one of the field arguments.
-            # We'll need the LFRic mpi_type.
-            mpi_mod = self.symtab.find_or_create_tag(
-                "lfric_mpi_mod", symbol_type=ContainerSymbol)
-            mpi_type = self.symtab.find_or_create_tag(
-                "lfric_mpi_type",
-                symbol_type=DataTypeSymbol,
-                datatype=UnresolvedType(),
-                interface=ImportInterface(mpi_mod))
-            self.symtab.find_or_create_tag("mpi",
-                                           symbol_type=DataSymbol,
-                                           datatype=mpi_type)
-
     def _add_symbol(self, name, tag, intrinsic_type, arg, rank):
         '''
         Creates a new DataSymbol representing either an LFRic field or
@@ -1419,7 +1404,7 @@ class LFRicProxies(LFRicCollection):
         # field-type proxies
         for (fld_type, fld_mod), args in field_datatype_map.items():
             fld_mod_symbol = table.node.parent.symbol_table.lookup(fld_mod)
-            fld_type_sym = table.node.parent.symbol_table.find_or_create_tag(
+            fld_type_sym = table.node.parent.symbol_table.new_symbol(
                     fld_type,
                     symbol_type=DataTypeSymbol,
                     datatype=UnresolvedType(),
@@ -1483,21 +1468,19 @@ class LFRicProxies(LFRicCollection):
         '''
         Insert code into the PSy layer to initialise all necessary proxies.
 
-        :param cursor: position at which to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
 
         :returns: Updated cursor value.
 
         :raises InternalError: if a kernel argument of an unrecognised type
             is encountered.
-        :raises InternalError: if the invoke contains one or more reductions
-            but no fields.
 
         '''
         init_cursor = cursor
         for arg in self._invoke.psy_unique_vars:
-            # We don't have proxies for scalars
-            if arg.is_scalar:
+            # We don't have proxies for scalars or arrays of scalars.
+            if arg.is_scalar or arg.is_scalar_array:
                 continue
 
             const = LFRicConstants()
@@ -1581,26 +1564,6 @@ class LFRicProxies(LFRicCollection):
             if cursor > init_cursor:
                 self._invoke.schedule[init_cursor].preceding_comment = (
                     "Initialise field and/or operator proxies")
-
-        if self._invoke.schedule.reductions():
-            # Now that we've initialised the field proxies, we can get the
-            # MPI object.
-            for sym in self.symtab.datasymbols:
-                if (isinstance(sym.datatype, DataTypeSymbol) and
-                        sym.datatype.name == "field_proxy_type"):
-                    break
-            else:
-                raise InternalError(
-                    f"Invoke '{self._invoke.name}' contains one or more "
-                    f"reductions ({self._invoke.schedule.reductions()}) but "
-                    f"does not access any fields.")
-            get_mpi = StructureReference.create(sym, ["get_mpi"])
-            mpi_obj = self.symtab.lookup_with_tag("mpi")
-            self._invoke.schedule.addchild(
-                Assignment.create(lhs=Reference(mpi_obj),
-                                  rhs=Call.create(get_mpi)),
-                index=cursor)
-            cursor += 1
 
         return cursor
 
@@ -1971,7 +1934,7 @@ class LFRicMeshes():
         # kernels in this invoke.
         self._first_var = None
         for var in unique_psy_vars:
-            if not var.is_scalar:
+            if not (var.is_scalar or var.is_scalar_array):
                 self._first_var = var
                 break
 
@@ -2663,6 +2626,7 @@ class LFRicInterGrid():
             [ArrayType.Extent.DEFERRED]*2)
         sym = symtab.find_or_create(
                 base_name,
+                tag=base_name,
                 symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
                     f"integer(kind=i_def), pointer :: {base_name}"
@@ -3053,7 +3017,7 @@ class LFRicBasisFunctions(LFRicCollection):
                     dims.append(Literal(value, INTEGER_TYPE))
                 except ValueError:
                     dims.append(Reference(self.symtab.find_or_create(value)))
-            arg = self.symtab.find_or_create(
+            arg = self.symtab.find_or_create_tag(
                 basis, symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                                    dims))
@@ -3294,9 +3258,11 @@ class LFRicBasisFunctions(LFRicCollection):
         # Allocate basis arrays
         for basis in basis_arrays:
             dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
-            symbol = self.symtab.find_or_create(
-                basis, symbol_type=DataSymbol, datatype=UnsupportedFortranType(
-                    f"real(kind=r_def), allocatable :: {basis}{dims}"
+            new_name = self.symtab.next_available_name(basis)
+            symbol = self.symtab.find_or_create_tag(
+                new_name, symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(
+                    f"real(kind=r_def), allocatable :: {new_name}{dims}"
                 ))
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
@@ -3473,11 +3439,13 @@ class LFRicBasisFunctions(LFRicCollection):
                 const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["intrinsic"]
             kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["kind"]
             for name in self.qr_weight_vars["xyoz"]:
-                self.symtab.find_or_create(
-                    name+"_"+qr_arg_name, symbol_type=DataSymbol,
+                new_name = self.symtab.next_available_name(
+                    f"{name}_{qr_arg_name}")
+                self.symtab.find_or_create_tag(
+                    new_name, symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
                         f"{dtype}(kind={kind}), pointer :: "
-                        f"{name}_{qr_arg_name}(:) => null()"))
+                        f"{new_name}(:) => null()"))
 
             # Get the quadrature proxy
             dtp_symbol = self.symtab.lookup(
@@ -3681,7 +3649,7 @@ class LFRicBasisFunctions(LFRicCollection):
                         Reference(self.symtab.lookup(first_dim)),
                         Reference(self.symtab.lookup(
                             basis_fn["fspace"].ndf_name)),
-                        Reference(self.symtab.lookup(op_name))]
+                        Reference(self.symtab.lookup_with_tag(op_name))]
 
                 # insert the basis array call
                 call = Call.create(
@@ -3738,7 +3706,7 @@ class LFRicBasisFunctions(LFRicCollection):
                             Literal('1', INTEGER_TYPE), [])
                     loop.loop_body.addchild(inner_loop)
 
-                    symbol = self.symtab.lookup(op_name)
+                    symbol = self.symtab.lookup_with_tag(op_name)
                     rhs = basis_fn['arg'].generate_method_call(
                         "call_function", function_space=basis_fn['fspace'])
                     rhs.addchild(Reference(self.symtab.lookup(basis_type)))
@@ -3796,7 +3764,7 @@ class LFRicBasisFunctions(LFRicCollection):
             # add the required deallocate call
             dealloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.DEALLOCATE,
-                [Reference(self.symtab.lookup(name)) for name in
+                [Reference(self.symtab.lookup_with_tag(name)) for name in
                  sorted(func_space_var_names)]
             )
             if first:
@@ -3857,7 +3825,7 @@ class LFRicBoundaryConditions(LFRicCollection):
                 bc_fs = op_arg.function_space_to
                 self._boundary_dofs.append(self.BoundaryDofs(op_arg, bc_fs))
 
-    def invoke_declarations(self):
+    def invoke_declarations(self) -> None:
         '''
         Add declarations for any boundary-dofs arrays required by an Invoke.
 
@@ -3875,10 +3843,8 @@ class LFRicBoundaryConditions(LFRicCollection):
                     LFRicTypes("LFRicIntegerScalarDataType")(),
                     [ArrayType.Extent.DEFERRED]*2)
                 )
-            self.symtab.new_symbol(
-                name,
-                symbol_type=DataSymbol,
-                datatype=dtype)
+            self.symtab.find_or_create_tag(
+                name, symbol_type=DataSymbol, datatype=dtype)
 
     def stub_declarations(self):
         '''
@@ -3926,6 +3892,79 @@ class LFRicBoundaryConditions(LFRicCollection):
             cursor += 1
 
         return cursor
+
+
+class LFRicGlobalSum(GlobalSum):
+    '''
+    LFRic specific global sum class which can be added to and
+    manipulated in a schedule.
+
+    :param scalar: the kernel argument for which to perform a global sum.
+    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
+    :param parent: the parent node of this node in the PSyIR.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+    :raises GenerationError: if distributed memory is not enabled.
+    :raises InternalError: if the supplied argument is not a scalar.
+    :raises GenerationError: if the scalar is not of "real" intrinsic type.
+
+    '''
+    def __init__(self, scalar, parent=None):
+        # Check that distributed memory is enabled
+        if not Config.get().distributed_memory:
+            raise GenerationError(
+                "It makes no sense to create an LFRicGlobalSum object when "
+                "distributed memory is not enabled (dm=False).")
+        # Check that the global sum argument is indeed a scalar
+        if not scalar.is_scalar:
+            raise InternalError(
+                f"LFRicGlobalSum.init(): A global sum argument should be a "
+                f"scalar but found argument of type '{scalar.argument_type}'.")
+        # Check scalar intrinsic types that this class supports (only
+        # "real" for now)
+        if scalar.intrinsic_type != "real":
+            raise GenerationError(
+                f"LFRicGlobalSum currently only supports real scalars, but "
+                f"argument '{scalar.name}' in Kernel '{scalar.call.name}' has "
+                f"'{scalar.intrinsic_type}' intrinsic type.")
+        # Initialise the parent class
+        super().__init__(scalar, parent=parent)
+
+    def lower_to_language_level(self):
+        '''
+        :returns: this node lowered to language-level PSyIR.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+
+        # Get the name strings to use
+        name = self._scalar.name
+        type_name = self._scalar.data_type
+        mod_name = self._scalar.module_name
+
+        # Get the symbols from the given names
+        symtab = self.ancestor(InvokeSchedule).symbol_table
+        sum_mod = symtab.find_or_create(mod_name, symbol_type=ContainerSymbol)
+        sum_type = symtab.find_or_create(type_name,
+                                         symbol_type=DataTypeSymbol,
+                                         datatype=UnresolvedType(),
+                                         interface=ImportInterface(sum_mod))
+        sum_name = symtab.find_or_create_tag("global_sum",
+                                             symbol_type=DataSymbol,
+                                             datatype=sum_type)
+        tmp_var = symtab.lookup(name)
+
+        # Create the assignments
+        assign1 = Assignment.create(
+            lhs=StructureReference.create(sum_name, ["value"]),
+            rhs=Reference(tmp_var)
+        )
+        assign1.preceding_comment = "Perform global sum"
+        self.parent.addchild(assign1, self.position)
+        assign2 = Assignment.create(
+            lhs=Reference(tmp_var),
+            rhs=Call.create(StructureReference.create(sum_name, ["get_sum"]))
+        )
+        return self.replace_with(assign2)
 
 
 def _create_depth_list(halo_info_list, parent):
@@ -5636,6 +5675,8 @@ class LFRicKernelArgument(KernelArgument):
         # any-space function spaces.
         self._kernel_args = kernel_args
         self._vector_size = arg_meta_data.vector_size
+        # The number of dimensions (for a ScalarArray)
+        self._array_ndims = arg_meta_data.array_ndims
         self._argument_type = arg_meta_data.argument_type
         self._stencil = None
         if arg_meta_data.mesh:
@@ -5849,7 +5890,7 @@ class LFRicKernelArgument(KernelArgument):
                 # The collection datatype is not recognised or supported.
                 alg_datatype = None
 
-        if self.is_scalar:
+        if self.is_scalar or self.is_scalar_array:
             self._init_scalar_properties(alg_datatype, alg_precision,
                                          check)
         elif self.is_field:
@@ -5920,7 +5961,7 @@ class LFRicKernelArgument(KernelArgument):
                 f"their precision defined in the algorithm layer but "
                 f"'{self.name}' in '{self._call.name}' does not.")
 
-        if self.access in AccessType.get_valid_reduction_modes():
+        if self.access == AccessType.REDUCTION:
             # Treat reductions separately to other scalars as it
             # is expected that they should match the precision of
             # the field they are reducing. At the moment there is
@@ -6108,6 +6149,15 @@ class LFRicKernelArgument(KernelArgument):
         return self._argument_type in const.VALID_SCALAR_NAMES
 
     @property
+    def is_scalar_array(self) -> bool:
+        '''
+        :returns: True if this kernel argument represents a
+                  ScalarArray, False otherwise.
+        '''
+        const = LFRicConstants()
+        return self._argument_type in const.VALID_ARRAY_NAMES
+
+    @property
     def is_field(self):
         '''
         :returns: True if this kernel argument represents a field, \
@@ -6215,7 +6265,7 @@ class LFRicKernelArgument(KernelArgument):
                     f"PSyIR contains one or more References.")
             return lit
 
-        if self.is_scalar:
+        if self.is_scalar or self.is_scalar_array:
             try:
                 scalar_sym = symbol_table.lookup(self.name)
             except KeyError:
@@ -6470,7 +6520,7 @@ class LFRicKernelArgument(KernelArgument):
                         symbol_type=ContainerSymbol)
                         ))
 
-        if self.is_scalar:
+        if self.is_scalar or self.is_scalar_array:
             # Find or create the DataType for the appropriate scalar type.
             if self.intrinsic_type == "real":
                 prim_type = ScalarType.Intrinsic.REAL
@@ -6500,7 +6550,12 @@ class LFRicKernelArgument(KernelArgument):
                     kind_name, INTEGER_TYPE,
                     interface=ImportInterface(constants_container))
                 symtab.add(kind_symbol)
-            return ScalarType(prim_type, Reference(kind_symbol))
+            dts = ScalarType(prim_type, Reference(kind_symbol))
+            if self.is_scalar_array and self._array_ndims >= 1:
+                # ScalarArray needs to have a number of dimensions
+                # greater than or equal to one
+                return ArrayType(dts, [self._array_ndims])
+            return dts
 
         if self.is_field or self.is_operator:
             # Find or create the DataTypeSymbol for the appropriate
@@ -6548,6 +6603,7 @@ __all__ = [
     'LFRicInterGrid',
     'LFRicBasisFunctions',
     'LFRicBoundaryConditions',
+    'LFRicGlobalSum',
     'LFRicHaloExchange',
     'LFRicHaloExchangeStart',
     'LFRicHaloExchangeEnd',

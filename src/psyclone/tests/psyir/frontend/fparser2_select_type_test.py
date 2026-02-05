@@ -702,7 +702,7 @@ def test_class_target(
         fortran_reader, fortran_writer, tmpdir, pre_attribute, post_attribute):
     '''Test that the type_selector remains unchanged if it already has the
     target or pointer attribute and that target is added if there is a
-    pre-existing unrelated atttribute.
+    pre-existing unrelated attribute.
 
     '''
     code = (

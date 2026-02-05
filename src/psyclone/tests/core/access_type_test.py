@@ -49,7 +49,7 @@ def test_str():
     assert str(AccessType.READWRITE) == "READWRITE"
     assert str(AccessType.INC) == "INC"
     assert str(AccessType.READINC) == "READINC"
-    assert str(AccessType.SUM) == "SUM"
+    assert str(AccessType.REDUCTION) == "REDUCTION"
     assert str(AccessType.CALL) == "CALL"
     assert str(AccessType.INQUIRY) == "INQUIRY"
     assert str(AccessType.CONSTANT) == "CONSTANT"
@@ -67,23 +67,17 @@ def test_api_specific_name():
     assert AccessType.READWRITE.api_specific_name() == "gh_readwrite"
     assert AccessType.INC.api_specific_name() == "gh_inc"
     assert AccessType.READINC.api_specific_name() == "gh_readinc"
-    assert AccessType.SUM.api_specific_name() == "gh_sum"
+    assert AccessType.REDUCTION.api_specific_name() == "gh_reduction"
     assert AccessType.CALL.api_specific_name() == "call"
     assert AccessType.INQUIRY.api_specific_name() == "inquiry"
     assert AccessType.CONSTANT.api_specific_name() == "constant"
     assert AccessType.UNKNOWN.api_specific_name() == "unknown"
-    assert (set(AccessType.get_valid_reduction_modes()) ==
-            set([AccessType.SUM, AccessType.MIN, AccessType.MAX]))
-    assert (set(AccessType.get_valid_reduction_names()) ==
-            set(["gh_sum", "gh_min", "gh_max"]))
     # Use set to make this independent of the order:
     assert set(AccessType.all_write_accesses()) == set([AccessType.WRITE,
                                                         AccessType.READWRITE,
                                                         AccessType.INC,
                                                         AccessType.READINC,
-                                                        AccessType.SUM,
-                                                        AccessType.MAX,
-                                                        AccessType.MIN])
+                                                        AccessType.REDUCTION])
     assert set(AccessType.all_read_accesses()) == set([AccessType.READ,
                                                        AccessType.READWRITE,
                                                        AccessType.READINC,
@@ -100,7 +94,7 @@ def test_from_string():
     assert AccessType.from_string("readwrite") == AccessType.READWRITE
     assert AccessType.from_string("inc") == AccessType.INC
     assert AccessType.from_string("readinc") == AccessType.READINC
-    assert AccessType.from_string("sum") == AccessType.SUM
+    assert AccessType.from_string("reduction") == AccessType.REDUCTION
     assert AccessType.from_string("unknown") == AccessType.UNKNOWN
     assert AccessType.from_string("constant") == AccessType.CONSTANT
 
@@ -116,7 +110,7 @@ def test_all_write_accesses():
 
     all_write_accesses = AccessType.all_write_accesses()
     assert isinstance(all_write_accesses, list)
-    assert len(all_write_accesses) == 7
+    assert len(all_write_accesses) == 5
     assert (len(all_write_accesses) ==
             len(set(all_write_accesses)))
     assert all(isinstance(write_access, AccessType)
@@ -145,7 +139,6 @@ def test_non_data_accesses():
     assert all(isinstance(acc, AccessType) for acc in accesses)
     all_read_accesses = AccessType.all_read_accesses()
     all_write_accesses = AccessType.all_write_accesses()
-    all_reductions = AccessType.get_valid_reduction_modes()
-    all_data_accesses = all_read_accesses + all_write_accesses + all_reductions
+    all_data_accesses = all_read_accesses + all_write_accesses
     for acc in accesses:
         assert acc not in all_data_accesses

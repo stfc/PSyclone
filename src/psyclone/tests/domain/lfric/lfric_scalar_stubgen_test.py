@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#          I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office;
+#          I. Kavcic, A. Coughtrie, L. Turner, O. Brunt,
+#          and A. Pirrie, Met Office;
 #          C. M. Maynard, Met Office/University of Reading;
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -46,7 +47,8 @@ import pytest
 
 from fparser import api as fpapi
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
-                                   LFRicKernMetadata, LFRicScalarArgs)
+                                   LFRicKernMetadata, LFRicScalarArgs,
+                                   LFRicScalarArrayArgs)
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.utils import ParseError
@@ -79,6 +81,29 @@ def test_lfricscalars_stub_err():
     const = LFRicConstants()
     assert (f"Found an unsupported data type 'gh_invalid_scalar' for the "
             f"scalar argument 'iscalar_2'. Supported types are "
+            f"{const.VALID_SCALAR_DATA_TYPES}." in str(err.value))
+
+
+def test_lfricscalararray_stub_err():
+    ''' Check that LFRicScalarArrayArgs.stub_declarations() raises the
+    expected internal error if it encounters an unrecognised data
+    type of a scalar argument when generating a kernel stub.
+
+    '''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_scalar_array_mod.f90"),
+                      ignore_comments=False)
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
+    kernel.load_meta(metadata)
+    # Sabotage the scalar argument to make it have an invalid data type
+    arg = kernel.arguments.args[1]
+    arg.descriptor._data_type = "gh_invalid_scalar"
+    with pytest.raises(InternalError) as err:
+        LFRicScalarArrayArgs(kernel).stub_declarations()
+    const = LFRicConstants()
+    assert (f"Found an unsupported data type 'gh_invalid_scalar' for the "
+            f"ScalarArray argument 'rscalar_array_2'. Supported types are "
             f"{const.VALID_SCALAR_DATA_TYPES}." in str(err.value))
 
 
@@ -135,4 +160,47 @@ def test_stub_generate_with_scalar_sums_err():
     assert (
         "A user-supplied LFRic kernel must not write/update a scalar "
         "argument but kernel 'simple_with_reduction_type' has a scalar "
-        "argument with 'gh_sum' access." in str(err.value))
+        "argument with 'gh_reduction' access." in str(err.value))
+
+
+def test_stub_generate_with_scalar_array():
+    ''' Check that the stub generate produces the expected output when
+    the kernel has ScalarArray arguments. '''
+    result = generate(
+        os.path.join(BASE_PATH, "testkern_scalar_array_mod.f90"),
+        api=TEST_API)
+
+    expected = """\
+module testkern_scalar_array_mod
+  implicit none
+  public
+
+  contains
+  subroutine testkern_scalar_array_code(nlayers, field_1_w1, \
+dims_rscalar_array_2, rscalar_array_2, dims_lscalar_array_3, \
+lscalar_array_3, dims_iscalar_array_4, iscalar_array_4, \
+iscalar_5, ndf_w1, undf_w1, map_w1)
+    use constants_mod
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
+    integer(kind=i_def), intent(in) :: undf_w1
+    integer(kind=i_def), intent(in) :: iscalar_5
+    integer(kind=i_def), dimension(2), intent(in) :: dims_rscalar_array_2
+    real(kind=r_def), dimension(dims_rscalar_array_2(1),\
+dims_rscalar_array_2(2)), intent(in) :: rscalar_array_2
+    integer(kind=i_def), dimension(1), intent(in) :: dims_lscalar_array_3
+    logical(kind=l_def), dimension(dims_lscalar_array_3(1)), intent(in) :: \
+lscalar_array_3
+    integer(kind=i_def), dimension(4), intent(in) :: dims_iscalar_array_4
+    integer(kind=i_def), dimension(dims_iscalar_array_4(1),\
+dims_iscalar_array_4(2),dims_iscalar_array_4(3),\
+dims_iscalar_array_4(4)), intent(in) :: iscalar_array_4
+    real(kind=r_def), dimension(undf_w1), intent(inout) :: field_1_w1
+
+
+  end subroutine testkern_scalar_array_code
+
+end module testkern_scalar_array_mod
+"""
+    assert expected == result

@@ -172,7 +172,7 @@ will have the following prototype assignment as child:
 This assignment will not be generated to code because the lowering method
 replaces the entire CodedKern with the appropriate call. But this child is
 sufficient to provide the `VariablesAccessMap` used by generic PSyIR the
-necessary access information to perform the needed depenency checks.
+necessary access information to perform the needed dependency checks.
 
 LFric does not currently use this virtual assignments, instead it uses
 information provided by the `Argument` class attached to the CodedKern to
@@ -180,7 +180,7 @@ evaluate the ordering constraints between between kernels.
 
 The `Argument` class is used to specify the data being passed into and
 out of instances of the `Kern` class, `HaloExchange` class and
-`GlobalReduction` class (and their subclasses).
+`GlobalSum` class (and their subclasses).
 
 As an illustration consider the following invoke::
 
@@ -253,7 +253,7 @@ exist.
 If there is a field vector associated with an instance of an
 `Argument` class then all of the data in its vector indices are
 assumed to be accessed when the argument is part of a `Kern` or a
-`GlobalReduction`. However, in contrast, a `HaloExchange` only acts on a
+`GlobalSum`. However, in contrast, a `HaloExchange` only acts on a
 single index of a field vector. Therefore there is one halo exchange
 per field vector index. For example::
 

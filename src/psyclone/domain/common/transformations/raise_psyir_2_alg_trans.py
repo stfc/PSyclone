@@ -252,7 +252,7 @@ class RaisePSyIR2AlgTrans(Transformation):
                 continue
             elif isinstance(call_arg, Call):
                 # Get the symbols and args to reconstruct it as a
-                # higer-abstraction AlgorithmInvokeCall node
+                # higher-abstraction AlgorithmInvokeCall node
                 type_symbol = call_arg.routine.symbol
                 args = call_arg.pop_all_children()[1:]
                 arg_info.append((type_symbol, args))

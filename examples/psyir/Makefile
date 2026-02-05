@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
+# Copyright (c) 2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,20 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Authors: A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Author: A. B. G. Chalk, STFC Daresbury Laboratory
 
-include ../common.mk
+EXAMPLES=create_and_modify_psyir parallelise_loops custom_directives matmul transpose
 
-CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
-
-transform:
-	$(CONFIG_ENV) ${PYTHON} create.py
-	$(CONFIG_ENV) ${PYTHON} create_structure_types.py
-	$(CONFIG_ENV) ${PYTHON} modify.py
-
-compile:
-	@echo "No compilation supported for the PSyIR examples"
-
-run: compile
-	@echo "No run targets for PSyIR creation examples"
-
+include ../top_level.mk
