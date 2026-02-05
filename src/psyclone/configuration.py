@@ -51,7 +51,7 @@ import logging
 import os
 import re
 import sys
-from typing import Union
+from typing import Optional, Union
 
 import psyclone
 from psyclone.errors import PSycloneError, InternalError
@@ -243,12 +243,23 @@ class Config:
         self._backend_intrinsic_named_kwargs = False
 
     # -------------------------------------------------------------------------
-    def load(self, config_file=None):
-        '''Loads a configuration file.
+    def load(self,
+             config_file: Optional[str] = None,
+             overwrite: Optional[str] = None) -> None:
+        '''Loads a configuration file. The optional 'overwrite' parameter
+        is a space-separated string of key=value pairs which will overwrite
+        values in the config files (e.g.
+        "reproducible_reductions=true run_time_checks=true")
 
-        :param str config_file: Override default configuration file to read.
-        :raises ConfigurationError: if there are errors or inconsistencies in \
-                                the specified config file.
+        :param config_file: Override default configuration file to read.
+        :param overwrite: Optional string of key-value pairs that will
+            overwrite settings in the config file.
+
+        :raises ConfigurationError: if there are errors or inconsistencies in
+            the specified config file.
+
+        :raises ConfigurationError: if a user-provided overwrite string
+            contains an invalid key.
         '''
         # pylint: disable=too-many-branches, too-many-statements
         if config_file:
@@ -285,6 +296,23 @@ class Config:
            not self._config['DEFAULT'].keys():
             raise ConfigurationError(
                 "Configuration file has no [DEFAULT] section", config=self)
+
+        if overwrite:
+            # If overwrite information is specified, parse this information
+            # and use it to overwrite the settings just read:
+            pairs = overwrite.split()
+            for pair in pairs:
+                key, value = pair.split("=")
+                for section in self._config:
+                    if key in self._config[section]:
+                        self._config[section][key] = value
+                        break
+                else:
+                    logger = logging.getLogger(__name__)
+                    msg = (f"Attempt to overwrite unknown configuration "
+                           f"option: '{pair}'.")
+                    logger.error(msg)
+                    raise ConfigurationError(msg)
 
         # The call to the 'read' method above populates a dictionary.
         # All of the entries in that dict are unicode strings so here
@@ -916,8 +944,8 @@ class LFRicConfig(BaseConfig):
         self._config = config
         # Initialise redundant computation setting
         self._compute_annexed_dofs = None
-        # Initialise run_time_checks setting
-        self._run_time_checks = None
+        # Initialise run_time_checks setting - one of "none", "warn", "error"
+        self._run_time_checks = "none"
         # Initialise LFRic datatypes' default kinds (precisions) settings
         self._supported_fortran_datatypes = []
         self._default_kind = {}
@@ -954,15 +982,23 @@ class LFRicConfig(BaseConfig):
                 config=self._config) from err
 
         # Parse setting for run_time_checks flag
-        try:
-            self._run_time_checks = section.getboolean(
-                "run_time_checks")
-        except ValueError as err:
-            raise ConfigurationError(
-                f"Error while parsing RUN_TIME_CHECKS in the "
-                f"'[{section.name}]' section of the configuration file "
-                f"'{config.filename}': {str(err)}.",
-                config=self._config) from err
+        self._run_time_checks = section["run_time_checks"].lower()
+        if self._run_time_checks not in ["none", "warn", "error"]:
+            # Test for old-style boolean value:
+            try:
+                self._run_time_checks = section.getboolean("run_time_checks")
+            except ValueError as err:
+                raise ConfigurationError(
+                    f"Error while parsing RUN_TIME_CHECKS in the "
+                    f"'[{section.name}]' section of the configuration file "
+                    f"'{config.filename}': Found '{self._run_time_checks}', "
+                    f" must be one of 'none', 'warn', 'error'.",
+                    config=self._config) from err
+            if self._run_time_checks:
+                # True - old behaviour is to create an error (and abort)
+                self._run_time_checks = "error"
+            else:
+                self._run_time_checks = "none"
 
         # Parse setting for the supported Fortran datatypes. No
         # need to check whether the keyword is found as it is
