@@ -137,12 +137,16 @@ def test_binaryopbase_simplification(fortran_reader):
     '''Test the simplification of binary operations involving +/- integer 0.'''
     code = """\
     subroutine a_sub()
+      use somewhere, only: unknown
       integer :: a_var
+      real :: problem = -0.0
       a_var = a_var + 0
       a_var = a_var - 0
       a_var = 0 + a_var
       a_var = 0 - MAX(a_var, 1)
       a_var = a_var + 0.0
+      problem = problem + 0
+      problem = 0 + unknown
     end subroutine a_sub"""
     sched = fortran_reader.psyir_from_source(code)
     assigns = sched.walk(Assignment)
@@ -157,3 +161,7 @@ def test_binaryopbase_simplification(fortran_reader):
     assert isinstance(assigns[3].rhs.operand, IntrinsicCall)
     # Addition of floating point number left unchanged.
     assert isinstance(assigns[4].rhs, BinaryOperation)
+    # Addition of int to floating point var left unchanged.
+    assert isinstance(assigns[5].rhs, BinaryOperation)
+    # Addition of int to var of unknown type left unchanged.
+    assert isinstance(assigns[6].rhs, BinaryOperation)

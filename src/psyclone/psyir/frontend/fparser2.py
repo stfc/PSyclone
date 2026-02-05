@@ -4932,6 +4932,13 @@ class Fparser2Reader():
             by this handler.
 
         '''
+        def _is_int_literal_0(node: Node) -> bool:
+            ''':returns: whether or not the supplied Node is an integer Literal
+                         with value 0.'''
+            return (
+                isinstance(node, Literal) and node.value == "0" and
+                (node.datatype.intrinsic == ScalarType.Intrinsic.INTEGER))
+
         operator_str = node.items[1].lower()
         arg_nodes = [node.items[0], node.items[2]]
 
@@ -4944,36 +4951,41 @@ class Fparser2Reader():
         binary_op = BinaryOperation(operator, parent=parent)
         self.process_nodes(parent=binary_op, nodes=[arg_nodes[0]])
         self.process_nodes(parent=binary_op, nodes=[arg_nodes[1]])
+
         # Check for a null operation ( 0 +- x or x +- 0)
         if operator in [BinaryOperation.Operator.ADD,
                         BinaryOperation.Operator.SUB]:
             # If the second operand is 0 then we simply need to return the
             # first operand.
-            operand = binary_op.operands[1]
-            if (isinstance(operand, Literal) and
-                    (operand.datatype.intrinsic ==
-                     ScalarType.Intrinsic.INTEGER) and
-                    operand.value == "0"):
+            if _is_int_literal_0(binary_op.operands[1]):
                 other_oprnd = binary_op.operands[0]
-                arg0 = other_oprnd.detach()
-                del binary_op
-                return arg0
+                dtype = other_oprnd.datatype
+                # We can only safely remove this op if we know that the other
+                # operand is an integer.
+                if (isinstance(dtype, (ScalarType, ArrayType)) and
+                        dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
+                    arg0 = other_oprnd.detach()
+                    del binary_op
+                    return arg0
+                return binary_op
+
             # If the first operand is 0 then we may or may not need a unary
             # operation, depending on the Operator.
-            operand = binary_op.operands[0]
-            if (isinstance(operand, Literal) and
-                    (operand.datatype.intrinsic ==
-                     ScalarType.Intrinsic.INTEGER) and
-                    operand.value == "0"):
+            if _is_int_literal_0(binary_op.operands[0]):
                 other_oprnd = binary_op.operands[1]
-                arg1 = other_oprnd.detach()
-                if operator == BinaryOperation.Operator.ADD:
-                    # We have 0 + operand so just return operand
+                # We can only safely remove this op if we know that the other
+                # operand is an integer.
+                dtype = other_oprnd.datatype
+                if (isinstance(dtype, (ScalarType, ArrayType)) and
+                        dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
+                    arg1 = other_oprnd.detach()
                     del binary_op
-                    return arg1
-                # We have 0 - operand so need unary operation.
-                return UnaryOperation.create(UnaryOperation.Operator.MINUS,
-                                             arg1)
+                    if operator == BinaryOperation.Operator.ADD:
+                        # We have 0 + operand so just return operand
+                        return arg1
+                    # We have 0 - operand so need unary operation.
+                    return UnaryOperation.create(UnaryOperation.Operator.MINUS,
+                                                 arg1)
 
         return binary_op
 
