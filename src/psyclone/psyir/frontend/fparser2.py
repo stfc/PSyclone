@@ -57,7 +57,8 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes import (
     ArrayMember, ArrayOfStructuresReference, ArrayReference, Assignment,
-    BinaryOperation, Call, CodeBlock, Container, Directive, FileContainer,
+    BinaryOperation, Call, CodeBlock, Container, DataNode, Directive,
+    FileContainer,
     IfBlock, IntrinsicCall, Literal, Loop, Member, Node, Range,
     Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
     WhileLoop, ScopingNode, UnknownDirective)
@@ -4915,17 +4916,17 @@ class Fparser2Reader():
         self.process_nodes(parent=unary_op, nodes=[node.items[1]])
         return unary_op
 
-    def _binary_op_handler(self, node, parent):
+    def _binary_op_handler(self,
+                           node: Fortran2003.BinaryOpBase,
+                           parent: Node) -> DataNode:
         '''
-        Transforms an fparser2 BinaryOp to its PSyIR representation.
+        Transforms an fparser2 BinaryOp to its PSyIR representation. If the
+        binary operation has no effect (e.g. x + 0) then it is simplified.
 
         :param node: node in fparser2 AST.
-        :type node: :py:class:`fparser.two.utils.BinaryOpBase`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+        :returns: PSyIR representation of node.
 
         :raises NotImplementedError: if the supplied operator is not supported
             by this handler.
@@ -4943,6 +4944,37 @@ class Fparser2Reader():
         binary_op = BinaryOperation(operator, parent=parent)
         self.process_nodes(parent=binary_op, nodes=[arg_nodes[0]])
         self.process_nodes(parent=binary_op, nodes=[arg_nodes[1]])
+        # Check for a null operation ( 0 +- x or x +- 0)
+        if operator in [BinaryOperation.Operator.ADD,
+                        BinaryOperation.Operator.SUB]:
+            # If the second operand is 0 then we simply need to return the
+            # first operand.
+            operand = binary_op.operands[1]
+            if (isinstance(operand, Literal) and
+                    (operand.datatype.intrinsic ==
+                     ScalarType.Intrinsic.INTEGER) and
+                    operand.value == "0"):
+                other_oprnd = binary_op.operands[0]
+                arg0 = other_oprnd.detach()
+                del binary_op
+                return arg0
+            # If the first operand is 0 then we may or may not need a unary
+            # operation, depending on the Operator.
+            operand = binary_op.operands[0]
+            if (isinstance(operand, Literal) and
+                    (operand.datatype.intrinsic ==
+                     ScalarType.Intrinsic.INTEGER) and
+                    operand.value == "0"):
+                other_oprnd = binary_op.operands[1]
+                arg1 = other_oprnd.detach()
+                if operator == BinaryOperation.Operator.ADD:
+                    # We have 0 + operand so just return operand
+                    del binary_op
+                    return arg1
+                # We have 0 - operand so need unary operation.
+                return UnaryOperation.create(UnaryOperation.Operator.MINUS,
+                                             arg1)
+
         return binary_op
 
     def _intrinsic_handler(self, node, parent):
