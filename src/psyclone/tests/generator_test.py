@@ -485,7 +485,7 @@ def test_invalid_gocean_alg(monkeypatch, caplog, capsys):
         raise ValueError("This is a test")
 
     monkeypatch.setattr(FortranReader, "psyir_from_file", _broken)
-    with caplog.at_level(logging.ERROR):
+    with caplog.at_level(logging.ERROR, logger="psyclone.generator"):
         with pytest.raises(SystemExit):
             _ = generate(
                 os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
@@ -899,7 +899,7 @@ end subroutine a
 """
     assert output == correct
 
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger="psyclone.generator"):
         main([filename, "--keep-directives"])
     assert ("keep_directives requires keep_comments so "
             "PSyclone enabled keep_comments." in caplog.text)
@@ -1296,7 +1296,7 @@ end subroutine test"""
     caplog.clear()
     # Check an unknown file extension gives a log message and fails for a
     # fixed form input.
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger="psyclone.generator"):
         inputfile = str(tmpdir.join("fixed_form.1s2"))
         with open(inputfile, "w", encoding='utf-8') as my_file:
             my_file.write(code)
@@ -1358,7 +1358,7 @@ def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
     inputfile = str(tmpdir.join("funny_syntax.f90"))
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
-    with caplog.at_level(logging.ERROR):
+    with caplog.at_level(logging.ERROR, logger="psyclone.generator"):
         with pytest.raises(SystemExit):
             code_transformation_mode(inputfile, None, None, False, False,
                                      False)

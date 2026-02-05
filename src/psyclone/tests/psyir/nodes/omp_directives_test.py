@@ -146,7 +146,8 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
     a_sym = Symbol("a")
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({}, {}, {a_sym}))
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.nodes.omp_directives"):
         pdir.lower_to_language_level()
     assert ("Lowering 'OMPParallelDirective' detected a possible race "
             "condition for symbol 'a'. Make sure this is a false WaW "
@@ -238,7 +239,8 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch, caplog):
     # Monkeypatch a case with shared variables that need synchronisation
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({}, {}, {Symbol("a")}))
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.nodes.omp_directives"):
         pdir.lower_to_language_level()
     assert ("Lowering 'OMPParallelDoDirective' detected a possible race "
             "condition for symbol 'a'. Make sure this is a false WaW "
@@ -5064,7 +5066,8 @@ def test_multiple_reduction_same_var_diff_op(fortran_reader, fortran_writer,
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO,
+                         logger="psyclone.psyir.tools.reduction_inference"):
         with pytest.raises(TransformationError) as err:
             omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'acc' is read first, which indicates a reduction"
@@ -5118,7 +5121,8 @@ def test_non_reduction1(fortran_reader, fortran_writer, caplog):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO,
+                         logger="psyclone.psyir.tools.reduction_inference"):
         with pytest.raises(TransformationError) as err:
             omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'count' is read first, which indicates a reduction"
@@ -5144,7 +5148,8 @@ def test_non_reduction2(fortran_reader, fortran_writer, caplog):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO,
+                         logger="psyclone.psyir.tools.reduction_inference"):
         with pytest.raises(TransformationError) as err:
             omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'count' is read first, which indicates a reduction"
@@ -5170,7 +5175,8 @@ def test_non_reduction3(fortran_reader, fortran_writer, caplog):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO,
+                         logger="psyclone.psyir.tools.reduction_inference"):
         with pytest.raises(TransformationError) as err:
             omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'count' is read first, which indicates a reduction"
@@ -5263,7 +5269,8 @@ def test_reduction_struct_member(fortran_reader, fortran_writer, caplog):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO,
+                         logger="psyclone.psyir.tools.reduction_inference"):
         with pytest.raises(TransformationError) as err:
             omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'struct%acc' is read first, which indicates a reduction"
