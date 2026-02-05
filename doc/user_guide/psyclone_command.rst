@@ -521,8 +521,7 @@ Enabling the Logging Infrastructure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 PSyclone supports logging which can provide additional information
-on what is happening inside PSyclone. This logging will also
-control the behaviour of any logging calls inside a user script.
+on what is happening inside PSyclone.
 
 Logging output can be controlled through the ``--log-level`` option.
 By default, logging is set to ``OFF``, which means
