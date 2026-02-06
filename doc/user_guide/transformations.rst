@@ -529,6 +529,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.DataNodeToTempTrans
+      :members: apply
+      :no-index:
+
+####
+
 
 Algorithm-layer
 ---------------
