@@ -31,8 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
+# Authors: A. B. G. Chalk, R. Ford and A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module tests the line_limit module using pytest. '''

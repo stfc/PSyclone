@@ -31,8 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
+# Authors: A. B. G. Chalk, R. Ford, A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Provides support for breaking long fortran lines into smaller ones
@@ -131,9 +130,16 @@ class FortLineLength():
         self._acc = re.compile(r'^\s*!\$ACC', flags=re.I)
         self._comment = re.compile(r'^\s*!')
 
-    def long_lines(self, fortran_in):
-        '''returns true if at least one of the lines in the input code is
-           longer than the allowed length. Otherwise returns false '''
+    def long_lines(self, fortran_in: str) -> bool:
+        '''
+        Checks whether any lines in the supplied text are longer
+        than the allowed length.
+
+        :param fortran_in: the Fortran code to check.
+
+        :returns: True if at least one of the lines in the input code is
+            longer than the allowed length. Otherwise returns False.
+        '''
         for line in fortran_in.split('\n'):
             if len(line) > self._line_length:
                 return True
