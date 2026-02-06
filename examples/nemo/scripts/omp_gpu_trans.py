@@ -71,6 +71,7 @@ ASYNC_PARALLEL = os.environ.get('ASYNC_PARALLEL', False)
 # to point to the module location directory. We also strongly recommend using
 # the '--enable-cache' flag to reduce the performance overhead.
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
+#RESOLVE_IMPORTS = True
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = [
@@ -113,6 +114,7 @@ OFFLOADING_ISSUES = [
     "trcatf.f90",
     "stp2d.f90",
     "trabbc.f90",
+    "icesbc.f90",
 ]
 
 ASYNC_ISSUES = [
@@ -178,8 +180,8 @@ def trans(psyir):
         if not NEMOV4 and psyir.name in NEMOV5_EXCLUSIONS:
             continue
         # ICE routines do not perform well on GPU, so we skip them
-        if psyir.name.startswith("ice"):
-            continue
+        #if psyir.name.startswith("ice"):
+        #    continue
         # Skip initialisation and diagnostic subroutines
         if (subroutine.name.endswith('_alloc') or
                 subroutine.name.endswith('_init') or

@@ -42,7 +42,7 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, Call, Return,
     IfBlock, Routine, Schedule, IntrinsicCall, StructureReference)
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import DataSymbol, ArrayType
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
@@ -58,7 +58,12 @@ NEMO_MODULES_TO_IMPORT = [
     "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
     "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc", "abl", "ice1d",
     "sed", "p2zlim", "oce_trc", "p4zpoc", "tide_mod", "sbcwave", "isf_oce",
-    "step_oce", "bdyice", "lbcnfd"
+    "step_oce", "bdyice", "lbcnfd",
+    "par_ice", "in_out_manager", "sbc_oce",
+    # Needed to get nie0 in icevar
+    "usrdef_sbc", "sbcblk", "sbccpl", "icealb",
+    # Needed to get "smask0" in icesbc
+    "fldread", "iom"
 ]
 
 # Files that PSyclone could process but would reduce the performance.
@@ -70,14 +75,19 @@ NOT_PERFORMANT = [
     "zdfosm.f90", "obs_read_surf.f90",
 ]
 
+DO_MODULE_INLINING = ["ice_var_vremap", "snw_ent", "ice_perm_eff",
+                      "snw_var_vremap"]
+
 # If routine names contain these substrings then we do not profile them
-PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
-                    # These are small functions that the addition of profiling
-                    # prevents from being in-lined (and then breaks any attempt
-                    # to create OpenACC regions with calls to them)
-                    "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
-                    "sum", "sign_", "ddpdd", "solfrac", "psyclone_cmp_int",
-                    "psyclone_cmp_char", "psyclone_cmp_logical"]
+PROFILING_IGNORE = (
+    DO_MODULE_INLINING +
+    ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
+     # These are small functions that the addition of profiling
+     # prevents from being in-lined (and then breaks any attempt
+     # to create OpenACC regions with calls to them)
+     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
+     "sum", "sign_", "ddpdd", "solfrac", "psyclone_cmp_int",
+     "psyclone_cmp_char", "psyclone_cmp_logical"])
 
 # Currently fparser has no way of distinguishing array accesses from statement
 # functions, the following subroutines contains known statement functions
@@ -130,11 +140,6 @@ def inline_calls(schedule):
     :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
 
     '''
-    excluding = ["ctl_nam", "ctl_stop", "ctl_warn", "prt_ctl", "eos",
-                 "iom_", "hist", "mpi_", "timing_", "oasis_",
-                 "fatal_error"  # TODO #2846 - is brought into scope via
-                                # multiple wildcard imports
-                 ]
     ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
                          "bdy_dyn3d_zgrad"]
     mod_inline_trans = KernelModuleInlineTrans()
@@ -144,8 +149,7 @@ def inline_calls(schedule):
             continue
         rsym = call.routine.symbol
         name = rsym.name.lower()
-        if any(name.startswith(excl_name) for excl_name in excluding):
-            print(f"Inlining of routine '{name}' is disabled.")
+        if name not in DO_MODULE_INLINING:
             continue
         if rsym.is_import or rsym.is_unresolved:
             try:
@@ -154,10 +158,6 @@ def inline_calls(schedule):
             except TransformationError as err:
                 print(f"Module inline of '{name}' failed:\n{err}")
                 continue
-
-        # TODO #924 - SKIP ACTUAL INLINING FOR NOW. Currently this causes
-        # failures when processing NEMO and this needs further work.
-        continue
 
         try:
             options = {}
@@ -387,7 +387,7 @@ def insert_explicit_loop_parallelism(
         if uniform_intrinsics_only:
             opts["device_string"] = "nvfortran-uniform"
 
-        routine_name = loop.ancestor(Routine).name
+        routine_name = loop.ancestor(Routine).name.lower()
 
         if ('dyn_spg' in routine_name and len(loop.walk(Loop)) > 2):
             loop.append_preceding_comment(
@@ -431,16 +431,53 @@ def insert_explicit_loop_parallelism(
         else:
             # In NEMOv5 add the necessary explicit private symbols in icethd
             # in order to parallelise the outer loop
-            if routine_name == "ice_thd_zdf_BL99":
-                if isinstance(loop.stop_expr, Reference):
-                    if loop.stop_expr.symbol.name == "npti":
-                        for variable in ['zdiagbis', 'zindtbis', 'zindterm',
-                                         'ztib', 'ztrid', 'ztsb']:
-                            st = loop.scope.symbol_table
-                            sym = st.lookup(variable, otherwise=None)
-                            if sym is not None:
-                                loop.explicitly_private_symbols.add(sym)
+            all_work_arrays = []
+            for sym in loop.ancestor(Routine).symbol_table.datasymbols:
+                if sym.name.startswith("z") and sym.is_array:
+                    all_work_arrays.append(sym)
 
+            all_1d_work_arrays = []
+            for sym in all_work_arrays:
+                if isinstance(sym.datatype, ArrayType):
+                    shape = sym.datatype.shape
+                else:
+                    shape = sym.datatype.partial_datatype.shape
+                if len(shape) == 1:
+                    all_1d_work_arrays.append(sym)
+
+            if routine_name == "ice_thd_zdf_bl99":
+                if isinstance(loop.stop_expr, Reference):
+                    if (loop.stop_expr.symbol.name == "npti" or
+                            loop.variable.name == "ji" or
+                            (loop.variable.name == "jj" and
+                             isinstance(loop.loop_body[0], Loop) and
+                             loop.loop_body[0].variable.name == "ji")):
+                        opts["force_private"] = ['zdiagbis', 'zindtbis',
+                                                 'zindterm', 'ztib', 'ztrid',
+                                                 'ztsb']
+                        opts["ignore_dependencies_for"] = opts["force_private"]
+            if routine_name == "ice_thd_sal":
+                if loop.variable.name in ["ji", "jj"]:
+                    opts["force_private"] = [
+                        "z_mid", "z_edge", "zds", "zv_br", "zra", "zperm_eff",
+                        "zw_br", "zmsk", "zs_br"]
+                    opts["ignore_dependencies_for"] = opts["force_private"]
+            if routine_name == "ice_thd_da":
+                if loop.variable.name in ["ji", "jj"]:
+                    opts["force_private"] = [sym.name for sym in
+                                             all_1d_work_arrays]
+                    opts["ignore_dependencies_for"] = opts["force_private"]
+            if routine_name == "ice_thd_dh":
+                if loop.variable.name in ["ji"]:
+                    opts["force_private"] = ["icount"] + [sym.name for sym in
+                                                          all_1d_work_arrays]
+                    opts["ignore_dependencies_for"] = opts["force_private"]
+            if routine_name == "pnd_lev":
+                if loop.variable.name in ["ji", "jj"]:
+                    opts["force_private"] = ["zv_br"]
+                    opts["ignore_dependencies_for"] = opts["force_private"]
+            if routine_name.startswith("lbc_lnk_"):
+                opts["ignore_dependencies_for"] = ["ptab%pt4d"]
         try:
             # First check that the region_directive is feasible for this region
             if region_directive_trans:

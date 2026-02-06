@@ -4943,6 +4943,14 @@ class Fparser2Reader():
         binary_op = BinaryOperation(operator, parent=parent)
         self.process_nodes(parent=binary_op, nodes=[arg_nodes[0]])
         self.process_nodes(parent=binary_op, nodes=[arg_nodes[1]])
+        if operator in [BinaryOperation.Operator.ADD,
+                        BinaryOperation.Operator.SUB]:
+            arg1 = binary_op.operands[1]
+            if isinstance(arg1, Literal) and arg1.value == "0":
+                arg0 = binary_op.operands[0].detach()
+                del binary_op
+                return arg0
+
         return binary_op
 
     def _intrinsic_handler(self, node, parent):
