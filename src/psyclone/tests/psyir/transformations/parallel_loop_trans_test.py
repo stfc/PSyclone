@@ -37,8 +37,9 @@
 
 ''' pytest tests for the parallel_loop_trans module. '''
 
-import pytest
 import logging
+
+import pytest
 
 from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.psyir.nodes import (
@@ -660,7 +661,8 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
     # (and it permits valid loops - in case we have a bulk list of symbols for
     # all the code, but it will log the symbols not found)
     caplog.clear()
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.transformations"):
         trans.apply(loop, {"privatise_arrays": True,
                            "force_private": ["ztmp2", "symbol_not_in_loop"]})
     assert ("!$omp parallel do default(shared) private(ji,jj,ztmp) "

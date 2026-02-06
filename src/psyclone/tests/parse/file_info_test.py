@@ -84,7 +84,7 @@ def test_file_info_missing_file(caplog):
 
     """
     finfo = FileInfo("missing.txt")
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger="psyclone.parse.file_info"):
         with pytest.raises(FileNotFoundError) as err:
             _ = finfo.get_source_code()
     assert "Source file 'missing.txt': loading source code" in caplog.text
@@ -101,7 +101,7 @@ def test_file_info_cached_source_code(tmpdir, caplog):
     with open(fname, "w", encoding="utf-8") as fout:
         fout.write(content)
     finfo = FileInfo(fname, cache_active=True)
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger="psyclone.parse.file_info"):
         input1 = finfo.get_source_code()
     assert input1 == content
     assert "a_file.txt': loaded OK" in caplog.text
@@ -116,14 +116,14 @@ def test_file_info_cached_source_code(tmpdir, caplog):
     assert finfo._cache_data_save is None
 
     # Load fparser tree to start caching
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger="psyclone.parse.file_info"):
         finfo.get_fparser_tree()
     assert finfo._cache_data_save is not None
     assert "No cache file '" in caplog.text
     assert "Cache file updated with hashsum " in caplog.text
 
     caplog.clear()
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger="psyclone.parse.file_info"):
         finfo = FileInfo(fname, cache_active=True)
         input1 = finfo.get_fparser_tree()
     assert finfo._cache_data_load is not None
@@ -285,7 +285,7 @@ def test_file_info_load_from_cache_corrupted(tmpdir, caplog):
     assert file_info._cache_data_save is None
 
     # Load with damaged cache file
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger="psyclone.parse.file_info"):
         psyir_node = file_info.get_psyir()
     assert isinstance(psyir_node, Node)
     assert "Error while reading cache file - ignoring: " in caplog.text
@@ -353,7 +353,7 @@ def test_file_info_source_changed(tmpdir, caplog):
     file_info: FileInfo = FileInfo(filename, cache_active=True)
 
     # Load, but not from cache
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger="psyclone.parse.file_info"):
         psyir_node = file_info.get_psyir()
     assert "Cache hashsum mismatch: source " in caplog.text
     assert "Cache file updated with hashsum " in caplog.text
@@ -415,7 +415,7 @@ def test_file_info_cachefile_not_writable(tmpdir, caplog):
     # If the psyir, hence, fparser tree is requested, creating
     # the cache will fail, but the psyir node itself will
     # still be returned.
-    with caplog.at_level(logging.WARN):
+    with caplog.at_level(logging.WARN, logger="psyclone.parse.file_info"):
         psyir_node = file_info.get_psyir()
     assert isinstance(psyir_node, Node)
     assert "Unable to write to cache file: " in caplog.text
@@ -438,7 +438,7 @@ def test_file_info_cachefile_pickle_dump_exception(tmpdir, monkeypatch,
 
     monkeypatch.setattr("pickle.dump", fun_exception)
 
-    with caplog.at_level(logging.WARN):
+    with caplog.at_level(logging.WARN, logger="psyclone.parse.file_info"):
         psyir_node = file_info.get_psyir()
     assert isinstance(psyir_node, Node)
     assert "Error while storing cache data - ignoring:" in caplog.text

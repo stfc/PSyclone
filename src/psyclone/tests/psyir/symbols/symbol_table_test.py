@@ -2945,7 +2945,8 @@ def test_resolve_imports(fortran_reader, tmp_path, monkeypatch, caplog):
     assert not isinstance(b_1, symbols.DataSymbol)
 
     # Resolve only 'not_used3' from wildcard imports
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO,
+                         logger="psyclone.psyir.symbols.symbol_table"):
         subroutine.symbol_table.resolve_imports(
             symbol_target=symbols.Symbol('not_used3'))
     not_used3 = subroutine.symbol_table.lookup('not_used3')
@@ -3001,7 +3002,8 @@ def test_resolve_imports(fortran_reader, tmp_path, monkeypatch, caplog):
 
     # Now resolve all found containers (this will not fail for the
     # unavailable c_mod, but it will be logged)
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.symbols.symbol_table"):
         subroutine.symbol_table.resolve_imports()
     assert "Module 'c_mod' not found" in caplog.text
 
@@ -3042,7 +3044,8 @@ def test_resolve_imports_missing_container(monkeypatch, caplog):
     monkeypatch.setattr(csym, "find_container_psyir", lambda local_node: None)
     table.add(csym)
     # Resolving imports should run without problems, but log a Warning.
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.symbols.symbol_table"):
         table.resolve_imports()
     assert "Module 'a_mod' not found" in caplog.text
 

@@ -620,14 +620,28 @@ def main(arguments):
     args = parser.parse_args(arguments)
 
     # Set the logging system up.
-    loglevel = LOG_LEVELS[args.log_level]
     if args.log_file:
-        logname = args.log_file
-        logging.basicConfig(filename=logname,
-                            level=loglevel)
+        handler = logging.FileHandler(args.log_file, mode="a",
+                                      encoding="utf-8")
     else:
-        logging.basicConfig(level=loglevel)
+        handler = logging.StreamHandler()
+
+    # We set both top-level loggers for PSyclone and fparser to
+    # the same configuration:
+    logger_psyclone = logging.getLogger('psyclone')
+    logger_fparser = logging.getLogger('fparser')
+    formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+    for logger in [logger_fparser, logger_psyclone]:
+        logger.setLevel(LOG_LEVELS[args.log_level])
+        handler.setFormatter(formatter)
+        # Certain tests call main several times, which would add handlers
+        # over and over (which results in duplicated messages).
+        # Only attach a handler once:
+        if len(logger.handlers) == 0:
+            logger.addHandler(handler)
+
     logger = logging.getLogger(__name__)
+
     logger.debug("Logging system initialised. Level is %s.", args.log_level)
 
     # Validate that the given arguments are for the right operation mode
