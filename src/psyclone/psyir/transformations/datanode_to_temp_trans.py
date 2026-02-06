@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk STFC Daresbury Lab
 
-'''This module contains the DataNodeExtractTrans class.'''
+'''This module contains the DataNodeToTempTrans class.'''
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations import TransformationError
@@ -49,20 +49,24 @@ from psyclone.psyir.symbols.datatypes import (
     UnresolvedType,
     UnsupportedFortranType,
 )
+from psyclone.psyir.symbols.interfaces import (
+    UnresolvedInterface,
+    UnknownInterface
+)
 from psyclone.psyir.symbols import (
-    DataSymbol, ImportInterface, ContainerSymbol)
+    DataSymbol, ImportInterface, ContainerSymbol, Symbol)
 from psyclone.utils import transformation_documentation_wrapper
 
 
 @transformation_documentation_wrapper
-class DataNodeExtractTrans(Transformation):
+class DataNodeToTempTrans(Transformation):
     """Provides a generic transformation for moving a datanode from a
     statement into a new standalone statement. For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.nodes import Assignment
-    >>> from psyclone.psyir.transformations import DataNodeExtractTrans
+    >>> from psyclone.psyir.transformations import DataNodeToTempTrans
     >>>
     >>> psyir = FortranReader().psyir_from_source('''
     ...     subroutine my_subroutine()
@@ -72,7 +76,7 @@ class DataNodeExtractTrans(Transformation):
     ...     end subroutine
     ...     ''')
     >>> assign = psyir.walk(Assignment)[0]
-    >>> DataNodeExtractTrans().apply(assign.rhs, storage_name="temp")
+    >>> DataNodeToTempTrans().apply(assign.rhs, storage_name="temp")
     >>> print(FortranWriter()(psyir))
     subroutine my_subroutine()
       integer, dimension(10,10) :: a
@@ -107,7 +111,7 @@ class DataNodeExtractTrans(Transformation):
 
         if not isinstance(node, DataNode):
             raise TypeError(
-                f"Input node to DataNodeExtractTrans should be a "
+                f"Input node to DataNodeToTempTrans should be a "
                 f"DataNode but got '{type(node).__name__}'."
             )
 
@@ -117,8 +121,9 @@ class DataNodeExtractTrans(Transformation):
         for call in calls:
             if not call.is_pure:
                 raise TransformationError(
-                    f"Input node to DataNodeExtractTrans contains a call "
-                    f"that is not guaranteed to be pure. Input node is "
+                    f"Input node to DataNodeToTempTrans contains a call "
+                    f"'{call.debug_string().strip()}' that is not guaranteed "
+                    f"to be pure. Input node is "
                     f"'{node.debug_string().strip()}'."
                 )
         if isinstance(dtype, ArrayType):
@@ -127,24 +132,46 @@ class DataNodeExtractTrans(Transformation):
                                ArrayType.Extent.ATTRIBUTE]:
                     raise TransformationError(
                         f"Input node's datatype is an array of unknown size, "
-                        f"so the DataNodeExtractTrans cannot be applied. "
+                        f"so the DataNodeToTempTrans cannot be applied. "
                         f"Input node was '{node.debug_string().strip()}'."
                     )
-                # Otherwise we have an ArrayBounds
+                # The shape must now be set by ArrayBounds, we need to
+                # examine the symbols used to define those bounds.
                 symbols = set()
                 if isinstance(element.lower, DataNode):
                     symbols.update(element.lower.get_all_accessed_symbols())
                 if isinstance(element.upper, DataNode):
                     symbols.update(element.upper.get_all_accessed_symbols())
+                # Compare the symbols in the array bounds with the symbols
+                # already in the scope.
                 scope_symbols = node.scope.symbol_table.get_symbols()
                 for sym in symbols:
                     scoped_name_sym = scope_symbols.get(sym.name, None)
+                    # If sym is not scoped_name_sym, then there is a
+                    # symbol collision from an imported symbol.
                     if scoped_name_sym and sym is not scoped_name_sym:
+                        # If the symbol in scoped is imported from the same
+                        # container then we can skip this.
+                        if (isinstance(scoped_name_sym.interface,
+                                       ImportInterface) and
+                            (scoped_name_sym.interface.container_symbol.name
+                                == sym.interface.container_symbol.name)):
+                            continue
                         raise TransformationError(
-                            f"Input node contains an imported symbol whose "
-                            f"name collides with an existing symbol, so the "
-                            f"DataNodeExtractTrans cannot be applied. "
-                            f"Clashing symbol name is '{sym.name}'."
+                            f"The type of the node supplied to {self.name} "
+                            f"depends upon an imported symbol '{sym.name}' "
+                            f"which has a name clash with a symbol in the "
+                            f"current scope."
+                        )
+                    # If its not in the current scope, and its visibility is
+                    # private then we can't import it.
+                    if (not scoped_name_sym and sym.visibility ==
+                            Symbol.Visibility.PRIVATE):
+                        raise TransformationError(
+                            f"The datatype of the node suppled to "
+                            f"{self.name} depends upon an imported symbol "
+                            f"'{sym.name}' that is declared as private in "
+                            f"its containing module, so cannot be imported."
                         )
                     # If its an imported symbol we need to check if its
                     # the same import interface.
@@ -157,29 +184,46 @@ class DataNodeExtractTrans(Transformation):
                                 scoped_name_sym, ContainerSymbol):
                             raise TransformationError(
                                 f"Input node contains an imported symbol "
-                                f"whose containing module collides with an "
-                                f"existing symbol. Colliding name is "
+                                f"'{sym.name}' whose containing module "
+                                f"collides with an existing symbol. Colliding "
+                                f"name is "
                                 f"'{sym.interface.container_symbol.name}'."
                                 )
 
         if node.ancestor(Statement) is None:
             raise TransformationError(
-                "Input node to DataNodeExtractTrans has no ancestor "
+                "Input node to DataNodeToTempTrans has no ancestor "
                 "Statement node which is not supported."
             )
 
         if isinstance(dtype, (UnresolvedType, UnsupportedFortranType)):
-            raise TransformationError(
+            failing_symbols = []
+            symbols = node.get_all_accessed_symbols()
+            for sym in symbols:
+                if isinstance(sym.interface, (UnresolvedInterface,
+                                              UnknownInterface)):
+                    failing_symbols.append(sym.name)
+            # Sort the order of the list to get consistant results for tests.
+            failing_symbols.sort()
+            message = (
                 f"Input node's datatype cannot be computed, so the "
-                f"DataNodeExtractTrans cannot be applied. Input node was "
+                f"DataNodeToTempTrans cannot be applied. Input node was "
                 f"'{node.debug_string().strip()}'."
             )
+            if failing_symbols:
+                message += (
+                    f" The following symbols in the input node are not "
+                    f"resolved in the scope: '{failing_symbols}'. Setting "
+                    f"RESOLVE_IMPORTS in the transformation script may "
+                    f"enable resolution of these symbols."
+                )
+            raise TransformationError(message)
 
     def apply(self, node: DataNode, storage_name: str = "", **kwargs):
-        """Applies the DataNodeExtractTrans to the input arguments.
+        """Applies the DataNodeToTempTrans to the input arguments.
 
         :param node: The datanode to extract.
-        :param storage_name: The name of the temporary variable to store
+        :param storage_name: The base name of the temporary variable to store
             the result of the input node in. The default is tmp(_...)
             based on the rules defined in the SymbolTable class.
         """
@@ -189,26 +233,14 @@ class DataNodeExtractTrans(Transformation):
         # Find the datatype
         datatype = node.datatype
 
-        # Create a symbol of the relevant type.
-        if not storage_name:
-            symbol = node.scope.symbol_table.new_symbol(
-                root_name="tmp",
-                symbol_type=DataSymbol,
-                datatype=datatype
-            )
-        else:
-            symbol = node.scope.symbol_table.new_symbol(
-                root_name=storage_name,
-                symbol_type=DataSymbol,
-                allow_renaming=False,
-                datatype=datatype
-            )
-
-        # FIXME Make sure the shape is all in the symbol table. We know that
+        # Make sure the shape is all in the symbol table. We know that
         # all symbols we find can be safely added as otherwise validate will
         # fail.
-        # This is an oversimplification because we could have multiple
-        # references to the same symbol...
+        # Symbols used to reference shapes that are from imported modules but
+        # that aren't currently in the symbol table will be placed into the
+        # symbol table with a corresponding ImportInterface so the resultant
+        # symbol will reference the original definition of the shape in the
+        # containing module.
         if isinstance(datatype, ArrayType):
             for element in datatype.shape:
                 symbols = set()
@@ -241,7 +273,23 @@ class DataNodeExtractTrans(Transformation):
                                 sym_copy.interface.container_symbol = \
                                         container
                         node.scope.symbol_table.add(sym_copy)
+            # Now we've created the relevant symbols, we need to update
+            # the datatype to use the in-scope symbols
+            datatype.replace_symbols_using(node.scope.symbol_table)
 
+        # Create a symbol of the relevant type.
+        if not storage_name:
+            symbol = node.scope.symbol_table.new_symbol(
+                root_name="tmp",
+                symbol_type=DataSymbol,
+                datatype=datatype
+            )
+        else:
+            symbol = node.scope.symbol_table.new_symbol(
+                root_name=storage_name,
+                symbol_type=DataSymbol,
+                datatype=datatype
+            )
         # Create a Reference to the new symbol
         new_ref = Reference(symbol)
 
@@ -260,4 +308,4 @@ class DataNodeExtractTrans(Transformation):
         parent.addchild(assign, pos)
 
 
-__all__ = ["DataNodeExtractTrans"]
+__all__ = ["DataNodeToTempTrans"]

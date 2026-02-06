@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk STFC Daresbury Lab
 
-'''This module contains the DataNodeExtractTrans class.'''
+'''This module contains the DataNodeToTempTrans class.'''
 
 import os
 import pytest
@@ -47,13 +47,15 @@ from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE
 )
 from psyclone.psyir.transformations import (
-    DataNodeExtractTrans, TransformationError
+    DataNodeToTempTrans, TransformationError
 )
+from psyclone.tests.utilities import Compile
 
 
-def test_datanodeextracttrans_validate(fortran_reader, tmpdir, monkeypatch):
-    """Tests the validate function of the DataNodeExtractTrans."""
-    dtrans = DataNodeExtractTrans()
+def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
+    """Tests the non-import related functionality of the validate
+    function of the DataNodeToTempTrans."""
+    dtrans = DataNodeToTempTrans()
     code = """subroutine test(a, b, c)
         integer, dimension(:,:), intent(inout) :: a, b, c
         c = b + a
@@ -63,7 +65,7 @@ def test_datanodeextracttrans_validate(fortran_reader, tmpdir, monkeypatch):
     with pytest.raises(TransformationError) as err:
         dtrans.validate(assign.rhs)
     assert ("Input node's datatype is an array of unknown size, so the "
-            "DataNodeExtractTrans cannot be applied. Input node was "
+            "DataNodeToTempTrans cannot be applied. Input node was "
             "'b + a'" in str(err.value))
 
     code = """subroutine test
@@ -75,8 +77,11 @@ def test_datanodeextracttrans_validate(fortran_reader, tmpdir, monkeypatch):
     with pytest.raises(TransformationError) as err:
         dtrans.validate(assign.rhs)
     assert ("Input node's datatype cannot be computed, so the "
-            "DataNodeExtractTrans cannot be applied. Input node "
-            "was 'b + a'" in str(err.value))
+            "DataNodeToTempTrans cannot be applied. Input node "
+            "was 'b + a'. The following symbols in the input "
+            "node are not resolved in the scope: '['a', 'b']'. "
+            "Setting RESOLVE_IMPORTS in the transformation script "
+            "may enable resolution of these symbols." in str(err.value))
 
     code = """subroutine test
         character(len=25) :: a, b
@@ -88,24 +93,24 @@ def test_datanodeextracttrans_validate(fortran_reader, tmpdir, monkeypatch):
     with pytest.raises(TransformationError) as err:
         dtrans.validate(assign.rhs)
     assert ("Input node's datatype cannot be computed, so the "
-            "DataNodeExtractTrans cannot be applied. Input node "
+            "DataNodeToTempTrans cannot be applied. Input node "
             "was 'a'" in str(err.value))
 
     with pytest.raises(TypeError) as err:
         dtrans.validate("abc")
-    assert ("Input node to DataNodeExtractTrans should be a "
+    assert ("Input node to DataNodeToTempTrans should be a "
             "DataNode but got 'str'." in str(err.value))
 
     with pytest.raises(TypeError) as err:
         dtrans.validate(assign.rhs, storage_name=1)
-    assert ("'DataNodeExtractTrans' received options with the wrong types:\n"
+    assert ("'DataNodeToTempTrans' received options with the wrong types:\n"
             "'storage_name' option expects type 'str' but received '1' of "
             "type 'int'.\nPlease see the documentation and check the "
             "provided types." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
         dtrans.validate(Reference(DataSymbol("a", INTEGER_TYPE)))
-    assert ("Input node to DataNodeExtractTrans has no ancestor Statement "
+    assert ("Input node to DataNodeToTempTrans has no ancestor Statement "
             "node which is not supported." in str(err.value))
 
     code = """module some_mod
@@ -125,12 +130,20 @@ def test_datanodeextracttrans_validate(fortran_reader, tmpdir, monkeypatch):
     assign = psyir.walk(Assignment)[2]
     with pytest.raises(TransformationError) as err:
         dtrans.validate(assign.rhs)
-    assert ("Input node to DataNodeExtractTrans contains a call that is not "
+    assert ("Input node to DataNodeToTempTrans contains a call "
+            "'some_func(a, b)' that is not "
             "guaranteed to be pure. Input node is 'a + some_func(a, b)'."
             in str(err.value))
 
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+
+def test_datanodetotemptrans_validate_imports(
+        fortran_reader, tmp_path, monkeypatch
+):
+    """Tests the import related functionality of the validate
+    function of the DataNodeToTempTrans."""
+    dtrans = DataNodeToTempTrans()
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmp_path)])
+    filename = os.path.join(str(tmp_path), "a_mod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -149,13 +162,33 @@ def test_datanodeextracttrans_validate(fortran_reader, tmpdir, monkeypatch):
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
         dtrans.validate(assign.rhs)
-    assert ("Input node contains an imported symbol whose name collides "
-            "with an existing symbol, so the DataNodeExtractTrans cannot be "
-            "applied. Clashing symbol name is 'i'." in str(err.value))
+    assert ("The type of the node supplied to DataNodeToTempTrans depends "
+            "upon an imported symbol 'i' which has a name clash with a "
+            "symbol in the current scope." in str(err.value))
+
+    # This should work if the i in scope is imported from the
+    # some_mod already.
+    filename = os.path.join(str(tmp_path), "some_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module some_mod
+            integer, parameter :: i = 50
+        end module some_mod
+        ''')
+    code = """subroutine test()
+        use some_mod, only: i
+        use a_mod, only: some_var
+        integer, dimension(25, 50) :: b
+        b = some_var
+        end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    psyir.children[0].symbol_table.resolve_imports()
+    assign = psyir.walk(Assignment)[0]
+    dtrans.validate(assign.rhs)
 
     # Check validation works when the shape contains a symbol from an
     # existing module
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    filename = os.path.join(str(tmp_path), "a_mod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -163,17 +196,17 @@ def test_datanodeextracttrans_validate(fortran_reader, tmpdir, monkeypatch):
             integer, dimension(25, i) :: some_var
         end module a_mod
         ''')
-    filename = os.path.join(str(tmpdir), "some_mod.f90")
+    filename = os.path.join(str(tmp_path), "some_mod2.f90")
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
-        module some_mod
+        module some_mod2
             integer, parameter :: i = 25
-            integer, parameter :: j = 30
-        end module some_mod
+            integer :: j
+        end module some_mod2
         ''')
     code = """subroutine test()
         use a_mod, only: some_var
-        use some_mod, only: j
+        use some_mod2, only: j
         j = some_var(1,3)
         end subroutine test"""
     # We need to resolve the module in the Frontend to avoid some_Var
@@ -184,7 +217,7 @@ def test_datanodeextracttrans_validate(fortran_reader, tmpdir, monkeypatch):
 
     # Check validation raise an error when the shape contains a symbol from
     # a module that overlaps with a symbol in the scope.
-    filename = os.path.join(str(tmpdir), "tmpmod.f90")
+    filename = os.path.join(str(tmp_path), "tmpmod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module tmpmod
@@ -192,7 +225,7 @@ def test_datanodeextracttrans_validate(fortran_reader, tmpdir, monkeypatch):
             integer, parameter :: j = 30
         end module tmpmod
         ''')
-    filename = os.path.join(str(tmpdir), "f_mod.f90")
+    filename = os.path.join(str(tmp_path), "f_mod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module f_mod
@@ -209,15 +242,40 @@ def test_datanodeextracttrans_validate(fortran_reader, tmpdir, monkeypatch):
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
         dtrans.validate(assign.rhs)
-    assert ("Input node contains an imported symbol whose containing module "
-            "collides with an existing symbol. Colliding name is 'tmpmod'."
+    assert ("Input node contains an imported symbol 'i' whose containing "
+            "module collides with an existing symbol. Colliding name is "
+            "'tmpmod'."
             in str(err.value))
 
+    filename = os.path.join(str(tmp_path), "some_other_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module some_other_mod
+    integer, parameter :: dim1 = 4, dim2 = 5
+    real(kind=wp), dimension(dim1, dim2) :: a_var
+    public :: a_var
+    private
+end module''')
+    code = """subroutine test()
+    use some_other_mod, only: a_var
+    integer, dimension(4, 5) :: b
+    b = a_var
+end subroutine test
+    """
+    psyir = FortranReader(resolve_modules=True).psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as err:
+        dtrans.validate(assign.rhs)
+    assert ("The datatype of the node suppled to DataNodeToTempTrans depends "
+            "upon an imported symbol 'dim1' that is declared as private in "
+            "its containing module, so cannot be imported." in str(err.value))
 
-def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
+
+def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path,
                                    monkeypatch):
-    """Tests the apply function of the DataNodeExtractTrans."""
-    dtrans = DataNodeExtractTrans()
+    """Tests the apply function of the DataNodeToTempTrans without imported
+    symbols."""
+    dtrans = DataNodeToTempTrans()
     code = """subroutine test()
         integer, dimension(10,100) :: a
         integer, dimension(100,10) :: b
@@ -232,6 +290,7 @@ def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
             in out)
     assert "tmp = MATMUL(a, b)" in out
     assert "d = c + tmp" in out
+    assert Compile(tmp_path).string_compiles(out)
 
     code = """subroutine test()
         real :: a
@@ -246,6 +305,7 @@ def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
     assert "integer :: temporary" in out
     assert "temporary = INT(a)" in out
     assert "b = temporary" in out
+    assert Compile(tmp_path).string_compiles(out)
 
     code = """subroutine test()
         real, dimension(100) :: b
@@ -279,10 +339,18 @@ def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
     assert "  integer, dimension(3) :: tmp" in out
     assert """  tmp = 3 * b
   a(:4) = tmp""" in out
+    assert Compile(tmp_path).string_compiles(out)
 
+
+def test_datanodetotemptrans_apply_imports(
+        fortran_reader, fortran_writer, tmp_path, monkeypatch
+):
+    """Tests the apply function of the DataNodeToTempTrans with imported
+    symbols."""
+    dtrans = DataNodeToTempTrans()
     # Test the imports are handled correctly.
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmp_path)])
+    filename = os.path.join(str(tmp_path), "a_mod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -303,8 +371,9 @@ def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
 
   tmp = some_var
   b = tmp""" in out
+    assert Compile(tmp_path).string_compiles(out)
 
-    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    filename = os.path.join(str(tmp_path), "b_mod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module b_mod
@@ -325,8 +394,9 @@ def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
 
   tmp = some_var
   b = tmp""" in out
+    assert Compile(tmp_path).string_compiles(out)
 
-    filename = os.path.join(str(tmpdir), "c_mod.f90")
+    filename = os.path.join(str(tmp_path), "c_mod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module c_mod
@@ -350,11 +420,12 @@ def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
 
   tmp = some_var
   b = tmp""" in out
+    assert Compile(tmp_path).string_compiles(out)
 
     # Check that modules in a shape from an imported module are
     # correctly added to the output if the module is already
     # present as a Container.
-    filename = os.path.join(str(tmpdir), "f_mod.f90")
+    filename = os.path.join(str(tmp_path), "f_mod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module f_mod
@@ -362,7 +433,7 @@ def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
             integer, dimension(25, i) :: some_var
         end module f_mod
         ''')
-    filename = os.path.join(str(tmpdir), "g_mod.f90")
+    filename = os.path.join(str(tmp_path), "g_mod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module g_mod
@@ -387,3 +458,4 @@ def test_datanodeextractrans_apply(fortran_reader, fortran_writer, tmpdir,
 
   tmp = some_var
   j = tmp""" in out
+    assert Compile(tmp_path).string_compiles(out)
