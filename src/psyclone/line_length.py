@@ -31,8 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
+# Authors: A. B. G. Chalk, R. Ford, A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Provides support for breaking long fortran lines into smaller ones
@@ -40,6 +39,9 @@ to allow the code to conform to the maximum line length limits (132
 for f90 free format is the default)'''
 
 import re
+
+from fparser.common.readfortran import Comment, FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
 
 from psyclone.errors import InternalError
 
@@ -99,15 +101,9 @@ class FortLineLength():
         split within a string.
 
         One known situation that could cause an instance of the
-        :class:`line_length.FortLineLength` class to fail is when an inline
-        comment is used at the end of a line to make it longer than the 132
-        character limit. Whilst PSyclone does not generate such code for the
-        PSy-layer, this might occur in Algorithm-layer code, even if the
-        Algorithm-layer code conforms to the 132 line length limit. The reason
-        for this is that PSyclone's internal parser concatenates lines
-        together, thus a long line correctly split with continuation characters
-        in the Algorithm-layer becomes a line that needs to be split by an
-        instance of the :class:`line_length.FortLineLength` class.
+        :class:`line_length.FortLineLength` class to fail is when an *inline*
+        comment at the end of a line containing a *directive* takes it over
+        the 132-character limit. (TODO fparser/#468)
 
     '''
     # pylint: disable=too-many-instance-attributes
@@ -134,27 +130,33 @@ class FortLineLength():
         self._acc = re.compile(r'^\s*!\$ACC', flags=re.I)
         self._comment = re.compile(r'^\s*!')
 
-    def long_lines(self, fortran_in):
-        '''returns true if at least one of the lines in the input code is
-           longer than the allowed length. Otherwise returns false '''
+    def long_lines(self, fortran_in: str) -> bool:
+        '''
+        Checks whether any lines in the supplied text are longer
+        than the allowed length.
+
+        :param fortran_in: the Fortran code to check.
+
+        :returns: True if at least one of the lines in the input code is
+            longer than the allowed length. Otherwise returns False.
+        '''
         for line in fortran_in.split('\n'):
             if len(line) > self._line_length:
                 return True
         return False
 
     @property
-    def length(self):
-        ''' returns the maximum allowed line length'''
+    def length(self) -> int:
+        ''':returns: the maximum allowed line length.'''
         return self._line_length
 
-    def process(self, fortran_in):
+    def process(self, fortran_in: str) -> str:
         ''' Processes unlimited line-length Fortran code into Fortran
         code with long lines wrapped appropriately.
 
-        :param str fortran_in: Fortran code to be line wrapped.
+        :param fortran_in: Fortran code to be line wrapped.
 
-        :returns: line wrapped Fortran code.
-        :rtype: str
+        :returns: line-wrapped Fortran code.
 
         '''
         fortran_out = ""
@@ -179,6 +181,30 @@ class FortLineLength():
                     break_point = find_break_point(
                         line, self._line_length-len(c_end), key_list)
 
+                if line_type != "comment":
+                    # Check whether the proposed break point falls within an
+                    # in-line comment.
+                    line_no_indent = line.lstrip()
+                    indent_size = len(line) - len(line_no_indent)
+                    # FortranStringReader will return separate Line and Comment
+                    # objects for a source line containing an in-line comment.
+                    freader = FortranStringReader(line, ignore_comments=False,
+                                                  process_directives=True)
+                    # Use free format.
+                    freader.set_format(FortranFormat(True, True))
+                    fline = freader.next()
+                    # This won't work for a directive with an in-line comment
+                    # as FortranStringReader returns a single Comment object
+                    # for the whole thing (TODO fparser/#468).
+                    if ((break_point - indent_size) > len(fline.line) and
+                            isinstance(freader.next(), Comment)):
+                        # Breakpoint is inside a comment so change the chars
+                        # used for the line-continuation end and start.
+                        line_type = "comment"
+                        c_start = self._cont_start[line_type]
+                        c_end = self._cont_end[line_type]
+                        key_list = self._key_lists[line_type]
+
                 fortran_out += line[:break_point] + c_end + "\n"
                 line = line[break_point:]
                 while len(line) + len(c_start) > self._line_length:
@@ -195,7 +221,7 @@ class FortLineLength():
         # We add an extra newline so remove it when we return
         return fortran_out[:-1]
 
-    def _get_line_type(self, line):
+    def _get_line_type(self, line) -> str:
         ''' Classes lines into different types. This is required as
         directives need different continuation characters to fortran
         statements. It also enables us to know a little about the
