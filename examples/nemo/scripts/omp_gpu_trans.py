@@ -84,7 +84,6 @@ NEMOV5_EXCLUSIONS = [
 
 NEMOV4_EXCLUSIONS = [
     "dynspg_ts.f90",
-    "tranxt.f90",
 ]
 
 SKIP_FOR_PERFORMANCE = [

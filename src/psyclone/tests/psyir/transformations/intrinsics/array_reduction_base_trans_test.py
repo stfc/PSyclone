@@ -398,17 +398,18 @@ def test_mask_array_indexed(fortran_reader, fortran_writer, tmpdir):
     code = (
         "program sum_test\n"
         "  real :: a(4)\n"
+        "  real :: b(4)\n"
         "  real :: result\n"
         "  a(1) = 2.0\n"
         "  a(2) = 1.0\n"
         "  a(3) = 2.0\n"
         "  a(4) = 1.0\n"
-        "  result = maxval(a, mask=a(1)>a)\n"
+        "  result = maxval(a, mask=b(1)>a)\n"
         "end program\n")
     expected = (
         "  result = -HUGE(result)\n"
         "  do idx = 1, 4, 1\n"
-        "    if (a(1) > a(idx)) then\n"
+        "    if (b(1) > a(idx)) then\n"
         "      result = MAX(result, a(idx))\n"
         "    end if\n"
         "  enddo\n")
@@ -734,7 +735,7 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
         "use othermod\n"
         "real :: a(10,10)\n"
         "real :: x\n"
-        "x = maxval(a(:,b(:)))\n"
+        "x = maxval(a(:)+b(3))\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
@@ -742,8 +743,8 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
     code_before = fortran_writer(psyir)
     with pytest.raises(TransformationError) as info:
         trans.apply(node)
-    assert ("does not support array assignments that contain nested Range "
-            "expressions" in str(info.value))
+    assert ("ArrayAssignment2LoopsTrans does not accept calls which "
+            "are not guaranteed to be elemental" in str(info.value))
     # Check that the failed transformation does not modify the code
     code_after = fortran_writer(psyir)
     assert code_before == code_after
