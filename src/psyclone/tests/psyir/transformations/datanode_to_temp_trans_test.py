@@ -346,7 +346,11 @@ def test_datanodetotemptrans_apply_imports(
         fortran_reader, fortran_writer, tmp_path, monkeypatch
 ):
     """Tests the apply function of the DataNodeToTempTrans with imported
-    symbols."""
+    symbols.
+
+    TODO #284: Compilation tests for these are blocked as the Compile
+    utility doesn't look for imported modules yet.
+    """
     dtrans = DataNodeToTempTrans()
     # Test the imports are handled correctly.
     monkeypatch.setattr(Config.get(), '_include_paths', [str(tmp_path)])
@@ -371,7 +375,6 @@ def test_datanodetotemptrans_apply_imports(
 
   tmp = some_var
   b = tmp""" in out
-    assert Compile(tmp_path).string_compiles(out)
 
     filename = os.path.join(str(tmp_path), "b_mod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
@@ -394,7 +397,6 @@ def test_datanodetotemptrans_apply_imports(
 
   tmp = some_var
   b = tmp""" in out
-    assert Compile(tmp_path).string_compiles(out)
 
     filename = os.path.join(str(tmp_path), "c_mod.f90")
     with open(filename, "w", encoding='UTF-8') as module:
@@ -420,7 +422,6 @@ def test_datanodetotemptrans_apply_imports(
 
   tmp = some_var
   b = tmp""" in out
-    assert Compile(tmp_path).string_compiles(out)
 
     # Check that modules in a shape from an imported module are
     # correctly added to the output if the module is already
@@ -458,4 +459,3 @@ def test_datanodetotemptrans_apply_imports(
 
   tmp = some_var
   j = tmp""" in out
-    assert Compile(tmp_path).string_compiles(out)
