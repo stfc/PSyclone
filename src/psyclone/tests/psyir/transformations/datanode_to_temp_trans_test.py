@@ -459,3 +459,33 @@ def test_datanodetotemptrans_apply_imports(
 
   tmp = some_var
   j = tmp""" in out
+
+
+def test_datanodetotemptrans_apply_nemo_example(fortran_reader,
+                                                fortran_writer):
+    '''Takes an example of how a call in NEMO could look and tests the
+    apply method of DataNodeToTempTrans.'''
+    code = """module some_mod
+        use some_mod2, only: iom_put
+        integer :: nis0, nie0, njs0, nje0
+        real, allocatable, dimension(:,:,:) :: avt_k
+        real, allocatable, dimension(:,:,:) :: rn2
+        real, allocatable, dimension(:,:,:) :: wmask
+
+
+    contains
+    subroutine test
+
+    call iom_put('estrat_k', -avt_k(:,:,:) * rn2(nis0:nie0,njs0:nje0,:) * wmask(nis0:nie0,njs0:nje0,:))
+    end subroutine test
+    end module"""
+    
+    psyir = fortran_reader.psyir_from_source(code)
+    dtrans = DataNodeToTempTrans()
+    pytest.xfail(reason="Issue #3325. PSyclone does not currently give "
+                        "enough information about the datatype of expressions"
+                        " involving allocatable arrays for the "
+                        "DataNodeToTempTrans to be applied for this case yet."
+                )
+    dtrans.apply(psyir.children[0].children[0].children[0].arguments[1])
+
