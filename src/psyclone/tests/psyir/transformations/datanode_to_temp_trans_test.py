@@ -286,10 +286,11 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path,
     assign = psyir.walk(Assignment)[0]
     dtrans.apply(assign.rhs.operands[1])
     out = fortran_writer(psyir)
-    assert ("integer, dimension(SIZE(a, dim=1),SIZE(b, dim=2)) :: tmp"
-            in out)
-    assert "tmp = MATMUL(a, b)" in out
-    assert "d = c + tmp" in out
+    assert """  integer, allocatable, dimension(:,:) :: tmp
+
+  ALLOCATE(tmp(1:SIZE(a, dim=1),1:SIZE(b, dim=2)))
+  tmp = MATMUL(a, b)
+  d = c + tmp""" in out
     assert Compile(tmp_path).string_compiles(out)
 
     code = """subroutine test()
@@ -336,8 +337,10 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path,
     assign = psyir.walk(Assignment)[0]
     dtrans.apply(assign.rhs)
     out = fortran_writer(psyir)
-    assert "  integer, dimension(3) :: tmp" in out
-    assert """  tmp = 3 * b
+    assert """  integer, allocatable, dimension(:) :: tmp
+
+  ALLOCATE(tmp(1:3))
+  tmp = 3 * b
   a(:4) = tmp""" in out
     assert Compile(tmp_path).string_compiles(out)
 
@@ -393,8 +396,9 @@ def test_datanodetotemptrans_apply_imports(
     assign = psyir.walk(Assignment)[0]
     dtrans.apply(assign.rhs)
     out = fortran_writer(psyir)
-    assert """  integer, dimension(25,50) :: tmp
+    assert """  integer, allocatable, dimension(:,:) :: tmp
 
+  ALLOCATE(tmp(1:25,1:50))
   tmp = some_var
   b = tmp""" in out
 
@@ -416,10 +420,12 @@ def test_datanodetotemptrans_apply_imports(
     assign = psyir.walk(Assignment)[0]
     dtrans.apply(assign.rhs)
     out = fortran_writer(psyir)
-    assert """  use some_mod, only : i
+    assert """  use c_mod, only : some_var
+  use some_mod, only : i
   integer, dimension(25,50) :: b
-  integer, dimension(25,i) :: tmp
+  integer, allocatable, dimension(:,:) :: tmp
 
+  ALLOCATE(tmp(1:25,1:i))
   tmp = some_var
   b = tmp""" in out
 
@@ -455,8 +461,9 @@ def test_datanodetotemptrans_apply_imports(
     out = fortran_writer(psyir)
     assert """  use g_mod, only : i, j
   use f_mod, only : some_var
-  integer, dimension(25,i) :: tmp
+  integer, allocatable, dimension(:,:) :: tmp
 
+  ALLOCATE(tmp(1:25,1:i))
   tmp = some_var
   j = tmp""" in out
 

@@ -38,11 +38,14 @@
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import (
-    DataNode,
-    Reference,
+    ArrayReference,
     Assignment,
+    Call,
+    DataNode,
+    IntrinsicCall,
+    Range,
+    Reference,
     Statement,
-    Call
 )
 from psyclone.psyir.symbols.datatypes import (
     ArrayType,
@@ -277,6 +280,14 @@ class DataNodeToTempTrans(Transformation):
             # the datatype to use the in-scope symbols
             datatype.replace_symbols_using(node.scope.symbol_table)
 
+            # We want to create an allocatable symbol for Array entities, so
+            # create a new datatype for the symbol and keep the
+            # datatype around for the ALLOCATE statement later.
+            allocatable_datatype = datatype
+            datatype = ArrayType(allocatable_datatype.datatype,
+                                 [ArrayType.Extent.DEFERRED for x in
+                                  allocatable_datatype.shape])
+
         # Create a symbol of the relevant type.
         if not storage_name:
             symbol = node.scope.symbol_table.new_symbol(
@@ -306,6 +317,25 @@ class DataNodeToTempTrans(Transformation):
 
         # Add the assignment into the tree.
         parent.addchild(assign, pos)
+
+        # If the datatype is an array, we need to allocate the array
+        # before the statement too.
+        if isinstance(datatype, ArrayType):
+            # Create an array reference to the symbol with the dimensions
+            # returned by the datatype call earlier.
+            ref = ArrayReference.create(
+                    symbol,
+                    [Range.create(x.lower.copy(), x.upper.copy()) for x in
+                     allocatable_datatype.shape]
+            )
+            # Create the IntrinsicCall to ALLOCATE.
+            intrinsic = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.ALLOCATE,
+                (ref,)
+            )
+            # Add the allocate statement into the tree immediately before
+            # its use.
+            parent.addchild(intrinsic, pos)
 
 
 __all__ = ["DataNodeToTempTrans"]
