@@ -468,7 +468,7 @@ def insert_explicit_loop_parallelism(
                                              all_1d_work_arrays]
                     opts["ignore_dependencies_for"] = opts["force_private"]
             if routine_name == "ice_thd_dh":
-                if loop.variable.name in ["ji"]:
+                if loop.variable.name in ["ji", "jj"]:
                     opts["force_private"] = ["icount"] + [sym.name for sym in
                                                           all_1d_work_arrays]
                     opts["ignore_dependencies_for"] = opts["force_private"]
