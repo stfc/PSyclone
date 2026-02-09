@@ -46,24 +46,23 @@ from fparser.common.sourceinfo import FortranFormat
 from psyclone.errors import InternalError
 
 
-def find_break_point(line, max_index, key_list):
+def find_break_point(line: str, max_index: int, key_list: list[str]) -> int:
     ''' Finds the most appropriate line break point for the Fortran code in
     line.
 
-    :param str line: the Fortran code string to find the line break point for.
-    :param int max_index: the maximum index in line to search for the line
-                          break point.
+    :param line: the Fortran code string to find the line break point for.
+    :param max_index: the maximum index in line to search for the line
+                      break point.
     :param key_list: list of potential symbols to break the line at. The
                      members of the list early in the ordering have priority
                      for breaking the line, i.e. if the list contains multiple
                      elements, any possible position of the first element will
                      be found before trying any other element of the list.
-    :type key_list: List[str]
 
-    :returns: index to break the line into multiple lines.
-    :rtype: int
+    :returns: index at which to break the line into multiple lines.
 
     :raises InternalError: if no suitable break point is found in line.
+
     '''
     # We should never break the line before the first element on the
     # line.
@@ -78,10 +77,11 @@ def find_break_point(line, max_index, key_list):
 
 
 class FortLineLength():
-
-    ''' This class take a free format fortran code as a string and
+    ''' This class take a free-format fortran code as a string and
     line wraps any lines that are larger than the specified line
     length
+
+    :param line_length: the maximum line-length permitted in the output.
 
     .. warning::
         The :class:`line_length.FortLineLength` class is only partially aware
@@ -92,7 +92,7 @@ class FortLineLength():
         line and ``&`` at the beginning of a line for strings).
 
         Whilst statements only require an ``&`` at the end of the line when
-        line wrapping with free-form fortran they may optionally also have an
+        line wrapping with free-form Fortran, they may optionally also have an
         ``&`` at the beginning of the subsequent line. In contrast, when
         splitting a string over multiple lines an ``&`` is required at both
         locations. Therefore an instance of the
@@ -107,7 +107,7 @@ class FortLineLength():
 
     '''
     # pylint: disable=too-many-instance-attributes
-    def __init__(self, line_length=132):
+    def __init__(self, line_length: int = 132):
         self._line_length = line_length
         self._cont_start = {"statement": "&",
                             "openmp_directive": "!$omp& ",
@@ -140,10 +140,8 @@ class FortLineLength():
         :returns: True if at least one of the lines in the input code is
             longer than the allowed length. Otherwise returns False.
         '''
-        for line in fortran_in.split('\n'):
-            if len(line) > self._line_length:
-                return True
-        return False
+        return any(len(line) > self._line_length for
+                   line in fortran_in.split('\n'))
 
     @property
     def length(self) -> int:
@@ -221,12 +219,17 @@ class FortLineLength():
         # We add an extra newline so remove it when we return
         return fortran_out[:-1]
 
-    def _get_line_type(self, line) -> str:
-        ''' Classes lines into different types. This is required as
-        directives need different continuation characters to fortran
+    def _get_line_type(self, line: str) -> str:
+        ''' Classifies lines into different types. This is required as
+        directives need different continuation characters to Fortran
         statements. It also enables us to know a little about the
-        structure of the line which could be useful at some point.'''
+        structure of the line which could be useful at some point.
 
+        :param line: the line of code to analyse.
+
+        :returns: the type of the line (one of "statement", "openmp_directive",
+                  "openacc_directive", "comment" or "unknown").
+        '''
         if self._stat.match(line):
             return "statement"
         if self._omp.match(line):
