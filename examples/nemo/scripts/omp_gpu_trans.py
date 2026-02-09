@@ -115,6 +115,8 @@ OFFLOADING_ISSUES = [
     "stp2d.f90",
     "trabbc.f90",
     "icesbc.f90",
+    # Run fails on timestep 2
+    "icethd_dh.f90",
 ]
 
 ASYNC_ISSUES = [
@@ -185,6 +187,7 @@ def trans(psyir):
         # Skip initialisation and diagnostic subroutines
         if (subroutine.name.endswith('_alloc') or
                 subroutine.name.endswith('_init') or
+                subroutine.name.startswith('init') or
                 subroutine.name.startswith('Agrif') or
                 subroutine.name.startswith('dia_') or
                 subroutine.name == 'dom_msk' or
