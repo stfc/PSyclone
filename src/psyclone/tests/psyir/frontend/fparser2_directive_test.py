@@ -288,3 +288,61 @@ def test_unknowndirective(fortran_writer):
     assert "!$psy lowercase" in output
     assert "!$psy uppercase" in output
     assert "!$psy mixedcase" in output
+
+
+def test_comments_on_directive_before_loop(fortran_writer):
+    """Test that comments before directives that occur on a loop are
+    correctly placed onto the directive's preceding_comments."""
+    code = """
+    subroutine x
+    integer :: i, j, n
+    integer, dimension(100) :: f, a
+
+    i = 1
+    !comment1
+    !comment2
+    !$acc comment2
+    !$dir kernel(fusable)
+    !$dir loop(target)
+    do i = 1, n, 1
+        do j = 1, n, 1
+            f(i) = a(i) / 2.0
+        enddo
+    enddo
+    end subroutine x
+"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    dirs = routine.walk(UnknownDirective)
+    assert ("""comment1
+comment2""" == dirs[0].preceding_comment)
+
+
+def test_comments_on_directive_before_ifblock(fortran_writer):
+    """Test that comments before directives that occur on an IfBlock are
+    correctly placed onto the directive's preceding_comments."""
+    code = """
+    subroutine x
+    integer :: i, j, n
+    integer, dimension(100) :: f, a
+
+    i = 1
+    !comment1
+    !comment2
+    !$acc comment2
+    !$dir kernel(fusable)
+    !$dir loop(target)
+    if(i == 1) then
+        do j = 1, n, 1
+            f(j) = a(j) / 2.0
+        enddo
+    end if
+    end subroutine x
+"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    dirs = routine.walk(UnknownDirective)
+    assert ("""comment1
+comment2""" == dirs[0].preceding_comment)
