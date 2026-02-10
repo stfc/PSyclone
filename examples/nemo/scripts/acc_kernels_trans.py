@@ -231,7 +231,7 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_types = (IfBlock, Loop, ArrayReference)
+    excluded_types = (IfBlock, Loop)
     excluded_nodes = node.walk(excluded_types)
     for enode in excluded_nodes:
         if isinstance(enode, IfBlock):
@@ -243,31 +243,6 @@ def valid_acc_kernel(node):
                 and enode.walk(Loop)
             ):
                 continue
-
-            arrays = enode.condition.walk(ArrayReference)
-            # We exclude if statements where the condition expression does
-            # not refer to arrays at all as this may cause compiler issues
-            # (get "Missing branch target block") or produce faster code.
-            if (
-                not arrays
-                and excluding.ifs_scalars
-                and not isinstance(enode.condition, BinaryOperation)
-            ):
-                msg = "IF references scalars"
-                if msg not in enode.preceding_comment:
-                    enode.append_preceding_comment(msg)
-                return False
-            # When using CUDA Unified Memory, only allocated arrays reside in
-            # shared memory (including those that are created by compiler-
-            # -generated allocs, e.g. for automatic arrays). We assume that all
-            # arrays of rank 2 or greater are dynamically allocated, whereas 1D
-            # arrays are often static in NEMO. Hence, we disallow IFs where the
-            # logical expression involves the latter.
-            if any(len(array.children) == 1 for array in arrays):
-                msg = "IF references 1D arrays that may be static"
-                if msg not in enode.preceding_comment:
-                    enode.append_preceding_comment(msg)
-                return False
 
         elif isinstance(enode, Loop):
             # Heuristic:
