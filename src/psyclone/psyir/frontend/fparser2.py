@@ -4979,14 +4979,11 @@ class Fparser2Reader():
                         BinaryOperation.Operator.SUB]:
             # If the first operand is non-zero then we simply need to return it
             if other_oprnd is binary_op.operands[0]:
-                arg0 = other_oprnd.detach()
-                del binary_op
-                return arg0
+                return other_oprnd.detach()
 
             # Otherwise the first operand is 0 - we may or may not need a unary
             # operation, depending on the Operator.
             arg1 = other_oprnd.detach()
-            del binary_op
             if operator == BinaryOperation.Operator.ADD:
                 # We have `0 + operand` so just return operand
                 return arg1
@@ -4994,7 +4991,6 @@ class Fparser2Reader():
             return UnaryOperation.create(UnaryOperation.Operator.MINUS, arg1)
 
         # Otherwise we have an integer multiplication with zero
-        del binary_op
         return Literal("0", INTEGER_TYPE)
 
     def _intrinsic_handler(self, node, parent):
