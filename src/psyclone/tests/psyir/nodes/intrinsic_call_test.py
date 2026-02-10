@@ -858,7 +858,7 @@ def test_intrinsic_compute_argument_names_not_implemented_errors():
             in str(err.value))
 
     # The only case I can see that can hit line 2473
-    # (i not in available args: continue) is an invalid BESSEL_JN Intrinsic
+    # (if name not in optional_names) is an invalid BESSEL_JN Intrinsic
     # This is future-proofing for context-sensitive argument handling.
     # TODO #2302
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.BESSEL_JN)
