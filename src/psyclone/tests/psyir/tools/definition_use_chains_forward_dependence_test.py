@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. B. G. Chalk, STFC Daresbury Lab
+# Minor contributions: M. Schreiber, Univ. Grenoble Alpes
 # -----------------------------------------------------------------------------
 '''This module contains the tests for the DefinitionUseChain class's
 forward_accesses routine.'''
