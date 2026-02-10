@@ -4920,8 +4920,8 @@ class Fparser2Reader():
                            parent: Node) -> DataNode:
         '''
         Transforms an fparser2 BinaryOp to its PSyIR representation. If the
-        binary operation has integer operands and one argument is zero
-        then it is simplified.
+        binary operation has integer operands of the same precision and one
+        argument is zero then it is simplified.
 
         :param node: node in fparser2 AST.
         :param parent: Parent node of the PSyIR node we are constructing.
@@ -4961,8 +4961,10 @@ class Fparser2Reader():
         # Check whether either operand is integer zero in value.
         if _is_int_literal_0(binary_op.operands[1]):
             other_oprnd = binary_op.operands[0]
+            zero_oprnd = binary_op.operands[1]
         elif _is_int_literal_0(binary_op.operands[0]):
             other_oprnd = binary_op.operands[1]
+            zero_oprnd = binary_op.operands[0]
         else:
             return binary_op
 
@@ -4972,6 +4974,13 @@ class Fparser2Reader():
                 dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
             # Either the other arg. is definitely not an integer or we
             # don't know its type. Either way, we can't safely simplify.
+            return binary_op
+
+        # Check that the precisions of the operands match - if they don't then
+        # casting will occur and it's hard to avoid potentially altering the
+        # precision of subsequent operations so we just return the binary_op.
+        zero_dtype = zero_oprnd.datatype
+        if zero_dtype.precision != dtype.precision:
             return binary_op
 
         # Check for addition/subtraction of zero.
@@ -4990,8 +4999,9 @@ class Fparser2Reader():
             # We have `0 - operand` so need unary operation.
             return UnaryOperation.create(UnaryOperation.Operator.MINUS, arg1)
 
-        # Otherwise we have an integer multiplication with zero
-        return Literal("0", INTEGER_TYPE)
+        # Otherwise we have an integer multiplication with zero. Use the
+        # original node to ensure that it has the correct precision.
+        return zero_oprnd.detach()
 
     def _intrinsic_handler(self, node, parent):
         '''Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR

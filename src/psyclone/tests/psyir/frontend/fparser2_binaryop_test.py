@@ -137,17 +137,20 @@ def test_binaryopbase_simplification(fortran_reader):
     '''Test the simplification of binary operations involving +/- integer 0.'''
     code = """\
     subroutine a_sub()
-      use somewhere, only: unknown
+      use somewhere, only: unknown, long_int
       integer :: a_var
       real :: problem = -0.0
       a_var = a_var + 0
       a_var = a_var - 0
       a_var = 0 + a_var
       a_var = 0 - MAX(a_var, 1)
+      ! The zero is not integer
       a_var = a_var + 0.0
       a_var = 0 + 0
       problem = problem + 0
       problem = 0 + unknown
+      ! The zero is of a different precision
+      a_var = a_var + 0_long_int
     end subroutine a_sub"""
     sched = fortran_reader.psyir_from_source(code)
     assigns = sched.walk(Assignment)
@@ -168,19 +171,25 @@ def test_binaryopbase_simplification(fortran_reader):
     assert isinstance(assigns[6].rhs, BinaryOperation)
     # Addition of int to var of unknown type left unchanged.
     assert isinstance(assigns[7].rhs, BinaryOperation)
+    # Differing precisions: left unchanged
+    assert isinstance(assigns[8].rhs, BinaryOperation)
 
 
 def test_binaryopbase_mult_simplification(fortran_reader):
     '''Test the simplification of integer multiplications involving 0.'''
     code = """\
     subroutine a_sub()
+      use kinds_mod, only: long_int
       integer :: a_var
+      integer(kind=long_int) :: b_var
       real :: problem
       a_var = a_var * 0
       a_var = a_var + 0 * a_var
       a_var = a_var + 0 * a_var * 0
       a_var = problem * 0
       a_var = 0 * (a_var + 2*a_var)
+      a_var = a_var + 0_long_int * a_var
+      a_var = a_var + 0_long_int * b_var
     end subroutine a_sub"""
     sched = fortran_reader.psyir_from_source(code)
     assigns = sched.walk(Assignment)
@@ -196,3 +205,12 @@ def test_binaryopbase_mult_simplification(fortran_reader):
     assert isinstance(assigns[3].rhs, BinaryOperation)
     # 0 * (a_var + 2*a_var) => 0
     assert isinstance(assigns[4].rhs, Literal)
+    # 0_long_int is of different precision to a_var: unchanged
+    assert isinstance(assigns[5].rhs, BinaryOperation)
+    # Multiplication is of matching precisions but addition isn't
+    assert isinstance(assigns[6].rhs, BinaryOperation)
+    assert assigns[6].rhs.operator == BinaryOperation.Operator.ADD
+    assert isinstance(assigns[6].rhs.operands[1], Literal)
+    # Check that the zero that has replaced the multiplication operation
+    # has the correct precision.
+    assert assigns[6].rhs.operands[1].datatype.precision.name == "long_int"
