@@ -61,9 +61,7 @@ from utils import (add_profiling, inline_calls,
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     IfBlock,
-    ArrayReference,
     Assignment,
-    BinaryOperation,
     Loop,
     Routine,
     Literal,
@@ -211,8 +209,6 @@ def valid_acc_kernel(node):
 
     """
     # The Fortran routine which our parent represents
-    routine_name = node.ancestor(Routine).name
-
     try:
         # Since we do this check on a node-by-node basis, we disable the
         # check that the 'region' contains a loop.
@@ -227,8 +223,6 @@ def valid_acc_kernel(node):
     # Allow for per-routine setting of what to exclude from within KERNELS
     # regions. This is because sometimes things work in one context but not
     # in another (with the Nvidia compiler).
-    excluding = EXCLUDING.get(routine_name, EXCLUDING["default"])
-
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
     excluded_types = (IfBlock, Loop)
