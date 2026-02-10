@@ -4920,7 +4920,8 @@ class Fparser2Reader():
                            parent: Node) -> DataNode:
         '''
         Transforms an fparser2 BinaryOp to its PSyIR representation. If the
-        binary operation has no effect (e.g. x + 0) then it is simplified.
+        binary operation has integer operands and one argument is zero
+        then it is simplified.
 
         :param node: node in fparser2 AST.
         :param parent: Parent node of the PSyIR node we are constructing.
@@ -4951,42 +4952,50 @@ class Fparser2Reader():
         self.process_nodes(parent=binary_op, nodes=[arg_nodes[0]])
         self.process_nodes(parent=binary_op, nodes=[arg_nodes[1]])
 
-        # Check for a null operation ( 0 +- x or x +- 0)
+        # Check whether the operator is one that we can try to simplify.
+        if operator not in [BinaryOperation.Operator.ADD,
+                            BinaryOperation.Operator.SUB,
+                            BinaryOperation.Operator.MUL]:
+            return binary_op
+
+        # Check whether either operand is integer zero in value.
+        if _is_int_literal_0(binary_op.operands[1]):
+            other_oprnd = binary_op.operands[0]
+        elif _is_int_literal_0(binary_op.operands[0]):
+            other_oprnd = binary_op.operands[1]
+        else:
+            return binary_op
+
+        # Check the datatype of the non-zero operand.
+        dtype = other_oprnd.datatype
+        if not (isinstance(dtype, (ScalarType, ArrayType)) and
+                dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
+            # Either the other arg. is definitely not an integer or we
+            # don't know its type. Either way, we can't safely simplify.
+            return binary_op
+
+        # Check for addition/subtraction of zero.
         if operator in [BinaryOperation.Operator.ADD,
                         BinaryOperation.Operator.SUB]:
-            # If the second operand is 0 then we simply need to return the
-            # first operand.
-            if _is_int_literal_0(binary_op.operands[1]):
-                other_oprnd = binary_op.operands[0]
-                dtype = other_oprnd.datatype
-                # We can only safely remove this op if we know that the other
-                # operand is an integer.
-                if (isinstance(dtype, (ScalarType, ArrayType)) and
-                        dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
-                    arg0 = other_oprnd.detach()
-                    del binary_op
-                    return arg0
-                return binary_op
+            # If the first operand is non-zero then we simply need to return it
+            if other_oprnd is binary_op.operands[0]:
+                arg0 = other_oprnd.detach()
+                del binary_op
+                return arg0
 
-            # If the first operand is 0 then we may or may not need a unary
+            # Otherwise the first operand is 0 - we may or may not need a unary
             # operation, depending on the Operator.
-            if _is_int_literal_0(binary_op.operands[0]):
-                other_oprnd = binary_op.operands[1]
-                # We can only safely remove this op if we know that the other
-                # operand is an integer.
-                dtype = other_oprnd.datatype
-                if (isinstance(dtype, (ScalarType, ArrayType)) and
-                        dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
-                    arg1 = other_oprnd.detach()
-                    del binary_op
-                    if operator == BinaryOperation.Operator.ADD:
-                        # We have 0 + operand so just return operand
-                        return arg1
-                    # We have 0 - operand so need unary operation.
-                    return UnaryOperation.create(UnaryOperation.Operator.MINUS,
-                                                 arg1)
+            arg1 = other_oprnd.detach()
+            del binary_op
+            if operator == BinaryOperation.Operator.ADD:
+                # We have `0 + operand` so just return operand
+                return arg1
+            # We have `0 - operand` so need unary operation.
+            return UnaryOperation.create(UnaryOperation.Operator.MINUS, arg1)
 
-        return binary_op
+        # Otherwise we have an integer multiplication with zero
+        del binary_op
+        return Literal("0", INTEGER_TYPE)
 
     def _intrinsic_handler(self, node, parent):
         '''Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR

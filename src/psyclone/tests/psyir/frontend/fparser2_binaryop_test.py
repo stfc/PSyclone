@@ -48,8 +48,8 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader)
 from psyclone.psyir.nodes import (
-    Schedule, CodeBlock, Assignment, UnaryOperation, BinaryOperation,
-    Reference, IntrinsicCall)
+    Assignment, BinaryOperation, CodeBlock, IntrinsicCall, Literal,
+    Reference, Schedule, UnaryOperation)
 
 
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
@@ -145,6 +145,7 @@ def test_binaryopbase_simplification(fortran_reader):
       a_var = 0 + a_var
       a_var = 0 - MAX(a_var, 1)
       a_var = a_var + 0.0
+      a_var = 0 + 0
       problem = problem + 0
       problem = 0 + unknown
     end subroutine a_sub"""
@@ -161,7 +162,37 @@ def test_binaryopbase_simplification(fortran_reader):
     assert isinstance(assigns[3].rhs.operand, IntrinsicCall)
     # Addition of floating point number left unchanged.
     assert isinstance(assigns[4].rhs, BinaryOperation)
+    # 0 + 0 => 0
+    assert isinstance(assigns[5].rhs, Literal)
     # Addition of int to floating point var left unchanged.
-    assert isinstance(assigns[5].rhs, BinaryOperation)
-    # Addition of int to var of unknown type left unchanged.
     assert isinstance(assigns[6].rhs, BinaryOperation)
+    # Addition of int to var of unknown type left unchanged.
+    assert isinstance(assigns[7].rhs, BinaryOperation)
+
+
+def test_binaryopbase_mult_simplification(fortran_reader):
+    '''Test the simplification of integer multiplications involving 0.'''
+    code = """\
+    subroutine a_sub()
+      integer :: a_var
+      real :: problem
+      a_var = a_var * 0
+      a_var = a_var + 0 * a_var
+      a_var = a_var + 0 * a_var * 0
+      a_var = problem * 0
+      a_var = 0 * (a_var + 2*a_var)
+    end subroutine a_sub"""
+    sched = fortran_reader.psyir_from_source(code)
+    assigns = sched.walk(Assignment)
+    # a_var * 0 => 0
+    assert isinstance(assigns[0].rhs, Literal)
+    # a_var + 0 * a_var => a_var
+    assert isinstance(assigns[1].rhs, Reference)
+    assert assigns[1].rhs.symbol.name == "a_var"
+    # a_var + 0 * a_var * 0 => a_var
+    assert isinstance(assigns[2].rhs, Reference)
+    assert assigns[2].rhs.symbol.name == "a_var"
+    # Multiplication with float left unchanged
+    assert isinstance(assigns[3].rhs, BinaryOperation)
+    # 0 * (a_var + 2*a_var) => 0
+    assert isinstance(assigns[4].rhs, Literal)
