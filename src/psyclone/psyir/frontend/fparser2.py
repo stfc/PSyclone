@@ -3368,6 +3368,7 @@ class Fparser2Reader():
         preceding_comments = []
         found_do_stmt = False
         for child in node.content:
+            print(child)
             if isinstance(child, Fortran2003.Comment) and not found_do_stmt:
                 self.process_comment(child, preceding_comments)
                 continue
@@ -3375,6 +3376,10 @@ class Fparser2Reader():
                 directive = self._directive_handler(child, None)
                 # Add the directive before the loop.
                 loop.parent.addchild(directive)
+                directive.preceding_comment = (
+                    self._comments_list_to_string(preceding_comments)
+                )
+                preceding_comments = []
                 continue
             if isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
                 found_do_stmt = True
@@ -3431,6 +3436,10 @@ class Fparser2Reader():
             if isinstance(child, Fortran2003.Directive):
                 direc = self._directive_handler(child, None)
                 parent.addchild(direc)
+                direc.preceding_comment = (
+                    self._comments_list_to_string(preceding_comments)
+                )
+                preceding_comments = []
 
         # NOTE: The comments are added to the IfBlock node.
         # NOTE: Comments before the 'else[if]' statements are not handled.
