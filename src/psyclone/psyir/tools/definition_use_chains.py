@@ -519,8 +519,9 @@ class DefinitionUseChain:
                         continue
 
                     if self._stop_at_call:
-                        # For now just assume calls are bad if we have a non-local
-                        # variable and we treat them as though they were a write.
+                        # For now just assume calls are bad if we have a
+                        # non-local variable and we treat them as though
+                        # they were a write.
                         if defs_out is not None:
                             self._killed.append(defs_out)
 
