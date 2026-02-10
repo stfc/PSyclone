@@ -77,7 +77,10 @@ FILES_TO_SKIP = [
     "icefrm.f90",  # Has an unsupported implicit symbol declaration
 ]
 
-NEMOV5_EXCLUSIONS = []
+NEMOV5_EXCLUSIONS = [
+    # get_cssrcsurf produces signal SIGFPE, Arithmetic exception
+    "sbcclo.f90",
+]
 
 NEMOV4_EXCLUSIONS = [
     "dynspg_ts.f90",
@@ -92,8 +95,6 @@ SKIP_FOR_PERFORMANCE = [
 ]
 
 OFFLOADING_ISSUES = [
-    # Produces different output results
-    "zdftke.f90",
     # The following issues only affect BENCH (because ice is enabled?)
     # Runtime Error: Illegal address during kernel execution
     "trcrad.f90",
@@ -115,7 +116,6 @@ ASYNC_ISSUES = [
     # TODO #3220: Explore the cause of the async issues
     # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
     # (often invalid pointer dereference) in get_cstrgsurf
-    "sbcclo.f90",
     "trcldf.f90",
     # Runtime Error: Illegal address during kernel execution with
     # asynchronicity.
@@ -174,8 +174,10 @@ def trans(psyir):
             continue
         if not NEMOV4 and psyir.name in NEMOV5_EXCLUSIONS:
             continue
-        # ICE routines do not perform well on GPU, so we skip them
+        # ICE and ICB routines do not perform well on GPU, so we skip them
         if psyir.name.startswith("ice"):
+            continue
+        if psyir.name.startswith("icb"):
             continue
         # Skip initialisation and diagnostic subroutines
         if (subroutine.name.endswith('_alloc') or
@@ -186,6 +188,12 @@ def trans(psyir):
                 subroutine.name == 'dom_zgr' or
                 subroutine.name == 'dom_ngb'):
             continue
+        if subroutine.name == "solfrac_mod.f90":
+            # Bring these solfrac parameters to the subroutine as nvidia
+            # does not permit offloaded kernels to access module parameters
+            symtab = subroutine.symbol_table
+            symtab.add(symtab.lookup("pp_wgt"))
+            symtab.add(symtab.lookup("pp_len"))
 
         normalise_loops(
                 subroutine,
@@ -226,7 +234,6 @@ def trans(psyir):
                     region_directive_trans=omp_target_trans,
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
-                    privatise_arrays=False,
                     asynchronous_parallelism=enable_async,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     enable_reductions=not REPRODUCIBLE
@@ -239,7 +246,6 @@ def trans(psyir):
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
                     asynchronous_parallelism=enable_async,
-                    privatise_arrays=True,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     enable_reductions=not REPRODUCIBLE
             )
@@ -255,7 +261,6 @@ def trans(psyir):
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
                     asynchronous_parallelism=enable_async,
-                    privatise_arrays=True,
             )
 
     # Iterate again and add profiling hooks when needed
