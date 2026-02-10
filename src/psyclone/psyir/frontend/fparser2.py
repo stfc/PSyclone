@@ -3368,7 +3368,6 @@ class Fparser2Reader():
         preceding_comments = []
         found_do_stmt = False
         for child in node.content:
-            print(child)
             if isinstance(child, Fortran2003.Comment) and not found_do_stmt:
                 self.process_comment(child, preceding_comments)
                 continue
