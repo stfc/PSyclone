@@ -1,5 +1,8 @@
-   40) PR #3321 for #3320. Removes null integer arithmetic operations in the
+   41) PR #3321 for #3320. Removes null integer arithmetic operations in the
    frontend when no changes to the resultant code will occur.
+
+   40) PR #3316 for 3314. Fixes a bug where inline comments could break
+   the line length limit.
 
    39) PR #3309 for #3281. Improves check in IncreaseRankLoopArraysTrans to
    allow for inquiry intrinsics on a specified dim.
