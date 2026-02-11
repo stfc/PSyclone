@@ -490,10 +490,11 @@ def test_datanodetotemptrans_apply_nemo_example(fortran_reader,
 
     psyir = fortran_reader.psyir_from_source(code)
     dtrans = DataNodeToTempTrans()
+    with pytest.raises(TransformationError):
+        dtrans.apply(psyir.children[0].children[0].children[0].arguments[1])
     pytest.xfail(
         reason="Issue #3325. PSyclone does not currently give "
         "enough information about the datatype of expressions "
         "involving allocatable arrays for the "
         "DataNodeToTempTrans to be applied for this case yet."
     )
-    dtrans.apply(psyir.children[0].children[0].children[0].arguments[1])
