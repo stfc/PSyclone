@@ -253,6 +253,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.DataNodeToTempTrans
+      :members: apply
+      :no-index:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.DebugChecksumTrans
       :members: apply
       :no-index:
@@ -524,12 +530,6 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.psyir.transformations.ScalarisationTrans
-      :members: apply
-      :no-index:
-
-####
-
-.. autoclass:: psyclone.psyir.transformations.DataNodeToTempTrans
       :members: apply
       :no-index:
 
