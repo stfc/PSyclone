@@ -322,7 +322,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
                             f"\n{node.debug_string()}"))
 
         # Do not allow to transform expressions with CodeBlocks
-        if node_copy.walk(CodeBlock):
+        if node_copy.has_descendant(CodeBlock):
             message = (f"{self.name} does not support array assignments that"
                        f" contain a CodeBlock anywhere in the expression")
             if verbose:
