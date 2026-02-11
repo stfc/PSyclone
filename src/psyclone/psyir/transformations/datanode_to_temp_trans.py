@@ -114,7 +114,7 @@ class DataNodeToTempTrans(Transformation):
 
         if not isinstance(node, DataNode):
             raise TypeError(
-                f"Input node to DataNodeToTempTrans should be a "
+                f"Input node to {self.name} should be a "
                 f"DataNode but got '{type(node).__name__}'."
             )
 
@@ -124,7 +124,7 @@ class DataNodeToTempTrans(Transformation):
         for call in calls:
             if not call.is_pure:
                 raise TransformationError(
-                    f"Input node to DataNodeToTempTrans contains a call "
+                    f"Input node to {self.name} contains a call "
                     f"'{call.debug_string().strip()}' that is not guaranteed "
                     f"to be pure. Input node is "
                     f"'{node.debug_string().strip()}'."
@@ -135,7 +135,7 @@ class DataNodeToTempTrans(Transformation):
                                ArrayType.Extent.ATTRIBUTE]:
                     raise TransformationError(
                         f"Input node's datatype is an array of unknown size, "
-                        f"so the DataNodeToTempTrans cannot be applied. "
+                        f"so the {self.name} cannot be applied. "
                         f"Input node was '{node.debug_string().strip()}'."
                     )
                 # The shape must now be set by ArrayBounds, we need to
@@ -153,12 +153,9 @@ class DataNodeToTempTrans(Transformation):
                     # If sym is not scoped_name_sym, then there is a
                     # symbol collision from an imported symbol.
                     if scoped_name_sym and sym is not scoped_name_sym:
-                        # If the symbol in scoped is imported from the same
+                        # If the symbol in scope is imported from the same
                         # container then we can skip this.
-                        if (isinstance(scoped_name_sym.interface,
-                                       ImportInterface) and
-                            (scoped_name_sym.interface.container_symbol.name
-                                == sym.interface.container_symbol.name)):
+                        if scoped_name_sym.interface == sym.interface:
                             continue
                         raise TransformationError(
                             f"The type of the node supplied to {self.name} "
@@ -195,8 +192,8 @@ class DataNodeToTempTrans(Transformation):
 
         if node.ancestor(Statement) is None:
             raise TransformationError(
-                "Input node to DataNodeToTempTrans has no ancestor "
-                "Statement node which is not supported."
+                f"Input node to {self.name} has no ancestor "
+                f"Statement node which is not supported."
             )
 
         if isinstance(dtype, (UnresolvedType, UnsupportedFortranType)):
@@ -209,14 +206,14 @@ class DataNodeToTempTrans(Transformation):
             # Sort the order of the list to get consistant results for tests.
             failing_symbols.sort()
             message = (
-                f"Input node's datatype cannot be computed, so the "
-                f"DataNodeToTempTrans cannot be applied. Input node was "
-                f"'{node.debug_string().strip()}'."
+                f"The datatype of the supplied node cannot be "
+                f"computed, so the {self.name} cannot be applied. Input node "
+                f"was '{node.debug_string().strip()}'."
             )
             if failing_symbols:
                 message += (
-                    f" The following symbols in the input node are not "
-                    f"resolved in the scope: '{failing_symbols}'. Setting "
+                    f" The following symbols in the input node have not been "
+                    f"resolved by PSyclone: '{failing_symbols}'. Setting "
                     f"RESOLVE_IMPORTS in the transformation script may "
                     f"enable resolution of these symbols."
                 )
@@ -239,11 +236,11 @@ class DataNodeToTempTrans(Transformation):
         # Make sure the shape is all in the symbol table. We know that
         # all symbols we find can be safely added as otherwise validate will
         # fail.
-        # Symbols used to reference shapes that are from imported modules but
-        # that aren't currently in the symbol table will be placed into the
-        # symbol table with a corresponding ImportInterface so the resultant
-        # symbol will reference the original definition of the shape in the
-        # containing module.
+        # Symbols occuring within the shape definition that are from imported
+        # modules but that aren't currently in the symbol table will be placed
+        # into the symbol table with a corresponding ImportInterface so the
+        # resultant symbol will reference the original definition of the shape
+        # in the containing module.
         if isinstance(datatype, ArrayType):
             for element in datatype.shape:
                 symbols = set()
@@ -265,8 +262,7 @@ class DataNodeToTempTrans(Transformation):
                                 None
                             )
                             if container is None:
-                                # Add the container symbol the the symbol table
-                                # and we're ok with this symbol.
+                                # Add the container symbol to the symbol table
                                 node.scope.symbol_table.add(
                                      sym_copy.interface.container_symbol
                                  )

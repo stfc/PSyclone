@@ -33,9 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk STFC Daresbury Lab
 
-'''This module contains the DataNodeToTempTrans class.'''
+'''This module contains the tests for the DataNodeToTempTrans class.'''
 
-import os
 import pytest
 
 from psyclone.configuration import Config
@@ -76,10 +75,10 @@ def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
         dtrans.validate(assign.rhs)
-    assert ("Input node's datatype cannot be computed, so the "
-            "DataNodeToTempTrans cannot be applied. Input node "
+    assert ("The datatype of the supplied node cannot be computed, so "
+            "the DataNodeToTempTrans cannot be applied. Input node "
             "was 'b + a'. The following symbols in the input "
-            "node are not resolved in the scope: '['a', 'b']'. "
+            "node have not been resolved by PSyclone: '['a', 'b']'. "
             "Setting RESOLVE_IMPORTS in the transformation script "
             "may enable resolution of these symbols." in str(err.value))
 
@@ -92,8 +91,8 @@ def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
         dtrans.validate(assign.rhs)
-    assert ("Input node's datatype cannot be computed, so the "
-            "DataNodeToTempTrans cannot be applied. Input node "
+    assert ("The datatype of the supplied node cannot be computed, "
+            "so the DataNodeToTempTrans cannot be applied. Input node "
             "was 'a'" in str(err.value))
 
     with pytest.raises(TypeError) as err:
@@ -143,7 +142,7 @@ def test_datanodetotemptrans_validate_imports(
     function of the DataNodeToTempTrans."""
     dtrans = DataNodeToTempTrans()
     monkeypatch.setattr(Config.get(), '_include_paths', [str(tmp_path)])
-    filename = os.path.join(str(tmp_path), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -168,7 +167,7 @@ def test_datanodetotemptrans_validate_imports(
 
     # This should work if the i in scope is imported from the
     # some_mod already.
-    filename = os.path.join(str(tmp_path), "some_mod.f90")
+    filename = tmp_path / "some_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module some_mod
@@ -188,7 +187,7 @@ def test_datanodetotemptrans_validate_imports(
 
     # Check validation works when the shape contains a symbol from an
     # existing module
-    filename = os.path.join(str(tmp_path), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -196,7 +195,7 @@ def test_datanodetotemptrans_validate_imports(
             integer, dimension(25, i) :: some_var
         end module a_mod
         ''')
-    filename = os.path.join(str(tmp_path), "some_mod2.f90")
+    filename = tmp_path / "some_mod2.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module some_mod2
@@ -217,7 +216,7 @@ def test_datanodetotemptrans_validate_imports(
 
     # Check validation raise an error when the shape contains a symbol from
     # a module that overlaps with a symbol in the scope.
-    filename = os.path.join(str(tmp_path), "tmpmod.f90")
+    filename = tmp_path / "tmpmod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module tmpmod
@@ -225,7 +224,7 @@ def test_datanodetotemptrans_validate_imports(
             integer, parameter :: j = 30
         end module tmpmod
         ''')
-    filename = os.path.join(str(tmp_path), "f_mod.f90")
+    filename = tmp_path / "f_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module f_mod
@@ -247,7 +246,7 @@ def test_datanodetotemptrans_validate_imports(
             "'tmpmod'."
             in str(err.value))
 
-    filename = os.path.join(str(tmp_path), "some_other_mod.f90")
+    filename = tmp_path / "some_other_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module some_other_mod
@@ -357,7 +356,7 @@ def test_datanodetotemptrans_apply_imports(
     dtrans = DataNodeToTempTrans()
     # Test the imports are handled correctly.
     monkeypatch.setattr(Config.get(), '_include_paths', [str(tmp_path)])
-    filename = os.path.join(str(tmp_path), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -379,7 +378,7 @@ def test_datanodetotemptrans_apply_imports(
   tmp = some_var
   b = tmp""" in out
 
-    filename = os.path.join(str(tmp_path), "b_mod.f90")
+    filename = tmp_path / "b_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module b_mod
@@ -402,7 +401,7 @@ def test_datanodetotemptrans_apply_imports(
   tmp = some_var
   b = tmp""" in out
 
-    filename = os.path.join(str(tmp_path), "c_mod.f90")
+    filename = tmp_path / "c_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module c_mod
@@ -429,10 +428,10 @@ def test_datanodetotemptrans_apply_imports(
   tmp = some_var
   b = tmp""" in out
 
-    # Check that modules in a shape from an imported module are
+    # Check that symbols in a shape from an imported module are
     # correctly added to the output if the module is already
     # present as a Container.
-    filename = os.path.join(str(tmp_path), "f_mod.f90")
+    filename = tmp_path / "f_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module f_mod
@@ -440,7 +439,7 @@ def test_datanodetotemptrans_apply_imports(
             integer, dimension(25, i) :: some_var
         end module f_mod
         ''')
-    filename = os.path.join(str(tmp_path), "g_mod.f90")
+    filename = tmp_path / "g_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module g_mod
