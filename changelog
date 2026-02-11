@@ -1,3 +1,6 @@
+   40) PR #3321 for #3320. Removes null integer arithmetic operations in the
+   frontend when no changes to the resultant code will occur.
+
    39) PR #3309 for #3281. Improves check in IncreaseRankLoopArraysTrans to
    allow for inquiry intrinsics on a specified dim.
  
