@@ -116,7 +116,8 @@ class ArrayAssignment2LoopsTrans(Transformation):
         :param options: a dictionary with options for transformations.
 
         '''
-        self.validate(node, options, allow_strings, verbose, **kwargs)
+        self.validate(node, options, allow_strings=allow_strings,
+                      verbose=verbose, **kwargs)
 
         # If possible use the routine-level symbol table for nicer names
         if node.ancestor(Routine):
@@ -182,8 +183,6 @@ class ArrayAssignment2LoopsTrans(Transformation):
         self,
         node,
         options: Optional[dict[str, Any]] = None,
-        allow_strings: bool = False,
-        verbose: bool = False,
         **kwargs
     ):
         '''Perform various checks to ensure that it is valid to apply the
@@ -216,8 +215,9 @@ class ArrayAssignment2LoopsTrans(Transformation):
         '''
         super().validate(node, **kwargs)
         if not options:
-            self.validate_options(allow_strings=allow_strings, verbose=verbose,
-                                  **kwargs)
+            self.validate_options(**kwargs)
+            allow_strings = self.get_option("allow_strings", **kwargs)
+            verbose = self.get_option("verbose", **kwargs)
         else:
             # TODO #2668: Deprecate options dictionary.
             verbose = options.get("verbose", False)
