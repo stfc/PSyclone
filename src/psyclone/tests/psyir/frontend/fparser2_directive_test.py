@@ -315,6 +315,7 @@ def test_comments_on_directive_before_loop(fortran_writer):
     psyir = reader.psyir_from_source(code)
     routine = psyir.children[0]
     dirs = routine.walk(UnknownDirective)
+    assert dirs[0].directive_string == "acc comment2"
     assert ("""comment1
 comment2""" == dirs[0].preceding_comment)
 
@@ -344,5 +345,6 @@ def test_comments_on_directive_before_ifblock(fortran_writer):
     psyir = reader.psyir_from_source(code)
     routine = psyir.children[0]
     dirs = routine.walk(UnknownDirective)
+    assert dirs[0].directive_string == "acc comment2"
     assert ("""comment1
 comment2""" == dirs[0].preceding_comment)
