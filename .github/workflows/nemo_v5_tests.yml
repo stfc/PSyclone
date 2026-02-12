@@ -496,7 +496,7 @@ jobs:
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -acc -mp=gpu -gpu=mem:managed,math_uniform"
         rm -rf tests/${TEST_DIR}
         ./makenemo  -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/acc_kernels_trans.py add_key "key_nosignedzero" -j ${NUM_PARALLEL}
 
