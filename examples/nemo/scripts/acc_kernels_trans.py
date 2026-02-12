@@ -60,8 +60,10 @@ from utils import (add_profiling, inline_calls,
                    NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
-    IfBlock,
+    ArrayReference,
     Assignment,
+    BinaryOperation,
+    IfBlock,
     Loop,
     Routine,
     Literal,
@@ -209,6 +211,8 @@ def valid_acc_kernel(node):
 
     """
     # The Fortran routine which our parent represents
+    routine_name = node.ancestor(Routine).name
+
     try:
         # Since we do this check on a node-by-node basis, we disable the
         # check that the 'region' contains a loop.
@@ -225,6 +229,8 @@ def valid_acc_kernel(node):
     # in another (with the Nvidia compiler).
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
+    excluding = EXCLUDING.get(routine_name, EXCLUDING["default"])
+
     excluded_types = (IfBlock, Loop)
     excluded_nodes = node.walk(excluded_types)
     for enode in excluded_nodes:
@@ -237,6 +243,25 @@ def valid_acc_kernel(node):
                 and enode.walk(Loop)
             ):
                 continue
+
+            arrays = enode.condition.walk(ArrayReference)
+            # We exclude if statements where the condition expression does
+            # not refer to arrays at all as this may cause compiler issues
+            # (get "Missing branch target block") or produce faster code.
+            if not arrays and excluding.ifs_scalars and \
+               not isinstance(enode.condition, BinaryOperation):
+                log_msg(routine_name, "IF references scalars", enode)
+                return False
+            # When using CUDA Unified Memory, only allocated arrays reside in
+            # shared memory (including those that are created by compiler-
+            # -generated allocs, e.g. for automatic arrays). We assume that all
+            # arrays of rank 2 or greater are dynamically allocated, whereas 1D
+            # arrays are often static in NEMO. Hence, we disallow IFs where the
+            # logical expression involves the latter.
+            if any(len(array.children) == 1 for array in arrays):
+                log_msg(routine_name,
+                        "IF references 1D arrays that may be static", enode)
+                return False
 
         elif isinstance(enode, Loop):
             # Heuristic:
