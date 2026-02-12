@@ -41,7 +41,7 @@ from typing import List, Union
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, Call,
-    Routine, Schedule, IntrinsicCall, StructureReference)
+    Routine, Schedule, IntrinsicCall, StructureReference, IfBlock)
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
@@ -485,7 +485,7 @@ def add_profiling(children: Union[List[Node], Schedule]):
         _allowed_contiguous_nodes = (Assignment, Call, CodeBlock)
         _transformation = ProfileTrans
 
-        def __init__(self, routine_name: str=""):
+        def __init__(self, routine_name: str = ""):
             super().__init__()
             self._routine_name = routine_name
 
@@ -508,8 +508,8 @@ def add_profiling(children: Union[List[Node], Schedule]):
                     # of a single statement.
                     return False
             if (isinstance(region[0], IfBlock) and
-                "was_single_stmt" in nodes[0].annotations and
-                    isinstance(nodes[0].if_body[0], CodeBlock)):
+                "was_single_stmt" in region[0].annotations and
+                    isinstance(region[0].if_body[0], CodeBlock)):
                 # We also don't put single statements consisting of
                 # 'If(condition) call blah()' inside profiling regions.
                 return False
