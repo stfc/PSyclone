@@ -240,7 +240,7 @@ def valid_acc_kernel(node):
             # (get "Missing branch target block") or produce faster code.
             if (not arrays and excluding.ifs_scalars and
                     not isinstance(enode.condition, BinaryOperation)):
-                log_msg(routine_name, enode, "IF references scalars")
+                log_msg(routine_name, "IF references scalars", enode)
                 return False
             # When using CUDA Unified Memory, only allocated arrays reside in
             # shared memory (including those that are created by compiler-
