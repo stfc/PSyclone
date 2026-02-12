@@ -486,7 +486,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc@${NVFORTRAN_VERSION}
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
