@@ -56,7 +56,7 @@ class MaxParTrans(MaximalRegionTrans):
     # The apply function will do OMPParallelTrans around allowed regions.
     _transformation = OMPParallelTrans
     # We're only allowing assignment because its straightforward to test with.
-    _allowed_nodes = (Assignment, )
+    _allowed_contiguous_nodes = (Assignment, )
     # Should parallelise any found region that contains an assignment.
     _required_nodes = (Assignment, )
 
@@ -260,12 +260,13 @@ def test_apply(fortran_reader):
             raise TransformationError("")
 
         def apply(self, node, **kwargs):
+            self._validate_count = 0
             OMPParallelTrans().apply(node, **kwargs)
 
     class OneParTrans(MaximalRegionTrans):
         '''Dummy MaximalRegionTrans that uses our FakeTrans'''
         _transformation = Faketrans
-        _allowed_nodes = (Assignment, )
+        _allowed_contiguous_nodes = (Assignment, )
         _required_nodes = (Assignment, )
 
     code = """subroutine x

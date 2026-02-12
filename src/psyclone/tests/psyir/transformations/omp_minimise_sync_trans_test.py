@@ -69,7 +69,7 @@ def test_omp_remove_barrier_validate():
 
 def test_omp_eliminate_uncontained_barriers(fortran_reader):
     '''
-    Test the _eliminite_uncontained_barriers routine of the
+    Test the _eliminate_uncontained_barriers routine of the
     OMPMinimiseSyncTrans.'''
     code = """subroutine test
 
