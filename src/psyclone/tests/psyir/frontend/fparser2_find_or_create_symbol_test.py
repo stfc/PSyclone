@@ -178,7 +178,7 @@ def test_find_or_create_unresolved_scope_limit():
     assert "x" not in kernel.symbol_table
 
     # Add "x" ("x_1") to the kernel symbol table as we limit the scope to
-    # kernel. However, to avoid conficts with the pre-existing
+    # kernel. However, to avoid conflicts with the pre-existing
     # variables "x_1" in created.
     xsymbol = _find_or_create_unresolved_symbol(
         assign, "x", scope_limit=kernel)

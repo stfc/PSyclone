@@ -71,7 +71,7 @@ def test_debug_writer_fortran(fortran_reader, fortran_writer):
 
 
 def test_debug_writer_higher_abstraction_nodes(fortran_reader):
-    ''' For higer-level constructs (or language level nodes that need to be
+    ''' For higher-level constructs (or language level nodes that need to be
     lowered like the OMPParallelDirective to get the private clauses) the
     lowering and globals constraints will not be executed for the DebugWriter.
     If there is no suitable generic visitor for printing it will just output

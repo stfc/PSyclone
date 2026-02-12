@@ -10,7 +10,7 @@
 %NCDF_LIB            -L${NCDF_F_HOME}/lib -lnetcdff -L${NCDF_C_HOME}/lib -lnetcdf
 
 %PROFILE_INC         -I${PROFILING_DIR}
-%PROFILE_LIB         -L${PROFILING_DIR} -lnvtx_prof -L${CUDA_HOME}/lib64 -cuda -lnvToolsExt
+%PROFILE_LIB         -L${PROFILING_DIR} -lnvtx_prof -L${CUDA_HOME}/lib64 -cuda -lnvtx3interop
 
 %CPP	             cpp -Dkey_nosignedzero -I${MPI_HOME}/include
 %FC	                 ${MPIF90} -c

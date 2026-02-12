@@ -31,8 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
+# Authors: A. B. G. Chalk, R. Ford, A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Provides support for breaking long fortran lines into smaller ones
@@ -41,27 +40,29 @@ for f90 free format is the default)'''
 
 import re
 
+from fparser.common.readfortran import Comment, FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
+
 from psyclone.errors import InternalError
 
 
-def find_break_point(line, max_index, key_list):
+def find_break_point(line: str, max_index: int, key_list: list[str]) -> int:
     ''' Finds the most appropriate line break point for the Fortran code in
     line.
 
-    :param str line: the Fortran code string to find the line break point for.
-    :param int max_index: the maximum index in line to search for the line
-                          break point.
+    :param line: the Fortran code string to find the line break point for.
+    :param max_index: the maximum index in line to search for the line
+                      break point.
     :param key_list: list of potential symbols to break the line at. The
                      members of the list early in the ordering have priority
                      for breaking the line, i.e. if the list contains multiple
                      elements, any possible position of the first element will
                      be found before trying any other element of the list.
-    :type key_list: List[str]
 
-    :returns: index to break the line into multiple lines.
-    :rtype: int
+    :returns: index at which to break the line into multiple lines.
 
     :raises InternalError: if no suitable break point is found in line.
+
     '''
     # We should never break the line before the first element on the
     # line.
@@ -76,10 +77,11 @@ def find_break_point(line, max_index, key_list):
 
 
 class FortLineLength():
-
-    ''' This class take a free format fortran code as a string and
+    ''' This class take a free-format fortran code as a string and
     line wraps any lines that are larger than the specified line
     length
+
+    :param line_length: the maximum line-length permitted in the output.
 
     .. warning::
         The :class:`line_length.FortLineLength` class is only partially aware
@@ -90,7 +92,7 @@ class FortLineLength():
         line and ``&`` at the beginning of a line for strings).
 
         Whilst statements only require an ``&`` at the end of the line when
-        line wrapping with free-form fortran they may optionally also have an
+        line wrapping with free-form Fortran, they may optionally also have an
         ``&`` at the beginning of the subsequent line. In contrast, when
         splitting a string over multiple lines an ``&`` is required at both
         locations. Therefore an instance of the
@@ -99,19 +101,13 @@ class FortLineLength():
         split within a string.
 
         One known situation that could cause an instance of the
-        :class:`line_length.FortLineLength` class to fail is when an inline
-        comment is used at the end of a line to make it longer than the 132
-        character limit. Whilst PSyclone does not generate such code for the
-        PSy-layer, this might occur in Algorithm-layer code, even if the
-        Algorithm-layer code conforms to the 132 line length limit. The reason
-        for this is that PSyclone's internal parser concatenates lines
-        together, thus a long line correctly split with continuation characters
-        in the Algorithm-layer becomes a line that needs to be split by an
-        instance of the :class:`line_length.FortLineLength` class.
+        :class:`line_length.FortLineLength` class to fail is when an *inline*
+        comment at the end of a line containing a *directive* takes it over
+        the 132-character limit. (TODO fparser/#468)
 
     '''
     # pylint: disable=too-many-instance-attributes
-    def __init__(self, line_length=132):
+    def __init__(self, line_length: int = 132):
         self._line_length = line_length
         self._cont_start = {"statement": "&",
                             "openmp_directive": "!$omp& ",
@@ -134,27 +130,31 @@ class FortLineLength():
         self._acc = re.compile(r'^\s*!\$ACC', flags=re.I)
         self._comment = re.compile(r'^\s*!')
 
-    def long_lines(self, fortran_in):
-        '''returns true if at least one of the lines in the input code is
-           longer than the allowed length. Otherwise returns false '''
-        for line in fortran_in.split('\n'):
-            if len(line) > self._line_length:
-                return True
-        return False
+    def long_lines(self, fortran_in: str) -> bool:
+        '''
+        Checks whether any lines in the supplied text are longer
+        than the allowed length.
+
+        :param fortran_in: the Fortran code to check.
+
+        :returns: True if at least one of the lines in the input code is
+            longer than the allowed length. Otherwise returns False.
+        '''
+        return any(len(line) > self._line_length for
+                   line in fortran_in.split('\n'))
 
     @property
-    def length(self):
-        ''' returns the maximum allowed line length'''
+    def length(self) -> int:
+        ''':returns: the maximum allowed line length.'''
         return self._line_length
 
-    def process(self, fortran_in):
+    def process(self, fortran_in: str) -> str:
         ''' Processes unlimited line-length Fortran code into Fortran
         code with long lines wrapped appropriately.
 
-        :param str fortran_in: Fortran code to be line wrapped.
+        :param fortran_in: Fortran code to be line wrapped.
 
-        :returns: line wrapped Fortran code.
-        :rtype: str
+        :returns: line-wrapped Fortran code.
 
         '''
         fortran_out = ""
@@ -179,6 +179,30 @@ class FortLineLength():
                     break_point = find_break_point(
                         line, self._line_length-len(c_end), key_list)
 
+                if line_type != "comment":
+                    # Check whether the proposed break point falls within an
+                    # in-line comment.
+                    line_no_indent = line.lstrip()
+                    indent_size = len(line) - len(line_no_indent)
+                    # FortranStringReader will return separate Line and Comment
+                    # objects for a source line containing an in-line comment.
+                    freader = FortranStringReader(line, ignore_comments=False,
+                                                  process_directives=True)
+                    # Use free format.
+                    freader.set_format(FortranFormat(True, True))
+                    fline = freader.next()
+                    # This won't work for a directive with an in-line comment
+                    # as FortranStringReader returns a single Comment object
+                    # for the whole thing (TODO fparser/#468).
+                    if ((break_point - indent_size) > len(fline.line) and
+                            isinstance(freader.next(), Comment)):
+                        # Breakpoint is inside a comment so change the chars
+                        # used for the line-continuation end and start.
+                        line_type = "comment"
+                        c_start = self._cont_start[line_type]
+                        c_end = self._cont_end[line_type]
+                        key_list = self._key_lists[line_type]
+
                 fortran_out += line[:break_point] + c_end + "\n"
                 line = line[break_point:]
                 while len(line) + len(c_start) > self._line_length:
@@ -195,12 +219,17 @@ class FortLineLength():
         # We add an extra newline so remove it when we return
         return fortran_out[:-1]
 
-    def _get_line_type(self, line):
-        ''' Classes lines into diffrent types. This is required as
-        directives need different continuation characters to fortran
+    def _get_line_type(self, line: str) -> str:
+        ''' Classifies lines into different types. This is required as
+        directives need different continuation characters to Fortran
         statements. It also enables us to know a little about the
-        structure of the line which could be useful at some point.'''
+        structure of the line which could be useful at some point.
 
+        :param line: the line of code to analyse.
+
+        :returns: the type of the line (one of "statement", "openmp_directive",
+                  "openacc_directive", "comment" or "unknown").
+        '''
         if self._stat.match(line):
             return "statement"
         if self._omp.match(line):

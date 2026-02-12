@@ -1,10 +1,57 @@
+   43) PR #3326 for #3323 - bug fix for comments before directives on
+   loops or if statements.
+ 
+   42) PR #3324 updates Intel OneAPI configuration in Integration Tests.
+
+   41) PR #3321 for #3320. Removes null integer arithmetic operations in the
+   frontend when no changes to the resultant code will occur.
+
+   40) PR #3316 for 3314. Fixes a bug where inline comments could break
+   the line length limit.
+
+   39) PR #3309 for #3281. Improves check in IncreaseRankLoopArraysTrans to
+   allow for inquiry intrinsics on a specified dim.
+ 
+   38) PR #3311 for #3310. Small optimisation to the dependence-analysis
+   functionality for array indices consisting of simple References.
+ 
+   37) PR #3295 for #3292. Add command-line flag to permit config-file
+   settings to be overridden and extend possible settings for the
+   runtime warnings option.
+ 
+   36) PR #3308. Update Spack environment to use updated compiler versions.
+ 
+   35) PR #3202. Update nvidia compiler module version.
+
+   34) PR #3307 for #3305. Fix default value instantiation that was loading
+   the configuration file at import-time.
+
+   33) PR #3145 for #1623. Adds extensive training material using both the
+   GOcean and LFRic APIs.
+ 
+   32) PR #3299 for #3297. Fix intermittent test failures by more consistent
+   use of str and Path in the ModuleManager.
+ 
+   31) PR #3101 for #1312. Implements support for ScalarArray arguments to
+   LFRic kernels.
+ 
+   30) PR #3280 towards #2971. Move OMPParallelTrans to psyir.transformations. 
+
+   29) PR #3275 for #3216. Allows the specification of private variables
+   for parallel regions in user scripts and removes the option from Loops.
+
+   28) PR #3263 towards #2381 and #2674. Generalise GH_SUM to GH_REDUCTION
+   and begin support for new reduction LFRic Builtins.
+
+   27) PR #3293. Fixes various typos throughout the PSyclone codebase.
+
    26) PR #3267 for #3265 and #1418. Improves the parsing of Fortran
    derived types with unsupported components.
  
    25) PR #3289 for #3288. Pin Sphinx to 8.3 to prevent doc build issues.
 
    24) PR #3284 for #3283. Bug fix for case where same file found via
-   multiple search paths.   
+   multiple search paths.
 
    23) PR #3255 for #3251. Identify uncategorised directives as
    UnknownDirective (instead of CodeBlock) when possible.
@@ -146,7 +193,7 @@ Release 3.2.0 1st of October 2025
    clauses to some OpenMP loops.
 
    94) PR #3095 for #2916. Dynamically propagate pure and elemental
-   attributes to GenericInterefaceSymbols.
+   attributes to GenericInterfaceSymbols.
 
    93) PR #3147 for #3138. Fixes reference_accesses() for Calls.
 
@@ -326,7 +373,7 @@ Release 3.2.0 1st of October 2025
 
    25) PR #3001 for #2929. Improve docs for OMPLoopTrans.
 
-   24) PR #2999 for #2988. Fixed the unneccessary failure when 3 arguments
+   24) PR #2999 for #2988. Fixed the unnecessary failure when 3 arguments
    provided to Structure…
 
    23) PR #2993. Add documentation for the options to kwargs ongoing conversion.
@@ -338,7 +385,7 @@ Release 3.2.0 1st of October 2025
    20) PR #2931 (#closes 2244) adds support for LFRic colour-tiling. Needs
    to be selected in transformation script.
 
-   19) PR #2970 towards #2966. Add `--enble-cache` psyclone command flag.
+   19) PR #2970 towards #2966. Add `--enable-cache` psyclone command flag.
 
    18) PR #2989. Updates various software versions in the integration tests.
    Most significant is move from Gnu 14.2 to Gnu 15.1.
@@ -440,7 +487,7 @@ release 3.1.0 26th of February 2025
 	13) PR #2862 for #2858. Change to PSyIR frontend and backend to ensure
 	existing parentheses in expressions are preserved.
 
-	14) PR #2825 for #2278 and #2849. Signatures AccessType now indentifies
+	14) PR #2825 for #2278 and #2849. Signatures AccessType now identifies
 	INQUIRY and TYPE_INFO, for inquiry intrinsic accesses and precision symbols.
 
 	15) PR #2855 for #2853. Allows the Fortran standard used by fparser to
@@ -452,7 +499,7 @@ release 3.1.0 26th of February 2025
 	17) PR #2829 for #2826. Adds a --config command-line argument to the
 	PSyAD script (to replicate that for psyclone).
 
-	18) PR #2280 for #2723. Add support for depencency analysis involving
+	18) PR #2280 for #2723. Add support for dependency analysis involving
 	array ranges.
 
 	19) PR #2885. Update integration test dependencies.
@@ -657,7 +704,7 @@ release 3.0.0 6th of December 2024
 	the form `var =[>] this[%...]%procedure(...)`.
 
 	60) PR #2645 towards #2585. Add an optional "otherwise" argument to
-	the SymbolTalbe lookup method.
+	the SymbolTable lookup method.
 
 	61) PR #2633 for #2125. Introduces the "replace_symbols_using" method
 	to guarantee that PSyIR trees after a copy have references to the
@@ -814,7 +861,7 @@ release 3.0.0 6th of December 2024
 	typehints that we are starting to add to the code base.
 
 	123) PR #2809 for #2737. Updates documentation on OpenMP to point to
-	examples of tranformations for CPU and GPU.
+	examples of transformations for CPU and GPU.
 
 	124) PR #2815 for #2636. Get nlayers from first field or operator
 	argument to each kernel in LFRic.
@@ -830,7 +877,7 @@ release 2.5.0 14th of February 2024
 	2) PR #2269 for #2268. Rename DynInvokes to LFRicInvokes and move
 	to own module.
 
-	3) PR #2255 for #2237. The derived type intial values are not lost
+	3) PR #2255 for #2237. The derived type initial values are not lost
 	anymore, and the "extends" or "abstract" keywords cause a
 	UnknownFortranType.
 
@@ -871,7 +918,7 @@ release 2.5.0 14th of February 2024
 	16) PR #2357 for #2353. Adds the ACC-loops NEMO transformation script
 	and includes its use in the integration testing.
 
-	17) PR #2380 and #2378 for #2369. Add PSyIR node.sibilings property.
+	17) PR #2380 and #2378 for #2369. Add PSyIR node.siblings property.
 
 	18) PR #2375 for #2374. Bug fix for LFRic kernel-extraction driver
 	creation for netcdf.
@@ -1245,7 +1292,7 @@ release 2.4.0 29th of September 2023
 	information.
 
 	87) PR #1970 for #1966. Add an overwrite_datatype option to
-	StructureReferences for when an API knows what type a DeferedType is.
+	StructureReferences for when an API knows what type a DeferredType is.
 
 	88) PR #2003. Pins the Sphinx version to < 6.1 to avoid a bug in
 	the link-checking functionality. Also corrects various links to
@@ -1539,7 +1586,7 @@ release 2.4.0 29th of September 2023
 	nvfortran examples and tutorials steps in the Integration tests.
 
 	184) PR #2250 for #2248 and #1575. Fixes bug in line-length limiter
-	to prevent it breaking a line before the first non-whitepsace
+	to prevent it breaking a line before the first non-whitespace
 	character.
 
 	185) PR #2262 towards #446. Implement reference_access for Call nodes.
@@ -1582,7 +1629,7 @@ release 2.4.0 29th of September 2023
 	197) PR #2281 for #2258. Adds a PSyData wrapper for the TAU profiler.
 
 	198) PR #2283 for #2282 and #2286. Adds a get_ubound_expression
-	method to ArrayMixin (analagous to get_lbound_expression).
+	method to ArrayMixin (analogous to get_lbound_expression).
 
 	199) PR #2293 for #2301. Add 'is_independent' property/query to Loop.
 
@@ -2285,7 +2332,7 @@ release 2.0.0 28th April 2021
 	N.B. dl_esm_inf does not yet have support for set_dirty/clean.
 
 	37) #875 for #774. Add support for new metadata format for scalar
-	arguments to LFRic kernels - sepecify the intrinsic type
+	arguments to LFRic kernels - specify the intrinsic type
 	separately.
 
 	38) #895 towards #871. Updates to HEAD of dl_esm_inf, introduces
@@ -2932,7 +2979,7 @@ release 1.8.1 29th November 2019
 release 1.8.0 8th November 2019
 
 	1) #245 and PR #247. Extend PSyIR to support common kernel
-	constructs (e.g. asignments) and generalise ASTProcessor and
+	constructs (e.g. assignments) and generalise ASTProcessor and
 	CodeBlocks.
 
 	2) #275 and PR #276. Update fparser submodule (to point to latest
@@ -3485,7 +3532,7 @@ release 1.5.0 3rd October 2017
 	which will be used for the multi-grid code.
 
 	13) #82 and PR #83 modified a test to work with different versions
-	of graphviz which output files with different ammounts of white
+	of graphviz which output files with different amounts of white
 	space
 
 	14) #52 and PR #60 added support for evaluators. An evaluator is

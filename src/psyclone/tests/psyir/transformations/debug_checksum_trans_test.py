@@ -149,7 +149,7 @@ PSYCLONE_INTERNAL_line_ + 1
     PRINT *, "values%i checksum", SUM(values % i(1 : 100))"""
     assert correct in out
 
-    # Check Unknown types are exlcuded
+    # Check Unknown types are excluded
     code = """subroutine test()
     use my_mod
 

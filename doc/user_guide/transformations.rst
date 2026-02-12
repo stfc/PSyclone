@@ -423,7 +423,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPParallelTrans
+.. autoclass:: psyclone.psyir.transformations.OMPParallelTrans
     :inherited-members:
     :exclude-members: name
     :no-index:

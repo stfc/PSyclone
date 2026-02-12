@@ -66,7 +66,8 @@ class OMPTaskwaitTrans(Transformation):
     >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+    >>> from psyclone.transformations import OMPSingleTrans
+    >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> from psyclone.transformations import OMPTaskloopTrans
     >>> from psyclone.psyir.transformations import OMPTaskwaitTrans
     >>> singletrans = OMPSingleTrans()
@@ -314,7 +315,7 @@ class OMPTaskwaitTrans(Transformation):
         :type taskloop_positions: list of int
         :param dependence_positions: positions of the taskloops' dependencies.
         :type dependence_positions: list of int
-        :param dependence_nodes: the nodes respresenting the forward \
+        :param dependence_nodes: the nodes representing the forward \
                                  dependency of each taskloop node.
         :type dependence_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 

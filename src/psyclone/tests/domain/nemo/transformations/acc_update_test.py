@@ -392,7 +392,7 @@ def test_loop_host_overwriting(fortran_reader, fortran_writer):
 def test_if_host_overwriting(fortran_reader, fortran_writer):
     ''' Test the placement of update host directives when an IfBlock contains
      a host statement writing the same variable as a previous host statement
-     outside the IfBlock with no depedent device kernel in between them. '''
+     outside the IfBlock with no dependent device kernel in between them. '''
     psyir = fortran_reader.psyir_from_source(
         '''
         SUBROUTINE tra_ldf_iso()

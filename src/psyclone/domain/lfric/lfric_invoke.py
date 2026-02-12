@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner, O. Brunt
+# and A. Pirrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -40,8 +41,8 @@
     base class from psyGen.py. '''
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
-from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
+from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.psyGen import Invoke
 from psyclone.psyir.nodes import Assignment, Reference, Call, Literal
@@ -65,7 +66,8 @@ class LFRicInvoke(Invoke):
 
     :raises GenerationError: if integer reductions are required in the
                     PSy-layer.
-
+    :raises GenerationError: if a global reduction operation other than sum
+                             is required - TODO #2381.
     '''
     # pylint: disable=too-many-instance-attributes
     # pylint: disable=too-many-locals
@@ -73,7 +75,6 @@ class LFRicInvoke(Invoke):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicInvokeSchedule
-        const = LFRicConstants()
         Invoke.__init__(self, alg_invocation, idx, LFRicInvokeSchedule,
                         invokes)
 
@@ -93,9 +94,12 @@ class LFRicInvoke(Invoke):
         from psyclone.domain.lfric import (
             LFRicCellIterators, LFRicHaloDepths, LFRicLoopBounds,
             LFRicRunTimeChecks,
-            LFRicScalarArgs, LFRicFields, LFRicDofmaps, LFRicStencils)
+            LFRicScalarArgs, LFRicScalarArrayArgs, LFRicFields, LFRicDofmaps,
+            LFRicStencils)
 
         self.scalar_args = LFRicScalarArgs(self)
+
+        self.scalar_array_args = LFRicScalarArrayArgs(self)
 
         # Initialise our Invoke stencil information
         self.stencil = LFRicStencils(self)
@@ -172,21 +176,26 @@ class LFRicInvoke(Invoke):
         # Lastly, add in halo exchange calls and global sums if
         # required. We only need to add halo exchange calls for fields
         # since operators are assembled in place and scalars don't
-        # have halos. We only need to add global sum calls for scalars
-        # which have a 'gh_sum' access.
+        # have halos. We only need to add global reduction calls for scalars
+        # which have a 'gh_reduction' access.
         if Config.get().distributed_memory:
-            # halo exchange calls
-            const = LFRicConstants()
+            # Halo exchange calls
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
-            # global sum calls
-            for loop in self.schedule.loops():
-                for scalar in loop.args_filter(
-                        arg_types=const.VALID_SCALAR_NAMES,
-                        arg_accesses=AccessType.get_valid_reduction_modes(),
-                        unique=True):
-                    global_sum = LFRicGlobalSum(scalar, parent=loop.parent)
-                    loop.parent.children.insert(loop.position+1, global_sum)
+            # Global reductions
+            for kern in self.schedule.walk(LFRicBuiltIn):
+                if not kern.is_reduction:
+                    continue
+                loop = kern.ancestor(LFRicLoop)
+                if kern.reduction_type == LFRicBuiltIn.ReductionType.SUM:
+                    global_red = LFRicGlobalSum(kern.reduction_arg,
+                                                parent=loop.parent)
+                else:
+                    raise GenerationError(
+                        f"TODO #2381 - currently only global *sum* "
+                        f"reductions are supported but kernel '{kern.name}' "
+                        f"performs a {kern.reduction_type}")
+                loop.parent.children.insert(loop.position+1, global_red)
 
         # Add the halo depth(s) for any kernel(s) that operate in the halos
         self._alg_unique_halo_depth_args = []
@@ -274,7 +283,8 @@ class LFRicInvoke(Invoke):
 
         '''
         # Declare all quantities required by this PSy routine (Invoke)
-        for entities in [self.scalar_args, self.fields, self.lma_ops,
+        for entities in [self.scalar_args, self. scalar_array_args,
+                         self.fields, self.lma_ops,
                          self.stencil, self.meshes,
                          self.function_spaces, self.dofmaps, self.cma_ops,
                          self.boundary_conditions, self.evaluators,

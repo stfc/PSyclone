@@ -103,8 +103,13 @@ OFFLOADING_ISSUES = []
 
 if not NEMOV4:
     FILES_TO_SKIP.extend([
-        # Fail in nvfortran when enabling seaice
-        "icefrm.f90",  # Has unsupported implicit symbol declaration
+        # Fail in nvfortran when enabling seaice - Has unsupported implicit
+        # symbol declaration
+        "icefrm.f90",
+        # get_cssrcsurf produces signal SIGFPE, Arithmetic exception
+        "sbcclo.f90",
+        # This file fails for gcc NEMOv5 BENCH
+        "icedyn_rhg_evp.f90",
     ])
 
     SKIP_FOR_PERFORMANCE.extend([
@@ -118,8 +123,6 @@ if not NEMOV4:
     ])
 
     OFFLOADING_ISSUES.extend([
-        # Produces different output results
-        "zdftke.f90",
         # The following issues only affect BENCH (because ice is enabled?)
         # Runtime Error: Illegal address during kernel execution
         "trcrad.f90",
@@ -137,20 +140,12 @@ if not NEMOV4:
         "trcatf.f90",
         "stp2d.f90",
     ])
-
-    # if "acc_offloading" in PARALLEL_DIRECTIVES:
-    #     OFFLOADING_ISSUES.extend([
-    #         # Fail in OpenACC ORCA2_ICE_PISCES
-    #         "dynzdf.f90",
-    #         "trabbl.f90",
-    #         "trazdf.f90",
-    #         "zdfsh2.f90",
-    #     ])
+else:
+    FILES_TO_SKIP.extend([])
 
 ASYNC_ISSUES = [
     # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
     # (often invalid pointer dereference) in get_cstrgsurf
-    "sbcclo.f90",
     "trcldf.f90",
     # Runtime Error: Illegal address during kernel execution with
     # asynchronicity.
@@ -241,10 +236,6 @@ def filter_files_by_name(name: str) -> bool:
     if name.startswith("icb"):
         return True
 
-    # This file fails for gcc NEMOv5 BENCH
-    if not NEMOV4 and name == "icedyn_rhg_evp.f90":
-        return True
-
     return False
 
 
@@ -264,7 +255,6 @@ def trans(psyir):
 
     disable_profiling_for = []
     enable_async = ASYNC_PARALLEL and psyir.name not in ASYNC_ISSUES
-    privatise_arrays = not (NEMOV4 or "acc" in PARALLEL_DIRECTIVES)
 
     for subroutine in psyir.walk(Routine):
 
@@ -278,6 +268,13 @@ def trans(psyir):
                 subroutine.name == 'dom_zgr' or
                 subroutine.name == 'dom_ngb'):
             continue
+
+        if subroutine.name == "solfrac_mod.f90":
+            # Bring these solfrac parameters to the subroutine as nvidia
+            # does not permit offloaded kernels to access module parameters
+            symtab = subroutine.symbol_table
+            symtab.add(symtab.lookup("pp_wgt"))
+            symtab.add(symtab.lookup("pp_len"))
 
         normalise_loops(
                 subroutine,
@@ -321,7 +318,6 @@ def trans(psyir):
                     region_directive_trans=offload_region_trans,
                     loop_directive_trans=gpu_loop_trans,
                     collapse=True,
-                    privatise_arrays=privatise_arrays,
                     enable_reductions=not REPRODUCIBLE,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     asynchronous_parallelism=enable_async,
@@ -333,7 +329,6 @@ def trans(psyir):
                     subroutine,
                     loop_directive_trans=cpu_loop_trans,
                     collapse=False,
-                    privatise_arrays=privatise_arrays,
                     enable_reductions=not REPRODUCIBLE,
                     asynchronous_parallelism=enable_async,
             )

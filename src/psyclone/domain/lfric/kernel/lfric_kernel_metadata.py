@@ -387,7 +387,7 @@ class LFRicKernelMetadata(CommonMetadata):
     def _cma_kernel_type(self):
         '''Determine the type of CMA (Column Matrix Assembly) kernel this is.
 
-        :returns: the type of cma kernel this metadata respresents.
+        :returns: the type of cma kernel this metadata represents.
         :rtype: str
 
         '''

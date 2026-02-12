@@ -61,11 +61,11 @@ from psyclone.psyir.symbols import (AutomaticInterface, ScalarType, ArrayType,
                                     REAL_TYPE, INTEGER_TYPE)
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, LoopFuseTrans, LoopTrans, OMPLoopTrans,
-    TransformationError)
+    TransformationError, OMPParallelTrans)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (
-    OMPParallelTrans, LFRicColourTrans, LFRicOMPLoopTrans,
+    LFRicColourTrans, LFRicOMPLoopTrans,
     LFRicOMPParallelLoopTrans, MoveTrans, LFRicRedundantComputationTrans,
     LFRicAsyncHaloExchangeTrans, LFRicKernelConstTrans,
     ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
@@ -1241,7 +1241,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
 
 def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that we can fuse colour loops , enclose them in an OpenMP
-    parallel region and preceed each by an OpenMP DO for both
+    parallel region and precede each by an OpenMP DO for both
     sequential and distributed-memory code. We also test when annexed
     is False and True as it affects how many halo exchanges are
     generated.
@@ -7969,7 +7969,7 @@ def test_colour_trans_tiled_intergrid(dist_mem):
     assert "loop2_stop" not in gen
     assert "    do colour = loop1_start, loop1_stop, 1\n" in gen
 
-    # Chek inner loops over tiles and cells
+    # Check inner loops over tiles and cells
     if dist_mem:
         assert ("last_halo_tile_per_colour_fld_m = "
                 "mesh_fld_m%get_last_halo_tile_all_colours()" in gen)

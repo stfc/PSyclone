@@ -440,7 +440,7 @@ def test_lfric_stencil_xory_vector():
 
 def test_lfric_operator_bc_kernel():
     '''Tests that a kernel that applies boundary conditions to operators
-    detects the right implicit paramaters.
+    detects the right implicit parameters.
 
     '''
     psy, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",

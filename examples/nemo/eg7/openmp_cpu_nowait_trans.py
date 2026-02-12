@@ -41,9 +41,9 @@ from psyclone.psyir.transformations import (
         ArrayAssignment2LoopsTrans,
         OMPLoopTrans,
         OMPMinimiseSyncTrans,
-        TransformationError
+        TransformationError,
+        OMPParallelTrans
 )
-from psyclone.transformations import OMPParallelTrans
 from psyclone.psyir.nodes import (
         Assignment,
         Directive,

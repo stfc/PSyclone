@@ -46,7 +46,7 @@ module profile_psy_data_mod
   type, extends(PSyDataBaseType) :: profile_PSyDataType
      !> Counts how often this region was executed.
      integer                   :: count
-     !> Time at whith PreStart was called.
+     !> Time at with PreStart was called.
      real(kind=4)              :: start
      !> Overall time spent in this subroutine, i.e. sum
      !> of each individual call.
@@ -55,7 +55,7 @@ module profile_psy_data_mod
      real(kind=4)              :: min_time
      !> Sum Longest measured time of this region.
      real(kind=4)              :: max_time
-     !> Inidicates if this structure has been initialised.
+     !> Indicates if this structure has been initialised.
      logical                   :: initialised = .false.
   contains
       ! The profiling API uses only the two following calls:

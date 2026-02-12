@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner, O. Brunt
+# and A. Pirrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -56,8 +57,7 @@ from psyclone.core import AccessType, Signature, SymbolicMaths
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (
     FunctionSpace, KernCallAccArgList, KernCallArgList, LFRicCollection,
-    LFRicConstants, LFRicSymbolTable, LFRicKern,
-    LFRicTypes, LFRicLoop)
+    LFRicConstants, LFRicSymbolTable, LFRicKern, LFRicTypes, LFRicLoop)
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.kernel import getkerneldescriptors
@@ -1479,8 +1479,8 @@ class LFRicProxies(LFRicCollection):
         '''
         init_cursor = cursor
         for arg in self._invoke.psy_unique_vars:
-            # We don't have proxies for scalars
-            if arg.is_scalar:
+            # We don't have proxies for scalars or arrays of scalars.
+            if arg.is_scalar or arg.is_scalar_array:
                 continue
 
             const = LFRicConstants()
@@ -1934,7 +1934,7 @@ class LFRicMeshes():
         # kernels in this invoke.
         self._first_var = None
         for var in unique_psy_vars:
-            if not var.is_scalar:
+            if not (var.is_scalar or var.is_scalar_array):
                 self._first_var = var
                 break
 
@@ -5675,6 +5675,8 @@ class LFRicKernelArgument(KernelArgument):
         # any-space function spaces.
         self._kernel_args = kernel_args
         self._vector_size = arg_meta_data.vector_size
+        # The number of dimensions (for a ScalarArray)
+        self._array_ndims = arg_meta_data.array_ndims
         self._argument_type = arg_meta_data.argument_type
         self._stencil = None
         if arg_meta_data.mesh:
@@ -5888,7 +5890,7 @@ class LFRicKernelArgument(KernelArgument):
                 # The collection datatype is not recognised or supported.
                 alg_datatype = None
 
-        if self.is_scalar:
+        if self.is_scalar or self.is_scalar_array:
             self._init_scalar_properties(alg_datatype, alg_precision,
                                          check)
         elif self.is_field:
@@ -5959,7 +5961,7 @@ class LFRicKernelArgument(KernelArgument):
                 f"their precision defined in the algorithm layer but "
                 f"'{self.name}' in '{self._call.name}' does not.")
 
-        if self.access in AccessType.get_valid_reduction_modes():
+        if self.access == AccessType.REDUCTION:
             # Treat reductions separately to other scalars as it
             # is expected that they should match the precision of
             # the field they are reducing. At the moment there is
@@ -6147,6 +6149,15 @@ class LFRicKernelArgument(KernelArgument):
         return self._argument_type in const.VALID_SCALAR_NAMES
 
     @property
+    def is_scalar_array(self) -> bool:
+        '''
+        :returns: True if this kernel argument represents a
+                  ScalarArray, False otherwise.
+        '''
+        const = LFRicConstants()
+        return self._argument_type in const.VALID_ARRAY_NAMES
+
+    @property
     def is_field(self):
         '''
         :returns: True if this kernel argument represents a field, \
@@ -6254,7 +6265,7 @@ class LFRicKernelArgument(KernelArgument):
                     f"PSyIR contains one or more References.")
             return lit
 
-        if self.is_scalar:
+        if self.is_scalar or self.is_scalar_array:
             try:
                 scalar_sym = symbol_table.lookup(self.name)
             except KeyError:
@@ -6509,7 +6520,7 @@ class LFRicKernelArgument(KernelArgument):
                         symbol_type=ContainerSymbol)
                         ))
 
-        if self.is_scalar:
+        if self.is_scalar or self.is_scalar_array:
             # Find or create the DataType for the appropriate scalar type.
             if self.intrinsic_type == "real":
                 prim_type = ScalarType.Intrinsic.REAL
@@ -6539,7 +6550,12 @@ class LFRicKernelArgument(KernelArgument):
                     kind_name, INTEGER_TYPE,
                     interface=ImportInterface(constants_container))
                 symtab.add(kind_symbol)
-            return ScalarType(prim_type, Reference(kind_symbol))
+            dts = ScalarType(prim_type, Reference(kind_symbol))
+            if self.is_scalar_array and self._array_ndims >= 1:
+                # ScalarArray needs to have a number of dimensions
+                # greater than or equal to one
+                return ArrayType(dts, [self._array_ndims])
+            return dts
 
         if self.is_field or self.is_operator:
             # Find or create the DataTypeSymbol for the appropriate

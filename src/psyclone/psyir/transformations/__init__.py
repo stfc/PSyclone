@@ -126,6 +126,9 @@ from psyclone.psyir.transformations.omp_taskloop_trans import \
     OMPTaskloopTrans
 from psyclone.psyir.transformations.omp_declare_target_trans import \
     OMPDeclareTargetTrans
+from psyclone.psyir.transformations.omp_parallel_trans import (
+    OMPParallelTrans,
+)
 
 # For AutoAPI documentation generation
 __all__ = [
@@ -177,4 +180,5 @@ __all__ = [
     "OMPTaskloopTrans",
     "OMPDeclareTargetTrans",
     "OMPCriticalTrans",
+    "OMPParallelTrans",
 ]
