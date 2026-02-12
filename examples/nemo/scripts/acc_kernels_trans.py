@@ -426,13 +426,19 @@ def trans(psyir):
             # including to those with no device code and that execute
             # exclusively on the host
             if ACC_EXPLICIT_MEM_MANAGEMENT and have_kernels:
-                print(f"Transforming {subroutine.name} with acc update")
-                ACC_UPDATE_TRANS.apply(subroutine)
+                print(f"Transforming {subroutine.name} with acc enter data")
+                ACC_EDATA_TRANS.apply(subroutine)
         else:
             print(
                 f"Addition of OpenACC to routine {subroutine.name} "
                 f"disabled!"
             )
+
+        # Add required OpenACC update directives to every routine, including to
+        # those with no device code and that execute exclusively on the host
+        if ACC_EXPLICIT_MEM_MANAGEMENT:
+            print(f"Transforming {subroutine.name} with acc update")
+            ACC_UPDATE_TRANS.apply(subroutine)
 
         # Add profiling instrumentation
         if PROFILE_NONACC:
