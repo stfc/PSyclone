@@ -1,3 +1,8 @@
+   43) PR #3326 for #3323 - bug fix for comments before directives on
+   loops or if statements.
+ 
+   42) PR #3324 updates Intel OneAPI configuration in Integration Tests.
+
    41) PR #3321 for #3320. Removes null integer arithmetic operations in the
    frontend when no changes to the resultant code will occur.
 
