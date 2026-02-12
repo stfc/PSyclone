@@ -4428,7 +4428,9 @@ class IntrinsicCall(Call):
                 arg_names=()),
             optional_args={"team": DataNode},
             return_type=INTEGER_TYPE,
-            reference_accesses=None,  # FIXME NYI
+            reference_accesses=(
+                _reference_accesses_all_reads_with_optional_kind
+            ),
         )
         THIS_IMAGE = IAttr(
             name="THIS_IMAGE",
@@ -4749,6 +4751,7 @@ class IntrinsicCall(Call):
             ]
             # Remove any of the interfaces that don't contain
             # a named non-optional argument from the list of potential
+            # candidate interfaces.
             for name in self.argument_names:
                 if not name:
                     continue
@@ -5061,10 +5064,6 @@ class IntrinsicCall(Call):
             keys are Signatures (unique identifiers to a symbol and its
             structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
-
-        :raises InternalError: if the IntrinsicCall can't have argument
-                               names computed due to ambiguity in the
-                               intrinsic's interface being used.
         """
         # Make sure argument names are computed if they currently haven't been
         if None in self.argument_names:
