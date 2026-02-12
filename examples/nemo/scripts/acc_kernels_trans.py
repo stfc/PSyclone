@@ -55,10 +55,10 @@ the process of attempting to create the largest possible Kernel region.
 
 """
 
-import logging
 from utils import (add_profiling, inline_calls,
                    NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes import (
     ArrayReference,
     Assignment,
@@ -175,27 +175,18 @@ EXCLUDING = {
 }
 
 
-def log_msg(name, msg, node):
+def log_msg(name: str, msg: str, node: Node) -> None:
     """
-    Log a message indicating why a transformation could not be performed.
+    Adds a comment indicating why a transformation could not be performed.
 
-    :param str name: the name of the routine.
-    :param str msg: the message to log.
+    :param name: the name of the routine - currently unused.
+    :param msg: the message to log.
     :param node: the PSyIR node that prevented the transformation.
-    :type node: :py:class:`psyclone.psyir.nodes.Node`
 
     """
-    # Create a str representation of the position of the problematic node
-    # in the PSyIR tree.
-    node_strings = []
-    parent = node
-    while parent:
-        node_strings.append(parent.node_str(colour=False))
-        parent = parent.parent
-    node_strings.reverse()
-    location = "->".join(node_strings)
-    # Log the message
-    logging.info("%s: %s: %s", name, msg, location)
+    parent_stmt = node.ancestor(Statement, include_self=True)
+    if msg not in parent_stmt.preceding_comment:
+        parent_stmt.append_preceding_comment(msg)
 
 
 def valid_acc_kernel(node):
@@ -218,10 +209,9 @@ def valid_acc_kernel(node):
         # check that the 'region' contains a loop.
         ACC_KERN_TRANS.validate(node, options={"disable_loop_check": True})
     except TransformationError as err:
-        msg = f"Node rejected by ACCKernelTrans.validate: {err.value}"
-        parent_stmt = node.ancestor(Statement, include_self=True)
-        if msg not in parent_stmt.preceding_comment:
-            parent_stmt.append_preceding_comment(msg)
+        log_msg(routine_name,
+                f"Node rejected by ACCKernelTrans.validate: {err.value}",
+                node)
         return False
 
     # Allow for per-routine setting of what to exclude from within KERNELS
@@ -232,8 +222,8 @@ def valid_acc_kernel(node):
     excluding = EXCLUDING.get(routine_name, EXCLUDING["default"])
 
     excluded_types = (IfBlock, Loop)
-    excluded_nodes = node.walk(excluded_types)
-    for enode in excluded_nodes:
+
+    for enode in node.walk(excluded_types):
         if isinstance(enode, IfBlock):
             # We permit IF blocks originating from WHERE constructs and
             # single-statement IF blocks containing a Loop in KERNELS regions
@@ -248,9 +238,9 @@ def valid_acc_kernel(node):
             # We exclude if statements where the condition expression does
             # not refer to arrays at all as this may cause compiler issues
             # (get "Missing branch target block") or produce faster code.
-            if not arrays and excluding.ifs_scalars and \
-               not isinstance(enode.condition, BinaryOperation):
-                log_msg(routine_name, "IF references scalars", enode)
+            if (not arrays and excluding.ifs_scalars and
+                    not isinstance(enode.condition, BinaryOperation)):
+                log_msg(routine_name, enode, "IF references scalars")
                 return False
             # When using CUDA Unified Memory, only allocated arrays reside in
             # shared memory (including those that are created by compiler-
@@ -282,10 +272,9 @@ def valid_acc_kernel(node):
                     if child.walk(Loop):
                         loop_count += 1
                         if loop_count > 1:
-                            msg = "Loop over levels contains several \
-                            other loops"
-                            if msg not in enode.preceding_comment:
-                                enode.append_preceding_comment(msg)
+                            log_msg(routine_name,
+                                    ("Loop over levels contains several other "
+                                     "loops"), enode)
                             return False
 
     return True
