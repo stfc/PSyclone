@@ -115,6 +115,7 @@ OFFLOADING_ISSUES = [
     "icesbc.f90",
     # Run fails on timestep 2
     "icethd_dh.f90",
+    "icethd_do.f90",
 ]
 
 ASYNC_ISSUES = [
@@ -250,6 +251,7 @@ def trans(psyir):
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
                     asynchronous_parallelism=enable_async,
+                    privatise_arrays=True,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     enable_reductions=not REPRODUCIBLE
             )
@@ -265,6 +267,7 @@ def trans(psyir):
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
                     asynchronous_parallelism=enable_async,
+                    privatise_arrays=True,
             )
 
     # Iterate again and add profiling hooks when needed
