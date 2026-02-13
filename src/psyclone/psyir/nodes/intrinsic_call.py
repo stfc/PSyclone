@@ -108,29 +108,17 @@ def _add_argument_of_access_type(
 
 def _compute_reference_accesses(
     node: "IntrinsicCall",
-    read_indices: Iterable[int] = (),
-    write_indices: Iterable[int] = (),
-    readwrite_indices: Iterable[int] = (),
-    constant_indices: Iterable[int] = (),
-    inquiry_indices: Iterable[int] = (),
     read_named_args: Iterable[str] = (),
     write_named_args: Iterable[str] = (),
     readwrite_named_args: Iterable[str] = (),
     constant_named_args: Iterable[str] = (),
     inquiry_named_args: Iterable[str] = (),
+    default_access: AccessType = AccessType.READ,
 ) -> VariablesAccessMap:
     """General helper function for creating the reference_accesses for a
     general IntrinsicCall.
-    This function only uses indices for non-named arguments, e.g. if
-    [0] is passed in as an index, but the argument at position 0 has a name
-    the function will skip it and will assume that the relevant _named_args
-    contains the name.
 
     :param node: the IntrinsicCall whose reference_accesses to compute.
-    :param read_indices: the argument indices of each read access.
-    :param write_indices: the argument indices of each write access.
-    :param constant_indices: the argument indices of each typeinfo access.
-    :param inquiry_indices: the argument indices of each inquiry access.
     :param read_named_args: a list of named arguments that are read accesses.
     :param write_named_args: a list of named arguments that are write
         accesses.
@@ -138,33 +126,13 @@ def _compute_reference_accesses(
         accesses.
     :param inquiry_named_args: a list of named arguments that are inquiry
         accesses.
+    :param default_access: the access type for all arguments that are not
+        covered by the other argument sets.
 
     :returns: the reference accesses of node.
     """
     reference_accesses = VariablesAccessMap()
     for ind, arg in enumerate(node.arguments):
-        # For indices, we only apply them if there is no argument name,
-        # otherwise it should be handled by the argument names.
-        if ind in read_indices:
-            _add_argument_of_access_type(arg, reference_accesses,
-                                         AccessType.READ)
-            continue
-        if ind in write_indices:
-            _add_argument_of_access_type(arg, reference_accesses,
-                                         AccessType.WRITE)
-            continue
-        if ind in readwrite_indices:
-            _add_argument_of_access_type(arg, reference_accesses,
-                                         AccessType.READWRITE)
-            continue
-        if ind in constant_indices:
-            _add_argument_of_access_type(arg, reference_accesses,
-                                         AccessType.CONSTANT)
-            continue
-        if ind in inquiry_indices:
-            _add_argument_of_access_type(arg, reference_accesses,
-                                         AccessType.INQUIRY)
-            continue
         if node.argument_names[ind] in read_named_args:
             _add_argument_of_access_type(arg, reference_accesses,
                                          AccessType.READ)
@@ -185,35 +153,9 @@ def _compute_reference_accesses(
             _add_argument_of_access_type(arg, reference_accesses,
                                          AccessType.READWRITE)
             continue
-
-    return reference_accesses
-
-
-def _reference_accesses_all_reads_with_optional_kind(
-    node,
-) -> VariablesAccessMap:
-    """Helper function for the common IntrinsicCall case where all
-    arguments are read only, with the exception of an optional kind named
-    argument which is instead CONSTANT.
-
-    :param node: The IntrinsicCall whose reference_accesses to compute.
-    :type node:  :py:class:`psyclone.psyir.nodes.IntrinsicCall`
-
-    :returns: the reference accesses of node.
-    """
-    kind_index = (
-        node.argument_names.index("kind")
-        if "kind" in node.argument_names
-        else None
-    )
-    reference_accesses = VariablesAccessMap()
-    for i, arg in enumerate(node.arguments):
-        accesses = arg.reference_accesses()
-        if kind_index == i:
-            if isinstance(arg, Reference):
-                sig, _ = arg.get_signature_and_indices()
-                accesses[sig][-1].access_type = AccessType.CONSTANT
-        reference_accesses.update(accesses)
+        # Any remaining access has default provided.
+        _add_argument_of_access_type(arg, reference_accesses,
+                                     default_access)
 
     return reference_accesses
 
@@ -721,13 +663,9 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    # All the unnamed arguments
-                    # are write indices.
-                    write_indices=[x for x, i in enumerate(
-                        node.argument_names) if i is None
-                    ],
                     read_named_args=["mold", "source"],
                     write_named_args=["stat", "errmsg"],
+                    default_access=AccessType.WRITE
                 )
             ),
         )
@@ -746,12 +684,8 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    # All the unnamed arguments
-                    # are write indices.
-                    write_indices=[x for x, i in enumerate(
-                        node.argument_names) if i is None
-                    ],
                     write_named_args=["stat"],
+                    default_access=AccessType.WRITE
                 )
             ),
         )
@@ -770,8 +704,7 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    # All arguments are unnamed and all are written to.
-                    write_indices=list(range(len(node.arguments))),
+                    default_access=AccessType.WRITE
                 )
             ),
         )
@@ -790,8 +723,8 @@ class IntrinsicCall(Call):
             optional_args={},
             # TODO 1590 Complex to real conversion unsupported.
             return_type=lambda node: _type_of_named_argument(node, "a"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(node)
             ),
         )
         ACHAR = IAttr(
@@ -806,8 +739,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i",),)),
             optional_args={"kind": DataNode},
             return_type=CHARACTER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         ACOS = IAttr(
@@ -822,8 +757,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ACOSH = IAttr(
@@ -838,8 +775,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ADJUSTL = IAttr(
@@ -855,8 +794,10 @@ class IntrinsicCall(Call):
             optional_args={},
             # TODO 2612 This may be more complex if we support character len
             return_type=lambda node: _type_of_named_argument(node, "string"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ADJUSTR = IAttr(
@@ -872,8 +813,10 @@ class IntrinsicCall(Call):
             optional_args={},
             # TODO 2612 This may be more complex if we support character len
             return_type=lambda node: _type_of_named_argument(node, "string"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         AIMAG = IAttr(
@@ -889,8 +832,10 @@ class IntrinsicCall(Call):
             optional_args={},
             # TODO #1590 Complex numbers' precision unsupported.
             return_type=lambda node: UnsupportedFortranType(""),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         AINT = IAttr(
@@ -912,8 +857,10 @@ class IntrinsicCall(Call):
                     else node.argument_by_name("a").datatype.precision
                 ),
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"],
+                )
             ),
         )
         ALL = IAttr(
@@ -933,8 +880,10 @@ class IntrinsicCall(Call):
                     node, "mask"
                 )
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ALLOCATED = IAttr(
@@ -953,7 +902,7 @@ class IntrinsicCall(Call):
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
-                    inquiry_indices=[0],
+                    default_access=AccessType.INQUIRY
                 )
             ),
         )
@@ -976,8 +925,10 @@ class IntrinsicCall(Call):
                     else node.argument_by_name("a").datatype.precision
                 ),
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"],
+                )
             ),
         )
         ANY = IAttr(
@@ -997,8 +948,10 @@ class IntrinsicCall(Call):
                     node, "mask"
                 )
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ASIN = IAttr(
@@ -1013,8 +966,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ASINH = IAttr(
@@ -1029,8 +984,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ASSOCIATED = IAttr(
@@ -1064,8 +1021,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",), ("y", "x"))),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ATAN2 = IAttr(
@@ -1080,8 +1039,10 @@ class IntrinsicCall(Call):
                 arg_names=(("y", "x"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "y"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ATANH = IAttr(
@@ -1096,8 +1057,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ATOMIC_ADD = IAttr(
@@ -1361,8 +1324,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         BESSEL_J1 = IAttr(
@@ -1381,8 +1346,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         BESSEL_JN = IAttr(
@@ -1407,8 +1374,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         BESSEL_Y0 = IAttr(
@@ -1427,8 +1396,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         BESSEL_Y1 = IAttr(
@@ -1447,8 +1418,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         BESSEL_YN = IAttr(
@@ -1473,8 +1446,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         BGE = IAttr(
@@ -1489,8 +1464,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "j"),)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         BGT = IAttr(
@@ -1505,8 +1482,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "j"),)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         BIT_SIZE = IAttr(
@@ -1540,8 +1519,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "j"),)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         BLT = IAttr(
@@ -1556,8 +1537,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "j"),)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         BTEST = IAttr(
@@ -1572,8 +1555,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "pos"),)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         CEILING = IAttr(
@@ -1592,8 +1577,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         CHAR = IAttr(
@@ -1608,8 +1595,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i",),)),
             optional_args={"kind": DataNode},
             return_type=CHARACTER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         CMPLX = IAttr(
@@ -1625,8 +1614,10 @@ class IntrinsicCall(Call):
             optional_args={"y": DataNode, "kind": DataNode},
             # TODO #1590 Complex numbers unsupported.
             return_type=lambda node: UnsupportedFortranType(""),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         CO_BROADCAST = IAttr(
@@ -1776,8 +1767,10 @@ class IntrinsicCall(Call):
             optional_args={},
             # TODO #1590 Complex numbers unsupported.
             return_type=lambda node: UnsupportedFortranType(""),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         COS = IAttr(
@@ -1792,8 +1785,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         COSH = IAttr(
@@ -1808,8 +1803,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         COSHAPE = IAttr(
@@ -1863,8 +1860,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "mask", "kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         CPU_TIME = IAttr(
@@ -1898,8 +1897,10 @@ class IntrinsicCall(Call):
                 arg_names=(("array", "shift"),)),
             optional_args={"dim": DataNode},
             return_type=lambda node: _type_of_named_argument(node, "array"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         DATE_AND_TIME = IAttr(
@@ -1938,8 +1939,10 @@ class IntrinsicCall(Call):
                 arg_names=(("a",),)),
             optional_args={},
             return_type=REAL_DOUBLE_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         DIGITS = IAttr(
@@ -1973,8 +1976,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x", "y"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         DOT_PRODUCT = IAttr(
@@ -1992,8 +1997,10 @@ class IntrinsicCall(Call):
             return_type=lambda node: _dot_product_return_type(
                 node
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         DPROD = IAttr(
@@ -2008,8 +2015,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x", "y"),)),
             optional_args={},
             return_type=REAL8_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         DSHIFTL = IAttr(
@@ -2029,8 +2038,10 @@ class IntrinsicCall(Call):
                 "i"
                 )
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         DSHIFTR = IAttr(
@@ -2050,8 +2061,10 @@ class IntrinsicCall(Call):
                 "i"
                 )
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         EOSHIFT = IAttr(
@@ -2066,8 +2079,10 @@ class IntrinsicCall(Call):
                 arg_names=(("array", "shift"),)),
             optional_args={"boundary": DataNode, "dim": DataNode},
             return_type=lambda node: _type_of_named_argument(node, "array"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         EPSILON = IAttr(
@@ -2105,8 +2120,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ERFC = IAttr(
@@ -2125,8 +2142,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ERFC_SCALED = IAttr(
@@ -2145,8 +2164,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.REAL,
                     "x"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         EVENT_QUERY = IAttr(
@@ -2206,8 +2227,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         EXPONENT = IAttr(
@@ -2222,8 +2245,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         EXTENDS_TYPE_OF = IAttr(
@@ -2263,8 +2288,10 @@ class IntrinsicCall(Call):
                 ),
                 [ArrayType.Extent.DEFERRED],
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         FINDLOC = IAttr(
@@ -2285,8 +2312,10 @@ class IntrinsicCall(Call):
                            "kind": DataNode,
                            "back": DataNode},
             return_type=_findloc_return_type,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         FLOAT = IAttr(
@@ -2303,8 +2332,10 @@ class IntrinsicCall(Call):
                 arg_names=(("",),)),
             optional_args={},
             return_type=REAL_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         FLOOR = IAttr(
@@ -2323,8 +2354,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         FRACTION = IAttr(
@@ -2339,8 +2372,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         GAMMA = IAttr(
@@ -2355,8 +2390,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         GET_COMMAND = IAttr(
@@ -2450,8 +2487,10 @@ class IntrinsicCall(Call):
             optional_args={"level": DataNode},
             # Unsupported return type (TEAM_TYPE from ISO_FORTRAN_ENV).
             return_type=lambda node: UnsupportedFortranType("TEAM_TYPE"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         HUGE = IAttr(
@@ -2466,8 +2505,10 @@ class IntrinsicCall(Call):
                  arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         HYPOT = IAttr(
@@ -2482,8 +2523,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x", "y"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         IACHAR = IAttr(
@@ -2502,8 +2545,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         IALL = IAttr(
@@ -2529,8 +2574,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "array", "no_kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                )
             ),
         )
         IAND = IAttr(
@@ -2550,8 +2597,10 @@ class IntrinsicCall(Call):
                 "i"
                 )
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         IANY = IAttr(
@@ -2577,8 +2626,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "array", "no_kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         IBCLR = IAttr(
@@ -2593,8 +2644,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "pos"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "i"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         IBITS = IAttr(
@@ -2609,8 +2662,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "pos", "len"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "i"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         IBSET = IAttr(
@@ -2625,8 +2680,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "pos"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "i"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ICHAR = IAttr(
@@ -2645,8 +2702,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         IEOR = IAttr(
@@ -2666,8 +2725,10 @@ class IntrinsicCall(Call):
                 "i"
                 )
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         IMAGE_INDEX = IAttr(
@@ -2684,8 +2745,10 @@ class IntrinsicCall(Call):
                 arg_names=(("",),)),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         IMAGE_STATUS = IAttr(
@@ -2700,8 +2763,10 @@ class IntrinsicCall(Call):
                 arg_names=(("image",),)),
             optional_args={"team": DataNode},
             return_type=INTEGER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         INDEX = IAttr(
@@ -2720,8 +2785,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         INT = IAttr(
@@ -2736,8 +2803,10 @@ class IntrinsicCall(Call):
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=_int_return_type,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         IOR = IAttr(
@@ -2759,8 +2828,10 @@ class IntrinsicCall(Call):
                     "i"
                 )
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         IPARITY = IAttr(
@@ -2779,8 +2850,10 @@ class IntrinsicCall(Call):
             ),
             optional_args={"mask": DataNode},
             return_type=_iparity_return_type,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         IS_CONTIGUOUS = IAttr(
@@ -2814,8 +2887,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i",),)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                )
             ),
         )
         IS_IOSTAT_EOR = IAttr(
@@ -2830,8 +2905,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i",),)),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ISHFT = IAttr(
@@ -2846,8 +2923,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "shift"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "i"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         ISHFTC = IAttr(
@@ -2862,8 +2941,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "shift"),)),
             optional_args={"size": DataNode},
             return_type=lambda node: _type_of_named_argument(node, "i"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         KIND = IAttr(
@@ -2939,8 +3020,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i",),)),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         LEN = IAttr(
@@ -2959,8 +3042,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         LEN_TRIM = IAttr(
@@ -2979,8 +3064,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         LGE = IAttr(
@@ -2996,8 +3083,10 @@ class IntrinsicCall(Call):
             ),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         LGT = IAttr(
@@ -3013,8 +3102,10 @@ class IntrinsicCall(Call):
             ),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         LLE = IAttr(
@@ -3030,8 +3121,10 @@ class IntrinsicCall(Call):
             ),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         LLT = IAttr(
@@ -3047,8 +3140,10 @@ class IntrinsicCall(Call):
             ),
             optional_args={},
             return_type=BOOLEAN_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         LOG = IAttr(
@@ -3063,8 +3158,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         LOG_GAMMA = IAttr(
@@ -3079,8 +3176,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         LOG10 = IAttr(
@@ -3095,8 +3194,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         LOGICAL = IAttr(
@@ -3117,8 +3218,10 @@ class IntrinsicCall(Call):
                 ) if "kind" in node.argument_names else
                 _type_of_named_argument(node, "l")
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         MASKL = IAttr(
@@ -3137,8 +3240,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         MASKR = IAttr(
@@ -3157,8 +3262,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         MATMUL = IAttr(
@@ -3174,8 +3281,10 @@ class IntrinsicCall(Call):
             ),
             optional_args={},
             return_type=_matmul_return_type,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         MAX = IAttr(
@@ -3192,8 +3301,10 @@ class IntrinsicCall(Call):
                 arg_names=((None,),)),
             optional_args={},
             return_type=lambda node: node.arguments[0].datatype,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         MAXEXPONENT = IAttr(
@@ -3239,8 +3350,10 @@ class IntrinsicCall(Call):
                     node, "array"
                 )
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         MAXVAL = IAttr(
@@ -3259,8 +3372,10 @@ class IntrinsicCall(Call):
             ),
             optional_args={"mask": DataNode},
             return_type=_maxval_return_type,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         MERGE = IAttr(
@@ -3277,8 +3392,10 @@ class IntrinsicCall(Call):
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node,
                                                              "tsource"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         MERGE_BITS = IAttr(
@@ -3293,8 +3410,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "j", "mask"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "i"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         MIN = IAttr(
@@ -3311,8 +3430,10 @@ class IntrinsicCall(Call):
                 arg_names=((None,),)),
             optional_args={},
             return_type=lambda node: node.arguments[0].datatype,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         MINEXPONENT = IAttr(
@@ -3358,8 +3479,10 @@ class IntrinsicCall(Call):
                     node, "array"
                 )
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         MINVAL = IAttr(
@@ -3378,8 +3501,10 @@ class IntrinsicCall(Call):
             ),
             optional_args={"mask": DataNode},
             return_type=_maxval_return_type,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node,
+                )
             ),
         )
         MOD = IAttr(
@@ -3394,8 +3519,10 @@ class IntrinsicCall(Call):
                 arg_names=(("a", "p"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "a"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         MODULO = IAttr(
@@ -3410,8 +3537,10 @@ class IntrinsicCall(Call):
                 arg_names=(("a", "p"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "a"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         MOVE_ALLOC = IAttr(
@@ -3469,8 +3598,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x", "s"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         NEW_LINE = IAttr(
@@ -3504,8 +3635,10 @@ class IntrinsicCall(Call):
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
             return_type=INTEGER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         NORM2 = IAttr(
@@ -3529,8 +3662,10 @@ class IntrinsicCall(Call):
                     node, "x"
                 )
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         NOT = IAttr(
@@ -3548,8 +3683,10 @@ class IntrinsicCall(Call):
                 ScalarType.Intrinsic.INTEGER,
                 node.argument_by_name("i").datatype.precision
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         NULL = IAttr(
@@ -3585,8 +3722,10 @@ class IntrinsicCall(Call):
                 arg_names=(("",),)),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         OUT_OF_RANGE = IAttr(
@@ -3626,8 +3765,10 @@ class IntrinsicCall(Call):
                     node.argument_by_name("array").datatype.precision),
                 [ArrayType.Extent.DEFERRED]
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         PARITY = IAttr(
@@ -3646,8 +3787,10 @@ class IntrinsicCall(Call):
             ),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "mask"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         POPCNT = IAttr(
@@ -3662,8 +3805,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i",),)),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         POPPAR = IAttr(
@@ -3678,8 +3823,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i",),)),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         PRECISION = IAttr(
@@ -3742,8 +3889,10 @@ class IntrinsicCall(Call):
                     node.argument_by_name("array").datatype.intrinsic
                 )
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         RADIX = IAttr(
@@ -3778,8 +3927,10 @@ class IntrinsicCall(Call):
             ),
             optional_args={},
             return_type=None,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         RANDOM_NUMBER = IAttr(
@@ -3880,8 +4031,10 @@ class IntrinsicCall(Call):
                     ),
                 )
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         REDUCE = IAttr(
@@ -3902,8 +4055,10 @@ class IntrinsicCall(Call):
                            "identity": DataNode,
                            "ordered": DataNode},
             return_type=_maxval_return_type,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         REPEAT = IAttr(
@@ -3918,8 +4073,10 @@ class IntrinsicCall(Call):
                 arg_names=(("string", "ncopies"),)),
             optional_args={},
             return_type=CHARACTER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         RESHAPE = IAttr(
@@ -3936,8 +4093,10 @@ class IntrinsicCall(Call):
             # I went with unresolved for now as the result depends on
             # argument 2 (even the dimensionality).
             return_type=lambda node: UnresolvedType(),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         RRSPACING = IAttr(
@@ -3952,8 +4111,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SAME_TYPE_AS = IAttr(
@@ -3987,8 +4148,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x", "i"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SCAN = IAttr(
@@ -4007,8 +4170,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         SELECTED_CHAR_KIND = IAttr(
@@ -4023,8 +4188,10 @@ class IntrinsicCall(Call):
                 arg_names=(("name",),)),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SELECTED_INT_KIND = IAttr(
@@ -4039,8 +4206,10 @@ class IntrinsicCall(Call):
                 arg_names=(("r",),)),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SELECTED_REAL_KIND = IAttr(
@@ -4055,8 +4224,10 @@ class IntrinsicCall(Call):
                 arg_names=()),
             optional_args={"p": DataNode, "r": DataNode, "radix": DataNode},
             return_type=INTEGER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SET_EXPONENT = IAttr(
@@ -4071,8 +4242,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x", "i"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SHAPE = IAttr(
@@ -4116,8 +4289,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "shift"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "i"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SHIFTL = IAttr(
@@ -4132,8 +4307,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "shift"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "i"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SHIFTR = IAttr(
@@ -4148,8 +4325,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i", "shift"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "i"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SIGN = IAttr(
@@ -4164,8 +4343,10 @@ class IntrinsicCall(Call):
                 arg_names=(("a", "b"),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "a"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SIN = IAttr(
@@ -4180,8 +4361,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SINH = IAttr(
@@ -4196,8 +4379,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SIZE = IAttr(
@@ -4266,8 +4451,10 @@ class IntrinsicCall(Call):
                                ArrayType) else
                  [ArrayType.Extent.DEFERRED])
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SQRT = IAttr(
@@ -4283,8 +4470,10 @@ class IntrinsicCall(Call):
             optional_args={},
             # TODO 1590 Complex conversion unsupported.
             return_type=lambda node: UnsupportedFortranType(""),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         STOPPED_IMAGES = IAttr(
@@ -4305,8 +4494,10 @@ class IntrinsicCall(Call):
                 )
                 [ArrayType.Extent.DEFERRED]
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
         STORAGE_SIZE = IAttr(
@@ -4355,8 +4546,10 @@ class IntrinsicCall(Call):
                     node.argument_by_name("array").datatype.intrinsic
                 )
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         SYSTEM_CLOCK = IAttr(
@@ -4396,8 +4589,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         TANH = IAttr(
@@ -4412,8 +4607,10 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "x"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         TEAM_NUMBER = IAttr(
@@ -4428,8 +4625,10 @@ class IntrinsicCall(Call):
                 arg_names=()),
             optional_args={"team": DataNode},
             return_type=INTEGER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         THIS_IMAGE = IAttr(
@@ -4453,8 +4652,10 @@ class IntrinsicCall(Call):
             # could be added later. See
             # https://gcc.gnu.org/onlinedocs/gfortran/THIS_005fIMAGE.html
             return_type=lambda node: UnresolvedType(),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         TINY = IAttr(
@@ -4489,8 +4690,10 @@ class IntrinsicCall(Call):
                 arg_names=(("i",),)),
             optional_args={},
             return_type=INTEGER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         TRANSFER = IAttr(
@@ -4516,8 +4719,10 @@ class IntrinsicCall(Call):
                     ),
                     [ArrayType.Extent.DEFERRED])
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         TRANSPOSE = IAttr(
@@ -4537,8 +4742,10 @@ class IntrinsicCall(Call):
                 [node.argument_by_name("matrix").datatype.shape[1],
                  node.argument_by_name("matrix").datatype.shape[0]]
             ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         TRIM = IAttr(
@@ -4553,8 +4760,10 @@ class IntrinsicCall(Call):
                 arg_names=(("string",),)),
             optional_args={},
             return_type=CHARACTER_TYPE,
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         UBOUND = IAttr(
@@ -4612,8 +4821,10 @@ class IntrinsicCall(Call):
             ),
             optional_args={},
             return_type=lambda node: _type_of_named_argument(node, "vector"),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node
+                )
             ),
         )
         VERIFY = IAttr(
@@ -4632,8 +4843,10 @@ class IntrinsicCall(Call):
                     node, ScalarType.Intrinsic.INTEGER,
                     "kind"
                 ),
-            reference_accesses=(
-                _reference_accesses_all_reads_with_optional_kind
+            reference_accesses=lambda node: (
+                _compute_reference_accesses(
+                    node, constant_named_args=["kind"]
+                )
             ),
         )
 
@@ -5074,17 +5287,9 @@ class IntrinsicCall(Call):
                 # do the worst case. All arguments that are references are
                 # READWRITE and all other arguments are READS in this
                 # case as we don't know any details.
-                reads = []
-                readwrites = []
-                for i, arg in enumerate(self.arguments):
-                    if isinstance(arg, Reference):
-                        readwrites.append(i)
-                    else:
-                        reads.append(i)
                 return _compute_reference_accesses(
                         self,
-                        read_indices=reads,
-                        readwrite_indices=readwrites
+                        default_access=AccessType.READWRITE
                 )
 
         return self.intrinsic.reference_accesses(self)

@@ -52,7 +52,6 @@ from psyclone.psyir.nodes import (
 )
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
-    _reference_accesses_all_reads_with_optional_kind,
     _add_argument_of_access_type,
     _compute_reference_accesses,
 )
@@ -320,11 +319,6 @@ def test_compute_reference_accesses():
     )
     varaccesses = _compute_reference_accesses(
             call,
-            read_indices=[0],
-            write_indices=[1],
-            readwrite_indices=[2],
-            constant_indices=[3],
-            inquiry_indices=[4],
             read_named_args=["read", "not_present_1"],
             write_named_args=["write", "not_present_2"],
             readwrite_named_args=["readwrite", "not_present_3"],
@@ -334,21 +328,22 @@ def test_compute_reference_accesses():
     # We should only get the 10 accesses present in the Call.
     assert len(varaccesses) == 10
 
+    # The unnamed ones get the access_type (default is READ)
     sig, _ = a_ref.get_signature_and_indices()
     assert len(varaccesses[sig]) == 1
     assert varaccesses[sig][0].access_type == AccessType.READ
     sig, _ = b_ref.get_signature_and_indices()
     assert len(varaccesses[sig]) == 1
-    assert varaccesses[sig][0].access_type == AccessType.WRITE
+    assert varaccesses[sig][0].access_type == AccessType.READ
     sig, _ = c_ref.get_signature_and_indices()
     assert len(varaccesses[sig]) == 1
-    assert varaccesses[sig][0].access_type == AccessType.READWRITE
+    assert varaccesses[sig][0].access_type == AccessType.READ
     sig, _ = d_ref.get_signature_and_indices()
     assert len(varaccesses[sig]) == 1
-    assert varaccesses[sig][0].access_type == AccessType.CONSTANT
+    assert varaccesses[sig][0].access_type == AccessType.READ
     sig, _ = e_ref.get_signature_and_indices()
     assert len(varaccesses[sig]) == 1
-    assert varaccesses[sig][0].access_type == AccessType.INQUIRY
+    assert varaccesses[sig][0].access_type == AccessType.READ
     sig, _ = f_ref.get_signature_and_indices()
     assert len(varaccesses[sig]) == 1
     assert varaccesses[sig][0].access_type == AccessType.READ
@@ -364,29 +359,3 @@ def test_compute_reference_accesses():
     sig, _ = j_ref.get_signature_and_indices()
     assert len(varaccesses[sig]) == 1
     assert varaccesses[sig][0].access_type == AccessType.INQUIRY
-
-
-def test_reference_accesses_all_reads_with_optional_kind(fortran_reader):
-    """Test the _reference_accesses_all_reads_with_optional_kind helper
-    function."""
-    code = """subroutine test
-    use external_mod, only: wp
-    integer :: i, j
-    j = INT(i)
-    j = INT(i, kind=wp)
-    end subroutine test"""
-    psyir = fortran_reader.psyir_from_source(code)
-    intrinsics = psyir.walk(IntrinsicCall)
-
-    refs = _reference_accesses_all_reads_with_optional_kind(intrinsics[0])
-    sig, _ = intrinsics[0].arguments[0].get_signature_and_indices()
-    # All results should be reads.
-    for ref in refs[sig]:
-        assert ref.access_type == AccessType.READ
-
-    refs = _reference_accesses_all_reads_with_optional_kind(intrinsics[1])
-    # First result should be a READ, the kind should be a CONSTANT
-    sig, _ = intrinsics[1].arguments[0].get_signature_and_indices()
-    assert refs[sig][0].access_type == AccessType.READ
-    sig, _ = intrinsics[1].arguments[1].get_signature_and_indices()
-    assert refs[sig][0].access_type == AccessType.CONSTANT
