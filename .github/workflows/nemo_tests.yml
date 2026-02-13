@@ -202,7 +202,6 @@ jobs:
         # Load environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
         spack unload && spack load nemo-build-environment %${INTEL_TOOLCHAIN}
-        spack load intel-oneapi-compilers@2025.3.1
         source .runner_venv/bin/activate
 
         # Set up envvars
