@@ -129,6 +129,8 @@ ASYNC_ISSUES = [
     "zdfsh2.f90",
     # Diverging results with asynchronicity
     "traadv_fct.f90",
+    # Signal 11 in build
+    "zdfswm.f90",
 ]
 
 
