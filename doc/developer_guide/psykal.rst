@@ -432,28 +432,3 @@ metadata describing the Built-in operations. Finally,
 ``parse.get_builtin_defs()`` must be extended to import
 ``BUILTIN_MAP`` and ``BUILTIN_DEFINITIONS_FILE`` for this API.
 
-Querying Built-in operations for LFRic
-======================================
-
-The names of all available Built-ins in LFRic can be queried using
-the ``BUILTIN_MAP`` dictionary object from `lfric_builtins`.
-
-.. autoattribute:: psyclone.domain.lfric.lfric_builtins.BUILTIN_MAP
-
-Example code:
-
-.. highlight:: python
-.. testcode::
-
-    from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
-    
-    kernel_name = "setval_x"    # example only
-    if kernel_name.lower() in BUILTIN_MAP:
-        print(f"Name '{kernel_name}' is a Built-in kernel.")
-    else:
-        print(f"Name '{kernel_name}' is not a Built-in.")
-
-.. testoutput::
-
-  Name 'setval_x' is a Built-in kernel.
-
