@@ -134,6 +134,9 @@ from psyclone.psyir.transformations.maximal_omp_parallel_region_trans import (
 from psyclone.psyir.transformations.omp_parallel_trans import (
     OMPParallelTrans,
 )
+from psyclone.psyir.transformations.datanode_to_temp_trans import (
+    DataNodeToTempTrans
+)
 
 # For AutoAPI documentation generation
 __all__ = [
