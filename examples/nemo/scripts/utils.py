@@ -292,7 +292,7 @@ def increase_rank_and_reorder_nemov5_loops(routine: Routine):
         "tra_zdf_imp": ['zwd', 'zwi', 'zws', 'zwt'],
         "tke_tke": ['zice_fra', 'zd_lw', 'zd_up', 'zdiag', 'zwlc2', 'zpelc',
                     'imlc', 'zhlc', 'zus3'],
-        "tke_avn": ['zmxlm', 'zmxld']
+        "tke_avn": ['zmxlm', 'zmxld'],
     }
 
     if routine.name not in selection:
@@ -474,6 +474,15 @@ def insert_explicit_loop_parallelism(
                 if loop.variable.name in ["ji", "jj"]:
                     opts["force_private"] = ["icount"] + [sym.name for sym in
                                                           all_1d_work_arrays]
+                    opts["ignore_dependencies_for"] = opts["force_private"]
+            if routine_name == "icemax3d_pra":
+                if loop.variable.name in ["jk"]:
+                    opts["force_private"] = [sym.name for sym in
+                                             all_1d_work_arrays]
+                    opts["ignore_dependencies_for"] = opts["force_private"]
+            if routine_name == "upstream":
+                if loop.variable.name == "jl":
+                    opts["force_private"] = ["zpt"]
                     opts["ignore_dependencies_for"] = opts["force_private"]
             if routine_name == "pnd_lev":
                 if loop.variable.name in ["ji", "jj"]:
