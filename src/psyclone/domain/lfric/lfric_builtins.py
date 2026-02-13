@@ -61,8 +61,8 @@ from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import UnsupportedFortranType
 from psyclone.utils import a_or_an
 
-# The name of the file containing the meta-data describing the
-# built-in operations for this API
+#: The name of the file containing the meta-data describing the
+## built-in operations for this API
 BUILTIN_DEFINITIONS_FILE = "lfric_builtins_mod.f90"
 
 
@@ -3321,7 +3321,7 @@ class LFRicIntToRealXKern(LFRicBuiltIn):
 # describing these kernels is in lfric_builtins_mod.f90. This dictionary
 # can only be defined after all of the necessary 'class' statements have
 # been executed (happens when this module is imported into another).
-# Built-ins for real-valued fields
+#: Built-ins for real-valued fields
 REAL_BUILTIN_MAP_CAPITALISED = {
     # Adding (scaled) real fields
     "X_plus_Y": LFRicXPlusYKern,
@@ -3390,7 +3390,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Converting real to real field elements
     "real_to_real_X": LFRicRealToRealXKern}
 
-# Built-ins for integer-valued fields
+#: Built-ins for integer-valued fields
 INT_BUILTIN_MAP_CAPITALISED = {
     # Adding integer fields
     "int_X_plus_Y": LFRicIntXPlusYKern,
@@ -3425,13 +3425,13 @@ INT_BUILTIN_MAP_CAPITALISED = {
     # Converting integer to real field elements
     "int_to_real_X": LFRicIntToRealXKern}
 
-# Built-in map dictionary for all built-ins
+#: Built-in map dictionary for all built-ins
 BUILTIN_MAP_CAPITALISED = REAL_BUILTIN_MAP_CAPITALISED
 BUILTIN_MAP_CAPITALISED.update(INT_BUILTIN_MAP_CAPITALISED)
 
-# Built-in map dictionary in lowercase keys for invoke generation and
-# comparison purposes. This does not enforce case sensitivity to Fortran
-# built-in names.
+#: Built-in map dictionary in lowercase keys for invoke generation and
+## comparison purposes. This does not enforce case sensitivity to Fortran
+## built-in names.
 BUILTIN_MAP = get_lowercase_builtin_map(BUILTIN_MAP_CAPITALISED)
 
 

@@ -377,12 +377,7 @@ This subroutine is called by the Algorithm layer and itself calls one or
 more kernels and/or implements any required Built-in operations.
 
 All these classes can be specialised in each PSyclone API to support the
-specific features of a particular API. The class diagram for the above base classes
-is shown below using the LFRic API as an illustration.
-
-.. image:: lfric_topclasses.png
-    :width: 80%
-    :align: center
+specific features of a particular API.
 
 The InvokeSchedule can currently contain nodes of type: **Loop**,
 **Kernel**, **Built-in** (see the :ref:`psykal-built-ins` section),
@@ -442,6 +437,9 @@ Querying Built-in operations for LFRic
 
 The names of all available Built-ins in LFRic can be queried using
 the ``BUILTIN_MAP`` dictionary object from `lfric_builtins`.
+
+.. autoattribute:: psyclone.domain.lfric.lfric_builtins.BUILTIN_MAP
+
 Example code:
 
 .. highlight:: python
