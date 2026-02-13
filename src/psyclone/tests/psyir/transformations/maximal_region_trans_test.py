@@ -299,3 +299,47 @@ def test_apply(fortran_reader):
     # Validate fails on all but the first try so we only get one resulting
     # OMPParallelDirective
     assert len(psyir.walk(OMPParallelDirective)) == 1
+
+
+def test_validation_failure_during_compute_transformable_sections(
+    fortran_reader
+):
+    '''Test that if validation fails during compute transformable section
+    we still get a section containing the nodes that did pass validation.'''
+
+    # Create a transformation which fails validation if the lhs symbol's name
+    # for the assignment isn't a
+    # Dummy class to test failing validation.
+    class Faketrans(Transformation):
+        '''Dummy transformation to test failing validation.'''
+        def validate(self, node_list: list[Assignment], **kwargs):
+            for node in node_list:
+                if node.lhs.symbol.name != "a":
+                    raise TransformationError("Isn't a")
+
+        def apply(self, node: Assignment, **kwargs):
+            OMPParallelTrans().apply(node, **kwargs)
+
+    class OneParTrans(MaximalRegionTrans):
+        '''Dummy MaximalRegionTrans that uses our FakeTrans'''
+        _transformation = Faketrans
+        _allowed_contiguous_nodes = (Assignment, )
+        _required_nodes = (Assignment, )
+
+    code = """subroutine test
+    integer :: a
+    integer :: b
+
+    a = 1
+    b = 2
+    a = 3
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    nodes = routine.children[:]
+    mtrans = OneParTrans()
+    mtrans.apply(nodes)
+    assert len(psyir.walk(OMPParallelDirective)) == 2
+    assert isinstance(routine.children[0], OMPParallelDirective)
+    assert isinstance(routine.children[1], Assignment)
+    assert isinstance(routine.children[2], OMPParallelDirective)
