@@ -97,7 +97,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
     '''
     def apply(
         self,
-        node,
+        node: Assignment,
         options: Optional[dict[str, Any]] = None,
         allow_strings: bool = False,
         verbose: bool = False,
@@ -181,7 +181,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
 
     def validate(
         self,
-        node,
+        node: Assignment,
         options: Optional[dict[str, Any]] = None,
         **kwargs
     ):
@@ -252,7 +252,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
                     node.append_preceding_comment(message)
                 raise TransformationError(message) from err
         # After a successful Reference2ArrayRangeTrans all arrays are
-        # guaranteed to be expresses as ArrayMixin's
+        # guaranteed to be expressed as ArrayMixin's
 
         array_accessors = node_copy.lhs.walk(ArrayMixin)
         if not (isinstance(node_copy.lhs, Reference) and array_accessors):
@@ -288,8 +288,10 @@ class ArrayAssignment2LoopsTrans(Transformation):
                             f"\n{node.debug_string()}"))
 
         # Check if there is any dependency between the written reference and
-        # any other
-        written_ref = node_copy.walk(Reference)[0]
+        # any other reference in the assignment. The check is only against one
+        # write (assignment lhs top reference) because we fail validation if
+        # there is any impure call (which could also contain other writes)
+        written_ref = node_copy.lhs.walk(Reference)[0]
         written_sig, written_idxs = written_ref.get_signature_and_indices()
         for ref in node_copy.walk(Reference)[1:]:
             if ref.symbol is written_ref.symbol:
@@ -300,19 +302,20 @@ class ArrayAssignment2LoopsTrans(Transformation):
                         # (unless its pointers - we ignore these)
                         continue
                     found_dependency = False
+                    # The signature indices are provided in a doubly nested
+                    # tuple with components and indices, we need both loops
+                    # below to compare each matching index in both references
                     for c1, c2 in zip(ref_idxs, written_idxs):
                         for i1, i2 in zip(c1, c2):
-                            # The assumptions below are only true because we
-                            # don't support impure functions that could
-                            # introduce additional writes.
-                            # If none of the accesses are ranges, this will be
-                            # a loop-invariant
                             if isinstance(i1, Range) or isinstance(i2, Range):
-                                # If the index is not exactly the same there
-                                # could be a loop-carried dependency
+                                # If an index is a range, check that the bounds
+                                # are exactly the same or it could be a
+                                # dependency
                                 if i1 != i2:
                                     found_dependency = True
                                     break
+                            # If none of the matching indices are ranges, this
+                            # will be an invariant and not represent a problem
                     if found_dependency:
                         raise TransformationError(LazyString(
                             lambda: f"{self.name} does not support statements "
@@ -333,8 +336,10 @@ class ArrayAssignment2LoopsTrans(Transformation):
         # We don't support nested range expressions anywhere in the assignment
         for range_expr in node_copy.walk(Range, stop_type=Range):
             # Test that there are no Ranges in any children
+            # e.g: array(:<cannot have ranges>)
             test_nodes = range_expr.children[:]
-            # or the member sibling if it is a derived type accessor
+            # or in the memeber expression if it is a derived type accessor
+            # e.g: array(:)%<cannot have ranges>
             if isinstance(range_expr.parent, StructureAccessorMixin):
                 test_nodes.append(range_expr.parent.member)
 

@@ -367,7 +367,7 @@ def test_apply_indirect_indexing(fortran_reader, fortran_writer):
     do idx_1 = 1, 4, 1
       ishtsi(idx_1,jf) = grid(3)%var(iwewe(idx_1),jf)
     enddo''' in result
-    # Test in the RHS with an range expression and inside a derived type
+    # Test in the LHS with an range expression and inside a derived type
     # accessor
     assert '''
     do idx_2 = LBOUND(iwewe, dim=1), UBOUND(iwewe, dim=1), 1
@@ -460,9 +460,10 @@ def test_validate_with_dependency(fortran_reader):
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[3])
 
-    # The following 2 statements are fine, because the range is the same
+    # The following 3 statements are fine, because the range is the same
     trans.apply(assignments[4])
     trans.apply(assignments[5])
+    # The following is fine because the accesses are independent
     trans.apply(assignments[6])
 
 
@@ -641,7 +642,6 @@ def test_validate_nested_or_invalid_expressions(fortran_reader):
     trans = ArrayAssignment2LoopsTrans()
 
     # Case 1: 2 array accessors in LHS and both have ranges
-    # This is invalid Fortran but there are no restrictions in the PSyIR.
     psyir = fortran_reader.psyir_from_source('''
     subroutine test
         type :: othertype
@@ -655,6 +655,8 @@ def test_validate_nested_or_invalid_expressions(fortran_reader):
     end subroutine test
     ''')
     assignment = psyir.walk(Assignment)[0]
+    # This is invalid Fortran but there are no restrictions in manually
+    # constructed PSyIR, so we create the case here.
     assignment.lhs.member.indices[0].replace_with(Range.create(
         Literal("1", INTEGER_TYPE), Literal("10", INTEGER_TYPE)))
     with pytest.raises(TransformationError) as info:
