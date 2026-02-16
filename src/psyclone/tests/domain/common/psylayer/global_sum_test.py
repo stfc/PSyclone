@@ -110,4 +110,3 @@ def test_globalsum_args():
     global_sum = schedule.children[2]
     assert len(global_sum.args) == 1
     assert global_sum.args[0] == global_sum.scalar
-
