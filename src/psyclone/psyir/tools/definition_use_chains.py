@@ -781,6 +781,10 @@ class DefinitionUseChain:
                     # the Reference later if its passed into the Call.
                     if self._reference.symbol.is_automatic:
                         continue
+                    # If the call is an ancestor of the Reference then
+                    # we skip it for backwards accesses.
+                    if self._reference.is_descendant_of(reference):
+                        continue
                     if isinstance(reference, IntrinsicCall):
                         # IntrinsicCall can only do stuff to arguments, these
                         # will be caught by Reference walk already.
