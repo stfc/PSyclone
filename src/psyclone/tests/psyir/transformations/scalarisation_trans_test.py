@@ -37,7 +37,7 @@
 '''
 
 from psyclone.core import Signature
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import ScalarisationTrans
 from psyclone.tests.utilities import Compile
 
@@ -698,7 +698,8 @@ def test_scalarisation_trans_apply_routinesymbol(fortran_reader,
                                                  fortran_writer, tmpdir):
     ''' Test the application of the scalarisation transformation doesn't work
     when applied on an array with a RoutineSymbol as an index.'''
-    code = '''subroutine test
+    code = '''
+    subroutine test
         integer, dimension(3) :: j
         integer :: i
         integer, allocatable, dimension(:,:,:) :: k
@@ -709,7 +710,8 @@ def test_scalarisation_trans_apply_routinesymbol(fortran_reader,
     end subroutine test'''
     strans = ScalarisationTrans()
     psyir = fortran_reader.psyir_from_source(code)
-    strans.apply(psyir.children[0].children[0])
+    routine = psyir.walk(Routine)[0]
+    strans.apply(routine.children[0])
     correct = '''subroutine test()
   integer, dimension(3) :: j
   integer :: i
