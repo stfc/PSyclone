@@ -1,6 +1,12 @@
-from psyclone.configuration import Config
 from psyclone.domain.common.psylayer import GlobalReduction
+from psyclone.errors import GenerationError
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import (
+    Assignment, Call, Reference, StructureReference)
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.symbols import (
+    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
+    UnresolvedType)
 
 
 class LFRicGlobalSum(GlobalReduction):

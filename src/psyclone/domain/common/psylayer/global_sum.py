@@ -1,35 +1,28 @@
+from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import GlobalReduction
+from psyclone.errors import InternalError
+from psyclone.psyGen import KernelArgument
+from psyclone.psyir.nodes.node import Node
 
 
 class GlobalSum(GlobalReduction):
     '''
-    Generic Global Sum class which can be added to and manipulated
-    in, a schedule.
+    Generic GlobalSum class which can be added to a Schedule.
 
     :param scalar: the scalar that the global sum is stored into
-    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param parent: optional parent (default None) of this object
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    # Textual description of the node.
-    _children_valid_format = "<LeafNode>"
     _text_name = "GlobalSum"
-    _colour = "cyan"
 
-    def __init__(self, scalar, parent=None):
-        # Check that distributed memory is enabled
-        if not Config.get().distributed_memory:
-            raise GenerationError(
-                f"It makes no sense to create a {self._text_name} object "
-                f"when distributed memory is not enabled (dm=False).")
+    def __init__(self, scalar: KernelArgument, parent: Node = None):
+        super().__init__(parent=parent)
         # Check that the global sum argument is indeed a scalar
         if not scalar.is_scalar:
             raise InternalError(
                 f"{self._text_name}.init(): A global sum argument should be a "
                 f"scalar but found argument of type '{scalar.argument_type}'.")
 
-        Node.__init__(self, children=[], parent=parent)
         import copy
         self._scalar = copy.copy(scalar)
         if scalar:
@@ -69,5 +62,3 @@ class GlobalSum(GlobalReduction):
         :rtype: str
         '''
         return f"{self.coloured_name(colour)}[scalar='{self._scalar.name}']"
-
-

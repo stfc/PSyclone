@@ -1,5 +1,12 @@
 from psyclone.configuration import Config
 from psyclone.domain.common.psylayer import GlobalReduction
+from psyclone.errors import GenerationError, InternalError
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import (
+    Assignment, Call, Reference, StructureReference)
+from psyclone.psyir.symbols import (
+    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
+    UnresolvedType)
 
 
 class LFRicGlobalMin(GlobalReduction):
@@ -12,7 +19,6 @@ class LFRicGlobalMin(GlobalReduction):
     :param parent: the parent node of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
-    :raises GenerationError: if distributed memory is not enabled.
     :raises InternalError: if the supplied argument is not a scalar.
     :raises GenerationError: if the scalar is not of "real" intrinsic type.
 
