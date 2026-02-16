@@ -85,14 +85,15 @@ class LFRicInvoke(Invoke):
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.lfric import (LFRicFunctionSpaces, LFRicGlobalSum,
+        from psyclone.lfric import (LFRicFunctionSpaces,
                                     LFRicLMAOperators,
                                     LFRicReferenceElement,
                                     LFRicCMAOperators, LFRicBasisFunctions,
                                     LFRicMeshes, LFRicBoundaryConditions,
                                     LFRicProxies, LFRicMeshProperties)
         from psyclone.domain.lfric import (
-            LFRicCellIterators, LFRicHaloDepths, LFRicLoopBounds,
+            LFRicCellIterators, LFRicGlobalSum, LFRicGlobalMin,
+            LFRicHaloDepths, LFRicLoopBounds,
             LFRicRunTimeChecks,
             LFRicScalarArgs, LFRicScalarArrayArgs, LFRicFields, LFRicDofmaps,
             LFRicStencils)
@@ -189,6 +190,9 @@ class LFRicInvoke(Invoke):
                 loop = kern.ancestor(LFRicLoop)
                 if kern.reduction_type == LFRicBuiltIn.ReductionType.SUM:
                     global_red = LFRicGlobalSum(kern.reduction_arg,
+                                                parent=loop.parent)
+                elif kern.reduction_type == LFRicBuiltIn.ReductionType.MIN:
+                    global_red = LFRicGlobalMin(kern.reduction_arg,
                                                 parent=loop.parent)
                 else:
                     raise GenerationError(
