@@ -58,11 +58,12 @@ from fparser.two import Fortran2003
 from psyclone import transformations
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import (lfric_builtins, LFRicInvokeSchedule,
+from psyclone.domain.common.psylayer import GlobalSum, PSyLoop
+from psyclone.domain.lfric import (lfric_builtins, LFRicGlobalSum,
+                                   LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.lfric import LFRicGlobalSum, LFRicKernelArguments
+from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
@@ -70,7 +71,7 @@ from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.psyGen import (TransInfo, PSyFactory,
                              InlinedKern, object_index, HaloExchange, Invoke,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
-                             GlobalSum, InvokeSchedule)
+                             InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
                                   colored, Schedule)

@@ -39,7 +39,8 @@
 of an Invoke into a stand-alone application."
 '''
 
-from psyclone.psyGen import BuiltIn, Kern, HaloExchange, GlobalSum
+from psyclone.domain.common.psylayer import GlobalSum
+from psyclone.psyGen import BuiltIn, Kern, HaloExchange
 from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Schedule,
                                   Directive, OMPParallelDirective,
                                   ACCParallelDirective)

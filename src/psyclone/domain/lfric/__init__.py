@@ -68,6 +68,8 @@ from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_fields import LFRicFields
+from psyclone.domain.lfric.lfric_global_min import LFRicGlobalMin
+from psyclone.domain.lfric.lfric_global_sum import LFRicGlobalSum
 from psyclone.domain.lfric.lfric_run_time_checks import LFRicRunTimeChecks
 from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
@@ -78,34 +80,3 @@ from psyclone.domain.lfric.lfric_psy import LFRicPSy
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.domain.lfric.lfric_dofmaps import LFRicDofmaps
 from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-
-
-__all__ = [
-    'ArgOrdering',
-    'FunctionSpace',
-    'KernCallAccArgList',
-    'KernCallArgList',
-    'KernelInterface',
-    'KernStubArgList',
-    'LFRicArgDescriptor',
-    'LFRicCellIterators',
-    'LFRicCollection',
-    'LFRicConstants',
-    'LFRicDofmaps',
-    'LFRicDriverCreator',
-    'LFRicFields',
-    'LFRicHaloDepths',
-    'LFRicInvoke',
-    'LFRicInvokes',
-    'LFRicInvokeSchedule',
-    'LFRicKern',
-    'LFRicKernCallFactory',
-    'LFRicKernMetadata',
-    'LFRicLoop',
-    'LFRicLoopBounds',
-    'LFRicPSy',
-    'LFRicRunTimeChecks',
-    'LFRicScalarArgs',
-    'LFRicScalarArrayArgs',
-    'LFRicStencils',
-    'LFRicSymbolTable']

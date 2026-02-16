@@ -1,4 +1,4 @@
-from psyclone.domain.common.psylayer import GlobalReduction
+from psyclone.domain.common.psylayer.global_sum import GlobalSum
 from psyclone.errors import GenerationError
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import (
@@ -9,7 +9,7 @@ from psyclone.psyir.symbols import (
     UnresolvedType)
 
 
-class LFRicGlobalSum(GlobalReduction):
+class LFRicGlobalSum(GlobalSum):
     '''
     LFRic specific global sum class which can be added to and
     manipulated in a schedule.
@@ -25,7 +25,8 @@ class LFRicGlobalSum(GlobalReduction):
 
     '''
     def __init__(self, scalar, parent=None):
-        super.__init__(scalar, parent=parent)
+        # Initialise the parent class
+        super().__init__(scalar, parent=parent)
         # Check scalar intrinsic types that this class supports (only
         # "real" for now)
         if scalar.intrinsic_type != "real":
@@ -33,8 +34,6 @@ class LFRicGlobalSum(GlobalReduction):
                 f"LFRicGlobalSum currently only supports real scalars, but "
                 f"argument '{scalar.name}' in Kernel '{scalar.call.name}' has "
                 f"'{scalar.intrinsic_type}' intrinsic type.")
-        # Initialise the parent class
-        super().__init__(scalar, parent=parent)
 
     def lower_to_language_level(self) -> Node:
         '''

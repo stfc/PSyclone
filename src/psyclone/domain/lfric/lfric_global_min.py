@@ -1,15 +1,15 @@
-from psyclone.configuration import Config
-from psyclone.domain.common.psylayer import GlobalReduction
-from psyclone.errors import GenerationError, InternalError
+from psyclone.domain.common.psylayer import GlobalMin
+from psyclone.errors import GenerationError
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import (
     Assignment, Call, Reference, StructureReference)
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
     UnresolvedType)
 
 
-class LFRicGlobalMin(GlobalReduction):
+class LFRicGlobalMin(GlobalMin):
     '''
     LFRic specific global min class which can be added to and
     manipulated in a schedule.
@@ -24,16 +24,9 @@ class LFRicGlobalMin(GlobalReduction):
 
     '''
     def __init__(self, scalar, parent=None):
-        # Check that distributed memory is enabled
-        if not Config.get().distributed_memory:
-            raise GenerationError(
-                "It makes no sense to create an LFRicGlobalSum object when "
-                "distributed memory is not enabled (dm=False).")
-        # Check that the global sum argument is indeed a scalar
-        if not scalar.is_scalar:
-            raise InternalError(
-                f"LFRicGlobalSum.init(): A global sum argument should be a "
-                f"scalar but found argument of type '{scalar.argument_type}'.")
+        # Initialise the parent class
+        super().__init__(scalar, parent=parent)
+
         # Check scalar intrinsic types that this class supports (only
         # "real" for now)
         if scalar.intrinsic_type != "real":
@@ -41,13 +34,10 @@ class LFRicGlobalMin(GlobalReduction):
                 f"LFRicGlobalSum currently only supports real scalars, but "
                 f"argument '{scalar.name}' in Kernel '{scalar.call.name}' has "
                 f"'{scalar.intrinsic_type}' intrinsic type.")
-        # Initialise the parent class
-        super().__init__(scalar, parent=parent)
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         :returns: this node lowered to language-level PSyIR.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
 
         # Get the name strings to use

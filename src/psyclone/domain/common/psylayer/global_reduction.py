@@ -25,3 +25,14 @@ class GlobalReduction(Statement):
             raise GenerationError(
                 f"It makes no sense to create a {self._text_name} object "
                 f"when distributed memory is not enabled (dm=False).")
+
+    def node_str(self, colour: bool = True) -> str:
+        '''
+        Returns a text description of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        '''
+        return f"{self.coloured_name(colour)}[scalar='{self._scalar.name}']"

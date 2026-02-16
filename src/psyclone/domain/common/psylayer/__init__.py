@@ -35,6 +35,8 @@
 
 '''A package module for psyclone.domain.common.psylayer'''
 
+from psyclone.domain.common.psylayer.global_reduction import GlobalReduction
+from psyclone.domain.common.psylayer.global_min import GlobalMin
+from psyclone.domain.common.psylayer.global_sum import GlobalSum
 from psyclone.domain.common.psylayer.psyloop import PSyLoop
 
-__all__ = ["PSyLoop"]
