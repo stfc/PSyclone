@@ -5284,9 +5284,7 @@ class IntrinsicCall(Call):
                 self.compute_argument_names()
             except NotImplementedError:
                 # If we can't compute argument names, then we have to
-                # do the worst case. All arguments that are references are
-                # READWRITE and all other arguments are READS in this
-                # case as we don't know any details.
+                # do the worst case (READWRITE).
                 return _compute_reference_accesses(
                         self,
                         default_access=AccessType.READWRITE
