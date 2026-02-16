@@ -161,7 +161,7 @@ Logging
 
 PSyclone supports the Python ``logging`` module, to help report useful
 information throughout the code. By default the logging infrastructure
-is switched off, but can be enabled either through the PSyclone command's
+is switched off, but can be enabled either through the PSyclone command-line
 options or programmatically with:
 
 .. code-block:: python
@@ -200,24 +200,9 @@ standard ``warnings`` import, i.e.:
 
    warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
-Logging should also be explicitly tested through the use of the ``caplog``
-pytest fixture. It is important that the expected logger is specified
-in the test: if `main` (in `generate.py`) is executed, a handler is attached
-to the PSyclone top-level logger. This means that any log event is not
-propagated to the Python root level logger, and ``caplog`` without
-a logger specified will only test the root logger. This can result
-tests passing when executed on their own, but failing randomly when
-executed with other tests: these test might call ``main`` (and
-therefore prevent the root logger to receive the message), and
-``caplog`` will then fail (if no logger is specified). Here the
-proper way of testing log messages in a test:
+Care must be taken when testing logging calls added to PSyclone. See
+:ref:`logging_testing` for details.
 
-.. code-block:: python
-
-    with caplog.at_level(logging.WARNING,
-                         logger="psyclone.psyir.tools.read_write_info"):
-        ...
-    assert "your message here" in caplog.text
 
 .. _interface_description:
 

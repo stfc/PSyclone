@@ -786,7 +786,7 @@ def test_main_invalid_api(capsys):
     assert output == expected_output
 
 
-def test_main_logger(capsys, caplog):
+def test_main_logger(capsys, caplog, tmp_path):
     """
     Test the setup of the logger.
     """
@@ -810,18 +810,22 @@ def test_main_logger(capsys, caplog):
     assert ("error: argument --log-level: invalid choice: 'fail'"
             in err)
 
-    # Test we get the logging debug correctly with caplog. This
-    # overrides the file output that PSyclone attempts.
+    # Test we get the logging debug correctly with caplog, including
+    # redirection into a file:
     caplog.clear()
-    # Pytest fully controls the logging level, overriding anything we
-    # set in generator.main so we can't test for it.
+    out_file = str(tmp_path / "test.out")
     with caplog.at_level(logging.DEBUG):
         main([filename, "-api", "dynamo0.3", "--log-level", "DEBUG",
-              "--log-file", "test.out"])
+              "--log-file", out_file])
         assert Config.get().api == "lfric"
         assert caplog.records[0].levelname == "DEBUG"
-        assert ("Logging system initialised. Level is DEBUG." in
-                caplog.record_tuples[0][2])
+        assert "Logging system initialised. Level is DEBUG." in caplog.text
+        # Check that we have a file handler installed as expected
+        file_handlers = [h for h in logger.handlers
+                         if isinstance(h, logging.FileHandler)]
+        # There should be exactly one file handler, pointing to out_file:
+        assert len(file_handlers) == 1
+        assert file_handlers[0].baseFilename == out_file
 
 
 def test_main_api():

@@ -531,7 +531,7 @@ detailed in the ``psyclone -h`` information.
 By default the output from the logging goes into stderr.
 To control the logging output, PSyclone provides the
 ``--log-file`` option. If this is set, the logging output will instead
-be directed to the provided file.
+be directed to the specified file.
 
 Keeping Comments and Directives
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

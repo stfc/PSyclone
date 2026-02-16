@@ -101,7 +101,7 @@ def have_graphviz():  # pragma: no-cover
 def setup_logging():
     """
     This fixture sets up logging the same way `main` does.
-    Using this ensures that any caplog tests specify the expected
+    Using this ensures that any caplog tests must specify the expected
     logger. If `main` is executed, a handler is attached to
     the psyclone top-level logger, which means the messages are not
     propagated to the python root logger, and caplog `at_level(x)`
@@ -119,7 +119,7 @@ def setup_logging():
     while logger_psyclone.handlers:
         logger_psyclone.removeHandler(logger_psyclone.handlers[0])
 
-    # Then add exactly one handler (which is done what happens in main):
+    # Then add exactly one handler (which is what happens in main):
     handler = logging.StreamHandler()
     logger_psyclone.addHandler(handler)
     # Disable the logger, which is the default

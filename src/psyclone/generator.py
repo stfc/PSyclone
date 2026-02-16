@@ -632,13 +632,14 @@ def main(arguments):
     logger_fparser = logging.getLogger('fparser')
     formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
     for logger in [logger_fparser, logger_psyclone]:
-        logger.setLevel(LOG_LEVELS[args.log_level])
-        handler.setFormatter(formatter)
         # Certain tests call main several times, which would add handlers
         # over and over (which results in duplicated messages).
-        # Only attach a handler once:
-        if len(logger.handlers) == 0:
-            logger.addHandler(handler)
+        # So, don't attach a handler if one is already there
+        if logger.handlers:
+            continue
+        logger.setLevel(LOG_LEVELS[args.log_level])
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
     logger = logging.getLogger(__name__)
 
