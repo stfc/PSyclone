@@ -40,7 +40,7 @@
 ''' Performs py.test tests on the Assignment PSyIR node. '''
 
 import pytest
-from psyclone.core import Signature
+from psyclone.core import Signature, AccessType
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
@@ -366,13 +366,16 @@ def test_reference_accesses(fortran_reader):
              integer :: g(10)
              g(1) = g + 1
              g(g(1)) = 1
+             g(:) = 1
            end program test_prog''')
     assigns = psyir.walk(Assignment)
     # Check that the lhs has been converted to a write
     assigns[0].reference_accesses()[Signature('g')].is_written()
 
-    # This doesn't work for nested references to the same symbol
-    with pytest.raises(NotImplementedError) as err:
-        assigns[1].reference_accesses()
-    assert ("The variable 'g' appears more than once on the left-hand side "
-            "of an assignment." in str(err.value))
+    # Test nested references to the same symbol (first there is the inner
+    # READ to g, followed by the WRITE to the outer g)
+    accesses = assigns[1].reference_accesses()
+    assert accesses[Signature('g')][0].node == assigns[1].lhs.indices[0]
+    assert accesses[Signature('g')][0].access_type == AccessType.READ
+    assert accesses[Signature('g')][1].node == assigns[1].lhs
+    assert accesses[Signature('g')][1].access_type == AccessType.WRITE
