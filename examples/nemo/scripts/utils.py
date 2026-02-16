@@ -40,8 +40,8 @@ from typing import List, Union
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Assignment, Loop, Directive, Node, Reference, CodeBlock, Call, Return,
-    IfBlock, Routine, Schedule, IntrinsicCall, StructureReference)
+    Assignment, Literal, Loop, Directive, Node, Reference, CodeBlock, Call,
+    Return, IfBlock, Routine, Schedule, IntrinsicCall, StructureReference)
 from psyclone.psyir.symbols import DataSymbol, ArrayType
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
@@ -76,10 +76,12 @@ NOT_PERFORMANT = [
 ]
 
 DO_MODULE_INLINING = ["ice_var_vremap", "snw_ent", "ice_perm_eff",
-                      "snw_var_vremap"]
+                      "snw_var_vremap", "load_ptr_4d_dp", "load_ptr_4d_sp",
+                      "ice_var_sshdyn"]
 
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = (
+    # Adding profiling calipers prevents inlining.
     DO_MODULE_INLINING +
     ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
      # These are small functions that the addition of profiling
@@ -87,7 +89,8 @@ PROFILING_IGNORE = (
      # to create OpenACC regions with calls to them)
      "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
      "sum", "sign_", "ddpdd", "solfrac", "psyclone_cmp_int",
-     "psyclone_cmp_char", "psyclone_cmp_logical"])
+     "psyclone_cmp_char", "psyclone_cmp_logical", "lbc_lnk_pt2pt",
+     "lbc_nfd", "load_ptr_"])
 
 # Currently fparser has no way of distinguishing array accesses from statement
 # functions, the following subroutines contains known statement functions
@@ -398,6 +401,11 @@ def insert_explicit_loop_parallelism(
                 "and is not the inner loop")
             continue
 
+        if isinstance(loop.stop_expr, Literal):
+            # A loop with a literal for its upper bound is unlikely to bei
+            # worth offloading.
+            continue
+
         if nemo_v4:
             # Skip if it is an array operation loop on an ice routine if along
             # the third dim or higher or if the loop nests a loop over ice
@@ -488,8 +496,20 @@ def insert_explicit_loop_parallelism(
                 if loop.variable.name in ["ji", "jj"]:
                     opts["force_private"] = ["zv_br"]
                     opts["ignore_dependencies_for"] = opts["force_private"]
-            if routine_name.startswith("lbc_lnk_"):
-                opts["ignore_dependencies_for"] = ["ptab%pt4d"]
+            if routine_name.startswith("lbc_"):
+                # Optimisations/choices specific to the lbc routines
+                if loop.variable.name == "jf":
+                    # Loops over fields being sent/received are not worth
+                    # parallelising on GPU.
+                    continue
+                for halo_exch_name in ["lbc_lnk_", "lbc_nfd_"]:
+                    if routine_name.startswith(halo_exch_name):
+                        opts["ignore_dependencies_for"] = ["ptab%pt4d"]
+                if routine_name.startswith("lbc_lnk_pt2pt_dp"):
+                    opts["ignore_dependencies_for"] = ["buffsnd_dp",
+                                                       "ptab%pt4d"]
+                if routine_name.startswith("lbc_nfd_ext"):
+                    opts["ignore_dependencies_for"] = ["ptab"]
         try:
             # First check that the region_directive is feasible for this region
             if region_directive_trans:
