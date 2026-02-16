@@ -1,3 +1,14 @@
+   44) PR #3301 towards #1646. Adds new DataNodeToTempTrans() that allows
+   an expression to be replaced with a temporary variable.
+ 
+   43) PR #3326 for #3323 - bug fix for comments before directives on
+   loops or if statements.
+ 
+   42) PR #3324 updates Intel OneAPI configuration in Integration Tests.
+
+   41) PR #3321 for #3320. Removes null integer arithmetic operations in the
+   frontend when no changes to the resultant code will occur.
+
    40) PR #3316 for 3314. Fixes a bug where inline comments could break
    the line length limit.
 
