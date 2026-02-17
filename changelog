@@ -1,3 +1,6 @@
+   46) PR #3319 for #3318. Alters the logging set-up performed by PSyclone
+   so that it does not affect the root Python logger.
+ 
    45) PR #3125 towards #3060. IntrinsicCall reference_accesses now returns
    appropriate access_types (instead of a generic READWRITE).
 
