@@ -460,7 +460,7 @@ def test_validate_with_dependency(fortran_reader):
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[3])
 
-    # The following 3 statements are fine, because the range is the same
+    # The following 2 statements are fine, because the range is the same
     trans.apply(assignments[4])
     trans.apply(assignments[5])
     # The following is fine because the accesses are independent

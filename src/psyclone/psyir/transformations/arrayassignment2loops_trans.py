@@ -229,6 +229,15 @@ class ArrayAssignment2LoopsTrans(Transformation):
                 f"should be a PSyIR Assignment, but found "
                 f"'{type(node).__name__}'.")
 
+        # Do not allow to transform expressions with CodeBlocks
+        if node.has_descendant(CodeBlock):
+            message = (f"{self.name} does not support array assignments that"
+                       f" contain a CodeBlock anywhere in the expression")
+            if verbose:
+                node.append_preceding_comment(message)
+            raise TransformationError(LazyString(
+                lambda: f"{message}, but found:\n{node.debug_string()}"))
+
         try:
             node.scope
         except SymbolError:
@@ -291,7 +300,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
         # any other reference in the assignment. The check is only against one
         # write (assignment lhs top reference) because we fail validation if
         # there is any impure call (which could also contain other writes)
-        written_ref = node_copy.lhs.walk(Reference)[0]
+        written_ref = node_copy.lhs
         written_sig, written_idxs = written_ref.get_signature_and_indices()
         for ref in node_copy.walk(Reference)[1:]:
             if ref.symbol is written_ref.symbol:
@@ -323,15 +332,6 @@ class ArrayAssignment2LoopsTrans(Transformation):
                             f"loop-carried dependencies when naively "
                             f"converting them to a loop, but found:"
                             f"\n{node.debug_string()}"))
-
-        # Do not allow to transform expressions with CodeBlocks
-        if node_copy.has_descendant(CodeBlock):
-            message = (f"{self.name} does not support array assignments that"
-                       f" contain a CodeBlock anywhere in the expression")
-            if verbose:
-                node.append_preceding_comment(message)
-            raise TransformationError(LazyString(
-                lambda: f"{message}, but found:\n{node.debug_string()}"))
 
         # We don't support nested range expressions anywhere in the assignment
         for range_expr in node_copy.walk(Range, stop_type=Range):
