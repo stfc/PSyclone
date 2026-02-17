@@ -49,9 +49,9 @@ from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.tests.utilities import get_invoke
 
 
-def test_globalsum_node_str():
-    '''test the node_str method in the GlobalSum class. The simplest way
-    to do this is to use an LFRic builtin example which contains a
+def test_globalsum_node_str_and_dag_name():
+    '''test the node_str and dag_name methods in the GlobalSum class. The
+    simplest way to do this is to use an LFRic builtin example which contains a
     scalar and then call node_str() on that.
 
     '''
@@ -69,6 +69,7 @@ def test_globalsum_node_str():
     expected_output = (colored("GlobalSum", GlobalSum._colour) +
                        "[scalar='asum']")
     assert expected_output in output
+    assert gsum.dag_name == "GlobalSum(asum)_1"
 
 
 def test_globalsum_children_validation():
