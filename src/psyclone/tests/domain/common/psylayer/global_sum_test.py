@@ -41,7 +41,7 @@
 import pytest
 
 from psyclone.core import AccessType
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.domain.common.psylayer import GlobalSum
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.nodes.node import colored
@@ -87,6 +87,42 @@ def test_globalsum_children_validation():
         gsum.addchild(Literal("2", INTEGER_TYPE))
     assert ("Item 'Literal' can't be child 0 of 'GlobalSum'. GlobalSum is a"
             " LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
+def test_globalsum_nodm_error():
+    ''' Check that an instance of the GlobalSum class raises an
+    exception if it is instantiated with no distributed memory enabled
+    (dm=False). We use the LFRic API to test this.
+
+    '''
+    # Get an instance of a real scalar
+    _, invoke = get_invoke("1.9_single_invoke_2_real_scalars.f90",
+                           api="lfric", dist_mem=False, idx=0)
+    schedule = invoke.schedule
+    loop = schedule.children[0]
+    kernel = loop.loop_body[0]
+    argument = kernel.arguments.args[0]
+    with pytest.raises(GenerationError) as err:
+        _ = GlobalSum(argument)
+    assert ("It makes no sense to create a GlobalSum object when "
+            "distributed memory is not enabled (dm=False)."
+            in str(err.value))
+
+
+def test_globalsum_unsupported_argument():
+    ''' Check that an instance of the GlobalSum class raises an
+    exception for an unsupported argument type. '''
+    # Get an instance of a non-scalar argument
+    _, invoke = get_invoke("1.6.1_single_invoke_1_int_scalar.f90",
+                           api="lfric", dist_mem=True, idx=0)
+    schedule = invoke.schedule
+    loop = schedule.children[4]
+    kernel = loop.loop_body[0]
+    argument = kernel.arguments.args[0]
+    with pytest.raises(InternalError) as err:
+        _ = GlobalSum(argument)
+    assert ("GlobalSum.init(): A global sum argument should be a scalar "
+            "but found argument of type 'gh_field'." in str(err.value))
 
 
 def test_globalsum_arg():
