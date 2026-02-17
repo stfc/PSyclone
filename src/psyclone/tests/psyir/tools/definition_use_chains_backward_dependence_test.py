@@ -842,9 +842,11 @@ def test_definition_use_chain_find_backward_accesses_ancestor_call(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.find_routine_psyir("foo")
     call = psyir.walk(Call)[0]
-    arg = call.children[2]
+    arg = call.arguments[1]
     chain = DefinitionUseChain(arg)
     all_prev = chain.find_backward_accesses()
     # Check that the ancestor call of b isn't a backward access.
     assert not isinstance(all_prev[0], Call)
+    # The correct previous access should be the Reference to b in 
+    # b = c + d.
     assert all_prev[0] is routine.children[1].lhs
