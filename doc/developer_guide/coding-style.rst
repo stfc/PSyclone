@@ -161,13 +161,14 @@ Logging
 
 PSyclone supports the Python ``logging`` module, to help report useful
 information throughout the code. By default the logging infrastructure
-is switched off, but can be enabled either through the PSyclone command's
+is switched off, but can be enabled either through the PSyclone command-line
 options or programmatically with:
 
 .. code-block:: python
 
     import logging
-    logging.basicConfig(level=logging.LEVEL)
+    logger = logging.getLogger("psyclone")
+    logger.setLevel(logging.LEVEL)
 
 where ``logging.LEVEL`` is the required level of those defined in the standard
 logging library.
@@ -199,8 +200,8 @@ standard ``warnings`` import, i.e.:
 
    warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
-Logging should also be explicitly tested through the use of the ``caplog``
-pytest fixture.
+Care must be taken when testing logging calls added to PSyclone. See
+:ref:`logging_testing` for details.
 
 
 .. _interface_description:

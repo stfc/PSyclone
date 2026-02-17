@@ -633,7 +633,7 @@ def test_deprecated_access_mapping(tmpdir, caplog):
         ("[lfric]\naccess_mapping = gh_read: read, gh_write: write, "
          "gh_readwrite: readwrite,\n                 gh_inc: inc, "
          "gh_sum: sum\n"))
-    with caplog.at_level(logging.WARN):
+    with caplog.at_level(logging.WARN, logger="psyclone.configuration"):
         _ = get_config(config_file, content)
 
     assert "Configuration file contains an ACCESS_MAPPING entry" in caplog.text
