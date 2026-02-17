@@ -1,8 +1,9 @@
 from psyclone.domain.common.psylayer import GlobalReduction
+from psyclone.lfric import LFRicKernelArgument
 from psyclone.errors import GenerationError
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import (
-    Assignment, Call, Reference, StructureReference)
+    Assignment, Call, Node, Reference, StructureReference)
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
@@ -15,17 +16,15 @@ class LFRicGlobalMin(GlobalReduction):
     manipulated in a schedule.
 
     :param scalar: the kernel argument for which to perform a global min.
-    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param parent: the parent node of this node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
-    :raises InternalError: if the supplied argument is not a scalar.
-    :raises GenerationError: if the scalar is not of "real" intrinsic type.
+    :raises GenerationError: if the scalar is not of "real" or "integer"
+                             intrinsic type.
 
     '''
     _text_name = "LFRicGlobalMin"
 
-    def __init__(self, scalar, parent=None):
+    def __init__(self, scalar: LFRicKernelArgument, parent: Node = None):
         # Initialise the parent class
         super().__init__(scalar, parent=parent)
 

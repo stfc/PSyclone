@@ -1,5 +1,6 @@
 from psyclone.domain.common.psylayer.global_sum import GlobalReduction
 from psyclone.errors import GenerationError
+from psyclone.lfric import LFRicKernelArgument
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import (
     Assignment, Call, Reference, StructureReference)
@@ -15,18 +16,14 @@ class LFRicGlobalSum(GlobalReduction):
     manipulated in a schedule.
 
     :param scalar: the kernel argument for which to perform a global sum.
-    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
     :param parent: the parent node of this node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
-    :raises GenerationError: if distributed memory is not enabled.
-    :raises InternalError: if the supplied argument is not a scalar.
     :raises GenerationError: if the scalar is not of "real" intrinsic type.
 
     '''
     _text_name = "LFRicGlobalSum"
 
-    def __init__(self, scalar, parent=None):
+    def __init__(self, scalar: LFRicKernelArgument, parent: Node = None):
         # Initialise the parent class
         super().__init__(scalar, parent=parent)
         # Check scalar intrinsic types that this class supports (only
