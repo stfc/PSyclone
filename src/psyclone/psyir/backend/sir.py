@@ -178,7 +178,7 @@ class SIRWriter(PSyIRVisitor):
 
         '''
         loops = loop_node.walk(Loop)
-        if len(loops) < 3:
+        if len(loops) != 3:
             raise VisitorError("Only triply-nested loops are supported.")
 
         # Check first loop has a single loop as a child.

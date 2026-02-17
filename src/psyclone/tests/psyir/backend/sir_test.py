@@ -360,8 +360,7 @@ def test_sirwriter_loop_node_5(sir_writer):
     schedule = get_routine(code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
-    assert ("Child of child of loop should be a single loop."
-            in str(excinfo.value))
+    assert "Only triply-nested loops are supported" in str(excinfo.value)
 
 
 # (6/6) Method loop_node
