@@ -611,7 +611,8 @@ def test_extract_ignore_wrong_vars(fortran_reader: FortranReader,
     # ----------------------------------------
     monkeypatch.setattr(ExtractNode, "get_ignored_variables",
                         lambda self: [("", "xx")])
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.tools.read_write_info"):
         code = fortran_writer(psyir)
 
     assert 'PreStart("test", "test-r0", 3, 2)' in code
