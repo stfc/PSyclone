@@ -1,4 +1,4 @@
-from psyclone.domain.common.psylayer import GlobalMin
+from psyclone.domain.common.psylayer import GlobalReduction
 from psyclone.errors import GenerationError
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import (
@@ -9,7 +9,7 @@ from psyclone.psyir.symbols import (
     UnresolvedType)
 
 
-class LFRicGlobalMin(GlobalMin):
+class LFRicGlobalMin(GlobalReduction):
     '''
     LFRic specific global min class which can be added to and
     manipulated in a schedule.
@@ -23,6 +23,8 @@ class LFRicGlobalMin(GlobalMin):
     :raises GenerationError: if the scalar is not of "real" intrinsic type.
 
     '''
+    _text_name = "LFRicGlobalMin"
+
     def __init__(self, scalar, parent=None):
         # Initialise the parent class
         super().__init__(scalar, parent=parent)
