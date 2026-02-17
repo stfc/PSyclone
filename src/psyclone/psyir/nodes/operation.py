@@ -45,6 +45,7 @@ from typing import Tuple
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 
 
 class Operation(DataNode, metaclass=ABCMeta):
@@ -429,8 +430,36 @@ class BinaryOperation(Operation):
                     f"{len(argtypes[1].shape)}")
             # In general there is no way we can check that the extents of each
             # dimension match so we have to assume that they do.
-        shape = (argtypes[0].shape if isinstance(argtypes[0], ArrayType) else
-                 argtypes[1].shape)
+        # FIXME We can do better here, pick whichever we have more information
+        # about, where information is literal > reference > intrinsiccall
+
+        # If only one of the argtypes is an ArrayType then we return that
+        if not all(isinstance(argtype, ArrayType) for argtype in argtypes):
+            shape = (argtypes[0].shape if isinstance(argtypes[0], ArrayType)
+                     else argtypes[1].shape)
+        else:
+            # Otherwise we try to work out the best. Find out how many
+            # or non-intrinsic DataNodes shape definitions each
+            # has.
+            dnodes_0 = len([x for x in argtypes[0].shape if
+                            isinstance(x, ArrayType.ArrayBounds) and
+                            isinstance(x.lower, DataNode) and
+                            not isinstance(x.lower, IntrinsicCall) and
+                            isinstance(x.upper, DataNode) and
+                            not isinstance(x.upper, IntrinsicCall)])
+            dnodes_1 = len([x for x in argtypes[1].shape if
+                            isinstance(x, ArrayType.ArrayBounds) and
+                            isinstance(x.lower, DataNode) and
+                            not isinstance(x.lower, IntrinsicCall) and
+                            isinstance(x.upper, DataNode) and
+                            not isinstance(x.upper, IntrinsicCall)])
+            # If the second shape has more defined elements then
+            # return the shape of that.
+            if dnodes_1 > dnodes_0:
+                return ArrayType(base_type, shape=argtypes[1].shape)
+            # Otherwise use the default.
+            shape = (argtypes[0].shape if isinstance(argtypes[0], ArrayType)
+                     else argtypes[1].shape)
         return ArrayType(base_type, shape=shape)
 
     @property
