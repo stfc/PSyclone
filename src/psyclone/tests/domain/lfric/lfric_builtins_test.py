@@ -1995,14 +1995,14 @@ def test_minmaxval_x(fortran_writer, tmp_path):
     _, invoke = get_invoke("15.10.9_min_max_X_builtin.f90", api=API, idx=0,
                            dist_mem=False)
     kerns = invoke.schedule.kernels()
-    assert str(kerns[0]) == ("Built-in: minval_X (compute the global minimum "
-                             "value contained in a field)")
-    code = fortran_writer(kerns[0])
-    assert "amin = MIN(amin, f1_data(df))" in code, code
-
-    assert str(kerns[1]) == ("Built-in: maxval_X (compute the global maximum "
+    assert str(kerns[1]) == ("Built-in: minval_X (compute the global minimum "
                              "value contained in a field)")
     code = fortran_writer(kerns[1])
+    assert "amin = MIN(amin, f1_data(df))" in code, code
+
+    assert str(kerns[2]) == ("Built-in: maxval_X (compute the global maximum "
+                             "value contained in a field)")
+    code = fortran_writer(kerns[2])
     assert "amax = MAX(amax, f1_data(df))" in code, code
 
     psy, invoke = get_invoke("15.10.9_min_max_X_builtin.f90", api=API, idx=0,
