@@ -92,7 +92,7 @@ class LFRicInvoke(Invoke):
                                     LFRicMeshes, LFRicBoundaryConditions,
                                     LFRicProxies, LFRicMeshProperties)
         from psyclone.domain.lfric import (
-            LFRicCellIterators, LFRicGlobalSum, LFRicGlobalMin,
+            LFRicCellIterators, LFRicGlobalMax, LFRicGlobalSum, LFRicGlobalMin,
             LFRicHaloDepths, LFRicLoopBounds,
             LFRicRunTimeChecks,
             LFRicScalarArgs, LFRicScalarArrayArgs, LFRicFields, LFRicDofmaps,
@@ -194,9 +194,12 @@ class LFRicInvoke(Invoke):
                 elif kern.reduction_type == LFRicBuiltIn.ReductionType.MIN:
                     global_red = LFRicGlobalMin(kern.reduction_arg,
                                                 parent=loop.parent)
+                elif kern.reduction_type == LFRicBuiltIn.ReductionType.MAX:
+                    global_red = LFRicGlobalMax(kern.reduction_arg,
+                                                parent=loop.parent)
                 else:
                     raise GenerationError(
-                        f"TODO #2381 - currently only global *sum* "
+                        f"TODO #2381 - currently only global SUM/MAX/MIN "
                         f"reductions are supported but kernel '{kern.name}' "
                         f"performs a {kern.reduction_type}")
                 loop.parent.children.insert(loop.position+1, global_red)
