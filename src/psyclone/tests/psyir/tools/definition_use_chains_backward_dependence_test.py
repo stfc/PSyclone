@@ -847,6 +847,6 @@ def test_definition_use_chain_find_backward_accesses_ancestor_call(
     all_prev = chain.find_backward_accesses()
     # Check that the ancestor call of b isn't a backward access.
     assert not isinstance(all_prev[0], Call)
-    # The correct previous access should be the Reference to b in 
+    # The correct previous access should be the Reference to b in
     # b = c + d.
     assert all_prev[0] is routine.children[1].lhs
