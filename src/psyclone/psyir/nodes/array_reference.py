@@ -150,16 +150,25 @@ class ArrayReference(ArrayMixin, Reference):
                 # We don't have any information on the shape of the original
                 # declaration.
                 orig_shape = None
-            if (orig_shape is not None and len(shape) == len(orig_shape) and
-                    all(self.is_full_range(idx) for idx in range(len(shape)))):
-                # Although this access has a shape, it is in fact for the
-                # whole array and therefore the type of the result is just
-                # that of the base symbol. (This wouldn't be true for a
-                # StructureReference but they have their own implementation
-                # of this method.)
+            # Special case for UnsupportedFortranType to match previous
+            # behaviour expected by lfric tests.
+            if (orig_shape and len(orig_shape) == len(shape) and isinstance(
+                self.symbol.datatype, UnsupportedFortranType) and
+                all(self.is_full_range(idx) for
+                    idx in range(len(shape)))):
+                return self.symbol.datatype
+            if (orig_shape and len(orig_shape) == len(shape) and
+                all(self.is_full_range(idx) for idx in range(len(shape)))
+                and all(isinstance(idx, ArrayType.ArrayBounds) for idx in
+                        orig_shape)):
+                # Although this access has a shape, it is for the
+                # whole array, and the original array has no ArrayType.Extent
+                # elements, so we should return the original shape as its
+                # fully defined without using size intrinsics.
                 return self.symbol.datatype
             if type(self.symbol) is Symbol or isinstance(self.symbol.datatype,
-                                                         UnsupportedType):
+                                                         (UnsupportedType,
+                                                          UnresolvedType)):
                 # Even if an Unsupported(Fortran)Type has partial type
                 # information, we can't easily use it here because we'd need
                 # to re-write the original Fortran declaration stored in the
@@ -168,12 +177,13 @@ class ArrayReference(ArrayMixin, Reference):
                 # the variable name should be (TODO #2137).
                 base_type = UnresolvedType()
             else:
-                base_type = self.symbol.datatype
+                # Create a copy of the base datatype.
+                base_type = self.symbol.datatype.datatype.copy()
+
             # TODO #1857 - passing base_type as an instance of ArrayType
             # only works because the ArrayType constructor just pulls out
             # the intrinsic and precision properties of the type.
             return ArrayType(base_type, shape)
-
         # Otherwise, we're accessing a single element of the array.
         if type(self.symbol) is Symbol:
             return UnresolvedType()

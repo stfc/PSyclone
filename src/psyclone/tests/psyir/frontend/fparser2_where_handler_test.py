@@ -1137,6 +1137,7 @@ def test_elemental_function_to_loop(fortran_reader, fortran_writer):
       end if
     enddo'''
     out = fortran_writer(psyir)
+    print(out)
     assert correct in out
 
     # Test the behaviour if we have a non-elemental and elemental
