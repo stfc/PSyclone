@@ -36,21 +36,21 @@
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Performs py.test tests on the GlobalSum class. '''
+''' Performs py.test tests on the GlobalReduction class. '''
 
 import pytest
 
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError
-from psyclone.domain.common.psylayer import GlobalSum
+from psyclone.domain.common.psylayer import GlobalReduction
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.tests.utilities import get_invoke
 
 
-def test_globalsum_node_str_and_dag_name():
-    '''test the node_str and dag_name methods in the GlobalSum class. The
+def test_globalreduction_node_str_and_dag_name():
+    '''test the node_str and dag_name methods in the GlobalReduction class. The
     simplest way to do this is to use an LFRic builtin example which contains a
     scalar and then call node_str() on that.
 
@@ -58,40 +58,38 @@ def test_globalsum_node_str_and_dag_name():
     _, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
                            api="lfric",
                            dist_mem=True, idx=0)
-
     gsum = None
     for child in invoke.schedule.children:
-        if isinstance(child, GlobalSum):
+        if isinstance(child, GlobalReduction):
             gsum = child
             break
     assert gsum
-    output = gsum.node_str()
-    expected_output = (colored("GlobalSum", GlobalSum._colour) +
+    gred = GlobalReduction(gsum.scalar)
+    output = gred.node_str()
+    expected_output = (colored("GlobalReduction", GlobalReduction._colour) +
                        "[scalar='asum']")
     assert expected_output in output
-    assert gsum.dag_name == "GlobalSum(asum)_1"
+    assert gred.dag_name == "GlobalReduction(asum)_0"
 
 
-def test_globalsum_children_validation():
-    '''Test that children added to GlobalSum are validated. A GlobalSum node
-    does not accept any children.
-
-    '''
+def test_globalreduction_children_validation():
+    '''Test that a GlobalReduction does not accept any children.'''
     _, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90", api="lfric",
                            idx=0, dist_mem=True)
     gsum = None
     for child in invoke.schedule.children:
-        if isinstance(child, GlobalSum):
+        if isinstance(child, GlobalReduction):
             gsum = child
             break
     with pytest.raises(GenerationError) as excinfo:
         gsum.addchild(Literal("2", INTEGER_TYPE))
-    assert ("Item 'Literal' can't be child 0 of 'GlobalSum'. GlobalSum is a"
-            " LeafNode and doesn't accept children.") in str(excinfo.value)
+    assert ("Item 'Literal' can't be child 0 of 'LFRicGlobalSum'. "
+            "LFRicGlobalSum is a LeafNode and doesn't accept children."
+            in str(excinfo.value))
 
 
 def test_globalsum_nodm_error():
-    ''' Check that an instance of the GlobalSum class raises an
+    ''' Check that an instance of the GlobalReduction class raises an
     exception if it is instantiated with no distributed memory enabled
     (dm=False). We use the LFRic API to test this.
 
@@ -104,14 +102,14 @@ def test_globalsum_nodm_error():
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[0]
     with pytest.raises(GenerationError) as err:
-        _ = GlobalSum(argument)
-    assert ("It makes no sense to create a GlobalSum object when "
+        _ = GlobalReduction(argument)
+    assert ("It makes no sense to create a GlobalReduction object when "
             "distributed memory is not enabled (dm=False)."
             in str(err.value))
 
 
-def test_globalsum_unsupported_argument():
-    ''' Check that an instance of the GlobalSum class raises an
+def test_globalreduction_unsupported_argument():
+    ''' Check that an instance of the GlobalReduction class raises an
     exception for an unsupported argument type. '''
     # Get an instance of a non-scalar argument
     _, invoke = get_invoke("1.6.1_single_invoke_1_int_scalar.f90",
@@ -121,14 +119,14 @@ def test_globalsum_unsupported_argument():
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[0]
     with pytest.raises(InternalError) as err:
-        _ = GlobalSum(argument)
-    assert ("GlobalSum.init(): A global sum argument should be a scalar "
-            "but found argument of type 'gh_field'." in str(err.value))
+        _ = GlobalReduction(argument)
+    assert ("GlobalReduction.init(): A global reduction argument should be a "
+            "scalar but found argument of type 'gh_field'." in str(err.value))
 
 
-def test_globalsum_arg():
-    ''' Check that the globalsum argument is defined as gh_readwrite and
-    points to the GlobalSum node '''
+def test_globalreduction_arg():
+    ''' Check that the global-reduction argument is defined as gh_readwrite and
+    points to the GlobalReduction node '''
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
                            api="lfric", idx=0, dist_mem=True)
     schedule = invoke.schedule
@@ -138,8 +136,8 @@ def test_globalsum_arg():
     assert glob_sum_arg.call == glob_sum
 
 
-def test_globalsum_args():
-    '''Test that the globalsum class args method returns the appropriate
+def test_globalreduction_args():
+    '''Test that the globalreduction class args method returns the appropriate
     argument '''
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
                            api="lfric", dist_mem=True, idx=0)
