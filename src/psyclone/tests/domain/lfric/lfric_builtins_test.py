@@ -2015,7 +2015,7 @@ def test_minmaxval_x(fortran_writer, tmp_path):
 
     # Test compilation of generated code
     assert LFRicBuild(tmp_path).code_compiles(psy)
-    
+
 
 def test_real_to_int_x(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''

@@ -1,7 +1,7 @@
 from psyclone.domain.common.psylayer import GlobalMax
 from psyclone.errors import GenerationError
 from psyclone.lfric import LFRicKernelArgument
-from psyclone.psyGen import InvokeSchedule, KernelArgument
+from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import (
     Assignment, Call, Reference, StructureReference)
 from psyclone.psyir.nodes.node import Node
