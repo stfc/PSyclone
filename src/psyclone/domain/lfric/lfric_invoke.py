@@ -40,10 +40,15 @@
 ''' This module implements the LFRic-specific implementation of the Invoke
     base class from psyGen.py. '''
 
+from typing import TYPE_CHECKING
+
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
+if TYPE_CHECKING:  # pragma: no cover
+    from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_loop import LFRicLoop
-from psyclone.errors import GenerationError, FieldNotFoundError
+from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
+from psyclone.parse.algorithm import InvokeCall
 from psyclone.psyGen import Invoke
 from psyclone.psyir.nodes import Assignment, Reference, Call, Literal
 from psyclone.psyir.symbols import (
@@ -57,26 +62,25 @@ class LFRicInvoke(Invoke):
     require.
 
     :param alg_invocation: object containing the invoke call information.
-    :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param int idx: the position of the invoke in the list of invokes
-                    contained in the Algorithm.
-    :param invokes: the Invokes object containing this LFRicInvoke
-                    object.
-    :type invokes: :py:class:`psyclone.domain.lfric.LFRicInvokes`
+    :param idx: the position of the invoke in the list of invokes
+                contained in the Algorithm.
+    :param invokes: the Invokes object containing this LFRicInvoke.
 
     :raises GenerationError: if integer reductions are required in the
-                    PSy-layer.
-    :raises GenerationError: if a global reduction operation other than sum
-                             is required - TODO #2381.
+                             PSy-layer.
+    :raises InternalError: if an unrecognised global reduction operation
+                           is encountered.
     '''
     # pylint: disable=too-many-instance-attributes
     # pylint: disable=too-many-locals
-    def __init__(self, alg_invocation, idx, invokes):
+    def __init__(self,
+                 alg_invocation: InvokeCall,
+                 idx: int,
+                 invokes: "LFRicInvokes"):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicInvokeSchedule
-        Invoke.__init__(self, alg_invocation, idx, LFRicInvokeSchedule,
-                        invokes)
+        super().__init__(alg_invocation, idx, LFRicInvokeSchedule, invokes)
 
         # The base class works out the algorithm code's unique argument
         # list and stores it in the 'self._alg_unique_args'
@@ -92,9 +96,8 @@ class LFRicInvoke(Invoke):
                                     LFRicMeshes, LFRicBoundaryConditions,
                                     LFRicProxies, LFRicMeshProperties)
         from psyclone.domain.lfric import (
-            LFRicCellIterators, LFRicGlobalMax, LFRicGlobalSum, LFRicGlobalMin,
-            LFRicHaloDepths, LFRicLoopBounds,
-            LFRicRunTimeChecks,
+            LFRicCellIterators, LFRicGlobalMax, LFRicGlobalMin, LFRicGlobalSum,
+            LFRicHaloDepths, LFRicLoopBounds, LFRicRunTimeChecks,
             LFRicScalarArgs, LFRicScalarArrayArgs, LFRicFields, LFRicDofmaps,
             LFRicStencils)
 
@@ -198,10 +201,9 @@ class LFRicInvoke(Invoke):
                     global_red = LFRicGlobalMax(kern.reduction_arg,
                                                 parent=loop.parent)
                 else:
-                    raise GenerationError(
-                        f"TODO #2381 - currently only global SUM/MAX/MIN "
-                        f"reductions are supported but kernel '{kern.name}' "
-                        f"performs a {kern.reduction_type}")
+                    raise InternalError(
+                        f"Unrecognised reduction '{kern.reduction_type}' "
+                        f"found for kernel '{kern.name}'.")
                 loop.parent.children.insert(loop.position+1, global_red)
 
         # Add the halo depth(s) for any kernel(s) that operate in the halos
