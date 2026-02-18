@@ -52,5 +52,8 @@ def trans(psyir):
     sir_writer = SIRWriter()
     for subroutine in psyir.walk(Routine):
         print(f"Transforming subroutine: {subroutine.name}")
-        sir_code = sir_writer(subroutine)
-        print(sir_code)
+        try:
+            sir_code = sir_writer(subroutine)
+            print(sir_code)
+        except Exception as e:
+            print(f"Failed to transform {subroutine.name}: {e}")
