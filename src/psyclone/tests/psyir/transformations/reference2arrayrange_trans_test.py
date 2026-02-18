@@ -295,34 +295,36 @@ def test_structure_references(fortran_reader, fortran_writer):
     ''' Test that the transformation can be applied to StructureReferences
     and its Members.
     '''
+    # The variable and field names have the capitalisation purposely
+    # modified to check that the validation is resilient to it.
     code = (
         "program test\n"
         "  type :: inner_type\n"
-        "      real :: inner\n"
+        "      real :: iNner\n"
         "  end type\n"
         "  type :: array_type\n"
-        "      real :: scalar\n"
-        "      real, dimension(10) :: field\n"
-        "      type(inner_type), dimension(10) :: field_of_fields\n"
+        "      real :: scaLar\n"
+        "      real, dimension(10) :: Field\n"
+        "      type(inner_type), dimension(10) :: fieLd_of_Fields\n"
         "  end type\n"
-        "  type(array_type) :: ref\n"
-        "  type(array_type), dimension(10) :: array_of_ref\n"
+        "  type(array_type) :: rEf\n"
+        "  type(array_type), dimension(10) :: arraY_of_ref\n"
         "  real :: b\n\n"
         "  ! These pass the transformation unmodified\n"
-        "  ref%scalar = 1\n"
-        "  array_of_ref(:)%scalar = 1\n"
-        "  ref%field(:) = 1\n"
-        "  array_of_ref(1)%field(:) = 1\n"
-        "  array_of_ref(:)%field(1) = 1\n"
-        "  array_of_ref(1)%field_of_fields(:)%inner = 1\n"
+        "  ref%sCalar = 1\n"
+        "  array_of_ref(:)%scalAr = 1\n"
+        "  ref%fiEld(:) = 1\n"
+        "  array_Of_ref(1)%field(:) = 1\n"
+        "  array_of_ref(:)%fielD(1) = 1\n"
+        "  array_of_ref(1)%field_oF_fields(:)%inneR = 1\n"
         "  ! These need range expressions added\n"
-        "  array_of_ref%scalar = 1\n"
-        "  array_of_ref(1)%field = 1\n"
+        "  array_of_ref%sCalar = 1\n"
+        "  array_of_reF(1)%fIeld = 1\n"
         "  array_of_ref%field(1) = 1\n"
         "  ref%field = 1\n"
         "  ref%field_of_fields%inner = 1\n"
         "  array_of_ref(1)%field_of_fields%inner = 1\n"
-        "  array_of_ref%field_of_fields(1)%inner = 1\n"
+        "  arrAy_of_ref%fiELd_of_fields(1)%innEr = 1\n"
         "end program test\n"
     )
     psyir = fortran_reader.psyir_from_source(code)
@@ -342,7 +344,7 @@ def test_structure_references(fortran_reader, fortran_writer):
   array_of_ref(:)%field(1) = 1
   array_of_ref(1)%field_of_fields(:)%inner = 1
   """
-    assert expected_unmodified in output
+    assert expected_unmodified in output.lower()
 
     # The following get some component replaced
     expected_modified = """
@@ -353,7 +355,7 @@ def test_structure_references(fortran_reader, fortran_writer):
   ref%field_of_fields(1:10)%inner = 1
   array_of_ref(1)%field_of_fields(1:10)%inner = 1
   array_of_ref(1:10)%field_of_fields(1)%inner = 1"""
-    assert expected_modified in output
+    assert expected_modified in output.lower()
 
 
 def test_unsupported_structure_references(fortran_reader):

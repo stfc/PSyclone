@@ -206,7 +206,7 @@ class Reference2ArrayRangeTrans(Transformation):
 
                 try:
                     cursor_datatype = cursor_datatype.components[
-                        cursor.member.name
+                        cursor.member.name.lower()
                     ]
                 except (AttributeError, KeyError):
                     # pylint: disable=raise-missing-from
@@ -299,7 +299,7 @@ class Reference2ArrayRangeTrans(Transformation):
 
                 try:
                     cursor_datatype = cursor_datatype.components[
-                        cursor.member.name
+                        cursor.member.name.lower()
                     ]
                 except (AttributeError, KeyError):
                     # This condition was already validated, if it happens here
