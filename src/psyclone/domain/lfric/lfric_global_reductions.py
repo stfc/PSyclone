@@ -36,8 +36,6 @@
 
 '''Provides the LFRic-specific global reduction nodes.'''
 
-from abc import ABC
-
 from psyclone.domain.common.psylayer import GlobalReduction
 from psyclone.errors import GenerationError
 from psyclone.lfric import LFRicKernelArgument
@@ -49,12 +47,13 @@ from psyclone.psyir.symbols import (
     UnresolvedType)
 
 
-class LFRicGlobalReduction(GlobalReduction, ABC):
+class _LFRicGlobalReduction(GlobalReduction):
     '''
     LFRic-specific class representing a GlobalReduction which can be added to
-    and manipulated in a schedule.
+    and manipulated in a schedule. Cannot be directly instantiated - use one
+    of the specific sub-classes instead.
 
-    :param scalar: the kernel argument for which to perform a global min.
+    :param scalar: the kernel argument for which to perform a global reduction.
     :param parent: the parent node of this node in the PSyIR.
 
     :raises GenerationError: if the scalar is not of real or integer
@@ -65,17 +64,23 @@ class LFRicGlobalReduction(GlobalReduction, ABC):
     # Needs to be set in sub-class.
     _reduction_type = ""
 
+    def __new__(cls, *args, **kwargs):
+        # We can't rely on abc.ABC to prevent this class from being
+        # instantiated as it doesn't have any abstract methods.
+        if cls is _LFRicGlobalReduction:
+            raise TypeError(
+                f"Only sub-classes of '{cls.__name__}' may be instantiated")
+        return GlobalReduction.__new__(cls)
+
     def __init__(self, scalar: LFRicKernelArgument, parent: Node = None):
         # Initialise the parent class
         super().__init__(scalar, parent=parent)
-        # Check scalar intrinsic types that this class supports (only
-        # "real" for now)
+        # Check scalar intrinsic types that this class supports.
         if scalar.intrinsic_type not in ["real", "integer"]:
             raise GenerationError(
-                f"{self._text_name} currently only supports real or integer "
-                f"scalars, but argument '{scalar.name}' in Kernel "
-                f"'{scalar.call.name}' has "
-                f"'{scalar.intrinsic_type}' intrinsic type.")
+                f"{self._text_name} only supports real or integer scalars, "
+                f"but argument '{scalar.name}' in Kernel '{scalar.call.name}' "
+                f"has '{scalar.intrinsic_type}' intrinsic type.")
 
     def lower_to_language_level(self) -> Node:
         '''
@@ -118,9 +123,9 @@ class LFRicGlobalReduction(GlobalReduction, ABC):
         return self.replace_with(assign2)
 
 
-class LFRicGlobalSum(LFRicGlobalReduction):
+class LFRicGlobalSum(_LFRicGlobalReduction):
     '''
-    LFRic specific global sum class which can be added to and
+    LFRic-specific global sum class which can be added to and
     manipulated in a schedule.
 
     '''
@@ -128,20 +133,24 @@ class LFRicGlobalSum(LFRicGlobalReduction):
     _reduction_type = "sum"
 
 
-class LFRicGlobalMin(LFRicGlobalReduction):
+class LFRicGlobalMin(_LFRicGlobalReduction):
     '''
-    LFRic specific global min class which can be added to and
+    LFRic-specific global min class which can be added to and
     manipulated in a schedule.
+
+    Represents finding the global minimum value of a scalar.
 
     '''
     _text_name = "LFRicGlobalMin"
     _reduction_type = "min"
 
 
-class LFRicGlobalMax(LFRicGlobalReduction):
+class LFRicGlobalMax(_LFRicGlobalReduction):
     '''
-    LFRic specific global max class which can be added to and
+    LFRic-specific global max class which can be added to and
     manipulated in a schedule.
+
+    Represents finding the global maximum value of a scalar.
 
     '''
     _text_name = "LFRicGlobalMax"
