@@ -222,22 +222,24 @@ def test_validate_no_known_datatype(fortran_reader, fortran_writer):
     with pytest.raises(TransformationError) as info:
         trans.validate(Reference(Symbol("x")))
     assert ("The supplied node should be a Reference to a DataSymbol but "
-            "found 'x: Symbol<Automatic>'. Consider adding the declaration"
-            "'s filename to RESOLVE_IMPORTS." in str(info.value))
+            "found 'x: Symbol<Automatic>'. Consider adding the name of the "
+            "file containing the declaration of this quantity to "
+            "RESOLVE_IMPORTS." in str(info.value))
     # If it is a datasymbol of UnresolvedType
     with pytest.raises(TransformationError) as info:
         trans.validate(Reference(DataSymbol("x", UnresolvedType())))
     assert ("The supplied node should be a Reference to a symbol of known "
-            "type, but 'x' is 'UnresolvedType'. Consider adding the "
-            "declaration's filename to RESOLVE_IMPORTS."
-            in str(info.value))
+            "type, but 'x' is 'UnresolvedType'. Consider adding the name of "
+            "the file containing the declaration of this quantity to "
+            "RESOLVE_IMPORTS." in str(info.value))
     # If it is a datasymbol of UnsupportedType
     with pytest.raises(TransformationError) as info:
         trans.validate(Reference(
            DataSymbol("x", UnsupportedFortranType("decl"))))
     assert ("The supplied node should be a Reference to a symbol of known "
             "type, but 'x' is 'UnsupportedFortranType('decl')'. Consider "
-            "adding the declaration's filename to RESOLVE_IMPORTS."
+            "adding the name of the file containing the declaration of this "
+            "quantity to RESOLVE_IMPORTS."
             in str(info.value))
 
     # The exception is when the Unresolved is inside a Range

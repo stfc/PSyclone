@@ -148,8 +148,9 @@ class Reference2ArrayRangeTrans(Transformation):
         if not isinstance(node.symbol, DataSymbol):
             raise TransformationError(
                 f"The supplied node should be a Reference to a DataSymbol "
-                f"but found '{node.symbol}'. Consider adding the declaration"
-                f"'s filename to RESOLVE_IMPORTS.")
+                f"but found '{node.symbol}'. Consider adding the name of the "
+                f"file containing the declaration of this quantity to "
+                f"RESOLVE_IMPORTS.")
 
         cursor = node
         cursor_datatype = cursor.symbol.datatype
@@ -196,8 +197,9 @@ class Reference2ArrayRangeTrans(Transformation):
                     raise TransformationError(
                         f"The supplied node should be a Reference to a symbol "
                         f"of known type, but '{node.debug_string()}' is "
-                        f"'{cursor_datatype}'. Consider adding the declaration"
-                        f"'s filename to RESOLVE_IMPORTS.")
+                        f"'{cursor_datatype}'. Consider adding the name of the"
+                        f" file containing the declaration of this quantity to"
+                        f" RESOLVE_IMPORTS.")
 
             # Continue recursing if it is some kind of structure accessor
             if isinstance(cursor, StructureAccessorMixin):

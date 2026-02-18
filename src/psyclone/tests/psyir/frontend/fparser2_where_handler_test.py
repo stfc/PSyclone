@@ -1253,8 +1253,8 @@ def test_nested_where(fortran_reader, fortran_writer):
     assert ("WHERE not supported because 'p_dal' cannot be converted to an "
             "array due to: Transformation Error: The supplied node should be "
             "a Reference to a symbol of known type, but 'p_dal%D12(:,:,1)' is"
-            " 'UnresolvedType'. Consider adding the declaration's filename "
-            "to RESOLVE_IMPORTS.")
+            " 'UnresolvedType'. Consider adding the name of the file "
+            "containing the declaration of this quantity to RESOLVE_IMPORTS.")
 
     # If some information is provided, one of the WHEREs can be resolved, but
     # the other still is a CodeBlock
@@ -1294,7 +1294,8 @@ widx2 - 1) = SQRT(p_dal%D11(widx1,widx2,1) * p_dal%D22(widx1,widx2,1))
           !  - WHERE not supported because 'p_ens' cannot be converted to an \
 array due to: Transformation Error: The supplied node should be a Reference \
 to a symbol of known type, but 'p_ens%D11_min(:,:)' is 'UnresolvedType'. \
-Consider adding the declaration's filename to RESOLVE_IMPORTS.
+Consider adding the name of the file containing the declaration of this \
+quantity to RESOLVE_IMPORTS.
           WHERE (z_lenp2(:, :) == 0.0_wp)
             p_dal % D11(:, :, 1) = p_ens % D11_min(:, :)
             p_dal % D22(:, :, 1) = p_ens % D22_min(:, :)
