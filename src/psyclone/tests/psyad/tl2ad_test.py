@@ -101,7 +101,7 @@ def test_generate_adjoint_str(caplog, tmpdir):
     assert expected in result
     assert test_harness == ""
 
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger="psyclone.psyad.tl2ad"):
         result, test_harness = generate_adjoint_str(tl_code, ["a", "b"])
 
         assert tl_code in caplog.text
@@ -202,7 +202,7 @@ def test_generate_adjoint_str_trans(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_generate_adjoint_str_trans_error(tmpdir):
+def test_generate_adjoint_str_trans_error():
     '''Test that the generate_adjoint_str() function successfully catches
     an error from the preprocess_trans() function.
 
@@ -298,7 +298,7 @@ def test_generate_adjoint_str_generate_harness_logging(caplog):
     with caplog.at_level(logging.INFO):
         _ = generate_adjoint_str(tl_code, ["field"], create_test=True)
     assert caplog.text == ""
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger="psyclone.psyad.tl2ad"):
         _, harness = generate_adjoint_str(tl_code, ["field"],
                                           create_test=True)
     if not caplog.text:
