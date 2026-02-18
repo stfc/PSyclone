@@ -2871,6 +2871,31 @@ scheme presented below. Any new Built-in needs to comply with these rules.
       ``real``-valued arguments and ``"LFRicInt"`` for the Built-in
       operations on the ``integer``-valued fields.
 
+Querying Built-in Operations
+++++++++++++++++++++++++++++
+
+Within a Python script, the (lowercase) names of all available
+Built-ins in the LFRIc API can be queried using the ``BUILTIN_MAP``
+dictionary object from the ``psyclone.domain.lfric.lfric_builtins``
+module.
+
+Example code:
+
+.. highlight:: python
+.. testcode::
+
+    from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
+    
+    kernel_name = "setval_x"    # example only
+    if kernel_name.lower() in BUILTIN_MAP:
+        print(f"Name '{kernel_name}' is a Built-in kernel.")
+    else:
+        print(f"Name '{kernel_name}' is not a Built-in.")
+
+.. testoutput::
+
+  Name 'setval_x' is a Built-in kernel.
+
 .. _lfric-built-ins-real:
 
 Built-in operations on ``real``-valued fields
