@@ -1,3 +1,5 @@
+   49) PR #3331 for #3291. Update docs for LFRic BUILTIN_MAP.
+
    48) PR #3296 for #2951. Improves ArrayAssignment2LoopTrans to allow
    for dependencies between LHS and RHS.
  
