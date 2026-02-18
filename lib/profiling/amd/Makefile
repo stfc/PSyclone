@@ -37,7 +37,7 @@
 
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
-F90 ?= amdflang
+F90 ?= gfortran
 F90FLAGS ?= -g
 # -----------------------------------------------------------------------------
 

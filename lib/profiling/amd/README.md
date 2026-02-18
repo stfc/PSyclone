@@ -28,7 +28,7 @@ For documentation on ROCTx, see:
 ## Compilation
 
 A ``Makefile`` is provided and just executing `make` should build the wrapper
-library. By default the ``amdflang`` compiler is used but ``gfortran`` works too.
+library. By default the ``gfortran`` compiler is used but ``amdflang`` is recommended in general.
 Running ``make`` will produce ``libroctx_prof.a`` and ``profile_psy_data_mod.mod``.
 
 When compiling the application that has been instrumented for profiling, the
