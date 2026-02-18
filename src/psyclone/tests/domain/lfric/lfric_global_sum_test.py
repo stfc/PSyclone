@@ -40,14 +40,14 @@
 
 import pytest
 
-from psyclone.domain.lfric import LFRicGlobalSum
+from psyclone.domain.lfric.lfric_global_reduction import LFRicGlobalSum
 from psyclone.errors import GenerationError
 from psyclone.tests.utilities import get_invoke
 
 TEST_API = "lfric"
 
 
-def test_lfricglobalsum_unsupported_scalar():
+def test_lfricglobalsum_unsupported_scalar(monkeypatch):
     ''' Check that an instance of the LFRicGlobalSum class raises an
     exception if an unsupported scalar type is provided when distributed
     memory is enabled (dm=True).
@@ -60,8 +60,10 @@ def test_lfricglobalsum_unsupported_scalar():
     loop = schedule.children[4]
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[1]
+    # Monkeypatch its type.
+    monkeypatch.setattr(argument, "_intrinsic_type", "logical")
     with pytest.raises(GenerationError) as err:
         _ = LFRicGlobalSum(argument)
-    assert ("LFRicGlobalSum currently only supports real scalars, but "
-            "argument 'iflag' in Kernel 'testkern_one_int_scalar_code' "
-            "has 'integer' intrinsic type." in str(err.value))
+    assert ("LFRicGlobalSum currently only supports real or integer scalars, "
+            "but argument 'iflag' in Kernel 'testkern_one_int_scalar_code' "
+            "has 'logical' intrinsic type." in str(err.value))

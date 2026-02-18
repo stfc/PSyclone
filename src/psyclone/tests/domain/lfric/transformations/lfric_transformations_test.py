@@ -47,8 +47,9 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
+from psyclone.domain.lfric.lfric_global_reduction import LFRicGlobalSum
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.domain.lfric import LFRicGlobalSum, LFRicLoop
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.lfric import (LFRicHaloExchangeStart,
                             LFRicHaloExchangeEnd, LFRicHaloExchange)
 from psyclone.errors import GenerationError, InternalError

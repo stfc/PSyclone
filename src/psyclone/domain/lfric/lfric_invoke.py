@@ -96,7 +96,7 @@ class LFRicInvoke(Invoke):
                                     LFRicMeshes, LFRicBoundaryConditions,
                                     LFRicProxies, LFRicMeshProperties)
         from psyclone.domain.lfric import (
-            LFRicCellIterators, LFRicGlobalMax, LFRicGlobalMin, LFRicGlobalSum,
+            LFRicCellIterators,
             LFRicHaloDepths, LFRicLoopBounds, LFRicRunTimeChecks,
             LFRicScalarArgs, LFRicScalarArrayArgs, LFRicFields, LFRicDofmaps,
             LFRicStencils)
@@ -187,6 +187,8 @@ class LFRicInvoke(Invoke):
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
             # Global reductions
+            from psyclone.domain.lfric.lfric_global_reduction import (
+                LFRicGlobalMax, LFRicGlobalMin, LFRicGlobalSum)
             for kern in self.schedule.walk(LFRicBuiltIn):
                 if not kern.is_reduction:
                     continue

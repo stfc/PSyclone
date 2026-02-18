@@ -2,8 +2,9 @@ import pytest
 
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import (
-    FunctionSpace, LFRicConstants, LFRicGlobalMax, LFRicGlobalSum)
+from psyclone.domain.lfric import FunctionSpace, LFRicConstants
+from psyclone.domain.lfric.lfric_global_reduction import (
+    LFRicGlobalMax, LFRicGlobalSum)
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.errors import GenerationError, InternalError
