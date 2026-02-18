@@ -494,5 +494,5 @@ def test_datanodetotemptrans_apply_nemo_example(fortran_reader,
     assert """real, allocatable, dimension(:,:,:) :: tmp
 
     ALLOCATE(tmp(1:nie0 - nis0 + 1,1:nje0 - njs0 + 1,1:SIZE(rn2, dim=3)))
-    tmp = -avt_k(:,:,:) * rn2(nis0:nie0,njs0:nje0,:) *\
+    tmp = -avt_k(:,:,:) * rn2(nis0:nie0,njs0:nje0,:) * \
 wmask(nis0:nie0,njs0:nje0,:)""" in out
