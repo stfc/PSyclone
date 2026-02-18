@@ -37,8 +37,8 @@
 ''' Module containing pytest tests for the handling of the WHERE
 construct in the PSyIR. '''
 
-import pytest
 from typing import Optional
+import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003, utils
@@ -51,6 +51,7 @@ from psyclone.psyir.nodes import (
     Reference, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, INTEGER_TYPE)
+from psyclone.tests.utilities import Compile
 
 
 def process_where(
@@ -1228,7 +1229,7 @@ def test_array_syntax_to_indexed_unknown_elemental(fortran_reader):
             "filename to RESOLVE_IMPORTS." in str(excinfo.value))
 
 
-def test_nested_where(fortran_reader, fortran_writer):
+def test_nested_where(fortran_reader, fortran_writer, tmpdir):
     ''' Test that we handle nested WHERE statements. '''
 
     # If the types are not known it creates a codeblock with the associated
@@ -1307,7 +1308,6 @@ quantity to RESOLVE_IMPORTS.
 
     # If enough information is provided, both WHEREs are resolved and nested
     code = ("module my_mod\n"
-            "  use some_mod\n"
             "contains\n"
             "subroutine my_sub()\n"
             "  type :: mytype\n"
@@ -1321,10 +1321,11 @@ quantity to RESOLVE_IMPORTS.
             "  end type\n"
             "  type(mytype) :: p_dal\n"
             "  type(mytype2) :: p_ens\n"
-            "  WHERE ( z_lenp4(:,:) <= 0.0_wp )\n"
-            "    p_dal%D12(:,:,1) = 0.0_wp\n"
+            "  real, dimension(10,10) :: z_lenp2, z_lenp4, z_lenp2_min\n"
+            "  WHERE ( z_lenp4(:,:) <= 0.0 )\n"
+            "    p_dal%D12(:,:,1) = 0.0\n"
             "    z_lenp2(:,:) = SQRT( p_dal%D11(:,:,1) * p_dal%D22(:,:,1) )\n"
-            "    WHERE ( z_lenp2(:,:) == 0.0_wp )\n"
+            "    WHERE ( z_lenp2(:,:) == 0.0 )\n"
             "      p_dal%D11(:,:,1) = p_ens%D11_min(:,:)\n"
             "      p_dal%D22(:,:,1) = p_ens%D22_min(:,:)\n"
             "      z_lenp2(:,:) = z_lenp2_min(:,:)\n"
@@ -1335,26 +1336,22 @@ quantity to RESOLVE_IMPORTS.
     psyir = fortran_reader.psyir_from_source(code)
     code = fortran_writer(psyir)
     assert """
-    do widx2 = 1, SIZE(z_lenp4, dim=2), 1
-      do widx1 = 1, SIZE(z_lenp4, dim=1), 1
-        if (z_lenp4(LBOUND(z_lenp4, dim=1) + widx1 - 1,LBOUND(z_lenp4, dim=2) \
-+ widx2 - 1) <= 0.0_wp) then
-          p_dal%D12(widx1,widx2,1) = 0.0_wp
-          z_lenp2(LBOUND(z_lenp2, dim=1) + widx1 - 1,LBOUND(z_lenp2, dim=2) + \
-widx2 - 1) = SQRT(p_dal%D11(widx1,widx2,1) * p_dal%D22(widx1,widx2,1))
-          do widx2_1 = 1, SIZE(z_lenp2, dim=2), 1
-            do widx1_1 = 1, SIZE(z_lenp2, dim=1), 1
-              if (z_lenp2(LBOUND(z_lenp2, dim=1) + widx1_1 - 1,\
-LBOUND(z_lenp2, dim=2) + widx2_1 - 1) == 0.0_wp) then
+    do widx2 = 1, 10, 1
+      do widx1 = 1, 10, 1
+        if (z_lenp4(widx1,widx2) <= 0.0) then
+          p_dal%D12(widx1,widx2,1) = 0.0
+          z_lenp2(widx1,widx2) = \
+SQRT(p_dal%D11(widx1,widx2,1) * p_dal%D22(widx1,widx2,1))
+          do widx2_1 = 1, 10, 1
+            do widx1_1 = 1, 10, 1
+              if (z_lenp2(widx1_1,widx2_1) == 0.0) then
                 p_dal%D11(widx1_1,widx2_1,1) = p_ens%D11_min(widx1_1,widx2_1)
                 p_dal%D22(widx1_1,widx2_1,1) = p_ens%D22_min(widx1_1,widx2_1)
-                z_lenp2(LBOUND(z_lenp2, dim=1) + widx1_1 - 1,\
-LBOUND(z_lenp2, dim=2) + widx2_1 - 1) = \
-z_lenp2_min(LBOUND(z_lenp2_min, dim=1) + widx1_1 - 1,\
-LBOUND(z_lenp2_min, dim=2) + widx2_1 - 1)
+                z_lenp2(widx1_1,widx2_1) = z_lenp2_min(widx1_1,widx2_1)
               end if
             enddo
           enddo
         end if
       enddo
     enddo""" in code
+    assert Compile(tmpdir).string_compiles(code)
