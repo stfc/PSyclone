@@ -62,7 +62,7 @@ from psyclone.psyir.symbols import UnsupportedFortranType
 from psyclone.utils import a_or_an
 
 #: The name of the file containing the meta-data describing the
-## built-in operations for this API
+#: built-in operations for this API
 BUILTIN_DEFINITIONS_FILE = "lfric_builtins_mod.f90"
 
 
@@ -3430,8 +3430,8 @@ BUILTIN_MAP_CAPITALISED = REAL_BUILTIN_MAP_CAPITALISED
 BUILTIN_MAP_CAPITALISED.update(INT_BUILTIN_MAP_CAPITALISED)
 
 #: Built-in map dictionary in lowercase keys for invoke generation and
-## comparison purposes. This does not enforce case sensitivity to Fortran
-## built-in names.
+#: comparison purposes. This does not enforce case sensitivity to Fortran
+#: built-in names.
 BUILTIN_MAP = get_lowercase_builtin_map(BUILTIN_MAP_CAPITALISED)
 
 
