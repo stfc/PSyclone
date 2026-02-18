@@ -68,7 +68,7 @@ from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_fields import LFRicFields
-from psyclone.domain.lfric.lfric_global_reduction import (
+from psyclone.domain.lfric.lfric_global_reductions import (
     LFRicGlobalMax, LFRicGlobalMin, LFRicGlobalSum)
 from psyclone.domain.lfric.lfric_run_time_checks import LFRicRunTimeChecks
 from psyclone.domain.lfric.lfric_invokes import LFRicInvokes

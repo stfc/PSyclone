@@ -187,7 +187,7 @@ class LFRicInvoke(Invoke):
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
             # Global reductions
-            from psyclone.domain.lfric.lfric_global_reduction import (
+            from psyclone.domain.lfric.lfric_global_reductions import (
                 LFRicGlobalMax, LFRicGlobalMin, LFRicGlobalSum)
             for kern in self.schedule.walk(LFRicBuiltIn):
                 if not kern.is_reduction:

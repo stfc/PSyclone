@@ -40,7 +40,7 @@
 
 import pytest
 
-from psyclone.domain.lfric.lfric_global_reduction import LFRicGlobalSum
+from psyclone.domain.lfric.lfric_global_reductions import LFRicGlobalSum
 from psyclone.errors import GenerationError
 from psyclone.tests.utilities import get_invoke
 

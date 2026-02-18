@@ -3,7 +3,7 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import FunctionSpace, LFRicConstants
-from psyclone.domain.lfric.lfric_global_reduction import (
+from psyclone.domain.lfric.lfric_global_reductions import (
     LFRicGlobalMax, LFRicGlobalSum)
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import OMPParallelTrans
