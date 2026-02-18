@@ -58,7 +58,6 @@ class _LFRicGlobalReduction(GlobalReduction):
 
     :raises GenerationError: if the scalar is not of real or integer
                              intrinsic type.
-
     '''
     _text_name = "LFRicGlobalReduction"
     # Needs to be set in sub-class.
@@ -83,16 +82,16 @@ class _LFRicGlobalReduction(GlobalReduction):
                 f"has '{scalar.intrinsic_type}' intrinsic type.")
 
     def lower_to_language_level(self) -> Node:
-        '''
-        :returns: this node lowered to language-level PSyIR.
-        '''
+        ''':returns: this node lowered to language-level PSyIR.
 
-        # Get the name strings to use
+        '''
+        # Get the name of the LFRic scalar type and the module from which
+        # to import it.
         name = self._scalar.name
         type_name = self._scalar.data_type
         mod_name = self._scalar.module_name
 
-        # Get the symbols from the given names
+        # Get the symbols from the given names.
         symtab = self.ancestor(InvokeSchedule).symbol_table
         # The Container from which to import the scalar type.
         scal_mod = symtab.find_or_create(mod_name, symbol_type=ContainerSymbol)
@@ -101,7 +100,8 @@ class _LFRicGlobalReduction(GlobalReduction):
                                           symbol_type=DataTypeSymbol,
                                           datatype=UnresolvedType(),
                                           interface=ImportInterface(scal_mod))
-        # An instance of scalar type that we will use to get the global min.
+        # An instance of scalar type that we will use to get the global
+        # min/max/sum.
         red_name = symtab.find_or_create_tag(f"global_{self._reduction_type}",
                                              symbol_type=DataSymbol,
                                              datatype=scal_type)
