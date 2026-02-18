@@ -645,7 +645,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 dtype = idx_expr.datatype
                 if isinstance(dtype, ArrayType):
                     # An array slice can be defined by a 1D slice of another
-                    # array, e.g. `a(b(1:4))` or `a(b)`.
+                    # array, e.g. `a(b(1:4))`, `a(b)` or a(b(:)).
                     indirect_array_shape = dtype.shape
                     if len(indirect_array_shape) > 1:
                         raise NotImplementedError(
@@ -655,7 +655,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                             f"{len(indirect_array_shape)} dimensions.")
                     # pylint: disable=protected-access
                     if isinstance(idx_expr, ArrayMixin):
-                        shape.append(idx_expr._extent(idx))
+                        shape.append(idx_expr._get_effective_shape()[0])
                     else:
                         # We have some expression with a shape but no explicit
                         # indexing. The extent of this is then the SIZE of

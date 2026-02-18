@@ -175,6 +175,29 @@ provided to the pytest command line. It also ensures that (if
 compilation testing is enabled) the LFRic-stub and GOcean infrastructure
 libraries are compiled prior to any tests running.
 
+.. _logging_testing:
+
+Testing PSyclone's Logging Calls
+--------------------------------
+Logging should also be explicitly tested through the use of the ``caplog``
+pytest fixture. It is important that the expected logger is specified
+in the test: if `main` (in `generate.py`) is executed, a handler is attached
+to the PSyclone top-level logger. This means that no log events are
+propagated to the Python root level logger, and ``caplog`` without
+a logger specified will only test the root logger. This can result in
+tests passing when executed on their own, but failing randomly when
+executed with other tests: these test might call ``main`` (and
+therefore prevent the root logger to receive the message), and
+``caplog`` will then fail (if no logger is specified). Here is the
+proper way of testing log messages in a test:
+
+.. code-block:: python
+
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.tools.read_write_info"):
+        ...
+    assert "your message here" in caplog.text
+
 
 .. _test_coverage:
 

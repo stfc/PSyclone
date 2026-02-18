@@ -1,4 +1,19 @@
-   43) PR #3326 for #3323 - bug fix for comments before directives on
+   48) PR #3296 for #2951. Improves ArrayAssignment2LoopTrans to allow
+   for dependencies between LHS and RHS.
+ 
+   47) PR #3332 for #3143 - fixes bug in DependenceUseChain so that
+   previous access of a call argument does not return the call.
+ 
+   46) PR #3319 for #3318. Alters the logging set-up performed by PSyclone
+   so that it does not affect the root Python logger.
+ 
+   45) PR #3125 towards #3060. IntrinsicCall reference_accesses now returns
+   appropriate access_types (instead of a generic READWRITE).
+
+   44) PR #3301 towards #1646. Adds new DataNodeToTempTrans() that allows
+   an expression to be replaced with a temporary variable.
+ 
+   43) PR #3326 for #3323. Bug fix for comments before directives on
    loops or if statements.
  
    42) PR #3324 updates Intel OneAPI configuration in Integration Tests.
