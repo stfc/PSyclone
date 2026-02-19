@@ -477,17 +477,16 @@ def add_profiling(children: Union[List[Node], Schedule]):
         attempt to add profiling regions.
 
     '''
-    class MaximalProfilingTrans(MaximalRegionTrans):
-        '''Applies Profiling to the largest possible region.
+    class MaximalProfilingOutsideDirectivesTrans(MaximalRegionTrans):
+        '''Applies Profiling to the largest possible region outside of
+        directive regions.
 
         :param routine_name: The name of the Routine being profiled.
         '''
-        _allowed_contiguous_nodes = (Assignment, Call, CodeBlock)
+        # We purposely don't encompase Directive, or Return statements
+        # (which would create unclosed hooks).
+        _allowed_contiguous_statements = (Assignment, Call, CodeBlock)
         _transformation = ProfileTrans
-
-        def __init__(self, routine_name: str = ""):
-            super().__init__()
-            self._routine_name = routine_name
 
         def _satisfies_minimum_region_rules(self, region: list[Node]) -> bool:
             '''Returns whether the provided node list satisfies the
@@ -498,21 +497,18 @@ def add_profiling(children: Union[List[Node], Schedule]):
             :returns: whether the provided node list should have profiling
                 applied.
             '''
-            if any(ignore in self._routine_name for ignore in
-                   PROFILING_IGNORE):
-                return False
             if len(region) == 1:
                 if (isinstance(region[0], CodeBlock) and
                         len(region[0].get_ast_nodes) == 1):
                     # Don't create profiling regions for CodeBlocks consisting
                     # of a single statement.
                     return False
-            if (isinstance(region[0], IfBlock) and
-                "was_single_stmt" in region[0].annotations and
-                    isinstance(region[0].if_body[0], CodeBlock)):
-                # We also don't put single statements consisting of
-                # 'If(condition) call blah()' inside profiling regions.
-                return False
+                if (isinstance(region[0], IfBlock) and
+                    "was_single_stmt" in region[0].annotations and
+                        isinstance(region[0].if_body[0], CodeBlock)):
+                    # We also don't put single statements consisting of
+                    # 'If(condition) call blah()' inside profiling regions.
+                    return False
             return super()._satisfies_minimum_region_rules(region)
 
     if children and isinstance(children, Schedule):
@@ -528,4 +524,5 @@ def add_profiling(children: Union[List[Node], Schedule]):
     if parent_routine and parent_routine.return_symbol:
         return
     routine_name = parent_routine.name if parent_routine else ""
-    MaximalProfilingTrans(routine_name=routine_name).apply(children)
+    if routine_name not in PROFILING_IGNORE:
+        MaximalProfilingOutsideDirectivesTrans().apply(children)

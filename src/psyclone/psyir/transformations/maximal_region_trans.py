@@ -54,27 +54,22 @@ from psyclone.utils import transformation_documentation_wrapper
 
 @transformation_documentation_wrapper
 class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
-    '''Abstract transformation containing the functionality to add
-    the largest allowed transformation to the provided code segment.
+    '''
+    Abstract transformation containing the functionality to apply
+    another transformation to the largest code segments possible
+    while satisfying its validation and any additionally provided
+    constraints.
 
-    Subclasses should override the _transformation and
-    _allowed_contiguous_nodes members to control the functionality.
-
-    The _transformation should be a transformation class to apply to
-    the computed set of regions.
-
-    The _allowed_contiguous_nodes is a tuple of Node classes that are allowed
-    as statements in the transformed region. Note that upon finding a Loop or
-    IfBlock, the node's children will be checked to determine whether its safe
-    to contain the Loop or IfBlock in the transformed section.'''
-
+    Subclasses should override the _transformation, _required_nodes, and
+    _allowed_contiguous_statements members to control the functionality.
+    '''
     #: The type of transformation to be applied to the input region.
     _transformation = None
     #: Tuple of top-level statement nodes allowed inside the _transformation.
     #: Loops and IfBlocks are always recursed into if they're not part of this
     #: tuple, and their children will be checked to see which sections can
     #: have the transformation applied.
-    _allowed_contiguous_nodes = ()
+    _allowed_contiguous_statements = ()
     #: Tuple of nodes that there must be at least one of inside the block
     #: to be transformed, else the block can be ignored (e.g. a block of
     #: only barriers doesn't need to be transformed). Defaults to any Node.
@@ -84,14 +79,14 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         '''Returns whether the provided node is allowed in the _transformation.
 
         The default implementation checks whether the node is an instance
-        of the _allowed_contiguous_nodes tuple, but subclasses may override
+        of the _allowed_contiguous_statements tuple, but subclasses may override
         this with additional functionality (e.g. to check if a function is
         pure).
 
         :param node: the candidate node to be in the transformation region.
         :returns: whether the node is allowed to be in the transformed region.
         '''
-        return isinstance(node, self._allowed_contiguous_nodes)
+        return isinstance(node, self._allowed_contiguous_statements)
 
     def _satisfies_minimum_region_rules(self, region: list[Node]) -> bool:
         '''Returns whether the provided node list satisfies the requirements
@@ -122,6 +117,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         :returns: whether it is safe to add the node to a transformed region.
         '''
+#        print(type(node), self._node_allowed(node))
         if self._node_allowed(node):
             return True
 
@@ -139,6 +135,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
             # Check that all contents of each branch body can be part
             # of the region.
             allowed = True
+            print(node.debug_string())
             for child in node.if_body:
                 allowed = (allowed and self._can_be_in_region(child))
             if node.else_body and allowed:
