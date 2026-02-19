@@ -47,6 +47,7 @@ env:
   NETCDF_FORTRAN_VERSION: 4.6
   NVFORTRAN_VERSION: 26.1
   INTEL_TOOLCHAIN: intel25_3_openmpi
+  NVHPC_TOOLCHAIN: nvhpc26_1_openmpi
   PERL_VERSION: 5.42
   PYTHON_VERSION: 3.14
   NUM_PARALLEL: 16
@@ -173,8 +174,8 @@ jobs:
     - name: NEMO MetOffice OpenACC loops for GPU
       id: nemo_acc_loops
       run: |
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%nvhpc
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         . .runner_venv/bin/activate
 
         # Set up envvars
@@ -303,6 +304,7 @@ jobs:
             {
               ci_test: "NEMOv4 OpenACC kernels for GPU",
               nemo_version: "MEMO MO 4.0.2",
+              compiler:"'"${NVHPC_TOOLCHAIN}"'",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_acc_kernels}}"',
               '"$COMMON_FIELDS"'
@@ -310,6 +312,7 @@ jobs:
             {
               ci_test: "NEMOv4 OpenACC loops for GPU",
               nemo_version: "MEMO MO 4.0.2",
+              compiler:"'"${NVHPC_TOOLCHAIN}"'",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_acc_loops}}"',
               '"$COMMON_FIELDS"'
