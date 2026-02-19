@@ -792,67 +792,119 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
     ) in fortran_writer(psyir)
 
 
-def test_validate_non_elemental_functions(fortran_reader):
-    '''Check that the validate method returns an exception if the rhs of
-    the assignment contains a call that is not elemental.'''
+def test_apply_functions(fortran_reader, fortran_writer):
+    ''' Check that pure functions that are guaranteed to return an scalar or
+    elemental functions can be expanded.
+
+    Everything else is currently not supported.
+    '''
     psyir = fortran_reader.psyir_from_source('''
     module mymod
         implicit none
+        use other
 
         contains
 
-        real function mylocalfunc()
-            mylocalfunc = 3.4
+        pure integer function scalarpurefunc()
+            scalarpurefunc = 3.4
+        end function
+        pure function arraypurefunc()
+            integer, dimension(3) :: arraypurefunc
+            arraypurefunc = (/1,2,3/)
+        end function
+        real function counter()
+            integer, save :: count = 0
+            count = count + 1
+            counter = count
         end function
 
         subroutine test()
           use other, only: myfunc
           integer, dimension(:,:) :: x, y, z
-          x(:) = matmul(y, z)
-          x(:) = mylocalfunc(y)
-          x(:) = myfunc(y)
-          x(:) = var%myfunc(y)
+          integer, dimension(:,:,:) :: array2d
+          integer, dimension(3) :: array1d
+          ! Pure functions that return an scalar are supported
+          x = sum(y) + y
+          ! Can be extended once call.datatype is improved
+          x = scalarpurefunc(y)
+
+          ! Pure functions that return an array could, but currently
+          ! are not supported
+          array1d = arraypurefunc() + array1d + 3
+          x = sum(array2d, dim=2)
+          x = matmul(y, z)
+          array1d = shape(array2d)
+
+          ! Impure functions are not supported, even if they return an scalar
+          x = counter()
+          x = unknownfunc(y)
+          x = var%myfunc(name=y)
         end subroutine test
     end module mymod
     ''')
     trans = ArrayAssignment2LoopsTrans()
-    assignment1 = psyir.walk(Assignment)[1]
-    assignment2 = psyir.walk(Assignment)[2]
-    assignment3 = psyir.walk(Assignment)[3]
-    assignment4 = psyir.walk(Assignment)[4]
 
-    # When we know for sure that they are not elemental
-    with pytest.raises(TransformationError) as err:
-        trans.validate(assignment1, options={"verbose": True})
-    errormsg = ("ArrayAssignment2LoopsTrans does not accept calls which are "
-                "not guaranteed to be elemental, but found: MATMUL")
-    assert errormsg in assignment1.preceding_comment
-    assert errormsg in str(err.value)
+    assignment1 = psyir.walk(Assignment)[4]
+    assignment2 = psyir.walk(Assignment)[5]
+    assignment3 = psyir.walk(Assignment)[6]
+    assignment4 = psyir.walk(Assignment)[7]
+    assignment5 = psyir.walk(Assignment)[8]
+    assignment6 = psyir.walk(Assignment)[9]
+    assignment7 = psyir.walk(Assignment)[10]
+    assignment8 = psyir.walk(Assignment)[11]
+    assignment9 = psyir.walk(Assignment)[12]
 
+    trans.apply(assignment1)
+
+    # This can be extended when call.datatype is improved
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment2, options={"verbose": True})
     errormsg = ("ArrayAssignment2LoopsTrans does not accept calls which are "
-                "not guaranteed to be elemental, but found: mylocalfunc")
+                "not guaranteed to return an scalar or be elemental, but "
+                "found 'scalarpurefunc'")
     assert errormsg in assignment2.preceding_comment
     assert errormsg in str(err.value)
 
-    # Also, when calls are to unresolved symbols and we don't know if they
-    # are elemental or not
+    # Pure functions returning an array
+    errormsg = "ArrayAssignment2LoopsTrans does not accept calls which are "
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment3, options={"verbose": True})
-    errormsg = ("Reference2ArrayRangeTrans could not decide if the reference "
-                "'y' is an array or not. Resolving the import that brings "
-                "this variable into scope may help.")
-    assert errormsg in assignment3.preceding_comment
+    # TODO #2429: This has the correct behaviour but for the wrong reason,
+    # once this issue is resolved the error message should be the expected
+    # one.
+    # assert errormsg in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignment4)
+    assert errormsg in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignment5)
+    assert errormsg in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignment6)
     assert errormsg in str(err.value)
 
+    # There are impure (or we don't know the purity)
     with pytest.raises(TransformationError) as err:
-        trans.validate(assignment4, options={"verbose": True})
-    errormsg = ("Reference2ArrayRangeTrans could not decide if the reference "
-                "'var' is an array or not. Resolving the import that brings "
-                "this variable into scope may help.")
-    assert errormsg in assignment4.preceding_comment
+        trans.validate(assignment7)
+    # TODO #2429: This has the correct behaviour but for the wrong reason,
+    # once this issue is resolved the error message should be the expected
+    # one.
+    # assert errormsg in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignment8)
     assert errormsg in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignment9)
+    assert errormsg in str(err.value)
+
+    # Check the ones that have been extended
+    code = fortran_writer(psyir)
+    assert """
+    do idx = LBOUND(x, dim=2), UBOUND(x, dim=2), 1
+      do idx_1 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1
+        x(idx_1,idx) = SUM(y) + y(idx_1,idx)
+      enddo
+    enddo""" in code
 
 
 def test_validate_indirect_indexing(fortran_reader):
@@ -894,8 +946,8 @@ def test_validate_indirect_indexing(fortran_reader):
     with pytest.raises(TransformationError) as err:
         trans.validate(assignments[3])
     assert ("ArrayAssignment2LoopsTrans does not accept calls which are not "
-            "guaranteed to be elemental, but found: my_func"
-            in str(err.value))
+            "guaranteed to return an scalar or be elemental, but found "
+            "'my_func'" in str(err.value))
 
 
 def test_validate_structure(fortran_reader):
@@ -948,23 +1000,3 @@ def test_validate_structure(fortran_reader):
             "'grid1' is an array or not. Resolving the import that brings "
             "this variable into scope may help."
             in str(err.value))
-
-
-def test_shape_intrinsic(fortran_reader):
-    '''
-    Check the validation of the transformation when it has a call to an inquiry
-    intrinsic which does not return a scalar.
-    '''
-    psyir = fortran_reader.psyir_from_source('''
-    SUBROUTINE fld_map_core( pdta_read)
-      REAL(wp), DIMENSION(:,:,:), INTENT(in   ) ::   pdta_read
-      INTEGER,  DIMENSION(3) ::   idim_read
-      idim_read(:) = SHAPE( pdta_read )
-    end subroutine
-    ''')
-    assignments = psyir.walk(Assignment)
-    trans = ArrayAssignment2LoopsTrans()
-    with pytest.raises(TransformationError) as err:
-        trans.validate(assignments[0])
-    assert ("ArrayAssignment2LoopsTrans does not accept calls which "
-            "are not guaranteed to be elemental" in str(err.value))
