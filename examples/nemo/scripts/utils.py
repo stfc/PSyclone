@@ -232,9 +232,6 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
-            # TODO #2951: Fix array assignments with dependencies
-            if schedule.name in ("fld_def",):
-                continue
             try:
                 explicit_loops.apply(
                     assignment, options={'verbose': True})
