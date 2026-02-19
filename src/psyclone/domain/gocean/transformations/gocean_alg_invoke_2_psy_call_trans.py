@@ -38,7 +38,13 @@ into a call to the corresponding PSy-layer routine.
 
 '''
 
+from typing import List, Optional, Dict, Any
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes import Node
+    from psyclone.domain.common.algorithm.psyir import AlgorithmInvokeCall
 
 
 class GOceanAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
@@ -53,19 +59,19 @@ class GOceanAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
     transformation.
 
     '''
-    def get_arguments(self, node, options=None):
+    def get_arguments(
+        self,
+        node: "AlgorithmInvokeCall",
+        options: Optional[Dict[str, Any]] = None,
+    ) -> List["Node"]:
         '''Creates the GOcean processed (lowered) argument list from the
         argument lists of the kernels within the invoke call and the
         kernel metadata.
 
         :param node: a GOcean algorithm invoke call.
-        :type node: :py:class:`psyclone.domain.common.algorithm.psyir.\
-            AlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :returns: the processed (lowered) argument list.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         '''
         arguments = []

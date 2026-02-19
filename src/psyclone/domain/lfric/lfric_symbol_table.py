@@ -41,6 +41,10 @@
 It provides convenience functions to create often used symbols.
 '''
 
+from __future__ import annotations
+
+from typing import Optional
+
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 # Avoid circular import:
@@ -87,7 +91,11 @@ class LFRicSymbolTable(SymbolTable):
                     DataSymbol(precision, INTEGER_TYPE,
                                interface=ImportInterface(self._constants_mod))
 
-    def find_or_create_integer_symbol(self, name, tag=None):
+    def find_or_create_integer_symbol(
+        self,
+        name: str,
+        tag: Optional[str] = None,
+    ) -> DataSymbol:
         '''This function returns a symbol for an integer reference. If a
         tag is specified, it will be used to search for an existing symbol,
         otherwise the name will be used. If the symbol should not already
@@ -99,7 +107,6 @@ class LFRicSymbolTable(SymbolTable):
         :type tag: Optional[str]
 
         :returns: the symbol for the variable.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: TypeError if the symbol exists but is not \
             a DataSymbol.
@@ -135,8 +142,13 @@ class LFRicSymbolTable(SymbolTable):
         return sym
 
     # ------------------------------------------------------------------------
-    def find_or_create_array(self, array_name, num_dimensions, intrinsic_type,
-                             tag=None):
+    def find_or_create_array(
+        self,
+        array_name: str,
+        num_dimensions: int,
+        intrinsic_type,
+        tag: Optional[str] = None,
+    ) -> DataSymbol:
         '''This function returns a symbol for an ArrayReference. If the
         symbol does not exist, it is created. If a new array symbol is
         created, it gets the DEFERRED attribute, which in Fortran means
@@ -151,7 +163,6 @@ class LFRicSymbolTable(SymbolTable):
         :type tag: Optional[str]
 
         :returns: the requested symbol
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if the symbol exists, but is not a DataSymbol, \
             or not an Array, or has different number of dimensions.
@@ -207,7 +218,7 @@ class LFRicSymbolTable(SymbolTable):
         return sym
 
     # ------------------------------------------------------------------------
-    def add_lfric_precision_symbol(self, name):
+    def add_lfric_precision_symbol(self, name: str) -> DataSymbol:
         '''
         If the named LFRic precision symbol is not already in the table then
         add it. Also ensure that the Container symbol from which it is
@@ -216,7 +227,6 @@ class LFRicSymbolTable(SymbolTable):
         :param str name: name of the LFRic precision symbol to add to table.
 
         :returns: the specified LFRic precision symbol.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises ValueError: if the supplied name is not a recognised LFRic \
             precision variable.

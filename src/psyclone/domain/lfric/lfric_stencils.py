@@ -132,14 +132,14 @@ class LFRicStencils(LFRicCollection):
 
         :returns: the content of the stencil extent.
 
-        '''
+    '''
         extent_arg = arg.stencil.extent_arg
         if extent_arg.is_literal():
             return Literal(extent_arg.text, INTEGER_TYPE)
         return Reference(self.symtab.lookup(extent_arg.varname))
 
     @staticmethod
-    def stencil_unique_str(arg, context):
+    def stencil_unique_str(arg, context) -> str:
         '''
         Creates a unique identifier for a stencil. As a stencil
         differs due to the function space it operates on, type of
@@ -149,10 +149,9 @@ class LFRicStencils(LFRicCollection):
         :param arg: kernel argument with which stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param str context: a context for this stencil (e.g. "size" or
-                            "direction").
+                    "direction").
 
         :returns: unique string identifying the stencil for this argument.
-        :rtype: str
 
         :raises GenerationError: if an explicit stencil extent is found in
                                  the metadata for the kernel argument.
@@ -179,14 +178,13 @@ class LFRicStencils(LFRicCollection):
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a valid unique map name for a stencil in the PSy layer.
-        :rtype: str
 
         '''
         unique = LFRicStencils.stencil_unique_str(arg, "map")
         return self.symtab.lookup_with_tag(unique).name
 
     @staticmethod
-    def dofmap_symbol(symtab, arg):
+    def dofmap_symbol(symtab, arg) -> DataSymbol:
         '''
         Creates and registers a symbol for the stencil dofmap associated with
         the supplied kernel argument.
@@ -198,7 +196,6 @@ class LFRicStencils(LFRicCollection):
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a dofmap symbol for a stencil in the PSy layer.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         root_name = arg.name + "_stencil_dofmap"
@@ -210,7 +207,7 @@ class LFRicStencils(LFRicCollection):
                 datatype=UnresolvedType())
 
     @staticmethod
-    def dofmap_size_symbol(symtab, arg):
+    def dofmap_size_symbol(symtab, arg) -> DataSymbol:
         '''
         Create a valid symbol for the size (in cells) of a stencil
         dofmap in the PSy layer.
@@ -222,7 +219,6 @@ class LFRicStencils(LFRicCollection):
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a symbol for the stencil size.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         root_name = arg.name + "_stencil_size"
@@ -248,7 +244,6 @@ class LFRicStencils(LFRicCollection):
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: the symbol representing the max stencil branch length.
-
         '''
         root_name = arg.name + "_max_branch_length"
         unique = LFRicStencils.stencil_unique_str(arg, "length")
@@ -257,7 +252,7 @@ class LFRicStencils(LFRicCollection):
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     @staticmethod
-    def direction_name(symtab, arg):
+    def direction_name(symtab, arg) -> DataSymbol:
         '''
         Creates a Fortran variable name to hold the direction of the stencil
         associated with the supplied kernel argument.
@@ -269,7 +264,6 @@ class LFRicStencils(LFRicCollection):
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
 
         :returns: a Fortran variable name for the stencil direction.
-        :rtype: str
 
         '''
         root_name = arg.name+"_direction"
@@ -279,11 +273,10 @@ class LFRicStencils(LFRicCollection):
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     @property
-    def _unique_extent_vars(self):
+    def _unique_extent_vars(self) -> list[str]:
         '''
         :returns: list of all the unique extent argument names in this
                   invoke or kernel call.
-        :rtype: list of str
 
         :raises InternalError: if neither 'self._kernel' or 'self._invoke' are
                                set.

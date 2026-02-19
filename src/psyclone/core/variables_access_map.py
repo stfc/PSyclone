@@ -56,7 +56,7 @@ class VariablesAccessMap(dict):
 
     '''
 
-    def __str__(self):
+    def __str__(self) -> str:
         '''Gives a shortened visual representation of all variables
         and their access mode '''
 
@@ -90,7 +90,7 @@ class VariablesAccessMap(dict):
             self[signature] = var_info
 
     @property
-    def all_signatures(self):
+    def all_signatures(self) -> List[Signature]:
         ''':returns: all signatures contained in this instance, sorted (in \
                      order to make test results reproducible).
         :rtype: List[:py:class:`psyclone.core.Signature`]

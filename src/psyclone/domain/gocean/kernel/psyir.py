@@ -39,7 +39,10 @@
 for the GOcean API.
 
 '''
+from __future__ import annotations
+
 import re
+from typing import List, Optional
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
@@ -70,13 +73,24 @@ class GOceanContainer(Container):
         Optional[:py:class:`psyclone.psyir.symbols.SymbolTable`]
 
     '''
-    def __init__(self, name, metadata, **kwargs):
+    def __init__(
+        self,
+        name: str,
+        metadata: "GOceanKernelMetadata",
+        **kwargs,
+    ) -> None:
         super().__init__(name, **kwargs)
         # The metadata object capturing GOcean kernel metadata.
         self._metadata = metadata
 
     @classmethod
-    def create(cls, name, metadata, symbol_table, children):
+    def create(
+        cls,
+        name: str,
+        metadata: "GOceanKernelMetadata",
+        symbol_table,
+        children,
+    ) -> "GOceanContainer":
         '''Create a GOceanContainer instance given a name, metadata, a symbol
         table and a list of child nodes. A GOcean-specific kernel is
         created with the metadata describing the kernel interface for
@@ -95,27 +109,24 @@ class GOceanContainer(Container):
             | :py:class:`psyclone.psyir.nodes.Routine`]
 
         :returns: an instance of `cls`.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container` or subclass
-            thereof
+        :rtype: an instance of `cls`.
 
         '''
         return cls(name, metadata, children=children,
                    symbol_table=symbol_table.detach())
 
     @property
-    def metadata(self):
+    def metadata(self) -> "GOceanKernelMetadata":
         '''
-        :returns the GOcean metadata object.
-        :rtype: :py:class:`psyclone.domain.gocean.kernel.psyir.\
-            GOceanKernelMetadata`
+        :returns: the GOcean metadata object.
+
         '''
         return self._metadata
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Container:
         '''Lower this GOcean-specific container to language level psyir.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Create metadata symbol and add it to the container symbol
@@ -187,18 +198,17 @@ class GOceanKernelMetadata():
         if name is not None:
             self.name = name
 
-    def lower_to_psyir(self):
+    def lower_to_psyir(self) -> DataTypeSymbol:
         ''' Lower the metadata to language-level PSyIR.
 
         :returns: metadata as stored in language-level PSyIR.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         '''
         return DataTypeSymbol(
             str(self.name), UnsupportedFortranType(self.fortran_string()))
 
     @staticmethod
-    def create_from_psyir(symbol):
+    def create_from_psyir(symbol) -> "GOceanKernelMetadata":
         '''Create a new instance of GOceanKernelMetadata populated with
         metadata from a kernel in language-level PSyIR.
 
@@ -207,8 +217,6 @@ class GOceanKernelMetadata():
         :type symbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         :returns: an instance of GOceanKernelMetadata.
-        :rtype: :py:class:`psyclone.domain.gocean.kernel.psyir.\
-            GOceanKernelMetadata`
 
         :raises TypeError: if the symbol argument is not the expected \
             type.
@@ -235,15 +243,15 @@ class GOceanKernelMetadata():
             datatype.declaration)
 
     @staticmethod
-    def create_from_fortran_string(fortran_string):
+    def create_from_fortran_string(
+        fortran_string: str,
+    ) -> "GOceanKernelMetadata":
         '''Create a new instance of GOceanKernelMetadata populated with
         metadata stored in a fortran string.
 
         :param str fortran_string: the metadata stored as Fortran.
 
         :returns: an instance of GOceanKernelMetadata.
-        :rtype: :py:class:`psyclone.domain.gocean.kernel.psyir.\
-            GOceanKernelMetadata`
 
         :raises ValueError: if the string does not contain a fortran \
             derived type.
@@ -404,7 +412,6 @@ class GOceanKernelMetadata():
     def fortran_string(self):
         '''
         :returns: the metadata represented by this instance as Fortran.
-        :rtype: str
         '''
         go_args = []
         for go_arg in self.meta_args:
@@ -422,11 +429,11 @@ class GOceanKernelMetadata():
         return result
 
     @staticmethod
-    def _validate_iterates_over(value):
+    def _validate_iterates_over(value: str) -> None:
         '''Check that 'value' is a valid 'iterates_over' value (go_all_pts,
         ...).
 
-        :param str value: the value to check.
+        :param value: the value to check.
 
         :raises ValueError: if the supplied value is invalid.
 
@@ -438,19 +445,18 @@ class GOceanKernelMetadata():
                 f"'iterates_over' metadata, but found '{value}'.")
 
     @property
-    def name(self):
+    def name(self) -> str:
         '''
-        :returns: the name of the symbol that will contain the \
+        :returns: the name of the symbol that will contain the
             metadata when lowering.
-        :rtype: str
 
         '''
         return self._name
 
     @name.setter
-    def name(self, value):
+    def name(self, value: str) -> None:
         '''
-        :param str value: set the name of the symbol that will contain \
+        :param value: set the name of the symbol that will contain
             the metadata when lowering.
 
         :raises ValueError: if the name is not valid.
@@ -460,33 +466,31 @@ class GOceanKernelMetadata():
         self._name = value
 
     @property
-    def iterates_over(self):
+    def iterates_over(self) -> str:
         '''
-        :returns: the name of the quantity that this kernel is intended to \
+        :returns: the name of the quantity that this kernel is intended to
             iterate over.
-        :rtype: str
         '''
         return self._iterates_over
 
     @iterates_over.setter
-    def iterates_over(self, value):
+    def iterates_over(self, value: str) -> None:
         '''
-        :param str value: set the iterates_over metadata to the \
-            specified value.
+        :param value: set the iterates_over metadata to the specified value.
         '''
         self._validate_iterates_over(value)
         self._iterates_over = value
 
     @staticmethod
-    def _validate_index_offset(value):
+    def _validate_index_offset(value: str) -> None:
         '''Check that 'value' is a valid 'index_offset' value (go_offset_ne,
         ...).
 
-        :param str value: the value to check.
+    :param value: the value to check.
 
-        :raises ValueError: if the supplied value is invalid.
+    :raises ValueError: if the supplied value is invalid.
 
-        '''
+    '''
         const = GOceanConstants()
         if value.lower() not in const.SUPPORTED_OFFSETS:
             raise ValueError(
@@ -494,20 +498,18 @@ class GOceanKernelMetadata():
                 f"'index_offset' metadata, but found '{value}'.")
 
     @property
-    def index_offset(self):
+    def index_offset(self) -> str:
         '''
-        :returns: the name of the quantity that specifies the index \
+        :returns: the name of the quantity that specifies the index
             offset (how different field indices relate to each other).
-        :rtype: str
         '''
         return self._index_offset
 
     @index_offset.setter
-    def index_offset(self, value):
+    def index_offset(self, value: str) -> None:
         '''
-        :param str value: set the index_offset metadata to the \
-          specified value.
-        '''
+    :param value: set the index_offset metadata to the specified value.
+    '''
         self._validate_index_offset(value)
         self._index_offset = value
 
@@ -522,18 +524,17 @@ class GOceanKernelMetadata():
         return self._meta_args
 
     @property
-    def procedure_name(self):
+    def procedure_name(self) -> str:
         '''
         :returns: the kernel procedure name specified by the metadata.
-        :rtype: str
         '''
         return self._procedure_name
 
     @procedure_name.setter
-    def procedure_name(self, value):
+    def procedure_name(self, value: str) -> None:
         '''
-        :param str value: set the procedure name specified in the
-            metadata to the specified value.
+        :param value: set the procedure name specified in the metadata to
+            the specified value.
 
         :raises ValueError: if the supplied procedure name is invalid.
 
@@ -579,11 +580,10 @@ class GOceanKernelMetadata():
             name = arg_list.children[1].string
             self.name = name
 
-        def fortran_string(self):
+        def fortran_string(self) -> str:
             '''
             :returns: the metadata represented by this class as a \
                 Fortran string.
-            :rtype: str
             '''
             return f"go_arg({self.access}, {self.name})"
 
@@ -604,12 +604,11 @@ class GOceanKernelMetadata():
                     f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
 
         @property
-        def access(self):
+        def access(self) -> str:
             '''
             :returns: the value of the access descriptor. This \
                 specifies how the grid property is accessed (read, write, \
                 readwrite).
-            :rtype: str
             '''
             return self._access
 
@@ -642,10 +641,9 @@ class GOceanKernelMetadata():
                     f"{grid_property_names}), but found '{value}'.")
 
         @property
-        def name(self):
+        def name(self) -> str:
             '''
             :returns: the grid property name as specified by the metadata.
-            :rtype: str
             '''
             return self._name
 
@@ -707,11 +705,10 @@ class GOceanKernelMetadata():
                     stencil.append(stencil_dim.children[0])
                 self._stencil = stencil
 
-        def fortran_string(self):
+        def fortran_string(self) -> str:
             '''
             :returns: the metadata represented by this class as a \
                 Fortran string.
-            :rtype: str
             '''
             if self.stencil:
                 return (f"go_arg({self.access}, {self.grid_point_type}, "
@@ -736,11 +733,10 @@ class GOceanKernelMetadata():
                     f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
 
         @property
-        def access(self):
+        def access(self) -> str:
             '''
             :returns: the access descriptor for this field \
                 argument.
-            :rtype: str
             '''
             return self._access
 
@@ -771,11 +767,10 @@ class GOceanKernelMetadata():
                     f"{const.VALID_FIELD_GRID_TYPES}), but found '{value}'.")
 
         @property
-        def grid_point_type(self):
+        def grid_point_type(self) -> str:
             '''
             :returns: the value of the grid point type (go_ct, ...) \
                 for the field argument.
-            :rtype: str
             '''
             return self._grid_point_type
 
@@ -806,11 +801,10 @@ class GOceanKernelMetadata():
                     f"but found '{value}'.")
 
         @property
-        def form(self):
+        def form(self) -> str:
             '''
             :returns: the form of access for the field (pointwise, \
                 stencil, ...).
-            :rtype: str
             '''
             return self._form
 
@@ -875,10 +869,10 @@ class GOceanKernelMetadata():
                         f"expression [01]{{3,3}}, but found '{value}'.")
 
         @property
-        def stencil(self):
+        def stencil(self) -> Optional[List[str]]:
             '''
             :returns: the stencil value, or None if there is no stencil.
-            :rtype: Optional[List[str]]
+
             '''
             return self._stencil
 

@@ -38,6 +38,10 @@
 
 '''This module provides management of variable access information.'''
 
+from __future__ import annotations
+
+from typing import Optional, Union
+
 from psyclone.errors import InternalError
 
 
@@ -62,7 +66,8 @@ class Signature:
     :type sub_sig: :py:class:`psyclone.core.Signature`
 
     '''
-    def __init__(self, variable, sub_sig=None):
+    def __init__(self, variable: Union[str, tuple, list, "Signature"],
+                 sub_sig: Optional["Signature"] = None) -> None:
         if sub_sig:
             sub_tuple = sub_sig._signature
         else:
@@ -83,34 +88,34 @@ class Signature:
 
     # ------------------------------------------------------------------------
     @property
-    def is_structure(self):
+    def is_structure(self) -> bool:
         ''':returns: True if this signature represents a structure.
         :rtype: bool
         '''
         return len(self._signature) > 1
 
     # ------------------------------------------------------------------------
-    def __len__(self):
+    def __len__(self) -> int:
         ''':returns: the number of components of this signature.
         :rtype: int'''
         return len(self._signature)
 
     # ------------------------------------------------------------------------
-    def __getitem__(self, indx):
+    def __getitem__(self, indx: Union[slice, int]) -> Union["Signature", str]:
         if isinstance(indx, slice):
             return Signature(self._signature[indx])
         return self._signature[indx]
 
     # ------------------------------------------------------------------------
-    def __str__(self):
+    def __str__(self) -> str:
         return "%".join(self._signature)
 
     # ------------------------------------------------------------------------
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Signature({str(self)})"
 
     # ------------------------------------------------------------------------
-    def __hash__(self):
+    def __hash__(self) -> int:
         '''This returns a hash value that is independent of the instance.
         I.e. two instances with the same signature will have the same
         hash key.
@@ -118,7 +123,7 @@ class Signature:
         return hash(self._signature)
 
     # ------------------------------------------------------------------------
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         '''Required in order to use a Signature instance as a key.
         Compares two objects (one of which might not be a Signature).'''
         if not hasattr(other, "_signature"):
@@ -126,7 +131,7 @@ class Signature:
         return self._signature == other._signature
 
     # ------------------------------------------------------------------------
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         '''Required for != comparisons of Signatures with python2.
         Compares two objects (one of which might not be a Signature).'''
         if not hasattr(other, "_signature"):
@@ -134,7 +139,7 @@ class Signature:
         return self._signature != other._signature
 
     # ------------------------------------------------------------------------
-    def __lt__(self, other):
+    def __lt__(self, other: "Signature") -> bool:
         '''Required to sort signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
             raise TypeError(f"'<' not supported between instances of "
@@ -142,7 +147,7 @@ class Signature:
         return self._signature < other._signature
 
     # ------------------------------------------------------------------------
-    def __le__(self, other):
+    def __le__(self, other: "Signature") -> bool:
         '''Required to compare signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
             raise TypeError(f"'<=' not supported between instances of "
@@ -150,7 +155,7 @@ class Signature:
         return self._signature <= other._signature
 
     # ------------------------------------------------------------------------
-    def __gt__(self, other):
+    def __gt__(self, other: "Signature") -> bool:
         '''Required to compare signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
             raise TypeError(f"'>' not supported between instances of "
@@ -158,7 +163,7 @@ class Signature:
         return self._signature > other._signature
 
     # ------------------------------------------------------------------------
-    def __ge__(self, other):
+    def __ge__(self, other: "Signature") -> bool:
         '''Required to compare signatures. It just compares the tuples.'''
         if not isinstance(other, Signature):
             raise TypeError(f"'>=' not supported between instances of "
@@ -167,7 +172,7 @@ class Signature:
 
     # ------------------------------------------------------------------------
     @property
-    def var_name(self):
+    def var_name(self) -> str:
         ''':returns: the actual variable name, i.e. the first component of
             the signature.
         :rtype: str

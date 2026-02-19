@@ -100,7 +100,6 @@ class LFRicRunTimeChecks(LFRicCollection):
         :param int cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         # When issue #30 is addressed (with issue #79 helping further)

@@ -39,7 +39,7 @@ implementations.
 '''
 
 from abc import abstractmethod
-from typing import Optional
+from typing import Optional, Tuple
 
 from psyclone.core import Signature
 from psyclone.line_length import FortLineLength
@@ -97,12 +97,12 @@ class DriverCreator:
     '''
 
     # -------------------------------------------------------------------------
-    def __init__(self, region_name: Optional[tuple[str, str]] = None):
+    def __init__(self, region_name: Optional[Tuple[str, str]] = None) -> None:
         self._region_name = region_name
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def add_call(program: Routine, name: str, args: list[Node]):
+    def add_call(program: Routine, name: str, args: list["Node"]) -> None:
         '''This function creates a call to the subroutine of the given name,
         providing the arguments. The call will be added to the program and
         the corresponding RoutineSymbol to its symbol table (if not already
@@ -130,7 +130,7 @@ class DriverCreator:
 
     @staticmethod
     def add_read_call(program: Routine, name_lit: Literal, sym: DataSymbol,
-                      read_var: str):
+                      read_var: str) -> None:
         '''This function creates a call to the subroutine that read fields
         from the data file.
 
@@ -256,14 +256,14 @@ class DriverCreator:
         return (sym, post_sym)
 
     def _create_read_in_code(
-            self,
-            program: Routine,
-            psy_data: DataSymbol,
-            original_symtab: SymbolTable,
-            read_write_info: ReadWriteInfo,
-            postfix: str,
-            vars_to_ignore: list[tuple[str, Signature]],
-            ) -> list[tuple[Symbol, Symbol]]:
+        self,
+        program: Routine,
+        psy_data: DataSymbol,
+        original_symtab: SymbolTable,
+        read_write_info: ReadWriteInfo,
+        postfix: str,
+        vars_to_ignore: list[tuple[str, Signature]],
+    ) -> list[tuple[Symbol, Symbol]]:
         '''This function creates the code that reads in the data file
         produced during extraction. For each:
 

@@ -72,7 +72,7 @@ class AccessInfo():
     def __str__(self) -> str:
         return f"{self._access_type}"
 
-    def component_indices(self):
+    def component_indices(self) -> tuple[tuple, ...]:
         '''
         :returns: a tuple of tuples of index expressions; one for every
             component in the accessor. For example, for a scalar it

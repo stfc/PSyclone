@@ -40,9 +40,13 @@ This module contains the LFRicArgDescriptor class and related constants
 and properties.
 '''
 
+from __future__ import annotations
+
 # Imports
 
 import os
+
+from typing import List, Optional, Union
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
@@ -64,13 +68,11 @@ class LFRicArgDescriptor(Descriptor):
     descriptors (scalars, fields and operators).
 
     :param arg_type: LFRic API valid argument type (scalar,
-                     field or operator).
-    :type arg_type: :py:class:`psyclone.expression.FunctionVar` or
-                    :py:class:`psyclone.expression.BinaryOperator`
-    :param str operates_on: value of operates_on from the parsed kernel
-                            metadata (used for validation).
-    :param int metadata_index: position of this argument in the list of
-                               arguments specified in the metadata.
+        field or operator).
+    :param operates_on: value of operates_on from the parsed kernel
+        metadata (used for validation).
+    :param metadata_index: position of this argument in the list of
+        arguments specified in the metadata.
 
     :raises ParseError: if a 'meta_arg' entry is not of 'arg_type' type.
     :raises ParseError: if the first argument of a 'meta_arg' entry is not
@@ -90,7 +92,10 @@ class LFRicArgDescriptor(Descriptor):
 
     # ----------------------------------------------------------------------- #
 
-    def __init__(self, arg_type, operates_on, metadata_index):
+    def __init__(self,
+                 arg_type: Union[expr.FunctionVar, expr.BinaryOperator],
+                 operates_on: str,
+                 metadata_index: int) -> None:
         # pylint: disable=too-many-branches, too-many-statements
         self._arg_type = arg_type
         # Initialise properties
@@ -219,7 +224,8 @@ class LFRicArgDescriptor(Descriptor):
                          mesh=self._mesh,
                          argument_type=self._argument_type)
 
-    def _validate_vector_size(self, separator, arg_type):
+    def _validate_vector_size(self, separator: str,
+                              arg_type: expr.FunctionVar) -> None:
         '''
         Validates descriptors for field vector arguments and populates
         vector properties accordingly.
@@ -276,7 +282,7 @@ class LFRicArgDescriptor(Descriptor):
                 f"{const.VALID_FIELD_NAMES} argument types but found "
                 f"'{arg_type.args[0]}'.")
 
-    def _validate_array_ndims(self, arg_type):
+    def _validate_array_ndims(self, arg_type: expr.FunctionVar) -> None:
         '''
         Validates descriptors for ScalarArray arguments and populates
         properties accordingly.
@@ -314,7 +320,8 @@ class LFRicArgDescriptor(Descriptor):
         # ... and set the ScalarArray size if all checks pass
         self._array_ndims = array_ndims
 
-    def _init_field(self, arg_type, operates_on):
+    def _init_field(self, arg_type: expr.FunctionVar,
+                    operates_on: str) -> None:
         '''
         Validates metadata descriptors for field arguments and
         initialises field argument properties accordingly.
@@ -695,22 +702,20 @@ class LFRicArgDescriptor(Descriptor):
         self._vector_size = 0
 
     @property
-    def data_type(self):
+    def data_type(self) -> str:
         '''
         :returns: intrinsic Fortran (primitive) type of the argument data.
-        :rtype: str
 
-        '''
+    '''
         return self._data_type
 
     @property
-    def function_space_to(self):
+    def function_space_to(self) -> str:
         '''
         Returns the "to" function space for an operator. This is
         the first function space specified in the metadata.
 
         :returns: "to" function space for an operator.
-        :rtype: str
 
         :raises InternalError: if this is not an operator.
 
@@ -724,13 +729,12 @@ class LFRicArgDescriptor(Descriptor):
             f"'{self._argument_type}'.")
 
     @property
-    def function_space_from(self):
+    def function_space_from(self) -> str:
         '''
         Returns the "from" function space for an operator. This is
         the second function space specified in the metadata.
 
-        :returns: "from" function space for an operator.
-        :rtype: str
+    :returns: "from" function space for an operator.
 
         :raises InternalError: if this is not an operator.
 
@@ -744,15 +748,14 @@ class LFRicArgDescriptor(Descriptor):
             f"'{self._argument_type}'.")
 
     @property
-    def function_space(self):
+    def function_space(self) -> Optional[str]:
         '''
         Returns the function space name related to this kernel argument
         depending on the argument type: a single function space for a field,
         function_space_from for an operator and nothing for a scalar.
 
         :returns: function space relating to this kernel argument or
-                  None (for a scalar or ScalarArray).
-        :rtype: str or NoneType
+            None (for a scalar or ScalarArray).
 
         :raises InternalError: if an invalid argument type is passed in.
 
@@ -769,7 +772,7 @@ class LFRicArgDescriptor(Descriptor):
                             f"'{self._argument_type}'.")
 
     @property
-    def function_spaces(self):
+    def function_spaces(self) -> List[str]:
         '''
         Returns the function space names related to this kernel argument
         as a list depending on the argument type: one function space for
@@ -777,7 +780,6 @@ class LFRicArgDescriptor(Descriptor):
         operator and an empty list for a scalar.
 
         :returns: function space names related to this kernel argument.
-        :rtype: list of str
 
         :raises InternalError: if an invalid argument type is passed in.
 
@@ -795,39 +797,36 @@ class LFRicArgDescriptor(Descriptor):
                             f"'{self._argument_type}'.")
 
     @property
-    def vector_size(self):
+    def vector_size(self) -> int:
         '''
         Returns the vector size of the argument. This will be 1 if ``*n``
         has not been specified for all argument types except scalars
         (their vector size is set to 0).
 
         :returns: vector size of the argument.
-        :rtype: int
 
         '''
         return self._vector_size
 
     @property
-    def array_ndims(self):
+    def array_ndims(self) -> int:
         '''
         Returns the array rank of the argument. This will be 1 if ``*n``
         has not been specified for all argument types except scalars
         (their array rank is set to 0).
 
         :returns: array rank of the argument.
-        :rtype: int
 
         '''
         return self._array_ndims
 
-    def __str__(self):
+    def __str__(self) -> str:
         '''
         Creates a string representation of the argument descriptor. This
         is type and access for scalars with the addition of function
         space(s) for fields and operators.
 
-        :returns: string representation of the argument descriptor.
-        :rtype: str
+    :returns: string representation of the argument descriptor.
 
         :raises InternalError: if an invalid argument type is passed in.
 

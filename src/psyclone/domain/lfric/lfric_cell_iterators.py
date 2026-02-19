@@ -105,7 +105,7 @@ class LFRicCellIterators(LFRicCollection):
                                         ArgumentInterface.Access.READ)
             self.symtab.append_argument(nlayers)
 
-    def initialise(self, cursor):
+    def initialise(self, cursor: int) -> int:
         '''
         Look-up the number of vertical layers in the mesh in the PSy layer.
 
@@ -113,7 +113,6 @@ class LFRicCellIterators(LFRicCollection):
             statements.
 
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         if not self._nlayers_names or not self._invoke:

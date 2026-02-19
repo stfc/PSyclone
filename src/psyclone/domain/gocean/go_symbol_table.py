@@ -41,11 +41,14 @@ It implements functions to access the iteration arguments and data arguments
 for the GOcean API.
 '''
 
+from __future__ import annotations
+
 import copy
+from typing import List
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import KernelSchedule
-from psyclone.psyir.symbols import SymbolTable, ScalarType
+from psyclone.psyir.symbols import SymbolTable, ScalarType, DataSymbol
 
 
 class GOSymbolTable(SymbolTable):
@@ -54,17 +57,15 @@ class GOSymbolTable(SymbolTable):
 
     '''
     @staticmethod
-    def create_from_table(old_table):
+    def create_from_table(old_table: SymbolTable) -> "GOSymbolTable":
         '''
         Create a GOSymbolTable instance from the supplied SymbolTable.
 
-        :param old_table: the generic SymbolTable from which to create a new \
-                          GOSymbolTable.
-        :type old_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param old_table: the generic SymbolTable from which to create a new
+            GOSymbolTable.
 
-        :returns: a new GOSymbolTable containing all of the symbols in \
-                  the supplied table.
-        :rtype: :py:class:`psyclone.gocean1p0.GOSymbolTable`
+        :returns: a new GOSymbolTable containing all of the symbols in the
+            supplied table.
 
         :raises TypeError: if the supplied argument is not a SymbolTable.
 
@@ -84,7 +85,7 @@ class GOSymbolTable(SymbolTable):
 
         return new_st
 
-    def _check_gocean_conformity(self):
+    def _check_gocean_conformity(self) -> None:
         '''
         Checks that the Symbol Table has at least 2 arguments which represent
         the iteration indices (are scalar integers).
@@ -115,23 +116,21 @@ class GOSymbolTable(SymbolTable):
                     f"scalar integer but got '{dtype}'{kname_str}.")
 
     @property
-    def iteration_indices(self):
+    def iteration_indices(self) -> List[DataSymbol]:
         '''In the GOcean API the two first kernel arguments are the iteration
         indices.
 
         :return: the symbols representing the iteration indices.
-        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         self._check_gocean_conformity()
         return self.argument_list[:2]
 
     @property
-    def data_arguments(self):
+    def data_arguments(self) -> List[DataSymbol]:
         '''In the GOcean API the data arguments start from the third item in
         the argument list.
 
         :return: the symbols representing the data arguments.
-        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         self._check_gocean_conformity()
         return self.argument_list[2:]

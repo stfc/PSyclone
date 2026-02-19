@@ -39,6 +39,7 @@ to the corresponding PSy-layer routine.
 '''
 
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
+from typing import Optional, Dict, Any
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctor)
@@ -64,7 +65,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
     transformation.
 
     '''
-    def validate(self, node, options=None):
+    def validate(self, node, options: Optional[Dict[str, Any]] = None) -> None:
         '''Validate the node argument.
 
         :param node: a PSyIR node capturing an LFRicinvoke call.
@@ -151,7 +152,12 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
 
     # pylint: disable=too-many-branches
     # pylint: disable=too-many-locals
-    def get_arguments(self, node, options=None, check_args=False):
+    def get_arguments(
+        self,
+        node,
+        options: Optional[Dict[str, Any]] = None,
+        check_args: bool = False,
+    ):
         '''By default this method creates the LFRic processed (lowered)
         argument list from the argument lists of the kernel functors
         within the invoke call and the kernel metadata.
@@ -179,7 +185,6 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
             metadata. Defaults to False.
 
         :returns: the processed (lowered) argument list.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         :raises GenerationError: if the number of arguments in the \
             invoke does not match the expected number of arguments \

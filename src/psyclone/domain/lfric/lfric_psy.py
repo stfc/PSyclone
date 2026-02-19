@@ -80,21 +80,19 @@ class LFRicPSy(PSy):
         self._invokes = LFRicInvokes(invoke_info.calls, self)
 
     @property
-    def name(self):
+    def name(self) -> str:
         '''
         :returns: a name for the PSy layer. This is used as the PSy module
                   name. We override the default value as the Met Office
                   prefer "_psy" to be appended, rather than prepended.
-        :rtype: str
 
         '''
         return self._name + "_psy"
 
     @property
-    def orig_name(self):
+    def orig_name(self) -> str:
         '''
         :returns: the unmodified PSy-layer name.
-        :rtype: str
 
         '''
         return self._name

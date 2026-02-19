@@ -77,14 +77,13 @@ class LFRicInvokeSchedule(InvokeSchedule):
                          LFRicBuiltInCallFactory, alg_calls,
                          parent=parent, **kwargs)
 
-    def node_str(self, colour=True):
+    def node_str(self, colour: bool = True) -> str:
         ''' Creates a text summary of this node.
 
         :param bool colour: whether or not to include control codes for colour.
 
         :returns: text summary of this node, optionally with control codes
-                  for colour highlighting.
-        :rtype: str
+          for colour highlighting.
 
         '''
         return (self.coloured_name(colour) + "[invoke='" + self.invoke.name +

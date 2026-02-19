@@ -40,6 +40,8 @@
 This module provides a class with all LFRic related constants.
 '''
 
+from __future__ import annotations
+
 from collections import OrderedDict
 
 from psyclone.configuration import Config
@@ -533,7 +535,6 @@ class LFRicConstants():
         :param str name: the name of the function space in metadata.
 
         :returns: the name of a specific function space.
-        :rtype: str
 
         :raises ValueError: if the supplied name is not a valid LFRic \
                             function-space name.
@@ -568,7 +569,6 @@ class LFRicConstants():
 
         :returns: the precision as defined in domain.lfric.lfric_types
             (one of R_SOLVER, R_TRAN, R_DEF).
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises InternalError: if an unknown data_type is specified.
 

@@ -40,6 +40,7 @@ kernel calls.
 '''
 
 import abc
+from typing import Optional, List, Union, TYPE_CHECKING
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
@@ -51,7 +52,11 @@ from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import DataSymbol, ArrayType
+from psyclone.psyir.symbols import DataSymbol, ArrayType, Symbol
+
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes import Node
+    from psyclone.core import VariablesAccessMap
 
 
 class ArgOrdering:
@@ -87,7 +92,7 @@ class ArgOrdering:
         self._arg_index_to_metadata_index = {}
 
     @property
-    def _symtab(self):
+    def _symtab(self) -> LFRicSymbolTable:
         ''' Provide a reference to the associate Invoke SymbolTable, usually
         following the `self._kernel.ancestor(InvokeSchedule)._symbol_table`
         path unless a _forced_symtab has been provided.
@@ -97,8 +102,7 @@ class ArgOrdering:
 
         Note: This could be improved by TODO #2503
 
-        :returns: the associate invoke symbol table.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :returns: the associate invoke symbol table.
         '''
         if self._forced_symtab:
             return self._forced_symtab
@@ -108,7 +112,7 @@ class ArgOrdering:
             return current_invoke.schedule.symbol_table
         return LFRicSymbolTable()
 
-    def psyir_append(self, node):
+    def psyir_append(self, node: "Node") -> None:
         '''Appends a PSyIR node to the PSyIR argument list.
 
         :param node: the node to append.
@@ -117,8 +121,14 @@ class ArgOrdering:
         '''
         self._psyir_arglist.append(node)
 
-    def append(self, var_name, var_accesses=None, var_access_name=None,
-               mode=AccessType.READ, metadata_posn=None):
+    def append(
+        self,
+        var_name: str,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+        var_access_name: Optional[str] = None,
+        mode: AccessType = AccessType.READ,
+        metadata_posn: Optional[int] = None,
+    ) -> None:
         # pylint: disable=too-many-arguments
         '''Appends the specified variable name to the list of all arguments and
         stores the mapping between the position of this actual argument and
@@ -157,8 +167,13 @@ class ArgOrdering:
                 var_accesses.add_access(Signature(var_name), mode,
                                         self._kern)
 
-    def extend(self, list_var_name, var_accesses=None,
-               mode=AccessType.READ, list_metadata_posn=None):
+    def extend(
+        self,
+        list_var_name: list[str],
+        var_accesses: Optional['VariablesAccessMap'] = None,
+        mode: AccessType = AccessType.READ,
+        list_metadata_posn: Optional[List[int]] = None,
+    ) -> None:
         '''Appends all variable names in the argument list to the list of
         all arguments. If var_accesses is given, it will also record the
         access to the variables. By default any access will be recorded as a
@@ -184,7 +199,11 @@ class ArgOrdering:
             else:
                 self.append(var, mode=mode, var_accesses=var_accesses)
 
-    def append_integer_reference(self, name, tag=None):
+    def append_integer_reference(
+        self,
+        name: str,
+        tag: Optional[str] = None,
+    ) -> DataSymbol:
         '''This function adds a reference to an integer variable to the list
         of PSyIR nodes. If the symbol does not exist, it will be added to the
         symbol table. If no tag is specified, is uses the name as tag. It also
@@ -192,10 +211,9 @@ class ArgOrdering:
 
         :param str name: name of the integer variable to declare.
         :param tag: optional tag of the integer variable to declare.
-        :type tag: Optional[str]
+    :type tag: Optional[str]
 
-        :returns: the symbol to which a reference was added.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+    :returns: the symbol to which a reference was added.
 
         '''
         # pylint: disable=import-outside-toplevel
@@ -216,8 +234,14 @@ class ArgOrdering:
         self.psyir_append(Reference(sym))
         return sym
 
-    def get_array_reference(self, array_name, indices, intrinsic_type=None,
-                            tag=None, symbol=None):
+    def get_array_reference(
+        self,
+        array_name: str,
+        indices: list[Union[str, 'Node']],
+        intrinsic_type=None,
+        tag: Optional[str] = None,
+        symbol: Optional[Symbol] = None,
+    ) -> Reference:
         # pylint: disable=too-many-arguments
         '''This function creates an array reference. If there is no symbol
         with the given tag, a new array symbol will be defined using the given
@@ -235,10 +259,9 @@ class ArgOrdering:
         :param tag: optional tag for the symbol.
         :type tag: Optional[str]
         :param symbol: optional the symbol to use.
-        :type: Optional[:py:class:`psyclone.psyir.symbols.Symbol`]
+    :type: Optional[:py:class:`psyclone.psyir.symbols.Symbol`]
 
-        :returns: a reference to the symbol used.
-        :rtype: :py:class:`psyclone.psyir.nodes.Reference`
+    :returns: a reference to the symbol used.
 
         '''
         if not tag:
@@ -268,8 +291,14 @@ class ArgOrdering:
             ref = ArrayReference.create(symbol, indices)
         return ref
 
-    def append_array_reference(self, array_name, indices, intrinsic_type=None,
-                               tag=None, symbol=None):
+    def append_array_reference(
+        self,
+        array_name: str,
+        indices: list[Union[str, 'Node']],
+        intrinsic_type=None,
+        tag: Optional[str] = None,
+        symbol: Optional[Symbol] = None,
+    ) -> Symbol:
         # pylint: disable=too-many-arguments
         '''This function adds an array reference. If there is no symbol with
         the given tag, a new array symbol will be defined using the given
@@ -290,7 +319,6 @@ class ArgOrdering:
         :type symbol: Optional[:py:class:`psyclone.psyir.symbols.Symbol`]
 
         :returns: the symbol used in the added reference.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
 
@@ -302,18 +330,15 @@ class ArgOrdering:
     @property
     def num_args(self):
         ''':returns: the current number of arguments stored in _arglist.
-        :rtype: int
 
         '''
         return len(self._arglist)
 
     @property
-    def arglist(self):
+    def arglist(self) -> List[str]:
         '''
-        :return: the kernel argument list. The generate method must be \
-                 called first.
-        :rtype: List[str]
-
+    :return: the kernel argument list. The generate method must be \
+         called first.
         :raises InternalError: if the generate() method has not been \
                                called.
 
@@ -325,11 +350,10 @@ class ArgOrdering:
         return self._arglist
 
     @property
-    def psyir_arglist(self):
+    def psyir_arglist(self) -> List[Reference]:
         '''
-        :return: the kernel argument list as PSyIR expressions. The generate \
+        :returns: the kernel argument list as PSyIR expressions. The generate \
             method must be called first.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Reference`]
 
         :raises InternalError: if the generate() method has not been called.
 
@@ -340,7 +364,7 @@ class ArgOrdering:
                 f"Has the generate() method been called?")
         return self._psyir_arglist
 
-    def metadata_index_from_actual_index(self, idx):
+    def metadata_index_from_actual_index(self, idx: int) -> Optional[int]:
         '''
         Returns the index of the entry in the meta_args list from which the
         actual subroutine argument at `idx` originated.
@@ -349,13 +373,15 @@ class ArgOrdering:
                         subroutine.
 
         :returns: the 0-indexed position of the corresponding metadata entry \
-                  or None if there isn't one.
-        :rtype: Optional[int]
+            or None if there isn't one.
 
         '''
         return self._arg_index_to_metadata_index[idx]
 
-    def generate(self, var_accesses=None):
+    def generate(
+        self,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         # pylint: disable=too-many-statements, too-many-branches
         '''
         Specifies which arguments appear in an argument list, their type
@@ -547,40 +573,46 @@ class ArgOrdering:
         if self._kern.qr_required:
             self.quad_rule(var_accesses=var_accesses)
 
-    def cell_position(self, var_accesses=None):
+    def cell_position(
+        self,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add cell position information.
 
         :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
-    def cell_map(self, var_accesses=None):
+    def cell_map(
+        self,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add cell-map and related cell counts (for inter-grid kernels)
         to the argument list. If supplied it also stores these accesses to the
         var_access object.
 
         :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
-    def mesh_height(self, var_accesses=None):
+    def mesh_height(
+        self,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
 
         :param var_accesses: optional VariablesAccessMap instance to store \
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
 
-    def _mesh_ncell2d(self, var_accesses=None):
+    def _mesh_ncell2d(
+        self,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add the number of columns in the mesh (including halos) to the
         argument list and stores this access in var_accesses (if supplied).
 
@@ -591,7 +623,10 @@ class ArgOrdering:
 
         '''
 
-    def _mesh_ncell2d_no_halos(self, var_accesses=None):
+    def _mesh_ncell2d_no_halos(
+        self,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add the number of columns in the mesh (excluding halos) to the
         argument list and stores this access in var_accesses (if supplied).
 
@@ -603,7 +638,11 @@ class ArgOrdering:
         '''
 
     @abc.abstractmethod
-    def cma_operator(self, arg, var_accesses=None):
+    def cma_operator(
+        self,
+        arg,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add the CMA operator and associated scalars to the argument
         list and optionally add them to the variable access
         information.
@@ -618,7 +657,11 @@ class ArgOrdering:
         '''
 
     @abc.abstractmethod
-    def field_vector(self, argvect, var_accesses=None):
+    def field_vector(
+        self,
+        argvect,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add the field vector associated with the argument 'argvect' to the
         argument list. If supplied it also stores these accesses to the
         var_access object.
@@ -633,7 +676,11 @@ class ArgOrdering:
         '''
 
     @abc.abstractmethod
-    def field(self, arg, var_accesses=None):
+    def field(
+        self,
+        arg,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add the field array associated with the argument 'arg' to the
         argument list. If supplied it also stores this access in var_accesses.
 
@@ -647,7 +694,11 @@ class ArgOrdering:
         '''
 
     @abc.abstractmethod
-    def stencil_unknown_extent(self, arg, var_accesses=None):
+    def stencil_unknown_extent(
+        self,
+        arg,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown. If supplied it also stores
         this access in var_accesses.
@@ -662,7 +713,11 @@ class ArgOrdering:
         '''
 
     @abc.abstractmethod
-    def stencil_2d_unknown_extent(self, arg, var_accesses=None):
+    def stencil_2d_unknown_extent(
+        self,
+        arg,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add 2D stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown. If supplied it also stores
         this access in var_accesses.
@@ -677,7 +732,11 @@ class ArgOrdering:
         '''
 
     @abc.abstractmethod
-    def stencil_2d_max_extent(self, arg, var_accesses=None):
+    def stencil_2d_max_extent(
+        self,
+        arg,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add 2D stencil information to the argument list associated with the
         argument 'arg' if the stencil extent (from which it is calculated) is
         passed from the Algorithm layer rather than being specified in kernel
@@ -693,7 +752,11 @@ class ArgOrdering:
         '''
 
     @abc.abstractmethod
-    def stencil_unknown_direction(self, arg, var_accesses=None):
+    def stencil_unknown_direction(
+        self,
+        arg,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add stencil information to the argument list associated with the
         argument 'arg' if the direction is unknown (i.e. it's being supplied
         in a variable). If supplied it also stores this access in
@@ -709,7 +772,11 @@ class ArgOrdering:
         '''
 
     @abc.abstractmethod
-    def stencil(self, arg, var_accesses=None):
+    def stencil(
+        self,
+        arg,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add general stencil information associated with the argument 'arg'
         to the argument list. If supplied it also stores this access in
         var_accesses.
@@ -725,7 +792,11 @@ class ArgOrdering:
         '''
 
     @abc.abstractmethod
-    def stencil_2d(self, arg, var_accesses=None):
+    def stencil_2d(
+        self,
+        arg,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add 2D stencil information associated with the argument 'arg'
         to the argument list. If supplied it also stores this access in
         var_accesses.
@@ -741,7 +812,11 @@ class ArgOrdering:
         '''
 
     @abc.abstractmethod
-    def operator(self, arg, var_accesses=None):
+    def operator(
+        self,
+        arg,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add the operator arguments to the argument list. If supplied it
         also stores this access in var_accesses.
 
@@ -754,7 +829,11 @@ class ArgOrdering:
 
         '''
 
-    def scalar(self, scalar_arg, var_accesses=None):
+    def scalar(
+        self,
+        scalar_arg,
+        var_accesses: Optional['VariablesAccessMap'] = None,
+    ) -> None:
         '''Add the name associated with the scalar argument to the argument
         list and optionally add this scalar to the variable access
         information.
