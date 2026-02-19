@@ -56,7 +56,6 @@ by the command:
                     [-l {off,all,output}] [-p {invokes,routines,kernels}]
                     [-o OUTPUT_FILE] [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE]
                     [-okern OUTPUT_KERNEL_PATH] [-dm] [-nodm]
-                    [--kernel-renaming {multiple,single}]
                     [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--log-file LOG_FILE]
                     [--keep-comments] [--keep-directives] [--keep-conditional-openmp-statements]
                     [-I INCLUDE] [-d DIRECTORY]
@@ -98,12 +97,10 @@ by the command:
       -opsy OUTPUT_PSY_FILE
                             (psykal mode) filename of generated PSy-layer code
       -okern OUTPUT_KERNEL_PATH
-                            (psykal mode) directory in which to put transformed kernels, default
+                            (psykal mode) directory in which to put any generated kernels, default
                             is the current working directory
       -dm, --dist_mem       (psykal mode) generate distributed memory code
       -nodm, --no_dist_mem  (psykal mode) do not generate distributed memory code
-      --kernel-renaming {multiple,single}
-                            (psykal mode) naming scheme to use when re-naming transformed kernels
       --log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}
                             sets the level of the logging (defaults to OFF).
       --log-file LOG_FILE   sets the output file to use for logging (defaults to stderr).
@@ -389,6 +386,8 @@ For example the following command will generate GOcean PSyKAl code with DM:
 See :ref:`psyclone usage for PSyKAl <psykal_usage>` section for more information
 about how to use PSyKAl DSLs.
 
+.. _psykal-file-output:
+
 PSyKAl file output
 ^^^^^^^^^^^^^^^^^^
 
@@ -402,14 +401,11 @@ the algorithm code will be output to the terminal:
 
     psyclone -opsy psy.f90 algorithm.f90
 
-If PSyclone is being used to transform Kernels then the location to
-write these to is specified using the ``-okern <directory>``
+If PSyclone is being used to generate OpenCL Kernels (see :ref:`opencl`) then
+the location to write these to is specified using the ``-okern <directory>``
 option. If this is not supplied then they are written to the current
-working directory. By default, PSyclone will overwrite any kernel of
-the same name in that directory. To change this behaviour, the user
-can use the ``--no_kernel_clobber`` option. This causes PSyclone to
-re-name any transformed kernel that would clash with any of those
-already present in the output directory.
+working directory. Either way, PSyclone will ensure that unique filenames
+are used.
 
 Algorithm files with no invokes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -488,34 +484,6 @@ specified directory:
     directories as is required, with the constraint that there must be
     only one instance of the specified file within (or below) the
     specified directories.
-
-Transforming PSyKAl Kernels
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-When transforming kernels there are two use-cases to consider:
-
- 1. a given kernel will be transformed only once and that version
-    then used from multiple, different Invokes and Algorithms;
- 2. a given kernel is used from multiple, different Invokes and
-    Algorithms and is transformed differently, depending on the
-    Invoke.
-
-Whenever PSyclone is used to transform a kernel, the new kernel must
-be re-named in order to avoid clashing with other possible calls to
-the original. By default (``--kernel-renaming multiple``), PSyclone
-generates a new, unique name for each kernel that is
-transformed. Since PSyclone is run on one Algorithm file at a time, it
-uses the chosen kernel output directory (``-okern``) to ensure that
-names created by different invocations do not clash.  Therefore, when
-building a single application, the same kernel output directory must
-be used for each separate invocation of PSyclone.
-
-Alternatively, in order to support use case 1, a user may specify
-``--kernel-renaming single``: now, before transforming a kernel,
-PSyclone will check the kernel output directory and if a transformed
-version of that kernel is already present then that will be
-used. Note, if the kernel file on disk does not match with what would
-be generated then PSyclone will raise an exception.
 
 Enabling the Logging Infrastructure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

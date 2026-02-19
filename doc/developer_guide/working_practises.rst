@@ -153,12 +153,12 @@ fortran_writer     Provides a Fortran PSyIR back-end object to convert PSyIR
 have_graphviz      True if the Python bindings to the graphviz package (used when
                    generating DAG visualisations) are available. Does *not* check
                    that the underlying graphviz library is installed.
-kernel_outputdir   Sets the output directory used by PSyclone for transformed
+kernel_outputdir   Sets the output directory used by PSyclone for generated
                    kernels to be `tmpdir` (a built-in pytest fixture) and then
                    returns `tmpdir`. Any test that directly or indirectly causes
-                   kernels to be transformed needs to use this fixture in order
-                   to avoid having unwanted files created within the git working
-                   tree.
+                   OpenCL versions of kernels to be created must use this fixture
+		   in order to avoid having unwanted files created within the git
+		   working tree.
 parser             Creates an fparser2 parser for the Fortran2008 standard. This
                    is an expensive operation so this fixture is only run once
                    per test session.
