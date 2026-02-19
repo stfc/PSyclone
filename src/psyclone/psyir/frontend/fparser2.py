@@ -965,6 +965,7 @@ class Fparser2Reader():
             Fortran2003.Allocate_Stmt: self._allocate_handler,
             Fortran2003.Allocate_Shape_Spec: self._allocate_shape_spec_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
+            Fortran2003.Structure_Constructor: self._call_handler,
             Fortran2003.Data_Pointer_Object: self._structure_accessor_handler,
             Fortran2003.Data_Ref: self._structure_accessor_handler,
             Fortran2003.Pointer_Assignment_Stmt: self._assignment_handler,
@@ -5332,18 +5333,6 @@ class Fparser2Reader():
         # pylint: disable=unidiomatic-typecheck
         if type(routine) is Reference:
             routine_symbol = routine.symbol
-            if type(routine_symbol) is Symbol:
-                # Specialise routine_symbol from a Symbol to a
-                # RoutineSymbol
-                routine_symbol.specialise(RoutineSymbol)
-            elif isinstance(routine_symbol, RoutineSymbol):
-                # This symbol is already the expected type
-                pass
-            else:
-                raise GenerationError(
-                    f"Expecting the symbol '{routine_symbol.name}', to be of "
-                    f"type 'Symbol' or 'RoutineSymbol', but found "
-                    f"'{type(routine_symbol).__name__}'.")
 
         return self._process_args(node, call)
 
