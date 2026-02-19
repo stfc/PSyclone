@@ -1321,7 +1321,7 @@ class CodedKern(Kern):
     @property
     def module_inline(self) -> bool:
         '''
-        :returns: whether or not this kernel is being module-inlined.
+        :returns: whether or not this kernel is module-inlined.
         '''
         if (not self.routine or self.routine.symbol.is_import or
                 self.routine.symbol.is_unresolved):

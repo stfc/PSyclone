@@ -63,7 +63,7 @@ class KernelTransformationMixin:
         :param node: the PSyKAl Kernel to check.
 
         :raises TransformationError: if the supplied Kernel has not been
-            module inlined.
+            module inlined (is not present in the current Container).
         :raises TransformationError: if the supplied Kernel (call) is not
             within a Container or the Container does not contain the
             implementation of the Kernel.
@@ -76,10 +76,11 @@ class KernelTransformationMixin:
                     f"because")
 
         rsymbol = node.scope.symbol_table.lookup(node.name, otherwise=None)
-        if not rsymbol or rsymbol.is_import or rsymbol.is_unresolved:
+        if not rsymbol or not rsymbol.is_modulevar:
             raise TransformationError(
-                f"{msg_text} it is not module inlined (i.e. local to the "
-                f"current module). Use KernelModuleInlineTrans() first."
+                f"{msg_text} its implementation resides in a different source "
+                f"file. Apply KernelModuleInlineTrans first to bring it into "
+                f"this module."
             )
         container = node.ancestor(Container)
         if not container:

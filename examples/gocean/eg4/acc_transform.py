@@ -57,7 +57,7 @@ def trans(psyir):
     ltrans = ACCLoopTrans()
     dtrans = ACCEnterDataTrans()
     ktrans = ACCRoutineTrans()
-    itrans = KernelModuleInlineTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
     g2localtrans = KernelImportsToArguments()
 
     schedule = psyir.children[0].children[0]
@@ -77,7 +77,7 @@ def trans(psyir):
     # Convert any accesses to imported data into kernel arguments, put an
     # 'acc routine' directive inside, and module-inline each kernel
     for kern in schedule.coded_kernels():
-        itrans.apply(kern)
+        mod_inline_trans.apply(kern)
         if kern.name == "kern_use_var_code":
             g2localtrans.apply(kern)
         ktrans.apply(kern)

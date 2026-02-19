@@ -78,7 +78,9 @@ def test_check_kernel_is_local():
     with pytest.raises(TransformationError) as err:
         my_trans._check_kernel_is_local(kern)
     assert ("Cannot transform this Kernel call to 'compute_cu_code' because "
-            "it is not module inlined" in str(err.value))
+            "its implementation resides in a different source file. Apply "
+            "KernelModuleInlineTrans first to bring it into this module."
+            in str(err.value))
     mod_inline_trans = KernelModuleInlineTrans()
     mod_inline_trans.apply(kern)
     # Check should now pass.

@@ -59,6 +59,7 @@ from psyclone import transformations
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import (lfric_builtins, LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
@@ -658,6 +659,23 @@ def test_codedkern_node_str():
         colored("CodedKern", LFRicKern._colour) +
         " dummy_code(field_1,field_2,field_3) [module_inline=False]")
     assert expected_output in out
+
+
+def test_codedkern_module_inline_getter():
+    '''
+    Test the module_inline property of CodedKern.
+    '''
+    _, invoke = get_invoke("4.6_multikernel_invokes.f90", api="lfric", idx=0)
+    schedule = invoke.schedule
+    ckerns = schedule.walk(CodedKern)
+    # Double check that both kernels are the same.
+    assert ckerns[0].name == ckerns[1].name
+    assert ckerns[0].module_inline is False
+    mod_inline_trans = KernelModuleInlineTrans()
+    mod_inline_trans.apply(ckerns[0])
+    # Module inlining one should have updated both.
+    assert ckerns[0].module_inline is True
+    assert ckerns[1].module_inline is True
 
 
 def test_codedkern_lower_to_language_level(monkeypatch):
