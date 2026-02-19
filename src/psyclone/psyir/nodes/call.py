@@ -383,20 +383,28 @@ class Call(Statement, DataNode):
         return None
 
     @property
-    def routine(self):
+    def routine(self) -> Optional[Reference]:
         '''
         :returns: the routine reference that this call calls.
-        :rtype: Optional[py:class:`psyclone.psyir.nodes.Reference`]
         '''
         if len(self._children) >= 1:
             return self.children[0]
         return None
 
     @property
-    def arguments(self) -> Tuple[DataNode]:
+    def datatype(self) -> DataType:
+        '''
+        :returns: the return value type of this call.
+        '''
+        if self.routine:
+            if isinstance(self.routine.symbol, RoutineSymbol):
+                return self.routine.symbol.datatype
+        return super().datatype
+
+    @property
+    def arguments(self) -> Tuple[DataNode, ...]:
         '''
         :returns: the children of this node that represent its arguments.
-        :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
         '''
         if len(self._children) >= 2:
             return tuple(self.children[1:])

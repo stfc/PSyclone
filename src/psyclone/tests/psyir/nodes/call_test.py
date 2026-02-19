@@ -48,7 +48,7 @@ from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, ContainerSymbol, DataSymbol, DataTypeSymbol,
     NoType, RoutineSymbol, REAL_TYPE, SymbolError, UnresolvedInterface,
-    UnresolvedType)
+    UnresolvedType, ScalarType)
 
 
 class SpecialCall(Call):
@@ -1977,3 +1977,40 @@ def test_check_argument_type_matches(fortran_reader):
             DataSymbol("dummy1",
                        ArrayType(DataTypeSymbol("MY_type", UnresolvedType()),
                                  shape=[5])))
+
+def test_call_datatype(fortran_reader):
+    ''' Check that when the routine definition can be found, its datatype
+    can be provided. '''
+
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine not_a_function(x, y, z)
+        integer, intent(in) :: x
+        integer, intent(out) :: y
+        integer, intent(inout) :: z
+        y = x + 1
+    end subroutine not_a_function
+
+    integer function scalar_function(a)
+        integer, intent(in) :: a
+        scalar_function = a
+    end function
+    function array_function(a)
+        integer, dimension(3) :: array_function
+        integer, intent(in) :: a
+        array_function = (/1,2,3/)
+    end function
+
+    subroutine test()
+        integer :: x, y, z
+        call return_scalar(x, y, z)
+        x = scalar_function(x) + unknown(array_function(x))
+
+    end subroutine test
+    """)
+    calls = psyir.walk(Call)
+    assert isinstance(calls[0].datatype, NoType)
+    assert isinstance(calls[1].datatype, ScalarType)
+    assert isinstance(calls[2].datatype, UnresolvedType)
+    # TODO #1799: Improve datatype inference, the following one
+    # has a definition that says is an ArrayType
+    assert isinstance(calls[3].datatype, UnresolvedType)
