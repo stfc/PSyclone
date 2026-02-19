@@ -60,8 +60,7 @@ from fparser.two import Fortran2003
 
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import (
-    Config, ConfigurationError, VALID_KERNEL_NAMING_SCHEMES,
-    LFRIC_API_NAMES, GOCEAN_API_NAMES)
+    Config, ConfigurationError, LFRIC_API_NAMES, GOCEAN_API_NAMES)
 from psyclone.domain.common.algorithm.psyir import (
     AlgorithmInvokeCall, KernelFunctor)
 from psyclone.domain.common.transformations import AlgTrans
@@ -190,7 +189,6 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
              line_length=False,
              distributed_memory=None,
              kern_out_path="",
-             kern_naming="multiple",
              keep_comments: bool = False,
              keep_directives: bool = False,
              keep_conditional_openmp_statements: bool = False,
@@ -221,8 +219,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         'config.py' file.
     :param str kern_out_path: directory to which to write transformed
         kernel code. Defaults to empty string.
-    :param bool kern_naming: the scheme to use when re-naming transformed
-        kernels. Defaults to "multiple".
+
     :return: 2-tuple containing the fparser1 AST for the algorithm code and
         the fparser1 AST or a string (for NEMO) of the psy code.
     :rtype: Tuple[:py:class:`fparser.one.block_statements.BeginSource`,
@@ -236,7 +233,6 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     :param free_form: whether the original source is free form Fortran.
 
     :raises GenerationError: if an invalid API is specified.
-    :raises GenerationError: if an invalid kernel-renaming scheme is specified.
     :raises GenerationError: if there is an error raising the PSyIR to
         domain-specific PSyIR.
     :raises GenerationError: if a kernel functor is not named in a use
@@ -269,11 +265,6 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
     # Store Kernel-output options in our Configuration object
     Config.get().kernel_output_dir = kern_out_path
-    try:
-        Config.get().kernel_naming = kern_naming
-    except ValueError as verr:
-        raise GenerationError(
-            f"Invalid kernel-renaming scheme supplied: {str(verr)}") from verr
 
     if not os.path.isfile(filename):
         raise IOError(f"File '{filename}' not found")
@@ -530,11 +521,6 @@ def main(arguments):
     parser.add_argument(
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='(psykal mode) do not generate distributed memory code')
-    parser.add_argument(
-        '--kernel-renaming', default="multiple",
-        choices=VALID_KERNEL_NAMING_SCHEMES,
-        help='(psykal mode) naming scheme to use when re-naming transformed'
-             ' kernels')
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
     parser.add_argument(
         "--log-level", default="OFF",
@@ -777,7 +763,6 @@ def main(arguments):
                 line_length=(args.limit == 'all'),
                 distributed_memory=args.dist_mem,
                 kern_out_path=kern_out_path,
-                kern_naming=args.kernel_renaming,
                 keep_comments=args.keep_comments,
                 keep_directives=args.keep_directives,
                 keep_conditional_openmp_statements=args.

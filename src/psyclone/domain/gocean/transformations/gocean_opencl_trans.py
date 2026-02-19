@@ -794,14 +794,10 @@ class GOOpenCLTrans(Transformation):
         else:
             self._kernels_file.addchild(kernel_copy)
 
-    def _output_opencl_kernels_file(self):
+    def _output_opencl_kernels_file(self) -> None:
         ''' Write the OpenCL kernels to a file using the OpenCL backend.
 
         '''
-        # TODO 1013: The code below duplicates some logic of the CodedKern
-        # rename_and_write method. Ideally this should be moved out of
-        # the AST and transformations and put into some kind of IOManager.
-
         ocl_writer = OpenCLWriter(kernels_local_size=64)
         new_kern_code = ocl_writer(self._kernels_file)
 
