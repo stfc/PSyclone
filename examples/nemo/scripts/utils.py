@@ -376,6 +376,28 @@ def insert_explicit_loop_parallelism(
     if schedule.name in ("ts_wgt", "ts_rst"):
         return
 
+    # Look for certain classes of array that will be useful later.
+    all_work_arrays = []
+    small_arrays = []
+    for sym in schedule.symbol_table.datasymbols:
+        if not sym.is_array:
+            continue
+        if sym.name.startswith("z"):
+            all_work_arrays.append(sym)
+        dtype = (sym.datatype if isinstance(sym.datatype, ArrayType)
+                 else sym.datatype.partial_datatype)
+        if (isinstance(dtype.shape[0], ArrayType.ArrayBounds) and
+                isinstance(dtype.shape[0].upper, Literal)):
+            small_arrays.append(sym)
+    all_1d_work_arrays = []
+    for sym in all_work_arrays:
+        if isinstance(sym.datatype, ArrayType):
+            shape = sym.datatype.shape
+        else:
+            shape = sym.datatype.partial_datatype.shape
+        if len(shape) == 1:
+            all_1d_work_arrays.append(sym)
+
     enable_nowaits = False
     if asynchronous_parallelism and not schedule.walk(StructureReference):
         # TODO #3220: Explore the cause of the async issues
@@ -442,20 +464,6 @@ def insert_explicit_loop_parallelism(
         else:
             # In NEMOv5 add the necessary explicit private symbols in icethd
             # in order to parallelise the outer loop
-            all_work_arrays = []
-            for sym in loop.ancestor(Routine).symbol_table.datasymbols:
-                if sym.name.startswith("z") and sym.is_array:
-                    all_work_arrays.append(sym)
-
-            all_1d_work_arrays = []
-            for sym in all_work_arrays:
-                if isinstance(sym.datatype, ArrayType):
-                    shape = sym.datatype.shape
-                else:
-                    shape = sym.datatype.partial_datatype.shape
-                if len(shape) == 1:
-                    all_1d_work_arrays.append(sym)
-
             if routine_name == "ice_thd_zdf_bl99":
                 if isinstance(loop.stop_expr, Reference):
                     if (loop.stop_expr.symbol.name == "npti" or
@@ -498,6 +506,14 @@ def insert_explicit_loop_parallelism(
                     opts["ignore_dependencies_for"] = opts["force_private"]
             if routine_name.startswith("lbc_"):
                 # Optimisations/choices specific to the lbc routines
+                skip_this = False
+                for assign in loop.walk(Assignment, stop_type=Assignment):
+                    if assign.lhs.symbol in small_arrays:
+                        skip_this = True
+                        break
+                if skip_this:
+                    continue
+
                 if loop.variable.name == "jf":
                     # Loops over fields being sent/received are not worth
                     # parallelising on GPU.
@@ -510,6 +526,7 @@ def insert_explicit_loop_parallelism(
                                                        "ptab%pt4d"]
                 if routine_name.startswith("lbc_nfd_ext"):
                     opts["ignore_dependencies_for"] = ["ptab"]
+
         try:
             # First check that the region_directive is feasible for this region
             if region_directive_trans:
