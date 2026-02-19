@@ -79,9 +79,9 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         '''Returns whether the provided node is allowed in the _transformation.
 
         The default implementation checks whether the node is an instance
-        of the _allowed_contiguous_statements tuple, but subclasses may override
-        this with additional functionality (e.g. to check if a function is
-        pure).
+        of the _allowed_contiguous_statements tuple, but subclasses may
+        override this with additional functionality (e.g. to check if a
+        function is pure).
 
         :param node: the candidate node to be in the transformation region.
         :returns: whether the node is allowed to be in the transformed region.
