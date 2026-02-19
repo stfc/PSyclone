@@ -520,12 +520,12 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
                         "lfric", idx=0, dist_mem=False)
 
     # Module inline kernel in invoke 1
-    inline_trans = KernelModuleInlineTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
     artrans = ACCRoutineTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "mixed_code":
-            inline_trans.apply(coded_kern)
+            mod_inline_trans.apply(coded_kern)
             # Transform that kernel. We have to use 'force' as it contains
             # a CodeBlock.
             artrans.apply(coded_kern, options={"force": True})

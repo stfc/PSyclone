@@ -1212,8 +1212,6 @@ class CodedKern(Kern):
         self._fp2_ast = None  #: The fparser2 AST for the kernel
         #: PSyIR schedule(s) for the kernel
         self._schedules = None
-        #: Whether or not this kernel has been transformed
-        self._modified = False
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
 
@@ -1400,23 +1398,6 @@ class CodedKern(Kern):
         reader = FortranStringReader(fortran)
         self._fp2_ast = my_parser(reader)
         return self._fp2_ast
-
-    @property
-    def modified(self):
-        '''
-        :returns: Whether or not this kernel has been modified (transformed).
-        :rtype: bool
-        '''
-        return self._modified
-
-    @modified.setter
-    def modified(self, value):
-        '''
-        Setter for whether or not this kernel has been modified.
-
-        :param bool value: True if kernel modified, False otherwise.
-        '''
-        self._modified = value
 
 
 class InlinedKern(Kern):

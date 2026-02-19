@@ -1852,9 +1852,6 @@ class LFRicKernelConstTrans(Transformation, KernelTransformationMixin):
                     make_constant(symbol_table, info.position, ndofs,
                                   function_space=info.function_space)
 
-        # Flag that the kernel has been modified
-        kernel.modified = True
-
     def validate(self, node, options=None):
         '''This method checks whether the input arguments are valid for
         this transformation.
@@ -2150,9 +2147,6 @@ class ACCRoutineTrans(Transformation,
         self.validate(node, options)
 
         if isinstance(node, Kern):
-            # Flag that the kernel has been modified
-            node.modified = True
-
             # Get the schedule(s) representing the kernel subroutine
             routines = node.get_callees()
         else:
@@ -2505,7 +2499,6 @@ class KernelImportsToArguments(Transformation, KernelTransformationMixin):
             if kern.name == node.name:
                 for arg in new_kernel_args:
                     kern.arguments.append(arg[0], arg[1])
-                    kern.modified = True
 
 
 # Create a compatibility layer for all existing Dynamo0p3 transformation

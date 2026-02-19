@@ -110,9 +110,6 @@ class OMPDeclareTargetTrans(Transformation,
         self.validate(node, options)
 
         if isinstance(node, Kern):
-            # Flag that the kernel has been modified
-            node.modified = True
-
             # Get the schedule representing the kernel subroutine
             routines = node.get_callees()
         else:

@@ -76,7 +76,9 @@ class KernelTransformationMixin:
                     f"because")
 
         rsymbol = node.scope.symbol_table.lookup(node.name, otherwise=None)
-        if not rsymbol or not rsymbol.is_modulevar:
+        # (The symbol could have an 'automatic' interface if it is a
+        # GenericInterfaceSymbol rather than a RoutineSymbol.)
+        if not rsymbol or not (rsymbol.is_modulevar or rsymbol.is_automatic):
             raise TransformationError(
                 f"{msg_text} its implementation resides in a different source "
                 f"file. Apply KernelModuleInlineTrans first to bring it into "

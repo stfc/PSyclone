@@ -67,9 +67,9 @@ def test_kernelimportstoargumentstrans_wrongapi():
     kernel = invoke.schedule.coded_kernels()[0]
     with pytest.raises(TransformationError) as err:
         trans.apply(kernel)
-    assert "The KernelImportsToArguments transformation is currently only " \
-           "supported for the GOcean API but got an InvokeSchedule of " \
-           "type:" in str(err.value)
+    assert ("The KernelImportsToArguments transformation is currently only "
+            "supported for the GOcean API but got an InvokeSchedule of "
+            "type:" in str(err.value))
 
 
 def test_kernelimportsstoargumentstrans_requires_module_inline():
@@ -85,7 +85,8 @@ def test_kernelimportsstoargumentstrans_requires_module_inline():
     with pytest.raises(TransformationError) as err:
         trans.validate(kernel)
     assert ("Cannot transform this Kernel call to 'kernel_with_global_code' "
-            "because it is not module inlined" in str(err.value))
+            "because its implementation resides in a different"
+            in str(err.value))
 
 
 def test_kernelimportstoargumentstrans(monkeypatch, fortran_writer):
@@ -119,8 +120,6 @@ def test_kernelimportstoargumentstrans(monkeypatch, fortran_writer):
 
     # Test transforming a single kernel
     trans.apply(kernel)
-
-    assert kernel.modified
 
     # The transformation;
     # 1) Has imported the symbol into the InvokeSchedule

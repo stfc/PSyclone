@@ -7645,7 +7645,8 @@ def test_kern_const_invalid():
     # Kernel not module inlined
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"number_of_layers": 1})
-    assert "because it is not module inlined" in str(excinfo.value)
+    assert ("because its implementation resides in a different source file"
+            in str(excinfo.value))
 
     # Module-inline it so we can continue with tests.
     mod_inline_trans.apply(kernel)

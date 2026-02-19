@@ -55,7 +55,7 @@ This is achieved using ``KernelModuleInlineTrans``:
 .. autoclass:: psyclone.domain.common.transformations.KernelModuleInlineTrans
    :noindex:
 
-Once the PSy-layer has its own, 'private' copy copy the Kernel, it may
+Once the PSy-layer has its own, private copy of the Kernel, it may
 subsequently be transformed.
 
 .. note:: Currently ``KernelModuleInlineTrans`` does not support re-naming
