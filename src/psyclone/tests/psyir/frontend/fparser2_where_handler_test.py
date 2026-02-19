@@ -1229,7 +1229,7 @@ def test_array_syntax_to_indexed_unknown_elemental(fortran_reader):
             "filename to RESOLVE_IMPORTS." in str(excinfo.value))
 
 
-def test_nested_where(fortran_reader, fortran_writer, tmpdir):
+def test_nested_where(fortran_reader, fortran_writer, tmp_path):
     ''' Test that we handle nested WHERE statements. '''
 
     # If the types are not known it creates a codeblock with the associated
@@ -1354,4 +1354,4 @@ SQRT(p_dal%D11(widx1,widx2,1) * p_dal%D22(widx1,widx2,1))
         end if
       enddo
     enddo""" in code
-    assert Compile(tmpdir).string_compiles(code)
+    assert Compile(tmp_path).string_compiles(code)

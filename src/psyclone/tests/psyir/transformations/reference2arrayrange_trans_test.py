@@ -294,7 +294,7 @@ def test_apply_inquiry(fortran_reader, fortran_writer):
         "  end if\n") in output
 
 
-def test_structure_references(fortran_reader, fortran_writer, tmpdir):
+def test_structure_references(fortran_reader, fortran_writer, tmp_path):
     ''' Test that the transformation can be applied to StructureReferences
     and its Members.
     '''
@@ -360,7 +360,7 @@ def test_structure_references(fortran_reader, fortran_writer, tmpdir):
   array_of_ref(1:10)%field_of_fields(1)%inner = 1"""
     assert expected_modified in output.lower()
 
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 def test_unsupported_structure_references(fortran_reader):
