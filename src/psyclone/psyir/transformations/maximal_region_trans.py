@@ -117,7 +117,6 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         :returns: whether it is safe to add the node to a transformed region.
         '''
-#        print(type(node), self._node_allowed(node))
         if self._node_allowed(node):
             return True
 
@@ -135,7 +134,6 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
             # Check that all contents of each branch body can be part
             # of the region.
             allowed = True
-            print(node.debug_string())
             for child in node.if_body:
                 allowed = (allowed and self._can_be_in_region(child))
             if node.else_body and allowed:
