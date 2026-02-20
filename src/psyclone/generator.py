@@ -512,8 +512,8 @@ def main(arguments):
                         help='(psykal mode) filename of generated '
                         'PSy-layer code')
     parser.add_argument('-okern', metavar='OUTPUT_KERNEL_PATH',
-                        help='(psykal mode) directory in which to put '
-                        'transformed kernels, default is the current working'
+                        help='(psykal mode) directory in which to put any '
+                        'generated kernels, default is the current working'
                         ' directory')
     parser.add_argument(
         '-dm', '--dist_mem', dest='dist_mem', action='store_true',

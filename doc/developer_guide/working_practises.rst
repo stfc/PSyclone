@@ -157,8 +157,8 @@ kernel_outputdir   Sets the output directory used by PSyclone for generated
                    kernels to be `tmpdir` (a built-in pytest fixture) and then
                    returns `tmpdir`. Any test that directly or indirectly causes
                    OpenCL versions of kernels to be created must use this fixture
-		   in order to avoid having unwanted files created within the git
-		   working tree.
+                   in order to avoid having unwanted files created within the git
+                   working tree.
 parser             Creates an fparser2 parser for the Fortran2008 standard. This
                    is an expensive operation so this fixture is only run once
                    per test session.
