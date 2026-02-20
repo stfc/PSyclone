@@ -41,12 +41,13 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
+from __future__ import annotations
 from dataclasses import dataclass
 import inspect
 import os
 from collections import OrderedDict
 import abc
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import warnings
 
 try:
@@ -58,7 +59,7 @@ except ImportError:
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.parse.algorithm import BuiltInCall
+from psyclone.parse.algorithm import BuiltInCall, KernelCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Container, Literal, Loop, Node, OMPDoDirective,
@@ -67,7 +68,6 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
     UnresolvedType, ImportInterface, INTEGER_TYPE, RoutineSymbol)
-from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -1104,27 +1104,16 @@ class Kern(Statement):
         return self._arguments
 
     @property
-    def name(self):
+    def name(self) -> str:
         '''
         :returns: the name of the kernel.
-        :rtype: str
         '''
         return self._name
 
-    @name.setter
-    def name(self, value):
+    def is_coloured(self) -> bool:
         '''
-        Set the name of the kernel.
-
-        :param str value: The name of the kernel.
-        '''
-        self._name = value
-
-    def is_coloured(self):
-        '''
-        :returns: True if this kernel is being called from within a \
+        :returns: True if this kernel is being called from within a
                   coloured loop.
-        :rtype: bool
         '''
         parent_loop = self.ancestor(Loop)
         while parent_loop:
@@ -1194,14 +1183,11 @@ class CodedKern(Kern):
     Class representing a call to a PSyclone Kernel with a user-provided
     implementation. The kernel may or may not be in-lined.
 
-    :param type KernelArguments: the API-specific sub-class of \
-                                 :py:class:`psyclone.psyGen.Arguments` to \
-                                 create.
+    :param KernelArguments: the API-specific sub-class of
+        :py:class:`psyclone.psyGen.Arguments` to create.
     :param call: Details of the call to this kernel in the Algorithm layer.
-    :type call: :py:class:`psyclone.parse.algorithm.KernelCall`.
     :param parent: the parent of this Node (kernel call) in the Schedule.
-    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`.
-    :param bool check: whether to check for consistency between the \
+    :param check: whether to check for consistency between the
         kernel metadata and the algorithm layer. Defaults to True.
 
     '''
@@ -1209,26 +1195,42 @@ class CodedKern(Kern):
     _text_name = "CodedKern"
     _colour = "magenta"
 
-    def __init__(self, KernelArguments, call, parent=None, check=True):
+    def __init__(self,
+                 KernelArguments: type,
+                 call: KernelCall,
+                 parent: Node = None,
+                 check: bool = True):
         # Set module_name first in case there is an error when
         # processing arguments, as we can then return the module_name
         # from where it happened.
         self._module_name = call.module_name
-        super(CodedKern, self).__init__(parent, call,
-                                        call.ktype.procedure.name,
-                                        KernelArguments, check)
+        super().__init__(parent, call,
+                         call.ktype.procedure.name,
+                         KernelArguments, check)
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._fp2_ast = None  #: The fparser2 AST for the kernel
         #: PSyIR schedule(s) for the kernel
         self._schedules = None
-        #: Whether or not this kernel has been transformed
-        self._modified = False
-        #: Whether or not to in-line this kernel into the module containing
-        #: the PSy layer
-        self._module_inline = False
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
+
+        # If we have an ancestor InvokeSchedule then add the necessary
+        # symbols.
+        # TODO #2054 - this 'routine' property can be replaced once this
+        # class sub-classes Call.
+        self.routine: Optional[Reference] = None
+        container = self.ancestor(Container)
+        if container:
+            symtab = container.symbol_table
+            csymbol = symtab.find_or_create(
+                self._module_name,
+                symbol_type=ContainerSymbol)
+            rsymbol = symtab.find_or_create(
+                self._name,
+                symbol_type=RoutineSymbol,
+                interface=ImportInterface(csymbol))
+            self.routine = Reference(rsymbol)
 
     def get_interface_symbol(self) -> None:
         '''
@@ -1315,38 +1317,14 @@ class CodedKern(Kern):
         return f"kernel_{self.name}_{position}"
 
     @property
-    def module_inline(self):
+    def module_inline(self) -> bool:
         '''
-        :returns: whether or not this kernel is being module-inlined.
-        :rtype: bool
+        :returns: whether or not this kernel is module-inlined.
         '''
-        return self._module_inline
-
-    @module_inline.setter
-    def module_inline(self, value):
-        '''
-        Setter for whether or not to module-inline this kernel.
-
-        :param bool value: whether or not to module-inline this kernel.
-        '''
-        if value is not True:
-            raise TypeError(
-                f"The module inline parameter only accepts the type boolean "
-                f"'True' since module-inlining is irreversible. But found:"
-                f" '{value}'.")
-        # Do the same to all kernels in this invoke with the same name.
-        # This is needed because lowering would otherwise add
-        # an import with the same name and shadow the module-inline routine
-        # symbol.
-        # TODO 1823: The transformation could have more control about this by
-        # giving an option to specify if the module-inline applies to a
-        # single kernel, the whole invoke or the whole algorithm.
-        my_schedule = self.ancestor(InvokeSchedule)
-        for kernel in my_schedule.walk(Kern):
-            if kernel is self:
-                self._module_inline = value
-            elif kernel.name == self.name and kernel.module_inline != value:
-                kernel.module_inline = value
+        if (not self.routine or self.routine.symbol.is_import or
+                self.routine.symbol.is_unresolved):
+            return False
+        return True
 
     def node_str(self, colour=True):
         ''' Returns the name of this node with (optional) control codes
@@ -1359,51 +1337,20 @@ class CodedKern(Kern):
         '''
         return (self.coloured_name(colour) + " " + self.name + "(" +
                 self.arguments.names + ") " + "[module_inline=" +
-                str(self._module_inline) + "]")
+                str(self.module_inline) + "]")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         In-place replacement of CodedKern concept into language level
         PSyIR constructs. The CodedKern is implemented as a Call to a
         routine with the appropriate arguments.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
 
-        if not self.module_inline:
-            # If it is not module inlined then make sure we generate the kernel
-            # file (and rename it when necessary).
-            self.rename_and_write()
-            # Then find or create the imported RoutineSymbol
-            try:
-                # Limit scope to this Invoke, since a kernel with the same name
-                # may have been inlined from another invoke in the same file,
-                # but we have it here marked as "not module-inlined"
-                rsymbol = symtab.lookup(self._name, scope_limit=symtab.node)
-            except KeyError:
-                csymbol = symtab.find_or_create(
-                        self._module_name,
-                        symbol_type=ContainerSymbol)
-                rsymbol = symtab.new_symbol(
-                        self._name,
-                        symbol_type=RoutineSymbol,
-                        # And allow shadowing in case it is also inlined with
-                        # the same name by another invoke
-                        shadowing=True,
-                        interface=ImportInterface(csymbol))
-        else:
-            # If it's inlined, the symbol must exist
-            try:
-                rsymbol = self.scope.symbol_table.lookup(self._name)
-            except KeyError as err:
-                raise GenerationError(
-                    f"Cannot generate this kernel call to '{self.name}' "
-                    f"because it is marked as module-inlined but no such "
-                    f"subroutine exists in this module.") from err
-
+        rsymbol = symtab.lookup(self._name)
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node
         call_node = Call.create(rsymbol, self.arguments.psyir_expressions())
@@ -1412,13 +1359,13 @@ class CodedKern(Kern):
         self.replace_with(call_node)
         return call_node
 
-    def incremented_arg(self):
-        ''' Returns the argument that has INC access. Raises a
-        FieldNotFoundError if none is found.
+    def incremented_arg(self) -> str:
+        ''' Returns the argument that has INC access.
 
-        :rtype: str
-        :raises FieldNotFoundError: if none is found.
         :returns: a Fortran argument name.
+
+        :raises FieldNotFoundError: if no incremented argument is found.
+
         '''
         for arg in self.arguments.args:
             if arg.access == AccessType.INC:
@@ -1451,216 +1398,6 @@ class CodedKern(Kern):
         reader = FortranStringReader(fortran)
         self._fp2_ast = my_parser(reader)
         return self._fp2_ast
-
-    @staticmethod
-    def _new_name(original, tag, suffix):
-        '''
-        Construct a new name given the original, a tag and a suffix (which
-        may or may not terminate the original name). If suffix is present
-        in the original name then the `tag` is inserted before it.
-
-        :param str original: The original name
-        :param str tag: Tag to insert into new name
-        :param str suffix: Suffix with which to end new name.
-        :returns: New name made of original + tag + suffix
-        :rtype: str
-        '''
-        if original.endswith(suffix):
-            return original[:-len(suffix)] + tag + suffix
-        return original + tag + suffix
-
-    def rename_and_write(self):
-        '''
-        Writes the (transformed) AST of this kernel to file and resets the
-        'modified' flag to False. By default (config.kernel_naming ==
-        "multiple"), the kernel is re-named so as to be unique within
-        the kernel output directory stored within the configuration
-        object. Alternatively, if config.kernel_naming is "single"
-        then no re-naming and output is performed if there is already
-        a transformed copy of the kernel in the output dir. (In this
-        case a check is performed that the transformed kernel already
-        present is identical to the one that we would otherwise write
-        to file. If this is not the case then we raise a GenerationError.)
-
-        :raises GenerationError: if config.kernel_naming == "single" and a \
-                                 different, transformed version of this \
-                                 kernel is already in the output directory.
-        :raises NotImplementedError: if the kernel has been transformed but \
-                                     is also flagged for module-inlining.
-
-        '''
-        from psyclone.line_length import FortLineLength
-
-        config = Config.get()
-
-        # If this kernel has not been transformed we do nothing, also if the
-        # kernel has been module-inlined, the routine already exist in the
-        # PSyIR and we don't need to generate a new file with it.
-        if not self.modified or self.module_inline:
-            return
-
-        # Remove any "_mod" if the file follows the PSyclone naming convention
-        orig_mod_name = self.module_name[:]
-        if orig_mod_name.lower().endswith("_mod"):
-            old_base_name = orig_mod_name[:-4]
-        else:
-            old_base_name = orig_mod_name[:]
-
-        # We could create a hash of a string built from the name of the
-        # Algorithm (module), the name/position of the Invoke and the
-        # index of this kernel within that Invoke. However, that creates
-        # a very long name so we simply ensure that kernel names are unique
-        # within the user-supplied kernel-output directory.
-        name_idx = -1
-        fdesc = None
-        while not fdesc:
-            name_idx += 1
-            new_suffix = ""
-
-            new_suffix += f"_{name_idx}"
-            new_name = old_base_name + new_suffix + "_mod.f90"
-
-            try:
-                # Atomically attempt to open the new kernel file (in case
-                # this is part of a parallel build)
-                fdesc = os.open(
-                    os.path.join(config.kernel_output_dir, new_name),
-                    os.O_CREAT | os.O_WRONLY | os.O_EXCL)
-            except (OSError, IOError):
-                # The os.O_CREATE and os.O_EXCL flags in combination mean
-                # that open() raises an error if the file exists
-                if config.kernel_naming == "single":
-                    # If the kernel-renaming scheme is such that we only ever
-                    # create one copy of a transformed kernel then we're done
-                    break
-                continue
-
-        # Use the suffix we have determined to rename all relevant quantities
-        # within the AST of the kernel code.
-        self._rename_psyir(new_suffix)
-
-        # Kernel is now self-consistent so unset the modified flag
-        self.modified = False
-
-        # If we reach this point the kernel needs to be written out into a
-        # file using a PSyIR back-end. At the moment there is no way to choose
-        # which back-end to use, so simply use the Fortran one (and limit the
-        # line length).
-        fortran_writer = FortranWriter(
-            check_global_constraints=config.backend_checks_enabled)
-        # Start from the root of the schedule as we want to output
-        # any module information surrounding the kernel subroutine
-        # as well as the subroutine itself.
-        schedules = self.get_callees()
-        new_kern_code = fortran_writer(schedules[0].root)
-        fll = FortLineLength()
-        new_kern_code = fll.process(new_kern_code)
-
-        if not fdesc:
-            # If we've not got a file descriptor at this point then that's
-            # because the file already exists and the kernel-naming scheme
-            # ("single") means we're not creating a new one.
-            # Check that what we've got is the same as what's in the file
-            with open(os.path.join(config.kernel_output_dir,
-                                   new_name), "r") as ffile:
-                kern_code = ffile.read()
-                if kern_code != new_kern_code:
-                    raise GenerationError(
-                        f"A transformed version of this Kernel "
-                        f"'{self._module_name + '''.f90'''}' already exists "
-                        f"in the kernel-output directory "
-                        f"({config.kernel_output_dir}) but is not the "
-                        f"same as the current, transformed kernel and the "
-                        f"kernel-renaming scheme is set to "
-                        f"'{config.kernel_naming}'. (If you wish to"
-                        f" generate a new, unique kernel for every kernel "
-                        f"that is transformed then use "
-                        f"'--kernel-renaming multiple'.)")
-        else:
-            # Write the modified AST out to file
-            os.write(fdesc, new_kern_code.encode())
-            # Close the new kernel file
-            os.close(fdesc)
-
-    def _rename_psyir(self, suffix):
-        '''Rename the PSyIR module and kernel names by adding the supplied
-        suffix to the names. This change affects the KernCall and
-        KernelSchedule nodes as well as the kernel metadata declaration.
-
-        :param str suffix: the string to insert into the quantity names.
-
-        '''
-        # We need to get the kernel schedule before modifying self.name.
-        kern_schedules = self.get_callees()
-        container = kern_schedules[0].ancestor(Container)
-
-        # Use the suffix to create a new kernel name.  This will
-        # conform to the PSyclone convention of ending in "_code"
-        orig_mod_name = self.module_name[:]
-        new_mod_name = self._new_name(orig_mod_name, suffix, "_mod")
-
-        # If the kernel is polymorphic, we can just change the name of
-        # the interface.
-        interface_sym = self.get_interface_symbol()
-        if interface_sym:
-            orig_kern_name = interface_sym.name
-            new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
-            container.symbol_table.rename_symbol(interface_sym, new_kern_name)
-            self.name = new_kern_name
-        else:
-            kern_schedule = kern_schedules[0]
-            orig_kern_name = kern_schedule.name[:]
-            new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
-
-            # Change the name of this kernel and the associated
-            # module. These names are used when generating the PSy-layer.
-            self.name = new_kern_name[:]
-            kern_schedule.name = new_kern_name[:]
-
-        self._module_name = new_mod_name[:]
-        container.name = new_mod_name[:]
-
-        # Ensure the metadata points to the correct procedure now. Since this
-        # routine is general purpose, we won't always have a domain-specific
-        # Container here and if we don't, it won't have a 'metadata' property.
-        if hasattr(container, "metadata"):
-            container.metadata.procedure_name = new_kern_name[:]
-        # TODO #928 - until the LFRic KernelInterface is fully functional, we
-        # can't raise language-level PSyIR to LFRic and therefore we have to
-        # manually fix the name of the procedure within the text that stores
-        # the kernel metadata.
-        container_table = container.symbol_table
-        for sym in container_table.datatypesymbols:
-            if isinstance(sym.datatype, UnsupportedFortranType):
-                # If the DataTypeSymbol is a KernelMetadata Type, change its
-                # kernel code name
-                for line in sym.datatype.declaration.split('\n'):
-                    if "PROCEDURE," in line:
-                        newl = f"PROCEDURE, NOPASS :: code => {new_kern_name}"
-                        new_declaration = sym.datatype.declaration.replace(
-                                                            line, newl)
-                        # pylint: disable=protected-access
-                        sym._datatype = UnsupportedFortranType(
-                            new_declaration,
-                            partial_datatype=sym.datatype.partial_datatype)
-                        break  # There is only one such statement per type
-
-    @property
-    def modified(self):
-        '''
-        :returns: Whether or not this kernel has been modified (transformed).
-        :rtype: bool
-        '''
-        return self._modified
-
-    @modified.setter
-    def modified(self, value):
-        '''
-        Setter for whether or not this kernel has been modified.
-
-        :param bool value: True if kernel modified, False otherwise.
-        '''
-        self._modified = value
 
 
 class InlinedKern(Kern):

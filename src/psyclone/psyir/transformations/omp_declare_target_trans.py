@@ -39,13 +39,17 @@ This module provides the implementation of OMPDeclareTargetTrans
 
 '''
 
+from psyclone.domain.common.transformations.kernel_transformation_mixin \
+    import KernelTransformationMixin
 from psyclone.psyir.nodes import OMPDeclareTargetDirective
 from psyclone.psyGen import Transformation, Kern
 from psyclone.psyir.transformations.mark_routine_for_gpu_mixin import (
         MarkRoutineForGPUMixin)
 
 
-class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
+class OMPDeclareTargetTrans(Transformation,
+                            MarkRoutineForGPUMixin,
+                            KernelTransformationMixin):
     '''
     Adds an OpenMP declare target directive to the specified routine.
 
@@ -106,9 +110,6 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
         self.validate(node, options)
 
         if isinstance(node, Kern):
-            # Flag that the kernel has been modified
-            node.modified = True
-
             # Get the schedule representing the kernel subroutine
             routines = node.get_callees()
         else:
@@ -146,3 +147,5 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
         super().validate(node, options=options)
 
         self.validate_it_can_run_on_gpu(node, options)
+
+        self._check_kernel_is_local(node)

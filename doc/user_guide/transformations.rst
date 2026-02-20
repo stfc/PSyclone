@@ -175,9 +175,9 @@ alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
 .. note:: PSyclone currently only supports OpenCL and
-          KernelImportsToArguments transformations for the GOcean 1.0
+          KernelImportsToArguments transformations for the GOcean
           API, the OpenACC Data transformation is limited to
-          the generic code transformation and the GOcean 1.0 API and the
+          the generic code transformation and the GOcean API and the
           OpenACC Kernels transformation is limited to the generic code
           transformation and the LFRic API.
 
@@ -774,6 +774,8 @@ caused by Taskloops, and adds OpenMP Taskwait statements to satisfy those
 dependencies. An example of using OpenMP tasking is available in
 `PSyclone/examples/nemo/eg1/openmp_taskloop_trans.py`.
 
+.. _opencl:
+
 OpenCL
 ------
 
@@ -791,9 +793,9 @@ OpenCL functionality. It also relies upon the device acceleration support
 provided by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
 
 
-.. note:: The generated OpenCL kernels are written in a file called
-    opencl_kernels_<index>.cl where the index keeps increasing if the
-    file name already exist.
+.. note:: The generated OpenCL kernels are written to the kernel output directory
+	  (see :ref:`psykal-file-output`) in a file called ``opencl_kernels_<index>.cl``
+	  where the index keeps increasing if the file name already exists.
 
 
 The ``GOOpenCLTrans`` transformation accepts an `options` argument with a
@@ -905,12 +907,13 @@ porting and/or debugging of an OpenACC application as it provides
 explicit control over what data is present on a device for a given
 (part of an) Invoke routine.
 
-The NVIDIA compiler compiler provides an alternative approach to controlling
-data movement through its 'managed memory' option
-(``-gpu=mem:managed``). When this is enabled the compiler itself takes
-on the task of ensuring that data is copied to/from the GPU when
-required. (Note that this approach can struggle with Fortran code
-containing derived types however.)
+GPU vendors often provide an alternative approach to controlling
+data movement through a 'managed memory' option (``-gpu=mem:managed`` for
+NVIDIA). When this is enabled, data is copied to/from the
+GPU using the operating system's page-fault mechanism.
+(Note that this approach can suffer from 'thrashing' if both CPU and GPU
+frequently access data held in the same page. This can be a particular
+issue for Fortran code containing derived types.)
 
 As well as ensuring the correct data is copied to and from the remote
 device, OpenACC directives must also be added to a code in order to

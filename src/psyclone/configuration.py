@@ -57,16 +57,8 @@ import psyclone
 from psyclone.errors import PSycloneError, InternalError
 
 
-# Name of the config file we search for
+#: Name of the config file we search for
 _FILE_NAME = "psyclone.cfg"
-
-# The different naming schemes supported when transforming kernels:
-# multiple = Every transformed kernel is given a unique name. This permits
-#            multiple versions of the same kernel to be created.
-# single = If any given kernel (within a single Application) is transformed
-#          more than once then the same transformation must always be
-#          applied and only one version of the transformed kernel is created.
-VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
 LFRIC_API_NAMES = ["lfric", "dynamo0.3"]
 GOCEAN_API_NAMES = ["gocean", "gocean1.0"]
@@ -111,17 +103,6 @@ class Config:
 
     # List of supported stub API by PSyclone
     _supported_stub_api_list = LFRIC_API_NAMES
-
-    # The default scheme to use when (re)naming transformed kernels.
-    # By default we support multiple, different versions of any given
-    # kernel by ensuring that each transformed kernel is given a
-    # unique name (within the specified kernel-output directory).
-    # N.B. the default location to which to write transformed kernels is
-    # the current working directory. Since this may change between the
-    # importing of this module and the actual generation of code (e.g. as
-    # happens in the test suite), we do not store it here. Instead it
-    # is set in the Config.kernel_output_dir getter.
-    _default_kernel_naming = "multiple"
 
     # The default name to use when creating new names in the
     # PSyIR symbol table.
@@ -211,9 +192,6 @@ class Config:
 
         # Where to write transformed kernels - set at runtime.
         self._kernel_output_dir = None
-
-        # The naming scheme to use for transformed kernels.
-        self._kernel_naming = None
 
         # The list of directories to search for Fortran include files.
         self._include_paths = []
@@ -411,11 +389,6 @@ class Config:
                         f"Configuration file '{self._config_file}' contains a "
                         f"'{api}' section but no Config sub-class has "
                         f"been implemented for this API")
-
-        # The scheme to use when re-naming transformed kernels.
-        # By default we ensure that each transformed kernel is given a
-        # unique name (within the specified kernel-output directory).
-        self._kernel_naming = Config._default_kernel_naming
 
         ignore_modules = self._config['DEFAULT'].getlist("IGNORE_MODULES", [])
         # Avoid circular import
@@ -721,31 +694,6 @@ class Config:
         :param str value: directory to which to write transformed kernels.
         '''
         self._kernel_output_dir = value
-
-    @property
-    def kernel_naming(self):
-        '''
-        :returns: what naming scheme to use when writing transformed kernels \
-                  to file.
-        :rtype: str
-        '''
-        return self._kernel_naming
-
-    @kernel_naming.setter
-    def kernel_naming(self, value):
-        '''
-        Setter for how to re-name kernels when writing transformed kernels
-        to file.
-
-        :param str value: one of VALID_KERNEL_NAMING_SCHEMES.
-        :raises ValueError: if the supplied value is not a recognised \
-                            kernel-renaming scheme.
-        '''
-        if value not in VALID_KERNEL_NAMING_SCHEMES:
-            raise ValueError(
-                f"kernel_naming must be one of '{VALID_KERNEL_NAMING_SCHEMES}'"
-                f" but got '{value}'")
-        self._kernel_naming = value
 
     @property
     def include_paths(self):
