@@ -45,6 +45,7 @@ from typing import TYPE_CHECKING
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 if TYPE_CHECKING:  # pragma: no cover
+    from psyclone.domain.common.psylayer import GlobalReduction
     from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
@@ -162,7 +163,7 @@ class LFRicInvoke(Invoke):
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
 
         # Adding in qr arguments
-        self._alg_unique_qr_args = []
+        self._alg_unique_qr_args: list[str] = []
         for call in self.schedule.kernels():
             for rule in call.qr_rules.values():
                 if rule.alg_name not in self._alg_unique_qr_args:
@@ -171,7 +172,7 @@ class LFRicInvoke(Invoke):
         # We also need to work out the names to use for the qr
         # arguments within the PSy-layer. These are stored in the
         # '_psy_unique_qr_vars' list.
-        self._psy_unique_qr_vars = []
+        self._psy_unique_qr_vars: list[str] = []
         for call in self.schedule.kernels():
             for rule in call.qr_rules.values():
                 if rule.psy_name not in self._psy_unique_qr_vars:
@@ -193,6 +194,7 @@ class LFRicInvoke(Invoke):
                 if not kern.is_reduction:
                     continue
                 loop = kern.ancestor(LFRicLoop)
+                global_red: GlobalReduction
                 if kern.reduction_type == LFRicBuiltIn.ReductionType.SUM:
                     global_red = LFRicGlobalSum(kern.reduction_arg,
                                                 parent=loop.parent)
@@ -209,7 +211,7 @@ class LFRicInvoke(Invoke):
                 loop.parent.children.insert(loop.position+1, global_red)
 
         # Add the halo depth(s) for any kernel(s) that operate in the halos
-        self._alg_unique_halo_depth_args = []
+        self._alg_unique_halo_depth_args: list[str] = []
         if Config.get().distributed_memory:
             for call in self.schedule.kernels():
                 if ("halo" in call.iterates_over and not
