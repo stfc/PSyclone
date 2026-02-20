@@ -458,7 +458,7 @@ class BinaryOperation(Operation):
             if dnodes_1 > dnodes_0:
                 return ArrayType(base_type, shape=optypes[1].shape)
             # Otherwise use the shape of the first operand.
-            shape = optypes[0].shape 
+            shape = optypes[0].shape
         return ArrayType(base_type, shape=shape)
 
     @property
