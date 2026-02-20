@@ -150,21 +150,14 @@ class ArrayReference(ArrayMixin, Reference):
                 # We don't have any information on the shape of the original
                 # declaration.
                 orig_shape = None
-            # Special case for UnsupportedFortranType to match previous
-            # behaviour expected by lfric tests.
-            if (orig_shape and len(orig_shape) == len(shape) and isinstance(
-                self.symbol.datatype, UnsupportedFortranType) and
-                all(self.is_full_range(idx) for
-                    idx in range(len(shape)))):
-                return self.symbol.datatype
+
+            # When we access the full array, and the array's shape has no
+            # ArrayType.Extent elements we can return the original shape as
+            # its fully defined without needing to use size intrinsics.
             if (orig_shape and len(orig_shape) == len(shape) and
                 all(self.is_full_range(idx) for idx in range(len(shape)))
                 and all(isinstance(idx, ArrayType.ArrayBounds) for idx in
                         orig_shape)):
-                # Although this access has a shape, it is for the
-                # whole array, and the original array has no ArrayType.Extent
-                # elements, so we should return the original shape as its
-                # fully defined without using size intrinsics.
                 return self.symbol.datatype
             if type(self.symbol) is Symbol or isinstance(self.symbol.datatype,
                                                          (UnsupportedType,
