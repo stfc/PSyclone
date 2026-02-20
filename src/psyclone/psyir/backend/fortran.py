@@ -231,8 +231,8 @@ class FortranWriter(LanguageWriter):
                           Fparser2Reader.binary_operators)
 
         # Create and store a CallTreeUtils instance for use when ordering
-        # parameter declarations. Have to import it here as CallTreeUtils
-        # also uses this Fortran backend.
+        # declarations. Have to import it here as CallTreeUtils also uses
+        # this Fortran backend.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
         self._call_tree_utils = CallTreeUtils()
@@ -1003,60 +1003,67 @@ class FortranWriter(LanguageWriter):
                     f"{self.MAX_VARIABLE_NAME_LENGTH} characters in length. "
                     "This is not standards-compliant Fortran.")
 
-        # As a convention, we will declare the variables in the following
-        # order:
+        # There may be dependencies between the symbols so setup a dict
+        # holding a set of all their dependencies. The checks have to be done
+        # with case-insensitive name comparisons because the dependent symbols
+        # are not always created in the same scope.
+        local_lowered_names = [sym.name.lower() for sym in all_symbols]
+        decln_inputs = {}
+        for symbol in all_symbols:
+            dependencies = symbol.get_all_accessed_symbols()
+            dependencies = {sym for sym in dependencies
+                            # Discard self-dependencies: e.g. "a :: HUGE(a)"
+                            if sym.name.lower() != symbol.name.lower() and
+                            # Discard dependencies that are not local
+                            sym.name.lower() in local_lowered_names}
+            decln_inputs[symbol] = dependencies
 
-        # 1: Routine declarations and interfaces. (Note that accessibility
-        #    statements are generated in gen_access_stmts().)
-        for sym in all_symbols[:]:
-            if not isinstance(sym, RoutineSymbol):
-                continue
-            # Interfaces can be GenericInterfaceSymbols or RoutineSymbols
-            # of UnsupportedFortranType.
-            if isinstance(sym, GenericInterfaceSymbol):
-                declarations += self.gen_interfacedecl(sym)
-            elif isinstance(sym.datatype, UnsupportedType):
-                declarations += self.gen_vardecl(
-                        sym, include_visibility=is_module_scope)
-            elif not (sym.is_modulevar or sym.is_automatic):
-                raise VisitorError(
-                    f"Routine symbol '{sym.name}' has '{sym.interface}'. "
-                    f"This is not supported by the Fortran back-end.")
-            all_symbols.remove(sym)
-
-        # 2: Constants.
-        declarations += self._gen_parameter_decls(symbol_table,
-                                                  is_module_scope)
-        for sym in all_symbols[:]:
-            if isinstance(sym, DataSymbol) and sym.is_constant:
-                all_symbols.remove(sym)
-
-        # 3: Argument variable declarations
-        if symbol_table.argument_datasymbols and is_module_scope:
+        # We now iterate over the declarations, declaring those that have their
+        # inputs satisfied. Creating a declaration for a given symbol removes
+        # that symbol as a dependence from any outstanding declarations and
+        # adds it to the 'declared' set.
+        declared: set[Symbol] = set()
+        argument_symbols = symbol_table.argument_datasymbols
+        if argument_symbols and is_module_scope:
             raise VisitorError(
                 f"Arguments are not allowed in this context but this symbol "
                 f"table contains argument(s): "
                 f"'{[sym.name for sym in symbol_table.argument_datasymbols]}'."
                 )
-        # We use symbol_table.argument_datasymbols because it has the
-        # symbol order that we need
-        for symbol in symbol_table.argument_datasymbols:
-            declarations += self.gen_vardecl(
-                symbol, include_visibility=is_module_scope)
-            all_symbols.remove(symbol)
 
-        # 4: Derived-type declarations. These must come before any declarations
-        # of symbols of these types.
-        for symbol in all_symbols[:]:
-            if isinstance(symbol, DataTypeSymbol):
-                declarations += self.gen_typedecl(
-                    symbol, include_visibility=is_module_scope)
-                all_symbols.remove(symbol)
-
-        # 5: The rest of the symbols
-        for symbol in all_symbols:
-            declarations += self.gen_vardecl(
-                symbol, include_visibility=is_module_scope)
+        while all_symbols:
+            for symbol in all_symbols[:]:
+                inputs = decln_inputs[symbol]
+                if inputs.issubset(declared):
+                    # All inputs are satisfied so this declaration can be added
+                    declared.add(symbol)
+                    all_symbols.remove(symbol)
+                    if isinstance(symbol, RoutineSymbol):
+                        # Interfaces can be GenericInterfaceSymbols or
+                        # RoutineSymbols of UnsupportedFortranType.
+                        if isinstance(sym, GenericInterfaceSymbol):
+                            declarations += self.gen_interfacedecl(sym)
+                        elif isinstance(sym.datatype, UnsupportedType):
+                            declarations += self.gen_vardecl(
+                                    sym, include_visibility=is_module_scope)
+                        elif not (sym.is_modulevar or sym.is_automatic):
+                            raise VisitorError(
+                                f"Routine symbol '{sym.name}' has "
+                                f"'{sym.interface}'. This is not supported by "
+                                f"the Fortran back-end.")
+                    elif isinstance(symbol, DataTypeSymbol):
+                        declarations += self.gen_typedecl(
+                            symbol, include_visibility=is_module_scope)
+                    else:
+                        declarations += self.gen_vardecl(
+                            symbol, include_visibility=is_module_scope)
+                    break
+            else:
+                # We looped through all of the variables remaining to be
+                # declared and none had their dependencies satisfied.
+                raise VisitorError(
+                    f"Unable to satisfy dependencies for the declarations of "
+                    f"{[sym.name for sym in all_symbols]}")
 
         return declarations
 
