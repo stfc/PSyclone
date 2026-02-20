@@ -52,7 +52,7 @@ from psyclone.tests.utilities import get_invoke
 def test_globalreduction_node_str_and_dag_name():
     '''test the node_str and dag_name methods in the GlobalReduction class. The
     simplest way to do this is to use an LFRic builtin example which contains a
-    scalar and then call node_str() on that.
+    scalar Argument and then use that to construct a GlobalReduction.
 
     '''
     _, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
@@ -103,7 +103,7 @@ def test_globalsum_nodm_error():
     argument = kernel.arguments.args[0]
     with pytest.raises(GenerationError) as err:
         _ = GlobalReduction(argument)
-    assert ("It makes no sense to create a GlobalReduction object when "
+    assert ("Refusing to create a GlobalReduction object because "
             "distributed memory is not enabled (dm=False)."
             in str(err.value))
 
@@ -120,7 +120,7 @@ def test_globalreduction_unsupported_argument():
     argument = kernel.arguments.args[0]
     with pytest.raises(InternalError) as err:
         _ = GlobalReduction(argument)
-    assert ("GlobalReduction.init(): A global reduction argument should be a "
+    assert ("GlobalReduction.init(): the 'scalar' argument should be a "
             "scalar but found argument of type 'gh_field'." in str(err.value))
 
 

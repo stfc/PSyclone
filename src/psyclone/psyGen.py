@@ -41,12 +41,14 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
+
+from __future__ import annotations
 from dataclasses import dataclass
 import inspect
 import os
 from collections import OrderedDict
 import abc
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 import warnings
 
 try:
@@ -2155,82 +2157,74 @@ class Argument():
         ''' set the node that this argument is associated with '''
         self._call = value
 
-    def backward_dependence(self):
+    def backward_dependence(self) -> Union[Argument, None]:
         '''Returns the preceding argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
-        exist in a call, a haloexchange, or a GlobalReduction.
+        exist in a Call, a HaloExchange, or a GlobalReduction.
 
         :returns: the first preceding argument that has a dependence
-            on this argument.
-        :rtype: :py:class:`psyclone.psyGen.Argument`
-
+                  on this argument.
         '''
         nodes = self._call.preceding(reverse=True)
         return self._find_argument(nodes)
 
-    def forward_write_dependencies(self, ignore_halos=False):
+    def forward_write_dependencies(
+            self,
+            ignore_halos: bool = False) -> list[Argument]:
         '''Returns a list of following write arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange (unless `ignore_halos` is `True`), or a GlobalReduction.
-        If none are found then return an empty list. If self is not a
-        reader then return an empty list.
-
-        :param bool ignore_halos: if `True` then any write dependencies
-            involving a halo exchange are ignored. Defaults to `False`.
-
-        :returns: a list of arguments that have a following write
-            dependence on this argument.
-        :rtype: list of :py:class:`psyclone.psyGen.Argument`
-
-        '''
-        nodes = self._call.following()
-        results = self._find_write_arguments(nodes, ignore_halos=ignore_halos)
-        return results
-
-    def backward_write_dependencies(self, ignore_halos=False):
-        '''Returns a list of previous write arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange (unless `ignore_halos` is `True`), or a GlobalReduction.
+        dependencies with. The arguments may exist in a Call, a
+        HaloExchange (unless `ignore_halos` is `True`), or a GlobalReduction.
         If none are found then return an empty list. If self is not a
         reader then return an empty list.
 
         :param ignore_halos: if `True` then any write dependencies
             involving a halo exchange are ignored. Defaults to `False`.
-        :type ignore_halos: bool
+
+        :returns: the arguments that have a following write
+                  dependence on this argument.
+        '''
+        nodes = self._call.following()
+        results = self._find_write_arguments(nodes, ignore_halos=ignore_halos)
+        return results
+
+    def backward_write_dependencies(
+            self, ignore_halos: bool = False) -> list[Argument]:
+        '''Returns a list of previous write arguments that this argument has
+        dependencies with. The arguments may exist in a Call, a
+        HaloExchange (unless `ignore_halos` is `True`), or a GlobalReduction.
+        If none are found then return an empty list. If self is not a
+        reader then return an empty list.
+
+        :param ignore_halos: if `True` then any write dependencies
+            involving a halo exchange are ignored. Defaults to `False`.
 
         :returns: a list of arguments that have a preceding write
-            dependence on this argument.
-        :rtype: list of :py:class:`psyclone.psyGen.Argument`
-
+                  dependence on this argument.
         '''
         nodes = self._call.preceding(reverse=True)
         results = self._find_write_arguments(nodes, ignore_halos=ignore_halos)
         return results
 
-    def forward_dependence(self):
+    def forward_dependence(self) -> Union[Argument, None]:
         '''Returns the following argument that this argument has a direct
         dependence on, or `None` if there is not one. The argument may
-        exist in a call, a haloexchange, or a GlobalReduction.
+        exist in a Call, a HaloExchange or a GlobalReduction.
 
         :returns: the first following argument that has a dependence
-            on this argument.
-        :rtype: :py:class:`psyclone.psyGen.Argument`
-
+                  on this argument.
         '''
         nodes = self._call.following()
         return self._find_argument(nodes)
 
-    def forward_read_dependencies(self):
+    def forward_read_dependencies(self) -> list[Argument]:
         '''Returns a list of following read arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange, or a GlobalReduction. If none are found then
+        dependencies with. The arguments may exist in a Call, a
+        HaloExchange or a GlobalReduction. If none are found then
         return an empty list. If self is not a writer then return an
         empty list.
 
         :returns: a list of following arguments that have a read
-            dependence on this argument.
-        :rtype: list of :py:class:`psyclone.psyGen.Argument`
-
+                  dependence on this argument.
         '''
         nodes = self._call.following()
         return self._find_read_arguments(nodes)

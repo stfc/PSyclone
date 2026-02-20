@@ -69,15 +69,14 @@ class GlobalReduction(Statement):
         # Check that distributed memory is enabled
         if not Config.get().distributed_memory:
             raise GenerationError(
-                f"It makes no sense to create a {self._text_name} object "
-                f"when distributed memory is not enabled (dm=False).")
+                f"Refusing to create a {self._text_name} object "
+                f"because distributed memory is not enabled (dm=False).")
 
         # Check that the global sum argument is indeed a scalar
         if not scalar.is_scalar:
             raise InternalError(
-                f"{self._text_name}.init(): A global reduction argument should"
-                f" be a scalar but found argument of type "
-                f"'{scalar.argument_type}'.")
+                f"{self._text_name}.init(): the 'scalar' argument should be a "
+                f"scalar but found argument of type '{scalar.argument_type}'.")
 
         self._scalar = copy.copy(scalar)
         if scalar:
