@@ -81,6 +81,7 @@ def test_call_noargs():
     assert isinstance(routine_symbol.interface, UnresolvedInterface)
     assert routine_symbol.name == "kernel"
     assert routine_symbol in call_node.scope.symbol_table.symbols
+    # This this is a "call ..." expression, the Routine is NoType (subroutine)
     assert isinstance(routine_symbol.datatype, NoType)
 
     assert (str(call_node)) == "Call[name='kernel']"
@@ -114,6 +115,7 @@ def test_call_declared_routine(f2008_parser):
         assert isinstance(routine_symbol.interface, ImportInterface)
         assert routine_symbol.name == "kernel"
         assert routine_symbol in call_node.scope.symbol_table.symbols
+        # This this is a "call ..." expression, the Routine is NoType
         assert isinstance(routine_symbol.datatype, NoType)
         assert (str(call_node)) == "Call[name='kernel']"
 

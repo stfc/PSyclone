@@ -854,16 +854,9 @@ def test_apply_functions(fortran_reader, fortran_writer):
     assignment8 = psyir.walk(Assignment)[11]
     assignment9 = psyir.walk(Assignment)[12]
 
+    # Pure functions returning a scalar
     trans.apply(assignment1)
-
-    # This can be extended when call.datatype is improved
-    with pytest.raises(TransformationError) as err:
-        trans.validate(assignment2, options={"verbose": True})
-    errormsg = ("ArrayAssignment2LoopsTrans does not accept calls which are "
-                "not guaranteed to return an scalar or be elemental, but "
-                "found 'scalarpurefunc'")
-    assert errormsg in assignment2.preceding_comment
-    assert errormsg in str(err.value)
+    trans.apply(assignment2)
 
     # Pure functions returning an array
     errormsg = "ArrayAssignment2LoopsTrans does not accept calls which are "
@@ -903,6 +896,11 @@ def test_apply_functions(fortran_reader, fortran_writer):
     do idx = LBOUND(x, dim=2), UBOUND(x, dim=2), 1
       do idx_1 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1
         x(idx_1,idx) = SUM(y) + y(idx_1,idx)
+      enddo
+    enddo
+    do idx_2 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1
+      do idx_3 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1
+        x(idx_3,idx_2) = scalarpurefunc(y)
       enddo
     enddo""" in code
 

@@ -1978,6 +1978,7 @@ def test_check_argument_type_matches(fortran_reader):
                        ArrayType(DataTypeSymbol("MY_type", UnresolvedType()),
                                  shape=[5])))
 
+
 def test_call_datatype(fortran_reader):
     ''' Check that when the routine definition can be found, its datatype
     can be provided. '''

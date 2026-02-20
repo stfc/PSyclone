@@ -60,6 +60,7 @@ from psyclone.psyir.symbols import (
     Symbol,
     SymbolError,
     UnsupportedFortranType,
+    UnresolvedType
 )
 from psyclone.psyir.symbols.datatypes import ArrayType
 
@@ -398,7 +399,9 @@ class Call(Statement, DataNode):
         '''
         if self.routine:
             if isinstance(self.routine.symbol, RoutineSymbol):
-                return self.routine.symbol.datatype
+                dt = self.routine.symbol.datatype
+                if not isinstance(dt, UnresolvedType):
+                    return dt
         return super().datatype
 
     @property
