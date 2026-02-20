@@ -249,6 +249,10 @@ class ArrayAssignment2LoopsTrans(Transformation):
 
         node_copy = node.copy()
         for reference in node_copy.walk(Reference):
+            if isinstance(reference.parent, Call):
+                # These are ok, what is important is what the call returns
+                # which is checked later
+                continue
             try:
                 Reference2ArrayRangeTrans().apply(reference)
             except TransformationError as err:
@@ -362,26 +366,25 @@ class ArrayAssignment2LoopsTrans(Transformation):
                        f"'allow_strings' option to expand them)")
             self.validate_no_char(node, message, verbose)
 
-        # We don't accept calls that are not guaranteed to be elemental
+        # We don't accept calls that are not guaranteed to return an scalar
+        # or be elemental
         for call in node_copy.rhs.walk(Call):
+            if call.is_elemental:
+                continue
+            if call.is_pure and isinstance(call.datatype, ScalarType):
+                continue
             if isinstance(call, IntrinsicCall):
-                # Intrinsics that return scalars are also fine.
-                if call.intrinsic in (IntrinsicCall.Intrinsic.LBOUND,
-                                      IntrinsicCall.Intrinsic.UBOUND,
-                                      IntrinsicCall.Intrinsic.SIZE):
-                    continue
                 name = call.intrinsic.name
             else:
                 name = call.routine.symbol.name
-            if not call.is_elemental:
-                message = (f"{self.name} does not accept calls which are not"
-                           f" guaranteed to be elemental, but found: "
-                           f"{name}")
-                if verbose:
-                    node.append_preceding_comment(message)
-                # pylint: disable=cell-var-from-loop
-                raise TransformationError(LazyString(
-                    lambda: f"{message} in:\n{node.debug_string()}."))
+            message = (f"{self.name} does not accept calls which are not"
+                       f" guaranteed to return an scalar or be elemental, "
+                       f"but found '{name}'")
+            if verbose:
+                node.append_preceding_comment(message)
+            # pylint: disable=cell-var-from-loop
+            raise TransformationError(LazyString(
+                lambda: f"{message} in '{node.debug_string().strip()}'"))
 
     @staticmethod
     def validate_no_char(node: Node, message: str, verbose: bool) -> None:
