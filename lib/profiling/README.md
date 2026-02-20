@@ -6,7 +6,7 @@ https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling). 
 profiling-library interfaces use the the [PSyData API](
 https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html). The profiling
 wrappers included in PSyclone are: ``template``,
-``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia``, ``tau`` and
+``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia``, ``amd``, ``tau`` and
 ``lfric_timer``. The overview is given below (for more information please
 refer to the linked individual ``README.md`` documents).
 
@@ -175,6 +175,16 @@ Example output (from ``nvprof``):
                         6.17%  12.729us      3  4.2430us  2.3700us  7.7330us  cuMemsetD32Async
 ```
 
+### [AMD](./amd)
+
+This wrapper library maps the PSyclone profiling API to the AMD ROCTx
+library, providing code annotations for profiling GPU applications with
+AMD's ROCm tools (e.g. ``rocprofv3``). This is very useful for identifying
+regions which have not been offloaded yet.
+
+Detailed building and linking instructions are in
+[``amd/README.md``](./amd/README.md).
+
 ### [LFRic timer](./lfric_timer)
 
 This wrapper library uses the LFRic timer object. It can not only be
@@ -220,7 +230,7 @@ In general is recommended to first pack the profiling output files into one file
 The top level ``Makefile`` can be used to compile the profiling-library
 interfaces included in PSyclone. The command ``make TARGET`` where ``TARGET``
 is one of ``template``, ``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia``,
-``lfric_timer`` or ``tau``, will only compile the corresponding library interface.
+``amd``, ``lfric_timer`` or ``tau``, will only compile the corresponding library interface.
 The target ``make all``, which is also the default, will compile all libraries
 that do not need additional software or libraries to be installed, i.e.
 ``lfric_timer``, ``simple_timing`` and ``template``.

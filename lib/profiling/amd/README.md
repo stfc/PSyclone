@@ -47,7 +47,7 @@ amdflang <my object files> \
 ```
 
 **Note**: The ``<PATH-TO-PSYCLONE>`` differs depending on whether the
-wrapper library is compiled in a clone of PSyclone repository or in a
+wrapper library is compiled in a clone of the PSyclone repository or in a
 PSyclone [installation](./../../README.md#installation).
 
 ## Profiling Your Application
