@@ -41,6 +41,8 @@
 
 import re
 
+from typing import Union
+
 from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import ScalarType, ArrayType, Symbol
@@ -211,6 +213,21 @@ class Literal(DataNode):
         '''
         self.datatype.replace_symbols_using(table_or_symbol)
         super().replace_symbols_using(table_or_symbol)
+
+    def to_python(self) -> Union[str, bool, int, float]:
+        '''
+        :returns: the python representation of this Literal.
+        '''
+        if self.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+            return int(self.value)
+        if self.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            return float(self.value)
+        if self.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+            if self.value == "true":
+                return True
+            return False
+        if self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            return self.value
 
 
 # For AutoAPI documentation generation
