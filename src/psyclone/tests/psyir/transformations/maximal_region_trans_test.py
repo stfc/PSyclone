@@ -51,8 +51,8 @@ from psyclone.psyir.transformations import (
 )
 
 
-# Dummy class to test MaxParallelRegionTrans' functionality.
 class MaxParTrans(MaximalRegionTrans):
+    ''' Dummy class to test MaxParallelRegionTrans' functionality. '''
     # The apply function will do OMPParallelTrans around allowed regions.
     _transformation = OMPParallelTrans
     # We're only allowing assignment because its straightforward to test with.
@@ -75,8 +75,7 @@ class MaxParTrans(MaximalRegionTrans):
     ]
 )
 def test_can_be_in_region(fortran_reader, statement, expected):
-    '''Test the _can_be_in_region function of
-    MaxParallelRegionTrans.'''
+    '''Test the _can_be_in_region function of MaxParallelRegionTrans.'''
     code = f"""
     subroutine test
         use some_module
