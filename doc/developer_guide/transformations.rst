@@ -48,7 +48,8 @@ Transformations
 Kernel Transformations
 ======================
 
-In order to transform a PSyKAl Kernel, it must first be brought into the
+In order to transform a PSyKAl Kernel while applying transformations to a
+generated PSy layer, the kernel routine must first be brought into the
 same source module as the PSy-layer subroutine from which it is called.
 This is achieved using ``KernelModuleInlineTrans``:
 
@@ -68,10 +69,15 @@ To transform a kernel, one must first obtain its PSyIR with:
 .. automethod:: psyclone.psyGen.CodedKern.get_callees
     :no-index:
 
-The result of `psyclone.psyGen.Kern.get_callees` is a list of
-`psyclone.psyir.nodes.KernelSchedule` objects. `KernelSchedule` is a
-specialisation of the `Routine` class with the `is_program` and `return_type`
-properties set to False` and `None`, respectively.
+The result of ``psyclone.psyGen.Kern.get_callees`` is a list of
+``psyclone.psyir.nodes.KernelSchedule`` objects. ``KernelSchedule`` is a
+specialisation of the ``Routine`` class with the ``is_program`` and
+``return_type`` properties set to ``False`` and ``None``, respectively.
+
+.. note:: A Kernel can of course be transformed independently of constructing
+	  a PSy layer by running PSyclone on the source file and treating it
+	  as generic Fortran rather than a DSL Kernel. This is a matter for an
+	  application's build system.
 
 Raising Transformations
 =======================
