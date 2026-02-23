@@ -919,11 +919,10 @@ class FortranWriter(LanguageWriter):
             if isinstance(sym.interface, UnresolvedInterface):
                 unresolved_symbols.append(sym)
                 all_symbols.remove(sym)
-        try:
-            internal_interface_symbol = symbol_table.lookup(
-                "_psyclone_internal_interface")
-        except KeyError:
-            internal_interface_symbol = None
+
+        internal_interface_symbol = symbol_table.lookup(
+            "_psyclone_internal_interface", otherwise=None)
+
         if unresolved_symbols and not (
                 symbol_table.wildcard_imports() or internal_interface_symbol):
             symbols_txt = ", ".join(
@@ -941,14 +940,14 @@ class FortranWriter(LanguageWriter):
                 raise VisitorError(
                     f"Found a symbol '{sym.name}' with a name greater than "
                     f"{self.MAX_VARIABLE_NAME_LENGTH} characters in length. "
-                    "This is not standards-compliant Fortran.")
+                    f"This is not standards-compliant Fortran.")
 
         # There may be dependencies between the symbols so setup a dict
         # holding a set of all their dependencies. The checks have to be done
         # with case-insensitive name comparisons because the dependent symbols
         # are not always created in the same scope.
         local_lowered_names = [sym.name.lower() for sym in all_symbols]
-        decln_inputs = {}
+        decln_inputs: dict[str, Symbol] = {}
         for symbol in all_symbols:
             dependencies = symbol.get_all_accessed_symbols()
             dependencies = {sym for sym in dependencies
@@ -962,18 +961,19 @@ class FortranWriter(LanguageWriter):
                                  not isinstance(sym, GenericInterfaceSymbol))}
             decln_inputs[symbol] = dependencies
 
-        # We now iterate over the declarations, declaring those that have their
-        # inputs satisfied. Creating a declaration for a given symbol removes
-        # that symbol as a dependence from any outstanding declarations and
-        # adds it to the 'declared' set.
-        declared: set[Symbol] = set()
-        argument_symbols = symbol_table.argument_datasymbols
-        if argument_symbols and is_module_scope:
+        # Sanity check that we haven't got arguments if we're in a module scope
+        if symbol_table.argument_datasymbols and is_module_scope:
             raise VisitorError(
                 f"Arguments are not allowed in this context but this symbol "
                 f"table contains argument(s): "
                 f"'{[sym.name for sym in symbol_table.argument_datasymbols]}'."
                 )
+
+        # We now iterate over the declarations, declaring those that have their
+        # inputs satisfied. Creating a declaration for a given symbol removes
+        # that symbol as a dependence from any outstanding declarations and
+        # adds it to the 'declared' set.
+        declared: set[Symbol] = set()
 
         while all_symbols:
             for symbol in all_symbols[:]:
@@ -1001,6 +1001,9 @@ class FortranWriter(LanguageWriter):
                     else:
                         declarations += self.gen_vardecl(
                             symbol, include_visibility=is_module_scope)
+                    # Now that we've created a new declaration (and thus
+                    # potentially resolved some dependencies) we go back to
+                    # the start of the list of remaining symbols.
                     break
             else:
                 # We looped through all of the variables remaining to be
