@@ -50,6 +50,7 @@ from psyclone.psyir.symbols import (
     StructureType, ImportInterface, UnresolvedInterface, ArgumentInterface,
     INTEGER_TYPE, REAL_TYPE, StaticInterface, PreprocessorInterface,
     CHARACTER_TYPE)
+from psyclone.tests.utilities import Compile
 
 
 def test_gen_param_decls_dependencies(fortran_writer):
@@ -204,11 +205,10 @@ def test_gen_decls(fortran_writer):
                       "integer, parameter :: rlg = 8\n")
     # Repeat but specify that these declarations are within a module.
     result = fortran_writer.gen_decls(symbol_table, is_module_scope=True)
-    assert (result == 
+    assert (result == "integer, public :: local\n"
                       "type, public :: field\n"
                       "  integer, public :: flag\n"
                       "end type field\n"
-                      "integer, public :: local\n"
                       "type(grid_type), public :: grid\n"
                       "integer, parameter, public :: rlg = 8\n")
     # Add a Symbol with an argument interface.
@@ -216,13 +216,13 @@ def test_gen_decls(fortran_writer):
                                    interface=ArgumentInterface())
     symbol_table.add(argument_variable)
     result = fortran_writer.gen_decls(symbol_table)
-    assert (result == "integer, parameter :: rlg = 8\n"
-                      "integer :: arg\n"
+    assert (result == "integer :: local\n"
                       "type :: field\n"
                       "  integer :: flag\n"
                       "end type field\n"
-                      "integer :: local\n"
-                      "type(grid_type) :: grid\n")
+                      "type(grid_type) :: grid\n"
+                      "integer, parameter :: rlg = 8\n"
+                      "integer :: arg\n")
     result = fortran_writer.gen_decls(symbol_table)
 
     # Add a Symbol with PreprocessorInterface which has to be ignored by
@@ -231,13 +231,13 @@ def test_gen_decls(fortran_writer):
                                        interface=PreprocessorInterface())
     symbol_table.add(preprocessor_variable)
     result = fortran_writer.gen_decls(symbol_table)
-    assert (result == "integer, parameter :: rlg = 8\n"
-                      "integer :: arg\n"
+    assert (result == "integer :: local\n"
                       "type :: field\n"
                       "  integer :: flag\n"
                       "end type field\n"
-                      "integer :: local\n"
-                      "type(grid_type) :: grid\n")
+                      "type(grid_type) :: grid\n"
+                      "integer, parameter :: rlg = 8\n"
+                      "integer :: arg\n")
 
     # We can't have an argument if these declarations are in a module.
     with pytest.raises(VisitorError) as excinfo:
@@ -480,3 +480,111 @@ def test_gen_interfacedecl(fortran_writer):
   procedure :: sub1
 end interface subx
 ''')
+
+
+def test_non_param_in_param_decln(fortran_reader, fortran_writer, tmp_path):
+    '''Check that declarations are ordered correctly when we have a
+    parameter declaration that depends upon a non-parameter symbol.'''
+    code = '''
+    module mymod
+        integer, parameter :: x = 1
+        integer, parameter :: j = 9
+        integer, parameter :: k = 12
+        integer :: i
+        real, parameter :: threshold_Wavelength(j, k) &
+        = reshape( [REAL :: &
+        1.3, 1.5, 1.6, 1.7, &
+        (0.0, i=1, k-4), &
+        1.2, 1.4, 1.2, &
+        (0.0, i=1, k-3), &
+        (0.0, i=1, k), &
+        (0.0, i=1, k), &
+        (0.0, i=1, k), &
+        (0.0, i=1, k), &
+        (0.0, i=1, k), &
+        (0.0, i=1, k), &
+        (0.0, i=1, k)], shape=[j, k] )
+    end module
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert """\
+  integer, parameter, public :: x = 1
+  integer, parameter, public :: j = 9
+  integer, parameter, public :: k = 12
+  integer, public :: i
+  real, dimension(j,k), parameter, public :: threshold_wavelength = \
+RESHAPE([REAL :: 1.3, 1.5, 1.6, 1.7, (0.0, i = 1, k - 4), 1.2, 1.4, 1.2, \
+(0.0, i = 1, k - 3), (0.0, i = 1, k), (0.0, i = 1, k), (0.0, i = 1, k), \
+(0.0, i = 1, k), (0.0, i = 1, k), (0.0, i = 1, k), (0.0, i = 1, k)], [j, k])
+  public""" in output
+    assert Compile(tmp_path).string_compiles(output)
+
+
+def test_abstract_interface_decln(fortran_reader, fortran_writer):
+    ''' Check that an abstract interface that depends on a previous type
+    declaration is output after it.
+    '''
+    code = '''\
+  module test_mod
+    use some_mod
+
+    TYPE ftam_typ
+      TYPE(ftam_ctl_typ) :: fctl
+      TYPE(ftrj_typ) :: ftrj
+      TYPE(foce_typ) :: foce_b
+      TYPE(finc_typ) :: finc_tl, finc_ad
+      INTEGER :: itst_adj, itst_tan
+      INTEGER :: istart, iend
+
+      PROCEDURE(rst_interface)  , POINTER :: initialiseTL
+      PROCEDURE(model_interface), POINTER :: stepTL
+      PROCEDURE(fin_interface)  , POINTER :: finaliseAD
+
+    CONTAINS
+      PROCEDURE :: setup    => tam_setup
+      PROCEDURE :: del      => tam_del
+      PROCEDURE :: adj_test => tam_adj_test
+    END TYPE ftam_typ
+
+    ABSTRACT INTERFACE
+
+      SUBROUTINE rst_interface(self, piom_ctl, pvar_ctl)
+        IMPORT :: fiom_ctl_typ, fvar_ctl_typ
+
+        CLASS(ftam_typ), INTENT(INOUT) :: self
+        TYPE(fiom_ctl_typ) :: piom_ctl
+        TYPE(fvar_ctl_type) :: pvar_ctl
+      END SUBROUTINE rst_interface
+    END INTERFACE
+  end module test_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert """END TYPE ftam_typ
+  abstract interface
+  subroutine rst_interface(self, piom_ctl, pvar_ctl)
+    import :: fiom_ctl_typ, fvar_ctl_typ
+    class(ftam_typ), intent(inout) :: self""" in output
+
+
+def test_arguments_with_deps(fortran_reader, fortran_writer):
+    '''
+    Check that subroutine arguments that depend on other subroutine
+    arguments are declared after them.
+    '''
+    code = """
+  subroutine a_test(dims_real_array, real_array)
+    use kinds_mod, only: r_def, i_def
+    implicit none
+    ! gfortran 13.2.0 doesn't accept this ordering of declarations.
+    real(kind=r_def), dimension(dims_real_array(1),dims_real_array(2)), \
+intent(in) :: real_array
+    integer(kind=i_def), dimension(2), intent(in) :: dims_real_array
+  end subroutine a_test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert """
+  use kinds_mod, only : i_def, r_def
+  integer(kind=i_def), dimension(2), intent(in) :: dims_real_array
+  real(kind=r_def), dimension(dims_real_array(1),dims_real_array(2)), \
+intent(in) :: real_array""" in output

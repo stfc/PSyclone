@@ -3961,6 +3961,7 @@ scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, \
 field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
     use mesh_mod, only : mesh_type
     use mixed_kernel_mod, only : mixed_code
+    integer(kind=i_def) :: cell
     real(kind=r_def), intent(in) :: scalar_r_def
     type(field_type), intent(in) :: field_r_def
     type(operator_type), intent(in) :: operator_r_def
@@ -3972,7 +3973,6 @@ field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
     type(r_tran_operator_type), intent(in) :: operator_r_tran
     real(kind=r_bl), intent(in) :: scalar_r_bl
     type(r_bl_field_type), intent(in) :: field_r_bl
-    integer(kind=i_def) :: cell
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
     real(kind=r_def), pointer, dimension(:) :: field_r_def_data => null()

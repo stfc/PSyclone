@@ -95,8 +95,8 @@ def test_explicit_loop(fortran_reader, fortran_writer):
 
     code = fortran_writer(psyir).lower()
     assert ("program do_loop\n"
-            "  integer, parameter :: jpj = 13\n"
             "  integer :: ji\n"
+            "  integer, parameter :: jpj = 13\n"
             "  real, dimension(jpj) :: sto_tmp\n"
             "  real, dimension(jpj) :: sto_tmp2\n"
             "\n"

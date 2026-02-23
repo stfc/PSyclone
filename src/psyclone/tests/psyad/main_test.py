@@ -121,13 +121,13 @@ EXPECTED_HARNESS_CODE = '''program adj_test
   use my_mod, only : kern
   use adj_my_mod, only : adj_kern
   integer, parameter :: array_extent = 20
-  real, parameter :: overall_tolerance = 1500.0
   real :: inner1
   real :: inner2
   real :: field
   real :: field_input
   real :: machinetol
   real :: relative_diff
+  real, parameter :: overall_tolerance = 1500.0
 
   ! initialise the kernel arguments and keep copies of them
   call random_number(field)

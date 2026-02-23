@@ -1015,7 +1015,11 @@ class FortranWriter(LanguageWriter):
                             # Discard self-dependencies: e.g. "a :: HUGE(a)"
                             if sym.name.lower() != symbol.name.lower() and
                             # Discard dependencies that are not local
-                            sym.name.lower() in local_lowered_names}
+                            sym.name.lower() in local_lowered_names and
+                            # Discard dependencies on RoutineSymbols (but
+                            # *not* interfaces)
+                            not (isinstance(sym, RoutineSymbol) and
+                                 not isinstance(sym, GenericInterfaceSymbol))}
             decln_inputs[symbol] = dependencies
 
         # We now iterate over the declarations, declaring those that have their
@@ -1041,16 +1045,16 @@ class FortranWriter(LanguageWriter):
                     if isinstance(symbol, RoutineSymbol):
                         # Interfaces can be GenericInterfaceSymbols or
                         # RoutineSymbols of UnsupportedFortranType.
-                        if isinstance(sym, GenericInterfaceSymbol):
-                            declarations += self.gen_interfacedecl(sym)
-                        elif isinstance(sym.datatype, UnsupportedType):
+                        if isinstance(symbol, GenericInterfaceSymbol):
+                            declarations += self.gen_interfacedecl(symbol)
+                        elif isinstance(symbol.datatype, UnsupportedType):
                             declarations += self.gen_vardecl(
-                                    sym, include_visibility=is_module_scope)
-                        elif not (sym.is_modulevar or sym.is_automatic):
+                                    symbol, include_visibility=is_module_scope)
+                        elif not (symbol.is_modulevar or symbol.is_automatic):
                             raise VisitorError(
-                                f"Routine symbol '{sym.name}' has "
-                                f"'{sym.interface}'. This is not supported by "
-                                f"the Fortran back-end.")
+                                f"Routine symbol '{symbol.name}' has "
+                                f"'{symbol.interface}'. This is not supported "
+                                f"by the Fortran back-end.")
                     elif isinstance(symbol, DataTypeSymbol):
                         declarations += self.gen_typedecl(
                             symbol, include_visibility=is_module_scope)

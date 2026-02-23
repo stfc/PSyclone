@@ -67,8 +67,8 @@ def test_parallel_single_loop(fortran_reader, fortran_writer, tmpdir):
     code = fortran_writer(psyir).lower()
 
     assert ("program do_loop\n"
-            "  integer, parameter :: jpj = 128\n"
             "  integer :: ji\n"
+            "  integer, parameter :: jpj = 128\n"
             "  real, dimension(jpj) :: sto_tmp\n"
             "\n"
             "  !$acc data copyout(sto_tmp)\n"
@@ -100,8 +100,8 @@ def test_parallel_single_loop_with_no_default_present_clause(
     code = fortran_writer(psyir).lower()
 
     assert ("program do_loop\n"
-            "  integer, parameter :: jpj = 128\n"
             "  integer :: ji\n"
+            "  integer, parameter :: jpj = 128\n"
             "  real, dimension(jpj) :: sto_tmp\n"
             "\n"
             "  !$acc parallel\n"
@@ -118,8 +118,8 @@ def test_parallel_two_loops(fortran_reader, fortran_writer, tmpdir):
     ''' Check that we can enclose two loops within a parallel region. '''
     psyir = fortran_reader.psyir_from_source(
                 "program do_loop\n"
-                "integer :: ji\n"
                 "integer, parameter :: jpi=11\n"
+                "integer :: ji\n"
                 "real :: sto_tmp(jpi), sto_tmp2(jpi)\n"
                 "do ji = 1,jpi\n"
                 "  sto_tmp(ji) = 1.0d0\n"

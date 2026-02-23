@@ -516,10 +516,10 @@ coord, qr)
 quadrature_xyoz_type
     use assemble_weak_derivative_w3_w2_kernel_mod, only : \
 assemble_weak_derivative_w3_w2_kernel_code
+    integer(kind=i_def) :: cell
     type(operator_type), intent(in) :: mapping
     type(field_type), dimension(3), intent(in) :: coord
     type(quadrature_xyoz_type), intent(in) :: qr
-    integer(kind=i_def) :: cell
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
     real(kind=r_def), pointer, dimension(:) :: coord_1_data => null()
