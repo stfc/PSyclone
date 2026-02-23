@@ -196,20 +196,21 @@ def test_gen_decls(fortran_writer):
     result = fortran_writer.gen_decls(symbol_table)
     # If derived type declaration is not inside a module then its components
     # cannot have accessibility attributes.
-    assert (result == "integer, parameter :: rlg = 8\n"
+    assert (result == "integer :: local\n"
                       "type :: field\n"
                       "  integer :: flag\n"
                       "end type field\n"
-                      "integer :: local\n"
-                      "type(grid_type) :: grid\n")
+                      "type(grid_type) :: grid\n"
+                      "integer, parameter :: rlg = 8\n")
     # Repeat but specify that these declarations are within a module.
     result = fortran_writer.gen_decls(symbol_table, is_module_scope=True)
-    assert (result == "integer, parameter, public :: rlg = 8\n"
+    assert (result == 
                       "type, public :: field\n"
                       "  integer, public :: flag\n"
                       "end type field\n"
                       "integer, public :: local\n"
-                      "type(grid_type), public :: grid\n")
+                      "type(grid_type), public :: grid\n"
+                      "integer, parameter, public :: rlg = 8\n")
     # Add a Symbol with an argument interface.
     argument_variable = DataSymbol("arg", INTEGER_TYPE,
                                    interface=ArgumentInterface())
