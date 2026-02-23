@@ -40,6 +40,7 @@
 ''' Performs py.test tests on the Literal PSyIR node. '''
 
 import pytest
+from psyclone.core import AccessType
 from psyclone.psyir.nodes import Literal, Reference
 from psyclone.psyir.symbols import (
     ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol, INTEGER_SINGLE_TYPE,
@@ -284,29 +285,42 @@ def test_get_all_accessed_symbols():
     assert idef in lit.get_all_accessed_symbols()
 
 
-def test_to_python():
-    '''Test the to_python() method of Literal.'''
+def test_value_as_python():
+    '''Test the value_as_python property of Literal.'''
     lit = Literal("1", INTEGER_SINGLE_TYPE)
-    pyval = lit.to_python()
+    pyval = lit.value_as_python
     assert isinstance(pyval, int)
     assert pyval == 1
 
     lit = Literal("0.623", REAL_DOUBLE_TYPE)
-    pyval = lit.to_python()
+    pyval = lit.value_as_python
     assert isinstance(pyval, float)
     assert pyval == 0.623
 
     lit = Literal("true", BOOLEAN_TYPE)
-    pyval = lit.to_python()
+    pyval = lit.value_as_python
     assert isinstance(pyval, bool)
     assert pyval
 
     lit = Literal("false", BOOLEAN_TYPE)
-    pyval = lit.to_python()
+    pyval = lit.value_as_python
     assert isinstance(pyval, bool)
     assert not pyval
 
     lit = Literal("a_string", CHARACTER_TYPE)
-    pyval = lit.to_python()
+    pyval = lit.value_as_python
     assert isinstance(pyval, str)
     assert pyval == "a_string"
+
+
+def test_reference_accesses():
+    '''Test the reference_accesses method of Literal.'''
+    idef = DataSymbol("idef", INTEGER_SINGLE_TYPE)
+    stype = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
+    lit = Literal("1", stype)
+    var_accesses = lit.reference_accesses()
+    sigs = var_accesses.all_signatures
+    assert str(sigs[0]) == "idef"
+    assert len(var_accesses.all_data_accesses) == 0
+    assert len(var_accesses[sigs[0]]) == 1
+    assert var_accesses[sigs[0]][0].access_type == AccessType.CONSTANT

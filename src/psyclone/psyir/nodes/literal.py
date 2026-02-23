@@ -214,7 +214,8 @@ class Literal(DataNode):
         self.datatype.replace_symbols_using(table_or_symbol)
         super().replace_symbols_using(table_or_symbol)
 
-    def to_python(self) -> Union[str, bool, int, float]:
+    @property
+    def value_as_python(self) -> Union[str, bool, int, float]:
         '''
         :returns: the python representation of this Literal.
         '''
