@@ -61,11 +61,11 @@ class OpenMPCPURoutineTrans(OMPLoopTrans, MaximalOMPParallelRegionTrans,
         # Validate the provided options are allowed and typed correctly.
         self.validate_options(**kwargs)
 
-        if not isinstance(node, Routine):
-            raise TypeError(
-                f"{self.name} expected a Routine input node but got a node "
-                f"of type {type(node).__name__}."
-            )
+#        if not isinstance(node, Routine):
+#            raise TypeError(
+#                f"{self.name} expected a Routine input node but got a node "
+#                f"of type {type(node).__name__}."
+#            )
 
     def apply(self, node: Routine, **kwargs):
         '''
@@ -93,13 +93,16 @@ class OpenMPCPURoutineTrans(OMPLoopTrans, MaximalOMPParallelRegionTrans,
 
         # Apply the maximal openMP parallel region transformation to the
         # routine.
-        MaximalOMPParallelRegionTrans.apply(self, node.children[:])
+        MaximalOMPParallelRegionTrans.validate(self, node.children[:],
+                                               **kwargs)
+        MaximalOMPParallelRegionTrans.apply(self, node.children[:], **kwargs)
 
         nowait = self.get_option("nowait", **kwargs)
         # If the asynchronous option was specified, then we need to apply the
         # OMPMinimiseSyncTrans as well.
         if nowait:
-            OMPMinimiseSyncTrans.apply(self, node)
+            OMPMinimiseSyncTrans.validate(self, node, **kwargs)
+            OMPMinimiseSyncTrans.apply(self, node, **kwargs)
 
 
 # Multiple inheritance doesn't work with the decorator it seems.
