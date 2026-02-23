@@ -628,9 +628,12 @@ def test_scalar_array(tmpdir, dist_mem):
         "    type(field_type), intent(in) :: f2\n"
         "    type(field_type), intent(in) :: f3\n"
         "    type(field_type), intent(in) :: f4\n"
-        "    integer(kind=i_def), intent(in) :: b\n"
-        "    type(mesh_type), pointer :: mesh => null()\n"
-        "    integer(kind=i_def) :: max_halo_depth_mesh\n"
+        "    integer(kind=i_def), intent(in) :: b\n")
+    if dist_mem:
+        expected_declarations += (
+            "    type(mesh_type), pointer :: mesh => null()\n"
+            "    integer(kind=i_def) :: max_halo_depth_mesh\n")
+    expected_declarations += (
         "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
         "    real(kind=r_def), pointer, dimension(:) :: f3_data => null()\n"
