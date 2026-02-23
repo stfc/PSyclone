@@ -38,9 +38,10 @@ import pathlib
 import sys
 from typing import List, Union
 from psyclone.psyir.nodes import (
-    Assignment, IfBlock, Node, OMPDirective, ProfileNode, Routine, Schedule)
-from psyclone.psyir.transformations import OMPTargetTrans
-from psyclone.transformations import OMPLoopTrans
+    Assignment, IfBlock, Node, OMPDirective, OMPTargetDirective, ProfileNode,
+    Routine, Schedule)
+from psyclone.psyir.transformations import OMPTargetTrans, ProfileTrans
+from psyclone.transformations import OMPLoopTrans, TransformationError
 
 # Add examples/nemo/scripts to python path; needed to import utils.py
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
@@ -58,8 +59,6 @@ def add_omp_region_profiling_markers(children: Union[List[Node], Schedule]):
     :param children: a Schedule or sibling nodes in the PSyIR to which to
         attempt to add profiling regions.
     """
-    from utils import add_profile_region
-
     if children and isinstance(children, Schedule):
         # If we are given a Schedule, we look at its children.
         children = children.children
@@ -71,14 +70,22 @@ def add_omp_region_profiling_markers(children: Union[List[Node], Schedule]):
     parent_routine = children[0].ancestor(Routine)
     if parent_routine and parent_routine.return_symbol:
         return
+    profile_trans = ProfileTrans()
+
     # Iterate over the children and wrap top-level OpenMP directives.
     for child in children[:]:
-        if isinstance(child, OMPDirective):
-            # Only wrap top-level OpenMP directives and not
-            # nested directives or profiling markers.
+        if isinstance(child, OMPTargetDirective):
+            # Only wrap top-level OpenMP target directives and not nested
+            # directives or existing profiling markers.
             if (not child.ancestor(OMPDirective) and
                     not child.ancestor(ProfileNode)):
-                add_profile_region([child])
+                try:
+                    profile_trans.apply([child])
+                except TransformationError as err:
+                    print(
+                        "Failed to add profiling around OMP target region "
+                        f"in '{parent_routine.name}': {err}"
+                    )
         if isinstance(child, IfBlock):
             # Recursively wrap any nested OpenMP kernels in if/else constructs.
             add_omp_region_profiling_markers(child.if_body)
