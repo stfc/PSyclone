@@ -33,18 +33,15 @@
 # ------------------------------------------------------------------------------
 # Author: T. H. Gibson, Advanced Micro Devices, Inc.
 
-# Set the compiler and flags in your environment before running make.
-# This Makefile assumes F90FLAGS contains all compiler options needed for
-# OpenMP and target offload (e.g. -fopenmp and --offload-arch=...).
-# It also assumes LDFLAGS contains all linker options and vendor runtime
-# libraries needed by your compiler/runtime stack.
-
-# Example for AMD GPU offload using amdflang:
+# To run with AMD GPU offloading and ROCTx profiling, use the following
+# settings before invoking make:
 #   export F90=amdflang
-#   export F90FLAGS="-O3 -fopenmp --offload-arch=gfx942"
-#   export LDFLAGS="-fopenmp --offload-arch=gfx942 -L${ROCM_PATH}/lib -lrocprofiler-sdk-roctx"
-
-# Then run:
+#   export F90FLAGS="-O3 -fopenmp --offload-arch=<arch>"
+#   export LDFLAGS="-fopenmp --offload-arch=<arch> -L${ROCM_PATH}/lib -lrocprofiler-sdk-roctx"
+#   export PSYCLONE_PROFILING_DIR=${PSYCLONE_DIR}/lib/profiling/amd
+#   export PSYCLONE_PROFILING_LIB=${PSYCLONE_PROFILING_DIR}/libroctx_prof.a
+#   export PSYCLONE_PROFILING_LIBS="-L${PSYCLONE_PROFILING_DIR} -lroctx_prof"
+#   export RUN_CMD="rocprofv3 --runtime-trace --output-format pftrace -- ./traadv.exe"
 #   make clean compile run
 
 include ../../common.mk
@@ -54,14 +51,13 @@ GENERATED_FILES = traadv_instrumented.F90 \
 	traadv.exe \
 	output.dat
 
-PROFILER ?= rocprofv3
-PROFILER_FLAGS ?= --runtime-trace --output-format pftrace
+RUN_CMD ?= ./traadv.exe
 
 # Profiling wrapper settings
-PSYCLONE_PROFILING_DIR ?= $(PSYCLONE_DIR)/lib/profiling/amd
+PSYCLONE_PROFILING_DIR ?= $(PSYCLONE_DIR)/lib/profiling/simple_timing
 PSYCLONE_PROFILING_INCLUDE ?= ${PSYCLONE_PROFILING_DIR}
-PSYCLONE_PROFILING_LIB ?= ${PSYCLONE_PROFILING_DIR}/libroctx_prof.a
-PSYCLONE_PROFILING_LIBS ?= -L${PSYCLONE_PROFILING_DIR} -lroctx_prof
+PSYCLONE_PROFILING_LIB ?= ${PSYCLONE_PROFILING_DIR}/libsimple_timing.a
+PSYCLONE_PROFILING_LIBS ?= -L${PSYCLONE_PROFILING_DIR} -lsimple_timing
 
 transform:
 	ENABLE_PROFILING=1 ${PSYCLONE} -s ./omp_gpu_profile_trans.py ../code/tra_adv.F90 -o traadv_instrumented.F90
@@ -69,7 +65,7 @@ transform:
 compile: transform traadv.exe
 
 run: traadv.exe
-	IT=10 JPI=64 JPJ=64 JPK=32 ${PROFILER} ${PROFILER_FLAGS} -- ./traadv.exe
+	IT=10 JPI=64 JPJ=64 JPK=32 ${RUN_CMD}
 
 traadv.exe: traadv_instrumented.o ${PSYCLONE_PROFILING_LIB}
 	${F90} ${F90FLAGS} traadv_instrumented.o -o traadv.exe ${LDFLAGS} ${PSYCLONE_PROFILING_LIBS}

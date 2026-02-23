@@ -6,8 +6,8 @@ This example demonstrates a simple profiling workflow for OpenMP target
 offloading, using the tracer advection demo. It processes `../code/tra_adv.F90` and
 generates `traadv_instrumented.F90` with OpenMP target offload directives plus
 profiling hooks. The transformation script `omp_gpu_profile_trans.py` is a
-small local transform script that uses shared helpers from `../scripts` and
-inserts profile regions around *all* OpenMP target regions.
+small local transform script that inserts profile regions around *all* OpenMP
+target regions.
 
 ## Running
 
@@ -26,19 +26,20 @@ regions.
 
 ## Compiling and Running
 
-This example supports compilation and execution using the AMD ROCTx profiling
-wrapper in `../../../lib/profiling/amd` and the ROCm profiler (`rocprofv3`)
-by default. It can also be tested with NVIDIA tooling by overriding the relevant
-Makefile variables (compiler/flags and profiling wrapper variables such as
-`PSYCLONE_PROFILING_DIR`, `PSYCLONE_PROFILING_LIB`, and
-`PSYCLONE_PROFILING_LIBS`).
-
-Typical compiler settings for AMD GPU offloading are:
+This example defaults to the GNU toolchain (`gfortran`) together
+with PSyclone's `simple_timing` profiling wrapper (`../../../lib/profiling/simple_timing`).
+To use AMD/NVIDIA compilers and their respective profiling wrappers instead, override the
+relevant Makefile variables. For example, to run the example using AMD's `amdflang`
+compiler and ROCTx wrapper, set:
 
 ```sh
 export F90=amdflang
 export F90FLAGS="-O3 -fopenmp --offload-arch=<arch>"
 export LDFLAGS="-fopenmp --offload-arch=<arch> -L${ROCM_PATH}/lib -lrocprofiler-sdk-roctx"
+export PSYCLONE_PROFILING_DIR=${PSYCLONE_DIR}/lib/profiling/amd
+export PSYCLONE_PROFILING_LIB=${PSYCLONE_PROFILING_DIR}/libroctx_prof.a
+export PSYCLONE_PROFILING_LIBS="-L${PSYCLONE_PROFILING_DIR} -lroctx_prof"
+export RUN_CMD="rocprofv3 --runtime-trace --output-format pftrace -- ./traadv.exe"
 ```
 
 Then build and run:
