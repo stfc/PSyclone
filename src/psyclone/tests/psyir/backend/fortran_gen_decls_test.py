@@ -588,3 +588,21 @@ intent(in) :: real_array
   integer(kind=i_def), dimension(2), intent(in) :: dims_real_array
   real(kind=r_def), dimension(dims_real_array(1),dims_real_array(2)), \
 intent(in) :: real_array""" in output
+
+
+def test_unsupported_decl_with_deps(fortran_reader, fortran_writer):
+    '''
+    Check that dependencies are respected when they occur within an
+    UnsupportedType.
+    '''
+    code = """
+    module test_mod
+    implicit none
+      character(len = ilenwmo), dimension(:), pointer, public :: cdwmo
+      integer, parameter :: ilenwmo = 58
+    end module test_mod"""
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert """\
+  integer, parameter :: ilenwmo = 58
+  character(len = ilenwmo), """ in output
