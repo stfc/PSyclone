@@ -217,6 +217,11 @@ class Literal(DataNode):
     @property
     def value_as_python(self) -> Union[str, bool, int, float]:
         '''
+        .. warning::
+            value_as_python doesn't attempt to preserve the precision
+            of the Literal, merely gives a python representation of
+            the value of the Literal object.
+
         :returns: the python representation of this Literal.
         '''
         if self.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
@@ -224,9 +229,7 @@ class Literal(DataNode):
         if self.datatype.intrinsic == ScalarType.Intrinsic.REAL:
             return float(self.value)
         if self.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
-            if self.value == "true":
-                return True
-            return False
+            return self.value == "true":
         if self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
             return self.value
 
