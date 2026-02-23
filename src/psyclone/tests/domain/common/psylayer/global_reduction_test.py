@@ -145,3 +145,17 @@ def test_globalreduction_args():
     global_sum = schedule.children[2]
     assert len(global_sum.args) == 1
     assert global_sum.args[0] == global_sum.scalar
+
+
+def test_globalreduction_reference_accesses():
+    '''Test the reference_accesses method returns the appropriate
+    information for a GlobalReduction.'''
+    _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
+                           api="lfric", dist_mem=True, idx=0)
+    schedule = invoke.schedule
+    global_sum = schedule.children[2]
+    vam = global_sum.reference_accesses()
+    if len(vam.all_data_accesses) != 1:
+        pytest.xfail(reason="Issue #3346: the scalar to be updated by a "
+                     "GlobalReduction is held in a bespoke '_scalar' "
+                     "property.")
