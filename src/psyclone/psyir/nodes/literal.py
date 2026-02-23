@@ -229,7 +229,7 @@ class Literal(DataNode):
         if self.datatype.intrinsic == ScalarType.Intrinsic.REAL:
             return float(self.value)
         if self.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
-            return self.value == "true":
+            return self.value == "true"
         if self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
             return self.value
 
