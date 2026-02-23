@@ -53,7 +53,7 @@ from psyclone.psyir.symbols import (
 from psyclone.tests.utilities import Compile
 
 
-def test_gen_param_decls_dependencies(fortran_writer):
+def test_gen_decls_dependencies(fortran_writer):
     ''' Test that dependencies between parameter declarations are handled. '''
     symbol_table = SymbolTable()
     rlg_sym = DataSymbol("rlg", INTEGER_TYPE, is_constant=True,
@@ -67,7 +67,7 @@ def test_gen_param_decls_dependencies(fortran_writer):
     symbol_table.add(var_sym)
     symbol_table.add(wp_sym)
     symbol_table.add(rlg_sym)
-    result = fortran_writer._gen_parameter_decls(symbol_table)
+    result = fortran_writer.gen_decls(symbol_table)
     assert (result == "integer, parameter :: rlg = 8\n"
                       "integer, parameter :: wp = rlg\n"
                       "integer, parameter :: var = rlg + wp\n")
@@ -81,7 +81,7 @@ def test_gen_param_decls_dependencies(fortran_writer):
     # Now that we have the Symbol, update the initial value to refer to it.
     circ_sym.initial_value.arguments[0].replace_with(Reference(circ_sym))
     symbol_table.add(circ_sym)
-    result = fortran_writer._gen_parameter_decls(symbol_table)
+    result = fortran_writer.gen_decls(symbol_table)
     assert (result == "integer, parameter :: rlg = 8\n"
                       "integer, parameter :: wp = rlg\n"
                       "integer, parameter :: var = rlg + wp\n"
@@ -94,12 +94,12 @@ def test_gen_param_decls_dependencies(fortran_writer):
                          initial_value=Reference(wp_sym))
     symbol_table.add(rlg_sym)
     with pytest.raises(VisitorError) as err:
-        fortran_writer._gen_parameter_decls(symbol_table)
+        fortran_writer.gen_decls(symbol_table)
     assert ("Unable to satisfy dependencies for the declarations of ['var', "
             "'wp', 'rlg']" in str(err.value))
 
 
-def test_gen_param_decls_imported_dep(fortran_reader, fortran_writer):
+def test_gen_decls_imported_dep(fortran_reader, fortran_writer):
     ''' Check that the dependency handling doesn't generate a false positive
     for a dependence on an imported symbol. '''
     code = ("program my_prog\n"
@@ -110,12 +110,12 @@ def test_gen_param_decls_imported_dep(fortran_reader, fortran_writer):
             "end program my_prog\n")
     psyir = fortran_reader.psyir_from_source(code)
     table = psyir.walk(Routine)[0].symbol_table
-    result = fortran_writer._gen_parameter_decls(table)
+    result = fortran_writer.gen_decls(table)
     assert result == ("integer, parameter :: fbdp = wp\n"
                       "integer, parameter :: obdp = rdef\n")
 
 
-def test_gen_param_decls_kind_dep(fortran_writer):
+def test_gen_decls_kind_dep(fortran_writer):
     ''' Check that symbols defining precision are accounted for when
     allowing for dependencies between parameter declarations. '''
     table = SymbolTable()
@@ -132,17 +132,17 @@ def test_gen_param_decls_kind_dep(fortran_writer):
     table.add(var_sym)
     table.add(wp_sym)
     table.add(rdef_sym)
-    result = fortran_writer._gen_parameter_decls(table)
+    result = fortran_writer.gen_decls(table)
     assert result == ("integer, parameter :: r_def = 4\n"
                       "integer, parameter :: wp = r_def\n"
                       "real, parameter :: var2 = 1.0_wp\n"
                       "real(kind=wp), parameter :: var = 1.0_wp\n")
 
 
-def test_gen_param_decls_case_insensitive(fortran_reader,
-                                          fortran_writer):
+def test_gen_decls_case_insensitive(fortran_reader,
+                                    fortran_writer):
     '''
-    Checks that _gen_parameter_decls is not case sensitive. We have to
+    Checks that gen_decls is not case sensitive. We have to
     use the fortran frontend to exercise this.
 
     '''
@@ -157,7 +157,7 @@ module my_mod
   integer, parameter :: I_DEF = 4
 end module my_mod''')
     container = psyir.walk(Container)[1]
-    result = fortran_writer._gen_parameter_decls(container.symbol_table)
+    result = fortran_writer.gen_decls(container.symbol_table)
     assert result == (
         "integer, parameter :: an_int = 6\n"
         "integer, parameter :: i_def = 4\n"

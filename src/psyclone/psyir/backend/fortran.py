@@ -848,77 +848,16 @@ class FortranWriter(LanguageWriter):
             return result
         return ""
 
-    # pylint: disable=too-many-branches
-    def _gen_parameter_decls(self, symbol_table, is_module_scope=False):
-        ''' Create the declarations of all parameters present in the supplied
-        symbol table. Declarations are ordered so as to satisfy any inter-
-        dependencies between them.
-
-        :param symbol_table: the SymbolTable instance.
-        :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool is_module_scope: whether or not the declarations are in
-                                     a module scoping unit. Default is False.
-
-        :returns: Fortran code declaring all parameters.
-        :rtype: str
-
-        :raises VisitorError: if there is no way of resolving
-                              interdependencies between parameter declarations.
-
-        '''
-        declarations = ""
-        local_constants = []
-
-        # First add the local constants
-        for sym in symbol_table.datasymbols:
-            if sym.is_import or sym.is_unresolved:
-                continue  # Skip, these don't need declarations
-            if sym.is_constant:
-                local_constants.append(sym)
-
-        # There may be dependencies between these constants so setup a dict
-        # holding a set of all their dependencies. The checks have to be done
-        # with case-insensitive name comparisons because the dependent symbols
-        # are not always created in the same scope.
-        local_lowered_names = [sym.name.lower() for sym in local_constants]
-        decln_inputs = {}
-        for symbol in local_constants:
-            dependencies = symbol.get_all_accessed_symbols()
-            dependencies = {sym for sym in dependencies
-                            # Discard self-dependencies: e.g. "a :: HUGE(a)"
-                            if sym.name.lower() != symbol.name.lower() and
-                            # Discard dependencies that are not local
-                            sym.name.lower() in local_lowered_names}
-            decln_inputs[symbol] = dependencies
-
-        # We now iterate over the declarations, declaring those that have their
-        # inputs satisfied. Creating a declaration for a given symbol removes
-        # that symbol as a dependence from any outstanding declarations and
-        # adds it to the 'declared' set.
-        declared: set[Symbol] = set()
-        while local_constants:
-            for symbol in local_constants[:]:
-                inputs = decln_inputs[symbol]
-                if inputs.issubset(declared):
-                    # All inputs are satisfied so this declaration can be added
-                    declared.add(symbol)
-                    local_constants.remove(symbol)
-                    declarations += self.gen_vardecl(
-                        symbol, include_visibility=is_module_scope)
-                    break
-            else:
-                # We looped through all of the variables remaining to be
-                # declared and none had their dependencies satisfied.
-                raise VisitorError(
-                    f"Unable to satisfy dependencies for the declarations of "
-                    f"{[sym.name for sym in local_constants]}")
-        return declarations
-
     def gen_decls(self,
                   symbol_table: SymbolTable,
                   is_module_scope: bool = False) -> str:
         '''Create and return the Fortran declarations for the supplied
         SymbolTable.
+
+        Declarations are ordered such that any given symbol is declared after
+        those upon which it depends. Stricly speaking, the Fortran standard
+        does not mandate this in the majority of cases but compiler
+        implementations do not always follow the standard.
 
         :param symbol_table: the SymbolTable instance.
         :param is_module_scope: whether or not the declarations are in
@@ -939,6 +878,8 @@ class FortranWriter(LanguageWriter):
             RoutineSymbols) in the supplied table that do not have an
             explicit declaration (UnresolvedInterface) and there are no
             wildcard imports or unknown interfaces.
+        :raises VisitorError: if there is no way of resolving interdependencies
+            between symbol declarations.
 
         '''
         # pylint: disable=too-many-branches
@@ -970,10 +911,9 @@ class FortranWriter(LanguageWriter):
 
         # If the symbol table contains any symbols with an
         # UnresolvedInterface interface (they are not explicitly
-        # declared), we need to check that we have at least one
-        # wildcard import which could be bringing them into this
-        # scope, or an unknown interface which could be declaring
-        # them.
+        # declared), we need to check that we have at least one wildcard
+        # import which could be bringing them into this scope, or an
+        # unknown interface which could be declaring them.
         unresolved_symbols = []
         for sym in all_symbols[:]:
             if isinstance(sym.interface, UnresolvedInterface):
