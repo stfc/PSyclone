@@ -209,7 +209,6 @@ def test_transformation_doc_wrapper_multi_inheritance():
         InheritingTrans,
         inherit=[BaseTrans1, BaseTrans2]
     )
-    print(InheritingTrans.apply.__doc__)
     assert "param bool opt1: opt1 docstring." in InheritingTrans.apply.__doc__
     assert "param bool opt2: opt2 docstring." in InheritingTrans.apply.__doc__
     assert ("param bool opt1: opt1 docstring."
