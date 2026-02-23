@@ -105,7 +105,7 @@ class OpenMPCPURoutineTrans(OMPLoopTrans, MaximalOMPParallelRegionTrans,
             OMPMinimiseSyncTrans.apply(self, node, **kwargs)
 
 
-# Multiple inheritance doesn't work with the decorator it seems.
+# TODO #3335: Multiple inheritance doesn't work with the decorator.
 transformation_documentation_wrapper(OpenMPCPURoutineTrans,
                                      inherit=[OMPLoopTrans,
                                               MaximalOMPParallelRegionTrans,
