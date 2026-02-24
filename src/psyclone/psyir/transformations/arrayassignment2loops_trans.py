@@ -41,7 +41,6 @@ further transformations e.g. loop fusion or if the back-end does
 not support array ranges.
 
 '''
-from types import NoneType
 from typing import Optional, Any
 
 from psyclone.errors import LazyString
@@ -441,7 +440,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
 
 
 def _walk_until_non_elemental_call(
-        node: Node, search_type: type, stop_type: type = NoneType):
+        node: Node, search_type: type, stop_type: Optional[type] = None):
     ''' Custom walk operation that stops at Calls that it are not
     elemental. The elemental restriction was not possible to implement
     with the generic node.walk(), which only supports stopping at given
@@ -459,7 +458,7 @@ def _walk_until_non_elemental_call(
     if isinstance(node, search_type):
         local_list.append(node)
 
-    if isinstance(node, stop_type):
+    if stop_type and isinstance(node, stop_type):
         return local_list
 
     if isinstance(node, Call) and not node.is_elemental:
