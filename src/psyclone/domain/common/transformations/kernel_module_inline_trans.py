@@ -42,7 +42,6 @@ TODO #2683 - rename this to {Privatise,Copy,Move}RoutineToLocalContainerTrans
 and move it to psyir/transformations/.
 
 '''
-from typing import List
 import warnings
 
 from psyclone.psyGen import Transformation, CodedKern
