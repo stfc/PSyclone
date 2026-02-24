@@ -53,8 +53,6 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessMap
 from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
                                    LFRicInvokeSchedule, LFRicKern, LFRicLoop)
-from psyclone.domain.common.transformations.kernel_transformation_mixin \
-    import KernelTransformationMixin
 from psyclone.lfric import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
@@ -75,6 +73,8 @@ from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
     UnresolvedType)
+from psyclone.psyir.transformations.callee_transformation_mixin import (
+    CalleeTransformationMixin)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import (
@@ -1613,7 +1613,7 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
                 f"'{type(node)}'.")
 
 
-class LFRicKernelConstTrans(Transformation, KernelTransformationMixin):
+class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
     '''Modifies a kernel so that the number of dofs, number of layers and
     number of quadrature points are fixed in the kernel rather than
     being passed in by argument.
@@ -1885,7 +1885,7 @@ class LFRicKernelConstTrans(Transformation, KernelTransformationMixin):
                 f"Error in LFRicKernelConstTrans transformation. Supplied "
                 f"node must be an LFRic kernel but found '{type(node)}'.")
 
-        self._check_kernel_is_local(node)
+        self._check_callee_implementation_is_local(node)
 
         if not options:
             options = {}
@@ -2100,7 +2100,7 @@ class ACCEnterDataTrans(Transformation):
 
 class ACCRoutineTrans(Transformation,
                       MarkRoutineForGPUMixin,
-                      KernelTransformationMixin):
+                      CalleeTransformationMixin):
     '''
     Transform a kernel or routine by adding a "!$acc routine" directive
     (causing it to be compiled for the OpenACC accelerator device).
@@ -2193,7 +2193,7 @@ class ACCRoutineTrans(Transformation,
 
         self.validate_it_can_run_on_gpu(node, options)
 
-        self._check_kernel_is_local(node)
+        self._check_callee_implementation_is_local(node)
 
         if options and "parallelism" in options:
             para = options["parallelism"]
@@ -2344,7 +2344,7 @@ class ACCDataTrans(RegionTrans):
                             f"component is the one being iterated over.")
 
 
-class KernelImportsToArguments(Transformation, KernelTransformationMixin):
+class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
     '''
     Transformation that removes any accesses of imported data from the supplied
     kernel and places them in the caller. The values/references are then passed
@@ -2390,7 +2390,7 @@ class KernelImportsToArguments(Transformation, KernelTransformationMixin):
 
         # Check that the kernel has already been module-inlined. This also
         # implies that there are no unqualified imports or undeclared symbols.
-        self._check_kernel_is_local(node)
+        self._check_callee_implementation_is_local(node)
 
     def apply(self, node, options=None):
         '''

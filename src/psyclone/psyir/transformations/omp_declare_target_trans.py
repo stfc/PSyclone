@@ -39,17 +39,17 @@ This module provides the implementation of OMPDeclareTargetTrans
 
 '''
 
-from psyclone.domain.common.transformations.kernel_transformation_mixin \
-    import KernelTransformationMixin
 from psyclone.psyir.nodes import OMPDeclareTargetDirective
+from psyclone.psyir.transformations.callee_transformation_mixin import (
+    CalleeTransformationMixin)
 from psyclone.psyGen import Transformation, Kern
 from psyclone.psyir.transformations.mark_routine_for_gpu_mixin import (
-        MarkRoutineForGPUMixin)
+    MarkRoutineForGPUMixin)
 
 
 class OMPDeclareTargetTrans(Transformation,
                             MarkRoutineForGPUMixin,
-                            KernelTransformationMixin):
+                            CalleeTransformationMixin):
     '''
     Adds an OpenMP declare target directive to the specified routine.
 
@@ -148,4 +148,4 @@ class OMPDeclareTargetTrans(Transformation,
 
         self.validate_it_can_run_on_gpu(node, options)
 
-        self._check_kernel_is_local(node)
+        self._check_callee_implementation_is_local(node)

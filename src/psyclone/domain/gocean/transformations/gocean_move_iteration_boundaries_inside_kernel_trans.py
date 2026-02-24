@@ -35,8 +35,8 @@
 
 '''This module contains the GOMoveIterationBoundariesInsideKernelTrans.'''
 
-from psyclone.domain.common.transformations.kernel_transformation_mixin import\
-    KernelTransformationMixin
+from psyclone.psyir.transformations.callee_transformation_mixin import (
+    CalleeTransformationMixin)
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyGen import Transformation, InvokeSchedule
 from psyclone.gocean1p0 import GOKern
@@ -47,7 +47,7 @@ from psyclone.psyir.symbols import (INTEGER_TYPE, ArgumentInterface,
 
 
 class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
-                                                 KernelTransformationMixin):
+                                                 CalleeTransformationMixin):
     ''' Provides a transformation that moves iteration boundaries that are
     encoded in the Loops lower_bound() and upper_bound() methods to a mask
     inside the kernel with the boundaries passed as kernel arguments.
@@ -112,7 +112,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
                 f"can only be applied to 'GOKern' nodes, but found "
                 f"'{type(node).__name__}'.")
 
-        self._check_kernel_is_local(node)
+        self._check_callee_implementation_is_local(node)
 
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.

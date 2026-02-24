@@ -75,16 +75,18 @@ class CalleeTransformationMixin:
         """
         if isinstance(node, CodedKern):
             rsymbol = node.scope.symbol_table.lookup(node.name, otherwise=None)
+            node_name = node.name
             kernel_txt = "Kernel "
         elif isinstance(node, Call):
             rsymbol = node.symbol
+            node_name = rsymbol.name
             kernel_txt = ""
         else:
             raise TransformationError(
                 f"Attempted to apply {self.name} to '{type(node).__name__}' "
                 f"which is not a Call or a CodedKern")
 
-        msg_text = (f"Cannot transform this {kernel_txt}call to '{node.name}' "
+        msg_text = (f"Cannot transform this {kernel_txt}call to '{node_name}' "
                     f"because")
 
         # (The symbol could have an 'automatic' interface if it is a
@@ -98,7 +100,7 @@ class CalleeTransformationMixin:
         container = node.ancestor(Container)
         if not container:
             raise TransformationError(
-                f"{msg_text} because there is no ancestor Container in which "
+                f"{msg_text} there is no ancestor Container in which "
                 f"to look for its implementation."
             )
         names = container.resolve_routine(node.name)
