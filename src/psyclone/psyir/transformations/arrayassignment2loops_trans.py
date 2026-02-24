@@ -41,6 +41,7 @@ further transformations e.g. loop fusion or if the back-end does
 not support array ranges.
 
 '''
+from types import NoneType
 from typing import Optional, Any
 
 from psyclone.errors import LazyString
@@ -131,8 +132,13 @@ class ArrayAssignment2LoopsTrans(Transformation):
         for reference in node.walk(Reference):
             Reference2ArrayRangeTrans().apply(reference)
 
-        # Start by the rightmost array range
-        for lhs_range in reversed(node.lhs.walk(Range)):
+        # Now replace range expressions with indices for every range in a
+        # top-level expression (e.g. we don't walk inside non-elemental calls
+        # because they need to receive the same complete slices). Start with
+        # the rightmost range to respect Fortran iteration order
+        for lhs_range in reversed(
+            _walk_until_non_elemental_call(node.lhs, Range)
+        ):
             lhs_array = lhs_range.parent
             lhs_index = lhs_array.index_of(lhs_range)
 
@@ -144,10 +150,14 @@ class ArrayAssignment2LoopsTrans(Transformation):
 
             # Replace one range for each top-level array expression in the
             # assignment
-            for expr in reversed(node.walk(ArrayMixin, stop_type=ArrayMixin)):
+            for expr in reversed(
+                _walk_until_non_elemental_call(node, ArrayMixin, ArrayMixin)
+            ):
                 # We use a "for" to capture the value of the last range or
                 # continue if there is none, but we don't iterate all Ranges
-                for range_to_replace in reversed(expr.walk(Range)):
+                for range_to_replace in reversed(
+                    _walk_until_non_elemental_call(expr, Range)
+                ):
                     array = range_to_replace.parent
                     index = array.index_of(range_to_replace)
                     if lhs_array.same_range(lhs_index, array, index):
@@ -308,47 +318,60 @@ class ArrayAssignment2LoopsTrans(Transformation):
         written_sig, written_idxs = written_ref.get_signature_and_indices()
         for ref in node_copy.walk(Reference)[1:]:
             if ref.symbol is written_ref.symbol:
-                if ref.is_read:  # This is here to skip INQUIRY accesses
-                    ref_sig, ref_idxs = ref.get_signature_and_indices()
-                    if ref_sig != written_sig:
-                        # The accessor is different, there is no dependency
-                        # (unless its pointers - we ignore these)
-                        continue
-                    found_dependency = False
-                    # The signature indices are provided in a doubly nested
-                    # tuple with components and indices, we need both loops
-                    # below to compare each matching index in both references
-                    for c1, c2 in zip(ref_idxs, written_idxs):
-                        for i1, i2 in zip(c1, c2):
-                            if isinstance(i1, Range) or isinstance(i2, Range):
-                                # If an index is a range, check that the bounds
-                                # are exactly the same or it could be a
-                                # dependency
-                                if i1 != i2:
-                                    found_dependency = True
-                                    break
-                            # If none of the matching indices are ranges, this
-                            # will be an invariant and not represent a problem
-                    if found_dependency:
-                        raise TransformationError(LazyString(
-                            lambda: f"{self.name} does not support statements "
-                            f"containing dependencies that would generate "
-                            f"loop-carried dependencies when naively "
-                            f"converting them to a loop, but found:"
-                            f"\n{node.debug_string()}"))
+                found_dependency = False
+
+                # If the reference data is not read (e.g. used by an inquiry
+                # intrinsic), then there is not dependency
+                if not ref.is_read:
+                    continue
+
+                # The accessor is different, there is no dependency
+                ref_sig, ref_idxs = ref.get_signature_and_indices()
+                if ref_sig != written_sig:
+                    continue
+
+                # If its inside a non-elemental call, we assume it reads the
+                # whole array, and therefore causes a dependency
+                parent_call = ref.ancestor(Call)
+                if parent_call and not parent_call.is_elemental:
+                    found_dependency = True
+
+                # The signature indices are provided in a doubly nested
+                # tuple with components and indices, we need both loops
+                # below to compare each matching index in both references
+                for c1, c2 in zip(ref_idxs, written_idxs):
+                    for i1, i2 in zip(c1, c2):
+                        if isinstance(i1, Range) or isinstance(i2, Range):
+                            # If an index is a range, check that the bounds
+                            # are exactly the same or it could be a
+                            # dependency
+                            if i1 != i2:
+                                found_dependency = True
+                                break
+                        # If none of the matching indices are ranges, this
+                        # will be an invariant and not represent a problem
+
+                if found_dependency:
+                    raise TransformationError(LazyString(
+                        lambda: f"{self.name} does not support statements "
+                        f"containing dependencies that would generate "
+                        f"loop-carried dependencies when naively "
+                        f"converting them to a loop, but found:"
+                        f"\n{node.debug_string()}"))
 
         # We don't support nested range expressions anywhere in the assignment
+        # (but note that non-elemental calls reset the expression)
         for range_expr in node_copy.walk(Range, stop_type=Range):
             # Test that there are no Ranges in any children
             # e.g: array(:<cannot have ranges>)
             test_nodes = range_expr.children[:]
-            # or in the memeber expression if it is a derived type accessor
+            # or in the member expression if it is a derived type accessor
             # e.g: array(:)%<cannot have ranges>
             if isinstance(range_expr.parent, StructureAccessorMixin):
                 test_nodes.append(range_expr.parent.member)
 
             for test in test_nodes:
-                if test.has_descendant(Range):
+                if _walk_until_non_elemental_call(test, Range):
                     message = (
                         f"{self.name} does not support array assignments "
                         f"that contain nested Range expressions")
@@ -366,7 +389,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
                        f"'allow_strings' option to expand them)")
             self.validate_no_char(node, message, verbose)
 
-        # We don't accept calls that are not guaranteed to return an scalar
+        # We don't accept calls that are not guaranteed to return a scalar
         # or be elemental
         for call in node_copy.rhs.walk(Call):
             if call.is_elemental:
@@ -378,7 +401,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
             else:
                 name = call.routine.symbol.name
             message = (f"{self.name} does not accept calls which are not"
-                       f" guaranteed to return an scalar or be elemental, "
+                       f" guaranteed to return a scalar or be elemental, "
                        f"but found '{name}'")
             if verbose:
                 node.append_preceding_comment(message)
@@ -415,6 +438,38 @@ class ArrayAssignment2LoopsTrans(Transformation):
             except (NotImplementedError, AttributeError):
                 # We cannot always get the datatype, we ignore this for now
                 pass
+
+
+def _walk_until_non_elemental_call(
+        node: Node, search_type: type, stop_type: type = NoneType):
+    ''' Custom walk operation that stops at Calls that it are not
+    elemental. The elemental restriction was not possible to implement
+    with the generic node.walk(), which only supports stopping at given
+    types.
+
+    :param node: walk start location.
+    :param search_type: the class for which the instances are collected.
+    :param stop_type: the class in which the walk stops (in addition to
+        non-elemental calls).
+
+    :returns: list with all nodes that are instances of search_type
+        starting at and including the given node.
+    '''
+    local_list = []
+    if isinstance(node, search_type):
+        local_list.append(node)
+
+    if isinstance(node, stop_type):
+        return local_list
+
+    if isinstance(node, Call) and not node.is_elemental:
+        return local_list
+
+    for child in node.children:
+        local_list += _walk_until_non_elemental_call(
+                            child, search_type, stop_type)
+    return local_list
+
 
 
 __all__ = [

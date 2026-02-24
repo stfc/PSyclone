@@ -432,6 +432,7 @@ def test_validate_with_dependency(fortran_reader):
             A(fn(3):fn(4)) = A(fn(3):fn(4)) + B(:) ! fn is not known to be pure
             A(A(:)) = B(:)
             A(globalvar,:) = A(globalvar, :) + fn(3) ! fn may update globalvar
+            A(1:3) = sum(A(1:3))
 
             ! These are valid
             A(:) = A(:) + B(:)
@@ -446,9 +447,11 @@ def test_validate_with_dependency(fortran_reader):
     trans = ArrayAssignment2LoopsTrans()
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[0])
-    assert ("ArrayAssignment2LoopsTrans does not support statements containing"
-            " dependencies that would generate loop-carried dependencies when "
-            "naively converting them to a loop" in str(err.value))
+    errmsg = (
+        "ArrayAssignment2LoopsTrans does not support statements containing"
+        " dependencies that would generate loop-carried dependencies when "
+        "naively converting them to a loop")
+    assert errmsg in str(err.value)
 
     # Some of them fail with other unsupported error messages, but we keep them
     # here in case the other issue is resolved, this should still fail due to
@@ -457,14 +460,18 @@ def test_validate_with_dependency(fortran_reader):
         trans.apply(assignments[1])
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[2])
+    assert errmsg in str(err.value)
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[3])
+    with pytest.raises(TransformationError) as err:
+        trans.apply(assignments[4])
+    assert errmsg in str(err.value)
 
     # The following 2 statements are fine, because the range is the same
-    trans.apply(assignments[4])
     trans.apply(assignments[5])
-    # The following is fine because the accesses are independent
     trans.apply(assignments[6])
+    # The following is fine because the accesses are independent
+    trans.apply(assignments[7])
 
 
 def test_apply_calls_validate():
@@ -793,8 +800,8 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
 
 
 def test_apply_functions(fortran_reader, fortran_writer):
-    ''' Check that pure functions that are guaranteed to return an scalar or
-    elemental functions can be expanded.
+    ''' Check that pure functions that are guaranteed to return a scalar or
+    be elemental can be expanded.
 
     Everything else is currently not supported.
     '''
@@ -821,88 +828,96 @@ def test_apply_functions(fortran_reader, fortran_writer):
         subroutine test()
           use other, only: myfunc
           integer, dimension(:,:) :: x, y, z
-          integer, dimension(:,:,:) :: array2d
+          integer, dimension(:,:,:) :: array3d
           integer, dimension(3) :: array1d
-          ! Pure functions that return an scalar are supported
-          x = sum(y) + y
-          ! Can be extended once call.datatype is improved
-          x = scalarpurefunc(y)
 
-          ! Pure functions that return an array could, but currently
+          ! Pure functions that return a scalar or are elemental are supported
+          x = sum(y + z) + sin(y + z)
+          x = scalarpurefunc(y)
+          x(1:sum(y(3:4,1)),1) = 1
+
+          ! Pure functions that return an array could (by saving the resulting
+          ! array in a temporary and then indexing it), but currently
           ! are not supported
           array1d = arraypurefunc() + array1d + 3
-          x = sum(array2d, dim=2)
+          x = sum(array3d, dim=2)
           x = matmul(y, z)
-          array1d = shape(array2d)
+          array1d = shape(array3d)
 
-          ! Impure functions are not supported, even if they return an scalar
+          ! Impure functions are not supported, even if they return a scalar
           x = counter()
           x = unknownfunc(y)
           x = var%myfunc(name=y)
+
         end subroutine test
     end module mymod
     ''')
     trans = ArrayAssignment2LoopsTrans()
 
-    assignment1 = psyir.walk(Assignment)[4]
-    assignment2 = psyir.walk(Assignment)[5]
-    assignment3 = psyir.walk(Assignment)[6]
-    assignment4 = psyir.walk(Assignment)[7]
-    assignment5 = psyir.walk(Assignment)[8]
-    assignment6 = psyir.walk(Assignment)[9]
-    assignment7 = psyir.walk(Assignment)[10]
-    assignment8 = psyir.walk(Assignment)[11]
-    assignment9 = psyir.walk(Assignment)[12]
+    assignments = psyir.walk(Assignment)
+    valid = assignments[4:7]
+    invalid = assignments[7:14]
 
     # Pure functions returning a scalar
-    trans.apply(assignment1)
-    trans.apply(assignment2)
+    trans.apply(valid[0])
+    trans.apply(valid[1])
+    trans.apply(valid[2])
 
     # Pure functions returning an array
     errormsg = "ArrayAssignment2LoopsTrans does not accept calls which are "
     with pytest.raises(TransformationError) as err:
-        trans.validate(assignment3, options={"verbose": True})
+        trans.validate(invalid[0])
     # TODO #2429: This has the correct behaviour but for the wrong reason,
     # once this issue is resolved the error message should be the expected
     # one.
     # assert errormsg in str(err.value)
     with pytest.raises(TransformationError) as err:
-        trans.validate(assignment4)
+        trans.validate(invalid[1], verbose=True)
     assert errormsg in str(err.value)
     with pytest.raises(TransformationError) as err:
-        trans.validate(assignment5)
+        trans.validate(invalid[2])
     assert errormsg in str(err.value)
     with pytest.raises(TransformationError) as err:
-        trans.validate(assignment6)
+        trans.validate(invalid[3])
     assert errormsg in str(err.value)
 
     # There are impure (or we don't know the purity)
     with pytest.raises(TransformationError) as err:
-        trans.validate(assignment7)
+        trans.validate(invalid[4])
     # TODO #2429: This has the correct behaviour but for the wrong reason,
     # once this issue is resolved the error message should be the expected
     # one.
     # assert errormsg in str(err.value)
     with pytest.raises(TransformationError) as err:
-        trans.validate(assignment8)
+        trans.validate(invalid[5])
     assert errormsg in str(err.value)
     with pytest.raises(TransformationError) as err:
-        trans.validate(assignment9)
+        trans.validate(invalid[6])
     assert errormsg in str(err.value)
 
     # Check the ones that have been extended
     code = fortran_writer(psyir)
+    # Expressions inside non-elemental calls must not indexed
     assert """
     do idx = LBOUND(x, dim=2), UBOUND(x, dim=2), 1
       do idx_1 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1
-        x(idx_1,idx) = SUM(y) + y(idx_1,idx)
+        x(idx_1,idx) = SUM(y(:,:) + z(:,:)) + SIN(y(idx_1,idx) + z(idx_1,idx))
       enddo
     enddo
     do idx_2 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1
       do idx_3 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1
         x(idx_3,idx_2) = scalarpurefunc(y)
       enddo
+    enddo
+    do idx_4 = 1, SUM(y(3:4,1)), 1
+      x(idx_4,1) = 1
     enddo""" in code
+
+    # This one was requested to be verbose, so a comment must be attached
+    assert """
+    ! ArrayAssignment2LoopsTrans does not accept calls which are not \
+guaranteed to return a scalar or be elemental, but found 'SUM'
+    x = SUM(array3d, 2)""" in code
 
 
 def test_validate_indirect_indexing(fortran_reader):
@@ -944,7 +959,7 @@ def test_validate_indirect_indexing(fortran_reader):
     with pytest.raises(TransformationError) as err:
         trans.validate(assignments[3])
     assert ("ArrayAssignment2LoopsTrans does not accept calls which are not "
-            "guaranteed to return an scalar or be elemental, but found "
+            "guaranteed to return a scalar or be elemental, but found "
             "'my_func'" in str(err.value))
 
 
