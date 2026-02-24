@@ -202,13 +202,11 @@ class GOOpenCLTrans(Transformation):
                 KernelModuleInlineTrans().validate(kern)
             for ksched in kern.get_callees():
 
-                global_variables = set(sym.name for sym in
-                                       ksched.symbol_table.imported_symbols)
-                prec_sym_names = set(sym.name for sym in
-                                     ksched.symbol_table.precision_datasymbols)
-                non_prec_vars = global_variables.difference(prec_sym_names)
-                if non_prec_vars:
-                    names = sorted(non_prec_vars)
+                global_variables = set(ksched.symbol_table.imported_symbols)
+                prec_symbols = set(ksched.symbol_table.precision_datasymbols)
+                if global_variables.difference(prec_symbols):
+                    names = sorted([sym.name for sym in
+                                    global_variables.difference(prec_symbols)])
                     raise TransformationError(
                         f"The Symbol Table for kernel '{kern.name}' contains "
                         f"the following symbols with 'global' scope: {names}. "

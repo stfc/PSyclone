@@ -252,7 +252,7 @@ class KernelModuleInlineTrans(Transformation):
 
     @staticmethod
     def _prepare_code_to_inline(
-            routines_to_inline: List[Routine]) -> List[Routine]:
+            routines_to_inline: list[Routine]) -> list[Routine]:
         '''Prepare the PSyIR tree to inline by bringing in to the subroutine
         all referenced symbols so that the implementation is self contained.
 
@@ -262,7 +262,6 @@ class KernelModuleInlineTrans(Transformation):
         :param routines_to_inline: the routine(s) to module-inline.
 
         :returns: the updated routine(s) to module-inline.
-        :rtype: list[:py:class:`psyclone.psyir.node.Routine`]
 
         '''
         # pylint: disable=too-many-branches
@@ -300,6 +299,12 @@ class KernelModuleInlineTrans(Transformation):
             # Bring the selected symbols inside the subroutine
             for symbol in symbols_to_bring_in:
                 if symbol.name not in code_to_inline.symbol_table:
+                    # Ensure that any references to this Symbol within the
+                    # symbol table are updated.
+                    # TODO how come this is necessary? Are we missing a step
+                    # earlier?
+                    for sym in code_to_inline.symbol_table.datasymbols:
+                        sym.replace_symbols_using(symbol)
                     code_to_inline.symbol_table.add(symbol)
                 # And when necessary the modules where they come from
                 if symbol.is_unresolved:
@@ -624,11 +629,7 @@ class KernelModuleInlineTrans(Transformation):
             else:
                 new_sym = node.scope.symbol_table.lookup(caller_name)
 
-        # Update the Kernel to point to the updated PSyIR and set
-        # the module-inline flag to avoid generating the kernel imports
-        # TODO #1823. If the kernel imports were generated at PSy-layer
-        # creation time, we could just remove it here instead of setting a
-        # flag.
+        # Update the Kernel to point to the updated PSyIR.
         if isinstance(node, CodedKern):
             cntr = node.ancestor(Container)
             # TODO #2846 - since we do not currently rename module-inlined
