@@ -391,7 +391,7 @@ end subroutine foo"""
     assert loop.loop_body.children[0] is dirs[1]
     case_if = loop.loop_body.children[1]
     assert (case_if.preceding_comment ==
-        """comment b
+            """comment b
 Hey there!""")
     assert case_if.if_body.children[0] is dirs[2]
     assert case_if.if_body.children[-1] is dirs[3]
