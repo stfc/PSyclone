@@ -39,7 +39,9 @@ This module provides the implementation of OMPDeclareTargetTrans
 
 '''
 
-from psyclone.psyir.nodes import OMPDeclareTargetDirective
+from typing import Any, Optional, Union
+
+from psyclone.psyir.nodes import OMPDeclareTargetDirective, Routine
 from psyclone.psyir.transformations.callee_transformation_mixin import (
     CalleeTransformationMixin)
 from psyclone.psyGen import Transformation, Kern
@@ -91,16 +93,15 @@ class OMPDeclareTargetTrans(Transformation,
         end subroutine
 
     '''
-    def apply(self, node, options=None):
+    def apply(self,
+              node: Union[Kern, Routine],
+              options: Optional[dict[str, Any]] = None) -> None:
         ''' Insert an OMPDeclareTargetDirective inside the provided routine or
         associated PSyKAl kernel.
 
         :param node: the kernel or routine which is the target of this
             transformation.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine` |
-                    :py:class:`psyclone.psyGen.Kern`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether to allow routines with
             CodeBlocks to run on the GPU.
         :param str options["device_string"]: provide a compiler-platform
@@ -120,15 +121,14 @@ class OMPDeclareTargetTrans(Transformation,
                        child in routine.children):
                 routine.children.insert(0, OMPDeclareTargetDirective())
 
-    def validate(self, node, options=None):
+    def validate(self,
+                 node: Union[Kern, Routine],
+                 options: Optional[dict[str, Any]] = None) -> None:
         ''' Check that an OMPDeclareTargetDirective can be inserted.
 
         :param node: the kernel or routine which is the target of this
             transformation.
-        :type node: :py:class:`psyclone.psyGen.Kern` |
-                    :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether to allow routines with
                     CodeBlocks to run on the GPU.
         :param str options["device_string"]: provide a compiler-platform
@@ -148,4 +148,5 @@ class OMPDeclareTargetTrans(Transformation,
 
         self.validate_it_can_run_on_gpu(node, options)
 
-        self._check_callee_implementation_is_local(node)
+        if isinstance(node, Kern):
+            self._check_callee_implementation_is_local(node)

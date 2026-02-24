@@ -2193,7 +2193,8 @@ class ACCRoutineTrans(Transformation,
 
         self.validate_it_can_run_on_gpu(node, options)
 
-        self._check_callee_implementation_is_local(node)
+        if isinstance(node, Kern):
+            self._check_callee_implementation_is_local(node)
 
         if options and "parallelism" in options:
             para = options["parallelism"]
