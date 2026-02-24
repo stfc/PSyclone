@@ -471,6 +471,5 @@ def _walk_until_non_elemental_call(
     return local_list
 
 
-
 __all__ = [
     'ArrayAssignment2LoopsTrans']
