@@ -45,6 +45,7 @@ from typing import Tuple
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 
 
 class Operation(DataNode, metaclass=ABCMeta):
@@ -320,15 +321,15 @@ class BinaryOperation(Operation):
                             f"boolean, but found '{type(value).__name__}'.")
         self._has_explicit_grouping = value
 
-    def get_result_scalar_type(self, argtypes):
+    def get_result_scalar_type(self, optypes):
         '''
         Examines the two operand types to determine the base type of the
         operation using the rules in Section 7.2 of the Fortran2008 standard.
         If the type cannot be determined then an instance of `UnresolvedType`
         is returned.
 
-        :param argtypes: the types of the two operands.
-        :type argtypes: list[:py:class:`psyclone.psyir.symbols.DataType`,
+        :param optypes: the types of the two operands.
+        :type optypes: list[:py:class:`psyclone.psyir.symbols.DataType`,
                              :py:class:`psyclone.psyir.symbols.DataType`]
 
         :returns: the base type of the result of the operation.
@@ -351,9 +352,9 @@ class BinaryOperation(Operation):
             return BOOLEAN_TYPE
 
         try:
-            return compute_scalar_type(argtypes)
+            return compute_scalar_type(optypes)
         except TypeError as err:
-            actual_types = set(atype.intrinsic for atype in argtypes)
+            actual_types = set(atype.intrinsic for atype in optypes)
             actual_types -= set([ScalarType.Intrinsic.INTEGER,
                                 ScalarType.Intrinsic.REAL])
             actual_types = [str(x) for x in actual_types]
@@ -381,7 +382,7 @@ class BinaryOperation(Operation):
             ArrayType, UnresolvedType, ScalarType,
             UnsupportedFortranType, UnsupportedType)
         # Get the types of the operands.
-        argtypes = []
+        optypes = []
         for child in self.children:
             # If the operand is itself an operation this will recurse.
             dtype = child.datatype
@@ -409,28 +410,55 @@ class BinaryOperation(Operation):
                     else:
                         dtype = ArrayType(UnresolvedType(), shape=dtype.shape)
 
-            argtypes.append(dtype)
+            optypes.append(dtype)
 
         # Determine the base (scalar) type of the result.
-        base_type = self.get_result_scalar_type(argtypes)
+        base_type = self.get_result_scalar_type(optypes)
         if (isinstance(base_type, UnresolvedType) or
-                all(isinstance(atype, ScalarType) for atype in argtypes)):
+                all(isinstance(atype, ScalarType) for atype in optypes)):
             # Both operands are of scalar type.
             return base_type
 
-        if all(isinstance(atype, ArrayType) for atype in argtypes):
+        if all(isinstance(atype, ArrayType) for atype in optypes):
             # Both operands are of array type.
-            if len(argtypes[0].shape) != len(argtypes[1].shape):
+            if len(optypes[0].shape) != len(optypes[1].shape):
                 raise InternalError(
                     f"Binary operation '{self.debug_string()}' has operands "
                     f"of different shape: '{self.children[0].debug_string()}' "
-                    f"has rank {len(argtypes[0].shape)} and "
+                    f"has rank {len(optypes[0].shape)} and "
                     f"'{self.children[1].debug_string()}' has rank "
-                    f"{len(argtypes[1].shape)}")
+                    f"{len(optypes[1].shape)}")
             # In general there is no way we can check that the extents of each
             # dimension match so we have to assume that they do.
-        shape = (argtypes[0].shape if isinstance(argtypes[0], ArrayType) else
-                 argtypes[1].shape)
+
+        # If only one of the operand types is an ArrayType then we return that
+        if not all(isinstance(optype, ArrayType) for optype in optypes):
+            shape = (optypes[0].shape if isinstance(optypes[0], ArrayType)
+                     else optypes[1].shape)
+        else:
+            # Otherwise we try to work out the best. Find out how many
+            # non-intrinsic DataNodes shape definitions each
+            # has.
+            dnodes_0 = len([x for x in optypes[0].shape if
+                            isinstance(x, ArrayType.ArrayBounds) and
+                            isinstance(x.lower, DataNode) and
+                            not isinstance(x.lower, IntrinsicCall) and
+                            isinstance(x.upper, DataNode) and
+                            (not isinstance(x.upper, IntrinsicCall)
+                             and len(x.upper.walk(IntrinsicCall)) == 0)])
+            dnodes_1 = len([x for x in optypes[1].shape if
+                            isinstance(x, ArrayType.ArrayBounds) and
+                            isinstance(x.lower, DataNode) and
+                            not isinstance(x.lower, IntrinsicCall) and
+                            isinstance(x.upper, DataNode) and
+                            (not isinstance(x.upper, IntrinsicCall)
+                             and len(x.upper.walk(IntrinsicCall)) == 0)])
+            # If the second shape has more defined elements then
+            # return the shape of that.
+            if dnodes_1 > dnodes_0:
+                return ArrayType(base_type, shape=optypes[1].shape)
+            # Otherwise use the shape of the first operand.
+            shape = optypes[0].shape
         return ArrayType(base_type, shape=shape)
 
     @property

@@ -1073,6 +1073,7 @@ end program where_test'''
       b(widx1) = a(widx1)
     end if
   enddo'''
+    print(out)
     assert correct in out
 
 
