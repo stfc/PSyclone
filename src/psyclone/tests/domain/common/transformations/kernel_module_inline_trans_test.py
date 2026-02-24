@@ -536,11 +536,11 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
     # Since we don't currently rename module-inlined kernels (TODO #2846),
     # module-inlining just one instance means that calls to that same Kernel
     # throughout the whole module use the newly-inlined version.
-    assert ("""subroutine invoke_1(scalar_r_bl, field_r_bl, \
+    assert """subroutine invoke_1(scalar_r_bl, field_r_bl, \
 operator_r_def, f1, f2, m1, a, m2, istp, qr)
     use function_space_mod, only : basis, diff_basis
     use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, \
-quadrature_xyoz_type""" in output)
+quadrature_xyoz_type""" in output
     assert "mixed_kernel_mod" not in output
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
