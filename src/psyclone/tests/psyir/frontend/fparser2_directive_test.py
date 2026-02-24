@@ -348,3 +348,51 @@ def test_comments_on_directive_before_ifblock(fortran_writer):
     assert dirs[0].directive_string == "acc comment2"
     assert ("""comment1
 comment2""" == dirs[0].preceding_comment)
+
+
+def test_comments_on_directive_before_case():
+    '''Tests that comments and directives are placed correctly when a
+    Select case statement is converted to ifblocks.'''
+    code = """
+subroutine foo()
+
+    integer :: jk, jpkm1
+    integer :: nn_e3f_typ
+    integer :: i
+
+    !$pos operation(kernel_fusion)
+    !comment a
+
+    DO jk = 1, jpkm1
+        !$pos operation(kernel_fusion)
+        !comment b
+        SELECT CASE( nn_e3f_typ )
+        !Hey there!
+        CASE ( 0 )
+            !$pos dummy
+            i = 1
+            ! a comment
+        !$pos dumm2
+        CASE ( 1 )
+           i = 2
+        END SELECT
+
+        !comment c
+    END DO
+end subroutine foo"""
+
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    dirs = routine.walk(UnknownDirective)
+    assert len(dirs) == 4
+    assert routine.children[0] is dirs[0]
+    loop = routine.children[1]
+    assert loop.loop_body.children[0] is dirs[1]
+    case_if = loop.loop_body.children[1]
+    assert (case_if.preceding_comment ==
+        """comment b
+Hey there!""")
+    assert case_if.if_body.children[0] is dirs[2]
+    assert case_if.if_body.children[-1] is dirs[3]
+    assert dirs[3].preceding_comment == "a comment"

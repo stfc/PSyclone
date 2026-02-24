@@ -4036,9 +4036,26 @@ class Fparser2Reader():
         selector = None
         # The position of the 'case default' clause, if any
         default_clause_idx = None
+        # Stores the current set of comments.
+        current_comments = []
+        # Stores the current set of directives and its preceding comments.
+        current_dirs = []
         for idx, child in enumerate(node.content):
+            # Find any comments and directives that appear before the first
+            # Case statement and keep them to add into the tree.
+            if (len(clause_indices) == 0 and
+                    isinstance(child, Fortran2003.Directive)):
+                current_dirs.append((child, current_comments))
+                current_comments = []
+                continue
+            if (len(clause_indices) == 0 and
+                    isinstance(child, Fortran2003.Comment)):
+                if len(child.tostr()) > 0:
+                    current_comments.append(child)
+                continue
             if isinstance(child, Fortran2003.Select_Case_Stmt):
                 selector = child.items[0]
+                continue
             if isinstance(child, Fortran2003.Case_Stmt):
                 if not isinstance(child.items[0], Fortran2003.Case_Selector):
                     raise InternalError(
@@ -4087,9 +4104,23 @@ class Fparser2Reader():
                 elsebody.ast = node.content[start_idx + 1]
                 elsebody.ast_end = node.content[end_idx - 1]
             else:
+                # If we have any directives before the select case then add
+                # them before the IfBlock.
+                if current_dirs:
+                    for direc, prev_comments in current_dirs:
+                        directive = self._directive_handler(
+                            direc, currentparent
+                        )
+                        currentparent.addchild(directive)
+                        directive.preceding_comment = (
+                            self._comments_list_to_string(prev_comments)
+                        )
                 ifblock = IfBlock(parent=currentparent,
                                   annotations=['was_case'])
                 rootif = ifblock
+                ifblock.preceding_comment = (
+                    self._comments_list_to_string(current_comments)
+                )
 
             if idx == 0:
                 # If this is the first IfBlock then have it point to
@@ -5930,7 +5961,7 @@ class Fparser2Reader():
         ])
         if to_direc:
             content = str_rep[2:].lstrip()
-            return UnknownDirective(content)
+            return UnknownDirective(content, parent=parent)
         code_block = CodeBlock(
             [node],
             CodeBlock.Structure.STATEMENT,
