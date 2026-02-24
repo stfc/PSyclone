@@ -88,5 +88,5 @@ structure is shown in the figure below (courtesy of the UKMO LFRic team).
   in Weather and Climate models.](
   https://doi.org/10.1016/j.jpdc.2019.02.007) Journal of Parallel and
   Distributed Computing.
-* [Met Office research news, May 2019](
-  https://www.metoffice.gov.uk/research/news/2019/gungho-and-lfric)
+* [Met Office research news, last accessed 24th Feb 2026](
+  https://www.metoffice.gov.uk/research/approach/modelling-systems/lfric)
