@@ -445,6 +445,7 @@ def test_validate_with_dependency(fortran_reader):
     loop = psyir.walk(Loop)[0]
     assignments = loop.walk(Assignment)
     trans = ArrayAssignment2LoopsTrans()
+    # Test: A(2:10) = A(1:9) + B(2:10)
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[0])
     errmsg = (
@@ -456,21 +457,28 @@ def test_validate_with_dependency(fortran_reader):
     # Some of them fail with other unsupported error messages, but we keep them
     # here in case the other issue is resolved, this should still fail due to
     # the possible dependency
+    # Test: A(fn(3):fn(4)) = A(fn(3):fn(4)) + B(:)
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[1])
+    # Test: A(A(:)) = B(:)
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[2])
     assert errmsg in str(err.value)
+    # Test: A(globalvar,:) = A(globalvar, :) + fn(3)
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[3])
+    # Test: A(1:3) = sum(A(1:3))
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[4])
     assert errmsg in str(err.value)
 
     # The following 2 statements are fine, because the range is the same
+    # Test: A(:) = A(:) + B(:)
     trans.apply(assignments[5])
+    # Test: A(3:4) = A(3:4) + B(:)
     trans.apply(assignments[6])
     # The following is fine because the accesses are independent
+    # Test: A(1,:) = A(2,:) + B(:)
     trans.apply(assignments[7])
 
 
@@ -867,9 +875,9 @@ def test_apply_functions(fortran_reader, fortran_writer):
     errormsg = "ArrayAssignment2LoopsTrans does not accept calls which are "
     with pytest.raises(TransformationError) as err:
         trans.validate(invalid[0])
-    # TODO #2429: This has the correct behaviour but for the wrong reason,
-    # once this issue is resolved the error message should be the expected
-    # one.
+    # TODO #2429: This has the correct behaviour but for the wrong reason
+    # (the function call is parsed as a CodeBlock), once this issue is resolved
+    # the error message should be the expected one.
     # assert errormsg in str(err.value)
     with pytest.raises(TransformationError) as err:
         trans.validate(invalid[1], verbose=True)
@@ -881,12 +889,12 @@ def test_apply_functions(fortran_reader, fortran_writer):
         trans.validate(invalid[3])
     assert errormsg in str(err.value)
 
-    # There are impure (or we don't know the purity)
+    # These are impure (or we don't know the purity)
     with pytest.raises(TransformationError) as err:
         trans.validate(invalid[4])
-    # TODO #2429: This has the correct behaviour but for the wrong reason,
-    # once this issue is resolved the error message should be the expected
-    # one.
+    # TODO #2429: This has the correct behaviour but for the wrong reason
+    # (the function call is parsed as a CodeBlock), once this issue is resolved
+    # the error message should be the expected one.
     # assert errormsg in str(err.value)
     with pytest.raises(TransformationError) as err:
         trans.validate(invalid[5])

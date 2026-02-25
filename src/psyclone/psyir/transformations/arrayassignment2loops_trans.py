@@ -440,11 +440,11 @@ class ArrayAssignment2LoopsTrans(Transformation):
 
 
 def _walk_until_non_elemental_call(
-        node: Node, search_type: type, stop_type: Optional[type] = None):
-    ''' Custom walk operation that stops at Calls that it are not
-    elemental. The elemental restriction was not possible to implement
-    with the generic node.walk(), which only supports stopping at given
-    types.
+        node: Node, search_type: type, stop_type: Optional[type] = None
+) -> list[Node]:
+    ''' Custom walk operation that stops at Calls that are not elemental. The
+    elemental restriction was not possible to implement with the generic
+    node.walk(), which only supports stopping at given types.
 
     :param node: walk start location.
     :param search_type: the class for which the instances are collected.

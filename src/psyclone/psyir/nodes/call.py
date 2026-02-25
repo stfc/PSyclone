@@ -400,6 +400,9 @@ class Call(Statement, DataNode):
         if self.routine:
             if isinstance(self.routine.symbol, RoutineSymbol):
                 dt = self.routine.symbol.datatype
+                # We only return the type if it has been resolved, otherwise
+                # we give a chance to the super() method as it can use location
+                # based knowledge to infer its type
                 if not isinstance(dt, UnresolvedType):
                     return dt
         return super().datatype
