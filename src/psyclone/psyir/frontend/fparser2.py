@@ -47,7 +47,7 @@ import os
 import sys
 from typing import Iterable, Optional, Union
 
-from fparser.common.readfortran import FortranStringReader
+from fparser.common.readfortran import FortranStringReader, FortranFileReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, BlockBase, StmtBase, Base
@@ -1020,6 +1020,7 @@ class Fparser2Reader():
     def generate_parse_tree(
         cls,
         source_code: str,
+        file_path: str,
         ignore_comments: bool,
         free_form: bool,
         ignore_directives: bool,
@@ -1039,14 +1040,24 @@ class Fparser2Reader():
             "expression" or "statement".
 
         '''
-        string_reader = FortranStringReader(
-            source_code, include_dirs=Config.get().include_paths,
-            ignore_comments=ignore_comments,
-            process_directives=not ignore_directives,
-            include_omp_conditional_lines=conditional_openmp,
-        )
+        if file_path:
+            reader = FortranFileReader(
+                file_path,
+                include_dirs=Config.get().include_paths,
+                ignore_comments=ignore_comments,
+                process_directives=not ignore_directives,
+                include_omp_conditional_lines=conditional_openmp,
+            )
+        else:
+            reader = FortranStringReader(
+                source_code,
+                include_dirs=Config.get().include_paths,
+                ignore_comments=ignore_comments,
+                process_directives=not ignore_directives,
+                include_omp_conditional_lines=conditional_openmp,
+            )
         # Set reader to free format.
-        string_reader.set_format(FortranFormat(free_form, False))
+        reader.set_format(FortranFormat(free_form, False))
 
         SYMBOL_TABLES.clear()
         if partial_code == "expression":
@@ -1058,7 +1069,7 @@ class Fparser2Reader():
                     f"expression: '{source_code}'") from err
         elif partial_code == "statement":
             try:
-                parse_tree = Fortran2003.Execution_Part(string_reader)
+                parse_tree = Fortran2003.Execution_Part(reader)
             except NoMatchError as err:
                 raise ValueError(
                     f"Supplied source does not represent a Fortran "
@@ -1068,7 +1079,7 @@ class Fparser2Reader():
                 std = Config.get().fortran_standard
                 if not cls._parser:
                     cls._parser = ParserFactory().create(std=std)
-                parse_tree = cls._parser(string_reader)
+                parse_tree = cls._parser(reader)
             except (FortranSyntaxError, NoMatchError) as err:
                 raise ValueError(
                     f"Failed to parse the provided source code:\n{source_code}"

@@ -132,7 +132,7 @@ class FortranReader():
 
         '''
         tree = self._processor.generate_parse_tree(
-                source_code, self._ignore_comments, self._free_form,
+                source_code, None, self._ignore_comments, self._free_form,
                 self._ignore_directives, self._conditional_openmp_statements)
         psyir = self._processor.generate_psyir(tree)
         return psyir
@@ -162,7 +162,7 @@ class FortranReader():
                             f"got '{type(symbol_table).__name__}'")
 
         tree = self._processor.generate_parse_tree(
-                source_code, self._ignore_comments, self._free_form,
+                source_code, None, self._ignore_comments, self._free_form,
                 self._ignore_directives, self._conditional_openmp_statements,
                 partial_code="expression")
 
@@ -204,7 +204,7 @@ class FortranReader():
                             f"got '{type(symbol_table).__name__}'")
 
         tree = self._processor.generate_parse_tree(
-                source_code, self._ignore_comments, self._free_form,
+                source_code, None, self._ignore_comments, self._free_form,
                 self._ignore_directives, self._conditional_openmp_statements,
                 partial_code="statement")
         # Create a fake sub-tree connected to the supplied symbol table so
@@ -233,10 +233,17 @@ class FortranReader():
         :raises ValueError: if the parser fails to parse the contents of
                             the supplied file.
         '''
-        with open(file_path, encoding="utf-8") as fortran_file:
-            output = self.psyir_from_source(fortran_file.read())
-        output.name = str(file_path).split('/')[-1]
-        return output
+        tree = self._processor.generate_parse_tree(
+                None,
+                file_path,
+                self._ignore_comments,
+                self._free_form,
+                self._ignore_directives,
+                self._conditional_openmp_statements
+        )
+        psyir = self._processor.generate_psyir(tree)
+        psyir.name = str(file_path).rsplit('/', maxsplit=1)[-1]
+        return psyir
 
 
 # For Sphinx AutoAPI documentation generation
