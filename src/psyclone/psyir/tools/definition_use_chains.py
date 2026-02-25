@@ -364,9 +364,12 @@ class DefinitionUseChain:
                             return self._reaches
 
                     for ref in chain._reaches:
-                        # We will only ever reach a reference once, so
-                        # we don't need to check uniqueness.
-                        self._reaches.append(ref)
+                        # We need to check for uniqueness
+                        for ref2 in self._reaches:
+                            if ref2 is ref:
+                                break
+                        else:
+                            self._reaches.append(ref)
         else:
             # Check if there is an ancestor Assignment.
             ancestor = self._reference.ancestor(Assignment)
