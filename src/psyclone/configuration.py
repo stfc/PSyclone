@@ -239,7 +239,7 @@ class Config:
         # The Fortran standard that fparser should use
         self._fortran_standard = None
 
-        # The Fortran standard that fparser should use
+        # The Fortran parser that psyclone should use
         self._frontend = 'fparser2'
 
         # By default, the PSyIR backends don't output argument names on (most)

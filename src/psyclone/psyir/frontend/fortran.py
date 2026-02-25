@@ -88,8 +88,8 @@ class FortranReader():
         self._conditional_openmp_statements = conditional_openmp_statements
         self._free_form = free_form
 
-        # The frontend reader imports are intentionally inside this method
-        # to only lazily import them if they are requested
+        # The frontend reader imports are intentionally inside this condition
+        # to lazily import them only when they are needed
         # pylint: disable=import-outside-toplevel
         if Config.get().frontend == 'treesitter':
             from psyclone.psyir.frontend.fortran_treesitter_reader import (
@@ -131,7 +131,7 @@ class FortranReader():
         :raises ValueError: if the supplied Fortran cannot be parsed.
 
         '''
-        tree = self._processor.text_to_parse_tree(
+        tree = self._processor.generate_parse_tree(
                 source_code, self._ignore_comments, self._free_form,
                 self._ignore_directives, self._conditional_openmp_statements)
         psyir = self._processor.generate_psyir(tree)
@@ -161,7 +161,7 @@ class FortranReader():
             raise TypeError(f"Must be supplied with a valid SymbolTable but "
                             f"got '{type(symbol_table).__name__}'")
 
-        tree = self._processor.text_to_parse_tree(
+        tree = self._processor.generate_parse_tree(
                 source_code, self._ignore_comments, self._free_form,
                 self._ignore_directives, self._conditional_openmp_statements,
                 partial_code="expression")
@@ -203,7 +203,7 @@ class FortranReader():
             raise TypeError(f"Must be supplied with a valid SymbolTable but "
                             f"got '{type(symbol_table).__name__}'")
 
-        tree = self._processor.text_to_parse_tree(
+        tree = self._processor.generate_parse_tree(
                 source_code, self._ignore_comments, self._free_form,
                 self._ignore_directives, self._conditional_openmp_statements,
                 partial_code="statement")

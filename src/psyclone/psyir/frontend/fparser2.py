@@ -852,7 +852,8 @@ def _get_arg_names(node_list):
 
 class Fparser2Reader():
     '''
-    Processes the fparser2 parse_tree and converts it to PSyIR.
+    Class to encapsulate the functionality for processing the fparser2 AST and
+    convert the nodes to PSyIR.
 
     :param ignore_directives: Whether directives should be ignored or not
         (default True). Only has an effect if comments were not ignored when
@@ -1016,12 +1017,28 @@ class Fparser2Reader():
         self._last_comments_as_codeblocks = last_comments_as_codeblocks
 
     @classmethod
-    def text_to_parse_tree(cls, source_code, ignore_comments, free_form,
-                           ignore_directives, conditional_openmp,
-                           partial_code=None):
-        # self._free_form = free_form
-        # self._ignore_comments = ignore_comments
+    def generate_parse_tree(
+        cls,
+        source_code: str,
+        ignore_comments: bool,
+        free_form: bool,
+        ignore_directives: bool,
+        conditional_openmp: bool,
+        partial_code: str = ""
+    ):
+        ''' Use the provided source code and frontend options to generate
+        a fparser2 parsetree.
 
+        :param source_code: the given source code.
+        :param ignore_comments: whether to let the parser ignore comments.
+        :param free_form: whether to parse using Fortran free_form syntax.
+        :param ignore_directives: whether to ignore directives while parsing.
+        :param conditional_openmp:
+        :param partial_code: if the provided source_code is not a full unit
+            this indicates the starting parsing point. It currently supports
+            "expression" or "statement".
+
+        '''
         string_reader = FortranStringReader(
             source_code, include_dirs=Config.get().include_paths,
             ignore_comments=ignore_comments,

@@ -37,6 +37,9 @@
 
 from typing import Optional
 
+import tree_sitter_fortran
+from tree_sitter import Language, Parser
+
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes.codeblock import TreeSitterCodeBlock, CodeBlock
 
@@ -69,9 +72,28 @@ class FortranTreeSitterReader():
         }
 
     @classmethod
-    def text_to_parse_tree(cls, source_code, ignore_comments, free_form,
-                           ignore_directives, conditional_openmp,
-                           partial_code=None):
+    def generate_parse_tree(
+        cls,
+        source_code: str,
+        ignore_comments: bool,
+        free_form: bool,
+        ignore_directives: bool,
+        conditional_openmp: bool,
+        partial_code: str = ""
+    ):
+        ''' Use the provided source code and frontend options to generate
+        a fparser2 parsetree.
+
+        :param source_code: the given source code.
+        :param ignore_comments: whether to let the parser ignore comments.
+        :param free_form: whether to parse using Fortran free_form syntax.
+        :param ignore_directives: whether to ignore directives while parsing.
+        :param conditional_openmp:
+        :param partial_code: if the provided source_code is not a full unit
+            this indicates the starting parsing point. It currently supports
+            "expression" or "statement".
+
+        '''
         def report_errors(node):
             ''' Recursively find and report errors '''
             if node.type == 'ERROR':
@@ -81,8 +103,6 @@ class FortranTreeSitterReader():
             for child in node.children:
                 report_errors(child)
 
-        import tree_sitter_fortran
-        from tree_sitter import Language, Parser
         language = Language(tree_sitter_fortran.language())
         parser = Parser(language)
         parse_tree = parser.parse(bytes(source_code, "utf8"))
