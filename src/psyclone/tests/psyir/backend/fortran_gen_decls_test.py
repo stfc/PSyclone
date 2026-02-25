@@ -163,7 +163,7 @@ end module my_mod''')
         "integer(kind=an_int), parameter :: a_second_int = 5_i_def\n"
         "integer, parameter :: nfieldnames3d = 4\n"
         "integer, dimension(nfieldnames3d), parameter :: "
-        "interpolationlevels = [2, 0, HUGE(InterpolationLevels) / 3, 0]\n")
+        "InterpolationLevels = [2, 0, HUGE(InterpolationLevels) / 3, 0]\n")
 
 
 def test_gen_decls(fortran_writer):
@@ -250,9 +250,9 @@ def test_gen_decls(fortran_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_decls(symbol_table)
     assert ("The following symbols are not explicitly declared or imported "
-            "from a module and there are no wildcard "
-            "imports which could be bringing them into scope: "
-            "'unknown'" in str(excinfo.value))
+            "from a module and there are no wildcard imports, generic "
+            "interfaces or CodeBlocks which could be bringing them into scope:"
+            " 'unknown'" in str(excinfo.value))
 
 
 def test_gen_decls_array(fortran_writer):
@@ -300,9 +300,10 @@ def test_gen_decls_nested_scope(fortran_writer):
     # be brought into scope
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_decls(inner_table)
-    assert ("symbols are not explicitly declared or imported from a module "
-            "and there are no wildcard imports which "
-            "could be bringing them into scope: 'unknown1'" in str(err.value))
+    assert ("The following symbols are not explicitly declared or imported "
+            "from a module and there are no wildcard imports, generic "
+            "interfaces or CodeBlocks which could be bringing them into scope:"
+            " 'unknown1'" in str(err.value))
     # Add a ContainerSymbol with a wildcard import in the outermost scope
     csym = ContainerSymbol("other_mod")
     csym.wildcard_import = True

@@ -347,7 +347,7 @@ def test_reference_next_accesses_with_codeblock(fortran_reader):
     a = routine.children[0].lhs
     codeblock = routine.children[1]
     assert len(a.next_accesses()) == 1
-    assert a.next_accesses()[0] is codeblock
+    assert a.next_accesses()[0] is codeblock.children[0]
 
 
 def test_reference_previous_accesses(fortran_reader):
@@ -520,7 +520,7 @@ def test_reference_previous_accesses_with_codeblock(fortran_reader):
     routine = psyir.children[0]
     a = routine.children[1].lhs
     codeblock = routine.walk(CodeBlock)[0]
-    assert a.previous_accesses()[0] is codeblock
+    assert a.previous_accesses()[0].is_descendant_of(codeblock)
 
 
 def test_reference_replace_symbols_using():

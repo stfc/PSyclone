@@ -41,7 +41,7 @@
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.nodes import CodeBlock, Reference, Schedule
 from psyclone.psyir.nodes.node import colored
 from psyclone.errors import GenerationError
 
@@ -98,19 +98,20 @@ def test_codeblock_children_validation():
     cblock = CodeBlock([], "dummy")
     with pytest.raises(GenerationError) as excinfo:
         cblock.addchild(CodeBlock([], "dummy2"))
-    assert ("Item 'CodeBlock' can't be child 0 of 'CodeBlock'. CodeBlock is a"
-            " LeafNode and doesn't accept children.") in str(excinfo.value)
+    assert ("Item 'CodeBlock' can't be child 0 of 'CodeBlock'. The valid "
+            "format is: '[Reference]*'.") in str(excinfo.value)
 
 
-def test_codeblock_get_symbol_names(parser):
+def test_codeblock_get_symbol_names_and_representative_references(parser):
     '''Test that the get_symbol_names methods returns the names of the symbols
     used inside the CodeBlock. This is slightly subtle as we have to avoid
-    any labels on loop and branching statements.'''
+    any labels and structure accessors names. Also check that this information
+    is used to create the appropriate symbols and representative references.'''
     reader = FortranStringReader('''
     subroutine mytest
       myloop: DO i = 1, 10
         a = b + sqrt(c)
-        myifblock: IF(this_is_true)THEN
+        myifblock: IF(this_is_true%really_true(nested%field)%for_real)THEN
           EXIT myloop
         ELSE IF(that_is_true)THEN myifblock
           write(*,*) "Bye"
@@ -120,18 +121,30 @@ def test_codeblock_get_symbol_names(parser):
       END DO myloop
     end subroutine mytest''')
     prog = parser(reader)
-    block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    scope = Schedule()
+    block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT,
+                      parent=scope)
     sym_names = block.get_symbol_names()
-    assert "a" in sym_names
-    assert "b" in sym_names
-    assert "c" in sym_names
-    assert "mytest" in sym_names
-    assert "subroutine" not in sym_names
-    assert "sqrt" not in sym_names
-    assert "myloop" not in sym_names
-    assert "myifblock" not in sym_names
-    assert "this_is_true" in sym_names
-    assert "that_is_true" in sym_names
+    refs = block.walk(Reference)
+
+    # Check strings that are symbols
+    for name in ['a', 'b', 'c', 'i', 'mytest', 'this_is_true', 'nested',
+                 'that_is_true']:
+        # The name is reported by get_symbol_names
+        assert name in sym_names
+        # It has been added to the scope
+        symbol = scope.symbol_table.lookup(name)
+        # There is a virtual reference to it
+        assert Reference(symbol) in refs
+    # The 8 symbols mentioned above, this also checks references to the same
+    # symbol are not repeated, e.g. 'mytest'
+    assert len(refs) == 8
+
+    # Check strings that are not symbols, e.g. keywords, labels, accessors
+    for name in ['subroutine', 'sqrt', 'myloop', 'myifblock',
+                 'really_true', 'for_real', 'field']:
+        assert name not in sym_names
+        assert scope.symbol_table.lookup(name, otherwise=None) is None
 
 
 def test_codeblock_get_symbol_names_comments_and_directives():

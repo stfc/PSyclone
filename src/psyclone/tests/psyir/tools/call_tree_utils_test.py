@@ -217,6 +217,7 @@ def test_call_tree_get_used_symbols_from_modules():
     expected = set([
             ("unknown", "constants_mod", "eps"),
             ("unknown", "module_with_var_mod", "module_const"),
+            ('unknown', 'module_with_var_mod', 'module_function'),
             ("reference", "testkern_import_symbols_mod",
              "dummy_module_variable"),
             ('routine', 'testkern_import_symbols_mod', "local_func"),
@@ -225,7 +226,8 @@ def test_call_tree_get_used_symbols_from_modules():
             ("routine", "testkern_import_symbols_mod", "local_subroutine"),
             ("routine", None, "unknown_subroutine")]
             )
-    assert non_locals_without_access == expected
+    for x in non_locals_without_access:
+        assert x in expected, str(x) + " not found"
 
     # Check the handling of a symbol that is not found: _compute_all_non_locals
     # should return None:

@@ -483,16 +483,18 @@ class DefinitionUseChain:
                         if defs_out is not None:
                             self._defsout.append(defs_out)
                         return
-                    if (
-                        self._reference.symbol.name
-                        in reference.get_symbol_names()
-                    ):
-                        # Assume the worst for a CodeBlock and we count them
-                        # as killed and defsout and uses.
-                        if defs_out is not None:
-                            self._killed.append(defs_out)
-                        defs_out = reference
-                        continue
+                    for child in reference.children:
+                        if self._reference.symbol is child.symbol:
+                            # It refers to this symbol, assume the worst and
+                            # consider it defout and killed
+                            if defs_out is not None:
+                                self._killed.append(defs_out)
+                            defs_out = child
+                            break
+                elif isinstance(reference.parent, CodeBlock):
+                    # We have already dealt with References inside Codeblocks
+                    # above, so skip this reference
+                    pass
                 elif isinstance(reference, Call):
                     # If its a local variable we can ignore it as we'll catch
                     # the Reference later if its passed into the Call.
@@ -766,16 +768,18 @@ class DefinitionUseChain:
                             "DefinitionUseChains can't handle code containing"
                             " GOTO statements."
                         )
-                    if (
-                        self._reference.symbol.name
-                        in reference.get_symbol_names()
-                    ):
-                        # Assume the worst for a CodeBlock and we count them
-                        # as killed and defsout and uses.
-                        if defs_out is not None:
-                            self._killed.append(defs_out)
-                        defs_out = reference
-                        continue
+                    for child in reference.children:
+                        if self._reference.symbol is child.symbol:
+                            # It refers to this symbol, assume the worst and
+                            # consider it defout and killed
+                            if defs_out is not None:
+                                self._killed.append(defs_out)
+                            defs_out = child
+                            break
+                elif isinstance(reference.parent, CodeBlock):
+                    # We have already dealt with References inside Codeblocks
+                    # above, so skip this reference
+                    pass
                 elif isinstance(reference, Call):
                     # If its a local variable we can ignore it as we'll catch
                     # the Reference later if its passed into the Call.
