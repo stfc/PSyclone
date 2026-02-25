@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -100,8 +100,8 @@ jobs:
         cp lib/extract/netcdf/lfric/*90 lfric-baf/infrastructure/build/psyclone/psydata/extract
 
         # Fetch the specified version of LFRic apps
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load fcm/xyl5qxp
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack load fcm/zefe2ha
         cd /archive/psyclone-tests/latest-run
         rm -rf lfric_extraction
         mkdir lfric_extraction
@@ -119,8 +119,8 @@ jobs:
     - name: GungHo Extraction Compilation
       run:  |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc@14
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment %gnu14_openmpi
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg

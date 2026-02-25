@@ -18,7 +18,7 @@ The following steps are required for this (using simplified code examples):
                                1, 1,  &    ! # procs in x and y direction
                                0,     &    ! max stencil size
                                0,     &    ! local rank
-                               1)          ! number of proceses
+                               1)          ! number of processes
     ```
 
 3) Create a uniform extrusion:

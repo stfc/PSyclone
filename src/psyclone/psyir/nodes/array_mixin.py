@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -193,11 +193,12 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         return self._is_bound(index, "lower")
 
-    def _get_bound_expression(self, pos: int, bound: str):
+    def _get_bound_expression(self, position: int, bound: str):
         '''
         Lookup the upper or lower bound of this ArrayMixin.
 
-        :param pos: the dimension of the array for which to lookup the bound.
+        :param position: the dimension of the array for which to lookup the
+            bound.
         :param bound: "upper" or "lower" - the bound which to lookup.
 
         :returns: the declared bound for the specified dimension of this array
@@ -205,6 +206,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises InternalError: if bound is neither "upper" or "lower".
+        :raises ValueError: if the shape of the given 'position' is needed to
+            generate the bound expression, but we don't have that type
+            information.
 
         '''
         if bound not in ("upper", "lower"):
@@ -229,8 +233,13 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             cursor = cursor.member
             # Collect member information.
             if isinstance(cursor, ArrayMixin):
-                new_indices = [idx.copy() for idx in cursor.indices]
-                cnames.append((cursor.name.lower(), new_indices))
+                try:
+                    new_indices = [idx.copy() for idx in cursor.indices]
+                    cnames.append((cursor.name.lower(), new_indices))
+                except InternalError:
+                    # The node is incomplete, but we can still use the type
+                    # information to populate the bounds
+                    cnames.append(cursor.name.lower())
             else:
                 cnames.append(cursor.name.lower())
             # Continue to resolve datatype unless we hit an
@@ -243,17 +252,23 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 continue
             cursor_type = cursor_type.components[cursor.name.lower()].datatype
 
-        if (isinstance(cursor_type, ArrayType) and
-                cursor_type.shape[pos] not in [ArrayType.Extent.DEFERRED,
-                                               ArrayType.Extent.ATTRIBUTE]):
-            # We have the full type information and the bound is known.
-            if bound == "lower":
-                return cursor_type.shape[pos].lower.copy()
-            # If the upper bound is required and is of ArrayType.Extent type
-            # then we'll have to proceed to construct a call to the UBOUND
-            # intrinsic.
-            if not isinstance(cursor_type.shape[pos].upper, ArrayType.Extent):
-                return cursor_type.shape[pos].upper.copy()
+        if isinstance(cursor_type, ArrayType):
+            if position > len(cursor_type.shape):
+                raise ValueError(
+                    f"In '{type(self).__name__}' '{self.name}' the specified "
+                    f"index '{position}' must be less than the number of "
+                    f"dimensions '{len(cursor_type.shape)}'.")
+            if cursor_type.shape[position] not in [ArrayType.Extent.DEFERRED,
+                                                   ArrayType.Extent.ATTRIBUTE]:
+                # We have the full type information and the bound is known.
+                if bound == "lower":
+                    return cursor_type.shape[position].lower.copy()
+                # If the upper bound is required and is of ArrayType.Extent
+                # type then we'll have to proceed to construct a call to the
+                # UBOUND intrinsic.
+                if not isinstance(cursor_type.shape[position].upper,
+                                  ArrayType.Extent):
+                    return cursor_type.shape[position].upper.copy()
 
         # We've either failed to resolve the type or we don't know the extent
         # of the array dimension so construct a call to the BOUND intrinsic.
@@ -279,10 +294,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if bound == "lower":
             return IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.LBOUND,
-                [ref, ("dim", Literal(str(pos+1), INTEGER_TYPE))])
+                [ref, ("dim", Literal(str(position+1), INTEGER_TYPE))])
         return IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.UBOUND,
-                [ref, ("dim", Literal(str(pos+1), INTEGER_TYPE))])
+                [ref, ("dim", Literal(str(position+1), INTEGER_TYPE))])
 
     def get_lbound_expression(self, pos):
         '''
@@ -294,12 +309,11 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         lower bound.
 
         :returns: the declared lower bound for the specified dimension of
-            the array accesed or a call to the LBOUND intrinsic if it is
+            the array accessed or a call to the LBOUND intrinsic if it is
             unknown.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        self._validate_index(pos)
         # Call the helper function
         return self._get_bound_expression(pos, "lower")
 
@@ -313,12 +327,11 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         upper bound.
 
         :returns: the declared upper bound for the specified dimension of
-            the array accesed or a call to the UBOUND intrinsic if it is
+            the array accessed or a call to the UBOUND intrinsic if it is
             unknown.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        self._validate_index(pos)
         # Call the helper function
         return self._get_bound_expression(pos, "upper")
 
@@ -334,8 +347,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                   pos for this ArrayMixin.
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
         '''
-        self._validate_index(pos)
-
         lbound = self.get_lbound_expression(pos)
         ubound = self.get_ubound_expression(pos)
 
@@ -634,7 +645,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 dtype = idx_expr.datatype
                 if isinstance(dtype, ArrayType):
                     # An array slice can be defined by a 1D slice of another
-                    # array, e.g. `a(b(1:4))` or `a(b)`.
+                    # array, e.g. `a(b(1:4))`, `a(b)` or a(b(:)).
                     indirect_array_shape = dtype.shape
                     if len(indirect_array_shape) > 1:
                         raise NotImplementedError(
@@ -644,7 +655,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                             f"{len(indirect_array_shape)} dimensions.")
                     # pylint: disable=protected-access
                     if isinstance(idx_expr, ArrayMixin):
-                        shape.append(idx_expr._extent(idx))
+                        shape.append(idx_expr._get_effective_shape()[0])
                     else:
                         # We have some expression with a shape but no explicit
                         # indexing. The extent of this is then the SIZE of

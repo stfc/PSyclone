@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -489,6 +489,13 @@ def main(arguments):
              'module in the same location as the imported source file).'
     )
     parser.add_argument(
+        '--config-opts',
+        help='Settings that will overwrite values in the config file as a '
+             'space-separated list of key=value pairs. Example:'
+             '--config-opts "reproducible_reductions=true '
+             'run_time_checks=warn".'
+    )
+    parser.add_argument(
         '-l', '--limit', dest='limit', default='off',
         choices=['off', 'all', 'output'],
         help="limit the Fortran line length to 132 characters (default "
@@ -617,14 +624,29 @@ def main(arguments):
     args = parser.parse_args(arguments)
 
     # Set the logging system up.
-    loglevel = LOG_LEVELS[args.log_level]
     if args.log_file:
-        logname = args.log_file
-        logging.basicConfig(filename=logname,
-                            level=loglevel)
+        handler = logging.FileHandler(args.log_file, mode="a",
+                                      encoding="utf-8")
     else:
-        logging.basicConfig(level=loglevel)
+        handler = logging.StreamHandler()
+
+    # We set both top-level loggers for PSyclone and fparser to
+    # the same configuration:
+    logger_psyclone = logging.getLogger('psyclone')
+    logger_fparser = logging.getLogger('fparser')
+    formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+    for logger in [logger_fparser, logger_psyclone]:
+        # Certain tests call main several times, which would add handlers
+        # over and over (which results in duplicated messages).
+        # So, don't attach a handler if one is already there
+        if logger.handlers:
+            continue
+        logger.setLevel(LOG_LEVELS[args.log_level])
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
     logger = logging.getLogger(__name__)
+
     logger.debug("Logging system initialised. Level is %s.", args.log_level)
 
     # Validate that the given arguments are for the right operation mode
@@ -649,7 +671,7 @@ def main(arguments):
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
-    Config.get().load(args.config)
+    Config.get().load(args.config, args.config_opts)
     Config.get().frontend = args.frontend
 
     # Check whether a PSyKAl API has been specified.

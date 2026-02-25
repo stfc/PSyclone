@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
+# Copyright (c) 2022-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -76,6 +76,7 @@ def test_preprocess_reference2arrayrange(tmpdir, fortran_reader,
     '''
     code = (
         "program test\n"
+        "use other, only: g\n"
         "real, dimension(10,10) :: a,b,c,e,f\n"
         "real, dimension(10) :: d\n"
         "integer :: i\n"
@@ -83,10 +84,11 @@ def test_preprocess_reference2arrayrange(tmpdir, fortran_reader,
         "do i = lbound(d,1), ubound(d,1)\n"
         "  d(i) = 0.0\n"
         "end do\n"
-        "e = f\n"
+        "e = f + g\n"
         "end program test\n")
     expected = (
         "program test\n"
+        "  use other, only : g\n"
         "  real, dimension(10,10) :: a\n"
         "  real, dimension(10,10) :: b\n"
         "  real, dimension(10,10) :: c\n"
@@ -104,13 +106,18 @@ def test_preprocess_reference2arrayrange(tmpdir, fortran_reader,
         "  do i = LBOUND(d, dim=1), UBOUND(d, dim=1), 1\n"
         "    d(i) = 0.0\n"
         "  enddo\n"
-        "  e(:,:) = f(:,:)\n\n"
+        "  e(:,:) = g + f(:,:)\n\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     preprocess_trans(psyir, ["a", "c"])
     result = fortran_writer(psyir)
     assert result == expected
-    assert Compile(tmpdir).string_compiles(result)
+    # TODO #3269: Currently this tests shows that psyad converts references to
+    # array_references even when there are imported symbols with unknown type
+    # ('g' in the example above). This demonstrate this we added an import that
+    # makes the test not compilable, this will be fixed when psyad can follow
+    # dependencies.
+    # assert Compile(tmpdir).string_compiles(result)
 
 
 def test_preprocess_dotproduct(tmpdir, fortran_reader, fortran_writer):

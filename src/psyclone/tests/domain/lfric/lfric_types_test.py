@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -315,7 +315,7 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
         if isinstance(i, int):
             dims.append(i)
         else:
-            # Tage the additional constructor arguments
+            # Tag the additional constructor arguments
             args = i[1:]
             interface = ArgumentInterface(ArgumentInterface.Access.READ)
             ref = Reference(LFRicTypes(i[0])(*args,

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
+# Copyright (c) 2022-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -138,7 +138,7 @@ class ShapesMetadata(CommonDeclarationMetadata):
     @shapes.setter
     def shapes(self, values):
         '''
-        :param values: set the shapes metdata to the supplied list of \
+        :param values: set the shapes metadata to the supplied list of \
             values.
         :type values: List[str]
         '''

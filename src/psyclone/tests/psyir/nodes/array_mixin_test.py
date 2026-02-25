@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -639,6 +639,7 @@ def test_get_effective_shape(fortran_reader):
         "  b(idx, 1+indices(1,1):) = 1\n"
         "  b(idx, a) = -1.0\n"
         "  b(scalarval, arrayval) = 1\n"
+        "  b(:,indices(:)) = 1\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
@@ -748,6 +749,11 @@ def test_get_effective_shape(fortran_reader):
             " of 'UnresolvedType' type and therefore whether it is an array "
             "slice (i.e. an indirect access) cannot be determined."
             in str(err.value))
+    # Nested array accesses with ranges with implicit bounds
+    child_idx += 1
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert "SIZE(b, dim=1)\n" == shape[0].debug_string()
+    assert "SIZE(indices, dim=1)\n" == shape[1].debug_string()
 
 
 def test_struct_get_effective_shape(fortran_reader):
@@ -911,7 +917,7 @@ def test_same_range(fortran_reader):
     # Unless they refer to the same symbol and dimension
     assert array1.same_range(1, array3, 1) is True
 
-    # The assumtion of same size is for the matching slice sections
+    # The assumption of same size is for the matching slice sections
     code = '''
     subroutine test(A)
         use other_mod

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,8 @@
 ''' This module contains the Literal node implementation.'''
 
 import re
+
+from typing import Union
 
 from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes.datanode import DataNode
@@ -184,7 +186,7 @@ class Literal(DataNode):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -211,6 +213,25 @@ class Literal(DataNode):
         '''
         self.datatype.replace_symbols_using(table_or_symbol)
         super().replace_symbols_using(table_or_symbol)
+
+    @property
+    def value_as_python(self) -> Union[str, bool, int, float]:
+        '''
+        .. warning::
+            value_as_python doesn't attempt to preserve the precision
+            of the Literal, merely gives a python representation of
+            the value of the Literal object.
+
+        :returns: the python representation of this Literal.
+        '''
+        if self.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+            return int(self.value)
+        if self.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            return float(self.value)
+        if self.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+            return self.value == "true"
+        if self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            return self.value
 
 
 # For AutoAPI documentation generation

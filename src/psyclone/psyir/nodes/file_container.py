@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ class FileContainer(Container):
             def trans(psy):
                 psy.invokes.get_invoke('name').schedule
 
-        still work as expected. However, it exposes the PSy hierachy to
+        still work as expected. However, it exposes the PSy hierarchy to
         users scripts, so this will eventually be deprecated.
 
         :return: the associated Invokes object.

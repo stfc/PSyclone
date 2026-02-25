@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2025, Science and Technology Facilities Council
+.. Copyright (c) 2017-2026, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -793,7 +793,7 @@ intents there are always ``intent(in)``.
 The Fortran intent of :ref:`scalars <lfric-scalar>` is still defined
 by their :ref:`access metadata <lfric-kernel-valid-access>` as they are
 actual data. This means ``intent(in)`` for ``GH_READ`` and ``intent(out)``
-for ``GH_SUM`` (more details in :ref:`meta_args <lfric-api-meta-args>`
+for ``GH_REDUCTION`` (more details in :ref:`meta_args <lfric-api-meta-args>`
 section below).
 
 The intent of other data structures is mandated by the relevant
@@ -1143,7 +1143,7 @@ The third component of argument metadata describes how the Kernel
 makes use of the data being passed into it (the way it is accessed
 within a Kernel). This information is mandatory. There are currently 6
 possible values of this metadata ``GH_READ``, ``GH_WRITE``,
-``GH_READWRITE``, ``GH_INC``, ``GH_READINC`` and ``GH_SUM``. However,
+``GH_READWRITE``, ``GH_INC``, ``GH_READINC`` and ``GH_REDUCTION``. However,
 not all combinations of metadata entries are valid and PSyclone will
 raise an exception if an invalid combination is specified. Valid
 combinations are specified later in this section (see
@@ -1174,9 +1174,9 @@ combinations are specified later in this section (see
   subsequently incremented. Therefore this is equivalent to a
   ``GH_READ`` followed by a ``GH_INC``.
 
-* ``GH_SUM`` is an example of a reduction and is the only reduction
-  currently supported in PSyclone. This metadata indicates that values
-  are summed over calls to Kernel code.
+* ``GH_REDUCTION`` indicates a reduction. Only Built-ins may perform
+  reductions. The type of reduction (sum, maximum value, minimum value)
+  is a property of the particular Built-in.
 
 For example::
 
@@ -1187,7 +1187,7 @@ For example::
        arg_type(GH_FIELD,        GH_INTEGER, GH_INC,       ... ),    &
        arg_type(GH_FIELD,        GH_REAL,    GH_READINC,   ... ),    &
        arg_type(GH_SCALAR_ARRAY, GH_LOGICAL, GH_READ,      ... ),    &
-       arg_type(GH_SCALAR,       GH_REAL,    GH_SUM)                 &
+       arg_type(GH_SCALAR,       GH_REAL,    GH_REDUCTION)           &
        /)
 
 .. warning:: It is important that ``GH_INC`` is not incorrectly used
@@ -2103,7 +2103,7 @@ conventions, are:
       containing the upper bounds for each rank, ``dims_<array_name>``
       (the lower bound is assumed to be 1 as this is how Fortran passes
       array slices to subroutines by default). Then pass the array of
-      the data type and kind specifed in the metadata. The ScalarArray
+      the data type and kind specified in the metadata. The ScalarArray
       must be denoted with intent ``in`` to match its read-only nature.
 
 4) For each function space in the order they appear in the metadata arguments
@@ -2797,7 +2797,8 @@ are listed in the table below.
 +===============+=====================+================+====================+
 | GH_SCALAR     | GH_INTEGER          | n/a            | GH_READ            |
 +---------------+---------------------+----------------+--------------------+
-| GH_SCALAR     | GH_REAL             | n/a            | GH_READ, GH_SUM    |
+| GH_SCALAR     | GH_REAL             | n/a            | GH_READ,           |
+|               |                     |                | GH_REDUCTION       |
 +---------------+---------------------+----------------+--------------------+
 | GH_FIELD      | GH_REAL, GH_INTEGER | ANY_SPACE_<n>  | GH_READ, GH_WRITE, |
 |               |                     |                | GH_READWRITE       |
@@ -2869,6 +2870,31 @@ scheme presented below. Any new Built-in needs to comply with these rules.
    3) Common prefix is ``"LFRic"`` for the Built-in operations on the
       ``real``-valued arguments and ``"LFRicInt"`` for the Built-in
       operations on the ``integer``-valued fields.
+
+Querying Built-in Operations
+++++++++++++++++++++++++++++
+
+Within a Python script, the (lowercase) names of all available
+Built-ins in the LFRIc API can be queried using the ``BUILTIN_MAP``
+dictionary object from the ``psyclone.domain.lfric.lfric_builtins``
+module.
+
+Example code:
+
+.. highlight:: python
+.. testcode::
+
+    from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
+    
+    kernel_name = "setval_x"    # example only
+    if kernel_name.lower() in BUILTIN_MAP:
+        print(f"Name '{kernel_name}' is a Built-in kernel.")
+    else:
+        print(f"Name '{kernel_name}' is not a Built-in.")
+
+.. testoutput::
+
+  Name 'setval_x' is a Built-in kernel.
 
 .. _lfric-built-ins-real:
 
@@ -3455,6 +3481,34 @@ the same field (``X = min(a, X)``)::
 
   field(:) = MIN(rscalar, field(:))
 
+Global minimum and maximum field-element values
+###############################################
+
+Built-ins which scan through all elements of a field and return its
+maximum or minimum value.
+
+.. warning::
+   Support for these built-ins is not yet complete and therefore they
+   cannot currently be used. TODO #2381.
+
+minval_X
+^^^^^^^^
+
+**minval_X** (*rscalar*, **field**)
+
+Returns the minimum value held in the field *field*::
+
+  rscalar = MINVAL(field(:))
+
+maxval_X
+^^^^^^^^
+
+**maxval_X** (*rscalar*, **field**)
+
+Returns the maximum value held in the field *field*::
+
+  rscalar = MAXVAL(field(:))
+
 Conversion of ``real`` field elements
 #####################################
 
@@ -3919,7 +3973,16 @@ Run-time Checks
 PSyclone performs static consistency checks where possible. When this
 is not possible PSyclone can generate run-time checks. As there may be
 performance costs associated with run-time checks they may be switched
-on or off by the `RUN_TIME_CHECKS` option in the configuration file.
+on or off by the `RUN_TIME_CHECKS` option in the configuration file
+(or by using the ``--config-opts`` command line option to overwrite
+the setting in the configuration file). The value of `RUN_TIME_CHECKS`
+must be one of:
+
+- `none` No runtime checks will be added (default)
+- `warn` Runtime checks will be added, and violations will cause a warning
+  message to be logged.
+- `error` Runtime checks will be added, and violations will cause an error
+  message to be logged. The application will then abort.
 
 Currently run-time checks can be generated to:
 

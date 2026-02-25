@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -204,7 +204,7 @@ def test_riv_other_step_size(fortran_reader, fortran_writer):
                                         "myt%a(i)%b", "myt%a%b(i)%c",
                                         "myt%a(i)", "myt%a%b(i)"])
 def test_riv_no_arrays(array_expr, fortran_reader, fortran_writer):
-    '''Tests that no arrays are accepted as induction varibles.'''
+    '''Tests that no arrays are accepted as induction variables.'''
     source = f'''program test
                 use mymod
                 integer i, invariant

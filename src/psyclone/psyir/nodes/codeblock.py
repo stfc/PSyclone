@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -266,10 +266,7 @@ class Fparser2CodeBlock(CodeBlock):
         # symbol table.
         for node in walk(parse_tree, Fortran2003.Directive):
             string_rep = node.tostr()
-            # Directives start with a $
-            if string_rep.lstrip()[0:2] != "!$":
-                continue
-            string_rep = string_rep[2:]
+            string_rep = string_rep[string_rep.index("$"):]
             pattern = pattern_tools.name.get_compiled()
             matches = re.findall(pattern, string_rep)
             scope = self.scope

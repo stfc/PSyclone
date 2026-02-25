@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -223,11 +223,10 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
 
         # 5) Check for reductions
         arg_types = const.VALID_SCALAR_NAMES
-        all_reductions = AccessType.get_valid_reduction_modes()
         node1_red_args = node1.args_filter(arg_types=arg_types,
-                                           arg_accesses=all_reductions)
+                                           arg_accesses=[AccessType.REDUCTION])
         node2_red_args = node2.args_filter(arg_types=arg_types,
-                                           arg_accesses=all_reductions)
+                                           arg_accesses=[AccessType.REDUCTION])
 
         if node1_red_args and node2_red_args:
             raise TransformationError(

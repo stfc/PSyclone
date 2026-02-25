@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council
+# Copyright (c) 2023-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,18 +37,17 @@
 # Modified: O. Brunt, Met Office
 
 '''PSyclone transformation script for the LFRic API to apply all the
-DistibutedMemory, OpenMP coloring and serial transformations possible.
+DistributedMemory, OpenMP coloring and serial transformations possible.
 
 '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
-from psyclone.psyir.transformations import Matmul2CodeTrans
+from psyclone.psyir.transformations import Matmul2CodeTrans, OMPParallelTrans
 from psyclone.psyir.nodes import IntrinsicCall, KernelSchedule
 from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import LFRicColourTrans, \
                                      LFRicOMPLoopTrans, \
-                                     OMPParallelTrans, \
                                      LFRicRedundantComputationTrans, \
                                      LFRicAsyncHaloExchangeTrans, \
                                      MoveTrans, \

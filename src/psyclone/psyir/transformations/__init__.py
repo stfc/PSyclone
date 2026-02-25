@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -94,6 +94,8 @@ from psyclone.psyir.transformations.loop_tiling_2d_trans \
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.value_range_check_trans import (
     ValueRangeCheckTrans)
+from psyclone.psyir.transformations.maximal_region_trans import (
+    MaximalRegionTrans)
 from psyclone.psyir.transformations.omp_critical_trans import (
     OMPCriticalTrans)
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
@@ -126,6 +128,15 @@ from psyclone.psyir.transformations.omp_taskloop_trans import \
     OMPTaskloopTrans
 from psyclone.psyir.transformations.omp_declare_target_trans import \
     OMPDeclareTargetTrans
+from psyclone.psyir.transformations.maximal_omp_parallel_region_trans import (
+    MaximalOMPParallelRegionTrans
+)
+from psyclone.psyir.transformations.omp_parallel_trans import (
+    OMPParallelTrans,
+)
+from psyclone.psyir.transformations.datanode_to_temp_trans import (
+    DataNodeToTempTrans
+)
 
 # For AutoAPI documentation generation
 __all__ = [
@@ -176,5 +187,8 @@ __all__ = [
     "ParallelRegionTrans",
     "OMPTaskloopTrans",
     "OMPDeclareTargetTrans",
+    "MaximalRegionTrans",
     "OMPCriticalTrans",
+    "MaximalOMPParallelRegionTrans",
+    "OMPParallelTrans",
 ]

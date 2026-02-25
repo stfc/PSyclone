@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024-2025, Science and Technology Facilities Council.
+# Copyright (c) 2024-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,8 +45,8 @@ env:
   HDF5_VERSION: 1.14
   NETCDF_C_VERSION: 4.9
   NETCDF_FORTRAN_VERSION: 4.6
-  NVFORTRAN_VERSION: 25.7
-  ONEAPI_VERSION: 2025.0
+  NVFORTRAN_VERSION: 26.1
+  INTEL_TOOLCHAIN: intel25_3_openmpi
   PERL_VERSION: 5.42
   PYTHON_VERSION: 3.14
   NUM_PARALLEL: 16
@@ -200,8 +200,8 @@ jobs:
       id: nemo_omp_cpu
       run: |
         # Load environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%oneapi@${ONEAPI_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${INTEL_TOOLCHAIN}
         source .runner_venv/bin/activate
 
         # Set up envvars
@@ -214,9 +214,9 @@ jobs:
 
         # Compile
         cd ${PREFIX}/ECMWF-NEMOv4
-        ./makenemo -r SPITZ12 -m linux_spack -n SPITZ12_psyclone \
+        ./makenemo -r SPITZ12 -m linux_spack -n SPITZ12_psyclone -j ${NUM_PARALLEL} \
           add_key "IEEE_IS_NAN=ieee_is_nan key_nosignedzero" \
-          del_key "key_iomput" -j ${NUM_PARALLEL}
+          del_key "key_iomput"
         
         # Run NEMO
         cd cfgs/SPITZ12_psyclone/EXP00/
@@ -297,7 +297,7 @@ jobs:
             {
               ci_test: "NEMOv4 OpenMP for CPU",
               nemo_version: "NEMO ECMWF 4.0 V40 with mpp",
-              compiler:"intel-'"$ONEAPI_VERSION"'",
+              compiler:"'"${INTEL_TOOLCHAIN}"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_omp_cpu}}"',
               '"$COMMON_FIELDS"'
             },

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -159,7 +159,7 @@ class DocstringData():
 
     :param str desc: The description of the docstring.
     :param OrderedDict[str, ArgumentData] arguments: An OrderedDict containing
-        the ArgumentData that respresents the parameter section of the
+        the ArgumentData that represents the parameter section of the
         docstring, indexed by the parameter name.
     :param list[RaisesData] raises: A list containing the RaisesData that
         represents the raises section of the docstring.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, L. Turner and O. Brunt, Met Office
+# Modified: I. Kavcic, L. Turner, O. Brunt and A. Pirrie, Met Office
 #           R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module for the LFRic domain.
@@ -71,6 +71,7 @@ from psyclone.domain.lfric.lfric_fields import LFRicFields
 from psyclone.domain.lfric.lfric_run_time_checks import LFRicRunTimeChecks
 from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
+from psyclone.domain.lfric.lfric_scalar_array_args import LFRicScalarArrayArgs
 from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
 from psyclone.domain.lfric.lfric_kern_metadata import LFRicKernMetadata
 from psyclone.domain.lfric.lfric_psy import LFRicPSy
@@ -105,5 +106,6 @@ __all__ = [
     'LFRicPSy',
     'LFRicRunTimeChecks',
     'LFRicScalarArgs',
+    'LFRicScalarArrayArgs',
     'LFRicStencils',
     'LFRicSymbolTable']

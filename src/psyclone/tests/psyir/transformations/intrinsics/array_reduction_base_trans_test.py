@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ def test_init_exception():
         _ = ArrayReductionBaseTrans()
     # Python >= 3.12 tweaks the error message to mention
     # the lack of an implementation and to quote the method names.
-    # We split the check to accomodate for this.
+    # We split the check to accommodate for this.
     assert ("Can't instantiate abstract class ArrayReductionBaseTrans with"
             in str(info.value))
     assert "abstract methods" in str(info.value)
@@ -137,7 +137,7 @@ def test_structure_error(fortran_reader):
 
 def test_lhs(fortran_reader):
     '''Test that an exception is raised when an array-reduction intrinsic
-    is on the LHS of an asssignment. Uses the Maxval2LoopTrans
+    is on the LHS of an assignment. Uses the Maxval2LoopTrans
     transformation (a subclass of ArrayReductionBaseTrans), as it is
     easier to test.
 
@@ -389,7 +389,7 @@ def test_mask(fortran_reader, fortran_writer, tmpdir):
 
 
 def test_mask_array_indexed(fortran_reader, fortran_writer, tmpdir):
-    '''Test that the mask code works if the array iself it used as part of
+    '''Test that the mask code works if the array itself it used as part of
     the mask. In this case it will already be indexed. Use the
     Maxval2LoopTrans transformation (a subclass of
     ArrayReductionBaseTrans), as it is easier to test.
@@ -398,17 +398,18 @@ def test_mask_array_indexed(fortran_reader, fortran_writer, tmpdir):
     code = (
         "program sum_test\n"
         "  real :: a(4)\n"
+        "  real :: b(4)\n"
         "  real :: result\n"
         "  a(1) = 2.0\n"
         "  a(2) = 1.0\n"
         "  a(3) = 2.0\n"
         "  a(4) = 1.0\n"
-        "  result = maxval(a, mask=a(1)>a)\n"
+        "  result = maxval(a, mask=b(1)>a)\n"
         "end program\n")
     expected = (
         "  result = -HUGE(result)\n"
         "  do idx = 1, 4, 1\n"
-        "    if (a(1) > a(idx)) then\n"
+        "    if (b(1) > a(idx)) then\n"
         "      result = MAX(result, a(idx))\n"
         "    end if\n"
         "  enddo\n")
@@ -734,7 +735,7 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
         "use othermod\n"
         "real :: a(10,10)\n"
         "real :: x\n"
-        "x = maxval(a(:,b(:)))\n"
+        "x = maxval(a(:)+b(3))\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
@@ -742,8 +743,8 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
     code_before = fortran_writer(psyir)
     with pytest.raises(TransformationError) as info:
         trans.apply(node)
-    assert ("does not support array assignments that contain nested Range "
-            "expressions" in str(info.value))
+    assert ("ArrayAssignment2LoopsTrans does not accept calls which "
+            "are not guaranteed to be elemental" in str(info.value))
     # Check that the failed transformation does not modify the code
     code_after = fortran_writer(psyir)
     assert code_before == code_after

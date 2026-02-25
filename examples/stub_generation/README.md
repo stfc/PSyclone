@@ -17,7 +17,7 @@ psyclone-kern -gen stub ./testkern_stencil_multi_mod.f90
 ```
 
 More Kernel examples can be found in the following directory, most of
-which start wth the name `testkern`:
+which start with the name `testkern`:
 
 [../../src/psyclone/tests/test_files/lfric](../../src/psyclone/tests/test_files/lfric)
 

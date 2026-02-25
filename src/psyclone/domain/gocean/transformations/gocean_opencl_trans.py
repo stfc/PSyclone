@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,8 @@ from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, RoutineSymbol, ContainerSymbol,
     UnsupportedFortranType, ArgumentInterface, ImportInterface,
     INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, ScalarType)
-from psyclone.transformations import TransformationError
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 
 
 class GOOpenCLTrans(Transformation):

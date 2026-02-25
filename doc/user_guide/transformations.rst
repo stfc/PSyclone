@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2025, Science and Technology Facilities Council
+.. Copyright (c) 2017-2026, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -253,6 +253,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.DataNodeToTempTrans
+      :members: apply
+      :no-index:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.DebugChecksumTrans
       :members: apply
       :no-index:
@@ -423,7 +429,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPParallelTrans
+.. autoclass:: psyclone.psyir.transformations.OMPParallelTrans
     :inherited-members:
     :exclude-members: name
     :no-index:

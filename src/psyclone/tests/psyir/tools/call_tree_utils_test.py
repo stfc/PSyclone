@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,6 +59,8 @@ from psyclone.tests.utilities import (get_base_path, get_infrastructure_path,
 # pylint: disable-next=unused-import
 from psyclone.tests.parse.conftest \
     import mod_man_test_setup_directories  # noqa: F401
+
+TEST_LOGGER = "psyclone.psyir.tools.call_tree_utils"
 
 
 # -----------------------------------------------------------------------------
@@ -283,7 +285,7 @@ def test_get_non_local_read_write_info(caplog):
     # Since the right search path is missing, this will result
     # in the testkern_import_symbols_mod module not being found:
     read_write_info = ReadWriteInfo()
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         rw_info = ctu.get_non_local_read_write_info(schedule, read_write_info)
     assert ("Could not find module 'testkern_import_symbols_mod' - ignored."
             in caplog.text)
@@ -304,7 +306,7 @@ def test_get_non_local_read_write_info(caplog):
     # infrastructure directory has not been added, so constants_mod cannot
     # be found:
     rw_info = ReadWriteInfo()
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu.get_non_local_read_write_info(schedule, rw_info)
     assert "Unknown routine 'unknown_subroutine - ignored." in caplog.text
     assert ("Cannot find module 'constants_mod' - ignoring unknown symbol "
@@ -331,7 +333,7 @@ def test_get_non_local_read_write_info(caplog):
     mod_man.add_ignore_module("constants_mod")
     rw_info = ReadWriteInfo()
     caplog.clear()
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu.get_non_local_read_write_info(schedule, rw_info)
     assert "Unknown routine 'unknown_subroutine - ignored." in caplog.text
     assert "constants_mod" not in caplog.text
@@ -360,7 +362,7 @@ def test_get_non_local_read_write_info_errors(caplog):
     routine.detach()
 
     rw_info = ReadWriteInfo()
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu.get_non_local_read_write_info(schedule, rw_info)
     assert (f"Could not get PSyIR for Routine 'testkern_import_symbols_code' "
             f"from module '{kernels[0].module_name}' as no possible"
@@ -370,14 +372,14 @@ def test_get_non_local_read_write_info_errors(caplog):
     # representing the routine.
     cntr.symbol_table.add(RoutineSymbol("testkern_import_symbols_code"))
     rw_info = ReadWriteInfo()
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu.get_non_local_read_write_info(schedule, rw_info)
     assert (f"Could not get PSyIR for Routine 'testkern_import_symbols_code' "
             f"from module '{kernels[0].module_name}' -" in caplog.text)
 
     # Remove the module Container from the PSyIR.
     cntr.detach()
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu.get_non_local_read_write_info(schedule, rw_info)
     assert (f"Could not get PSyIR for module '{kernels[0].module_name}'"
             in caplog.text)
@@ -404,7 +406,7 @@ def test_call_tree_utils_resolve_calls_unknowns(caplog):
              None)]
     ctu = CallTreeUtils()
     rw_info = ReadWriteInfo()
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert "Cannot find module 'unknown_module' - ignored." in caplog.text
     assert rw_info.read_list == []
@@ -423,7 +425,7 @@ def test_call_tree_utils_resolve_calls_unknowns(caplog):
     # Now try to find a routine that does not exist in an existing module:
     todo = [('routine', 'module_with_var_mod', Signature("does-not-exist"),
              None)]
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert ("Cannot resolve routine 'does-not-exist' in module "
             "'module_with_var_mod' - ignored." in caplog.text)
@@ -457,7 +459,7 @@ def test_call_tree_utils_resolve_calls_unknowns(caplog):
     cntr.symbol_table.add(RoutineSymbol("module_subroutine"))
     todo = [('routine', 'module_with_var_mod',
              Signature("module_subroutine"), info)]
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert ("Cannot find routine 'module_subroutine' in module "
             "'module_with_var_mod' - ignored" in caplog.text)
@@ -468,13 +470,13 @@ def test_call_tree_utils_resolve_calls_unknowns(caplog):
     cntr.symbol_table.remove(rsym)
     todo = [('unknown', 'module_with_var_mod',
              Signature("module_subroutine"), info)]
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert "Cannot find symbol 'module_subroutine'." in caplog.text
 
     todo = [('routine', 'module_with_var_mod',
              Signature("module_subroutine"), info)]
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert ("Cannot resolve routine 'module_subroutine' in module "
             "'module_with_var_mod' - ignored" in caplog.text)
@@ -483,7 +485,7 @@ def test_call_tree_utils_resolve_calls_unknowns(caplog):
     cntr.detach()
     todo = [('unknown', 'module_with_var_mod',
              Signature("module_subroutine"), info)]
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert ("Cannot get PSyIR for module 'module_with_var_mod' - ignoring "
             "unknown symbol 'module_subroutine'" in caplog.text)
@@ -623,7 +625,7 @@ def testcall_tree_utils_non_local_inout_parameters(caplog):
     # The example does contain an unknown subroutine (by design), and the
     # infrastructure directory has not been added, so constants_mod cannot
     # be found:
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         rw_info = ctu.get_in_out_parameters(schedule,
                                             collect_non_local_symbols=True)
     assert "Unknown routine 'unknown_subroutine - ignored." in caplog.text
@@ -656,7 +658,7 @@ def test_call_tree_error_var_not_found(caplog):
     read_write_info = ReadWriteInfo()
     ctu = CallTreeUtils()
     sva = AccessSequence(Signature("a"))
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu._resolve_calls_and_unknowns([("unknown", "constants_mod",
                                           Signature("does_not_exist"),
                                           sva)],

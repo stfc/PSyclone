@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2025, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2026, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@
 .. Modified by A. R. Porter, STFC Daresbury Lab
 .. Modified by R. W. Ford, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
+.. Modified by T. H. Gibson, Advanced Micro Devices, Inc.
 
 .. _userguide-profiling:
 
@@ -52,7 +53,8 @@ transformation within a transformation script.
 
 PSyclone can be used with a variety of existing profiling tools.
 It currently supports dl_timer, TAU, Vernier, Dr Hook, the NVIDIA GPU
-profiling tools and it comes with a simple stand-alone timer library.
+profiling tools (NVTX), the AMD ROCm profiling tools (ROCTx), and it
+comes with a simple stand-alone timer library.
 The :ref:`PSyData API <psy_data>` (see also the
 :ref:`Developer Guide <devguide_psy_data>`)
 is utilised to implement wrapper libraries that connect the PSyclone
@@ -78,11 +80,11 @@ Interface to Third Party Profiling Tools
 
 PSyclone comes with :ref:`wrapper libraries <libraries>` to support
 usage of TAU, Vernier, Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension
-library), and a simple non-thread-safe timing library. Support for further
-profiling libraries will be added in the future. To compile the
-wrapper libraries, change into the directory ``lib/profiling``
-of PSyclone and type ``make`` to compile all wrappers. If only
-some of the wrappers are required, you can either use
+library), ROCTx (AMD library for code instrumentation), and a simple non-thread-safe timing
+library. Support for further profiling libraries will be added in the
+future. To compile the wrapper libraries, change into the directory
+``lib/profiling`` of PSyclone and type ``make`` to compile all wrappers.
+If only some of the wrappers are required, you can either use
 ``make wrapper-name`` (e.g. ``make drhook``), or change
 into the corresponding directory and use ``make``. The
 corresponding ``README.md`` files contain additional parameters
@@ -131,6 +133,11 @@ libraries that come with PSyclone:
     to the NVIDIA Tools Extension library (NVTX). This library is
     available from https://developer.nvidia.com/cuda-toolkit.
 
+``lib/profiling/amd``
+    This is a wrapper library that maps the PSyclone profiling API
+    to the AMD ROCTx library. ROCTx documentation is available
+    from https://rocm.docs.amd.com/projects/rocprofiler-sdk/en/latest/how-to/using-rocprofiler-sdk-roctx.html.
+
 ``lib/profiling/lfric_timer``
     This profile wrapper uses the timer functionality provided by
     LFRic, and it comes in two different versions:
@@ -160,7 +167,7 @@ wrapper provided by the tool which will provide the required additional
 compiler parameters. The exceptions are the template and simple_timing
 libraries, which are stand alone. The profiling example in
 ``examples/gocean/eg5/profile`` can be used with any of the
-wrapper libraries (except ``nvidia``) to see how they work.
+wrapper libraries (except ``nvidia`` and ``amd``) to see how they work.
 
 .. _required_profiling_calls:
 
@@ -168,7 +175,10 @@ Required Modifications to the Program
 -------------------------------------
 In order to guarantee that any profiling library is properly
 initialised, PSyclone's profiling wrappers utilise two additional
-function calls that the user must manually insert into the program:
+function calls that the user must manually insert into the program
+(the NVIDIA NVTX wrapper in ``lib/profiling/nvidia`` and the AMD ROCTx
+wrapper in ``lib/profiling/amd`` are exceptions and do not require these
+calls):
 
 profile_PSyDataInit()
 ~~~~~~~~~~~~~~~~~~~~~
@@ -249,9 +259,10 @@ cannot be used as there is no concept of `kernels`.
           GPU execution).
 
 .. note:: It is still the responsibility of the user to manually
-    add the calls to ``profile_PSyDataInit`` and 
-    ``profile_PSyDataShutdown`` to the
-    code base (see :ref:`required_profiling_calls`).
+    add the calls to ``profile_PSyDataInit`` and
+    ``profile_PSyDataShutdown`` to the code base (see
+    :ref:`required_profiling_calls`), unless using the NVIDIA NVTX or
+    AMD ROCTx wrapper.
 
 PSyclone will modify the schedule of each invoke to insert the
 profiling regions. Below we show an example of a schedule created

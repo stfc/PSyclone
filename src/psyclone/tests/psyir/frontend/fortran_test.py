@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -74,12 +74,12 @@ subroutine my_sub
     integer :: a, b
 
     ! Comment on do loop
-    !$omp parallel do
+    !$ompx parallel do
     do a = 1, 10
         ! Comment on assignment
         b = a
     end do
-    !$omp end parallel do
+    !$ompx end parallel do
 end subroutine my_sub
 '''
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024-2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -820,3 +820,33 @@ def test_definition_use_chain_find_backward_accesses_pure_call(
     assert len(reaches) == 1
     # We should find the argument in the pure subroutine call
     assert reaches[0] is routine.walk(Call)[0].children[1]
+
+
+def test_definition_use_chain_find_backward_accesses_ancestor_call(
+    fortran_reader,
+):
+    """Test that we don't find an ancestor call for a Reference when
+    looking for its backward accesses."""
+    code = """
+    subroutine foo(a, b)
+    real, intent(inout) :: a
+    real, intent(inout) :: b
+    real :: c, d, e, f
+
+    c = d * a
+    b = c + d
+    call bar(c, b)
+    b = b + c
+    end subroutine foo
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.find_routine_psyir("foo")
+    call = psyir.walk(Call)[0]
+    arg = call.arguments[1]
+    chain = DefinitionUseChain(arg)
+    all_prev = chain.find_backward_accesses()
+    # Check that the ancestor call of b isn't a backward access.
+    assert not isinstance(all_prev[0], Call)
+    # The correct previous access should be the Reference to b in
+    # b = c + d.
+    assert all_prev[0] is routine.children[1].lhs

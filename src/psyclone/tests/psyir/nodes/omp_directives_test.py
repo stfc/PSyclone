@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,13 +40,12 @@
 
 ''' Performs py.test tests on the OpenMP PSyIR Directive nodes. '''
 
-import os
 import re
-import pytest
 import logging
+
+import pytest
+
 from psyclone.errors import UnresolvedDependencyError
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
 from psyclone import psyGen
 from psyclone.psyir.nodes import (
@@ -70,16 +69,15 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.transformations.omp_taskloop_trans import OMPTaskloopTrans
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import (
-    LFRicOMPLoopTrans, OMPParallelTrans,
+    LFRicOMPLoopTrans,
     OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPLoopTrans, TransformationError)
+from psyclone.tests.utilities import get_invoke
 
-BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "test_files", "lfric")
-GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                os.pardir, os.pardir, "test_files",
-                                "gocean1p0")
+TEST_LOGGER_OMP = "psyclone.psyir.nodes.omp_directives"
+TEST_LOGGER_INF = "psyclone.psyir.tools.reduction_inference"
 
 
 def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
@@ -145,7 +143,7 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
     a_sym = Symbol("a")
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({}, {}, {a_sym}))
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER_OMP):
         pdir.lower_to_language_level()
     assert ("Lowering 'OMPParallelDirective' detected a possible race "
             "condition for symbol 'a'. Make sure this is a false WaW "
@@ -237,7 +235,7 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch, caplog):
     # Monkeypatch a case with shared variables that need synchronisation
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({}, {}, {Symbol("a")}))
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER_OMP):
         pdir.lower_to_language_level()
     assert ("Lowering 'OMPParallelDoDirective' detected a possible race "
             "condition for symbol 'a'. Make sure this is a false WaW "
@@ -274,10 +272,9 @@ def test_omp_teams_distribute_parallel_do_strings(
 def test_ompdo_constructor():
     ''' Check that we can make an OMPDoDirective with and without
     children '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", dist_mem=False,
+                           idx=0)
+    schedule = invoke.schedule
     ompdo = OMPDoDirective(parent=schedule)
     # A Directive always has a Schedule
     assert len(ompdo.children) == 1
@@ -564,11 +561,8 @@ def test_directiveinfer_sharing_attributes_lfric():
     discontinuous function spaces.
 
     '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1_single_invoke_w3.f90"), api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("1_single_invoke_w3.f90", api="lfric",
+                           dist_mem=False, idx=0)
     schedule = invoke.schedule
     # We use Transformations to introduce the necessary directives
     otrans = LFRicOMPLoopTrans()
@@ -579,12 +573,7 @@ def test_directiveinfer_sharing_attributes_lfric():
     rtrans.apply(schedule.children[0])
     directive = schedule.children[0]
     assert isinstance(directive, OMPParallelDirective)
-    # TODO #1010 In the LFRic API, the loop bounds are created at code-
-    # generation time and therefore we cannot generate the list of
-    # private variables until that is under way. Ultimately this will be
-    # replaced by a `lower_to_language_level` call.
-    # pylint: disable=pointless-statement
-    psy.gen
+
     # Now check that infer_sharing_attributes returns what we expect
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert isinstance(pvars, set)
@@ -606,7 +595,7 @@ def test_directiveinfer_sharing_attributes_lfric():
 def test_infer_sharing_attributes_with_explicitly_private_symbols(
         fortran_reader):
     ''' Tests the infer_sharing_attributes() method when some of the loops have
-    explictly declared private symbols. Also test that non-data accesses to
+    explicitly declared private symbols. Also test that non-data accesses to
     array symbols are ignored.
     '''
     psyir = fortran_reader.psyir_from_source('''
@@ -636,10 +625,10 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
     assert "i" in [x.name for x in pvars]
     assert "j" in [x.name for x in pvars]
 
-    # If the loop has some explict locals, these are listed when getting
+    # If the loop has some explicit locals, these are listed when getting
     # the infer_sharing_attributes
     array_symbol = routine.symbol_table.lookup("array")
-    loop.explicitly_private_symbols.add(array_symbol)
+    directive.explicitly_private_symbols.add(array_symbol)
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 3
     assert len(fpvars) == 0
@@ -650,7 +639,7 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
 
     # Scalar symbols can also be set as explicitly local
     scalar_symbol = routine.symbol_table.lookup("scalar2")
-    loop.explicitly_private_symbols.add(scalar_symbol)
+    directive.explicitly_private_symbols.add(scalar_symbol)
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 4
     assert len(fpvars) == 0
@@ -707,9 +696,8 @@ def test_infer_sharing_attributes_with_codeblocks(
     # Make sure that the write statements inside the loop are CodeBlocks,
     # otherwise we need a new test example
     assert loop.has_descendant(nodes.CodeBlock)
-    loop.explicitly_private_symbols.add(
-            loop.scope.symbol_table.lookup("scalar2"))
-    omplooptrans.apply(loop, node_type_check=False, force=True)
+    omplooptrans.apply(loop, node_type_check=False, force=True,
+                       force_private=["scalar2"])
 
     # Here we mostly check that the infer_sharing attributes doesn't fall
     # over with CodeBlocks. This will often still be defensively firstprivate
@@ -731,7 +719,7 @@ def test_infer_sharing_attributes(fortran_reader):
     with generic code inside the directive body.
     '''
 
-    # Example with arrays, read-only and only-writen-once variables, this are
+    # Example with arrays, read-only and only-written-once variables, this are
     # all shared (only the iteration index is private in this parallel region)
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
@@ -934,14 +922,15 @@ def test_infer_sharing_attributes(fortran_reader):
     assert len(sync) == 1
     assert list(sync)[0].name == 'k'
 
-    # Check that kinds on literals are ignored for data sharing clauses
+    # Check that constants are ignored, even if in the same loop they appear
+    # in a location that expects a READ
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
             integer, parameter :: ikind = 4
             integer :: i, scalar1, scalar2
-            real, dimension(10) :: array
+            real, dimension(10) :: array, array2
             do i = 1, 10
-               array(i) = 1_ikind + INT(i, ikind)
+               array(i) = 1_ikind + INT(i, ikind) + array2(ikind)
             enddo
         end subroutine''')
     omplooptrans = OMPLoopTrans()
@@ -1150,11 +1139,8 @@ def test_omp_forward_dependence():
     '''Test that the forward_dependence method works for Directives,
     returning the closest dependent Node after the current Node in the
     schedule or None if none are found. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.1_multi_aX_plus_Y_builtin.f90", api="lfric",
+                           dist_mem=False, idx=0)
     schedule = invoke.schedule
     otrans = LFRicOMPParallelLoopTrans()
     for child in schedule.children:
@@ -1175,11 +1161,8 @@ def test_omp_forward_dependence():
     first_omp = schedule.children[0]
     assert first_omp.forward_dependence() == writer
     # 3: directive and globalsum dependencies
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
+                           api="lfric", dist_mem=True, idx=0)
     schedule = invoke.schedule
     otrans.apply(schedule.children[0])
     otrans.apply(schedule.children[1])
@@ -1207,15 +1190,12 @@ def test_omp_single_nowait(nowait):
 def test_omp_single_strings(nowait):
     ''' Test the begin_string and end_string methods of the OMPSingle
         directive '''
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean")
+    _, invoke = get_invoke("single_invoke.f90", api="gocean", idx=0,
+                           dist_mem=False)
     single = OMPSingleTrans()
-    psy = PSyFactory("gocean", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
 
-    single.apply(schedule[0], {"nowait": nowait})
-    omp_single = schedule[0]
+    single.apply(invoke.schedule[0], {"nowait": nowait})
+    omp_single = invoke.schedule[0]
 
     assert omp_single.begin_string() == "omp single"
     assert omp_single.end_string() == "omp end single"
@@ -1236,16 +1216,14 @@ def test_omp_single_validate_child():
 def test_omp_single_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPSingle
         directive '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    single = OMPSingleTrans()
-    psy = PSyFactory("lfric", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
 
-    single.apply(schedule.children[0])
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric",
+                           dist_mem=False, idx=0)
+
+    single = OMPSingleTrans()
+    single.apply(invoke.schedule.children[0])
     with pytest.raises(GenerationError) as excinfo:
-        schedule.children[0].validate_global_constraints()
+        invoke.schedule.children[0].validate_global_constraints()
     assert ("OMPSingleDirective must be inside an OMP parallel region but " +
             "could not find an ancestor OMPParallelDirective node") in \
         str(excinfo.value)
@@ -1254,17 +1232,16 @@ def test_omp_single_validate_global_constraints():
 def test_omp_single_nested_validate_global_constraints(monkeypatch):
     ''' Test the validate_global_constraints method of the OMPSingle
         directive fails when nested OMPSingles happen'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    single = OMPSingleTrans()
+
     # Alternative excluded node types for monkeypatch
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
                            psyGen.HaloExchange, nodes.OMPParallelDirective)
+    single = OMPSingleTrans()
     monkeypatch.setattr(single, "excluded_node_types", excluded_node_types)
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", dist_mem=False,
+                           idx=0)
+    schedule = invoke.schedule
     parallel = OMPParallelTrans()
-    psy = PSyFactory("lfric", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
 
     single.apply(schedule.children[0])
     single_omp = schedule.children[0]
@@ -1288,16 +1265,14 @@ def test_omp_master_strings():
 def test_omp_master_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPMaster
         directive '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    master = OMPMasterTrans()
-    psy = PSyFactory("lfric", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric",
+                           dist_mem=False, idx=0)
 
-    master.apply(schedule.children[0])
+    master = OMPMasterTrans()
+
+    master.apply(invoke.schedule.children[0])
     with pytest.raises(GenerationError) as excinfo:
-        schedule.children[0].validate_global_constraints()
+        invoke.schedule.children[0].validate_global_constraints()
     assert ("OMPMasterDirective must be inside an OMP parallel region but " +
             "could not find an ancestor OMPParallelDirective node") in \
         str(excinfo.value)
@@ -1306,17 +1281,15 @@ def test_omp_master_validate_global_constraints():
 def test_omp_master_nested_validate_global_constraints(monkeypatch):
     ''' Test the validate_global_constraints method of the OMPMaster
         directive fails when nested OMPSingles happen'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    master = OMPMasterTrans()
     # Alternative excluded node types for monkeypatch
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
                            psyGen.HaloExchange, nodes.OMPParallelDirective)
+    master = OMPMasterTrans()
     monkeypatch.setattr(master, "excluded_node_types", excluded_node_types)
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric",
+                           dist_mem=False, idx=0)
     parallel = OMPParallelTrans()
-    psy = PSyFactory("lfric", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
+    schedule = invoke.schedule
 
     master.apply(schedule.children[0])
     master_omp = schedule.children[0]
@@ -1338,11 +1311,9 @@ def test_omp_barrier_strings():
 def test_omp_barrier_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPBarrier
         directive '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric",
+                           dist_mem=False, idx=0)
+    schedule = invoke.schedule
     barrier = OMPBarrierDirective()
     schedule.addchild(barrier, 0)
     with pytest.raises(GenerationError) as excinfo:
@@ -1353,13 +1324,11 @@ def test_omp_barrier_validate_global_constraints():
     # Valid case.
     barrier = OMPBarrierDirective()
     parallel = OMPParallelDirective()
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric",
+                           dist_mem=False, idx=0)
+
     parallel.children[0].addchild(barrier)
-    schedule.addchild(parallel)
+    invoke.schedule.addchild(parallel)
     barrier.validate_global_constraints()
 
 
@@ -1436,13 +1405,11 @@ def test_omp_taskloop_validate_child():
 def test_omp_taskloop_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPTaskloop
         directive '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api="lfric")
-    taskloop = OMPTaskloopTrans()
-    psy = PSyFactory("lfric", distributed_memory=False).\
-        create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
+    _, invoke = get_invoke("1_single_invoke_w3.f90", api="lfric",
+                           dist_mem=False, idx=0)
+    schedule = invoke.schedule
 
+    taskloop = OMPTaskloopTrans()
     taskloop.apply(schedule.children[0])
     with pytest.raises(GenerationError) as excinfo:
         schedule.children[0].validate_global_constraints()
@@ -1493,7 +1460,7 @@ def test_omp_target_nowait_getter_setter():
 
 # Test OMPDeclareTargetDirective
 
-def test_omp_declare_target_directive_constructor_and_strings(monkeypatch):
+def test_omp_declare_target_directive_constructor_and_strings():
     ''' Test the OMPDeclareTargetDirective constructor and its output
     strings.'''
     target = OMPDeclareTargetDirective()
@@ -1930,7 +1897,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     # 1. Literal OP Reference BinaryOperation where the operator is not ADD
     # 2. Reference OP Literal BinaryOperation where the operator is not
     # ADD or SUB
-    # 3&4. BinaryOperation OP Refrence BinaryOperation where the sub
+    # 3&4. BinaryOperation OP Reference BinaryOperation where the sub
     # BinaryOperation is not a Literal MUL Literal
     # 5. BinaryOperation OP Reference where OP is not ADD
     # 6&7. Reference ADD BinaryOperation where the sub BinaryOperation is not
@@ -2204,7 +2171,7 @@ def test_omp_serial_compute_accesses_other_fails():
 
 def test_omp_serial_compute_accesses_results():
     '''
-    Tests the _compute_accesses fucntion in OMPSerialDirective
+    Tests the _compute_accesses function in OMPSerialDirective
     '''
     # First result output, BinaryOperation with all Literal Loop
     sing = OMPSingleDirective()
@@ -2233,7 +2200,7 @@ def test_omp_serial_compute_accesses_results():
     assert isinstance(res[1], Literal)
     assert res[1].value == "34"
 
-    # Second result output, BinaryOpeartion with reference start Loop
+    # Second result output, BinaryOperation with reference start Loop
     tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
     task = task.copy()
     loop = Loop.create(
@@ -4409,7 +4376,7 @@ def test_omp_serial_validate_task_dependencies_outin():
 
 def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     '''
-    Test the task dependency chcker adds taskwaits in expected locations.
+    Test the task dependency checker adds taskwaits in expected locations.
     '''
     code = '''subroutine my_subroutine(grid_max, grid_min)
         integer, dimension(100, 100) :: A, B, C, D
@@ -4851,7 +4818,7 @@ def test_add_reduction_clause_loop(fortran_reader, fortran_writer):
     assert "reduction(+: acc)" in output
 
 
-def test_reduction_clause_eq(fortran_reader, fortran_writer):
+def test_reduction_clause_eq():
     ''' Test OMPParallelDoDirective equality with reduction clauses
     '''
     do_directive1 = OMPParallelDoDirective()
@@ -4875,7 +4842,7 @@ def test_reduction_clause_eq(fortran_reader, fortran_writer):
     assert do_directive1 == do_directive3
 
 
-def test_add_reduction_clause_validation(fortran_reader, fortran_writer):
+def test_add_reduction_clause_validation():
     ''' Check that adding a reduction clause with a non-reduction clause
         argument raises an error.
     '''
@@ -4888,7 +4855,7 @@ def test_add_reduction_clause_validation(fortran_reader, fortran_writer):
 
 @pytest.mark.parametrize("op", ["*", "-", "*"])
 def test_reduction_arith_ops(op, fortran_reader, fortran_writer):
-    ''' Test that reduction loops involing arithmetic reduction operators are
+    ''' Test that reduction loops involving arithmetic reduction operators are
     parallelised.
     '''
     psyir = fortran_reader.psyir_from_source(f'''
@@ -4910,7 +4877,7 @@ def test_reduction_arith_ops(op, fortran_reader, fortran_writer):
 
 @pytest.mark.parametrize("op", [".AND.", ".OR.", ".EQV.", ".NEQV."])
 def test_reduction_logical(op, fortran_reader, fortran_writer):
-    ''' Test that reduction loops involing logical reduction operators are
+    ''' Test that reduction loops involving logical reduction operators are
     parallelised.
     '''
     psyir = fortran_reader.psyir_from_source(f'''
@@ -4932,7 +4899,7 @@ def test_reduction_logical(op, fortran_reader, fortran_writer):
 
 @pytest.mark.parametrize("op", ["MAX", "MIN", "IAND", "IOR", "IEOR"])
 def test_reduction_intrins(op, fortran_reader, fortran_writer):
-    ''' Test that reduction loops involing intrinsic reduction operators are
+    ''' Test that reduction loops involving intrinsic reduction operators are
     parallelised.
     '''
     psyir = fortran_reader.psyir_from_source(f'''
@@ -5044,8 +5011,7 @@ def test_multiple_reduction_same_var(fortran_reader, fortran_writer):
     assert "reduction(+: acc)" in output
 
 
-def test_multiple_reduction_same_var_diff_op(fortran_reader, fortran_writer,
-                                             caplog):
+def test_multiple_reduction_same_var_diff_op(fortran_reader, caplog):
     ''' Test that a loop containing multiple reductions of the same
     variable, but involve different operators, is not parallelised.
     '''
@@ -5064,7 +5030,7 @@ def test_multiple_reduction_same_var_diff_op(fortran_reader, fortran_writer,
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER_INF):
         with pytest.raises(TransformationError) as err:
             omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'acc' is read first, which indicates a reduction"
@@ -5098,7 +5064,7 @@ def test_nested_reductions(fortran_reader, fortran_writer):
     assert "collapse(2)" in output
 
 
-def test_non_reduction1(fortran_reader, fortran_writer, caplog):
+def test_non_reduction1(fortran_reader, caplog):
     ''' Test that a loop that looks like it contains a reduction (but
     doesn't), is not parallelised.
     '''
@@ -5118,7 +5084,7 @@ def test_non_reduction1(fortran_reader, fortran_writer, caplog):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER_INF):
         with pytest.raises(TransformationError) as err:
             omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'count' is read first, which indicates a reduction"
@@ -5129,7 +5095,7 @@ def test_non_reduction1(fortran_reader, fortran_writer, caplog):
             "supported for reductions" in caplog.text)
 
 
-def test_non_reduction2(fortran_reader, fortran_writer, caplog):
+def test_non_reduction2(fortran_reader, caplog):
     ''' Test that x = x + x does not lead to a reduction clause.
     '''
     psyir = fortran_reader.psyir_from_source('''
@@ -5144,7 +5110,7 @@ def test_non_reduction2(fortran_reader, fortran_writer, caplog):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER_INF):
         with pytest.raises(TransformationError) as err:
             omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'count' is read first, which indicates a reduction"
@@ -5155,7 +5121,7 @@ def test_non_reduction2(fortran_reader, fortran_writer, caplog):
             "supported for reductions" in caplog.text)
 
 
-def test_non_reduction3(fortran_reader, fortran_writer, caplog):
+def test_non_reduction3(fortran_reader, caplog):
     ''' Test that x = x / 2 does not lead to a reduction clause.
     '''
     psyir = fortran_reader.psyir_from_source('''
@@ -5170,7 +5136,7 @@ def test_non_reduction3(fortran_reader, fortran_writer, caplog):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER_INF):
         with pytest.raises(TransformationError) as err:
             omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'count' is read first, which indicates a reduction"
@@ -5245,7 +5211,7 @@ def test_reduction_omp_parallel_loop_trans(fortran_reader, fortran_writer):
     assert "reduction(+: acc)" in output
 
 
-def test_reduction_struct_member(fortran_reader, fortran_writer, caplog):
+def test_reduction_struct_member(fortran_reader, caplog):
     ''' Test that reduction loops involving struct members are
     not parallelised. This is not yet supported by OpenMP.
     '''
@@ -5263,7 +5229,7 @@ def test_reduction_struct_member(fortran_reader, fortran_writer, caplog):
         end function''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER_INF):
         with pytest.raises(TransformationError) as err:
             omplooptrans.apply(loop, enable_reductions=True)
     assert ("Variable 'struct%acc' is read first, which indicates a reduction"
@@ -5381,6 +5347,8 @@ def test_firstprivate_with_uninitialised(fortran_reader, fortran_writer):
 
 
 def test_critical_begin_and_end_string():
+    """Tests critical begin and end directives.
+    """
     directive = OMPCriticalDirective()
     assert directive.begin_string() == "omp critical"
     assert directive.end_string() == "omp end critical"

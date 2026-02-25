@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024-2025, Science and Technology Facilities Council.
+# Copyright (c) 2024-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -564,7 +564,8 @@ class DefinitionUseChain:
         """
         Compute the blocks inside the provided list of nodes.
         Each block is a set of nodes inside a control flow region, and
-        may contain more control flow (which will be handled recusively later).
+        may contain more control flow (which will be handled recursively
+        later).
         Each block also has the control flow node stored that contains the
         block, e.g. for a Loop, the block consisting of loop.body will have
         contain the associated Loop at the same index in the control_flow_nodes
@@ -779,6 +780,10 @@ class DefinitionUseChain:
                     # If its a local variable we can ignore it as we'll catch
                     # the Reference later if its passed into the Call.
                     if self._reference.symbol.is_automatic:
+                        continue
+                    # If the call is an ancestor of the Reference then
+                    # we skip it for backwards accesses.
+                    if self._reference.is_descendant_of(reference):
                         continue
                     if isinstance(reference, IntrinsicCall):
                         # IntrinsicCall can only do stuff to arguments, these

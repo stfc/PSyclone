@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,15 +42,18 @@ PSyclone configuration management module.
 Deals with reading the config file and storing default settings.
 '''
 
+from __future__ import annotations
 import abc
 from configparser import (ConfigParser, MissingSectionHeaderError,
-                          ParsingError)
+                          ParsingError, SectionProxy)
 from collections import namedtuple
+import logging
 import os
 import re
 import sys
-import psyclone
+from typing import Optional, Union
 
+import psyclone
 from psyclone.errors import PSycloneError, InternalError
 
 
@@ -104,7 +107,7 @@ class Config:
 
     # List of supported API by PSyclone
     _supported_api_list = LFRIC_API_NAMES + GOCEAN_API_NAMES
-    # List for printing purposes (remove duplicates and use prefered names)
+    # List for printing purposes (remove duplicates and use preferred names)
     _curated_api_list = [LFRIC_API_NAMES[0], GOCEAN_API_NAMES[0]]
 
     # List of supported stub API by PSyclone
@@ -244,12 +247,23 @@ class Config:
         self._backend_intrinsic_named_kwargs = False
 
     # -------------------------------------------------------------------------
-    def load(self, config_file=None):
-        '''Loads a configuration file.
+    def load(self,
+             config_file: Optional[str] = None,
+             overwrite: Optional[str] = None) -> None:
+        '''Loads a configuration file. The optional 'overwrite' parameter
+        is a space-separated string of key=value pairs which will overwrite
+        values in the config files (e.g.
+        "reproducible_reductions=true run_time_checks=true")
 
-        :param str config_file: Override default configuration file to read.
-        :raises ConfigurationError: if there are errors or inconsistencies in \
-                                the specified config file.
+        :param config_file: Override default configuration file to read.
+        :param overwrite: Optional string of key-value pairs that will
+            overwrite settings in the config file.
+
+        :raises ConfigurationError: if there are errors or inconsistencies in
+            the specified config file.
+
+        :raises ConfigurationError: if a user-provided overwrite string
+            contains an invalid key.
         '''
         # pylint: disable=too-many-branches, too-many-statements
         if config_file:
@@ -286,6 +300,23 @@ class Config:
            not self._config['DEFAULT'].keys():
             raise ConfigurationError(
                 "Configuration file has no [DEFAULT] section", config=self)
+
+        if overwrite:
+            # If overwrite information is specified, parse this information
+            # and use it to overwrite the settings just read:
+            pairs = overwrite.split()
+            for pair in pairs:
+                key, value = pair.split("=")
+                for section in self._config:
+                    if key in self._config[section]:
+                        self._config[section][key] = value
+                        break
+                else:
+                    logger = logging.getLogger(__name__)
+                    msg = (f"Attempt to overwrite unknown configuration "
+                           f"option: '{pair}'.")
+                    logger.error(msg)
+                    raise ConfigurationError(msg)
 
         # The call to the 'read' method above populates a dictionary.
         # All of the entries in that dict are unicode strings so here
@@ -411,29 +442,32 @@ class Config:
         # Set the flag that the config file has been loaded now.
         Config._HAS_CONFIG_BEEN_INITIALISED = True
 
-    def api_conf(self, api=None):
+    def api_conf(self, api: str = "") -> Union[LFRicConfig, GOceanConfig]:
         '''
         Getter for the object holding API-specific configuration options.
 
-        :param str api: Optional, the API for which configuration details are
+        :param api: Optional, the API for which configuration details are
                 required. If none is specified, returns the config for the
-                default API.
+                the current API.
         :returns: object containing API-specific configuration
-        :rtype: One of :py:class:`psyclone.configuration.LFRicConfig`,
-                :py:class:`psyclone.configuration.GOceanConfig` or None.
 
-        :raises ConfigurationError: if api is not in the list of supported \
-                                    APIs.
-        :raises ConfigurationError: if the config file did not contain a \
+        :raises ValueError: if api is not in the list of supported APIs.
+        :raises ConfigurationError: if the config file did not contain a
                                     section for the requested API.
         '''
         if not api:
             api = self._api
 
-        if api not in self.supported_apis:
-            raise ConfigurationError(
+        # Ensure we use the curated API name.
+        if api in LFRIC_API_NAMES:
+            api = LFRIC_API_NAMES[0]
+        elif api in GOCEAN_API_NAMES:
+            api = GOCEAN_API_NAMES[0]
+        else:
+            raise ValueError(
                 f"API '{api}' is not in the list '{self.supported_apis}'' of "
                 f"supported APIs.")
+
         if api not in self._api_conf:
             raise ConfigurationError(
                 f"Configuration file did not contain a section for the "
@@ -826,49 +860,16 @@ class Config:
 # =============================================================================
 class BaseConfig:
     '''A base class for functions that each API-specific class must provide.
-    At the moment this is just the function 'access_mapping' that maps between
-    API-specific access-descriptor strings and the PSyclone internal
-    AccessType.
+
     :param section: :py:class:`configparser.SectionProxy`
-    :raises ConfigurationError: if an access-mapping is provided that \
-        assigns an invalid value (i.e. not one of 'read', 'write', \
-        'readwrite'), 'inc' or 'sum') to a string.
+
     '''
-
-    def __init__(self, section):
-        # Set a default mapping, this way the test cases all work without
-        # having to specify those mappings.
-        self._access_mapping = {"read": "read", "write": "write",
-                                "readwrite": "readwrite", "inc": "inc",
-                                "sum": "sum"}
-        # Get the mapping if one exists and convert it into a
-        # dictionary. The input is in the format: key1:value1,
-        # key2=value2, ...
+    def __init__(self, section: SectionProxy):
+        logger = logging.getLogger(__name__)
         if "ACCESS_MAPPING" in section:
-            mapping_list = section.getlist("ACCESS_MAPPING")
-            if mapping_list is not None:
-                self._access_mapping = \
-                    BaseConfig.create_dict_from_list(mapping_list)
-            # Now convert the string type ("read" etc) to AccessType
-            # TODO (issue #710): Add checks for duplicate or missing access
-            # key-value pairs
-            # Avoid circular import
-            # pylint: disable=import-outside-toplevel
-            from psyclone.core.access_type import AccessType
-
-            for api_access_name, access_type in self._access_mapping.items():
-                try:
-                    self._access_mapping[api_access_name] = \
-                        AccessType.from_string(access_type)
-                except ValueError as err:
-                    # Raised by from_string()
-                    raise ConfigurationError(
-                        f"Unknown access type '{access_type}' found for key "
-                        f"'{api_access_name}'") from err
-
-        # Now create the reverse lookup (for better error messages):
-        self._reverse_access_mapping = {v: k for k, v in
-                                        self._access_mapping.items()}
+            logger.warning(
+                "Configuration file contains an ACCESS_MAPPING entry. This is "
+                "deprecated and will be ignored.")
 
     @staticmethod
     def create_dict_from_list(input_list):
@@ -924,33 +925,6 @@ class BaseConfig:
                     f" characters.")
         return return_dict
 
-    def get_access_mapping(self):
-        '''Returns the mapping of API-specific access strings (e.g.
-        gh_write) to the AccessType (e.g. AccessType.WRITE).
-        :returns: The access mapping to be used by this API.
-        :rtype: Dictionary of strings
-        '''
-        return self._access_mapping
-
-    def get_reverse_access_mapping(self):
-        '''Returns the reverse mapping of a PSyclone internal access type
-        to the API specific string, e.g.: AccessType.READ to 'gh_read'.
-        This is used to provide the user with API specific error messages.
-        :returns: The mapping of access types to API-specific strings.
-        :rtype: Dictionary of strings
-        '''
-        return self._reverse_access_mapping
-
-    def get_valid_accesses_api(self):
-        '''Returns the sorted, API-specific names of all valid access
-        names.
-        :returns: Sorted list of API-specific valid strings.
-        :rtype: List of strings
-        '''
-        valid_names = list(self._access_mapping.keys())
-        valid_names.sort()
-        return valid_names
-
     @abc.abstractmethod
     def get_constants(self):
         ''':returns: an object containing all constants for the API.
@@ -995,8 +969,8 @@ class LFRicConfig(BaseConfig):
         self._config = config
         # Initialise redundant computation setting
         self._compute_annexed_dofs = None
-        # Initialise run_time_checks setting
-        self._run_time_checks = None
+        # Initialise run_time_checks setting - one of "none", "warn", "error"
+        self._run_time_checks = "none"
         # Initialise LFRic datatypes' default kinds (precisions) settings
         self._supported_fortran_datatypes = []
         self._default_kind = {}
@@ -1006,8 +980,7 @@ class LFRicConfig(BaseConfig):
         self._num_any_discontinuous_space = None
 
         # Define and check mandatory keys
-        self._mandatory_keys = ["access_mapping",
-                                "compute_annexed_dofs",
+        self._mandatory_keys = ["compute_annexed_dofs",
                                 "supported_fortran_datatypes",
                                 "default_kind",
                                 "precision_map",
@@ -1034,15 +1007,23 @@ class LFRicConfig(BaseConfig):
                 config=self._config) from err
 
         # Parse setting for run_time_checks flag
-        try:
-            self._run_time_checks = section.getboolean(
-                "run_time_checks")
-        except ValueError as err:
-            raise ConfigurationError(
-                f"Error while parsing RUN_TIME_CHECKS in the "
-                f"'[{section.name}]' section of the configuration file "
-                f"'{config.filename}': {str(err)}.",
-                config=self._config) from err
+        self._run_time_checks = section["run_time_checks"].lower()
+        if self._run_time_checks not in ["none", "warn", "error"]:
+            # Test for old-style boolean value:
+            try:
+                self._run_time_checks = section.getboolean("run_time_checks")
+            except ValueError as err:
+                raise ConfigurationError(
+                    f"Error while parsing RUN_TIME_CHECKS in the "
+                    f"'[{section.name}]' section of the configuration file "
+                    f"'{config.filename}': Found '{self._run_time_checks}', "
+                    f" must be one of 'none', 'warn', 'error'.",
+                    config=self._config) from err
+            if self._run_time_checks:
+                # True - old behaviour is to create an error (and abort)
+                self._run_time_checks = "error"
+            else:
+                self._run_time_checks = "none"
 
         # Parse setting for the supported Fortran datatypes. No
         # need to check whether the keyword is found as it is

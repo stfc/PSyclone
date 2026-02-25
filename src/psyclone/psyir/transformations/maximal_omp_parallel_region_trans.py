@@ -1,0 +1,93 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors A. B. G. Chalk, STFC Daresbury Lab
+
+'''This module contains the MaximalOMPParallelRegionTrans.'''
+
+from typing import Union
+
+from psyclone.psyir.nodes import (
+        OMPTaskwaitDirective,
+        OMPBarrierDirective,
+        OMPSerialDirective,
+        OMPTaskloopDirective,
+        OMPDoDirective,
+        OMPLoopDirective,
+        OMPTaskDirective,
+        DynamicOMPTaskDirective,
+        Node,
+        Schedule
+)
+from psyclone.psyir.transformations.maximal_region_trans import (
+        MaximalRegionTrans)
+from psyclone.psyir.transformations.omp_parallel_trans import OMPParallelTrans
+from psyclone.utils import transformation_documentation_wrapper
+
+
+@transformation_documentation_wrapper
+class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
+    '''Applies OpenMP Parallel directives around the largest possible sections
+    of the input.
+
+    At current, this will never place OpenMP parallel sections around
+    Assignments that are outside of another OpenMP directive. See #3157 and
+    the discussion on #3205 for more detail.'''
+    # The type of parallel transformation to be applied to the input region.
+    _transformation = OMPParallelTrans
+    # Tuple of statement nodes allowed inside the _transformation
+    _allowed_contiguous_statements = (
+        OMPTaskwaitDirective,
+        OMPBarrierDirective,
+        OMPSerialDirective,
+        OMPTaskloopDirective,
+        OMPDoDirective,
+        OMPLoopDirective,
+        OMPTaskDirective,
+        DynamicOMPTaskDirective,
+    )
+    _required_nodes = (
+        OMPSerialDirective,
+        OMPTaskloopDirective,
+        OMPDoDirective,
+        OMPLoopDirective,
+        OMPTaskDirective,
+        DynamicOMPTaskDirective,
+    )
+
+    def apply(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
+        '''Applies the transformation to the nodes provided.
+
+        :param nodes: can be a single node, a schedule or a list of nodes.
+        '''
+        super().apply(nodes, **kwargs)
