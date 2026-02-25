@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
+# Copyright (c) 2024-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab,
-#             I. Kavcic, Met Office
+# Author: T. H. Gibson, Advanced Micro Devices, Inc.
+
+# Makefile for the PSyclone wrapper to the AMD ROCTx profiling library.
 
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
@@ -41,31 +41,18 @@ F90 ?= gfortran
 F90FLAGS ?= -g
 # -----------------------------------------------------------------------------
 
-# We don't build dl_timer, drhook, nvidia, tau, and Vernier by default
-# since they require external dependencies/libraries. So this is the
-# list of all wrappers that do not have external dependencies:
-NO_DEP_LIBS = lfric_timer simple_timing template
+PSYDATA_LIB_NAME = roctx_prof
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
-# The list with all libraries (include the ones that have additional
-# dependencies):
-ALL_LIBS = $(NO_DEP_LIBS) amd dl_timer drhook nvidia tau vernier
+default: $(PSYDATA_LIB)
 
-.PHONY: default all $(NO_DEP_LIBS) clean allclean \
-	amd dl_timer drhook nvidia tau vernier
+.PHONY: default clean allclean
 
-# By default, compile all libraries that do not have additional dependencies
-# The 'all' target is used by the compilation tests, so this also can only
-# compile the libraries without additional dependencies.
-default: all
-all: $(NO_DEP_LIBS)
+$(PSYDATA_LIB): $(PSYDATA_LIB_NAME).f90
+	$(F90) -c $(F90FLAGS) $<
+	ar rs $(PSYDATA_LIB) $(PSYDATA_LIB_NAME).o
 
-# Invoke make in the corresponding subdirectory for all available libraries
-$(ALL_LIBS):
-		$(MAKE) -C $@
-
-# We clean all libraries, even the ones not compiled by default
 clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
+	rm -f *.o *.mod $(PSYDATA_LIB)
 
-allclean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) allclean; )
+allclean: clean
