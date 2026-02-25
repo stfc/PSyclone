@@ -300,10 +300,6 @@ class KernelModuleInlineTrans(Transformation):
                 if symbol.name not in code_to_inline.symbol_table:
                     # Ensure that any references to this Symbol within the
                     # symbol table are updated.
-                    # TODO how come this is necessary? Are we missing a step
-                    # earlier?
-                    for sym in code_to_inline.symbol_table.datasymbols:
-                        sym.replace_symbols_using(symbol)
                     code_to_inline.symbol_table.add(symbol)
                 # And when necessary the modules where they come from
                 if symbol.is_unresolved:

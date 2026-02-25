@@ -42,15 +42,18 @@
 
 # pylint: disable=too-many-lines
 
+from __future__ import annotations
 from collections import OrderedDict
 from collections.abc import Iterable
 import inspect
 import copy
 import logging
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
@@ -259,7 +262,7 @@ class SymbolTable():
         new_st._default_visibility = self.default_visibility
         return new_st
 
-    def deep_copy(self, new_node=None):
+    def deep_copy(self, new_node: "ScopingNode" = None) -> SymbolTable:
         '''Create a copy of the symbol table with new instances of the
         top-level data structures and also new instances of the symbols
         contained in these data structures. Modifying a symbol attribute
@@ -271,10 +274,8 @@ class SymbolTable():
 
         :param new_node: the PSyIR Node to be associated with the copied
             table (if different from self.node).
-        :type new_node: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
         :returns: a deep copy of this symbol table.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
         # pylint: disable=protected-access
