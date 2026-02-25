@@ -360,6 +360,7 @@ subroutine foo()
     !comment a
 
     DO jk = 1, jpkm1
+        !comment2
         !$pos operation(kernel_fusion)
         !comment b
         SELECT CASE( nn_e3f_typ ) !inline comment
@@ -385,6 +386,7 @@ end subroutine foo"""
     assert routine.children[0] is dirs[0]
     loop = routine.children[1]
     assert loop.loop_body[0] is dirs[1]
+    assert "comment2" == dirs[1].preceding_comment
     case_if = loop.loop_body[1]
     assert isinstance(case_if, IfBlock)
     assert (case_if.preceding_comment ==
@@ -396,16 +398,11 @@ Hey there!""")
     assert dirs[3].preceding_comment == "a comment"
 
     output = fortran_writer(psyir)
-    correct = """subroutine foo()
-  integer :: jk
-  integer :: jpkm1
-  integer :: nn_e3f_typ
-  integer :: i
-
-  !$pos operation(kernel_fusion)
+    correct = """!$pos operation(kernel_fusion)
 
   ! comment a
   do jk = 1, jpkm1, 1
+    ! comment2
     !$pos operation(kernel_fusion)
 
     ! comment b
@@ -424,9 +421,7 @@ Hey there!""")
         i = 2
       end if
     end if
-  enddo
-
-end subroutine foo"""
+  enddo"""
     assert correct in output
 
 
@@ -437,7 +432,8 @@ def test_comments_on_directive_before_where(fortran_writer):
     real, dimension(100) :: a, b
     !$psy where
     ! here is a comment
-    where(dot_product(a,a(:)) + abs(a) < 2)
+    where(dot_product(a,a(:)) + abs(a) < 2) !inline comment
+        !inside comment
         b = a
     end where
     end subroutine x
@@ -448,19 +444,14 @@ def test_comments_on_directive_before_where(fortran_writer):
     routine = psyir.children[0]
     assert isinstance(routine.children[0], UnknownDirective)
     assert routine.children[1].preceding_comment == "here is a comment"
-    correct = """subroutine x()
-  real, dimension(100) :: a
-  real, dimension(100) :: b
-  integer :: widx1
-
-  !$psy where
+    correct = """!$psy where
 
   ! here is a comment
   do widx1 = 1, 100, 1
     if (DOT_PRODUCT(a, a(:)) + ABS(a(widx1)) < 2) then
+      ! inline comment
+      ! inside comment
       b(widx1) = a(widx1)
     end if
-  enddo
-
-end subroutine x"""
+  enddo"""
     assert correct in fortran_writer(psyir)
