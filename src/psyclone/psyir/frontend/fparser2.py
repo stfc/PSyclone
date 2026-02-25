@@ -4039,17 +4039,22 @@ class Fparser2Reader():
         # Stores the current set of comments.
         current_comments = []
         # Stores the current set of directives and its preceding comments.
-        current_dirs = []
+        current_dirs: list[tuple[Fortran2003.Directives,
+                                 list[Fortran2003.Comment]]] = []
         for idx, child in enumerate(node.content):
             # Find any comments and directives that appear before the first
             # Case statement and keep them to add into the tree.
-            if (len(clause_indices) == 0 and
+            if (not clause_indices and
                     isinstance(child, Fortran2003.Directive)):
                 current_dirs.append((child, current_comments))
                 current_comments = []
                 continue
-            if (len(clause_indices) == 0 and
+            if (not clause_indices and
                     isinstance(child, Fortran2003.Comment)):
+                # TODO: #3350 Inline comments will no longer be inline
+                # comments for select case statements, however since IfBlocks
+                # put inline comments on their endif statement this is
+                # currently the best option available.
                 if len(child.tostr()) > 0:
                     current_comments.append(child)
                 continue
@@ -4136,7 +4141,6 @@ class Fparser2Reader():
             # Process the logical expression
             self._process_case_value_list(selector, case.items[0].items,
                                           ifblock)
-
             # Add If_body
             ifbody = Schedule(parent=ifblock)
             self.process_nodes(parent=ifbody,
