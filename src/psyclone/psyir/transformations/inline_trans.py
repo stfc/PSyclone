@@ -271,7 +271,7 @@ class InlineTrans(Transformation):
                             use_first_callee_and_no_arg_check),
                     )
                     new_shape.append(ArrayType.ArrayBounds(lower, upper))
-            sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
+            sym.datatype = ArrayType(sym.datatype.elemental_type, new_shape)
 
         for sym in table.datatypesymbols:
             if not isinstance(sym.datatype, StructureType):
@@ -296,7 +296,7 @@ class InlineTrans(Transformation):
                     sym.datatype.components[name] = (
                         StructureType.ComponentType(
                             name=name,
-                            datatype=ArrayType(ctype.datatype.datatype,
+                            datatype=ArrayType(ctype.datatype.elemental_type,
                                                new_shape),
                             visibility=ctype.visibility,
                             initial_value=ctype.initial_value))

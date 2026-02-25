@@ -275,7 +275,8 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                     new_shape: List[Union[Literal, Reference]] = (
                         self._replace_bounds(sym.shape, self._param_table)
                     )
-                    sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
+                    sym.datatype = ArrayType(sym.datatype.elemental_type,
+                                             new_shape)
 
     # ------------------------------------------------------------------------
     def validate(self, node, options=None):

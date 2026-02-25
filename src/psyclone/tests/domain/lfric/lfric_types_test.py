@@ -327,7 +327,7 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
     scalar_type = LFRicTypes(scalar_type_name)
     lfric_datatype = data_type(dims)
     assert isinstance(lfric_datatype, ArrayType)
-    assert isinstance(lfric_datatype._datatype, scalar_type)
+    assert isinstance(lfric_datatype._elemental_type, scalar_type)
     for idx, dim in enumerate(lfric_datatype.shape):
         if isinstance(dim.upper, Literal):
             assert dim.upper.value == str(dims[idx])

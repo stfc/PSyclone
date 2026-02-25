@@ -165,7 +165,7 @@ def trans(psyir: FileContainer) -> None:
             sym = symbol_table.lookup(sig[0])
             # Now replace all instances of the array with a scalar:
             print("REPLACE", sig, sym.datatype, sym.interface,
-                  sym.datatype.datatype)
+                  sym.datatype.elemental_type)
             new_sym = \
                 symbol_table.find_or_create(f"{sig[0]}_scalar",
                                             symbol_type=DataSymbol,

@@ -194,10 +194,10 @@ class LFRicSymbolTable(SymbolTable):
                             f"not an ArraySymbol, but "
                             f"'{type(sym.datatype)}'.")
 
-        if sym.datatype.datatype != datatype:
+        if sym.datatype.elemental_type != datatype:
             raise TypeError(f"Symbol '{sym.name}' already exists, but is "
                             f"not of type '{intrinsic_type}', but "
-                            f"'{type(sym.datatype.datatype)}'.")
+                            f"'{type(sym.datatype.elemental_type)}'.")
 
         if len(sym.shape) != num_dimensions:
             raise TypeError(f"Array '{sym.name}' already exists, but has "

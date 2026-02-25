@@ -427,7 +427,7 @@ def test_arraytype():
     assert shape0.upper.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert shape0.upper.datatype.precision == ScalarType.Precision.UNDEFINED
     # TODO #1857: the datatype property might be affected.
-    assert array_type.datatype == scalar_type
+    assert array_type.elemental_type == scalar_type
     # Provided and stored as a Literal (DataNode)
     assert array_type.shape[1].upper == literal
     # Provided and stored as an Operator (DataNode)
@@ -467,8 +467,9 @@ def test_arraytype_invalid_datatype():
     '''
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(None, None)
-    assert ("ArrayType expected 'datatype' argument to be of type DataType "
-            "or DataTypeSymbol but found 'NoneType'." in str(excinfo.value))
+    assert ("ArrayType expected 'elemental_type' argument to be of type "
+            "DataType or DataTypeSymbol but found 'NoneType'."
+            in str(excinfo.value))
 
 
 def test_arraytype_datatypesymbol_only():
@@ -489,7 +490,7 @@ def test_arraytype_datatypesymbol():
     tsym = DataTypeSymbol("my_type", UnresolvedType())
     atype = ArrayType(tsym, [5])
     assert isinstance(atype, ArrayType)
-    assert atype.datatype == tsym
+    assert atype.elemental_type == tsym
     assert len(atype.shape) == 1
     assert atype.intrinsic is tsym
     assert atype.precision is None
@@ -501,7 +502,7 @@ def test_arraytype_unsupportedtype():
     utype = UnsupportedFortranType("integer, pointer :: var")
     atype = ArrayType(utype, [8])
     assert isinstance(atype, ArrayType)
-    assert atype.datatype is utype
+    assert atype.elemental_type is utype
     assert atype.precision is None
     assert utype.declaration == "integer, pointer :: var"
     # Since no partial datatype is provided, these return None

@@ -542,9 +542,7 @@ class ArrayType(DataType):
     integer) or of structure types. For the latter, the type must currently be
     specified as a DataTypeSymbol (see #1031).
 
-    :param datatype: the datatype of the array elements.
-    :type datatype: :py:class:`psyclone.psyir.datatypes.DataType` |
-                    :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+    :param elemental_type: the datatype of the array elements.
     :param list shape: shape of the symbol in column-major order (leftmost
         index is contiguous in memory). Each entry represents an array
         dimension. If it is ArrayType.Extent.ATTRIBUTE the extent of that
@@ -662,7 +660,11 @@ class ArrayType(DataType):
                     self.lower.copy(), self.upper.copy()
             )
 
-    def __init__(self, datatype, shape):
+    def __init__(
+        self,
+        elemental_type: Union[DataType, DataTypeSymbol],
+        shape
+    ):
 
         # This import must be placed here to avoid circular dependencies.
         # pylint: disable-next=import-outside-toplevel
@@ -683,27 +685,28 @@ class ArrayType(DataType):
                 return Literal(str(var), INTEGER_TYPE)
             return var
 
-        if isinstance(datatype, DataType):
-            if isinstance(datatype, StructureType):
+        if isinstance(elemental_type, DataType):
+            if isinstance(elemental_type, StructureType):
                 # TODO #1031 remove this restriction.
                 raise NotImplementedError(
                     "When creating an array of structures, the type of "
                     "those structures must be supplied as a DataTypeSymbol "
                     "but got a StructureType instead.")
-            if not isinstance(datatype, (UnsupportedType, UnresolvedType)):
-                self._intrinsic = datatype.intrinsic
-                self._precision = datatype.precision
+            if not isinstance(elemental_type,
+                              (UnsupportedType, UnresolvedType)):
+                self._intrinsic = elemental_type.intrinsic
+                self._precision = elemental_type.precision
             else:
-                self._intrinsic = datatype
+                self._intrinsic = elemental_type
                 self._precision = None
-        elif isinstance(datatype, DataTypeSymbol):
-            self._intrinsic = datatype
+        elif isinstance(elemental_type, DataTypeSymbol):
+            self._intrinsic = elemental_type
             self._precision = None
         else:
             raise TypeError(
-                f"ArrayType expected 'datatype' argument to be of type "
+                f"ArrayType expected 'elemental_type' argument to be of type "
                 f"DataType or DataTypeSymbol but found "
-                f"'{type(datatype).__name__}'.")
+                f"'{type(elemental_type).__name__}'.")
         # We do not have a setter for shape as it is an immutable property,
         # therefore we have a separate validation routine.
         self._validate_shape(shape)
@@ -723,16 +726,15 @@ class ArrayType(DataType):
             else:
                 self._shape.append(dim)
 
-        self._datatype = datatype
+        self._elemental_type = elemental_type
 
     @property
-    def datatype(self):
+    def elemental_type(self) -> Union[DataType, DataTypeSymbol]:
         '''
         :returns: the datatype of each element in the array.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         # TODO #1857: This property might be affected.
-        return self._datatype
+        return self._elemental_type
 
     @property
     def intrinsic(self):
@@ -949,7 +951,7 @@ class ArrayType(DataType):
                     f"instance of ArrayType.Extent but found "
                     f"'{type(dimension).__name__}'")
 
-        return f"Array<{self._datatype}, shape=[{', '.join(dims)}]>"
+        return f"Array<{self._elemental_type}, shape=[{', '.join(dims)}]>"
 
     def __eq__(self, other):
         '''
@@ -1001,11 +1003,11 @@ class ArrayType(DataType):
                 new_shape.append(dim)
         # If we copy the ScalarType then we need to create a copy of it, as
         # it can contain DataNodes, which must be copied.
-        if isinstance(self.datatype, ScalarType):
-            return ArrayType(self.datatype.copy(), new_shape)
+        if isinstance(self.elemental_type, ScalarType):
+            return ArrayType(self.elemental_type.copy(), new_shape)
         # Otherwise we continue with this type's datatype, to handle cases
         # such as a DataTypeSymbol datatype (which should not be copied).
-        return ArrayType(self.datatype, new_shape)
+        return ArrayType(self.elemental_type, new_shape)
 
     def replace_symbols_using(self, table_or_symbol):
         '''
@@ -1020,17 +1022,19 @@ class ArrayType(DataType):
             :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        if isinstance(self.datatype, DataTypeSymbol):
+        if isinstance(self.elemental_type, DataTypeSymbol):
             if isinstance(table_or_symbol, Symbol):
-                if table_or_symbol.name.lower() == self._datatype.name.lower():
-                    self._datatype = table_or_symbol
+                if table_or_symbol.name.lower() == \
+                        self._elemental_type.name.lower():
+                    self._elemental_type = table_or_symbol
             else:
                 try:
-                    self._datatype = table_or_symbol.lookup(self.datatype.name)
+                    self._elemental_type = \
+                        table_or_symbol.lookup(self.elemental_type.name)
                 except KeyError:
                     pass
         else:
-            self.datatype.replace_symbols_using(table_or_symbol)
+            self.elemental_type.replace_symbols_using(table_or_symbol)
 
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.datanode import DataNode
