@@ -851,6 +851,7 @@ def test_definition_use_chain_find_backward_accesses_ancestor_call(
     # b = c + d.
     assert all_prev[0] is routine.children[1].lhs
 
+
 def test_backward_accesses_nested_loop(fortran_reader):
     """Test that if we have many nested loops we don't repeat the same
     reference in the result."""
