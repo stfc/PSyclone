@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@ sub-classes.
 
 '''
 
-from enum import Enum
 import pytest
 
 from psyclone.errors import GenerationError, InternalError
@@ -231,8 +230,10 @@ def test_binaryop_scalar_datatype():
                                                          BOOLEAN_TYPE)))
     with pytest.raises(TypeError) as err:
         _ = binop6.datatype
-    assert ("Invalid argument of type 'Intrinsic.BOOLEAN' to numerical "
-            "operation 'Operator.ADD' in 'itmp1 + switch'" in str(err.value))
+    assert ("Invalid argument(s) of type(s) '['Intrinsic.BOOLEAN']' to "
+            "numerical operation 'Operator.ADD' in 'itmp1 + switch'. "
+            "Currently only ScalarType.Intrinsic.REAL/INTEGER are supported "
+            "(TODO #1590)" in str(err.value))
 
 
 def test_binaryop_operands():
@@ -243,63 +244,6 @@ def test_binaryop_operands():
     binaryoperation = BinaryOperation.create(oper, ref1, ref2)
     operands = binaryoperation.operands
     assert operands == (ref1, ref2)
-
-
-def test_binaryop_get_result_precision(monkeypatch):
-    '''Test the _get_result_precision method of BinaryOperation gives the
-    correct precision.'''
-    ref1 = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
-    oper = BinaryOperation.Operator.ADD
-    # Two arguments of different precision (SINGLE and DOUBLE)
-    ref2 = Reference(DataSymbol("dtmp1", REAL_DOUBLE_TYPE))
-    binop1 = BinaryOperation.create(oper, ref1, ref2)
-    bprecn1 = binop1._get_result_precision([ref1.datatype.precision,
-                                            ref2.datatype.precision])
-    assert bprecn1 == ScalarType.Precision.DOUBLE
-    # Two arguments with different (integer) precision
-    ref3 = Reference(DataSymbol("tmp3",
-                                ScalarType(ScalarType.Intrinsic.REAL, 4)))
-    dref3 = Reference(DataSymbol("dtmp3",
-                                 ScalarType(ScalarType.Intrinsic.REAL, 8)))
-    binop3 = BinaryOperation.create(oper, ref3, dref3)
-    bprecn3 = binop3._get_result_precision([ref3.datatype.precision,
-                                            dref3.datatype.precision])
-    assert bprecn3 == 8
-    # A mixture of precisions
-    binop4 = BinaryOperation.create(oper, ref1.copy(), ref3.copy())
-    bprecn4 = binop4._get_result_precision([ref1.datatype.precision,
-                                            ref3.datatype.precision])
-    assert bprecn4 == ScalarType.Precision.UNDEFINED
-    # One argument of undefined precision
-    ref5 = Reference(DataSymbol("tmp5",
-                                ScalarType(ScalarType.Intrinsic.REAL,
-                                           ScalarType.Precision.UNDEFINED)))
-    binop5 = BinaryOperation.create(oper, ref5, ref1.copy())
-    bprecn5 = binop5._get_result_precision([ref5.datatype.precision,
-                                            ref1.datatype.precision])
-    assert bprecn5 == ScalarType.Precision.UNDEFINED
-
-    # Exercise the check that we aren't missing a supported precision. We have
-    # to monkeypatch the enum containing the supported precisions for this.
-    class FakePrecision(Enum):
-        '''Fake version of Precision enum for testing.'''
-        SINGLE = 1
-        DOUBLE = 2
-        UNDEFINED = 3
-        OTHER = 4
-
-    monkeypatch.setattr(ScalarType, "Precision", FakePrecision)
-    monkeypatch.setattr(ref1.datatype, "_precision",
-                        ScalarType.Precision.SINGLE)
-    # pylint: disable=no-member
-    monkeypatch.setattr(ref5.datatype, "_precision",
-                        ScalarType.Precision.OTHER)
-    with pytest.raises(InternalError) as err:
-        _ = binop5._get_result_precision([ref5.datatype.precision,
-                                          ref1.datatype.precision])
-    assert ("got unsupported Precision value(s) 'FakePrecision.OTHER' and "
-            "'FakePrecision.SINGLE' for operands 'tmp5' and 'tmp1'"
-            in str(err.value))
 
 
 def test_binaryop_array_datatype():
@@ -533,9 +477,6 @@ def test_binaryoperation_intrinsic_fn_datatype():
     Check that we can get the datatype of an operation involving the result
     of an intrinsic function.
 
-    TODO #1799 - this just returns UnresolvedType at the minute and needs
-    implementing.
-
     '''
     arrtype = ArrayType(REAL_SINGLE_TYPE, [10, 5])
     aref = Reference(DataSymbol("array", arrtype))
@@ -543,7 +484,8 @@ def test_binaryoperation_intrinsic_fn_datatype():
     arg2 = Reference(DataSymbol("scalar", INTEGER_SINGLE_TYPE))
     oper = BinaryOperation.Operator.ADD
     binop = BinaryOperation.create(oper, arg1, arg2)
-    assert isinstance(binop.datatype, UnresolvedType)
+    assert isinstance(binop.datatype, ScalarType)
+    assert binop.datatype == REAL_SINGLE_TYPE
 
 
 # Test UnaryOperation class
@@ -674,7 +616,7 @@ def test_unaryop_datatype():
 
 def test_unaryop_operand():
     '''
-    Test the operand peroperty of UnaryOperation.
+    Test the operand property of UnaryOperation.
     '''
     oper = UnaryOperation.Operator.MINUS
     node = Literal("1", INTEGER_SINGLE_TYPE)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,8 +44,11 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop, Node, OMPTaskwaitDirective, \
     OMPTaskloopDirective, OMPParallelDirective, \
     OMPDoDirective, OMPSingleDirective
-from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
+from psyclone.psyir.transformations import (
+    TransformationError,
+    OMPParallelTrans
+)
+from psyclone.transformations import OMPLoopTrans, \
     OMPSingleTrans, OMPMasterTrans, MoveTrans
 from psyclone.psyir.transformations import OMPTaskwaitTrans, OMPTaskloopTrans
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

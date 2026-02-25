@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,11 @@
 
 import os
 import pytest
+from psyclone.gocean1p0 import GOKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InvokeSchedule
 from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE, INTEGER_TYPE,
-                                    CHARACTER_TYPE, Symbol)
+                                    CHARACTER_TYPE, Symbol, SymbolError)
 from psyclone.tests.utilities import get_invoke, make_external_module
 from psyclone.transformations import (KernelImportsToArguments,
                                       TransformationError)
@@ -85,6 +86,30 @@ def test_kernelimportsstoargumentstrans_no_outer_module_import():
         trans.validate(kernel)
     assert ("contains accesses to 'alpha' which is declared in the callee "
             "module scope." in str(err.value))
+
+
+def test_kernelimportsstoargumentstrans_unsuccessful_get_callees(monkeypatch):
+    ''' Check that the validation produces the correct error when a
+    get_callees method is unsuccessful.
+    '''
+    trans = KernelImportsToArguments()
+    path = os.path.join(BASEPATH, "gocean1p0")
+    _, invoke_info = parse(os.path.join(path,
+                                        "single_invoke_kern_with_global.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    kernel = invoke.schedule.coded_kernels()[0]
+
+    # Monkeypatch get_callees to always produce an error.
+    def raise_error(_):
+        raise SymbolError("some error")
+
+    monkeypatch.setattr(GOKern, "get_callees", raise_error)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(kernel)
+    assert ("Kernel 'kernel_with_global_code' contains undeclared symbol:"
+            in str(err.value))
 
 
 def test_kernelimportstoargumentstrans_no_wildcard_import():

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,8 @@
 # Modified: M. Naylor, University of Cambridge, UK
 
 ''' pytest tests for the parallel_loop_trans module. '''
+
+import logging
 
 import pytest
 
@@ -125,7 +127,7 @@ def test_paralooptrans_validate_pure_calls(fortran_reader, fortran_writer):
     loop.scope.symbol_table.lookup("my_sub2").is_pure = True
     trans.validate(loop)
 
-    # Also allow pure when the fuction definition can be found
+    # Also allow pure when the function definition can be found
     psyir = fortran_reader.psyir_from_source('''
     pure subroutine return_scalar(x, y)
         integer, intent(in) :: x
@@ -201,13 +203,12 @@ def test_paralooptrans_validate_loop_inside_pure(fortran_reader):
                 in str(err.value))
 
 
-def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader,
-                                                        fortran_writer):
+def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader):
     '''
     Test that the 'ignore_dependencies_for' option allows the validate check to
     succeed even when the dependency analysis finds a possible loop-carried
     dependency, but the user guarantees that it's a false dependency. It also
-    checks that the appopriate comments are added when dependencies are found.
+    checks that the appropriate comments are added when dependencies are found.
 
     '''
     psyir = fortran_reader.psyir_from_source(CODE)
@@ -337,8 +338,9 @@ def test_paralooptrans_collapse_options(fortran_reader, fortran_writer):
     assert '''\
 !$omp parallel do collapse(1) default(shared) private(i,j,k)
 do i = 1, 10, 1
-  ! Error: The write access to 'var(i,j,k)' and the read access to 'var(i,\
-map(j),k)' are dependent and cannot be parallelised. Variable: 'var'. \
+  ! Error: The write access to \'var(i,j,k)\' in \'var(i,j,k) = var(i,map(j),\
+k)\' and the read access to \'var(i,map(j),k)\' in \'var(i,j,k) = \
+var(i,map(j),k)\' are dependent and cannot be parallelised. Variable: 'var'. \
 Consider using the "ignore_dependencies_for" transformation option if this \
 is a false dependency.
   do j = 1, 10, 1
@@ -604,7 +606,8 @@ def test_paralooptrans_apply(fortran_reader):
 
 
 def test_paralooptrans_with_array_privatisation(fortran_reader,
-                                                fortran_writer):
+                                                fortran_writer,
+                                                caplog):
     '''
     Check that the 'privatise_arrays' transformation option allows to ignore
     write-write dependencies by setting the associated variable as 'private'
@@ -637,8 +640,11 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
     # By default this can not be parallelised because 'ztmp' is shared
     with pytest.raises(TransformationError) as err:
         trans.apply(loop)
-    assert "ztmp(jj)\' causes a write-write race condition." in str(err.value)
-    assert "ztmp2(jj)\' causes a write-write race condition." in str(err.value)
+    assert ("The write access to \'ztmp(jj)\' in \'ztmp(jj) = var1(ji,jj) "
+            "+ ztmp2(jj)\' causes a write-write race condition."
+            in str(err.value))
+    assert ("The write access to \'ztmp2(jj)\' in \'ztmp2(jj) = 4\' causes "
+            "a write-write race condition." in str(err.value))
 
     # Automatic array privatisation will not work because there is a path to
     # reach the ztmp2 as a read first (when the condition is not taken)
@@ -652,11 +658,18 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
     assert "'ztmp'" not in str(err.value)
 
     # It can still be parallelised by explictly marking the symbol as private
-    ztmp2 = loop.scope.symbol_table.lookup("ztmp2")
-    loop.explicitly_private_symbols.add(ztmp2)
-    trans.apply(loop, {"privatise_arrays": True})
+    # (and it permits valid loops - in case we have a bulk list of symbols for
+    # all the code, but it will log the symbols not found)
+    caplog.clear()
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.transformations"):
+        trans.apply(loop, {"privatise_arrays": True,
+                           "force_private": ["ztmp2", "symbol_not_in_loop"]})
     assert ("!$omp parallel do default(shared) private(ji,jj,ztmp) "
             "firstprivate(ztmp2)" in fortran_writer(psyir))
+    assert ("ParaTrans has been provided with the 'symbol_not_in_loop' symbol "
+            "name in the 'force_private' option, but there is no such symbol "
+            "in this scope." in caplog.text)
 
     # If the array is accessed after the loop, or is a not an automatic
     # interface, or is not a plain array, the privatisation will fail
@@ -744,14 +757,14 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
     # race condition in the outer loops
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
-    assert ("ztmp(jj)\' causes a write-write race condition."
+    assert ("ztmp(jj) = 3\' causes a write-write race condition."
             in str(err.value))
 
     # It should succeed if we enable array privatisation
     trans.validate(loop, {"privatise_arrays": True})
 
     # Doing the same but with an outer loop around, it must fails because now
-    # it can loop back to the references in each of the branche
+    # it can loop back to the references in each of the branch
     routine = psyir.children[0]
     children = routine.pop_all_children()
     routine.addchild(Loop.create(routine.symbol_table.lookup("i"),
@@ -766,8 +779,7 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
             "array privatisation" in str(err.value))
 
     # But it is fine when explicitly requesting the symbol to be private
-    loop.explicitly_private_symbols.add(loop.scope.symbol_table.lookup("ztmp"))
-    trans.validate(loop, {"privatise_arrays": True})
+    trans.validate(loop, {"privatise_arrays": True, "force_private": ["ztmp"]})
 
     # Check if the whole loop body is inside a conditional, this is needed
     # because the privatisation validation will search for the node following

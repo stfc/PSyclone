@@ -2,7 +2,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2025, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2026, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ Developing PSyKAL DSLs
 .. testsetup::
 
     # Define SOURCE_FILE to point to an existing gocean 1.0 file.
-    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+    SOURCE_FILE = ("../src/psyclone/tests/test_files/"
         "gocean1p0/test11_different_iterates_over_one_invoke.f90")
 
 
@@ -377,12 +377,7 @@ This subroutine is called by the Algorithm layer and itself calls one or
 more kernels and/or implements any required Built-in operations.
 
 All these classes can be specialised in each PSyclone API to support the
-specific features of a particular API. The class diagram for the above base classes
-is shown below using the LFRic API as an illustration.
-
-.. image:: lfric_topclasses.png
-    :width: 80%
-    :align: center
+specific features of a particular API.
 
 The InvokeSchedule can currently contain nodes of type: **Loop**,
 **Kernel**, **Built-in** (see the :ref:`psykal-built-ins` section),

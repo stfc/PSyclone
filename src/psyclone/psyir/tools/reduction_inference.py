@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, University of Cambridge, UK.
+# Copyright (c) 2025-2026, University of Cambridge, UK.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@
 '''This module provides a class to assist with inferring reduction clauses
    for parallel loop/region directives.'''
 
+import logging
 from typing import Union, List, Tuple
 
 from psyclone.core import (AccessSequence, Signature)
@@ -61,17 +62,18 @@ class ReductionInferenceTool():
             Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
         '''
         :param node: the node to match against.
+
         :returns: the reduction operator at the root of the given
-        DataNode or None if there isn't one.
+                  DataNode or None if there isn't one.
         '''
         if isinstance(node, BinaryOperation):
-            for op in self.red_ops:
-                if node.operator == op:
-                    return node.operator
+            if node.operator in self.red_ops:
+                return node.operator
+
         if isinstance(node, IntrinsicCall):
-            for op in self.red_ops:
-                if node.intrinsic == op:
-                    return node.intrinsic
+            if node.intrinsic in self.red_ops:
+                return node.intrinsic
+
         return None
 
     @staticmethod
@@ -169,7 +171,7 @@ class ReductionInferenceTool():
                 op = self._get_reduction_operator(node.parent)
                 if op:
                     # Also check that the parent of the reduction operator
-                    # is an assigment of the candidate reduction variable.
+                    # is an assignment of the candidate reduction variable.
                     if isinstance(node.parent.parent, Assignment):
                         lhs = node.parent.parent.lhs
                         if isinstance(lhs, Reference):
@@ -191,7 +193,9 @@ class ReductionInferenceTool():
         :param access_seq: the access sequence for that variable.
         :returns: the operator/reference pair that can be used for the
            reduction if reduction is possible, or None otherwise.
+
         '''
+        logger = logging.getLogger(__name__)
         # Iterate over all read and write accesses to the candidate reduction
         # variable. If all read accesses conform to the get_read_reduction()
         # form, and all write accesses to the get_write_reduction() form,
@@ -203,6 +207,8 @@ class ReductionInferenceTool():
         for access in access_seq.all_read_accesses:
             op = self._get_read_reduction(access.node, sig)
             if op is None:
+                logger.info("The read accesses of '%s' are not in a form that"
+                            " is supported for reductions", str(sig))
                 return None
             ops.append(op)
             ref = access.node
@@ -211,6 +217,8 @@ class ReductionInferenceTool():
         for access in access_seq.all_write_accesses:
             op = self._get_write_reduction(access.node, sig)
             if op is None:
+                logger.info("The write accesses of '%s' are not in a form that"
+                            " is supported for reductions", str(sig))
                 return None
             ops.append(op)
             ref = access.node
@@ -218,9 +226,14 @@ class ReductionInferenceTool():
         # are in the form of a reduction. But there may be no accesses,
         # in which case we return None.
         if ops == []:
+            logger.info("Cannot generate a reduction because there are no "
+                        "accesses of '%s'", str(sig))
             return None
         # Require that all reductions found involve the same operator.
         if any(op != ops[0] for op in ops):
+            logger.info("Cannot generate a reduction clause for '%s' because "
+                        "it has accesses involving different operators: %s",
+                        str(sig), ops)
             return None
         # Return the reduction operator and a (detached) copy of one of
         # the references to the reduction variable.

@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2025, Science and Technology Facilities Council
+! Copyright (c) 2020-2026, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -49,18 +49,11 @@ program main
     use global_mesh_mod,        only: global_mesh_type
     use mesh_mod,               only: mesh_type, PLANE
     use local_mesh_mod,         only: local_mesh_type
-    use local_mesh_collection_mod, only: local_mesh_collection, local_mesh_collection_type
-    use mesh_collection_mod,    only: mesh_collection, mesh_collection_type
-    use halo_routing_collection_mod,   only: halo_routing_collection_type,   &
-                                           halo_routing_collection
-    use function_space_collection_mod, only: function_space_collection_type, &
-                                           function_space_collection
+    use mesh_collection_mod,    only: mesh_collection
     use driver_collections_mod, only: init_collections
-
     use partition_mod,          only: partition_type, partitioner_planar, partitioner_interface
     use extrusion_mod,          only: extrusion_type, uniform_extrusion_type
     use function_space_mod,     only: function_space_type
-    use function_space_collection_mod, only: function_space_collection
     use fs_continuity_mod,      only: W0, W1, W2, W2V, W2H
     use field_mod,              only: field_type, field_proxy_type
     use field_real64_mod,      only : field_real64_type
@@ -93,7 +86,10 @@ program main
     type(field_type)                           :: chi(3)
     real(kind=r_def)                           :: one
     logical(kind=l_def)                        :: some_logical
-    integer                                    :: i, ierr
+    integer                                    :: i
+#ifdef _MPI
+    integer                                    :: ierr
+#endif
 
 
 

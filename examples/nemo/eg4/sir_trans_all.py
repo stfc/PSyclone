@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council
+# Copyright (c) 2020-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -114,5 +114,8 @@ def trans(psyir):
 
         kern = fortran_writer(subroutine)
         print(kern)
-        kern = sir_writer(subroutine)
-        print(kern)
+        try:
+            kern = sir_writer(subroutine)
+            print(kern)
+        except Exception as e:
+            print(f"Failed to transform {subroutine.name}: {e}")

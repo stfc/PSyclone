@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -97,7 +97,9 @@ from psyclone.psyir.nodes.omp_directives import (
     OMPStandaloneDirective, OMPRegionDirective, OMPTargetDirective,
     OMPLoopDirective, OMPDeclareTargetDirective,
     OMPTeamsDistributeParallelDoDirective, OMPAtomicDirective,
-    OMPSimdDirective, OMPTeamsLoopDirective, OMPBarrierDirective)
+    OMPSimdDirective, OMPTeamsLoopDirective, OMPBarrierDirective,
+    OMPCriticalDirective)
+from psyclone.psyir.nodes.unknown_directive import UnknownDirective
 from psyclone.psyir.nodes.clause import Clause, OperatorClause
 from psyclone.psyir.nodes.omp_clauses import (
     OMPGrainsizeClause, OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause,
@@ -194,6 +196,8 @@ __all__ = [
         'OMPSimdDirective',
         'OMPTeamsDistributeParallelDoDirective',
         'OMPTeamsLoopDirective',
+        'UnknownDirective',
+        'OMPCriticalDirective',
         # OMP Clause Nodes
         'OMPGrainsizeClause',
         'OMPNogroupClause',
@@ -205,5 +209,5 @@ __all__ = [
         'OMPScheduleClause',
         'OMPFirstprivateClause',
         'OMPSharedClause',
-        'OMPDependClause'
+        'OMPDependClause',
         ]

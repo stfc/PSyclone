@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, AccessType
 from psyclone.gocean1p0 import (GOKern, GOLoop, GOKernelArgument,
                                 GOKernelGridArgument, GOBuiltInCallFactory)
 from psyclone.tests.utilities import get_base_path, get_invoke
@@ -115,6 +115,29 @@ def test_field(tmpdir, dist_mem):
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
+def test_invalid_field_accesses_for_iteration_space():
+    ''' Tests that when retrieving the iteration_space_arg we validate
+    there is at least one write. '''
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.walk(GOLoop)[0]
+    for arg in loop.coded_kernels()[0].arguments.args:
+        arg.access = AccessType.READ
+    arguments = loop.coded_kernels()[0].arguments
+
+    with pytest.raises(GenerationError) as err:
+        _ = arguments.iteration_space_arg()
+    assert ("psyGen:Arguments:iteration_space_arg Error, we assume "
+            "there is at least one writer, reader/writer, or increment "
+            "as an argument" in str(err.value))
+
+
 def test_two_kernels(tmpdir, dist_mem):
     ''' Tests that an invoke containing two kernel calls with only
     fields as arguments produces correct code '''
@@ -155,7 +178,7 @@ def test_two_kernels(tmpdir, dist_mem):
     second_kernel = (
         "    do j = 1, SIZE(uold_fld%data, dim=2), 1\n"
         "      do i = 1, SIZE(uold_fld%data, dim=1), 1\n"
-        "        call time_smooth_code(i, j, u_fld%data, unew_fld%data, "
+        "        call time_smooth_code(i, j, cu_fld%data, unew_fld%data, "
         "uold_fld%data)\n"
         "      enddo\n"
         "    enddo\n\n"

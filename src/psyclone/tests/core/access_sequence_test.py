@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,42 +42,37 @@ import pytest
 from psyclone.core import (AccessInfo, Signature,
                            AccessSequence)
 from psyclone.core.access_type import AccessType
-from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Assignment, Node, Reference, Return, ArrayReference)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, Symbol
+from psyclone.psyGen import CodedKern
 
 
 def test_access_info() -> None:
-    '''Test the AccessInfo class.
-    '''
+    '''Test the AccessInfo class. '''
     access_info = AccessInfo(AccessType.READ, Node())
     assert access_info.access_type == AccessType.READ
     assert access_info.component_indices() == tuple(tuple())
     assert not access_info.has_indices()
     assert str(access_info) == "READ"
-    access_info.change_read_to_write()
+    access_info.access_type = AccessType.WRITE
     assert str(access_info) == "WRITE"
     assert access_info.access_type == AccessType.WRITE
-    with pytest.raises(InternalError) as err:
-        access_info.change_read_to_write()
-    assert "Trying to change variable to 'WRITE' which does not have "\
-        "'READ' access." in str(err.value)
+    access_info.access_type = AccessType.CONSTANT
+    assert str(access_info) == "CONSTANT"
+    assert access_info.access_type == AccessType.CONSTANT
 
     access_info = AccessInfo(AccessType.UNKNOWN, Node())
     assert access_info.access_type == AccessType.UNKNOWN
-
-    access_info = AccessInfo(AccessType.UNKNOWN, Node())
-    assert access_info.access_type == AccessType.UNKNOWN
-
-    access_info = AccessInfo(AccessType.UNKNOWN, Node())
-    assert access_info.access_type == AccessType.UNKNOWN
-
     assert access_info.is_data_access
 
     access_info = AccessInfo(AccessType.INQUIRY, Node())
     assert not access_info.is_data_access
+
+    with pytest.raises(TypeError) as err:
+        access_info.access_type = 2
+    assert "Expected AccessType but got 'int'." in str(err.value)
 
 
 def test_access_info_is_any_read_or_write():
@@ -92,7 +87,7 @@ def test_access_info_is_any_read_or_write():
     access_info = AccessInfo(AccessType.WRITE, Node())
     assert not access_info.is_any_read()
     assert access_info.is_any_write()
-    access_info = AccessInfo(AccessType.SUM, Node())
+    access_info = AccessInfo(AccessType.REDUCTION, Node())
     assert not access_info.is_any_read()
     assert access_info.is_any_write()
 
@@ -141,6 +136,26 @@ def test_access_info_description() -> None:
     assert ("definition of symbol 'test: datasymbol<scalar" in
             ainfo.description.lower())
 
+    # Assignment has a special description to provide more context
+    ref1 = Reference(osym)
+    ref2 = Reference(asym)
+    assign = Assignment.create(ref1, ref2)
+    ainfo = AccessInfo(AccessType.READ, ref2)
+    assert "'test' in 'something = test'" in ainfo.description
+
+    # CodedKernel has a special description to provide more context
+    class MockKern(CodedKern):
+        ''' Create a API agnostic subclass of CodedKern '''
+        name = "kernel_name"
+
+        def __init__(self):
+            Node.__init__(self)
+
+    mk = MockKern()
+    mk._children = [assign]
+    assign._parent = mk
+    assert "'test' (inside 'kernel_name)'" in ainfo.description
+
 
 # -----------------------------------------------------------------------------
 def test_variable_access_sequence() -> None:
@@ -172,7 +187,7 @@ def test_variable_access_sequence() -> None:
     assert not accesses.is_written()
     assert not accesses.is_written_first()
     assert not accesses.is_called()
-    accesses.change_read_to_write()
+    accesses[-1].access_type = AccessType.WRITE
     assert not accesses.is_read()
     assert accesses.is_written()
     assert accesses.is_written_first()
@@ -180,45 +195,17 @@ def test_variable_access_sequence() -> None:
     assert accesses.all_read_accesses == []
     assert accesses.all_write_accesses == [accesses[1]]
 
-    # Now we have one write access, which we should not be able to
-    # change to write again:
-    with pytest.raises(InternalError) as err_internal:
-        accesses.change_read_to_write()
-    assert ("Variable 'var_name' has a 'WRITE' access. change_read_to_write() "
-            "expects only inquiry accesses and a single 'READ' access."
-            in str(err_internal.value))
-
     with pytest.raises(IndexError) as err:
         _ = accesses[2]
     assert "list index out of range" in str(err.value)
 
-    # Add a READ access - we should not be able to
-    # change this read to write as there's already a WRITE access.
+    # Add a READ access
     accesses.add_access(AccessType.READ, Node())
-    with pytest.raises(InternalError) as err_internal:
-        accesses.change_read_to_write()
-    assert ("Variable 'var_name' has a 'WRITE' access. change_read_to_write() "
-            "expects only inquiry accesses and a single 'READ' access."
-            in str(err_internal.value))
     # And make sure the variable is not read_only if a write is added
     accesses.add_access(AccessType.WRITE, Node())
     assert accesses.is_read_only() is False
     assert accesses.all_read_accesses == [accesses[2]]
     assert accesses.all_write_accesses == [accesses[1], accesses[3]]
-    # Check that we catch a case where there are no accesses at all.
-    accesses = AccessSequence(Signature("var_name"))
-    with pytest.raises(InternalError) as err_internal:
-        accesses.change_read_to_write()
-    assert "but it does not have a 'READ' access" in str(err_internal.value)
-
-    # Test handling if there is more than one read and it is supposed
-    # to change read to write:
-    accesses.add_access(AccessType.READ, Node())
-    accesses.add_access(AccessType.READ, Node())
-    with pytest.raises(InternalError) as err_internal:
-        accesses.change_read_to_write()
-    assert ("Trying to change variable 'var_name' to 'WRITE' but it has more "
-            "than one 'READ' access." in str(err_internal.value))
 
     # Now do just a CALL, this will have no data accesses
     accesses = AccessSequence(Signature("var_name"))

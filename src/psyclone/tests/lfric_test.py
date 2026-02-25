@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office,
+# Modified I. Kavcic, A. Coughtrie, L. Turner, O. Brunt,
+#          and A. Pirrie Met Office,
 #          C. M. Maynard, Met Office/University of Reading,
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -64,8 +65,9 @@ from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
                                   Reference, Routine, Container, Schedule)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
-from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.tests.lfric_build import LFRicBuild
+
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -166,8 +168,8 @@ def test_ad_invalid_access_type():
                         "(gh_scalar,   gh_integer, gh_ead)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    api_config = Config.get().api_conf("lfric")
-    valid_access_names = api_config.get_valid_accesses_api()
+    consts = Config.get().get_constants()
+    valid_access_names = sorted(consts.ACCESS_MAPPING.keys())
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert (f"argument 3 of a 'meta_arg' entry must be a valid "
@@ -340,26 +342,26 @@ def test_any_space_1(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "integer(kind=i_def), pointer :: map_aspc1_a(:,:) => null()" in code
-    assert "integer(kind=i_def), pointer :: map_aspc2_b(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_as1_a(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_as2_b(:,:) => null()" in code
     assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in code
-    assert "real(kind=r_def), allocatable :: basis_aspc1_a_qr(:,:,:,:)" in code
-    assert "real(kind=r_def), allocatable :: basis_aspc2_b_qr(:,:,:,:)" in code
-    assert ("ALLOCATE(basis_aspc1_a_qr(dim_aspc1_a,ndf_aspc1_a,"
-            "np_xy_qr,np_z_qr))" in code)
-    assert ("ALLOCATE(basis_aspc2_b_qr(dim_aspc2_b,ndf_aspc2_b,"
-            "np_xy_qr,np_z_qr))" in code)
-    assert "map_aspc1_a => a_proxy%vspace%get_whole_dofmap()" in code
-    assert "map_aspc2_b => b_proxy%vspace%get_whole_dofmap()" in code
+    assert "real(kind=r_def), allocatable :: basis_as1_a_qr(:,:,:,:)" in code
+    assert "real(kind=r_def), allocatable :: basis_as2_b_qr(:,:,:,:)" in code
+    assert ("ALLOCATE(basis_as1_a_qr(dim_as1_a,ndf_as1_a,"
+            "np_xy_qr,np_z_qr))" in code), code
+    assert ("ALLOCATE(basis_as2_b_qr(dim_as2_b,ndf_as2_b,"
+            "np_xy_qr,np_z_qr))" in code), code
+    assert "map_as1_a => a_proxy%vspace%get_whole_dofmap()" in code, code
+    assert "map_as2_b => b_proxy%vspace%get_whole_dofmap()" in code, code
     assert ("call testkern_any_space_1_code(nlayers_a, a_data, rdt, "
             "b_data, c_1_data, c_2_data, c_3_data, "
-            "ndf_aspc1_a, undf_aspc1_a, map_aspc1_a(:,cell), "
-            "basis_aspc1_a_qr, ndf_aspc2_b, undf_aspc2_b, "
-            "map_aspc2_b(:,cell), basis_aspc2_b_qr, ndf_w0, undf_w0, "
+            "ndf_as1_a, undf_as1_a, map_as1_a(:,cell), "
+            "basis_as1_a_qr, ndf_as2_b, undf_as2_b, "
+            "map_as2_b(:,cell), basis_as2_b_qr, ndf_w0, undf_w0, "
             "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
-            "weights_xy_qr, weights_z_qr)" in code)
-    assert ("DEALLOCATE(basis_aspc1_a_qr, basis_aspc2_b_qr, diff_basis_w0_qr)"
-            in code)
+            "weights_xy_qr, weights_z_qr)" in code), code
+    assert ("DEALLOCATE(basis_as1_a_qr, basis_as2_b_qr, diff_basis_w0_qr)"
+            in code), code
 
 
 def test_any_space_2(tmpdir):
@@ -376,17 +378,17 @@ def test_any_space_2(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "integer(kind=i_def), intent(in) :: istp" in generated_code
-    assert ("integer(kind=i_def), pointer :: map_aspc1_a(:,:) => null()"
+    assert ("integer(kind=i_def), pointer :: map_as1_a(:,:) => null()"
             in generated_code)
-    assert "integer(kind=i_def) :: ndf_aspc1_a" in generated_code
-    assert "integer(kind=i_def) :: undf_aspc1_a" in generated_code
-    assert "ndf_aspc1_a = a_proxy%vspace%get_ndf()" in generated_code
-    assert "undf_aspc1_a = a_proxy%vspace%get_undf()" in generated_code
-    assert ("map_aspc1_a => a_proxy%vspace%get_whole_dofmap()"
+    assert "integer(kind=i_def) :: ndf_as1_a" in generated_code
+    assert "integer(kind=i_def) :: undf_as1_a" in generated_code
+    assert "ndf_as1_a = a_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_as1_a = a_proxy%vspace%get_undf()" in generated_code
+    assert ("map_as1_a => a_proxy%vspace%get_whole_dofmap()"
             in generated_code)
     assert ("call testkern_any_space_2_code(cell, nlayers_a, a_data, "
             "b_data, c_proxy%ncell_3d, c_local_stencil, istp, "
-            "ndf_aspc1_a, undf_aspc1_a, map_aspc1_a(:,cell))"
+            "ndf_as1_a, undf_as1_a, map_as1_a(:,cell))"
             in generated_code)
 
 
@@ -402,8 +404,8 @@ def test_op_any_space_different_space_1(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "ndf_aspc2_a = a_proxy%fs_from%get_ndf()" in generated_code
-    assert "ndf_aspc1_a = a_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_as2_a = a_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_as1_a = a_proxy%fs_to%get_ndf()" in generated_code
 
 
 def test_op_any_space_different_space_2(tmpdir):
@@ -418,22 +420,26 @@ def test_op_any_space_different_space_2(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "ndf_aspc1_b = b_proxy%fs_to%get_ndf()" in generated_code
-    assert "dim_aspc1_b = b_proxy%fs_to%get_dim_space()" in generated_code
-    assert "ndf_aspc2_b = b_proxy%fs_from%get_ndf()" in generated_code
-    assert "ndf_aspc3_c = c_proxy%fs_to%get_ndf()" in generated_code
-    assert "ndf_aspc4_d = d_proxy%fs_from%get_ndf()" in generated_code
-    assert "undf_aspc4_d = d_proxy%fs_from%get_undf()" in generated_code
-    assert "dim_aspc4_d = d_proxy%fs_from%get_dim_space()" in generated_code
-    assert "ndf_aspc5_a = a_proxy%vspace%get_ndf()" in generated_code
-    assert "undf_aspc5_a = a_proxy%vspace%get_undf()" in generated_code
+    assert "ndf_as1_b = b_proxy%fs_to%get_ndf()" in generated_code
+    assert "dim_as1_b = b_proxy%fs_to%get_dim_space()" in generated_code
+    assert "ndf_as2_b = b_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_as3_c = c_proxy%fs_to%get_ndf()" in generated_code
+    assert ("ndf_a4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
+            "proxy%fs_from%get_ndf()" in generated_code)
+    assert ("undf_a4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
+            "proxy%fs_from%get_undf()" in generated_code)
+    assert ("dim_a4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
+            "proxy%fs_from%get_dim_space()" in generated_code)
+    assert "ndf_as5_a = a_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_as5_a = a_proxy%vspace%get_undf()" in generated_code
     assert "call qr%compute_function(BASIS, b_proxy%fs_to, " in generated_code
-    assert ("call qr%compute_function(BASIS, d_proxy%fs_from, " in
-            generated_code)
-    assert ("call qr%compute_function(DIFF_BASIS, d_proxy%fs_from, " in
-            generated_code)
-    assert "map_aspc5_a => a_proxy%vspace%get_whole_dofmap()" in generated_code
-    assert "map_aspc4_d => f_proxy%vspace%get_whole_dofmap()" in generated_code
+    assert ("call qr%compute_function(BASIS, an_operator_with_a_very_long_"
+            "name_proxy%fs_from, " in generated_code)
+    assert ("call qr%compute_function(DIFF_BASIS, an_operator_with_a_very_"
+            "long_name_proxy%fs_from, " in generated_code)
+    assert "map_as5_a => a_proxy%vspace%get_whole_dofmap()" in generated_code
+    assert ("map_a4_an_or_wh_a_vy_lg_ne => a_field_with_a_very_long_name_"
+            "proxy%vspace%get_whole_dofmap()" in generated_code)
 
 
 def test_op_any_discontinuous_space_1(tmpdir):
@@ -452,23 +458,23 @@ def test_op_any_discontinuous_space_1(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "real(kind=r_def), intent(in) :: rdt" in generated_code
-    assert ("integer(kind=i_def), pointer :: map_adspc1_f1(:,:) => null()"
+    assert ("integer(kind=i_def), pointer :: map_ads1_f1(:,:) => null()"
             in generated_code)
-    assert "integer(kind=i_def) :: ndf_adspc1_f1" in generated_code
-    assert "integer(kind=i_def) :: undf_adspc1_f1" in generated_code
-    assert "ndf_adspc1_f1 = f1_proxy(1)%vspace%get_ndf()" in generated_code
-    assert "undf_adspc1_f1 = f1_proxy(1)%vspace%get_undf()" in generated_code
-    assert ("map_adspc1_f1 => f1_proxy(1)%vspace%get_whole_dofmap()"
+    assert "integer(kind=i_def) :: ndf_ads1_f1" in generated_code
+    assert "integer(kind=i_def) :: undf_ads1_f1" in generated_code
+    assert "ndf_ads1_f1 = f1_proxy(1)%vspace%get_ndf()" in generated_code
+    assert "undf_ads1_f1 = f1_proxy(1)%vspace%get_undf()" in generated_code
+    assert ("map_ads1_f1 => f1_proxy(1)%vspace%get_whole_dofmap()"
             in generated_code)
-    assert "ndf_adspc3_op4 = op4_proxy%fs_to%get_ndf()" in generated_code
-    assert "ndf_adspc7_op4 = op4_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_ads3_op4 = op4_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_ads7_op4 = op4_proxy%fs_from%get_ndf()" in generated_code
     assert ("call testkern_any_discontinuous_space_op_1_code(cell, "
             "nlayers_f1, f1_1_data, f1_2_data, f1_3_data, "
             "f2_data, op3_proxy%ncell_3d, op3_local_stencil, "
             "op4_proxy%ncell_3d, op4_local_stencil, rdt, "
-            "ndf_adspc1_f1, undf_adspc1_f1, map_adspc1_f1(:,cell), "
-            "ndf_adspc2_f2, undf_adspc2_f2, map_adspc2_f2(:,cell), "
-            "ndf_adspc3_op4, ndf_adspc7_op4)" in generated_code)
+            "ndf_ads1_f1, undf_ads1_f1, map_ads1_f1(:,cell), "
+            "ndf_ads2_f2, undf_ads2_f2, map_ads2_f2(:,cell), "
+            "ndf_ads3_op4, ndf_ads7_op4)" in generated_code)
 
 
 def test_op_any_discontinuous_space_2(tmpdir):
@@ -485,23 +491,23 @@ def test_op_any_discontinuous_space_2(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "ndf_adspc4_f1 = f1_proxy%vspace%get_ndf()" in generated_code
-    assert "undf_adspc4_f1 = f1_proxy%vspace%get_undf()" in generated_code
-    assert ("map_adspc4_f1 => f1_proxy%vspace%get_whole_dofmap()"
+    assert "ndf_ads4_f1 = f1_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_ads4_f1 = f1_proxy%vspace%get_undf()" in generated_code
+    assert ("map_ads4_f1 => f1_proxy%vspace%get_whole_dofmap()"
             in generated_code)
-    assert "ndf_adspc1_op1 = op1_proxy%fs_to%get_ndf()" in generated_code
-    assert "ndf_adspc2_op1 = op1_proxy%fs_from%get_ndf()" in generated_code
-    assert "dim_adspc4_f1 = f1_proxy%vspace%get_dim_space()" in generated_code
-    assert ("diff_dim_adspc4_f1 = f1_proxy%vspace%get_dim_space_diff()"
+    assert "ndf_ads1_op1 = op1_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_ads2_op1 = op1_proxy%fs_from%get_ndf()" in generated_code
+    assert "dim_ads4_f1 = f1_proxy%vspace%get_dim_space()" in generated_code
+    assert ("diff_dim_ads4_f1 = f1_proxy%vspace%get_dim_space_diff()"
             in generated_code)
-    assert ("ALLOCATE(basis_adspc1_op1_qr(dim_adspc1_op1,ndf_adspc1_op1"
+    assert ("ALLOCATE(basis_ads1_op1_qr(dim_ads1_op1,ndf_ads1_op1"
             in generated_code)
-    assert ("ALLOCATE(diff_basis_adspc4_f1_qr(diff_dim_adspc4_f1,"
-            "ndf_adspc4_f1" in generated_code)
-    assert ("call qr%compute_function(BASIS, op1_proxy%fs_to, dim_adspc1_op1, "
-            "ndf_adspc1_op1, basis_adspc1_op1_qr)" in generated_code)
+    assert ("ALLOCATE(diff_basis_ads4_f1_qr(diff_dim_ads4_f1,"
+            "ndf_ads4_f1" in generated_code)
+    assert ("call qr%compute_function(BASIS, op1_proxy%fs_to, dim_ads1_op1, "
+            "ndf_ads1_op1, basis_ads1_op1_qr)" in generated_code)
     assert ("call qr%compute_function(DIFF_BASIS, f1_proxy%vspace, "
-            "diff_dim_adspc4_f1, ndf_adspc4_f1, diff_basis_adspc4_f1_qr)"
+            "diff_dim_ads4_f1, ndf_ads4_f1, diff_basis_ads4_f1_qr)"
             in generated_code)
 
 
@@ -824,8 +830,8 @@ def test_field_bc_kernel(tmpdir):
     assert ("integer(kind=i_def), pointer :: boundary_dofs_a(:,:) => "
             "null()" in code)
     assert "boundary_dofs_a => a_proxy%vspace%get_boundary_dofs()" in code
-    assert ("call enforce_bc_code(nlayers_a, a_data, ndf_aspc1_a, "
-            "undf_aspc1_a, map_aspc1_a(:,cell), boundary_dofs_a)"
+    assert ("call enforce_bc_code(nlayers_a, a_data, ndf_as1_a, "
+            "undf_as1_a, map_as1_a(:,cell), boundary_dofs_a)"
             in code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -979,19 +985,19 @@ def test_2kern_invoke_any_space(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "integer(kind=i_def), pointer :: map_aspc1_f1(:,:) => null()" in gen
-    assert "integer(kind=i_def), pointer :: map_aspc1_f2(:,:) => null()" in gen
-    assert "map_aspc1_f1 => f1_proxy%vspace%get_whole_dofmap()\n" in gen
-    assert "map_aspc1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
+    assert "integer(kind=i_def), pointer :: map_as1_f1(:,:) => null()" in gen
+    assert "integer(kind=i_def), pointer :: map_as1_f2(:,:) => null()" in gen
+    assert "map_as1_f1 => f1_proxy%vspace%get_whole_dofmap()\n" in gen
+    assert "map_as1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
     assert (
         "      call testkern_any_space_2_code(cell, nlayers_f1, f1_data,"
         " f2_data, op_proxy%ncell_3d, op_local_stencil, scalar, "
-        "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1(:,cell))\n" in gen)
-    assert "map_aspc1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
+        "ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell))\n" in gen)
+    assert "map_as1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
     assert (
         "      call testkern_any_space_2_code(cell, nlayers_f2, f2_data,"
         " f1_data, op_proxy%ncell_3d, op_local_stencil, scalar, "
-        "ndf_aspc1_f2, undf_aspc1_f2, map_aspc1_f2(:,cell))\n" in gen)
+        "ndf_as1_f2, undf_as1_f2, map_as1_f2(:,cell))\n" in gen)
 
 
 def test_multikern_invoke_any_space(tmpdir):
@@ -1007,38 +1013,38 @@ def test_multikern_invoke_any_space(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "integer(kind=i_def), pointer :: map_aspc1_f1(:,:) => null()" in gen
-    assert "integer(kind=i_def), pointer :: map_aspc1_f2(:,:) => null()" in gen
-    assert "integer(kind=i_def), pointer :: map_aspc2_f1(:,:) => null()" in gen
+    assert "integer(kind=i_def), pointer :: map_as1_f1(:,:) => null()" in gen
+    assert "integer(kind=i_def), pointer :: map_as1_f2(:,:) => null()" in gen
+    assert "integer(kind=i_def), pointer :: map_as2_f1(:,:) => null()" in gen
     assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_aspc1_f1_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable :: basis_as1_f1_qr(:,:,:,:)") in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_aspc1_f2_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable :: basis_as1_f2_qr(:,:,:,:)") in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_aspc2_f1_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable :: basis_as2_f1_qr(:,:,:,:)") in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_aspc2_f2_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable :: basis_as2_f2_qr(:,:,:,:)") in gen
     assert (
         "real(kind=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:)") in gen
-    assert "ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()" in gen
-    assert "ndf_aspc2_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_as1_f1 = f1_proxy%vspace%get_ndf()" in gen
+    assert "ndf_as2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
-    assert "ndf_aspc1_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_as1_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert ("call qr%compute_function(BASIS, f2_proxy%vspace, "
-            "dim_aspc1_f2, ndf_aspc1_f2, basis_aspc1_f2_qr)" in gen)
+            "dim_as1_f2, ndf_as1_f2, basis_as1_f2_qr)" in gen)
     assert (
-        "    map_aspc1_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
-        "    map_aspc2_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
+        "    map_as1_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "    map_as2_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "    map_w0 => f3_proxy(1)%vspace%get_whole_dofmap()\n"
-        "    map_aspc1_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
-        "    map_aspc2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "    map_as1_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
+        "    map_as2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
         in gen)
     assert ("call testkern_any_space_1_code(nlayers_f1, f1_data, rdt, "
             "f2_data, f3_1_data, f3_2_data, "
-            "f3_3_data, ndf_aspc1_f1, undf_aspc1_f1, "
-            "map_aspc1_f1(:,cell), basis_aspc1_f1_qr, ndf_aspc2_f2, "
-            "undf_aspc2_f2, map_aspc2_f2(:,cell), basis_aspc2_f2_qr, ndf_w0, "
+            "f3_3_data, ndf_as1_f1, undf_as1_f1, "
+            "map_as1_f1(:,cell), basis_as1_f1_qr, ndf_as2_f2, "
+            "undf_as2_f2, map_as2_f2(:,cell), basis_as2_f2_qr, ndf_w0, "
             "undf_w0, map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr" in gen)
 
@@ -1056,37 +1062,37 @@ def test_mkern_invoke_multiple_any_spaces(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()" in gen
+    assert "ndf_as1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert ("call qr%compute_function(BASIS, f1_proxy%vspace, "
-            "dim_aspc1_f1, ndf_aspc1_f1, basis_aspc1_f1_qr)" in gen)
-    assert "ndf_aspc2_f2 = f2_proxy%vspace%get_ndf()" in gen
+            "dim_as1_f1, ndf_as1_f1, basis_as1_f1_qr)" in gen)
+    assert "ndf_as2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert ("call qr%compute_function(BASIS, f2_proxy%vspace, "
-            "dim_aspc2_f2, ndf_aspc2_f2, basis_aspc2_f2_qr)" in gen)
-    assert "ndf_aspc1_f2 = f2_proxy%vspace%get_ndf()" in gen
-    assert "ndf_aspc1_op = op_proxy%fs_to%get_ndf()" in gen
-    assert "ndf_aspc5_f2 = f2_proxy%vspace%get_ndf()" in gen
-    assert "ndf_aspc1_op2 = op2_proxy%fs_to%get_ndf()" in gen
-    assert "ndf_aspc3_op3 = op3_proxy%fs_to%get_ndf()" in gen
-    assert gen.count("ndf_aspc4_op4 = op4_proxy%fs_from%get_ndf()") == 1
-    assert "ndf_aspc3_op5" not in gen
-    assert "ndf_aspc4_f1" not in gen
+            "dim_as2_f2, ndf_as2_f2, basis_as2_f2_qr)" in gen)
+    assert "ndf_as1_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_as1_op = op_proxy%fs_to%get_ndf()" in gen
+    assert "ndf_as5_f2 = f2_proxy%vspace%get_ndf()" in gen
+    assert "ndf_as1_op2 = op2_proxy%fs_to%get_ndf()" in gen
+    assert "ndf_as3_op3 = op3_proxy%fs_to%get_ndf()" in gen
+    assert gen.count("ndf_as4_op4 = op4_proxy%fs_from%get_ndf()") == 1
+    assert "ndf_as3_op5" not in gen
+    assert "ndf_as4_f1" not in gen
     # testkern_any_space_1_type requires GH_BASIS on ANY_SPACE_1 and 2 and
     # DIFF_BASIS on w0
     # f1 is on ANY_SPACE_1 and f2 is on ANY_SPACE_2. f3 is on W0.
     assert ("call qr%compute_function(BASIS, f1_proxy%vspace, "
-            "dim_aspc1_f1, ndf_aspc1_f1, basis_aspc1_f1_qr)" in gen)
+            "dim_as1_f1, ndf_as1_f1, basis_as1_f1_qr)" in gen)
     assert ("call qr%compute_function(BASIS, f2_proxy%vspace, "
-            "dim_aspc2_f2, ndf_aspc2_f2, basis_aspc2_f2_qr)" in gen)
+            "dim_as2_f2, ndf_as2_f2, basis_as2_f2_qr)" in gen)
     # testkern_any_space_4_type needs GH_BASIS on ANY_SPACE_1 which is the
     # to-space of op2
     assert ("call qr%compute_function(BASIS, op2_proxy%fs_to, "
-            "dim_aspc1_op2, ndf_aspc1_op2, basis_aspc1_op2_qr)" in gen)
+            "dim_as1_op2, ndf_as1_op2, basis_as1_op2_qr)" in gen)
     # Need GH_BASIS and DIFF_BASIS on ANY_SPACE_4 which is to/from-space
     # of op4
     assert ("call qr%compute_function(BASIS, op4_proxy%fs_from, "
-            "dim_aspc4_op4, ndf_aspc4_op4, basis_aspc4_op4_qr)" in gen)
+            "dim_as4_op4, ndf_as4_op4, basis_as4_op4_qr)" in gen)
     assert ("call qr%compute_function(DIFF_BASIS, op4_proxy%fs_from, "
-            "diff_dim_aspc4_op4, ndf_aspc4_op4, diff_basis_aspc4_op4_qr)"
+            "diff_dim_as4_op4, ndf_as4_op4, diff_basis_as4_op4_qr)"
             in gen)
 
 
@@ -1697,6 +1703,30 @@ def test_lfrickernelargument_idtp_scalar():
             "not." in str(info.value))
 
 
+def test_lfrickernelargument_idtp_scalar_array():
+    '''Test the _init_data_type_properties method in the LFRicKernelArgument
+    class for a ScalarArray.
+
+    '''
+    # Use one of the examples to create an instance of
+    # LFRicKernelArgument that describes a ScalarArray.
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "28.scalar_array_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    scalar_argument = psy.invokes.invoke_list[0].schedule.args[1]
+    assert not scalar_argument.is_scalar
+    assert scalar_argument.is_scalar_array
+
+    scalar_argument = psy.invokes.invoke_list[0].schedule.args[2]
+    assert not scalar_argument.is_scalar
+    assert scalar_argument.is_scalar_array
+
+    scalar_argument = psy.invokes.invoke_list[0].schedule.args[3]
+    assert not scalar_argument.is_scalar
+    assert scalar_argument.is_scalar_array
+
+
 def test_lfrickernelargument_idtp_reduction():
     '''Test the _init_data_type_properties method in the LFRicKernelArgument
     class for a scalar reduction.
@@ -2132,11 +2162,12 @@ def test_no_arg_on_space(monkeypatch):
     # Copy of the function space object so that we get a new one whose state
     # we can monkeypatch
     fspace = copy.copy(arg.function_space)
-    monkeypatch.setattr(fspace, "_mangled_name", "not_a_space_name")
+    monkeypatch.setattr(fspace, "_orig_name", "not_a_space_name")
     with pytest.raises(FieldNotFoundError) as excinfo:
         _ = kernel_args.get_arg_on_space(fspace)
-    assert ("there is no field or operator with function space w2 (mangled "
-            "name = 'not_a_space_name')" in str(excinfo.value))
+    assert ("there is no field or operator with function space "
+            "not_a_space_name (mangled name = 'not_a_space_name')"
+            in str(excinfo.value))
 
 
 def test_arg_descriptor_func_method_error():
@@ -2249,8 +2280,8 @@ def test_mangle_function_space():
     fs_name = "any_space_2"
     mangled_name = FunctionSpace(fs_name, first_kernel.arguments).mangled_name
     short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
-    assert mangled_name == "aspc2_f2"
-    assert short_name == "aspc2"
+    assert mangled_name == "as2_f2"
+    assert short_name == "as2"
     # Test any_discontinuous_space
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "11.4_any_discontinuous_space.f90"),
@@ -2261,14 +2292,13 @@ def test_mangle_function_space():
     fs_name = "any_discontinuous_space_1"
     mangled_name = FunctionSpace(fs_name, first_kernel.arguments).mangled_name
     short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
-    assert mangled_name == "adspc1_f1"
-    assert short_name == "adspc1"
+    assert mangled_name == "ads1_f1"
+    assert short_name == "ads1"
 
 
 def test_no_mangle_specified_function_space():
     ''' Test that we do not name-mangle a function space that is not
-    any_space or any_discontinuous_space. Also test that an attempt to
-    create a short name for such a space will fail.
+    any_space or any_discontinuous_space.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2282,22 +2312,22 @@ def test_no_mangle_specified_function_space():
     short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
     assert mangled_name == fs_name
     assert short_name == fs_name
-    # Try to call the internal _mangle_fs_name function with a FS name other
-    # than any_*_space name (not allowed)
-    with pytest.raises(InternalError) as excinfo:
-        _ = FunctionSpace(fs_name, first_kernel.arguments)._mangle_fs_name()
-    const = LFRicConstants()
-    assert (f"_mangle_fs_name: function space '{fs_name}' is not one of "
-            f"{const.VALID_ANY_SPACE_NAMES} or "
-            f"{const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES} spaces."
-            in str(excinfo.value))
-    # Try to create a short name for this function space (not allowed)
-    with pytest.raises(InternalError) as excinfo:
-        _ = FunctionSpace(fs_name, first_kernel.arguments)._shorten_fs_name()
-    assert (f"_shorten_fs_name: function space '{fs_name}' is not one of "
-            f"{const.VALID_ANY_SPACE_NAMES} or "
-            f"{const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES} spaces."
-            in str(excinfo.value))
+
+
+@pytest.mark.parametrize(
+    "name, shortened",
+    [("something_nasty_in_the_woodshead", "sg_ny_in_te_wd"),
+     ("something_o_nasty_i_t_woodshead_tonight", "sg_o_ny_i_t_wd_tt"),
+     ("short", "short"),
+     ("diff_basis_as1_blah", "diff_basis_as1_blah"),
+     ("basis_as2_se_se_ae_on_as1_se_ae_w0_k0",
+      "bs_a2_se_se_ae_on_a1_se_ae_w0_k0")])
+def test_function_space_shorten_name(name, shortened):
+    '''
+    Test the _shorten_name() method of FunctionSpace.
+    '''
+    fs = FunctionSpace
+    assert fs._shorten_name(name) == shortened
 
 
 def test_fsdescriptors_get_descriptor():
@@ -2785,14 +2815,14 @@ def test_operator_gh_sum_invalid():
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
-        "arg_type(gh_operator, gh_real,    gh_sum,  w2, w2)", 1)
+        "arg_type(gh_operator, gh_real,    gh_reduction, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert ("allowed accesses for operators are ['gh_read', 'gh_write', "
             "'gh_readwrite'] because they behave as discontinuous "
-            "quantities, but found 'gh_sum'" in str(excinfo.value))
+            "quantities, but found 'gh_reduction'" in str(excinfo.value))
 
 
 def test_derived_type_arg(dist_mem, tmpdir):
@@ -3420,7 +3450,7 @@ def test_HaloReadAccess_field_not_reader():
 def test_HaloRead_inv_loop_upper(monkeypatch):
     # pylint: disable=invalid-name
     '''The upper bound of a loop in the compute_halo_read_info method within
-    the HaloReadAccesss class should be recognised by the logic. If not an
+    the HaloReadAccess class should be recognised by the logic. If not an
     exception is raised and this test checks that this exception is
     raised correctly
     '''
@@ -3874,408 +3904,6 @@ def test_lfricaccenterdatadirective_dataondevice():
     assert directive.data_on_device(None) is None
 
 # Class LFRicKernelArguments end
-
-
-def test_lfricinvoke_runtime(tmpdir, monkeypatch):
-    '''Test that run-time checks are added to the PSy-layer via LFRicInvoke
-    in the expected way (correct location and correct code).
-
-    '''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    generated_code = str(psy.gen)
-    assert "use testkern_mod, only : testkern_code" in generated_code
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use fs_continuity_mod" in generated_code
-    assert "use mesh_mod, only : mesh_type" in generated_code
-    expected = (
-        "    m2_proxy = m2%get_proxy()\n"
-        "    m2_data => m2_proxy%data\n"
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check field function space and kernel metadata function spac"
-        "es are compatible\n"
-        "    if (f1%which_function_space() /= W1) then\n"
-        "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', the field 'f1' is passed to kernel 'testkern_code' but "
-        "its function space is not compatible with the function space specifi"
-        "ed in the kernel metadata 'w1'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f2%which_function_space() /= W2) then\n"
-        "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', the field 'f2' is passed to kernel 'testkern_code' but "
-        "its function space is not compatible with the function space specifi"
-        "ed in the kernel metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (m1%which_function_space() /= W2) then\n"
-        "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', the field 'm1' is passed to kernel 'testkern_code' but "
-        "its function space is not compatible with the function space specifi"
-        "ed in the kernel metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (m2%which_function_space() /= W3) then\n"
-        "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', the field 'm2' is passed to kernel 'testkern_code' but "
-        "its function space is not compatible with the function space specifi"
-        "ed in the kernel metadata 'w3'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (f1_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', field 'f1' is on a read-only function space but is modi"
-        "fied by kernel 'testkern_code'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Initialise number of layers\n")
-    assert expected in generated_code
-
-
-def test_lfricruntimechecks_anyspace(tmpdir, monkeypatch):
-    '''Test that run-time checks are not added for fields where the kernel
-    metadata specifies anyspace.
-
-    '''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    generated_code = str(psy.gen)
-    assert "use function_space_mod, only : BASIS, DIFF_BASIS" in generated_code
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use fs_continuity_mod, only : W0\n" in generated_code
-    assert "use mesh_mod, only : mesh_type" in generated_code
-    expected2 = (
-        "    c_proxy(3) = c(3)%get_proxy()\n"
-        "    c_3_data => c_proxy(3)%data\n"
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check field function space and kernel metadata function spac"
-        "es are compatible\n"
-        "    if (c(1)%which_function_space() /= W0) then\n"
-        "      call log_event(\"In alg 'any_space_example' invoke 'invoke_0"
-        "_testkern_any_space_1_type', the field 'c' is passed to kernel 'test"
-        "kern_any_space_1_code' but its function space is not compatible with"
-        " the function space specified in the kernel metadata 'w0'.\", LOG_LE"
-        "VEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (a_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'any_space_example' invoke 'invoke_0"
-        "_testkern_any_space_1_type', field 'a' is on a read-only function sp"
-        "ace but is modified by kernel 'testkern_any_space_1_code'.\", LOG_LE"
-        "VEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Initialise number of layers\n")
-    assert expected2 in generated_code
-
-
-def test_lfricruntimechecks_vector(tmpdir, monkeypatch):
-    ''' Test that run-time checks work for vector fields. '''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    generated_code = str(psy.gen)
-    assert ("use testkern_coord_w0_2_mod, only : testkern_coord_w0_2_code"
-            in generated_code)
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use fs_continuity_mod, only : W0\n" in generated_code
-    assert "use mesh_mod, only : mesh_type" in generated_code
-    expected2 = (
-        "    f1_proxy = f1%get_proxy()\n"
-        "    f1_data => f1_proxy%data\n"
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check field function space and kernel metadata function spac"
-        "es are compatible\n"
-        "    if (chi(1)%which_function_space() /= W0) then\n"
-        "      call log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
-        "kern_coord_w0_2_type', the field 'chi' is passed to kernel 'testkern"
-        "_coord_w0_2_code' but its function space is not compatible with the "
-        "function space specified in the kernel metadata 'w0'.\", "
-        "LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f1%which_function_space() /= W0) then\n"
-        "      call log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
-        "kern_coord_w0_2_type', the field 'f1' is passed to kernel 'testkern_"
-        "coord_w0_2_code' but its function space is not compatible with the "
-        "function space specified in the kernel metadata 'w0'.\", "
-        "LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (chi_proxy(1)%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
-        "kern_coord_w0_2_type', field 'chi' is on a read-only function space "
-        "but is modified by kernel 'testkern_coord_w0_2_code'.\", "
-        "LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f1_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
-        "kern_coord_w0_2_type', field 'f1' is on a read-only function space "
-        "but is modified by kernel 'testkern_coord_w0_2_code'.\", "
-        "LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Initialise number of layers\n")
-    assert expected2 in generated_code
-
-
-def test_lfricruntimechecks_multikern(tmpdir, monkeypatch):
-    ''' Test that run-time checks work when there are multiple kernels and
-    at least one field is specified as being on a given function space
-    more than once. In this case we want to avoid checking the same
-    thing twice.
-
-    '''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    generated_code = str(psy.gen)
-    assert "use testkern_mod, only : testkern_code" in generated_code
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use mesh_mod, only : mesh_type" in generated_code
-    assert "use fs_continuity_mod, only" in generated_code
-    expected2 = (
-        "    f3_proxy = f3%get_proxy()\n"
-        "    f3_data => f3_proxy%data\n"
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check field function space and kernel metadata function spac"
-        "es are compatible\n"
-        "    if (f1%which_function_space() /= W1) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'f1' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w1'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f2%which_function_space() /= W2) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'f2' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (m1%which_function_space() /= W2) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'm1' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (m2%which_function_space() /= W3) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'm2' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w3'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f3%which_function_space() /= W2) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'f3' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (m2%which_function_space() /= W2) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'm2' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (m1%which_function_space() /= W3) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'm1' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w3'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (f1_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', fi"
-        "eld 'f1' is on a read-only function space but is modified by kernel "
-        "'testkern_code'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Initialise number of layers\n")
-    assert expected2 in generated_code
-
-
-def test_lfricruntimechecks_builtins(tmpdir, monkeypatch):
-    '''Test that run-time checks work when there are builtins.'''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.1.1_X_plus_Y_builtin.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    generated_code = str(psy.gen)
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use mesh_mod, only : mesh_type" in generated_code
-    assert "type(field_type), intent(in) :: f3" in generated_code
-    expected_code2 = (
-        "    f2_proxy = f2%get_proxy()\n"
-        "    f2_data => f2_proxy%data\n"
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (f3_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0', f"
-        "ield 'f3' is on a read-only function space but is modified by kernel"
-        " 'x_plus_y'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Create a mesh object\n")
-    assert expected_code2 in generated_code
-
-
-def test_lfricruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
-    '''Test that run-time checks work when we have checks for a field
-    function space being consistent with an any_discontinuous_*
-    function space.
-
-    '''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "11.4_any_discontinuous_space.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    generated_code = str(psy.gen)
-    assert ("use testkern_any_discontinuous_space_op_1_mod, only : testkern_"
-            "any_discontinuous_space_op_1_code") in generated_code
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use mesh_mod, only : mesh_type" in generated_code
-    expected2 = (
-        "    op4_proxy = op4%get_proxy()\n"
-        "    op4_local_stencil => op4_proxy%local_stencil\n"
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check field function space and kernel metadata function spac"
-        "es are compatible\n"
-        "    if (f1(1)%which_function_space() /= W3 .AND. f1(1)%which_funct"
-        "ion_space() /= WTHETA .AND. f1(1)%which_function_space() /= W2V .AND"
-        ". f1(1)%which_function_space() /= W2VTRACE .AND. f1(1)%which_funct"
-        "ion_space() /= W2BROKEN) then\n"
-        "      call log_event(\"In alg 'any_discontinuous_space_op_example_"
-        "1' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', the"
-        " field 'f1' is passed to kernel 'testkern_any_discontinuous_space_op"
-        "_1_code' but its function space is not compatible with the function "
-        "space specified in the kernel metadata 'any_discontinuous_space_1'."
-        "\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f2%which_function_space() /= W3 .AND. f2%which_function_sp"
-        "ace() /= WTHETA .AND. f2%which_function_space() /= W2V .AND. f2%whic"
-        "h_function_space() /= W2VTRACE .AND. f2%which_function_space() /= "
-        "W2BROKEN) then\n"
-        "      call log_event(\"In alg 'any_discontinuous_space_op_example_"
-        "1' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', the"
-        " field 'f2' is passed to kernel 'testkern_any_discontinuous_space_op"
-        "_1_code' but its function space is not compatible with the function "
-        "space specified in the kernel metadata 'any_discontinuous_space_2'."
-        "\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (f2_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'any_discontinuous_space_op_example_"
-        "1' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', fie"
-        "ld 'f2' is on a read-only function space but is modified by kernel '"
-        "testkern_any_discontinuous_space_op_1_code'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Initialise number of layers\n")
-    assert expected2 in generated_code
-
-
-def test_lfricruntimechecks_anyw2(tmpdir, monkeypatch):
-    '''Test that run-time checks work when we have checks for a field
-    function space being consistent with an anyw2 function
-    space.
-
-    '''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "21.1_single_invoke_multi_anyw2.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    generated_code = str(psy.gen)
-    assert ("use testkern_multi_anyw2_mod, only : testkern_multi_anyw2_code\n"
-            in generated_code)
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    expected2 = (
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check field function space and kernel metadata function spac"
-        "es are compatible\n"
-        "    if (f1%which_function_space() /= W2 .AND. f1%which_function_sp"
-        "ace() /= W2H .AND. f1%which_function_space() /= W2V .AND. f1%which_f"
-        "unction_space() /= W2BROKEN) then\n"
-        "      call log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
-        "invoke_0_testkern_multi_anyw2_type', the field 'f1' is passed to ker"
-        "nel 'testkern_multi_anyw2_code' but its function space is not compat"
-        "ible with the function space specified in the kernel metadata 'any_w"
-        "2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f2%which_function_space() /= W2 .AND. f2%which_function_sp"
-        "ace() /= W2H .AND. f2%which_function_space() /= W2V .AND. f2%which_f"
-        "unction_space() /= W2BROKEN) then\n"
-        "      call log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
-        "invoke_0_testkern_multi_anyw2_type', the field 'f2' is passed to ker"
-        "nel 'testkern_multi_anyw2_code' but its function space is not compat"
-        "ible with the function space specified in the kernel metadata 'any_w"
-        "2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f3%which_function_space() /= W2 .AND. f3%which_function_sp"
-        "ace() /= W2H .AND. f3%which_function_space() /= W2V .AND. f3%which_f"
-        "unction_space() /= W2BROKEN) then\n"
-        "      call log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
-        "invoke_0_testkern_multi_anyw2_type', the field 'f3' is passed to ker"
-        "nel 'testkern_multi_anyw2_code' but its function space is not compat"
-        "ible with the function space specified in the kernel metadata 'any_w"
-        "2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (f1_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
-        "invoke_0_testkern_multi_anyw2_type', field 'f1' is on a read-only fu"
-        "nction space but is modified by kernel 'testkern_multi_anyw2_code'."
-        "\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Initialise number of layers\n")
-    assert expected2 in generated_code
 
 
 def test_read_only_fields_hex(tmpdir):

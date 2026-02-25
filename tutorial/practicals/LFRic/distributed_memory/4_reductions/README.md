@@ -71,7 +71,7 @@ into a scalar and then that scalar being added to a global_sum
 object. The global_sum object then calls its own `get_sum()` function
 and returns the global sum. The global sum implementation (in MPI) is
 hidden in the `get_sum()` function and is provided by the LFRic
-infrastruture.
+infrastructure.
 
 ## Key points
 

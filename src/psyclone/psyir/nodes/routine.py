@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -327,7 +327,7 @@ class Routine(Schedule, CommentableMixin):
                         f"that already contains a resolved symbol with "
                         f"the same name.")
 
-                # Check that the scope doens't contain a Routine or
+                # Check that the scope doesn't contain a Routine or
                 # CodeBlock representing a Routine with this name.
                 routines = new_parent.walk(Routine)
                 for routine in routines:

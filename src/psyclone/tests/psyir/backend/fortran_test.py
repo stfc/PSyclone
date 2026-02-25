@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1599,7 +1599,7 @@ def test_fw_return(fortran_reader, fortran_writer, tmpdir):
         "subroutine tmp(a)\n"
         "  integer, intent(inout) :: a\n"
         "  return\n"
-        "  a = 3\n"  # Stmt after return to avoid droping it
+        "  a = 3\n"  # Stmt after return to avoid dropping it
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)

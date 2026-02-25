@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,11 +61,11 @@ from psyclone.psyir.symbols import (AutomaticInterface, ScalarType, ArrayType,
                                     REAL_TYPE, INTEGER_TYPE)
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, LoopFuseTrans, LoopTrans, OMPLoopTrans,
-    TransformationError)
+    TransformationError, OMPParallelTrans)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (
-    OMPParallelTrans, LFRicColourTrans, LFRicOMPLoopTrans,
+    LFRicColourTrans, LFRicOMPLoopTrans,
     LFRicOMPParallelLoopTrans, MoveTrans, LFRicRedundantComputationTrans,
     LFRicAsyncHaloExchangeTrans, LFRicKernelConstTrans,
     ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
@@ -319,9 +319,9 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, "
         "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-        "ndf_aspc1_afield, undf_aspc1_afield, "
-        "map_aspc1_afield(:,cmap(colour,cell)), cbanded_map_aspc1_afield, "
-        "ndf_aspc2_lma_op1, cbanded_map_aspc2_lma_op1)\n"
+        "ndf_as1_afield, undf_as1_afield, "
+        "map_as1_afield(:,cmap(colour,cell)), cbanded_map_as1_afield, "
+        "ndf_as2_lma_op1, cbanded_map_as2_lma_op1)\n"
         "      enddo\n"
         "    enddo\n") in gen
 
@@ -1241,7 +1241,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
 
 def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that we can fuse colour loops , enclose them in an OpenMP
-    parallel region and preceed each by an OpenMP DO for both
+    parallel region and precede each by an OpenMP DO for both
     sequential and distributed-memory code. We also test when annexed
     is False and True as it affects how many halo exchanges are
     generated.
@@ -1361,9 +1361,9 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
 
     assert (
         "    ! Look-up required column-banded dofmaps\n"
-        "    cbanded_map_aspc1_afield => "
+        "    cbanded_map_as1_afield => "
         "cma_op1_proxy%column_banded_dofmap_to\n"
-        "    cbanded_map_aspc2_lma_op1 => "
+        "    cbanded_map_as2_lma_op1 => "
         "cma_op1_proxy%column_banded_dofmap_from\n") in code
     assert (
         "    ! Look-up information for each CMA operator\n"
@@ -1381,10 +1381,9 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_aspc1_afield, "
-        "undf_aspc1_afield, map_aspc1_afield(:,cell), "
-        "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
-        "cbanded_map_aspc2_lma_op1)\n"
+        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_as1_afield, "
+        "undf_as1_afield, map_as1_afield(:,cell), "
+        "cbanded_map_as1_afield, ndf_as2_lma_op1, cbanded_map_as2_lma_op1)\n"
         "      call testkern_two_real_scalars_code(nlayers_afield, scalar1, "
         "afield_data, bfield_data, cfield_data, "
         "dfield_data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
@@ -1460,7 +1459,7 @@ def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "    call f2_proxy%set_dirty()")
         assert code in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f2" in result
+        assert "loop0_stop = undf_as1_f2" in result
         assert (
             "    !$omp parallel do default(shared) private(df) "
             "schedule(static)\n"
@@ -1538,7 +1537,7 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
         assert code in result
     else:  # not distmem. annexed can be True or False
         for idx in range(1, 4):
-            assert f"loop{idx-1}_stop = undf_aspc1_f{idx}" in result
+            assert f"loop{idx-1}_stop = undf_as1_f{idx}" in result
         assert (
             "    !$omp parallel do default(shared) private(df) "
             "schedule(static)\n"
@@ -1621,7 +1620,7 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "    call f3_proxy%set_dirty()")
         assert code in result
     else:  # distmem is False. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
         assert (
             "    !$omp parallel do default(shared) private(df) "
             "schedule(static)\n"
@@ -1689,7 +1688,7 @@ def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "above loop(s)\n"
             "    call f2_proxy%set_dirty()\n") in result
     else:  # distmem is False. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f2" in result
+        assert "loop0_stop = undf_as1_f2" in result
         assert (
             "    !$omp parallel default(shared) private(df)\n"
             "    !$omp do schedule(static)\n"
@@ -1775,9 +1774,9 @@ def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
         )
         assert code in result
     else:  # distmem is False. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f2" in result
-        assert "loop2_stop = undf_aspc1_f3" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f2" in result
+        assert "loop2_stop = undf_as1_f3" in result
         assert (
             "    !$omp parallel default(shared) private(df)\n"
             "    !$omp do schedule(static)\n"
@@ -1865,7 +1864,7 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
             "    call f3_proxy%set_dirty()\n")
         assert code in result
     else:  # distmem is False. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
         assert (
             "    !$omp parallel default(shared) private(df)\n"
             "    !$omp do schedule(static)\n"
@@ -1904,8 +1903,8 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
     if dist_mem:
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert (
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -1917,10 +1916,10 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
             "    asum = global_sum%get_sum()\n") in code
 
     else:
-        assert "loop0_stop = undf_aspc1_f1" in code
+        assert "loop0_stop = undf_as1_f1" in code
         assert (
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -1950,7 +1949,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n" in code
         assert (
             "    !$omp parallel default(shared) private(df)\n"
-            "    !$omp do schedule(static) reduction(+:asum)\n"
+            "    !$omp do schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -1962,10 +1961,10 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_aspc1_f1\n" in code
+        assert "loop0_stop = undf_as1_f1\n" in code
         assert (
             "    !$omp parallel default(shared) private(df)\n"
-            "    !$omp do schedule(static) reduction(+:asum)\n"
+            "    !$omp do schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -1995,12 +1994,12 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n" in code
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()\n" in code
         assert (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2011,10 +2010,10 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n"
             "\n"
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2025,24 +2024,24 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_aspc1_f1\n" in code
-        assert "loop1_stop = undf_aspc1_f1\n" in code
+        assert "loop0_stop = undf_as1_f1\n" in code
+        assert "loop1_stop = undf_as1_f1\n" in code
         assert (
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
             "\n"
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2088,7 +2087,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
         expected_output = (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
@@ -2099,7 +2098,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      f1_data(df) = bvalue * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
-            "    !$omp do schedule(static) reduction(+:asum)\n"
+            "    !$omp do schedule(static) reduction(+: asum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
             "      asum = asum + f1_data(df)\n"
@@ -2116,10 +2115,10 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "    asum = global_sum%get_sum()")
         assert expected_output in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         expected_output = (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
@@ -2130,7 +2129,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      f1_data(df) = bvalue * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
-            "    !$omp do schedule(static) reduction(+:asum)\n"
+            "    !$omp do schedule(static) reduction(+: asum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
             "      asum = asum + f1_data(df)\n"
@@ -2175,10 +2174,11 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
                     in result)
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         expected_output = (
-            "    ! Zero summation variables\n"
+            "    ALLOCATE(local_asum(8,nthreads))\n"
+            "\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
-            "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0_r_def\n"
+            "    local_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -2192,33 +2192,33 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "    !$omp do schedule(static)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
-            "      l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)\n"
+            "      local_asum(1,th_idx) = local_asum(1,th_idx) + f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
             "\n"
+            "    ! sum the partial results sequentially\n"
+            "    do th_idx = 1, nthreads, 1\n"
+            "      asum = asum + local_asum(1,th_idx)\n"
+            "    enddo\n"
+            "    DEALLOCATE(local_asum)\n"
+            "\n"
             "    ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
-            "\n"
-            "    ! sum the partial results sequentially\n"
-            "    do th_idx = 1, nthreads, 1\n"
-            "      asum = asum + l_asum(1,th_idx)\n"
-            "    enddo\n"
-            "    DEALLOCATE(l_asum)\n"
             "\n"
             "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()")
         assert expected_output in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         expected_output = (
-            "    ! Zero summation variables\n"
+            "    ALLOCATE(local_asum(8,nthreads))\n\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
-            "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0_r_def\n"
+            "    local_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -2232,20 +2232,21 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "    !$omp do schedule(static)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
-            "      l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)\n"
+            "      local_asum(1,th_idx) = local_asum(1,th_idx) + f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
             "\n"
             "    ! sum the partial results sequentially\n"
             "    do th_idx = 1, nthreads, 1\n"
-            "      asum = asum + l_asum(1,th_idx)\n"
+            "      asum = asum + local_asum(1,th_idx)\n"
             "    enddo\n"
-            "    DEALLOCATE(l_asum)\n")
+            "    DEALLOCATE(local_asum)\n")
     assert expected_output in result
 
 
-def test_two_reductions_real_do(tmpdir, dist_mem):
+@pytest.mark.parametrize("fuse", [True, False])
+def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
     ''' Test that we produce correct code when we have more than one
     built-in with a reduction, with each reduction using a different
     variable, and we use OpenMP DO loops for parallelisation with a
@@ -2262,6 +2263,13 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
                      {"position": "after"})
     otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
+    ftrans = LFRicLoopFuseTrans()
+    if fuse:
+        with pytest.raises(TransformationError) as err:
+            ftrans.apply(schedule[0], schedule[1],
+                         options={"same_space": True})
+        assert ("Cannot fuse loops when each loop already contains a "
+                "reduction" in str(err.value))
     # Apply an OpenMP do to the loop
     for child in schedule.children:
         if isinstance(child, Loop):
@@ -2276,19 +2284,21 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n" in result
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()\n" in result
         expected_output = (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
+            "\n"
+            "    ! Initialise reduction variable\n"
             "    bsum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared) private(df)\n"
-            "    !$omp do schedule(static) reduction(+:asum)\n"
+            "    !$omp do schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
-            "    !$omp do schedule(static) reduction(+:bsum)\n"
+            "    !$omp do schedule(static) reduction(+: bsum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
             "      bsum = bsum + f1_data(df)\n"
@@ -2304,22 +2314,24 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()")
     else:
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         expected_output = (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
+            "\n"
+            "    ! Initialise reduction variable\n"
             "    bsum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared) private(df)\n"
-            "    !$omp do schedule(static) reduction(+:asum)\n"
+            "    !$omp do schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
-            "    !$omp do schedule(static) reduction(+:bsum)\n"
+            "    !$omp do schedule(static) reduction(+: bsum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
             "      bsum = bsum + f1_data(df)\n"
@@ -2360,13 +2372,16 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         expected_output = (
-            "    ! Zero summation variables\n"
+            "    ALLOCATE(local_asum(8,nthreads))\n"
+            "\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
-            "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0_r_def\n"
+            "    local_asum = 0.0_r_def\n"
+            "    ALLOCATE(local_bsum(8,nthreads))\n"
+            "\n"
+            "    ! Initialise reduction variable\n"
             "    bsum = 0.0_r_def\n"
-            "    ALLOCATE(l_bsum(8,nthreads))\n"
-            "    l_bsum = 0.0_r_def\n"
+            "    local_bsum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -2374,29 +2389,29 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "    !$omp do schedule(static)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      l_asum(1,th_idx) = l_asum(1,th_idx) + "
+            "      local_asum(1,th_idx) = local_asum(1,th_idx) + "
             "f1_data(df) * f2_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp do schedule(static)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
-            "      l_bsum(1,th_idx) = l_bsum(1,th_idx) + f1_data(df)\n"
+            "      local_bsum(1,th_idx) = local_bsum(1,th_idx) + f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
             "\n"
             "    ! sum the partial results sequentially\n"
             "    do th_idx = 1, nthreads, 1\n"
-            "      asum = asum + l_asum(1,th_idx)\n"
+            "      asum = asum + local_asum(1,th_idx)\n"
             "    enddo\n"
-            "    DEALLOCATE(l_asum)\n"
+            "    DEALLOCATE(local_asum)\n"
             "\n"
             "    ! sum the partial results sequentially\n"
             "    do th_idx = 1, nthreads, 1\n"
-            "      bsum = bsum + l_bsum(1,th_idx)\n"
+            "      bsum = bsum + local_bsum(1,th_idx)\n"
             "    enddo\n"
-            "    DEALLOCATE(l_bsum)\n"
+            "    DEALLOCATE(local_bsum)\n"
             "\n"
             "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
@@ -2406,16 +2421,19 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()")
     else:
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         expected_output = (
-            "    ! Zero summation variables\n"
+            "    ALLOCATE(local_asum(8,nthreads))\n"
+            "\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
-            "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0_r_def\n"
+            "    local_asum = 0.0_r_def\n"
+            "    ALLOCATE(local_bsum(8,nthreads))\n"
+            "\n"
+            "    ! Initialise reduction variable\n"
             "    bsum = 0.0_r_def\n"
-            "    ALLOCATE(l_bsum(8,nthreads))\n"
-            "    l_bsum = 0.0_r_def\n"
+            "    local_bsum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -2423,29 +2441,29 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "    !$omp do schedule(static)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      l_asum(1,th_idx) = l_asum(1,th_idx) + "
+            "      local_asum(1,th_idx) = local_asum(1,th_idx) + "
             "f1_data(df) * f2_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp do schedule(static)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
-            "      l_bsum(1,th_idx) = l_bsum(1,th_idx) + f1_data(df)\n"
+            "      local_bsum(1,th_idx) = local_bsum(1,th_idx) + f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
             "\n"
             "    ! sum the partial results sequentially\n"
             "    do th_idx = 1, nthreads, 1\n"
-            "      asum = asum + l_asum(1,th_idx)\n"
+            "      asum = asum + local_asum(1,th_idx)\n"
             "    enddo\n"
-            "    DEALLOCATE(l_asum)\n"
+            "    DEALLOCATE(local_asum)\n"
             "\n"
             "    ! sum the partial results sequentially\n"
             "    do th_idx = 1, nthreads, 1\n"
-            "      bsum = bsum + l_bsum(1,th_idx)\n"
+            "      bsum = bsum + local_bsum(1,th_idx)\n"
             "    enddo\n"
-            "    DEALLOCATE(l_bsum)")
+            "    DEALLOCATE(local_bsum)")
     assert expected_output in result
 
 
@@ -2526,12 +2544,12 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2542,10 +2560,10 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n"
             "\n"
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    bsum = 0.0_r_def\n"
-            "    !$omp parallel do reduction(+:bsum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: bsum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
             "      bsum = bsum + f1_data(df)\n"
@@ -2556,25 +2574,25 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_aspc1_f1" in code
-        assert "loop1_stop = undf_aspc1_f1" in code
+        assert "loop0_stop = undf_as1_f1" in code
+        assert "loop1_stop = undf_as1_f1" in code
         assert (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
             "\n"
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    bsum = 0.0_r_def\n"
-            "    !$omp parallel do reduction(+:bsum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: bsum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
             "      bsum = bsum + f1_data(df)\n"
@@ -2612,12 +2630,12 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
         code = (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2640,15 +2658,15 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "    call f1_proxy%set_dirty()\n")
         assert code in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         assert (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2699,12 +2717,12 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
         code = (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared) private(df)\n"
-            "    !$omp do schedule(static) reduction(+:asum)\n"
+            "    !$omp do schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2729,15 +2747,15 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             code = code.replace("dof_annexed", "dof_owned")
         assert code in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         assert (
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared) private(df)\n"
-            "    !$omp do schedule(static) reduction(+:asum)\n"
+            "    !$omp do schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2791,12 +2809,12 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
             assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in
                     result)
             code = (
-                "    ! Zero summation variables\n"
+                "    ! Initialise reduction variable\n"
                 "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels and communication routines\n"
-                "    !$omp parallel do reduction(+:asum) default(shared) "
-                "private(df) schedule(static)\n"
+                "    !$omp parallel do default(shared) "
+                "private(df) schedule(static) reduction(+: asum)\n"
                 "    do df = loop0_start, loop0_stop, 1\n"
                 "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
                 "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2815,14 +2833,14 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
-            assert "loop0_stop = undf_aspc1_f1" in result
+            assert "loop0_stop = undf_as1_f1" in result
             code = (
-                "    ! Zero summation variables\n"
+                "    ! Initialise reduction variable\n"
                 "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels\n"
-                "    !$omp parallel do reduction(+:asum) default(shared) "
-                "private(df) schedule(static)\n"
+                "    !$omp parallel do default(shared) "
+                "private(df) schedule(static) reduction(+: asum)\n"
                 "    do df = loop0_start, loop0_stop, 1\n"
                 "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
                 "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2881,7 +2899,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "\n"
                 "    ! Call kernels and communication routines\n"
                 "    !$omp parallel default(shared) private(df)\n"
-                "    !$omp do schedule(static) reduction(+:asum)\n"
+                "    !$omp do schedule(static) reduction(+: asum)\n"
                 "    do df = loop0_start, loop0_stop, 1\n"
                 "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
                 "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2901,13 +2919,13 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
         else:  # not distmem, annexed is True or False
-            assert "loop0_stop = undf_aspc1_f1" in result
+            assert "loop0_stop = undf_as1_f1" in result
             code = (
                 "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels\n"
                 "    !$omp parallel default(shared) private(df)\n"
-                "    !$omp do schedule(static) reduction(+:asum)\n"
+                "    !$omp do schedule(static) reduction(+: asum)\n"
                 "    do df = loop0_start, loop0_stop, 1\n"
                 "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
                 "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -2966,10 +2984,10 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
             "\n"
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
             "      asum = asum + f1_data(df)\n"
@@ -2981,8 +2999,8 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "    asum = global_sum%get_sum()\n")
         assert code in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         assert (
             "    !$omp parallel do default(shared) private(df) "
             "schedule(static)\n"
@@ -2992,10 +3010,10 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "    enddo\n"
             "    !$omp end parallel do\n"
             "\n"
-            "    ! Zero summation variables\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
-            "    !$omp parallel do reduction(+:asum) default(shared) "
-            "private(df) schedule(static)\n"
+            "    !$omp parallel do default(shared) "
+            "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop1_start, loop1_stop, 1\n"
             "      ! Built-in: sum_X (sum a real-valued field)\n"
             "      asum = asum + f1_data(df)\n"
@@ -3035,12 +3053,12 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
             assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
             code = (
-                "    ! Zero summation variables\n"
+                "    ! Initialise reduction variable\n"
                 "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels and communication routines\n"
-                "    !$omp parallel do reduction(+:asum) default(shared) "
-                "private(df) schedule(static)\n"
+                "    !$omp parallel do default(shared) "
+                "private(df) schedule(static) reduction(+: asum)\n"
                 "    do df = loop0_start, loop0_stop, 1\n"
                 "      ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
@@ -3059,14 +3077,14 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
-            assert "loop0_stop = undf_aspc1_f1" in result
+            assert "loop0_stop = undf_as1_f1" in result
             code = (
-                "    ! Zero summation variables\n"
+                "    ! Initialise reduction variable\n"
                 "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels\n"
-                "    !$omp parallel do reduction(+:asum) default(shared) "
-                "private(df) schedule(static)\n"
+                "    !$omp parallel do default(shared) "
+                "private(df) schedule(static) reduction(+: asum)\n"
                 "    do df = loop0_start, loop0_stop, 1\n"
                 "      ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
@@ -3119,7 +3137,7 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "\n"
                 "    ! Call kernels and communication routines\n"
                 "    !$omp parallel default(shared) private(df)\n"
-                "    !$omp do schedule(static) reduction(+:asum)\n"
+                "    !$omp do schedule(static) reduction(+: asum)\n"
                 "    do df = loop0_start, loop0_stop, 1\n"
                 "      ! Built-in: inc_a_times_X (scale a real-valued field)\n"
                 "      f1_data(df) = bvalue * f1_data(df)\n"
@@ -3138,13 +3156,13 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
-            assert "loop0_stop = undf_aspc1_f1" in result
+            assert "loop0_stop = undf_as1_f1" in result
             code = (
                 "    asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels\n"
                 "    !$omp parallel default(shared) private(df)\n"
-                "    !$omp do schedule(static) reduction(+:asum)\n"
+                "    !$omp do schedule(static) reduction(+: asum)\n"
                 "    do df = loop0_start, loop0_stop, 1\n"
                 "      ! Built-in: inc_a_times_X (scale a real-valued field)\n"
                 "      f1_data(df) = bvalue * f1_data(df)\n"
@@ -3223,7 +3241,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
     assert ("use omp_lib, only : omp_get_max_threads, "
             "omp_get_thread_num\n") in code
     assert ("real(kind=r_def), allocatable, dimension(:,:) "
-           ":: l_asum\n") in code
+           ":: local_asum\n") in code
     assert "integer :: th_idx\n" in code
     assert "integer :: nthreads\n" in code
     assert (
@@ -3233,10 +3251,11 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
     if dist_mem:
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert (
-            "    ! Zero summation variables\n"
+            "    ALLOCATE(local_asum(8,nthreads))\n"
+            "\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
-            "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0_r_def\n"
+            "    local_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -3244,7 +3263,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "    !$omp do schedule(static)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
+            "      local_asum(1,th_idx) = local_asum(1,th_idx) + f1_data(df) "
             "* f2_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
@@ -3252,19 +3271,21 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "\n"
             "    ! sum the partial results sequentially\n"
             "    do th_idx = 1, nthreads, 1\n"
-            "      asum = asum + l_asum(1,th_idx)\n"
+            "      asum = asum + local_asum(1,th_idx)\n"
             "    enddo\n"
-            "    DEALLOCATE(l_asum)\n"
+            "    DEALLOCATE(local_asum)\n"
             "\n"
             "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()") in code
     else:
-        assert "loop0_stop = undf_aspc1_f1" in code
+        assert "loop0_stop = undf_as1_f1" in code
         assert (
+            "    ALLOCATE(local_asum(8,nthreads))\n"
+            "\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
-            "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0_r_def\n"
+            "    local_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -3272,7 +3293,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "    !$omp do schedule(static)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
+            "      local_asum(1,th_idx) = local_asum(1,th_idx) + f1_data(df) "
             "* f2_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
@@ -3280,9 +3301,9 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "\n"
             "    ! sum the partial results sequentially\n"
             "    do th_idx = 1, nthreads, 1\n"
-            "      asum = asum + l_asum(1,th_idx)\n"
+            "      asum = asum + local_asum(1,th_idx)\n"
             "    enddo\n"
-            "    DEALLOCATE(l_asum)\n") in code
+            "    DEALLOCATE(local_asum)\n") in code
 
 
 def test_no_global_sum_in_parallel_region():
@@ -3338,7 +3359,7 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
     assert ("use omp_lib, only : omp_get_max_threads, "
             "omp_get_thread_num\n") in result
     assert ("real(kind=r_def), allocatable, dimension(:,:) "
-           ":: l_asum\n") in result
+           ":: local_asum\n") in result
     assert "integer :: th_idx\n" in result
     assert "integer :: nthreads\n" in result
     assert (
@@ -3354,9 +3375,11 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
         code = (
+            "    ALLOCATE(local_asum(8,nthreads))\n"
+            "\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
-            "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0_r_def\n"
+            "    local_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels and communication routines\n"
             "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -3364,7 +3387,7 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "    !$omp do schedule(static)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
+            "      local_asum(1,th_idx) = local_asum(1,th_idx) + f1_data(df) "
             "* f2_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
@@ -3376,27 +3399,29 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "    !$omp end do\n"
             "    !$omp end parallel\n"
             "\n"
+            "    ! sum the partial results sequentially\n"
+            "    do th_idx = 1, nthreads, 1\n"
+            "      asum = asum + local_asum(1,th_idx)\n"
+            "    enddo\n"
+            "    DEALLOCATE(local_asum)\n"
+            "\n"
             "    ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
-            "\n"
-            "    ! sum the partial results sequentially\n"
-            "    do th_idx = 1, nthreads, 1\n"
-            "      asum = asum + l_asum(1,th_idx)\n"
-            "    enddo\n"
-            "    DEALLOCATE(l_asum)\n"
             "\n"
             "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n")
         assert code in result
     else:  # not distmem. annexed can be True or False
-        assert "loop0_stop = undf_aspc1_f1" in result
-        assert "loop1_stop = undf_aspc1_f1" in result
+        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop1_stop = undf_as1_f1" in result
         assert (
+            "    ALLOCATE(local_asum(8,nthreads))\n"
+            "\n"
+            "    ! Initialise reduction variable\n"
             "    asum = 0.0_r_def\n"
-            "    ALLOCATE(l_asum(8,nthreads))\n"
-            "    l_asum = 0.0_r_def\n"
+            "    local_asum = 0.0_r_def\n"
             "\n"
             "    ! Call kernels\n"
             "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -3404,7 +3429,7 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "    !$omp do schedule(static)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
+            "      local_asum(1,th_idx) = local_asum(1,th_idx) + f1_data(df) "
             "* f2_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
@@ -3418,9 +3443,9 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "\n"
             "    ! sum the partial results sequentially\n"
             "    do th_idx = 1, nthreads, 1\n"
-            "      asum = asum + l_asum(1,th_idx)\n"
+            "      asum = asum + local_asum(1,th_idx)\n"
             "    enddo\n"
-            "    DEALLOCATE(l_asum)\n") in result
+            "    DEALLOCATE(local_asum)\n") in result
 
 
 def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
@@ -3462,7 +3487,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
         assert ("use omp_lib, only : omp_get_max_threads, "
                 "omp_get_thread_num\n") in result
         assert ("real(kind=r_def), allocatable, dimension(:,:) "
-               ":: l_asum\n") in result
+               ":: local_asum\n") in result
         assert "integer :: th_idx\n" in result
         assert "integer :: nthreads\n" in result
         assert (
@@ -3473,9 +3498,11 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
             assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
             assert (
+                "    ALLOCATE(local_asum(8,nthreads))\n"
+                "\n"
+                "    ! Initialise reduction variable\n"
                 "    asum = 0.0_r_def\n"
-                "    ALLOCATE(l_asum(8,nthreads))\n"
-                "    l_asum = 0.0_r_def\n"
+                "    local_asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels and communication routines\n"
                 "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -3483,7 +3510,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "    !$omp do schedule(static)\n"
                 "    do df = loop0_start, loop0_stop, 1\n"
                 "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-                "      l_asum(1,th_idx) = l_asum(1,th_idx) + "
+                "      local_asum(1,th_idx) = local_asum(1,th_idx) + "
                 "f1_data(df) * f2_data(df)\n"
                 "\n"
                 "      ! Built-in: inc_a_times_X (scale a real-valued field)\n"
@@ -3492,25 +3519,27 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "    !$omp end do\n"
                 "    !$omp end parallel\n"
                 "\n"
+                "    ! sum the partial results sequentially\n"
+                "    do th_idx = 1, nthreads, 1\n"
+                "      asum = asum + local_asum(1,th_idx)\n"
+                "    enddo\n"
+                "    DEALLOCATE(local_asum)\n"
+                "\n"
                 "    ! Set halos dirty/clean for fields modified in the "
                 "above loop(s)\n"
                 "    call f1_proxy%set_dirty()\n"
-                "\n"
-                "    ! sum the partial results sequentially\n"
-                "    do th_idx = 1, nthreads, 1\n"
-                "      asum = asum + l_asum(1,th_idx)\n"
-                "    enddo\n"
-                "    DEALLOCATE(l_asum)\n"
                 "\n"
                 "    ! Perform global sum\n"
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n") in result
         else:  # not distmem. annexed can be True or False
-            assert "loop0_stop = undf_aspc1_f1" in result
+            assert "loop0_stop = undf_as1_f1" in result
             assert (
+                "    ALLOCATE(local_asum(8,nthreads))\n"
+                "\n"
+                "    ! Initialise reduction variable\n"
                 "    asum = 0.0_r_def\n"
-                "    ALLOCATE(l_asum(8,nthreads))\n"
-                "    l_asum = 0.0_r_def\n"
+                "    local_asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels\n"
                 "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -3518,7 +3547,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "    !$omp do schedule(static)\n"
                 "    do df = loop0_start, loop0_stop, 1\n"
                 "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-                "      l_asum(1,th_idx) = l_asum(1,th_idx) + "
+                "      local_asum(1,th_idx) = local_asum(1,th_idx) + "
                 "f1_data(df) * f2_data(df)\n"
                 "\n"
                 "      ! Built-in: inc_a_times_X (scale a real-valued field)\n"
@@ -3529,9 +3558,9 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "\n"
                 "    ! sum the partial results sequentially\n"
                 "    do th_idx = 1, nthreads, 1\n"
-                "      asum = asum + l_asum(1,th_idx)\n"
+                "      asum = asum + local_asum(1,th_idx)\n"
                 "    enddo\n"
-                "    DEALLOCATE(l_asum)\n") in result
+                "    DEALLOCATE(local_asum)\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -3571,9 +3600,11 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
             assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
             assert (
+                "    ALLOCATE(local_asum(8,nthreads))\n"
+                "\n"
+                "    ! Initialise reduction variable\n"
                 "    asum = 0.0_r_def\n"
-                "    ALLOCATE(l_asum(8,nthreads))\n"
-                "    l_asum = 0.0_r_def\n"
+                "    local_asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels and communication routines\n"
                 "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -3584,31 +3615,33 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      f1_data(df) = bvalue * f1_data(df)\n"
                 "\n"
                 "      ! Built-in: sum_X (sum a real-valued field)\n"
-                "      l_asum(1,th_idx) = l_asum(1,th_idx) + "
+                "      local_asum(1,th_idx) = local_asum(1,th_idx) + "
                 "f1_data(df)\n"
                 "    enddo\n"
                 "    !$omp end do\n"
                 "    !$omp end parallel\n"
                 "\n"
+                "    ! sum the partial results sequentially\n"
+                "    do th_idx = 1, nthreads, 1\n"
+                "      asum = asum + local_asum(1,th_idx)\n"
+                "    enddo\n"
+                "    DEALLOCATE(local_asum)\n"
+                "\n"
                 "    ! Set halos dirty/clean for fields modified in the "
                 "above loop(s)\n"
                 "    call f1_proxy%set_dirty()\n"
-                "\n"
-                "    ! sum the partial results sequentially\n"
-                "    do th_idx = 1, nthreads, 1\n"
-                "      asum = asum + l_asum(1,th_idx)\n"
-                "    enddo\n"
-                "    DEALLOCATE(l_asum)\n"
                 "\n"
                 "    ! Perform global sum\n"
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n") in result
         else:  # distmem is False. annexed can be True or False
-            assert "loop0_stop = undf_aspc1_f1" in result
+            assert "loop0_stop = undf_as1_f1" in result
             assert (
+                "    ALLOCATE(local_asum(8,nthreads))\n"
+                "\n"
+                "    ! Initialise reduction variable\n"
                 "    asum = 0.0_r_def\n"
-                "    ALLOCATE(l_asum(8,nthreads))\n"
-                "    l_asum = 0.0_r_def\n"
+                "    local_asum = 0.0_r_def\n"
                 "\n"
                 "    ! Call kernels\n"
                 "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -3619,7 +3652,7 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      f1_data(df) = bvalue * f1_data(df)\n"
                 "\n"
                 "      ! Built-in: sum_X (sum a real-valued field)\n"
-                "      l_asum(1,th_idx) = l_asum(1,th_idx) + "
+                "      local_asum(1,th_idx) = local_asum(1,th_idx) + "
                 "f1_data(df)\n"
                 "    enddo\n"
                 "    !$omp end do\n"
@@ -3627,9 +3660,9 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "\n"
                 "    ! sum the partial results sequentially\n"
                 "    do th_idx = 1, nthreads, 1\n"
-                "      asum = asum + l_asum(1,th_idx)\n"
+                "      asum = asum + local_asum(1,th_idx)\n"
                 "    enddo\n"
-                "    DEALLOCATE(l_asum)\n") in result
+                "    DEALLOCATE(local_asum)\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -3660,16 +3693,18 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
         assert "loop2_stop = f2_proxy%vspace%get_last_dof_owned()" in code
 
         for names in [
-                {"var": "asum", "lvar": "l_asum", "loop_idx": "0",
+                {"var": "asum", "lvar": "local_asum", "loop_idx": "0",
                  "rhs": "f1_data(df) * f2_data(df)",
                  "builtin": "! Built-in: X_innerproduct_Y (real-valued fields)"
                  },
-                {"var": "bsum", "lvar": "l_bsum", "loop_idx": "2",
+                {"var": "bsum", "lvar": "local_bsum", "loop_idx": "2",
                  "rhs": "f2_data(df)",
                  "builtin": "! Built-in: sum_X (sum a real-valued field)"}]:
             assert (
-                "    " + names["var"] + " = 0.0_r_def\n"
                 "    ALLOCATE(" + names["lvar"] + "(8,nthreads))\n"
+                "\n"
+                "    ! Initialise reduction variable\n"
+                "    " + names["var"] + " = 0.0_r_def\n"
                 "    " + names["lvar"] + " = 0.0_r_def\n") in code
             assert (
                 "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -3696,21 +3731,23 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "    " + names["var"] + " = "
                 "global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_aspc1_f1" in code
-        assert "loop1_stop = undf_aspc1_f1" in code
-        assert "loop2_stop = undf_aspc1_f2" in code
+        assert "loop0_stop = undf_as1_f1" in code
+        assert "loop1_stop = undf_as1_f1" in code
+        assert "loop2_stop = undf_as1_f2" in code
 
         for names in [
-                {"var": "asum", "lvar": "l_asum", "loop_idx": "0",
+                {"var": "asum", "lvar": "local_asum", "loop_idx": "0",
                  "rhs": "f1_data(df) * f2_data(df)",
                  "builtin": "! Built-in: X_innerproduct_Y (real-valued fields)"
                  },
-                {"var": "bsum", "lvar": "l_bsum",
+                {"var": "bsum", "lvar": "local_bsum",
                  "loop_idx": "2", "rhs": "f2_data(df)",
                  "builtin": "! Built-in: sum_X (sum a real-valued field)"}]:
             assert (
-                "    " + names["var"] + " = 0.0_r_def\n"
                 "    ALLOCATE(" + names["lvar"] + "(8,nthreads))\n"
+                "\n"
+                "    ! Initialise reduction variable\n"
+                "    " + names["var"] + " = 0.0_r_def\n"
                 "    " + names["lvar"] + " = 0.0_r_def\n") in code
             expected = (
                 "    !$omp parallel default(shared) private(df,th_idx)\n"
@@ -3732,6 +3769,56 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "    enddo\n"
                 "    DEALLOCATE(" + names["lvar"] + ")\n")
             assert expected in code
+
+
+def test_repr_reductions_fused(tmpdir, dist_mem):
+    '''
+    Check that the functionality for doing a reproducible (OMP) reduction
+    works OK after two dof loops have been fused.
+    '''
+    file_name = "15.19.1_three_builtins_two_reductions.f90"
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0, dist_mem=dist_mem)
+    schedule = invoke.schedule
+    rtrans = OMPParallelTrans()
+    otrans = LFRicOMPLoopTrans()
+    fuse = LFRicLoopFuseTrans()
+    if dist_mem:
+        # Have to allow for the GlobalSum Node.
+        loop_idx = 2
+    else:
+        loop_idx = 1
+    # The 2nd loop uses the result of the reduction from the 1st loop
+    # so we can only fuse the 2nd and 3rd. Since both are any-space we
+    # have to claim that they are on the same space for this to work.
+    fuse.apply(schedule[loop_idx], schedule[loop_idx+1],
+               options={"same_space": True})
+    for child in schedule.children:
+        if isinstance(child, LFRicLoop):
+            otrans.apply(child, {"reprod": True})
+    for child in schedule.children:
+        if isinstance(child, OMPDoDirective):
+            rtrans.apply(child)
+    code = str(psy.gen)
+    expected = '''\
+    !$omp parallel default(shared) private(df,th_idx)
+    th_idx = omp_get_thread_num() + 1
+    !$omp do schedule(static)
+    do df = loop1_start, loop1_stop, 1
+      ! Built-in: inc_a_times_X (scale a real-valued field)
+      f1_data(df) = asum * f1_data(df)
+
+      ! Built-in: sum_X (sum a real-valued field)
+      local_bsum(1,th_idx) = local_bsum(1,th_idx) + f2_data(df)
+    enddo
+    !$omp end do
+    !$omp end parallel
+
+    ! sum the partial results sequentially
+    do th_idx = 1, nthreads, 1
+      bsum = bsum + local_bsum(1,th_idx)
+    enddo'''
+    assert expected in code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_reprod_view(monkeypatch, annexed, dist_mem):
@@ -3879,52 +3966,26 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
         assert 0
 
 
-def test_reductions_reprod():
+@pytest.mark.parametrize("reprod", [True, False])
+def test_reductions_reprod(tmpdir, dist_mem, reprod):
     ''' Check that the optional reprod argument to reductions() method
     works as expected. '''
     file_name = "15.9.1_X_innerproduct_Y_builtin.f90"
-    for reprod in [False, True]:
-        for distmem in [True, False]:
-            _, invoke = get_invoke(file_name, TEST_API, idx=0,
-                                   dist_mem=distmem)
-            schedule = invoke.schedule
-            otrans = LFRicOMPLoopTrans()
-            rtrans = OMPParallelTrans()
-            # Apply an OpenMP do directive to the loop
-            otrans.apply(schedule.children[0], {"reprod": reprod})
-            # Apply an OpenMP Parallel directive around the OpenMP do directive
-            rtrans.apply(schedule.children[0])
-            assert len(schedule.reductions(reprod=reprod)) == 1
-            assert not schedule.reductions(reprod=not reprod)
-            assert len(schedule.reductions()) == 1
-            assert (isinstance(schedule.reductions(reprod=reprod)[0],
-                               LFRicXInnerproductYKern))
-
-
-def test_list_multiple_reductions(dist_mem):
-    ''' Test that we produce correct reduction lists when there is more
-    than one reduction in a OpenMP parallel directive. As only one
-    reduction per OpenMP parallel region is currently supported we
-    need to modify the intermediate representation after the
-    transformations have been performed to enable this test.
-
-    '''
-    _, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
-                           TEST_API, idx=0, dist_mem=dist_mem)
+    psy, invoke = get_invoke(file_name, TEST_API, idx=0,
+                             dist_mem=dist_mem)
     schedule = invoke.schedule
     otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do directive to the loop
-    otrans.apply(schedule.children[0], {"reprod": False})
+    otrans.apply(schedule.children[0], {"reprod": reprod})
     # Apply an OpenMP Parallel directive around the OpenMP do directive
     rtrans.apply(schedule.children[0])
-    omp_loop_directive = schedule[0].dir_body[0]
-    call = omp_loop_directive.dir_body[0].loop_body[0]
-    arg = call.arguments.args[2]
-    arg._argument_type = "gh_scalar"
-    arg.descriptor._access = AccessType.SUM
-    result = omp_loop_directive._reduction_string()
-    assert "reduction(+:asum), reduction(+:f2)" in result
+    assert len(schedule.reductions(reprod=reprod)) == 1
+    assert not schedule.reductions(reprod=not reprod)
+    assert len(schedule.reductions()) == 1
+    assert (isinstance(schedule.reductions(reprod=reprod)[0],
+                       LFRicXInnerproductYKern))
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_move_name():
@@ -6520,7 +6581,7 @@ def test_accenterdata_builtin(tmpdir):
     assert ("!$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
             "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
             "undf_w1,undf_w2,undf_w3)" in output)
-    assert "loop2_stop = undf_aspc1_f1" in output
+    assert "loop2_stop = undf_as1_f1" in output
     assert ("    !$acc loop independent\n"
             "    do df = loop2_start, loop2_stop, 1\n"
             "      ! built-in: setval_c (set a real-valued field to "
@@ -6868,8 +6929,8 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
         "    call f2_proxy%halo_exchange_start(depth=1)\n"
         "    do cell = loop3_start, loop3_stop, 1\n"
         "      call testkern_any_space_3_code(cell, nlayers_op, "
-        "op_proxy%ncell_3d, op_local_stencil, ndf_aspc1_op, "
-        "ndf_aspc2_op)\n"
+        "op_proxy%ncell_3d, op_local_stencil, ndf_as1_op, "
+        "ndf_as2_op)\n"
         "    enddo\n"
         "    call f2_proxy%halo_exchange_finish(depth=1)\n") in result
 
@@ -7908,7 +7969,7 @@ def test_colour_trans_tiled_intergrid(dist_mem):
     assert "loop2_stop" not in gen
     assert "    do colour = loop1_start, loop1_stop, 1\n" in gen
 
-    # Chek inner loops over tiles and cells
+    # Check inner loops over tiles and cells
     if dist_mem:
         assert ("last_halo_tile_per_colour_fld_m = "
                 "mesh_fld_m%get_last_halo_tile_all_colours()" in gen)

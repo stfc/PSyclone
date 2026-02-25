@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -165,7 +165,6 @@ class Compile():
     of the corresponding infrastructure library.
 
     :param tmpdir: temporary directory, defaults to os.getcwd()
-    :type tmpdir: Optional[:py:class:`LocalPath`]
 
     '''
     # Class variable to store whether compilation is enabled (--compile).
@@ -348,7 +347,7 @@ class Compile():
         to compile the psy-layer. Returns True for success, False otherwise.
         It is meant for internal test uses only, and must only be
         called when compilation is actually enabled (use code_compiles
-        otherwse). All files produced are deleted.
+        otherwise). All files produced are deleted.
 
         :param psy_ast: The PSy object to build.
         :type psy_ast: :py:class:`psyclone.psyGen.PSy`
@@ -621,7 +620,7 @@ def get_ast(api: str, filename: str) -> BeginSource:
 
 # =============================================================================
 def check_links(parent: Node, children: list[Node]) -> None:
-    '''Utilitiy routine to check that the parent node has children as its
+    '''Utility routine to check that the parent node has children as its
     children in the order specified and that the children have parent
     as their parent. Also check that the parent does not have any
     additional children that are not provided in the children

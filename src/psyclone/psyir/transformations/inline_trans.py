@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -739,7 +739,7 @@ class InlineTrans(Transformation):
 
         .. code-block:: fortran
 
-            call my_sub(my_struc%grid(:,2,:), 10)
+            call my_sub(my_struct%grid(:,2,:), 10)
 
             subroutine my_sub(grid, ngrids)
               ...
@@ -753,7 +753,7 @@ class InlineTrans(Transformation):
 
         .. code-block:: fortran
 
-            my_struc%grid(igrid,2,jgrid)%data(i,j) = 0.0
+            my_struct%grid(igrid,2,jgrid)%data(i,j) = 0.0
 
         This routine therefore recursively combines any References to formal
         arguments in the supplied Reference (including any array-index
@@ -776,7 +776,7 @@ class InlineTrans(Transformation):
         # If the local reference is a simple Reference then we can just
         # replace it with a copy of the actual argument, e.g.
         #
-        #   call my_sub(my_struc%data(i,j))
+        #   call my_sub(my_struct%data(i,j))
         #
         #   subroutine my_sub(var)
         #     ...
@@ -799,7 +799,7 @@ class InlineTrans(Transformation):
         # If the local reference is not simple but the actual argument is
         # guaranteed to not be an array, e.g.:
         #
-        #   call my_sub(my_struc)
+        #   call my_sub(my_struct)
         #
         #   subroutine my_sub(var)
         #     ...
@@ -860,10 +860,7 @@ class InlineTrans(Transformation):
                 break
             cursor = cursor.member
 
-        # TODO #1858 - once we support converting structure accesses into
-        # explicit array accesses, we can put back the testing in
-        # inline_trans_test.py that covers this code and remove the pragma:
-        if not actual_arg.walk(Range) and local_indices:  # pragma: no cover
+        if not actual_arg.walk(Range) and local_indices:
             # There are no Ranges in the actual argument but the local
             # reference is an array access.
             # Create updated index expressions for that access.

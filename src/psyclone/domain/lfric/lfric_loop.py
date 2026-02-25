@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,11 +43,11 @@
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import (
-    InvokeSchedule, HaloExchange, zero_reduction_variables)
+from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, StructureReference,
     Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode,
@@ -158,11 +158,6 @@ class LFRicLoop(PSyLoop):
             # only operate on halo cells => nothing to do.
             self.detach()
             return None
-
-        # Get the list of calls (to kernels) that need reduction variables
-        if not self.is_openmp_parallel():
-            calls = self.reductions()
-            zero_reduction_variables(calls)
 
         # Set halo clean/dirty for all fields that are modified
         if Config.get().distributed_memory:
@@ -702,7 +697,7 @@ class LFRicLoop(PSyLoop):
 
         '''
         const = LFRicConstants()
-        if arg.is_scalar or arg.is_operator:
+        if arg.is_scalar or arg.is_operator or arg.is_scalar_array:
             # Scalars and operators do not have halos
             return False
         if arg.is_field:

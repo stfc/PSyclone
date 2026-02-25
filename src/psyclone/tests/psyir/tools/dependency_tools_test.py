@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -168,8 +168,8 @@ def test_arrays_parallelise(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask' in 'mask(jk,jk)' causes a write-write "
-            "race condition" in str(msg))
+    assert ("The write access to 'mask(jk,jk)' in 'mask(jk,jk) = -1.0d0' "
+            "causes a write-write race condition" in str(msg))
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask"]
 
@@ -186,8 +186,9 @@ def test_arrays_parallelise(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[3])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(ji,jj)' and the read access to "
-            "'mask(ji,jj + 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'mask(ji,jj)' in 'mask(ji,jj) = mask(ji,jj + "
+            "1)' and the read access to 'mask(ji,jj + 1)' in 'mask(ji,jj) = "
+            "mask(ji,jj + 1)' are dependent and cannot be parallelised. "
             "Variable: 'mask'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["mask"]
@@ -598,8 +599,9 @@ def test_derived_type(fortran_reader):
     # next assignment to a derived type.
     assert len(dep_tools.get_all_messages()) == 1
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'a%b(ji,jj)' and the read access to "
-            "'a%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'a%b(ji,jj)' in 'a%b(ji,jj) = a%b(ji,jj - 1) "
+            "+ 1' and the read access to 'a%b(ji,jj - 1)' in 'a%b(ji,jj) = "
+            "a%b(ji,jj - 1) + 1' are dependent and cannot be parallelised. "
             "Variable: 'a%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["a%b"]
@@ -610,13 +612,15 @@ def test_derived_type(fortran_reader):
     # Now we must have two messages, one for each of the two assignments
     assert len(dep_tools.get_all_messages()) == 2
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'a%b(ji,jj)' and the read access "
-            "to 'a%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'a%b(ji,jj)' in 'a%b(ji,jj) = a%b(ji,jj - 1) "
+            "+ 1' and the read access to 'a%b(ji,jj - 1)' in 'a%b(ji,jj) = "
+            "a%b(ji,jj - 1) + 1' are dependent and cannot be parallelised. "
             "Variable: 'a%b'." in str(msg))
     assert msg.var_names == ["a%b"]
     msg = dep_tools.get_all_messages()[1]
-    assert ("The write access to 'b%b(ji,jj)' and the read access to "
-            "'b%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'b%b(ji,jj)' in 'b%b(ji,jj) = b%b(ji,jj - 1) "
+            "+ 1' and the read access to 'b%b(ji,jj - 1)' in 'b%b(ji,jj) = "
+            "b%b(ji,jj - 1) + 1' are dependent and cannot be parallelised. "
             "Variable: 'b%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["b%b"]
@@ -628,8 +632,9 @@ def test_derived_type(fortran_reader):
     assert parallel is False
     assert len(dep_tools.get_all_messages()) == 1
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'b%b(ji,jj)' and the read access to "
-            "'b%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'b%b(ji,jj)' in 'b%b(ji,jj) = b%b(ji,jj - 1) "
+            "+ 1' and the read access to 'b%b(ji,jj - 1)' in 'b%b(ji,jj) = "
+            "b%b(ji,jj - 1) + 1' are dependent and cannot be parallelised. "
             "Variable: 'b%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["b%b"]
@@ -710,8 +715,8 @@ def test_reserved_words(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask' in 'mask(jk,jk)' causes a write-write "
-            "race condition" in str(msg))
+    assert ("The write access to 'mask(jk,jk)' in 'mask(jk,jk) = -1.0d0' "
+            "causes a write-write race condition" in str(msg))
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask"]
 
@@ -728,8 +733,9 @@ def test_reserved_words(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[3])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(ji,lambda)' and "
-            "the read access to 'mask(ji,lambda + 1)' are "
+    assert ("The write access to 'mask(ji,lambda)' in 'mask(ji,lambda) = "
+            "mask(ji,lambda + 1)' and the read access to 'mask(ji,lambda + 1)'"
+            " in 'mask(ji,lambda) = mask(ji,lambda + 1)' are "
             "dependent and cannot be parallelised. Variable: 'mask'."
             in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
@@ -763,7 +769,7 @@ def test_gocean_parallel():
 
 def test_dependency_on_scalar_non_exhaustive_write_write(fortran_reader):
     '''Tests can_loop_be_parallelised finds the loop-carried use of a scalar
-    when a write happends on only some iterations of a loop.'''
+    when a write happens on only some iterations of a loop.'''
     source = '''program test
                 integer :: i, my_val
                 real, dimension(10) :: array
@@ -790,7 +796,7 @@ def test_dependency_on_scalar_non_exhaustive_write_write(fortran_reader):
 
 def test_dependency_on_array_non_exhaustive_write_write(fortran_reader):
     '''Tests can_loop_be_parallelised finds the loop-carried use of an array
-    element when a write happends on only some iterations of a loop.'''
+    element when a write happens on only some iterations of a loop.'''
     source = '''program test
                 integer :: i
                 integer, dimension(10) :: my_val
@@ -817,7 +823,7 @@ def test_dependency_on_array_non_exhaustive_write_write(fortran_reader):
     if "my_val(1)' causes a write-write race condition." in str(msg):
         pytest.xfail(reason="TODO #2727: DA message should be improved")
     # For arrays, the dependency is properly detected, but the reason is
-    # a write-write, it would be convinient to differenciate it from a
+    # a write-write, it would be convenient to differentiate it from a
     # exhaustive write-write as those can be solved by "privatisation" while
     # non-exhaustive can not.
     assert "my_val(1)' causes a write-write race condition." not in str(msg)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,10 +48,10 @@ NO_DEP_LIBS = lfric_timer simple_timing template
 
 # The list with all libraries (include the ones that have additional
 # dependencies):
-ALL_LIBS = $(NO_DEP_LIBS) dl_timer drhook nvidia tau vernier
+ALL_LIBS = $(NO_DEP_LIBS) amd dl_timer drhook nvidia tau vernier
 
 .PHONY: default all $(NO_DEP_LIBS) clean allclean \
-	dl_timer drhook nvidia tau vernier
+	amd dl_timer drhook nvidia tau vernier
 
 # By default, compile all libraries that do not have additional dependencies
 # The 'all' target is used by the compilation tests, so this also can only

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -784,7 +784,7 @@ def test_opencl_kernel_boundaries_validation():
 
 
 def test_opencl_options_validation():
-    ''' Check that OpenCL options which are not supported provide appropiate
+    ''' Check that OpenCL options which are not supported provide appropriate
     errors.
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -1047,7 +1047,7 @@ def test_set_kern_args(kernel_outputdir):
 
     # There is also only one version of the set_args for the second kernel
     assert generated_code.count("subroutine time_smooth_code_set_args("
-                                "kernel_obj, u_fld, unew_fld, uold_fld, "
+                                "kernel_obj, cu_fld, unew_fld, uold_fld, "
                                 "xstart_1, xstop_1, ystart_1, ystop_1)") == 1
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 

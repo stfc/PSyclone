@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ from psyclone.core import (AccessType, Signature, SymbolicMaths,
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Loop, Node, Range
+from psyclone.psyir.nodes import Loop, Node, Range, Reference
 
 
 # pylint: disable=too-many-lines
@@ -109,7 +109,7 @@ class Message:
     # ------------------------------------------------------------------------
     def __str__(self):
         if len(self._var_names) == 0:
-            return self._message
+            return str(self._message)
         if len(self._var_names) == 1:
             return f"{self._message} Variable: '{self._var_names[0].strip()}'."
         return f"{self._message} Variables: {self._var_names}."
@@ -227,8 +227,9 @@ class DependencyTools():
                               "The var_infos argument to _add_message must "
                               "be a list of Signature/AccessSequence pairs")
 
-        self._messages.append(Message(f"{message_type}: {message}", code,
-                                      var_names, var_infos))
+        self._messages.append(Message(
+                LazyString(lambda: f"{message_type}: {message}"),
+                code, var_names, var_infos))
 
     # -------------------------------------------------------------------------
     def get_all_messages(self):
@@ -314,7 +315,7 @@ class DependencyTools():
                         (indices_1[i1][i2].union(indices_2[i1][i2]),
                          [(i1, i2)]))
                 except IndexError:
-                    # This can happend if the access have a different amount of
+                    # This can happen if the access have a different amount of
                     # index_components, e.g.: a(i) = a*a
                     # This will result in an empty partition and prevent
                     # parallelisation
@@ -656,7 +657,21 @@ class DependencyTools():
                         return True
                 elif len(set_of_vars) == 1:
                     # One loop variable used in both accesses.
-                    # E.g. `a(2*i+3) = a(i*i)`
+                    # E.g. `a(2*i+3) = a(i*i)`. Add a shortcut for
+                    # a very common case - the index is a simple reference
+                    if (isinstance(index_write, Reference) and
+                            isinstance(index_other, Reference) and
+                            index_write == index_other):
+                        if index_write.name == loop_var:
+                            # a(j, ...) and a(j, ...) - these accesses
+                            # will never overlap for different j, independent
+                            # of the expressions in the other dimensions
+                            return True
+                        # The expression does not depend on the loop variable
+                        # at all (dependency distance would return None),
+                        # again no need for an explicit test, we can continue
+                        # the outer loop
+                        continue
                     distance = self._get_dependency_distance(loop_var,
                                                              index_write,
                                                              index_other)
@@ -738,37 +753,35 @@ class DependencyTools():
                 if not self._is_loop_carried_dependency(loop_variables,
                                                         write_access,
                                                         other_access):
+                    # We can capture the loop variable 'write_access' and
+                    # 'other_access' in the lambdas because we immediately
+                    # return after creating the lambdas, not allowing the
+                    # variables to be redefined anymore.
+                    # pylint: disable=cell-var-from-loop
+
                     # There is a dependency. Try to give precise error
                     # messages:
                     if write_access is other_access:
                         # The write access has a dependency on itself, e.g.
                         # a(3) = ...    or a((i-2)**2) = ...
                         # Both would result in a write-write conflict
-                        node = write_access.node
-                        self._add_message(
-                            f"The write access to '{var_info.var_name}' in "
-                            f"'{node.debug_string()}' causes "
-                            f"a write-write race condition.",
+                        self._add_message(LazyString(
+                            lambda:
+                                (f"The write access to "
+                                 f"{write_access.description} "
+                                 f"causes a write-write race condition.")),
                             DTCode.ERROR_WRITE_WRITE_RACE,
                             [var_info.var_name])
                     else:
                         # Get 'read' or 'write' etc
                         access_type = str(other_access.access_type).lower()
 
-                        # We need to use default parameters for wnode and
-                        # onode, since otherwise the value of a variable might
-                        # be different when the message is actually evaluated.
-                        # Some pylint version complain here (because of the
-                        # above). The code is correct, so disable this
-                        # message:
-                        # pylint: disable=cell-var-from-loop
                         self._add_message(LazyString(
-                            lambda wnode=write_access.node,
-                            onode=other_access.node:
+                            lambda:
                                 (f"The write access to "
-                                 f"'{wnode.debug_string().strip()}' and the "
+                                 f"{write_access.description} and the "
                                  f"{access_type} access to "
-                                 f"'{onode.debug_string().strip()}' "
+                                 f"{other_access.description} "
                                  f"are dependent and cannot be "
                                  f"parallelised.")),
                             DTCode.ERROR_DEPENDENCY,
@@ -778,18 +791,19 @@ class DependencyTools():
         return True
 
     # -------------------------------------------------------------------------
-    def _is_scalar_parallelisable(self, sig: Signature,
-                                  access_info: AccessInfo):
+    def _is_scalar_parallelisable(self,
+                                  sig: Signature,
+                                  access_info: AccessInfo) -> bool:
         '''Checks if the accesses to the given scalar variable can be
         parallelised, i.e. it is not a reduction.
 
         :param sig: the signature for the variable to test.
         :param access_info: the access information for the variable to test.
+
         :return: True if the scalar variable is not a reduction, i.e. it
             can be parallelised.
-        :rtype: bool
-        '''
 
+        '''
         # Read only scalar variables can be parallelised
         if access_info.is_read_only():
             return True
@@ -800,7 +814,6 @@ class DependencyTools():
             # be used outside of the loop (or it is bad code). Read-only access
             # has already been tested above, so it must be a write access here,
             # which prohibits parallelisation.
-            # We could potentially use lastprivate here?
             self._add_message(f"Scalar variable '{access_info.var_name}' "
                               "is only written once.",
                               DTCode.WARN_SCALAR_WRITTEN_ONCE,
