@@ -44,6 +44,9 @@ from psyclone.psyir.nodes.codeblock import TreeSitterCodeBlock, CodeBlock
 class FortranTreeSitterReader():
     ''' Processes the TreeSitter parse_tree and converts it to PSyIR.
 
+    Note: this class is in development, currently pretty much only generates
+    a CodeBlock for anything provided to it.
+
     :param ignore_directives: Whether directives should be ignored or not
         (default True). Currently ignored.
     :param last_comments_as_codeblocks: Whether the last comments in the a
@@ -59,6 +62,9 @@ class FortranTreeSitterReader():
     def __init__(self, ignore_directives: bool = True,
                  last_comments_as_codeblocks: bool = False,
                  resolve_modules: bool = False):
+        # TODO #3038 Arguments are currently not used nor typechecked, but if
+        # we decide this is the common reader interface, this can be done in a
+        # super class instead of duplicate it here.
         self._ignore_directives = ignore_directives
         self._resolve_modules = resolve_modules
         self._last_comments_as_codeblocks = last_comments_as_codeblocks
@@ -71,12 +77,12 @@ class FortranTreeSitterReader():
     @classmethod
     def generate_parse_tree(
         cls,
-        source_code: str,
-        file_path: str,
-        ignore_comments: bool,
-        free_form: bool,
-        ignore_directives: bool,
-        conditional_openmp: bool,
+        source_code: Optional[str] = None,
+        file_path: Optional[str] = None,
+        ignore_comments: bool = True,
+        free_form: bool = True,
+        ignore_directives: bool = True,
+        conditional_openmp: bool = True,
         partial_code: str = ""
     ):
         ''' Use the provided source code and frontend options to generate
@@ -92,6 +98,7 @@ class FortranTreeSitterReader():
             "expression" or "statement".
 
         '''
+        # pylint: disable=unused-argument
         # Purposely inlined to lazily load this modules only when needed
         # pylint: disable=import-outside-toplevel
         import tree_sitter_fortran
