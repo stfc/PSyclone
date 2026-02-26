@@ -222,6 +222,7 @@ def test_call_tree_get_used_symbols_from_modules():
             ('routine', 'testkern_import_symbols_mod', "local_func"),
             ("routine", "module_with_var_mod", "module_subroutine"),
             ("unknown", "module_with_var_mod", "module_var_a"),
+            ("unknown", "module_with_var_mod", "module_function"),
             ("routine", "testkern_import_symbols_mod", "local_subroutine"),
             ("routine", None, "unknown_subroutine")]
             )

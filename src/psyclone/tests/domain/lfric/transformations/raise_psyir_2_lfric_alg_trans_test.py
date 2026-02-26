@@ -108,26 +108,6 @@ def test_init():
     assert isinstance(invoke_trans, RaisePSyIR2LFRicAlgTrans)
 
 
-def test_structure_constructor(fortran_reader):
-    '''Test that validation does not raise an exception if the fparser2
-    node is a structure constructor.
-
-    '''
-    code = (
-        "subroutine alg()\n"
-        "  use kern_mod\n"
-        "  call invoke(kern(1.0))\n"
-        "end subroutine alg\n")
-
-    psyir = fortran_reader.psyir_from_source(code)
-    subroutine = psyir.children[0]
-    lfric_invoke_trans = RaisePSyIR2LFRicAlgTrans()
-
-    lfric_invoke_trans.validate(subroutine.children[0])
-    lfric_invoke_trans._validate_fp2_node(
-        subroutine[0].arguments[0]._fp2_nodes[0])
-
-
 @pytest.mark.parametrize("string", ["error='hello'", "name=0"])
 def test_named_arg_error(string, fortran_reader):
     '''Test that the validation method raises an exception if a named

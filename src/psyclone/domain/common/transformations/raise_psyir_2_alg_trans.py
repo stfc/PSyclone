@@ -43,15 +43,13 @@ which uses specialised classes.
 from fparser.two.Fortran2003 import Structure_Constructor
 
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (
-    Call, CodeBlock, Literal, Reference, Routine)
+from psyclone.psyir.nodes import Call, CodeBlock, Literal, Routine
 from psyclone.psyir.symbols import (
-    Symbol, DataTypeSymbol, StructureType, RoutineSymbol, ScalarType)
+    Symbol, DataTypeSymbol, StructureType, ScalarType)
 from psyclone.domain.common.algorithm import (
     AlgorithmInvokeCall, KernelFunctor)
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -65,30 +63,6 @@ class RaisePSyIR2AlgTrans(Transformation):
     def __init__(self):
         super().__init__()
         self._call_name = None
-
-    @staticmethod
-    def _parse_args(code_block, fp2_node):
-        '''Return the arguments from a Structure Constructor stored as a
-        CodeBlock containing an fparser2 ast.
-
-        :param code_block: the CodeBlock containing a StructureConstructor.
-        :type code_block: :py:class:`psyclone.psyir.nodes.CodeBlock`
-        :param fp2_node: the fparser2 Structure Constructor node.
-        :type fp2_node: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-
-        :returns: a list of PSyIR nodes containing the \
-            StructureConstructor arguments.
-        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
-
-        '''
-        dummy_call = Call(parent=code_block.parent)
-        dummy_call.addchild(Reference(RoutineSymbol("dummy")))
-        fparser2 = Fparser2Reader()
-        for arg in fp2_node.children[1].children:
-            fparser2.process_nodes(dummy_call, [arg])
-        # Return the list of detached arguments
-        return dummy_call.pop_all_children()[1:]
 
     @staticmethod
     def _get_symbol(call, fp2_node):
@@ -222,8 +196,7 @@ class RaisePSyIR2AlgTrans(Transformation):
                 info = (
                     f"The arguments to this invoke call are expected to "
                     f"be kernel calls which are represented in generic "
-                    f"PSyIR as Calls or Codeblocks, but "
-                    f"'{arg.debug_string()}' is of type "
+                    f"PSyIR as Calls, but '{arg.debug_string()}' is of type "
                     f"'{type(arg).__name__}'.")
                 raise TransformationError(
                     f"Error in {self.name} transformation. {info}")

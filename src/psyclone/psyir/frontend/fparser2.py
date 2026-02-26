@@ -249,8 +249,11 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     # tree has not been built so the symbol table is not connected to
     # a node.
     symbol_table = location.scope.symbol_table
-    while symbol_table and symbol_table.node and not isinstance(
-            symbol_table.node, (Routine, Container)):
+    while (
+        symbol_table and symbol_table.node
+        and not isinstance(symbol_table.node, (Routine, Container))
+        and symbol_table.parent_symbol_table() is not None
+    ):
         symbol_table = symbol_table.parent_symbol_table()
 
     # All requested Nodes have been checked but there has been no
