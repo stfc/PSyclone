@@ -53,8 +53,7 @@ import pytest
 
 import psyclone
 
-from psyclone.configuration import (BaseConfig, ConfigurationError,
-                                    Config, VALID_KERNEL_NAMING_SCHEMES)
+from psyclone.configuration import BaseConfig, ConfigurationError, Config
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
@@ -568,20 +567,6 @@ def test_disable_backend_indentation_setter_getter():
             str(err.value))
     config.backend_indentation_disabled = True
     assert config.backend_indentation_disabled is True
-
-
-def test_kernel_naming_setter():
-    ''' Check that the setter for the kernel-naming scheme rejects
-    unrecognised values.
-
-    '''
-    config = Config()
-    config.kernel_naming = "single"
-    assert config.kernel_naming == "single"
-    with pytest.raises(ValueError) as err:
-        config.kernel_naming = "not-a-scheme"
-    assert (f"kernel_naming must be one of '{VALID_KERNEL_NAMING_SCHEMES}' "
-            f"but got 'not-a-scheme'" in str(err.value))
 
 
 def test_incl_path_errors(tmpdir):

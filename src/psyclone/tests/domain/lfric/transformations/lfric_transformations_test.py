@@ -46,6 +46,7 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.domain.lfric import LFRicLoop
@@ -7345,19 +7346,23 @@ def test_kern_const_apply(capsys, monkeypatch):
         "    Modified nqp_h, arg position 21, value 3.\n"
         "    Modified nqp_v, arg position 22, value 3.\n")
 
+    mod_inline_trans = KernelModuleInlineTrans()
     # element_order_<h,v> only
+    mod_inline_trans.apply(kernel)
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
     assert result == element_order_expected
 
     # nlayers only
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
+    mod_inline_trans.apply(kernel)
     kctrans.apply(kernel, {"number_of_layers": 20})
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected
 
     # element_order_<h,v> and quadrature
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
+    mod_inline_trans.apply(kernel)
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
                            "quadrature": True})
     result, _ = capsys.readouterr()
@@ -7365,6 +7370,7 @@ def test_kern_const_apply(capsys, monkeypatch):
 
     # element_order_<h,v> and nlayers
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
+    mod_inline_trans.apply(kernel)
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
                            "number_of_layers": 20})
     result, _ = capsys.readouterr()
@@ -7372,6 +7378,7 @@ def test_kern_const_apply(capsys, monkeypatch):
 
     # element_order_<h,v>, nlayers and quadrature
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
+    mod_inline_trans.apply(kernel)
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
                            "number_of_layers": 20, "quadrature": True})
     result, _ = capsys.readouterr()
@@ -7398,7 +7405,7 @@ def test_kern_const_anyspace_anydspace_apply(capsys):
     kernel = create_kernel("1.5.3_single_invoke_write_any_anyd_space.f90")
 
     kctrans = LFRicKernelConstTrans()
-
+    KernelModuleInlineTrans().apply(kernel)
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
     assert result == (
@@ -7423,7 +7430,7 @@ def test_kern_const_anyw2_apply(capsys):
     kernel = create_kernel("21.1_single_invoke_multi_anyw2.f90")
 
     kctrans = LFRicKernelConstTrans()
-
+    KernelModuleInlineTrans().apply(kernel)
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
     assert result == (
@@ -7628,11 +7635,21 @@ def test_kern_const_invalid():
     kernel = create_kernel("1_single_invoke.f90")
 
     kctrans = LFRicKernelConstTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
 
     # Node is not an LFRic kernel
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(None)
     assert "Supplied node must be an LFRic kernel" in str(excinfo.value)
+
+    # Kernel not module inlined
+    with pytest.raises(TransformationError) as excinfo:
+        kctrans.apply(kernel, {"number_of_layers": 1})
+    assert ("because its implementation resides in a different source file"
+            in str(excinfo.value))
+
+    # Module-inline it so we can continue with tests.
+    mod_inline_trans.apply(kernel)
 
     # Cell shape not quadrilateral
     with pytest.raises(TransformationError) as excinfo:
@@ -7687,32 +7704,14 @@ def test_kern_const_invalid_dofs(monkeypatch):
     monkeypatch.setattr(LFRicKernelConstTrans, "space_to_dofs",
                         {"wa": [], "wb": []})
 
+    KernelModuleInlineTrans().apply(kernel)
+
     with pytest.raises(InternalError) as excinfo:
         kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert "Unsupported function space 'w1' found. Expecting one of " \
         in str(excinfo.value)
     assert "'wa'" in str(excinfo.value)
     assert "'wb'" in str(excinfo.value)
-
-
-def test_kern_const_invalid_kern(monkeypatch):
-    '''Check that we raise the expected exception when the Fortran to
-    PSyIR parser fails to parse a kernel.
-
-    '''
-    kernel = create_kernel("1_single_invoke.f90")
-
-    kctrans = LFRicKernelConstTrans()
-
-    def dummy():
-        '''A dummy function that always raises an exception.'''
-        raise NotImplementedError("Monkeypatch error")
-    monkeypatch.setattr(kernel, "get_callees", dummy)
-    with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
-    assert (
-        "Failed to parse kernel 'testkern_code'. Error reported was "
-        "'Monkeypatch error'.") in str(excinfo.value)
 
 
 def test_kern_const_invalid_quad(monkeypatch):
@@ -7722,6 +7721,9 @@ def test_kern_const_invalid_quad(monkeypatch):
 
     '''
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
+
+    # Kernel has to be module inlined first.
+    KernelModuleInlineTrans().apply(kernel)
 
     kctrans = LFRicKernelConstTrans()
     monkeypatch.setattr(kernel, "_eval_shapes", ["gh_quadrature_face"])
@@ -7741,6 +7743,9 @@ def test_kern_const_invalid_make_constant1():
 
     '''
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
+
+    # Kernel has to be module inlined first.
+    KernelModuleInlineTrans().apply(kernel)
 
     kernel_schedule = kernel.get_callees()[0]
     symbol_table = kernel_schedule.symbol_table
@@ -7767,6 +7772,9 @@ def test_kern_const_invalid_make_constant2():
 
     '''
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
+
+    # Kernel has to be module inlined first.
+    KernelModuleInlineTrans().apply(kernel)
 
     kctrans = LFRicKernelConstTrans()
     kernel_schedule = kernel.get_callees()[0]

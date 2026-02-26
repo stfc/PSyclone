@@ -39,14 +39,16 @@ GOMoveIterationBoundariesInsideKernelTrans transformation.
 '''
 
 import pytest
-from psyclone.tests.utilities import get_invoke
+
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.gocean1p0 import GOLoop
 from psyclone.domain.gocean.transformations import (
     GOMoveIterationBoundariesInsideKernelTrans)
 from psyclone.psyir.nodes import (
     Assignment, Container, IfBlock, Return)
-from psyclone.psyir.symbols import ArgumentInterface
-from psyclone.gocean1p0 import GOLoop
+from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
+from psyclone.tests.utilities import get_invoke
 
 API = "gocean"
 
@@ -80,12 +82,15 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     num_args = len(kernel.arguments.args)
 
     # Add some name conflicting symbols in the Invoke and the Kernel
-    kernel.ancestor(Container).symbol_table.new_symbol("xstop")
+    kernel.ancestor(Container).symbol_table.new_symbol(
+        "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
     routines = kernel.get_callees()
     ksched = routines[0]
-    ksched.symbol_table.new_symbol("ystart")
+    ksched.symbol_table.new_symbol(
+        "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
     # Apply the transformation
+    KernelModuleInlineTrans().apply(kernel)
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     trans.apply(kernel)
 
@@ -132,7 +137,7 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
         "Reference[name:'xstart']\n"
         "BinaryOperation[operator:'GT']\n"
         "Reference[name:'i']\n"
-        "Reference[name:'xstop']\n"
+        "Reference[name:'xstop_1']\n"
         "BinaryOperation[operator:'OR']\n"
         "BinaryOperation[operator:'LT']\n"
         "Reference[name:'j']\n"
@@ -145,7 +150,7 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     # - It has the boundary symbol as kernel arguments
     assert isinstance(kschedule.symbol_table.lookup("xstart").interface,
                       ArgumentInterface)
-    assert isinstance(kschedule.symbol_table.lookup("xstop").interface,
+    assert isinstance(kschedule.symbol_table.lookup("xstop_1").interface,
                       ArgumentInterface)
     assert isinstance(kschedule.symbol_table.lookup("ystart_1").interface,
                       ArgumentInterface)
@@ -162,19 +167,24 @@ def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice(
     postfixed with a number) and that kernels don't duplicate boundary
     arguments themself when applying the transformation twice.
     '''
-    psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
-                        dist_mem=False)
-    sched = psy.invokes.invoke_list[0].schedule
+    psy, invoke = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    sched = invoke.schedule
 
     # Apply the transformation twice
+    mod_inline_trans = KernelModuleInlineTrans()
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
+        mod_inline_trans.apply(kernel)
         trans.apply(kernel)
         trans.apply(kernel)
 
+    output = fortran_writer(sched)
+
+    assert "use compute_cu_mod" not in output
+    assert "use time_smooth_mod" not in output
+
     expected = '''subroutine invoke_0(cu_fld, p_fld, u_fld, unew_fld, uold_fld)
-  use compute_cu_mod, only : compute_cu_code
-  use time_smooth_mod, only : time_smooth_code
   type(r2d_field), intent(inout) :: cu_fld
   type(r2d_field), intent(inout) :: p_fld
   type(r2d_field), intent(inout) :: u_fld
@@ -215,4 +225,4 @@ xstart_1, xstop_1, ystart_1, ystop_1)
 end subroutine invoke_0
 '''
 
-    assert fortran_writer(sched) == expected
+    assert expected in output

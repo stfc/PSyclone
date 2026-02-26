@@ -36,10 +36,12 @@
 
 ''' This module contains the ScopingNode implementation.'''
 
+from typing import Union
+
 from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
-    RoutineSymbol, SymbolError, SymbolTable)
+    RoutineSymbol, Symbol, SymbolError, SymbolTable)
 
 
 class ScopingNode(Node):
@@ -128,7 +130,7 @@ class ScopingNode(Node):
         '''
         # Reorganise the symbol table construction to occur before we add
         # the children.
-        self._symbol_table = other.symbol_table.deep_copy(self)
+        self._symbol_table = other.symbol_table.deep_copy(new_node=self)
 
         # Remove symbols corresponding to Routines that are contained in this
         # ScopingNode. These symbols will be added automatically by the Routine
@@ -155,10 +157,10 @@ class ScopingNode(Node):
             except KeyError:
                 pass
 
-        super(ScopingNode, self)._refine_copy(other)
+        super()._refine_copy(other)
 
         # Add any routine tags back
-        for tag in removed_tags.keys():
+        for tag in removed_tags:
             # pylint: disable-next=protected-access
             self._symbol_table._tags[tag] = self._symbol_table.lookup(
                     removed_tags[tag].name)
@@ -189,7 +191,9 @@ class ScopingNode(Node):
         var_accesses.update(super().reference_accesses())
         return var_accesses
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(
+            self,
+            table_or_symbol: Union[SymbolTable, Symbol]) -> None:
         '''
         Update any Symbols referenced by this Node (and its descendants) with
         those in the supplied table (or just the supplied Symbol instance) if
@@ -201,10 +205,12 @@ class ScopingNode(Node):
         this node (if any), the one passed to the child nodes is updated to be
         the one associated with this node.
 
+        The symbols within the associated symbol table are also updated to
+        ensure that any symbols upon which they depend are replaced with the
+        new copies.
+
         :param table_or_symbol: the symbol table from which to get replacement
             symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         next_table = table_or_symbol

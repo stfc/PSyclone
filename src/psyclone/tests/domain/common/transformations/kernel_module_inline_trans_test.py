@@ -229,10 +229,12 @@ def test_validate_name_clashes():
             "module-inlined subroutines is not supported yet."
             in str(err.value))
 
-    # TODO # 898. Manually force removal of previous imported symbol
+    # TODO # 898. Manually force removal of previous added symbol.
     # symbol_table.remove() is not implemented yet.
     schedule.symbol_table._symbols.pop("ru_code")
-
+    # Also remove the RoutineSymbol representing the Kernel that is
+    # automatically added to the Container during PSy-layer construction.
+    schedule.ancestor(Container).symbol_table._symbols.pop("ru_code")
     # Check that if a subroutine with the same name already exists and it is
     # not identical, it fails.
     schedule.parent.addchild(Routine.create("ru_code"))
@@ -315,13 +317,15 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     monkeypatch.setattr(kern_call, "_schedules", [routine])
 
     container = kern_call.ancestor(Container)
-    assert "compute_cv_code" not in container.symbol_table
+    rsym = container.symbol_table.lookup("compute_cv_code")
+    assert rsym.is_import
 
     inline_trans.apply(kern_call)
 
-    # A RoutineSymbol should have been added to the Container symbol table.
+    # The RoutineSymbol should no longer be an import.
     rsym = container.symbol_table.lookup("compute_cv_code")
     assert isinstance(rsym, RoutineSymbol)
+    assert not rsym.is_import
     assert rsym.visibility == Symbol.Visibility.PRIVATE
 
 
@@ -477,9 +481,9 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     psy, _ = get_invoke("3.1_multi_functions_multi_invokes.f90", "lfric",
                         idx=0, dist_mem=False)
 
-    # By default the kernel is imported once per invoke
+    # By default the kernel is imported just once (in the outer container)
     gen = str(psy.gen)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 2
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
     assert gen.count("end subroutine testkern_qr_code") == 0
 
     # Module inline kernel in invoke 1
@@ -516,12 +520,12 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
                         "lfric", idx=0, dist_mem=False)
 
     # Module inline kernel in invoke 1
-    inline_trans = KernelModuleInlineTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
     artrans = ACCRoutineTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "mixed_code":
-            inline_trans.apply(coded_kern)
+            mod_inline_trans.apply(coded_kern)
             # Transform that kernel. We have to use 'force' as it contains
             # a CodeBlock.
             artrans.apply(coded_kern, options={"force": True})
@@ -532,12 +536,11 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
     # Since we don't currently rename module-inlined kernels (TODO #2846),
     # module-inlining just one instance means that calls to that same Kernel
     # throughout the whole module use the newly-inlined version.
-    assert ("""subroutine invoke_1(scalar_r_bl, field_r_bl, \
+    assert """subroutine invoke_1(scalar_r_bl, field_r_bl, \
 operator_r_def, f1, f2, m1, a, m2, istp, qr)
     use function_space_mod, only : basis, diff_basis
     use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, \
-quadrature_xyoz_type
-    use testkern_qr_mod, only : testkern_qr_code""" in output)
+quadrature_xyoz_type""" in output
     assert "mixed_kernel_mod" not in output
     assert LFRicBuild(tmpdir).code_compiles(psy)
 

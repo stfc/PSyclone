@@ -1676,24 +1676,6 @@ def test_main_kern_output_dir(tmpdir):
     assert Config.get().kernel_output_dir == str(os.getcwd())
 
 
-def test_invalid_kern_naming():
-    '''Check that we raise the expected error if an invalid
-    kernel-renaming scheme is supplied.
-
-    '''
-    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "lfric",
-                                 "1_single_invoke.f90"))
-    # Simply supplying the wrong value on the command line is picked up
-    # by the argparse module so we call generate() directly with an
-    # incorrect value
-    with pytest.raises(GenerationError) as err:
-        _, _ = generate(alg_filename, api="lfric",
-                        kern_naming="not-a-scheme")
-    assert "Invalid kernel-renaming scheme supplied" in str(err.value)
-    assert "but got 'not-a-scheme'" in str(err.value)
-
-
 def test_enable_cache_flag(tmpdir, monkeypatch):
     ''' Check that if the --enable-cache flag is provided, resolve imports will
     create .psycache files for each imported module.

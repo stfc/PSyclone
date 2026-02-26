@@ -191,10 +191,10 @@ def test_single_kern_eval(tmpdir):
     # Check module declarations
     assert "use constants_mod\n" in code
     assert "use field_mod, only : field_proxy_type, field_type" in code
+    assert "use testkern_eval_mod, only : testkern_eval_code" in code
 
     # Check subroutine declarations
     assert "  subroutine invoke_0_testkern_eval_type(f0, cmap)" in code
-    assert "    use testkern_eval_mod, only : testkern_eval_code" in code
     assert "    use function_space_mod, only : BASIS, DIFF_BASIS" in code
     assert "    type(field_type), intent(in) :: f0" in code
     assert "    type(field_type), intent(in) :: cmap" in code

@@ -48,21 +48,36 @@ Transformations
 Kernel Transformations
 ======================
 
-PSyclone is able to perform kernel transformations by obtaining the PSyIR
-representation of the kernel with:
+In order to transform a PSyKAl Kernel while applying transformations to a
+generated PSy layer, the kernel routine must first be brought into the
+same source module as the PSy-layer subroutine from which it is called.
+This is achieved using ``KernelModuleInlineTrans``:
+
+.. autoclass:: psyclone.domain.common.transformations.KernelModuleInlineTrans
+   :noindex:
+
+Once the PSy-layer has its own, private copy of the Kernel, it may
+subsequently be transformed.
+
+.. note:: Currently ``KernelModuleInlineTrans`` does not support re-naming
+	  the in-lined Kernel routine. This means that *all* calls to that
+	  Kernel in that source file are updated so as to call the same,
+	  local copy. #2846 will lift this limitation.
+
+To transform a kernel, one must first obtain its PSyIR with:
 
 .. automethod:: psyclone.psyGen.CodedKern.get_callees
     :no-index:
 
-The result of `psyclone.psyGen.Kern.get_callees` is a list of
-`psyclone.psyir.nodes.KernelSchedule` objects. `KernelSchedule` is a
-specialisation of the `Routine` class with the `is_program` and `return_type`
-properties set to False` and `None`, respectively.
+The result of ``psyclone.psyGen.Kern.get_callees`` is a list of
+``psyclone.psyir.nodes.KernelSchedule`` objects. ``KernelSchedule`` is a
+specialisation of the ``Routine`` class with the ``is_program`` and
+``return_type`` properties set to ``False`` and ``None``, respectively.
 
-In addition to modifying the kernel PSyIR with the desired transformations,
-the `modified` flag of the `CodedKern` node has to be set. This will let
-PSyclone know which kernel files it may have to rename and rewrite
-during the code generation.
+.. note:: A Kernel can of course be transformed independently of constructing
+	  a PSy layer by running PSyclone on the source file and treating it
+	  as generic Fortran rather than a DSL Kernel. This is a matter for an
+	  application's build system.
 
 Raising Transformations
 =======================

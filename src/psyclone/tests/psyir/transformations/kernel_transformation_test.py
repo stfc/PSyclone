@@ -39,20 +39,20 @@
 
 ''' Module containing tests for kernel transformations. '''
 
-import os
 import re
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.generator import GenerationError
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Routine, FileContainer, IntrinsicCall, Call
+from psyclone.psyir.nodes import (Call, Container, Routine, FileContainer,
+                                  IntrinsicCall)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import (
     TransformationError, OMPDeclareTargetTrans)
 from psyclone.transformations import ACCRoutineTrans, LFRicKernelConstTrans
-from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
@@ -73,223 +73,27 @@ def teardown_function():
     Config._instance = None
 
 
-def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
-    ''' Check that we write out the transformed kernel to the CWD. '''
-    # Ensure kernel-output directory is uninitialised
-    config = Config.get()
-    monkeypatch.setattr(config, "_kernel_naming", "multiple")
-    psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean", idx=0)
-    sched = invoke.schedule
-    kern = sched.coded_kernels()[0]
-    rtrans = ACCRoutineTrans()
-    rtrans.apply(kern)
-    # Generate the code (this triggers the generation of a new kernel)
-    code = str(psy.gen).lower()
-    # Work out the value of the tag used to re-name the kernel
-    tag = re.search('use continuity(.+?)_mod', code).group(1)
-    assert f"use continuity{tag}_mod, only : continuity{tag}_code" in code
-    assert f"call continuity{tag}_code(" in code
-    # The kernel and module name should have gained the tag just identified
-    # and be written to the CWD
-    filename = os.path.join(str(kernel_outputdir), f"continuity{tag}_mod.f90")
-    assert os.path.isfile(filename)
-    # Parse the new kernel file
-    psyir = fortran_reader.psyir_from_file(filename)
-    # Check that the module has the right name
-    assert isinstance(psyir, FileContainer)
-    module = psyir.children[0]
-    assert module.name == f"continuity{tag}_mod"
-
-    # Check that the subroutine has the right name
-    for sub in psyir.walk(Routine):
-        if sub.name == f"continuity{tag}_code":
-            break
-    else:
-        assert False, f"Failed to find subroutine named continuity{tag}_code"
-
-    # If compilation fails this will raise an exception
-    GOceanBuild(kernel_outputdir).compile_file(filename)
-
-
-def test_new_kernel_dir(kernel_outputdir):
-    ''' Check that we write out the transformed kernel to a specified
-    directory. '''
-    psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean", idx=0)
-    sched = invoke.schedule
-    kern = sched.coded_kernels()[0]
-    rtrans = ACCRoutineTrans()
-    rtrans.apply(kern)
-    # Generate the code (this triggers the generation of a new kernel)
-    _ = str(psy.gen)
-    file_list = os.listdir(str(kernel_outputdir))
-    assert len(file_list) == 1
-    assert file_list[0] == 'continuity_0_mod.f90'
-
-
-def test_new_kern_no_clobber(kernel_outputdir, monkeypatch):
-    ''' Check that we create a new kernel with a new name when kernel-naming
-    is set to 'multiple' and we would otherwise get a name clash. '''
-    # Ensure kernel-output directory is uninitialised
-    config = Config.get()
-    monkeypatch.setattr(config, "_kernel_naming", "multiple")
-    psy, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    kern = kernels[0]
-    old_mod_name = kern.module_name[:].lower()
-    if old_mod_name.endswith("_mod"):
-        old_mod_name = old_mod_name[:-4]
-    # Create a file with the same name as we would otherwise generate
-    with open(os.path.join(str(kernel_outputdir),
-                           old_mod_name+"_0_mod.f90"),
-              "w", encoding="utf-8") as ffile:
-        ffile.write("some code")
-    rtrans = ACCRoutineTrans()
-    rtrans.apply(kern)
-    # Generate the code (this triggers the generation of a new kernel)
-    _ = str(psy.gen).lower()
-    filename = os.path.join(str(kernel_outputdir), old_mod_name+"_1_mod.f90")
-    assert os.path.isfile(filename)
-
-
-@pytest.mark.parametrize(
-    "mod_name,sub_name",
-    [("testkern_mod", "testkern"),
-     ("testkern", "testkern_code"),
-     ("testkern1_mod", "testkern2_code")])
-def test_kernel_module_name(kernel_outputdir, mod_name, sub_name, monkeypatch):
-    '''Check that there is no limitation on kernel and module names. In
-    particular check that the names do not have to conform to the
-    <name>_mod, <name>_code convention.
-
-    '''
-    # Argument kernel_outputdir is needed to capture the files created by
-    # the rename_and_write() call
-    # pylint: disable=unused-argument
-    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
-    sched = invoke.schedule
-    kernels = sched.coded_kernels()
-    kern = kernels[0]
-    ktrans = LFRicKernelConstTrans()
-    ktrans.apply(kern, {"number_of_layers": 100})
-    # Modify the kernel module and subroutine names.
-    monkeypatch.setattr(kern, "_module_name", mod_name)
-    monkeypatch.setattr(kern, "_name", sub_name)
-    # Generate the code - no exception should be raised when the names
-    # do not conform to the <name>_mod, >name>_code convention.
-    kern.rename_and_write()
-
-
-@pytest.mark.parametrize(
-    "mod_name,sub_name",
-    [("testkern_mod", "testkern_code"),
-     ("testkern_MOD", "testkern_CODE"),
-     ("TESTKERN_mod", "testkern_code"),
-     ("testkern_mod", "TESTKERN_code"),
-     ("TESTKERN_MoD", "TESTKERN_CoDe")])
-def test_kern_case_insensitive(mod_name, sub_name, kernel_outputdir,
-                               monkeypatch):
-    '''Check that the test to see if a kernel conforms to the <name>_mod,
-    <name>_code convention is case insensitive. This check also tests that the
-    removal of _mod to create part of the output filename is case
-    insensitive.
-
-    '''
-    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    kern = kernels[0]
-    ktrans = LFRicKernelConstTrans()
-    ktrans.apply(kern, {"number_of_layers": 100})
-    monkeypatch.setattr(kern, "_module_name", mod_name)
-    monkeypatch.setattr(kern, "_name", sub_name)
-    # Generate the code - this should not raise an exception.
-    kern.rename_and_write()
-    filename = os.path.join(str(kernel_outputdir), mod_name[:8]+"_0_mod.f90")
-    assert os.path.isfile(filename)
-
-
-def test_new_kern_single_error(kernel_outputdir, monkeypatch):
-    ''' Check that we do not overwrite an existing, different kernel if
-    there is a name clash and kernel-naming is 'single'. '''
-    # Ensure kernel-output directory is uninitialised
-    config = Config.get()
-    monkeypatch.setattr(config, "_kernel_naming", "single")
-    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
-    sched = invoke.schedule
-    kernels = sched.coded_kernels()
-    kern = kernels[0]
-    old_mod_name = kern.module_name[:].lower()
-    if old_mod_name.endswith("_mod"):
-        old_mod_name = old_mod_name[:-4]
-    # Create a file with the same name as we would otherwise generate
-    with open(os.path.join(str(kernel_outputdir),
-                           old_mod_name+"_0_mod.f90"),
-              "w", encoding="utf-8") as ffile:
-        ffile.write("some code")
-    rtrans = ACCRoutineTrans()
-    rtrans.apply(kern)
-    # Generate the code - this should raise an error as we get a name
-    # clash and the content of the existing file is not the same as that
-    # which we would generate
-    with pytest.raises(GenerationError) as err:
-        kern.rename_and_write()
-    assert (f"transformed version of this Kernel 'testkern_0_mod.f90' already "
-            f"exists in the kernel-output directory ({kernel_outputdir}) "
-            f"but is not the same as the current, transformed kernel and the "
-            f"kernel-renaming scheme is set to 'single'" in str(err.value))
-
-
-def test_new_same_kern_single(kernel_outputdir, monkeypatch):
-    ''' Check that we do not overwrite an existing, identical kernel if
-    there is a name clash and kernel-naming is 'single'. '''
-    # Ensure kernel-output directory is uninitialised
-    config = Config.get()
-    monkeypatch.setattr(config, "_kernel_naming", "single")
-    rtrans = ACCRoutineTrans()
-    _, invoke = get_invoke("4_multikernel_invokes.f90", api="lfric",
-                           idx=0)
-    sched = invoke.schedule
-    # Apply the same transformation to both kernels. This should produce
-    # two, identical transformed kernels.
-    new_kernels = []
-    for kern in sched.coded_kernels():
-        rtrans.apply(kern)
-        new_kernels.append(kern)
-
-    # Generate the code - we should end up with just one transformed kernel
-    new_kernels[0].rename_and_write()
-    new_kernels[1].rename_and_write()
-    assert new_kernels[1]._name == "testkern_0_code"
-    assert new_kernels[1].module_name == "testkern_0_mod"
-    out_files = os.listdir(str(kernel_outputdir))
-    assert out_files == [new_kernels[1].module_name+".f90"]
-
-
-def test_transform_kern_with_interface(kernel_outputdir):
+def test_transform_kern_with_interface(tmp_path, fortran_writer):
     '''
     Test that we can transform a polymorphic kernel - i.e. one where
     there is more than one subroutine implementation in order to support
     different precisions.
 
     '''
+    mod_inline_trans = KernelModuleInlineTrans()
     rtrans = ACCRoutineTrans()
     psy, invoke = get_invoke("26.8_mixed_precision_args.f90",
                              api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.coded_kernels()
+    # Have to module-inline the kernel in order to transform it.
+    mod_inline_trans.apply(kernels[0])
     # Have to use 'force' because the test kernel contains a WRITE which
     # becomes a CodeBlock.
     rtrans.apply(kernels[0], options={"force": True})
-    kernels[0].rename_and_write()
-    out_files = os.listdir(str(kernel_outputdir))
-    filename = os.path.join(str(kernel_outputdir), out_files[0])
-    assert os.path.isfile(filename)
-    with open(filename,
-              "r", encoding="utf-8") as ffile:
-        contents = ffile.read()
+    contents = fortran_writer(sched.ancestor(Container))
     # Check that the interface name has been updated.
-    assert "interface mixed_0_code" in contents
+    assert "interface mixed_code" in contents
     assert ("module procedure :: mixed_code_32, mixed_code_64"
             in contents)
     # Check that the subroutines themselves haven't been renamed.
@@ -302,10 +106,11 @@ def test_transform_kern_with_interface(kernel_outputdir):
     assert ('''real*8, dimension(op_ncell_3d,ndf_w0,ndf_w0), intent(in) :: op
 
     !$acc routine seq''' in contents)
-    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
+    assert LFRicBuild(tmp_path).code_compiles(psy)
     kernels = sched.coded_kernels()
+    mod_inline_trans.apply(kernels[1])
     rtrans.apply(kernels[1], options={"force": True})
-    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 # The following tests test the MarkRoutineForGPUMixin validation, for this
@@ -475,9 +280,11 @@ def test_kernel_gpu_annotation_trans(rtrans, expected_directive,
                                      fortran_writer):
     ''' Check that the GPU annotation transformations insert the
     proper directive inside PSyKAl kernel code '''
+    mod_inline_trans = KernelModuleInlineTrans()
     _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
     sched = invoke.schedule
     kern = sched.coded_kernels()[0]
+    mod_inline_trans.apply(kern)
     rtrans.apply(kern)
 
     # Check that the directive has been added to the kernel code
@@ -520,30 +327,25 @@ def test_kernel_gpu_annotation_device_id(rtrans, fortran_reader):
             in str(err.value))
 
 
-def test_1kern_trans(kernel_outputdir):
+def test_1kern_trans(tmp_path):
     ''' Check that we generate the correct code when an invoke contains
     the same kernel more than once but only one of them is transformed. '''
     psy, invoke = get_invoke("4_multikernel_invokes.f90", api="lfric",
                              idx=0)
     sched = invoke.schedule
     kernels = sched.coded_kernels()
-    # We will transform the second kernel but not the first
     kern = kernels[1]
+    # We have to module-inline the kernel before we can transform it and that
+    # will affect all calls to that kernel in the invoke.
+    KernelModuleInlineTrans().apply(kern)
     rtrans = ACCRoutineTrans()
     rtrans.apply(kern)
-    # Generate the code (this triggers the generation of a new kernel)
+    # Generate the code
     code = str(psy.gen).lower()
-    tag = re.search('use testkern(.+?)_mod', code).group(1)
-    # We should have a USE for the original kernel and a USE for the new one
-    assert f"use testkern{tag}_mod, only : testkern{tag}_code" in code
-    assert "use testkern_mod, only : testkern_code" in code
-    # Similarly, we should have calls to both the original and new kernels
-    assert "call testkern_code(" in code
-    assert f"call testkern{tag}_code(" in code
-    first = code.find("call testkern_code(")
-    second = code.find(f"call testkern{tag}_code(")
-    assert first < second
-    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
+    assert 'use testkern_mod' not in code
+    assert code.count("call testkern_code(") == 2
+    assert "private :: testkern_code" in code
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_2kern_trans(kernel_outputdir):
@@ -555,23 +357,17 @@ def test_2kern_trans(kernel_outputdir):
     kernels = sched.walk(Kern)
     assert len(kernels) == 5
     ktrans = LFRicKernelConstTrans()
+    mod_inline = KernelModuleInlineTrans()
+    mod_inline.apply(kernels[1])
     ktrans.apply(kernels[1], {"number_of_layers": 100})
+    mod_inline.apply(kernels[2])
     ktrans.apply(kernels[2], {"number_of_layers": 100})
-    # Generate the code (this triggers the generation of new kernels)
+    # Generate the code.
     code = str(psy.gen).lower()
-    # Find the tags added to the kernel/module names
-    for match in re.finditer('use testkern_any_space_2(.+?)_mod', code):
-        tag = match.group(1)
-        assert (f"use testkern_any_space_2{tag}_mod, only : "
-                f"testkern_any_space_2{tag}_code" in code)
-        assert f"call testkern_any_space_2{tag}_code(" in code
-        filepath = os.path.join(str(kernel_outputdir),
-                                f"testkern_any_space_2{tag}_mod.f90")
-        assert os.path.isfile(filepath)
-        with open(filepath, encoding="utf-8") as infile:
-            assert "nlayers = 100" in infile.read()
+    # Check that the old module re-naming no longer happens.
+    assert not re.match('use testkern_any_space_2(.+?)_mod', code)
     assert "use testkern_any_space_2_mod, only" not in code
-    assert "call testkern_any_space_2_code(" not in code
+    assert "call testkern_any_space_2_code(" in code
     assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 

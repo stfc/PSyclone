@@ -59,6 +59,7 @@ from psyclone import transformations
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import (lfric_builtins, LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
@@ -82,7 +83,6 @@ from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (LFRicRedundantComputationTrans,
-                                      LFRicKernelConstTrans,
                                       LFRicColourTrans,
                                       LFRicOMPLoopTrans,
                                       Transformation)
@@ -549,7 +549,6 @@ def test_derived_type_deref_naming(tmpdir):
         "  subroutine invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
         "    use mesh_mod, only : mesh_type\n"
-        "    use testkern_mod, only : testkern_code\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1_my_field\n"
         "    type(field_type), intent(in) :: f1_my_field_1\n"
@@ -662,124 +661,21 @@ def test_codedkern_node_str():
     assert expected_output in out
 
 
-def test_codedkern_module_inline_getter_and_setter():
-    ''' Check that the module_inline setter changes the module inline
-    attribute to all the same kernels in the invoke'''
-    # Use LFRic example with a repeated CodedKern
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+def test_codedkern_module_inline_getter():
+    '''
+    Test the module_inline property of CodedKern.
+    '''
+    _, invoke = get_invoke("4.6_multikernel_invokes.f90", api="lfric", idx=0)
     schedule = invoke.schedule
-    coded_kern_1 = schedule.children[0].loop_body[0]
-    coded_kern_2 = schedule.children[1].loop_body[0]
-
-    # By default they are not module-inlined
-    assert not coded_kern_1.module_inline
-    assert not coded_kern_2.module_inline
-    assert "module_inline=False" in coded_kern_1.node_str()
-    assert "module_inline=False" in coded_kern_2.node_str()
-
-    # It can be turned on (and both kernels change)
-    coded_kern_1.module_inline = True
-    assert coded_kern_1.module_inline
-    assert coded_kern_2.module_inline
-    assert "module_inline=True" in coded_kern_1.node_str()
-    assert "module_inline=True" in coded_kern_2.node_str()
-
-    # It can not be turned off
-    with pytest.raises(TypeError) as err:
-        coded_kern_2.module_inline = False
-    assert ("The module inline parameter only accepts the type boolean "
-            "'True' since module-inlining is irreversible. But found: 'False'"
-            in str(err.value))
-    assert coded_kern_1.module_inline
-    assert coded_kern_2.module_inline
-
-    # And it doesn't accept other types
-    with pytest.raises(TypeError) as err:
-        coded_kern_2.module_inline = 3
-    assert ("The module inline parameter only accepts the type boolean "
-            "'True' since module-inlining is irreversible. But found: '3'"
-            in str(err.value))
-
-
-def test_codedkern_module_inline_lowering(tmpdir):
-    ''' Check that a CodedKern with module-inline gets copied into the
-    local module appropriately when the PSy-layer is generated'''
-    # Use LFRic example with a repeated CodedKern
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    coded_kern = schedule.children[0].loop_body[0]
-    gen = str(psy.gen)
-
-    # Without module-inline the subroutine is used by a module import
-    assert "use ru_kernel_mod, only : ru_code" in gen
-    assert "subroutine ru_code(" not in gen
-
-    # With module-inline the subroutine does not need to be imported
-    coded_kern.module_inline = True
-
-    # Fail if local routine symbol does not already exist
-    with pytest.raises(VisitorError) as err:
-        gen = str(psy.gen)
-    assert ("Cannot generate this kernel call to 'ru_code' because it "
-            "is marked as module-inlined but no such subroutine exists in "
-            "this module." in str(err.value))
-
-    # Create the symbol and try again, it now must succeed
-    psy.container.symbol_table.new_symbol(
-            "ru_code", symbol_type=RoutineSymbol)
-
-    gen = str(psy.gen)
-    assert "use ru_kernel_mod, only : ru_code" not in gen
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
-    ''' Check that module-inline works as expected when the same kernel
-    is provided in different invokes'''
-    # Use LFRic example with the kernel 'testkern_qr_mod' repeated once in
-    # the first invoke and 3 times in the second invoke.
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-
-    # By default the kernel is imported once per invoke
-    gen = str(psy.gen)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 2
-
-    # Module inline kernel in invoke 1
-    schedule = psy.invokes.invoke_list[0].schedule
-    for coded_kern in schedule.walk(CodedKern):
-        if coded_kern.name == "testkern_qr_code":
-            coded_kern.module_inline = True
-    # A top-level RoutineSymbol must now exist
-    schedule.ancestor(Container).symbol_table.new_symbol(
-            "testkern_qr_code", symbol_type=RoutineSymbol)
-    gen = str(psy.gen)
-
-    # After this, one invoke uses the inlined top-level subroutine
-    # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    # Module inline kernel in invoke 2
-    schedule = psy.invokes.invoke_list[1].schedule
-    for coded_kern in schedule.walk(CodedKern):
-        if coded_kern.name == "testkern_qr_code":
-            coded_kern.module_inline = True
-    gen = str(psy.gen)
-    # After this, no imports are remaining and both use the same
-    # top-level implementation
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 0
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    ckerns = schedule.walk(CodedKern)
+    # Double check that both kernels are the same.
+    assert ckerns[0].name == ckerns[1].name
+    assert ckerns[0].module_inline is False
+    mod_inline_trans = KernelModuleInlineTrans()
+    mod_inline_trans.apply(ckerns[0])
+    # Module inlining one should have updated both.
+    assert ckerns[0].module_inline is True
+    assert ckerns[1].module_inline is True
 
 
 def test_codedkern_lower_to_language_level(monkeypatch):
@@ -2225,31 +2121,6 @@ def test_dataaccess_same_vector_indices(monkeypatch):
     assert (
         "The halo exchange vector indices for 'e' are the same. This should "
         "never happen" in str(excinfo.value))
-
-
-def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
-    '''Modified Fortran kernels are written to file linewrapped at 132
-    characters. This test checks that this linewrapping works.
-
-    '''
-    psy, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    # This example does not conform to the <name>_code, <name>_mod
-    # convention so monkeypatch it to avoid the PSyIR code generation
-    # raising an exception. This limitation is the subject of issue
-    # #520.
-    monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
-    ktrans = LFRicKernelConstTrans()
-    ktrans.apply(kernels[0], {"number_of_layers": 100})
-    # Generate the code (this triggers the generation of new kernels)
-    _ = str(psy.gen)
-    filepath = os.path.join(str(kernel_outputdir), "testkern_0_mod.f90")
-    assert os.path.isfile(filepath)
-    # Check that the argument list is line wrapped as it is longer
-    # than 132 characters.
-    with open(filepath, encoding="utf-8") as testfile:
-        assert "map_w2, &\n&ndf_w3" in testfile.read()
 
 
 def test_walk(fortran_reader):

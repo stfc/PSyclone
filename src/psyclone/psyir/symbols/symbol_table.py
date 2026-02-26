@@ -42,15 +42,18 @@
 
 # pylint: disable=too-many-lines
 
+from __future__ import annotations
 from collections import OrderedDict
 from collections.abc import Iterable
 import inspect
 import copy
 import logging
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
@@ -259,7 +262,7 @@ class SymbolTable():
         new_st._default_visibility = self.default_visibility
         return new_st
 
-    def deep_copy(self, new_node=None):
+    def deep_copy(self, new_node: "ScopingNode" = None) -> SymbolTable:
         '''Create a copy of the symbol table with new instances of the
         top-level data structures and also new instances of the symbols
         contained in these data structures. Modifying a symbol attribute
@@ -271,10 +274,8 @@ class SymbolTable():
 
         :param new_node: the PSyIR Node to be associated with the copied
             table (if different from self.node).
-        :type new_node: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
         :returns: a deep copy of this symbol table.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
         # pylint: disable=protected-access
@@ -621,6 +622,16 @@ class SymbolTable():
                     f"associated with symbol '{new_symbol.name}'.")
             self._tags[tag] = new_symbol
 
+        #1734
+        if new_symbol.is_import:
+            csym = new_symbol.interface.container_symbol
+            sym_in_scope = self.lookup(csym.name, otherwise=None)
+            if sym_in_scope is not csym:
+                raise InternalError(
+                    f"Cannot add {new_symbol.name} because it is imported "
+                    f"from '{csym.name}' but that ContainerSymbol is not in "
+                    f"scope.")
+
         self._symbols[key] = new_symbol
 
     def check_for_clashes(self, other_table, symbols_to_skip=()):
@@ -794,8 +805,10 @@ class SymbolTable():
             # We must update all Symbols within this table that are imported
             # from this ContainerSymbol so that they now point to the one in
             # scope in this table instead.
-            imported_syms = other_table.symbols_imported_from(csym)
-            for isym in imported_syms:
+            for isym in other_table.imported_symbols:
+                self.update_import_interface(isym)
+                continue
+            # ARPDBG
                 other_sym = self.lookup(isym.name, otherwise=None)
                 if other_sym:
                     # We have a potential clash with a symbol imported
@@ -813,6 +826,21 @@ class SymbolTable():
                 isym.interface = ImportInterface(
                         self.lookup(csym.name),
                         orig_name=isym.interface.orig_name)
+
+    def update_import_interface(self, isym):
+        '''
+        Update the import interface of the supplied Symbol so that it
+        refers to a Container in this or an ancestor scope.
+
+        '''
+        csym = isym.interface.container_symbol
+        if csym not in self.symbols:
+            new_ctr = self.lookup(csym.name, otherwise=None)
+            if not new_ctr:
+                self.add(csym)
+                new_ctr = csym
+            isym.interface = ImportInterface(
+                new_ctr, orig_name=isym.interface.orig_name)
 
     def _add_symbols_from_table(self, other_table, symbols_to_skip=()):
         '''
