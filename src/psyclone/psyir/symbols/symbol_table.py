@@ -626,11 +626,19 @@ class SymbolTable():
         if new_symbol.is_import:
             csym = new_symbol.interface.container_symbol
             sym_in_scope = self.lookup(csym.name, otherwise=None)
-            if sym_in_scope is not csym:
+            if not sym_in_scope:
+                import pdb; pdb.set_trace()
                 raise InternalError(
                     f"Cannot add {new_symbol.name} because it is imported "
                     f"from '{csym.name}' but that ContainerSymbol is not in "
                     f"scope.")
+            if sym_in_scope is not csym:
+                import pdb; pdb.set_trace()
+                raise InternalError(
+                    f"Cannot add {new_symbol.name} because it is imported "
+                    f"from '{csym.name}' and the ContainerSymbol of that name "
+                    f"in scope in this table is not the same instance that "
+                    f"the import interface refers to.")
 
         self._symbols[key] = new_symbol
 
@@ -802,30 +810,30 @@ class SymbolTable():
                     # that too.
                     if csym.wildcard_import:
                         outer_sym.wildcard_import = True
-            # We must update all Symbols within this table that are imported
-            # from this ContainerSymbol so that they now point to the one in
-            # scope in this table instead.
-            for isym in other_table.imported_symbols:
-                self.update_import_interface(isym)
-                continue
+        # We must update all Symbols within this table that are imported
+        # from this ContainerSymbol so that they now point to the one in
+        # scope in this table instead.
+        for isym in other_table.imported_symbols:
+            self.update_import_interface(isym)
+            
             # ARPDBG
-                other_sym = self.lookup(isym.name, otherwise=None)
-                if other_sym:
-                    # We have a potential clash with a symbol imported
-                    # into the other table.
-                    if not other_sym.is_import:
-                        # The calling merge() method has already checked that
-                        # we don't have a clash between symbols of the same
-                        # name imported from different containers. We don't
-                        # support renaming an imported symbol but the
-                        # symbol in this table can be renamed so we do that.
-                        self.rename_symbol(
-                            other_sym,
-                            self.next_available_name(
-                                other_sym.name, other_table=other_table))
-                isym.interface = ImportInterface(
-                        self.lookup(csym.name),
-                        orig_name=isym.interface.orig_name)
+#                other_sym = self.lookup(isym.name, otherwise=None)
+#                if other_sym:
+#                    # We have a potential clash with a symbol imported
+#                    # into the other table.
+#                    if not other_sym.is_import:
+#                        # The calling merge() method has already checked that
+#                        # we don't have a clash between symbols of the same
+#                        # name imported from different containers. We don't
+#                        # support renaming an imported symbol but the
+#                        # symbol in this table can be renamed so we do that.
+#                        self.rename_symbol(
+#                            other_sym,
+#                            self.next_available_name(
+#                                other_sym.name, other_table=other_table))
+#                isym.interface = ImportInterface(
+#                        self.lookup(csym.name),
+#                        orig_name=isym.interface.orig_name)
 
     def update_import_interface(self, isym):
         '''

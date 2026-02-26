@@ -438,8 +438,8 @@ class Symbol(CommentableMixin):
         try:
             current = node.scope.symbol_table
             while current:
-                if self.name in current:
-                    # TODO #2949: Add: and current.lookup(self.name) is self:
+                if self.name in current and current.lookup(self.name) is self:
+                    # TODO #2949: Add: 
                     return current
                 if current.node.parent:
                     current = current.node.parent.scope.symbol_table

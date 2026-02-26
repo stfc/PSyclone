@@ -1397,6 +1397,7 @@ def test_acc_enter_directive_infrastructure_setup_error():
     # in order to get to that error.
     sym = schedule.ancestor(Container).symbol_table.lookup("compute_cu_code")
     schedule.detach()
+    schedule.symbol_table.add(sym.interface.container_symbol)
     schedule.symbol_table.add(sym)
 
     # Generate the code

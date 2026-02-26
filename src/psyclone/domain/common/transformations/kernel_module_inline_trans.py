@@ -298,6 +298,9 @@ class KernelModuleInlineTrans(Transformation):
             # Bring the selected symbols inside the subroutine
             for symbol in symbols_to_bring_in:
                 if symbol.name not in code_to_inline.symbol_table:
+                    if symbol.is_import:
+                        code_to_inline.symbol_table.update_import_interface(
+                            symbol)
                     # Ensure that any references to this Symbol within the
                     # symbol table are updated.
                     code_to_inline.symbol_table.add(symbol)

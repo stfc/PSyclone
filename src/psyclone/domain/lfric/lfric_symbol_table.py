@@ -244,5 +244,6 @@ class LFRicSymbolTable(SymbolTable):
         # pylint: disable=undefined-variable
         if self._constants_mod.name not in self:
             self.add(self._constants_mod)
+        sym.interface.container_symbol = self.lookup(self._constants_mod.name)
         self.add(sym)
         return sym
