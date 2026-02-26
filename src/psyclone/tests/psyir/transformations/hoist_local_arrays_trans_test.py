@@ -740,9 +740,9 @@ module my_mod
 
   contains
   subroutine test(arg, var)
+    integer :: i
     real, allocatable, dimension(:), intent(in) :: arg
     integer, intent(in) :: var
-    integer :: i
     real, allocatable, dimension(:) :: d
     real, allocatable, dimension(:) :: e
     real, allocatable, dimension(:) :: unused

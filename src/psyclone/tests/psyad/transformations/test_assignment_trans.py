@@ -193,11 +193,11 @@ def test_zero(tmpdir):
         "  a%data(n) = 0.0\n\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  integer, parameter :: n = 10\n"
         "  type :: field_type\n"
         "    real, dimension(10) :: data\n"
         "  end type field_type\n"
-        "  type(field_type) :: a\n\n"
+        "  type(field_type) :: a\n"
+        "  integer, parameter :: n = 10\n\n"
         "  a%data(n) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -230,9 +230,10 @@ def test_single_assign(tmpdir):
         "  a(2*i) = b(n-1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  integer, parameter :: n = 10\n  integer, parameter :: i = 2\n"
+        "  integer, parameter :: n = 10\n"
         "  real, dimension(n) :: a\n"
-        "  real, dimension(n) :: b\n\n"
+        "  real, dimension(n) :: b\n"
+        "  integer, parameter :: i = 2\n\n"
         "  b(n - 1) = b(n - 1) + a(2 * i)\n"
         "  a(2 * i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -296,13 +297,13 @@ def test_single_assign_fail(tmpdir):
         "  a%data(2*i) = b%data(n+1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  integer, parameter :: n = 2\n"
-        "  integer, parameter :: i = 2\n"
         "  type :: field_type\n"
         "    real, dimension(10) :: data\n"
         "  end type field_type\n"
         "  type(field_type) :: a\n"
-        "  type(field_type) :: b\n\n"
+        "  type(field_type) :: b\n"
+        "  integer, parameter :: n = 2\n"
+        "  integer, parameter :: i = 2\n\n"
         "  b%data(n + 1) = b%data(n + 1) + a%data(2 * i)\n"
         "  a%data(2 * i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
