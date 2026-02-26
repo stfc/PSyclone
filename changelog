@@ -1,3 +1,6 @@
+   55) PR #3333 for #2381 - Restructures global reduction nodes to support
+   LFRicGlobalMax/Min/Sum operations.
+
    54) PR #3349 for #3347 - bug fix to prevent comments and directives
    from being lost when on/in SELECT CASE blocks.
  

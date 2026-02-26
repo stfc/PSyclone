@@ -53,7 +53,7 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicKernMetadata, LFRicLoop)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.lfric import (
-    LFRicACCEnterDataDirective, LFRicBoundaryConditions, LFRicGlobalSum,
+    LFRicACCEnterDataDirective, LFRicBoundaryConditions,
     LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloReadAccess,
     KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
@@ -612,100 +612,6 @@ def test_invoke_uniq_declns_valid_access():
                                 fields_readwritten_args]
     assert fields_readwritten == ["f1"]
     assert fields_proxy_readwritten == ["f1_proxy"]
-
-
-def test_lfricinvoke_first_access():
-    ''' Tests that we raise an error if LFRicInvoke.first_access(name) is
-    called for an argument name that doesn't exist '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        psy.invokes.invoke_list[0].first_access("not_an_arg")
-    assert ("Failed to find any kernel argument with name"
-            in str(excinfo.value))
-
-
-def test_lfricinvoke_uniq_declns_intent_inv_argtype():
-    ''' Tests that we raise an error when LFRicInvoke.unique_declns_by_intent()
-    is called with at least one invalid argument type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_invalid"])
-    const = LFRicConstants()
-    assert (f"Invoke.unique_declns_by_intent() called with at least one "
-            f"invalid argument type. Expected one of "
-            f"{const.VALID_ARG_TYPE_NAMES} but found ['gh_invalid']."
-            in str(excinfo.value))
-
-
-def test_lfricinvoke_uniq_declns_intent_invalid_intrinsic():
-    ''' Tests that we raise an error when Invoke.unique_declns_by_intent()
-    is called for an invalid intrinsic type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_declns_by_intent(
-            ["gh_scalar"], intrinsic_type="triple")
-    const = LFRicConstants()
-    assert (f"Invoke.unique_declns_by_intent() called with an invalid "
-            f"intrinsic argument data type. Expected one of "
-            f"{const.VALID_INTRINSIC_TYPES} but found 'triple'."
-            in str(excinfo.value))
-
-
-def test_lfricinvoke_uniq_declns_intent_ops(tmpdir):
-    ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for operator arguments. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4.4_multikernel_invokes.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    args = psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_operator"])
-    assert args['inout'] == []
-    args_out = [arg.declaration_name for arg in args['out']]
-    assert args_out == ['op']
-    assert args['in'] == []
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_lfricinvoke_uniq_declns_intent_cma_ops(tmpdir):
-    ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for columnwise operator arguments. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "20.5_multi_cma_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    args = psy.invokes.invoke_list[0]\
-        .unique_declns_by_intent(["gh_columnwise_operator"])
-    args_out = [arg.declaration_name for arg in args['out']]
-    assert args_out == ['cma_op1']
-    args_inout = [arg.declaration_name for arg in args['inout']]
-    assert args_inout == ['cma_opc']
-    args_in = [arg.declaration_name for arg in args['in']]
-    assert args_in == ['cma_opb']
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_lfricinvoke_arg_for_fs():
-    ''' Tests that we raise an error when LFRicInvoke.arg_for_funcspace() is
-    called for an unused space. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        psy.invokes.invoke_list[0].arg_for_funcspace(FunctionSpace("wtheta",
-                                                                   None))
-    assert "No argument found on 'wtheta' space" in str(excinfo.value)
 
 
 def test_kernel_specific(tmpdir):
@@ -2400,22 +2306,6 @@ def test_func_descriptor_str():
     assert output in func_str
 
 
-def test_lfrickern_arg_for_fs():
-    ''' Test that LFRicInvoke.arg_for_funcspace() raises an error if
-    passed an invalid function space.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    with pytest.raises(InternalError) as err:
-        _ = first_invoke.arg_for_funcspace(FunctionSpace("waah", "waah"))
-    const = LFRicConstants()
-    assert (f"Unrecognised function space 'waah'. The supported spaces are "
-            f"{const.VALID_FUNCTION_SPACE_NAMES}" in str(err.value))
-
-
 def test_dist_memory_true():
     ''' Test that the distributed memory flag is on by default. '''
     Config._instance = None
@@ -2952,71 +2842,6 @@ def test_haloexchange_correct_parent():
     schedule = psy.invokes.invoke_list[0].schedule
     for child in schedule.children:
         assert child.parent == schedule
-
-
-def test_lfricglobalsum_unsupported_argument():
-    ''' Check that an instance of the LFRicGlobalSum class raises an
-    exception for an unsupported argument type. '''
-    # Get an instance of a non-scalar argument
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.6.1_single_invoke_1_int_scalar.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[4]
-    kernel = loop.loop_body[0]
-    argument = kernel.arguments.args[0]
-    with pytest.raises(InternalError) as err:
-        _ = LFRicGlobalSum(argument)
-    assert ("LFRicGlobalSum.init(): A global sum argument should be a scalar "
-            "but found argument of type 'gh_field'." in str(err.value))
-
-
-def test_lfricglobalsum_unsupported_scalar():
-    ''' Check that an instance of the LFRicGlobalSum class raises an
-    exception if an unsupported scalar type is provided when distributed
-    memory is enabled (dm=True).
-
-    '''
-    # Get an instance of an integer scalar
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.6.1_single_invoke_1_int_scalar.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[4]
-    kernel = loop.loop_body[0]
-    argument = kernel.arguments.args[1]
-    with pytest.raises(GenerationError) as err:
-        _ = LFRicGlobalSum(argument)
-    assert ("LFRicGlobalSum currently only supports real scalars, but "
-            "argument 'iflag' in Kernel 'testkern_one_int_scalar_code' "
-            "has 'integer' intrinsic type." in str(err.value))
-
-
-def test_lfricglobalsum_nodm_error():
-    ''' Check that an instance of the LFRicGlobalSum class raises an
-    exception if it is instantiated with no distributed memory enabled
-    (dm=False).
-
-    '''
-    # Get an instance of a real scalar
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.9_single_invoke_2_real_scalars.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
-    kernel = loop.loop_body[0]
-    argument = kernel.arguments.args[0]
-    with pytest.raises(GenerationError) as err:
-        _ = LFRicGlobalSum(argument)
-    assert ("It makes no sense to create an LFRicGlobalSum object when "
-            "distributed memory is not enabled (dm=False)."
-            in str(err.value))
 
 
 def test_no_updated_args():
