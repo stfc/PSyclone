@@ -39,7 +39,8 @@
 of an Invoke into a stand-alone application."
 '''
 
-from psyclone.psyGen import BuiltIn, Kern, HaloExchange, GlobalSum
+from psyclone.domain.common.psylayer import GlobalReduction
+from psyclone.psyGen import BuiltIn, Kern, HaloExchange
 from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Schedule,
                                   Directive, OMPParallelDirective,
                                   ACCParallelDirective)
@@ -64,15 +65,15 @@ class ExtractTrans(PSyDataTrans):
     Loops containing a Kernel or BuiltIn call) or entire Invokes. This
     functionality does not support distributed memory.
 
-    :param node_class: The Node class of which an instance will be inserted \
+    :param node_class: The Node class of which an instance will be inserted
         into the tree (defaults to ExtractNode), but can be any derived class.
-    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode` or \
+    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode` or
         derived class
 
     '''
     # The types of node that this transformation cannot enclose
     excluded_node_types = (CodeBlock, ExtractNode,
-                           HaloExchange, GlobalSum)
+                           HaloExchange, GlobalReduction)
 
     def __init__(self, node_class=ExtractNode):
         # This function is required to provide the appropriate default
