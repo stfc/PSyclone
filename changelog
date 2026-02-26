@@ -1,3 +1,12 @@
+   53) PR #3317 - adds a profiling wrapper libary for ROCTx (AMD) as
+   well as a new nemo example to show profiling with OMP offload.
+ 
+   52) PR #3342 for #3339 - adds a value_as_python property to Literal.
+ 
+   51) PR #3205 for #3306 and towards #3157. Initial implementation of
+   a generic MaximalRegionTrans and specialisations to create spanning
+   OMPParallel regions and NEMO Profiling regions.
+
    50) PR #3338 for #1651. Fixes Reference2ArrayRange issues with
    capitalisation and test nested WHEREs.
 
