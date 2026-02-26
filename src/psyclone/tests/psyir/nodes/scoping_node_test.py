@@ -177,8 +177,11 @@ def test_scoping_node_copy_hierarchy(fortran_writer):
     parent_copy = parent_node.copy()
     new_routine = parent_copy.walk(Routine)[0]
     new_a = new_routine.symbol_table.lookup("a")
-    assert (new_a.datatype.precision.symbol is
-            parent_copy.symbol_table.lookup("wp"))
+    new_wp = parent_copy.symbol_table.lookup("wp")
+    assert new_a.datatype.precision.symbol is new_wp
+
+    new_kinds = parent_copy.symbol_table.lookup("kinds")
+    assert new_wp.interface.container_symbol is new_kinds
 
     # Now just copy the Routine.
     new_schedule = schedule.copy()

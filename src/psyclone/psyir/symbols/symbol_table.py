@@ -622,6 +622,16 @@ class SymbolTable():
                     f"associated with symbol '{new_symbol.name}'.")
             self._tags[tag] = new_symbol
 
+        #1734
+        if new_symbol.is_import:
+            csym = new_symbol.interface.container_symbol
+            sym_in_scope = self.lookup(csym.name, otherwise=None)
+            if sym_in_scope is not csym:
+                raise InternalError(
+                    f"Cannot add {new_symbol.name} because it is imported "
+                    f"from '{csym.name}' but that ContainerSymbol is not in "
+                    f"scope.")
+
         self._symbols[key] = new_symbol
 
     def check_for_clashes(self, other_table, symbols_to_skip=()):
@@ -795,8 +805,10 @@ class SymbolTable():
             # We must update all Symbols within this table that are imported
             # from this ContainerSymbol so that they now point to the one in
             # scope in this table instead.
-            imported_syms = other_table.symbols_imported_from(csym)
-            for isym in imported_syms:
+            for isym in other_table.imported_symbols:
+                self.update_import_interface(isym)
+                continue
+            # ARPDBG
                 other_sym = self.lookup(isym.name, otherwise=None)
                 if other_sym:
                     # We have a potential clash with a symbol imported
@@ -814,6 +826,21 @@ class SymbolTable():
                 isym.interface = ImportInterface(
                         self.lookup(csym.name),
                         orig_name=isym.interface.orig_name)
+
+    def update_import_interface(self, isym):
+        '''
+        Update the import interface of the supplied Symbol so that it
+        refers to a Container in this or an ancestor scope.
+
+        '''
+        csym = isym.interface.container_symbol
+        if csym not in self.symbols:
+            new_ctr = self.lookup(csym.name, otherwise=None)
+            if not new_ctr:
+                self.add(csym)
+                new_ctr = csym
+            isym.interface = ImportInterface(
+                new_ctr, orig_name=isym.interface.orig_name)
 
     def _add_symbols_from_table(self, other_table, symbols_to_skip=()):
         '''

@@ -1674,6 +1674,51 @@ class Node():
                                       self._children_valid_format)
         # And make a recursive copy of each child instead
         self.children.extend([child.copy() for child in other.children])
+
+        # Now that the copied children are connected into the tree, ensure
+        # any dangling symbols are re-connected.
+        from psyclone.psyir.nodes.scoping_node import ScopingNode
+        for child in self.children:
+            if not isinstance(child, ScopingNode):
+                continue
+            # Update imports first
+            for isym in child.symbol_table.imported_symbols:
+                child.symbol_table.update_import_interface(isym)
+
+            all_symbols: set[Symbol] = set(child.symbol_table.symbols)
+            while all_symbols:
+                for sym in list(all_symbols)[:]:
+                    found_new_sym = False
+                    # Examine all of the Symbols used in the definition of sym.
+                    for dep_sym in sym.get_all_accessed_symbols():
+                        # Allow for shadowing by checking for the presence of
+                        # this Symbol object rather than its name.
+                        if dep_sym not in child.symbol_table.symbols:
+                            new_sym = child.symbol_table.lookup(dep_sym.name,
+                                                                otherwise=None)
+                            if not new_sym:
+                                # We have a reference to an unresolved symbol.
+                                # Add it to the table but, since it too may
+                                # contain further references, we add it to
+                                # the set of all symbols to examine and start
+                                # again.
+                                if dep_sym.is_import:
+                                    child.symbol_table.update_import_interface(
+                                        dep_sym)
+                                child.symbol_table.add(dep_sym)
+                                all_symbols.add(dep_sym)
+                                found_new_sym = True
+                                break
+                            # Update the definition of this symbol using the
+                            # new one we have found.
+                            sym.replace_symbols_using(new_sym)
+                    else:
+                        # Have looked at all dependencies of this symbol so
+                        # remove it from the set.
+                        all_symbols.remove(sym)
+                    if found_new_sym:
+                        break
+
         self._disable_tree_update = False
         self._cached_abs_position = None
 

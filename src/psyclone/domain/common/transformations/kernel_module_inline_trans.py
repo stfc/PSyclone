@@ -289,10 +289,10 @@ class KernelModuleInlineTrans(Transformation):
             symbols_to_bring_in = set()
             for symbol in all_symbols:
                 if symbol.is_unresolved or symbol.is_import:
-                    # This symbol is already in the symbol table, but adding it
-                    # to the 'symbols_to_bring_in' will make the next step
-                    # bring into the subroutine all modules that it could come
-                    # from.
+                    # This symbol may already be in the local symbol table,
+                    # but adding it to the 'symbols_to_bring_in' will make the
+                    # next step bring into the subroutine all modules that it
+                    # could come from.
                     symbols_to_bring_in.add(symbol)
 
             # Bring the selected symbols inside the subroutine

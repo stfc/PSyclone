@@ -157,10 +157,10 @@ class ScopingNode(Node):
             except KeyError:
                 pass
 
-        super(ScopingNode, self)._refine_copy(other)
+        super()._refine_copy(other)
 
         # Add any routine tags back
-        for tag in removed_tags.keys():
+        for tag in removed_tags:
             # pylint: disable-next=protected-access
             self._symbol_table._tags[tag] = self._symbol_table.lookup(
                     removed_tags[tag].name)
@@ -213,9 +213,6 @@ class ScopingNode(Node):
             symbols or a single, replacement Symbol.
 
         '''
-        for sym in self.symbol_table.symbols:
-            sym.replace_symbols_using(table_or_symbol)
-
         next_table = table_or_symbol
         if self.parent and isinstance(table_or_symbol, SymbolTable):
             try:
