@@ -2243,27 +2243,3 @@ def test_fw_intrinsiccall(fortran_reader, fortran_writer):
             "argument name 'scalar' found" in str(err.value))
     output = fortran_writer(intrinsic)
     assert "ALLOCATED(scalar=b)" in output
-
-
-def test_function_call_or_derived_type_constructor(fortran_reader):
-    ''' fparser is finiky about what is a function call and what is
-    a derived type constructor. Regardless, PSyIR classifies both of
-    them as function calls '''
-    code = """subroutine foo()
-    type(mytype) :: derived_type
-    real :: a, b, c
-
-    ! Definition not found
-    a = unknown()
-    a = unknown(3, b)
-    a = unknown(name=3, name2=b)
-
-    ! Definition found
-    a = derived_type()
-    a = derived_type(3, b)
-    a = derived_type(name=3, name2=b)
-
-    end subroutine foo"""
-    psyir = fortran_reader.psyir_from_source(code)
-    import pdb; pdb.set_trace()
-    assert False

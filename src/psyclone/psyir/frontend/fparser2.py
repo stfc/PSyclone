@@ -838,7 +838,8 @@ def _get_arg_names(node_list):
     arg_names = []
     arg_nodes = []
     for node in node_list:
-        if isinstance(node, Fortran2003.Actual_Arg_Spec):
+        if isinstance(node, (Fortran2003.Actual_Arg_Spec,
+                             Fortran2003.Component_Spec)):
             arg_names.append(node.children[0].string)
             arg_nodes.append(node.children[1])
         else:
@@ -5091,7 +5092,7 @@ class Fparser2Reader():
         Transforms an fparser2 Part_Ref to the PSyIR representation.
 
         fparser2 cannot always disambiguate between Array Accessors, Calls and
-        DerivedType constructors, and it falls back to Part_Ref when unknown.
+        DerivedType constructors (sometimes the last two will be Part_Ref).
         PSyclone has a better chance of properly categorising them because we
         can follow 'use' statements to retrieve symbol information. If
         psyclone does not find the definition it falls back to a Call. The
@@ -5120,13 +5121,16 @@ class Fparser2Reader():
         _refine_symbols_with_usage_location(parent, node)
         symbol = _find_or_create_unresolved_symbol(parent, reference_name)
 
-        if isinstance(symbol, DataSymbol):
-            call_or_array = ArrayReference(symbol, parent=parent)
-        else:
-            # Generic Symbols (unresolved), RoutineSymbols and DataTypeSymbols
-            # (constructors) are all processed as Calls
+        if (
+            not isinstance(symbol, DataSymbol) or
+            isinstance(symbol.datatype, DataTypeSymbol)
+        ):
+            # Fallback to Call if the type is unknown, or it is a Derived
+            # Type constructor
             call_or_array = Call(parent=parent)
             call_or_array.addchild(Reference(symbol))
+        else:
+            call_or_array = ArrayReference(symbol, parent=parent)
         self.process_nodes(parent=call_or_array, nodes=node.items[1].items)
         return call_or_array
 
@@ -5329,16 +5333,33 @@ class Fparser2Reader():
 
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
-        # If it's a plain reference, promote the symbol to a RoutineSymbol
+        # If it's a call statement, it is unambigusly a RoutineSymbol
         # pylint: disable=unidiomatic-typecheck
-        if type(routine) is Reference:
+        if (
+            isinstance(node, Fortran2003.Call_Stmt) and
+            type(routine) is Reference
+        ):
             routine_symbol = routine.symbol
+
+            if type(routine_symbol) is Symbol:
+                # Specialise routine_symbol from a Symbol to a
+                # RoutineSymbol
+                routine_symbol.specialise(RoutineSymbol)
+            elif isinstance(routine_symbol, RoutineSymbol):
+                # This symbol is already the expected type
+                pass
+            else:
+                raise GenerationError(
+                    f"Expecting the symbol '{routine_symbol.name}', to be of "
+                    f"type 'Symbol' or 'RoutineSymbol', but found "
+                    f"'{type(routine_symbol).__name__}'.")
 
         return self._process_args(node, call)
 
     def _process_args(self, node: Union[
                           Fortran2003.Call_Stmt,
-                          Fortran2003.Intrinsic_Function_Reference
+                          Fortran2003.Intrinsic_Function_Reference,
+                          Fortran2003.Structure_Constructor
                       ],
                       call: Union[Call, IntrinsicCall],
                       check_valid_argument_ordering: bool = False) -> Union[
