@@ -54,7 +54,9 @@ INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
 VALUE_RANGE_CHECK_DIR = $(PSYROOT)/lib/value_range_check/dl_esm_inf
-F90FLAGS += -I$(INF_INC) -I $(VALUE_RANGE_CHECK_DIR)
+# Don't add the include flags to F90FLAGS, that might cause problems
+# when other makefiles are called (which will also use F90FLAGS)
+F90_INC_FLAGS= -I$(INF_INC) -I $(VALUE_RANGE_CHECK_DIR)
 LIB_NAME = lib_value_range_check.a
 
 # The two kernels used in the application.
@@ -111,7 +113,7 @@ alg.o:	psy.o
 psy.o:	$(KERNELS)
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(F90_INC_FLAGS) -c $<
 
 allclean: clean
 	$(MAKE) -C $(VALUE_RANGE_CHECK_DIR) allclean
