@@ -47,10 +47,13 @@ import os
 import sys
 from typing import Iterable, Optional, Union
 
-from fparser.common.readfortran import FortranStringReader
+from fparser.common.readfortran import FortranStringReader, FortranFileReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, BlockBase, StmtBase, Base
+from fparser.common.sourceinfo import FortranFormat
+from fparser.two.symbol_table import SYMBOL_TABLES
+from fparser.two.utils import FortranSyntaxError, NoMatchError
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
@@ -60,7 +63,7 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Call, CodeBlock, Container, DataNode, Directive,
     FileContainer, IfBlock, IntrinsicCall, Literal, Loop, Member, Node, Range,
     Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
-    WhileLoop, ScopingNode, UnknownDirective)
+    WhileLoop, Fparser2CodeBlock, ScopingNode, UnknownDirective)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, CHARACTER_TYPE,
@@ -866,6 +869,8 @@ class Fparser2Reader():
     :raises TypeError: if the constructor argument is not of the expected type.
 
     '''
+    _parser = None
+
     unary_operators = OrderedDict([
         ('+', UnaryOperation.Operator.PLUS),
         ('-', UnaryOperation.Operator.MINUS),
@@ -947,7 +952,7 @@ class Fparser2Reader():
 
     def __init__(self, ignore_directives: bool = True,
                  last_comments_as_codeblocks: bool = False,
-                 resolve_modules: bool = False):
+                 resolve_modules: Union[bool, list[str]] = False):
         if isinstance(resolve_modules, bool):
             self._resolve_all_modules = resolve_modules
             self._modules_to_resolve = []
@@ -1011,6 +1016,78 @@ class Fparser2Reader():
         # Whether to keep the last comments in a given block as CodeBlocks
         self._last_comments_as_codeblocks = last_comments_as_codeblocks
 
+    @classmethod
+    def generate_parse_tree(
+        cls,
+        source_code: str,
+        file_path: str,
+        ignore_comments: bool,
+        free_form: bool,
+        ignore_directives: bool,
+        conditional_openmp: bool,
+        partial_code: str = ""
+    ):
+        ''' Use the provided source code and frontend options to generate
+        a fparser2 parsetree.
+
+        :param source_code: the given source code.
+        :param ignore_comments: whether to let the parser ignore comments.
+        :param free_form: whether to parse using Fortran free_form syntax.
+        :param ignore_directives: whether to ignore directives while parsing.
+        :param conditional_openmp:
+        :param partial_code: if the provided source_code is not a full unit
+            this indicates the starting parsing point. It currently supports
+            "expression" or "statement".
+
+        '''
+        if file_path:
+            reader = FortranFileReader(
+                file_path,
+                include_dirs=Config.get().include_paths,
+                ignore_comments=ignore_comments,
+                process_directives=not ignore_directives,
+                include_omp_conditional_lines=conditional_openmp,
+            )
+        else:
+            reader = FortranStringReader(
+                source_code,
+                include_dirs=Config.get().include_paths,
+                ignore_comments=ignore_comments,
+                process_directives=not ignore_directives,
+                include_omp_conditional_lines=conditional_openmp,
+            )
+        # Set reader to free format.
+        reader.set_format(FortranFormat(free_form, False))
+
+        SYMBOL_TABLES.clear()
+        if partial_code == "expression":
+            try:
+                parse_tree = Fortran2003.Expr(source_code)
+            except NoMatchError as err:
+                raise ValueError(
+                    f"Supplied source does not represent a Fortran "
+                    f"expression: '{source_code}'") from err
+        elif partial_code == "statement":
+            try:
+                parse_tree = Fortran2003.Execution_Part(reader)
+            except NoMatchError as err:
+                raise ValueError(
+                    f"Supplied source does not represent a Fortran "
+                    f"statement: '{source_code}'") from err
+        else:
+            try:
+                std = Config.get().fortran_standard
+                if not cls._parser:
+                    cls._parser = ParserFactory().create(std=std)
+                parse_tree = cls._parser(reader)
+            except (FortranSyntaxError, NoMatchError) as err:
+                raise ValueError(
+                    f"Failed to parse the provided source code:\n{source_code}"
+                    "\nError was: {err}\nIs the input valid Fortran (note that"
+                    f" CPP directives must be handled by a pre-processor)?"
+                ) from err
+        return parse_tree
+
     @staticmethod
     def nodes_to_code_block(parent, fp2_nodes, message=None):
         '''Create a CodeBlock for the supplied list of fparser2 nodes and then
@@ -1048,7 +1125,7 @@ class Fparser2Reader():
         else:
             structure = CodeBlock.Structure.EXPRESSION
 
-        code_block = CodeBlock(fp2_nodes, structure, parent=parent)
+        code_block = Fparser2CodeBlock(fp2_nodes, structure, parent=parent)
         if message:
             code_block.preceding_comment = message
         parent.addchild(code_block)
@@ -3828,8 +3905,8 @@ class Fparser2Reader():
         fp2_program = parser(reader)
         # Ignore the program part of the fparser2 tree
         exec_part = walk(fp2_program, Fortran2003.Execution_Part)
-        code_block = CodeBlock(exec_part, CodeBlock.Structure.STATEMENT,
-                               parent=parent)
+        code_block = Fparser2CodeBlock(
+            exec_part, CodeBlock.Structure.STATEMENT, parent=parent)
 
         # Handlers assume a single node is returned and in this
         # implementation we create an assignment (see below), a
@@ -5931,7 +6008,7 @@ class Fparser2Reader():
         if to_direc:
             content = str_rep[2:].lstrip()
             return UnknownDirective(content)
-        code_block = CodeBlock(
+        code_block = Fparser2CodeBlock(
             [node],
             CodeBlock.Structure.STATEMENT,
             parent=parent

@@ -144,7 +144,7 @@ class MarkRoutineForGPUMixin:
             if not force:
                 if cblocks:
                     cblock_txt = ("\n  " + "\n  ".join(
-                        str(node) for node in cblocks[0].get_ast_nodes)
+                        str(node) for node in cblocks[0].get_ast_nodes())
                                   + "\n")
                     option_txt = "options={'force': True}"
                     raise TransformationError(
