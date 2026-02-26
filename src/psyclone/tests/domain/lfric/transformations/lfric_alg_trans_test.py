@@ -86,7 +86,8 @@ def test_apply(fortran_reader):
 
     alg_trans.apply(psyir)
 
-    assert len(psyir.walk(Call)) == 5  # 3 Invokes + not_invoke + kern
+    # The 3 invokes + the not_invoke + the kern inside not_invoke
+    assert len(psyir.walk(Call)) == 5
     assert len(psyir.walk(LFRicAlgorithmInvokeCall)) == 3
     assert len(psyir.walk(LFRicKernelFunctor)) == 2
     assert len(psyir.walk(LFRicBuiltinFunctor)) == 1

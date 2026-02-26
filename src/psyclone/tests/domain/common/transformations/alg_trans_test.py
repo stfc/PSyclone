@@ -123,7 +123,7 @@ def test_apply(fortran_reader):
 
     alg_trans.apply(psyir)
 
-    # 3 invokes + not_invoke + kern inside it
+    # The 3 invokes + the not_invoke + the kern inside not_invoke
     assert len(psyir.walk(Call)) == 5
     assert len(psyir.walk(AlgorithmInvokeCall)) == 3
     assert len(psyir.walk(KernelFunctor)) == 3

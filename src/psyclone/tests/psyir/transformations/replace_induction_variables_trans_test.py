@@ -154,7 +154,7 @@ def test_riv_not_movable(fortran_reader, fortran_writer):
                         ic5 = 1
                     endif
                     ic6 = i + some_func()    ! Function might depend on #calls
-                    cc1 = 'a' // 'b'    ! Function might depend on #calls
+                    cc1 = 'a' // 'b'         ! Has a Codeblock
                     a(ic1) = 1+(ic1+1)*ic1
                     a(ic2) = 2+(ic2+1)*ic2
                     a(ic3) = 3+(ic3+1)*ic3

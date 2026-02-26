@@ -841,6 +841,8 @@ def _get_arg_names(node_list):
     arg_names = []
     arg_nodes = []
     for node in node_list:
+        # We get names from what fparser consider Arg_Spec (functions)
+        # or Component_Spec (derived type)
         if isinstance(node, (Fortran2003.Actual_Arg_Spec,
                              Fortran2003.Component_Spec)):
             arg_names.append(node.children[0].string)
@@ -5130,7 +5132,7 @@ class Fparser2Reader():
         Transforms an fparser2 Part_Ref to the PSyIR representation.
 
         fparser2 cannot always disambiguate between Array Accessors, Calls and
-        DerivedType constructors (sometimes the last two will be Part_Ref).
+        DerivedType constructors (sometimes the last two end up as Part_Ref).
         PSyclone has a better chance of properly categorising them because we
         can follow 'use' statements to retrieve symbol information. If
         psyclone does not find the definition it falls back to a Call. The
@@ -5371,7 +5373,7 @@ class Fparser2Reader():
 
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
-        # If it's a call statement, it is unambigusly a RoutineSymbol
+        # If it's a call statement, it is unambiguously a RoutineSymbol
         # pylint: disable=unidiomatic-typecheck
         if (
             isinstance(node, Fortran2003.Call_Stmt) and
