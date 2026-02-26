@@ -38,12 +38,9 @@ algorithm layer to a PSyclone algorithm-layer-specific invoke call
 which uses specialised classes.
 
 '''
-# pylint: disable=protected-access
-
-from fparser.two.Fortran2003 import Structure_Constructor
 
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Call, CodeBlock, Literal, Routine
+from psyclone.psyir.nodes import Call, Literal, Routine
 from psyclone.psyir.symbols import (
     Symbol, DataTypeSymbol, StructureType, ScalarType)
 from psyclone.domain.common.algorithm import (
@@ -60,34 +57,10 @@ class RaisePSyIR2AlgTrans(Transformation):
     nodes.
 
     '''
+
     def __init__(self):
         super().__init__()
         self._call_name = None
-
-    @staticmethod
-    def _get_symbol(call, fp2_node):
-        '''Return the name of a Structure Constructor stored as a CodeBlock
-        containing an fparser2 ast.
-
-        :param code_block: the CodeBlock containing a StructureConstructor.
-        :type code_block: :py:class:`psyclone.psyir.nodes.CodeBlock`
-        :param fp2_node: the fparser2 Structure Constructor node.
-        :type fp2_node: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-
-        :returns: the symbol capturing the name and type of the \
-            StructureConstructor.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
-
-        '''
-        name = fp2_node.children[0].string
-        symbol_table = call.scope.symbol_table
-        try:
-            type_symbol = symbol_table.lookup(name)
-        except KeyError:
-            type_symbol = DataTypeSymbol(name, StructureType())
-            symbol_table.add(type_symbol)
-        return type_symbol
 
     @staticmethod
     def _specialise_symbol(symbol):
@@ -103,23 +76,6 @@ class RaisePSyIR2AlgTrans(Transformation):
         if type(symbol) is Symbol:
             symbol.specialise(DataTypeSymbol)
             symbol.datatype = StructureType()
-
-    def _validate_fp2_node(self, fp2_node):
-        '''Validation routine for an fparser2 node within a code block.
-
-        :param fp2_node: an fparser2 Structure Constructor.
-        :type fp2_node: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-
-        :raises TransformationError: if the fparser2 node is not the \
-            expected type.
-
-        '''
-        if not isinstance(fp2_node, Structure_Constructor):
-            raise TransformationError(
-                f"Error in {self.name} transformation. Expecting an algorithm "
-                f"invoke codeblock to contain a Structure-Constructor, but "
-                f"found '{type(fp2_node).__name__}'.")
 
     def validate(self, node: Call, options=None, **kwargs):
         '''Validate the node argument.
@@ -188,10 +144,6 @@ class RaisePSyIR2AlgTrans(Transformation):
                         f"The invoke call argument '{arg.symbol.name}' has "
                         f"been used as the Algorithm routine name. This is not"
                         f" allowed.")
-            elif isinstance(arg, CodeBlock):
-                # pylint: disable=protected-access
-                for fp2_node in arg._fp2_nodes:
-                    self._validate_fp2_node(fp2_node)
             else:
                 info = (
                     f"The arguments to this invoke call are expected to "
@@ -223,20 +175,12 @@ class RaisePSyIR2AlgTrans(Transformation):
             if node.argument_names[idx]:
                 call_name = f"{call_arg.value}"
                 continue
-            elif isinstance(call_arg, Call):
+            else:
                 # Get the symbols and args to reconstruct it as a
                 # higher-abstraction AlgorithmInvokeCall node
                 type_symbol = call_arg.routine.symbol
                 args = call_arg.pop_all_children()[1:]
                 arg_info.append((type_symbol, args))
-            else:
-                # The validates check that this can only be a Codeblock with
-                # a StructureConstructor fparser2 node inside
-                for fp2_node in call_arg.get_ast_nodes:
-                    # This child is a kernel
-                    type_symbol = self._get_symbol(node, fp2_node)
-                    args = self._parse_args(call_arg, fp2_node)
-                    arg_info.append((type_symbol, args))
 
             for (type_symbol, args) in arg_info:
                 self._specialise_symbol(type_symbol)

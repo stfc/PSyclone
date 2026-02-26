@@ -178,14 +178,15 @@ def test_codeblock_invalid(monkeypatch, fortran_reader):
     subroutine = psyir.children[0]
     code_block = subroutine[0].arguments[0]
     assert isinstance(code_block, CodeBlock)
-    monkeypatch.setattr(code_block, "_fp2_nodes", [None])
 
     lfric_invoke_trans = RaisePSyIR2LFRicAlgTrans()
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(subroutine[0])
-    assert ("Expecting an algorithm invoke codeblock to contain a "
-            "Structure-Constructor, but found 'NoneType'." in str(info.value))
+    assert ("Error in RaisePSyIR2LFRicAlgTrans transformation. The arguments "
+            "to this invoke call are expected to be kernel calls which are "
+            "represented in generic PSyIR as Calls, but ''xx' // 'xx'' is of "
+            "type 'CodeBlock'." in str(info.value))
 
 
 def test_arg_declaration_error(fortran_reader):

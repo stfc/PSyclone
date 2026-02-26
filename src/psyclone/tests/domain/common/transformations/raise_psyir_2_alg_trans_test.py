@@ -180,10 +180,9 @@ def test_multi_named_arg_error():
             in str(info.value))
 
 
-def test_codeblock_invalid(monkeypatch):
+def test_codeblock_invalid():
     '''Test that the expected exception is raised if unsupported content
-    is found within a codeblock. Use monkeypatch to sabotage the
-    codeblock to cause the exception.
+    is found within a codeblock.
 
     '''
     code = (
@@ -197,14 +196,15 @@ def test_codeblock_invalid(monkeypatch):
     invoke = psyir.children[0][0]
     code_block = invoke.arguments[0]
     assert isinstance(code_block, CodeBlock)
-    monkeypatch.setattr(code_block, "_fp2_nodes", [None])
 
     invoke_trans = RaisePSyIR2AlgTrans()
 
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(invoke)
-    assert ("Expecting an algorithm invoke codeblock to contain a "
-            "Structure-Constructor, but found 'NoneType'." in str(info.value))
+    assert ("Error in RaisePSyIR2AlgTrans transformation. The arguments to "
+            "this invoke call are expected to be kernel calls which are "
+            "represented in generic PSyIR as Calls, but ''xx' // 'xx'' is "
+            "of type 'CodeBlock'." in str(info.value))
 
 
 def test_call_error():
