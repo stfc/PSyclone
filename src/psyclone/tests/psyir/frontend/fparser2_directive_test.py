@@ -349,6 +349,10 @@ def test_comments_on_directive_before_ifblock(fortran_writer):
     assert ("""comment1
 comment2""" == dirs[0].preceding_comment)
 
+
+def test_comments_on_directive_before_case(fortran_writer):
+    '''Tests that comments and directives are placed correctly when a
+    Select case statement is converted to ifblocks.'''
     code = """
 subroutine foo()
 
