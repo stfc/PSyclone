@@ -74,13 +74,15 @@
 
 !> This module implements a PSyData-based verification that checks if
 !! variable values are within a certain range. This range is specified
-!! by environment variables. Three different formats can be used:
-!! 1. PSYVERIFY__module__region__variable
+!! by the environment variable `PSY_VALUE_RANGE`. It contains a list of
+!! `;` separated entries, each one specifying a value range for one variable.
+!! Three different formats can be used:
+!! 1. module.region.variable
 !!    Checks the specified variable in the given module and region (i.e.
 !!    kernel).
-!! 2. PSYVERIFY__module__variable
+!! 2. module.variable
 !!    Checks the specified variable anywhere in the given module.
-!! 3. PSYVERIFY__variable
+!! 3. variable
 !!    Checks the specified variable in any instrumented region.
 !! Additionally, the library will also check that any floating point
 !! input and output parameters are not NAN and not infinite.
@@ -251,15 +253,16 @@ contains
         integer      :: status, value_len, index_colon, indx
 
         character(:), allocatable :: entry, key, value
+        character(1), parameter :: separator = "."
 
         has_values = has_none
         if (.not. allocated(variable_names)) return
 
-        key = trim(module) // "__" // trim(region) &
-                          // "__" // trim(variable_name)
+        key = trim(module) // separator // trim(region) &
+                          // separator // trim(variable_name)
         indx = get_var_index(key)
         if (indx == 0) then
-            key = trim(module) // "__"  // trim(variable_name)
+            key = trim(module) // separator  // trim(variable_name)
             indx = get_var_index(key)
         endif
         if (indx == 0) then
