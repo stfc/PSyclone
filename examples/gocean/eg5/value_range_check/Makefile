@@ -81,6 +81,10 @@ $(NAME): $(INF_LIB) $(VALUE_RANGE_CHECK_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
 	$(F90) $(F90FLAGS) $(KERNELS) alg.o psy.o -o $(NAME) \
 	-L$(VALUE_RANGE_CHECK_DIR) -l_value_range_check $(INF_LIB)
 
+# Value range check needs inf lib (otherwise in parallel re-compilation
+# inf_lib and value range might be compiled in parallel)
+$(VALUE_RANGE_CHECK_DIR)/$(LIB_NAME): $(INF_LIB)
+
 # The value_range_check library
 $(VALUE_RANGE_CHECK_DIR)/$(LIB_NAME):
 	@echo "Making dl_esm_inf value-range-check wrapper library"
