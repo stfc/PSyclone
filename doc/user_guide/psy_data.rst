@@ -260,9 +260,9 @@ test all input and output parameters of a kernel to make sure they are
 within a user-specified range. Additionally, it will also verify that floating
 point values are not ``NaN`` or infinite.
 
-At runtime, environment variables must be specified to indicate which variables
-are within what expected range, and optionally also at which location.
-The range is specified as a ``:`` separated tuple::
+At runtime, the environment variable PSY_VALUE_RANGE is used to specify 
+which variables are within what expected range, and optionally also at
+which location. The range is specified as a ``:`` separated tuple::
 
     1.1:3.3   A value between 1.1 and 3.3 (inclusive).
     :3.3      A value less than or equal to 3.3
@@ -270,37 +270,38 @@ The range is specified as a ``:`` separated tuple::
 
 The syntax for the environment variable is one of:
 
-``PSYVERIFY__module__kernel__variable``
+``PSY_VALUE_RANGE="module.kernel.variable=...``
     The specified variable is tested when calling the specified kernel in the
     specified module.
 
-``PSYVERIFY__module__variable``
+``PSY_VALUE_RANGE="module.variable=...``
     The specified variable name is tested in all kernel calls of the
     specified module that are instrumented with the ValueRangeCheckTrans
     transformation.
 
-``PSYVERIFY__variable``
+``PSY_VALUE_RANGE="variable=...``
     The specified variable name is tested in any instrumented code region.
 
-If the module name or kernel name contains a `-` (which can be inserted
-by PSyclone, e.g. `invoke_compute-r1`), it needs to be replaced with an
-underscore character in the environment variable (`_`)
+Note that you have to use the variable names used in the created psy-layer.
+For example, in GOcean, the field `f` will become `f%data` and in LFRic
+field `f` will become `f_data`. You must make sure to specify the actual names,
+otherwise your test will not be executed as expected. 
 
 An example taken from the LFric tutorial (note that values greater than
 4000 are actually valid, the upper limit was just chosen to show
 a few warnings raised by the value range checker)::
 
-    PSYVERIFY__time_evolution__invoke_initialise_perturbation__perturbation_data=0.0:4000
-    PSYVERIFY__time_evolution__perturbation_data=0.0:4000
-    PSYVERIFY__perturbation_data=0.0:4000
+    PSY_VALUE_RANGE="time_evolution.invoke_initialise_perturbation.perturbation_data=0.0:4"000"
+    PSY_VALUE_RANGE="time_evolution.perturbation_data=0.0:4000"
+    PSY_VALUE_RANGE="perturbation_data=0.0:4000"
     
 .. warning:: Note that while the field variable is called `perturbation`, PSyclone will
              append `_data` when the LFRic domain is used, so the name becomes
-             `perturbation_data`. You have to use
-             this name in LFRic in order to trigger the value range check. To verify
-             that the tests are done as expected, set the environment variable
-             `PSYDATA_VERBOSE` to 1, which will print which data is taken from the
-             environment variables:
+             `perturbation_data`. Similarly, in GOcean field `f` becomes `f%data`.
+             You have to use this name in LFRic (and GOcean) in order to trigger the
+             value range check. To verify that the tests are done as expected, set
+             the environment variable `PSYDATA_VERBOSE` to 1, which will print which data
+             is taken from the environment variables:
 
              .. code-block:: bash
 
@@ -315,9 +316,9 @@ but the program is not aborted::
 
 The library uses the function ``IEEE_IS_FINITE`` from the ieee_arithmetic module
 for additionally verifying that values are not ``NAN`` or ``infinity``
-for any floating point variable, even if no ``PSY_VERIFY...`` environment
-variable is set for this variable. Integer numbers do not have a bit pattern
-for 'infinity' or ``NaN``, so they will only be tested for valid range
+for any floating point variable, even if the variable is not specified in the
+``PSY_VALUE_RANGE...`` environment variable. Integer numbers do not have a bit
+pattern for 'infinity' or ``NaN``, so they will only be tested for valid range
 if a corresponding environment variable is specified.
 
 The runtime libraries for GOcean and LFRic are based on a jinja-template

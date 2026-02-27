@@ -74,13 +74,15 @@
 
 !> This module implements a PSyData-based verification that checks if
 !! variable values are within a certain range. This range is specified
-!! by environment variables. Three different formats can be used:
-!! 1. PSYVERIFY__module__region__variable
+!! by the environment variable `PSY_VALUE_RANGE`. It contains a list of
+!! `;` separated entries, each one specifying a value range for one variable.
+!! Three different formats can be used:
+!! 1. module.region.variable
 !!    Checks the specified variable in the given module and region (i.e.
 !!    kernel).
-!! 2. PSYVERIFY__module__variable
+!! 2. module.variable
 !!    Checks the specified variable anywhere in the given module.
-!! 3. PSYVERIFY__variable
+!! 3. variable
 !!    Checks the specified variable in any instrumented region.
 !! Additionally, the library will also check that any floating point
 !! input and output parameters are not NAN and not infinite.
@@ -102,6 +104,21 @@ module value_range_check_base_mod
     integer, parameter :: has_max     = 2
     integer, parameter :: has_min_max = 3
 
+    ! This type is a work around that in an array of string Fortran
+    ! requires all strings to have the same size. Using a derived type
+    ! allows to use allocatable strings
+    type :: AllocString
+        character(len=:), allocatable :: str
+    end type AllocString
+
+    ! The following variables are module (not instance) variables.
+    ! Each instance will use the variable_names and variable_values
+    ! from here.
+    logical :: env_var_has_been_read = .false.
+
+    character(:), allocatable :: psy_value_range_env
+    type(AllocString), allocatable, dimension(:) :: variable_names, variable_values
+
     type, extends(PSyDataBaseType), public :: ValueRangeCheckBaseType
         ! Indicates if a variable has test values, and if so, which kind of
         ! test (has_min/max/min_max)
@@ -109,8 +126,9 @@ module value_range_check_base_mod
         ! This array stores the minimum and maximum value for each variable
         real(kind=real64), dimension(:, :), allocatable :: value_ranges
 
-        ! Is set if the environment variables have been read
-        logical :: env_var_have_been_read = .false.
+        ! Is set once all ranges for this type have been extracted from
+        ! the environment variable PSY_VALUE_RANGE
+        logical :: ranges_initialised = .false.
 
     contains
 
@@ -144,8 +162,69 @@ module value_range_check_base_mod
 
 contains
 
+
+    subroutine parse_env_var()
+        character(:), allocatable :: entry, key, value
+        type(AllocString), allocatable, dimension(:) :: psy_value_entries
+        integer :: value_len, i, count
+
+        env_var_has_been_read = .true.
+        call get_environment_variable("PSY_VALUE_RANGE", length=value_len)
+        if (value_len <= 0) then
+            write(stderr,*) "PSyData: $PSY_VALUE_RANGE not set"
+            return
+        end if
+
+        allocate(character(value_len) :: psy_value_range_env)
+        call get_environment_variable("PSY_VALUE_RANGE", value=psy_value_range_env)
+
+        ! We start with 1 since there is one more entry in the string than
+        ! there are ';'  (e.g. 'a=b;c=d' - one ';', two entries)
+        count = 1
+        do i=1, value_len
+            if (psy_value_range_env(i:i) == ";") count = count + 1
+        enddo
+
+        allocate(psy_value_entries(count))
+
+        call split_string(psy_value_range_env, ";", psy_value_entries)
+        allocate(variable_names(size(psy_value_entries)))
+        allocate(variable_values(size(psy_value_entries)))
+        do i = 1, size(psy_value_entries)
+            entry = trim(psy_value_entries(i)%str)
+            call split_once(entry, "=", variable_names(i), variable_values(i))
+        enddo
+
+    end subroutine parse_env_var
+
+    integer function get_var_index(key)
+        implicit none
+        character(len=*) :: key
+        integer :: i
+
+        if (.not. allocated(variable_names)) then
+            get_var_index = 0
+            return
+        endif
+
+        do i=1, size(variable_names)
+            if (variable_names(i)%str == trim(key)) then
+                get_var_index = i
+                return
+            endif
+        enddo
+        get_var_index = 0
+        return
+    end function get_var_index
+
+
     subroutine get_min_max(this, module, region, variable_name,   &
                            has_values, value_range)
+    !> @brief This subroutine checks if PSY_VALUE_RANGE contained
+    !! a range for the specified variable/region/module.
+    !! It returns result information in `has_values` (one of
+    !! `has_none, has_min, has_max, has_min_max).
+
     !> @brief This subroutine checks if any environment variables are set
     !! that specify minimum and/or maximum values to be checked for the
     !! specified variable. It returns result information in
@@ -171,52 +250,29 @@ contains
 
         character(len=:), allocatable :: env_name, env_value, sub_str
         ! We need a copy of the names to replace '-' with '_'
-        character(len=:), allocatable :: local_module, local_region
-        integer      :: status, value_len, index_colon, i
+        integer      :: status, value_len, index_colon, indx
 
-        local_module = module
-        do i=1, len(local_module)
-            if (local_module(i:i) == "-") then
-                local_module(i:i) = "_"
-            endif
-        enddo
-        local_region = region
-        do i=1, len(local_region)
-            if (local_region(i:i) == "-") then
-                local_region(i:i) = "_"
-            endif
-        enddo
-        env_name = "PSYVERIFY__" // trim(local_module) // "__" // trim(local_region) &
-                                 // "__" // trim(variable_name)
+        character(:), allocatable :: entry, key, value
+        character(1), parameter :: separator = "."
 
+        has_values = has_none
+        if (.not. allocated(variable_names)) return
 
-        call get_environment_variable(env_name, length=value_len, status=status)
-        ! Status >=1 indicates the variable does not exist, or some other OS
-        ! specific error - in any case we have to ignore it.
-        if (status >= 1) then
-            ! No specification for this variable with module and region.
-            ! Try without region:
-            env_name = "PSYVERIFY__" // trim(local_module) // "__"  &
-                                     // trim(variable_name)
+        key = trim(module) // separator // trim(region) &
+                          // separator // trim(variable_name)
+        indx = get_var_index(key)
+        if (indx == 0) then
+            key = trim(module) // separator  // trim(variable_name)
+            indx = get_var_index(key)
+        endif
+        if (indx == 0) then
+            key = trim(variable_name)
+            indx = get_var_index(key)
+        endif
 
-            call get_environment_variable(env_name, length=value_len, &
-                                          status=status)
-            if (status >= 1) then
-                ! No specification with only variable and module name.
-                ! Try without module:
-                env_name = "PSYVERIFY__" // trim(variable_name)
-                call get_environment_variable(env_name, length=value_len, &
-                                              status=status)
-                if (status >= 1) then
-                    has_values = has_none
-                    return
-                endif
-            endif  ! No specification without region
-        endif   ! No specification with module & region
-        allocate(character(len=value_len)::env_value)
-        call get_environment_variable(env_name, env_value, status=status)
-        ! Analyse the specified range
-        index_colon = index(env_value, ":")
+        if (indx == 0) return
+
+        index_colon = index(variable_values(indx)%str, ":")
         if (index_colon == 0) then
             ! No range at all, must be a constant value??
             write(stderr,*) "PSyData: env variable '", env_name,"' = ",  &
@@ -226,7 +282,7 @@ contains
         else if (index_colon == 1) then
             ! ":5" i.e. 5 or smaller
             has_values = has_max
-            read(env_value(2:), *) value_range(2)
+            read(variable_values(indx)%str(2:), *) value_range(2)
             if (this%verbosity>0) then
                 write(stderr,*) "PSyData: checking '", trim(module), &
                                 "' region '", trim(region),"' :",    &
@@ -235,7 +291,7 @@ contains
         else if (index_colon == len(env_value)) then
             ! "5:"   i.e. 5 or larger:
             has_values = has_min
-            read(env_value(:index_colon-1), *) value_range(1)
+            read(variable_values(indx)%str(:index_colon-1), *) value_range(1)
             if (this%verbosity>0) then
                 write(stderr,*) "PSyData: checking '", trim(module), &
                                 "' region '", trim(region),"' :",    &
@@ -244,8 +300,8 @@ contains
         else
             ! "1:3" i.e. between 1 and 3
             has_values = has_min_max
-            read(env_value(1:index_colon-1), *) value_range(1)
-            read(env_value(index_colon+1:), *) value_range(2)
+            read(variable_values(indx)%str(1:index_colon-1), *) value_range(1)
+            read(variable_values(indx)%str(index_colon+1:), *) value_range(2)
             if (this%verbosity>0) then
                 write(stderr,*) "PSyData: checking '", trim(module),   &
                                 "' region '", trim(region),"' :",      &
@@ -288,6 +344,10 @@ contains
             endif
         endif
 
+        if (.not. env_var_has_been_read) then
+            call parse_env_var()
+        endif
+
         call this%PSyDataBaseType%PreEndDeclaration()
 
     end subroutine PreEndDeclaration
@@ -296,7 +356,8 @@ contains
     !> @brief This subroutine is called after the instrumented region has been
     !! executed and all values of variables after the instrumented
     !! region have been provided. This sets the flag that all environment
-    !! variables have been read to true.
+    !! variables have been read to true (so the code does not try to
+    !! parse the environment again)
     !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PostEnd(this)
 
@@ -304,7 +365,7 @@ contains
 
         class(ValueRangeCheckBaseType), intent(inout), target :: this
 
-        this%env_var_have_been_read = .true.
+        this%ranges_initialised = .true.
         call this%PSyDataBaseType%PreEnd()
 
     end subroutine PostEnd
@@ -343,7 +404,7 @@ contains
         {# Now it's a floating point or integer value #}
         if (.not. is_enabled) return
 
-        if (.not. this%env_var_have_been_read) then
+        if (.not. this%ranges_initialised) then
             call this%get_min_max(this%module_name, this%region_name,         &
                                   name, this%has_checks(this%next_var_index), &
                                   this%value_ranges(this%next_var_index,:))
@@ -353,8 +414,8 @@ contains
             {# The spaces take care of proper indentation #}
             {{indent}}if (value < this%value_ranges(this%next_var_index,1)) then
             {{indent}}    write(stderr, '(11G0)') "PSyData: Variable '",                    &
-            {{indent}}                     name,"' has the value ",                         &
-            {{indent}}                     value, " in module '", trim(this%module_name),   &
+            {{indent}}                     name,"' has the value '",                        &
+            {{indent}}                     value, "' in module '", trim(this%module_name),  &
             {{indent}}                     "', region '", trim(this%region_name),           &
             {{indent}}                     "' which is less than '",                        &
             {{indent}}                     this%value_ranges(this%next_var_index,1),"'."
@@ -363,8 +424,8 @@ contains
             {# The spaces take care of proper indentation #}
             {{indent}}if (value > this%value_ranges(this%next_var_index,2)) then
             {{indent}}    write(stderr, '(11G0)') "PSyData: Variable '",                    &
-            {{indent}}                     name,"' has the value ",                         &
-            {{indent}}                     value, " in module '", trim(this%module_name),   &
+            {{indent}}                     name,"' has the value '",                        &
+            {{indent}}                     value, "' in module '", trim(this%module_name),  &
             {{indent}}                     "', region '", trim(this%region_name),           &
             {{indent}}                     "', which is greater than '",                    &
             {{indent}}                     this%value_ranges(this%next_var_index,2),"'."
@@ -374,8 +435,8 @@ contains
             {{indent}}if (value < this%value_ranges(this%next_var_index,1)  .or.               &
             {{indent}}    value > this%value_ranges(this%next_var_index,2)) then
             {{indent}}    write(stderr, '(13G0)') "PSyData: Variable '",                       &
-            {{indent}}                     name,"' has the value ",                            &
-            {{indent}}                     value , " in module '", trim(this%module_name),     &
+            {{indent}}                     name,"' has the value '",                           &
+            {{indent}}                     value , "' in module '", trim(this%module_name),    &
             {{indent}}                     "', region '", trim(this%region_name),              &
             {{indent}}                     "', which is not between '",                        &
             {{indent}}                     this%value_ranges(this%next_var_index,1),"' and '", &
@@ -389,8 +450,8 @@ contains
         {% else -%}    {# floating point #}
         if (IEEE_SUPPORT_DATATYPE(value)) then
             if (.not. IEEE_IS_FINITE(value)) then
-                write(stderr, '(8G0)') "PSyData: Variable '", name,"' has invalid value ", &
-                                 value, " in module '", trim(this%module_name),            &
+                write(stderr, '(8G0)') "PSyData: Variable '", name,"' has invalid value '", &
+                                 value, "' in module '", trim(this%module_name),           &
                                  "', region '", trim(this%region_name),"'."
             endif
         endif
@@ -440,7 +501,7 @@ contains
         {# Now it's a floating point or integer value #}
         if (.not. is_enabled) return
 
-        if (.not. this%env_var_have_been_read) then
+        if (.not. this%ranges_initialised) then
             call this%get_min_max(this%module_name, this%region_name,         &
                                   name, this%has_checks(this%next_var_index), &
                                   this%value_ranges(this%next_var_index,:))
@@ -452,9 +513,9 @@ contains
             {{ " "*3*(dim-j)}}do i{{j}}=1, size(value, {{j}})
             {% endfor %}
             {{indent}}if (value({{vars}}) < this%value_ranges(this%next_var_index,1)) then
-            {{indent}}    write(stderr, '(5G0,{{dim}}(G0,X),7G0)') "PSyData: Variable '",   &
-            {{indent}}                     name,"' has the value ",                         &
-            {{indent}}                     value({{vars}}), " at index/indices ", {{vars}}, &
+            {{indent}}    write(stderr, '(5G0,{{dim}}(1G0,1X),7G0)') "PSyData: Variable '",   &
+            {{indent}}                     name,"' has the value '",                        &
+            {{indent}}                     value({{vars}}), "' at index/indices ", {{vars}}, &
             {{indent}}                     "in module '", trim(this%module_name),           &
             {{indent}}                     "', region '", trim(this%region_name),           &
             {{indent}}                     "' which is less than '",                        &
@@ -469,9 +530,9 @@ contains
             {{ " "*3*(dim-j)}}do i{{j}}=1, size(value, {{j}})
             {% endfor %}
             {{indent}}if (value({{vars}}) > this%value_ranges(this%next_var_index,2)) then
-            {{indent}}    write(stderr, '(5G0,{{dim}}(G0,X),7G0)') "PSyData: Variable '",   &
-            {{indent}}                     name,"' has the value ",                         &
-            {{indent}}                     value({{vars}}), " at index/indices ", {{vars}}, &
+            {{indent}}    write(stderr, '(5G0,{{dim}}(1G0,1X),7G0)') "PSyData: Variable '",   &
+            {{indent}}                     name,"' has the value '",                        &
+            {{indent}}                     value({{vars}}), "' at index/indices ", {{vars}}, &
             {{indent}}                     "in module '", trim(this%module_name),           &
             {{indent}}                     "', region '", trim(this%region_name),           &
             {{indent}}                     "', which is greater than '",                    &
@@ -487,9 +548,9 @@ contains
             {% endfor %}
             {{indent}}if (value({{vars}}) < this%value_ranges(this%next_var_index,1)  .or.     &
             {{indent}}    value({{vars}}) > this%value_ranges(this%next_var_index,2)) then
-            {{indent}}    write(stderr, '(5G0,{{dim}}(G0,X),9G0)') "PSyData: Variable '",      &
-            {{indent}}                     name,"' has the value ",                            &
-            {{indent}}                     value({{vars}}), " at index/indices ", {{vars}},    &
+            {{indent}}    write(stderr, '(5G0,{{dim}}(1G0,1X),9G0)') "PSyData: Variable '",    &
+            {{indent}}                     name,"' has the value '",                           &
+            {{indent}}                     value({{vars}}), "' at index/indices ", {{vars}},   &
             {{indent}}                     "in module '", trim(this%module_name),              &
             {{indent}}                     "', region '", trim(this%region_name),              &
             {{indent}}                     "', which is not between '",                        &
@@ -511,7 +572,7 @@ contains
             {{ " "*3*(dim-j)}}do i{{j}}=1, size(value, {{j}})
             {% endfor %}
             {{indent}}if (.not. IEEE_IS_FINITE(value({{vars}}))) then
-            {{indent}}    write(stderr, '(5G0,{{dim}}(G0,X),5G0)') "PSyData: Variable '",    &
+            {{indent}}    write(stderr, '(5G0,{{dim}}(1G0,1X),5G0)') "PSyData: Variable '",  &
             {{indent}}                     name,"' has the invalid value '",                 &
             {{indent}}                     value({{vars}}), "' at index/indices ", {{vars}}, &
             {{indent}}                     "in module '", trim(this%module_name),            &
@@ -532,5 +593,45 @@ contains
 {%- endfor -%}   {# for #}
 
     ! -------------------------------------------------------------------------
+    ! Helper subroutines for parsing the env variable:
+
+    subroutine split_string(str, delim, parts)
+        ! Split a string into an array using a delimiter
+        character(*), intent(in) :: str, delim
+        type(AllocString), intent(inout) :: parts(:)
+        integer :: start, pos, n, lenstr
+
+        lenstr = len_trim(str)
+        start = 1
+        n = 0
+
+        do
+            pos = index(str(start:), delim)
+            if (pos == 0) exit
+            n = n + 1
+            parts(n)%str = str(start:start+pos-2)
+            start = start + pos + len_trim(delim) - 1
+        end do
+
+        if (start <= lenstr) then
+            parts(n+1)%str = str(start:lenstr)
+        end if
+    end subroutine split_string
+
+    subroutine split_once(str, delim, left, right)
+    ! Split only on the first occurrence of a delimiter
+        character(*), intent(in) :: str, delim
+        type(AllocString), intent(out) :: left, right
+        integer :: pos
+
+        pos = index(str, delim)
+        if (pos == 0) then
+            left%str = trim(str)
+            right%str = ""
+        else
+            left%str  = trim(str(1:pos-1))
+            right%str = trim(str(pos+len_trim(delim):))
+        end if
+    end subroutine split_once
 
 end module value_range_check_base_mod
