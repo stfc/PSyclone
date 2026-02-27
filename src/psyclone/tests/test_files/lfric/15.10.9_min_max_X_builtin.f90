@@ -36,8 +36,8 @@
 
 program single_invoke
 
-  ! Description: single point-wise operation (min/max of field elements)
-  ! specified in an invoke call.
+  ! Description: three point-wise operations (setval, min and max of field
+  ! elements) specified in an invoke call.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
 
@@ -46,7 +46,8 @@ program single_invoke
   type(field_type) :: f1
   real(r_def)      :: amin, amax
 
-  call invoke( minval_X(amin, f1), &
+  call invoke( setval_C(f1, 1.0_r_def), &
+               minval_X(amin, f1),      &
                maxval_X(amax, f1) )
 
 end program single_invoke
