@@ -744,7 +744,8 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
     with pytest.raises(TransformationError) as info:
         trans.apply(node)
     assert ("ArrayAssignment2LoopsTrans does not accept calls which "
-            "are not guaranteed to be elemental" in str(info.value))
+            "are not guaranteed to return a scalar or be elemental"
+            in str(info.value))
     # Check that the failed transformation does not modify the code
     code_after = fortran_writer(psyir)
     assert code_before == code_after

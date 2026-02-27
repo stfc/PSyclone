@@ -5394,6 +5394,11 @@ class Fparser2Reader():
                     f"type 'Symbol' or 'RoutineSymbol', but found "
                     f"'{type(routine_symbol).__name__}'.")
 
+            # If it is a call statement, it must be a subroutine (not a
+            # function) otherwise this would be invalid Fortran.
+            if isinstance(node, Fortran2003.Call_Stmt):
+                routine_symbol.datatype = NoType()
+
         return self._process_args(node, call)
 
     def _process_args(self, node: Union[
