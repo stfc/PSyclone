@@ -75,7 +75,6 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = [
     "icefrm.f90",  # Has an unsupported implicit symbol declaration
-    "flincom.f90", "restcom.f90",  # TODO #3022: Bug in Maxval2LoopTrans
 ]
 
 NEMOV5_EXCLUSIONS = [

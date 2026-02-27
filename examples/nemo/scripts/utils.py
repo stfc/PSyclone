@@ -218,12 +218,15 @@ def normalise_loops(
                 pass
 
     if loopify_array_intrinsics:
-        for intr in schedule.walk(IntrinsicCall):
-            if intr.intrinsic.name == "MAXVAL":
-                try:
-                    Maxval2LoopTrans().apply(intr)
-                except TransformationError as err:
-                    print(err.value)
+        filename = schedule.root.name
+        # TODO #3022: Some files have a bug in Maxval2LoopTrans
+        if filename not in ("flincom.f90", "histcom.f90", "restcom.f90"):
+            for intr in schedule.walk(IntrinsicCall):
+                if intr.intrinsic.name == "MAXVAL":
+                    try:
+                        Maxval2LoopTrans().apply(intr)
+                    except TransformationError as err:
+                        print(err.value)
 
     if convert_range_loops:
         # Convert all array implicit loops to explicit loops
