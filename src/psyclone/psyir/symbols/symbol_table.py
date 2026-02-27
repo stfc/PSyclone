@@ -292,7 +292,8 @@ class SymbolTable():
                 new_sym = symbol.copy()
                 if new_sym.is_import:
                     name = new_sym.interface.container_symbol.name
-                    new_sym.interface.container_symbol = new_st.lookup(name)
+                    new_sym.interface.container_symbol = new_st.find_or_create(
+                        name, symbol_type=ContainerSymbol)
                 new_st.add(new_sym)
 
         # Prepare the new argument list
@@ -814,26 +815,22 @@ class SymbolTable():
         # from this ContainerSymbol so that they now point to the one in
         # scope in this table instead.
         for isym in other_table.imported_symbols:
-            self.update_import_interface(isym)
             
-            # ARPDBG
-#                other_sym = self.lookup(isym.name, otherwise=None)
-#                if other_sym:
-#                    # We have a potential clash with a symbol imported
-#                    # into the other table.
-#                    if not other_sym.is_import:
-#                        # The calling merge() method has already checked that
-#                        # we don't have a clash between symbols of the same
-#                        # name imported from different containers. We don't
-#                        # support renaming an imported symbol but the
-#                        # symbol in this table can be renamed so we do that.
-#                        self.rename_symbol(
-#                            other_sym,
-#                            self.next_available_name(
-#                                other_sym.name, other_table=other_table))
-#                isym.interface = ImportInterface(
-#                        self.lookup(csym.name),
-#                        orig_name=isym.interface.orig_name)
+            other_sym = self.lookup(isym.name, otherwise=None)
+            if other_sym:
+                # We have a potential clash with a symbol imported
+                # into the other table.
+                if not other_sym.is_import:
+                    # The calling merge() method has already checked that
+                    # we don't have a clash between symbols of the same
+                    # name imported from different containers. We don't
+                    # support renaming an imported symbol but the
+                    # symbol in this table can be renamed so we do that.
+                    self.rename_symbol(
+                        other_sym,
+                        self.next_available_name(
+                            other_sym.name, other_table=other_table))
+            self.update_import_interface(isym)
 
     def update_import_interface(self, isym):
         '''

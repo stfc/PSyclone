@@ -501,11 +501,11 @@ def test_operator_different_spaces(tmpdir):
 
     assert """\
 module operator_example_psy
-  use constants_mod
   use operator_mod, only : operator_proxy_type, operator_type
   use field_mod, only : field_proxy_type, field_type
   use assemble_weak_derivative_w3_w2_kernel_mod, only : \
 assemble_weak_derivative_w3_w2_kernel_code
+  use constants_mod, only : r_def
   implicit none
   public
 
@@ -516,6 +516,7 @@ coord, qr)
     use function_space_mod, only : BASIS, DIFF_BASIS
     use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, \
 quadrature_xyoz_type
+    use constants_mod, only : i_def
     type(operator_type), intent(in) :: mapping
     type(field_type), dimension(3), intent(in) :: coord
     type(quadrature_xyoz_type), intent(in) :: qr

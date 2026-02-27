@@ -71,10 +71,10 @@ class LFRicPSy(PSy):
 
         # Add a wildcard "constants_mod" import at the Container level
         # since kinds are often disconnected.
-        const = LFRicConstants()
-        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        self.container.symbol_table.add(
-            ContainerSymbol(const_mod, wildcard_import=True))
+        #const = LFRicConstants()
+        #const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
+        #self.container.symbol_table.add(
+        #    ContainerSymbol(const_mod, wildcard_import=True))
 
         # Then initialise the Invokes
         self._invokes = LFRicInvokes(invoke_info.calls, self)

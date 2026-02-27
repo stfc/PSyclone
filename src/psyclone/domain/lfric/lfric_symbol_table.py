@@ -76,7 +76,7 @@ class LFRicSymbolTable(SymbolTable):
         super().__init__(node, default_visibility)
         # First time an instance of this is created, define
         # the precision mapping.
-        if not LFRicSymbolTable._precision_map:
+        if 0:   # ARPDBG not LFRicSymbolTable._precision_map:
             const = LFRicConstants()
             mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
             LFRicSymbolTable._constants_mod = ContainerSymbol(mod_name)
@@ -218,32 +218,34 @@ class LFRicSymbolTable(SymbolTable):
         :returns: the specified LFRic precision symbol.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :raises ValueError: if the supplied name is not a recognised LFRic \
+        :raises ValueError: if the supplied name is not a recognised LFRic
             precision variable.
-        :raises ValueError: if a symbol with the same name is already in the \
+        :raises ValueError: if a symbol with the same name is already in the
             table but is not imported from the correct container.
 
         '''
         api_config = Config.get().api_conf("lfric")
         if name not in api_config.precision_map.keys():
             raise ValueError(f"'{name}' is not a recognised LFRic precision.")
-        sym = LFRicSymbolTable._precision_map[name]
 
-        if name in self:
-            # Sanity check that the existing symbol is the right one.
-            existing_sym = self.lookup(name)
-            if (not isinstance(existing_sym.interface, ImportInterface) or
-                    existing_sym.interface.container_symbol.name !=
-                    self._constants_mod.name):
+        const = LFRicConstants()
+        mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
+
+        sym = self.lookup(name, otherwise=None)
+
+        if sym:
+            if (not sym.is_import or
+                    sym.interface.container_symbol.name != mod_name):
                 raise ValueError(
-                    f"Precision symbol '{name}' already exists in the "
-                    f"supplied symbol table but is not imported from the "
-                    f"LFRic constants module ({self._constants_mod.name}).")
-            return existing_sym
+                    f"Precision symbol '{name}' is already in scope but is "
+                    f"not imported from the LFRic constants module "
+                    f"({self._constants_mod.name}).")
+            return sym
 
-        # pylint: disable=undefined-variable
-        if self._constants_mod.name not in self:
-            self.add(self._constants_mod)
-        sym.interface.container_symbol = self.lookup(self._constants_mod.name)
+        constants_mod = self.find_or_create(mod_name,
+                                            symbol_type=ContainerSymbol)
+        sym = DataSymbol(name, INTEGER_TYPE,
+                         interface=ImportInterface(constants_mod))
         self.add(sym)
+
         return sym

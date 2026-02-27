@@ -67,6 +67,7 @@ def test_real_scalar(tmpdir):
     expected = (
         "  subroutine invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "    use mesh_mod, only : mesh_type\n"
+        "    use constants_mod, only : i_def\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1\n"
         "    type(field_type), intent(in) :: f2\n"
@@ -276,6 +277,7 @@ def test_two_real_scalars(tmpdir):
         "  subroutine invoke_0_testkern_two_real_scalars_type(a, f1, f2, "
         "m1, m2, b)\n"
         "    use mesh_mod, only : mesh_type\n"
+        "    use constants_mod, only : i_def\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1\n"
         "    type(field_type), intent(in) :: f2\n"

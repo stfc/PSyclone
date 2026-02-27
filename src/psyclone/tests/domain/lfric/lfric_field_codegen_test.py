@@ -77,6 +77,7 @@ def test_field(tmpdir):
         "\n"
         "  contains\n"
         "  subroutine invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
+        "    use constants_mod\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1\n"
         "    type(field_type), intent(in) :: f2\n"
@@ -310,9 +311,9 @@ def test_field_fs(tmpdir):
     generated_code = str(psy.gen)
     output = """\
 module single_invoke_fs_psy
-  use constants_mod
   use field_mod, only : field_proxy_type, field_type
   use testkern_fs_mod, only : testkern_fs_code
+  use constants_mod, only : r_def
   implicit none
   public
 
@@ -320,6 +321,7 @@ module single_invoke_fs_psy
   subroutine invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, m3, m4, f5, \
 f6, m5, m6, m7)
     use mesh_mod, only : mesh_type
+    use constants_mod, only : i_def
     type(field_type), intent(in) :: f1
     type(field_type), intent(in) :: f2
     type(field_type), intent(in) :: m1

@@ -6538,14 +6538,8 @@ class LFRicKernelArgument(KernelArgument):
             except KeyError:
                 mod_map = LFRicConstants().UTILITIES_MOD_MAP
                 const_mod = mod_map["constants"]["module"]
-                try:
-                    constants_container = symtab.lookup(const_mod)
-                except KeyError:
-                    # TODO Once #696 is done, we should *always* have a
-                    # symbol for this container at this point so should
-                    # raise an exception if we haven't.
-                    constants_container = LFRicTypes(const_mod)
-                    symtab.add(constants_container)
+                constants_container = symtab.find_or_create(
+                    const_mod, symbol_type=ContainerSymbol)
                 kind_symbol = DataSymbol(
                     kind_name, INTEGER_TYPE,
                     interface=ImportInterface(constants_container))
