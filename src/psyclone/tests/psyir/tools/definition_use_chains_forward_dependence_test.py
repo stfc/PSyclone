@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. B. G. Chalk, STFC Daresbury Lab
+# Minor contributions: M. Schreiber, Univ. Grenoble Alpes
 # -----------------------------------------------------------------------------
 '''This module contains the tests for the DefinitionUseChain class's
 forward_accesses routine.'''
@@ -1159,3 +1160,38 @@ def test_definition_use_chain_find_forward_accesses_pure_call(
     # result is first argument of the pure subroutine call
     argument = routine.walk(Call)[0].children[1]
     assert reaches[0] is argument
+
+
+def test_definition_use_chain_find_forward_accesses_continue_at_call(
+    fortran_reader,
+):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour for a pure subrotuine call."""
+    code = """
+    subroutine x(a, b)
+    integer, intent(inout) :: a, b
+    a = 2
+    b = 1
+    b = 1+a   ! Stops dependency
+    call foo(b)
+    a = a + 2
+    call bar(b)
+    a = a + 3
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+
+    # Start from 'a'
+    ref_a = routine.walk(Assignment)[0].lhs
+    chains = DefinitionUseChain(ref_a)
+    reaches = chains.find_forward_accesses()
+
+    assert len(reaches) == 2
+    assert isinstance(reaches[1], Call)
+
+    ref_a = routine.walk(Assignment)[0].lhs
+    chains = DefinitionUseChain(ref_a, stop_at_call=False)
+    reaches = chains.find_forward_accesses()
+
+    assert len(reaches) == 5
+    assert isinstance(reaches[1], Call)
