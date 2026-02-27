@@ -77,7 +77,7 @@ transform: test.x90 value_range_check_transformation.py
 
 run: compile
 	# Note that if the output line is not found, the make will abort with error
-	./value_range_check 2>&1| grep "PSyData: Variable a_fld has the invalid value"
+	./value_range_check 2>&1| grep "PSyData: Variable 'a_fld%data' has the invalid value"
 
 $(NAME): $(INF_LIB) $(VALUE_RANGE_CHECK_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
 	$(F90) $(F90FLAGS) $(KERNELS) alg.o psy.o -o $(NAME) \
