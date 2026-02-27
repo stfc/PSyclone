@@ -248,6 +248,11 @@ class PSy():
         '''
         Generate PSy-layer code associated with this PSy object.
 
+        Note that the necessary PSy-layer symbols are added to the temporary
+        copy of the tree before code-generation is begun. Since this tree
+        copy is discarded at the end of this routine, those symbols will
+        still not be present in the original tree.
+
         :returns: the generated Fortran source.
 
         '''

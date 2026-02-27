@@ -189,7 +189,7 @@ def test_single_kern_eval(tmpdir):
     code = str(psy.gen)
 
     # Check module declarations
-    assert "use constants_mod\n" in code
+    assert "use constants_mod, only : i_def\n" in code
     assert "use field_mod, only : field_proxy_type, field_type" in code
     assert "use testkern_eval_mod, only : testkern_eval_code" in code
 
@@ -381,7 +381,7 @@ def test_two_qr_same_shape(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    assert "use constants_mod\n" in code
+    assert "use constants_mod, only : i_def, r_def\n" in code
     assert "use field_mod, only : field_proxy_type, field_type" in code
 
     assert ("subroutine invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
@@ -712,7 +712,7 @@ def test_qr_plus_eval(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    assert "use constants_mod\n" in code
+    assert "use constants_mod, only : i_def, r_def\n" in code
     assert "use field_mod, only : field_proxy_type, field_type" in code
 
     assert "subroutine invoke_0(f0, f1, f2, m1, a, m2, istp, qr)" in code

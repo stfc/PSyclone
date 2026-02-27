@@ -512,10 +512,10 @@ assemble_weak_derivative_w3_w2_kernel_code
   contains
   subroutine invoke_0_assemble_weak_derivative_w3_w2_kernel_type(mapping, \
 coord, qr)
-    use mesh_mod, only : mesh_type
-    use function_space_mod, only : BASIS, DIFF_BASIS
     use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, \
 quadrature_xyoz_type
+    use mesh_mod, only : mesh_type
+    use function_space_mod, only : BASIS, DIFF_BASIS
     use constants_mod, only : i_def
     type(operator_type), intent(in) :: mapping
     type(field_type), dimension(3), intent(in) :: coord

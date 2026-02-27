@@ -602,18 +602,6 @@ class SymbolTable():
             raise KeyError(f"Symbol table already contains a symbol with "
                            f"name '{new_symbol.name}'.")
 
-        # TODO #1734 - enable this check to ensure that an imported Symbol is
-        # only ever added to the table containing the ContainerSymbol from
-        # which it is imported.
-        # if new_symbol.is_import:
-        #     if (new_symbol.interface.container_symbol not in
-        #             self._symbols.values()):
-        #         raise SymbolError(
-        #             f"Symbol '{new_symbol.name}' is imported from Container "
-        #             f"'{new_symbol.interface.container_symbol.name}' but the"
-        #             f" associated ContainerSymbol does not exist in this "
-        #             f"table.")
-
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
@@ -623,7 +611,6 @@ class SymbolTable():
                     f"associated with symbol '{new_symbol.name}'.")
             self._tags[tag] = new_symbol
 
-        #1734
         if new_symbol.is_import:
             csym = new_symbol.interface.container_symbol
             sym_in_scope = self.lookup(csym.name, otherwise=None)

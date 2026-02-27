@@ -239,7 +239,7 @@ class LFRicSymbolTable(SymbolTable):
                 raise ValueError(
                     f"Precision symbol '{name}' is already in scope but is "
                     f"not imported from the LFRic constants module "
-                    f"({self._constants_mod.name}).")
+                    f"('{mod_name}').")
             return sym
 
         constants_mod = self.find_or_create(mod_name,

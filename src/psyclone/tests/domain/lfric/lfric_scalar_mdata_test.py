@@ -367,7 +367,7 @@ def test_lfricscalarargs_mp():
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     code = str(psy.gen).lower()
-    assert "use constants_mod\n" in code
+    assert "use constants_mod, only : r_def, roo_def\n" in code
 
 
 def test_lfricinvoke_uniq_declns_intent_scalar():

@@ -69,7 +69,7 @@ def test_field(tmpdir):
     generated_code = psy.gen
     output = (
         "module single_invoke_psy\n"
-        "  use constants_mod\n"
+        "  use constants_mod, only : r_def\n"
         "  use field_mod, only : field_proxy_type, field_type\n"
         "  use testkern_mod, only : testkern_code\n"
         "  implicit none\n"
@@ -77,7 +77,7 @@ def test_field(tmpdir):
         "\n"
         "  contains\n"
         "  subroutine invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
-        "    use constants_mod\n"
+        "    use constants_mod, only : i_def\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1\n"
         "    type(field_type), intent(in) :: f2\n"
@@ -645,9 +645,9 @@ def test_int_field_fs(tmpdir):
 
     generated_code = str(psy.gen)
     assert """module single_invoke_fs_int_field_psy
-  use constants_mod
   use integer_field_mod, only : integer_field_proxy_type, integer_field_type
   use testkern_fs_int_field_mod, only : testkern_fs_int_field_code
+  use constants_mod, only : i_def
   implicit none
   public
 
@@ -1048,12 +1048,12 @@ def test_int_real_field_fs(dist_mem, tmpdir):
 
     output = (
         "module multikernel_invokes_real_int_field_fs_psy\n"
-        "  use constants_mod\n"
         "  use integer_field_mod, only : integer_field_proxy_type, "
         "integer_field_type\n"
         "  use testkern_fs_int_field_mod, only : testkern_fs_int_field_code\n"
         "  use field_mod, only : field_proxy_type, field_type\n"
         "  use testkern_fs_mod, only : testkern_fs_code\n"
+        "  use constants_mod, only : i_def, r_def\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"

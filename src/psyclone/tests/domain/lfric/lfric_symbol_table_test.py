@@ -192,9 +192,8 @@ def test_add_lfric_precision_symbol():
     table.add(wrong_r_def)
     with pytest.raises(ValueError) as err:
         table.add_lfric_precision_symbol("r_def")
-    assert ("symbol 'r_def' already exists in the supplied symbol table but "
-            "is not imported from the LFRic constants module" in
-            str(err.value))
+    assert ("symbol 'r_def' is already in scope but is not imported from the "
+            "LFRic constants module" in str(err.value))
     # A symbol with the right name but imported from the wrong container.
     wrong_csym = ContainerSymbol("not_constants_mod")
     table.add(wrong_csym)
@@ -203,13 +202,12 @@ def test_add_lfric_precision_symbol():
     table.add(wrong_l_def)
     with pytest.raises(ValueError) as err:
         table.add_lfric_precision_symbol("l_def")
-    assert ("symbol 'l_def' already exists in the supplied symbol table but "
-            "is not imported from the LFRic constants module" in
-            str(err.value))
+    assert ("symbol 'l_def' is already in scope but is not imported from the "
+            "LFRic constants module" in str(err.value))
     # A valid name that's not already present.
     table.add_lfric_precision_symbol("i_def")
     idef = table.lookup("i_def")
-    assert idef.interface.container_symbol is LFRicSymbolTable._constants_mod
+    assert idef.interface.container_symbol.name == "constants_mod"
     # Repeating the call does not change anything.
     table.add_lfric_precision_symbol("i_def")
     assert table.lookup("i_def") is idef

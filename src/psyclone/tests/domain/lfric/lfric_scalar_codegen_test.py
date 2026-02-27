@@ -496,7 +496,7 @@ def test_three_scalars(tmpdir):
     generated_code = str(psy.gen)
     expected = (
         "module single_invoke_psy\n"
-        "  use constants_mod\n"
+        "  use constants_mod, only : i_def, l_def, r_def\n"
         "  use field_mod, only : field_proxy_type, field_type\n"
         "  use testkern_three_scalars_mod, only : "
         "testkern_three_scalars_code\n"

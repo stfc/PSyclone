@@ -986,6 +986,7 @@ class FortranWriter(LanguageWriter):
             internal_interface_symbol = None
         if unresolved_symbols and not (
                 symbol_table.wildcard_imports() or internal_interface_symbol):
+            import pdb; pdb.set_trace()
             symbols_txt = ", ".join(
                 ["'" + sym.name + "'" for sym in unresolved_symbols])
             raise VisitorError(
