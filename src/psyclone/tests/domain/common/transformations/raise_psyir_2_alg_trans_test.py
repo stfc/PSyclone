@@ -104,46 +104,6 @@ def test_init():
     assert invoke_trans._call_name is None
 
 
-def test_parse_args_get_symbol(fortran_reader):
-    '''Test that the parse_args and get_symbol methods work as
-    expected.
-
-    '''
-    code = (
-        "subroutine alg()\n"
-        "  use kern_mod\n"
-        "  call invoke(kern(1.0))\n"
-        "end subroutine alg\n")
-
-    psyir = fortran_reader.psyir_from_source(code)
-    subroutine = psyir.children[0]
-    code_block = subroutine[0].arguments[0]
-    assert isinstance(code_block, CodeBlock)
-
-    # Check expected output from parse_args
-    nodes = RaisePSyIR2AlgTrans._parse_args(code_block,
-                                            code_block._fp2_nodes[0])
-    assert isinstance(nodes, list)
-    assert len(nodes) == 1
-    assert isinstance(nodes[0], Literal)
-    assert nodes[0].value == "1.0"
-
-    # Check expected output from get_symbol when no symbol exists
-    with pytest.raises(KeyError):
-        _ = code_block.scope.symbol_table.lookup("kern")
-    symbol = RaisePSyIR2AlgTrans._get_symbol(code_block,
-                                             code_block._fp2_nodes[0])
-    assert isinstance(symbol, DataTypeSymbol)
-    assert symbol.name == "kern"
-    symbol2 = code_block.scope.symbol_table.lookup("kern")
-    assert symbol2 is symbol
-
-    # Check expected output from get_symbol when symbol already exists
-    symbol3 = RaisePSyIR2AlgTrans._get_symbol(code_block,
-                                              code_block._fp2_nodes[0])
-    assert symbol3 is symbol
-
-
 def test_specialise_symbol():
     '''Test that the specialise_symbol method work as expected.
 
@@ -161,26 +121,6 @@ def test_specialise_symbol():
     RaisePSyIR2AlgTrans._specialise_symbol(test)
     assert isinstance(test, str)
     assert test == "hello"
-
-
-def test_structure_constructor():
-    '''Test that validation does not raise an exception if the fparser2
-    node is a structure constructor.
-
-    '''
-    code = (
-        "subroutine alg()\n"
-        "  use kern_mod\n"
-        "  call invoke(kern(1.0))\n"
-        "end subroutine alg\n")
-
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
-    invoke_trans = RaisePSyIR2AlgTrans()
-
-    invoke = psyir.children[0][0]
-    invoke_trans.validate(invoke)
-    invoke_trans._validate_fp2_node(invoke.arguments[0]._fp2_nodes[0])
 
 
 @pytest.mark.parametrize("string", ["error='hello'", "name=0"])
@@ -240,10 +180,9 @@ def test_multi_named_arg_error():
             in str(info.value))
 
 
-def test_codeblock_invalid(monkeypatch):
+def test_codeblock_invalid():
     '''Test that the expected exception is raised if unsupported content
-    is found within a codeblock. Use monkeypatch to sabotage the
-    codeblock to cause the exception.
+    is found within a codeblock.
 
     '''
     code = (
@@ -257,14 +196,15 @@ def test_codeblock_invalid(monkeypatch):
     invoke = psyir.children[0][0]
     code_block = invoke.arguments[0]
     assert isinstance(code_block, CodeBlock)
-    monkeypatch.setattr(code_block, "_fp2_nodes", [None])
 
     invoke_trans = RaisePSyIR2AlgTrans()
 
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(invoke)
-    assert ("Expecting an algorithm invoke codeblock to contain a "
-            "Structure-Constructor, but found 'NoneType'." in str(info.value))
+    assert ("Error in RaisePSyIR2AlgTrans transformation. The arguments to "
+            "this invoke call are expected to be kernel calls which are "
+            "represented in generic PSyIR as Calls, but ''xx' // 'xx'' is "
+            "of type 'CodeBlock'." in str(info.value))
 
 
 def test_call_error():
@@ -347,23 +287,23 @@ def test_arg_error(fortran_reader, arg):
     else:
         assert (
             f"The arguments to this invoke call are expected to be kernel "
-            f"calls which are represented in generic PSyIR as Calls or "
-            f"Codeblocks, but '{arg}' is of type 'Literal'."
+            f"calls which are represented in generic PSyIR as Calls, "
+            f"but '{arg}' is of type 'Literal'."
             in str(info.value))
 
 
 def test_apply_call(fortran_reader):
-    '''Test that an invoke with an Call argument is transformed
-    into PSyclone-specific AlgorithmInvokeCall and KernelFunctor
-    classes.
+    '''Test that an invoke with an Call argument is uplifted
+    to AlgorithmInvokeCall and KernelFunctor classes.
 
     '''
     code = (
         "subroutine alg()\n"
-        "  use kern_mod, only: kern\n"
+        "  use kern_mod, only: kern, kern1, kern2\n"
         "  use field_mod, only: r2d_field\n"
         "  type(r2d_field) :: field\n"
         "  call invoke(kern(field))\n"
+        "  call invoke(kern1(0.0), kern2(1.0), name='an_invoke')\n"
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
@@ -380,103 +320,20 @@ def test_apply_call(fortran_reader):
     assert len(invoke.arguments) == 1
     check_reference(invoke.arguments[0], "kern", "field")
 
-
-def test_apply_codeblock(fortran_reader):
-    '''Test that an invoke with a code block argument is transformed
-    into PSyclone-specific AlgorithmInvokeCall and KernelFunctor
-    classes.
-
-    '''
-    code = (
-        "subroutine alg()\n"
-        "  use kern_mod, only: kern\n"
-        "  call invoke(kern(0.0))\n"
-        "end subroutine alg\n")
-
-    psyir = fortran_reader.psyir_from_source(code)
-    subroutine = psyir.children[0]
-    assert len(subroutine[0].arguments) == 1
-    assert isinstance(subroutine[0].arguments[0], CodeBlock)
-
-    invoke_trans = RaisePSyIR2AlgTrans()
-    invoke_trans.apply(subroutine[0], 2)
-
-    invoke = subroutine.children[0]
-    assert isinstance(invoke, AlgorithmInvokeCall)
-    assert invoke._index == 2
-    assert len(invoke.arguments) == 1
-    check_literal(invoke.arguments[0], "kern", "0.0")
-
-
-def test_apply_codeblocks(fortran_reader):
-    '''Test that an invoke with a code block argument containing multiple
-    structure constructors is transformed into PSyclone-specific
-    AlgorithmInvokeCall and KernelFunctor classes.
-
-    '''
-    code = (
-        "subroutine alg()\n"
-        "  use kern_mod, only: kern\n"
-        "  call invoke(kern(0.0), kern(1.0), name='an_invoke')\n"
-        "end subroutine alg\n")
-
-    psyir = fortran_reader.psyir_from_source(code)
-    subroutine = psyir.children[0]
-    assert len(subroutine[0].arguments) == 3
-    assert isinstance(subroutine[0].arguments[0], CodeBlock)
-    assert isinstance(subroutine[0].arguments[1], CodeBlock)
-
-    invoke_trans = RaisePSyIR2AlgTrans()
-    invoke_trans.apply(subroutine[0], 3)
-
-    invoke = subroutine.children[0]
+    invoke_trans.apply(subroutine[1], 2)
+    invoke = subroutine.children[1]
     assert isinstance(invoke, AlgorithmInvokeCall)
     assert invoke._name == "an_invoke"
-    assert invoke._index == 3
+    assert invoke._index == 2
     assert len(invoke.arguments) == 2
-    check_literal(invoke.arguments[0], "kern", "0.0")
-    check_literal(invoke.arguments[1], "kern", "1.0")
-
-
-def test_apply_mixed(fortran_reader):
-    '''Test that an invoke with a mixture of code block and array
-    reference arguments is transformed into PSyclone-specific
-    AlgorithmInvokeCall and KernelFunctor classes.
-
-    '''
-    code = (
-        "subroutine alg()\n"
-        "  use kern_mod, only: kern\n"
-        "  use field_mod, only: r2d_field\n"
-        "  type(r2d_field) :: field\n"
-        "  call invoke(kern(0.0), kern(1.0), kern(field), kern(2.0))\n"
-        "end subroutine alg\n")
-
-    psyir = fortran_reader.psyir_from_source(code)
-    subroutine = psyir.children[0]
-    assert len(subroutine[0].arguments) == 4
-    assert isinstance(subroutine[0].arguments[0], CodeBlock)
-    assert isinstance(subroutine[0].arguments[1], CodeBlock)
-    assert isinstance(subroutine[0].arguments[2], Call)
-    assert isinstance(subroutine[0].arguments[3], CodeBlock)
-
-    invoke_trans = RaisePSyIR2AlgTrans()
-    invoke_trans.apply(subroutine[0], 4)
-
-    invoke = psyir.children[0][0]
-    assert isinstance(invoke, AlgorithmInvokeCall)
-    assert invoke._index == 4
-    assert len(invoke.arguments) == 4
-    check_literal(invoke.arguments[0], "kern", "0.0")
-    check_literal(invoke.arguments[1], "kern", "1.0")
-    check_reference(invoke.arguments[2], "kern", "field")
-    check_literal(invoke.arguments[3], "kern", "2.0")
+    check_literal(invoke.arguments[0], "kern1", "0.0")
+    check_literal(invoke.arguments[1], "kern2", "1.0")
 
 
 def test_apply_expr(fortran_reader):
-    '''Test that an invoke with a mixture of code block and array
-    reference arguments as expressions is transformed into PSyclone-specific
-    AlgorithmInvokeCall and KernelFunctor classes.
+    '''Test that an invoke is always parsed as a Call and after applying
+    the RaisePSyIR2AlgTrans this are uplifted to AlgorithmInvokeCall and
+    KernelFunctor classes.
 
     '''
     code = (
@@ -491,7 +348,7 @@ def test_apply_expr(fortran_reader):
     subroutine = psyir.children[0]
     assert len(subroutine[0].arguments) == 2
     assert isinstance(subroutine[0].arguments[0], Call)
-    assert isinstance(subroutine[0].arguments[1], CodeBlock)
+    assert isinstance(subroutine[0].arguments[1], Call)
 
     invoke_trans = RaisePSyIR2AlgTrans()
     invoke_trans.apply(subroutine[0], 5)
