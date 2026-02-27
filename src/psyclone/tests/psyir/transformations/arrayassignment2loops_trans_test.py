@@ -875,10 +875,7 @@ def test_apply_functions(fortran_reader, fortran_writer):
     errormsg = "ArrayAssignment2LoopsTrans does not accept calls which are "
     with pytest.raises(TransformationError) as err:
         trans.validate(invalid[0])
-    # TODO #2429: This has the correct behaviour but for the wrong reason
-    # (the function call is parsed as a CodeBlock), once this issue is resolved
-    # the error message should be the expected one.
-    # assert errormsg in str(err.value)
+    assert errormsg in str(err.value)
     with pytest.raises(TransformationError) as err:
         trans.validate(invalid[1], verbose=True)
     assert errormsg in str(err.value)
@@ -892,10 +889,7 @@ def test_apply_functions(fortran_reader, fortran_writer):
     # These are impure (or we don't know the purity)
     with pytest.raises(TransformationError) as err:
         trans.validate(invalid[4])
-    # TODO #2429: This has the correct behaviour but for the wrong reason
-    # (the function call is parsed as a CodeBlock), once this issue is resolved
-    # the error message should be the expected one.
-    # assert errormsg in str(err.value)
+    assert errormsg in str(err.value)
     with pytest.raises(TransformationError) as err:
         trans.validate(invalid[5])
     assert errormsg in str(err.value)
