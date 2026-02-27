@@ -62,7 +62,10 @@ NEMOV4 = os.environ.get('NEMOV4', False)
 REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = []
+FILES_TO_SKIP = [
+    "flincom.f90", "restcom.f90",  # TODO #3022: Bug in Maxval2LoopTrans
+]
+
 if not NEMOV4:
     # TODO #3112: These produce diverging run.stat results in gcc NEMOv5 BENCH
     FILES_TO_SKIP = [
