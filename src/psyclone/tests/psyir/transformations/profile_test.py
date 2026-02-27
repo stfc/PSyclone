@@ -315,6 +315,9 @@ def test_profile_invokes_lfric(fortran_writer):
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
+
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = fortran_writer(invoke.schedule).replace("\n", "")
@@ -334,6 +337,8 @@ def test_profile_invokes_lfric(fortran_writer):
     # Next test two kernels in one invoke:
     _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = fortran_writer(invoke.schedule).replace("\n", "")
@@ -358,6 +363,8 @@ def test_profile_invokes_lfric(fortran_writer):
     # Lastly, test an invoke whose first kernel is a builtin
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
     code = fortran_writer(invoke.schedule)
     assert "use profile_psy_data_mod, only : profile_PSyDataType" in code
     assert "type(profile_PSyDataType), save, target :: profile_psy_data" \
@@ -407,6 +414,9 @@ def test_profile_kernels_lfric(fortran_writer):
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
+
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = fortran_writer(invoke.schedule).replace("\n", "")
@@ -425,6 +435,9 @@ def test_profile_kernels_lfric(fortran_writer):
 
     _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
+
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
 
     # Convert the invoke to code
     code = fortran_writer(invoke.schedule)
@@ -527,6 +540,8 @@ def test_profile_named_lfric(fortran_writer):
     profile_trans = ProfileTrans()
     options = {"region_name": (psy.name, invoke.name)}
     profile_trans.apply(schedule.children, options=options)
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
     result = fortran_writer(invoke.schedule)
     assert ("CALL profile_psy_data % PreStart(\"single_invoke_psy\", "
             "\"invoke_0_testkern_type\", 0, 0)") in result
@@ -646,23 +661,27 @@ def test_region(fortran_writer):
     prt.apply(schedule[0:4])
     # Two loops.
     prt.apply(schedule[1:3])
+
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
     result = fortran_writer(invoke.schedule)
     assert ("CALL profile_psy_data % PreStart(\"multi_functions_multi_invokes_"
             "psy\", \"invoke_0-r0\", 0, 0)" in result)
     assert ("CALL profile_psy_data_1 % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r1\", 0, 0)" in result)
     # Make nested profiles.
-    prt.apply(schedule[1].psy_data_body[1])
-    prt.apply(schedule)
+    pnodes = schedule.walk(ProfileNode)
+    prt.apply(pnodes[0].psy_data_body[1])
+    prt.apply(schedule.children)
     result = fortran_writer(invoke.schedule)
     assert ("CALL profile_psy_data_3 % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r0\", 0, 0)" in result)
     assert ("CALL profile_psy_data % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r1\", 0, 0)" in result)
     assert ("CALL profile_psy_data_1 % PreStart(\"multi_functions_multi_"
-            "invokes_psy\", \"invoke_0-r2\", 0, 0)" in result)
+            "invokes_psy\", \"invoke_0-r3\", 0, 0)" in result)
     assert ("CALL profile_psy_data_2 % PreStart(\"multi_functions_multi_"
-            "invokes_psy\", \"invoke_0-testkern_code-r3\", 0, 0)" in result)
+            "invokes_psy\", \"invoke_0-r2\", 0, 0)" in result)
 
 
 # -----------------------------------------------------------------------------

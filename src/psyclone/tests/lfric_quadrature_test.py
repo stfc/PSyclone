@@ -298,7 +298,7 @@ def test_face_qr(tmpdir, dist_mem):
     assert module_declns in generated_code
 
     output_decls = ("    use quadrature_face_mod, only : "
-                "quadrature_face_proxy_type, quadrature_face_type\n")
+                    "quadrature_face_proxy_type, quadrature_face_type\n")
     if dist_mem:
         output_decls += "    use mesh_mod, only : mesh_type\n"
     output_decls += (

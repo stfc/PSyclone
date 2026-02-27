@@ -91,6 +91,8 @@ def test_transform_kern_with_interface(tmp_path, fortran_writer):
     # Have to use 'force' because the test kernel contains a WRITE which
     # becomes a CodeBlock.
     rtrans.apply(kernels[0], options={"force": True})
+    # Ensure PSy-layer symbols are created as we're not using psy.gen
+    invoke.setup_psy_layer_symbols()
     contents = fortran_writer(sched.ancestor(Container))
     # Check that the interface name has been updated.
     assert "interface mixed_code" in contents

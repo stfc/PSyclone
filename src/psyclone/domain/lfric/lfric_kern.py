@@ -62,7 +62,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, ImportInterface, ScalarType, UnresolvedType,
-    INTEGER_TYPE, UnresolvedInterface, UnsupportedFortranType)
+    INTEGER_TYPE, UnsupportedFortranType)
 
 
 class LFRicKern(CodedKern):

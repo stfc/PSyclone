@@ -615,13 +615,11 @@ class SymbolTable():
             csym = new_symbol.interface.container_symbol
             sym_in_scope = self.lookup(csym.name, otherwise=None)
             if not sym_in_scope:
-                import pdb; pdb.set_trace()
                 raise InternalError(
                     f"Cannot add {new_symbol.name} because it is imported "
                     f"from '{csym.name}' but that ContainerSymbol is not in "
                     f"scope.")
             if sym_in_scope is not csym:
-                import pdb; pdb.set_trace()
                 raise InternalError(
                     f"Cannot add {new_symbol.name} because it is imported "
                     f"from '{csym.name}' and the ContainerSymbol of that name "
@@ -802,7 +800,7 @@ class SymbolTable():
         # from this ContainerSymbol so that they now point to the one in
         # scope in this table instead.
         for isym in other_table.imported_symbols:
-            
+
             other_sym = self.lookup(isym.name, otherwise=None)
             if other_sym:
                 # We have a potential clash with a symbol imported

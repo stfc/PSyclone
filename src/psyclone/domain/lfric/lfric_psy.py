@@ -43,11 +43,9 @@
 
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
-                                   LFRicInvokes)
+from psyclone.domain.lfric import LFRicSymbolTable, LFRicInvokes
 from psyclone.psyGen import PSy
 from psyclone.psyir.nodes import ScopingNode
-from psyclone.psyir.symbols import ContainerSymbol
 
 
 class LFRicPSy(PSy):
