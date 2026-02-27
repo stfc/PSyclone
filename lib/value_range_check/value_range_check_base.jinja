@@ -414,8 +414,8 @@ contains
             {# The spaces take care of proper indentation #}
             {{indent}}if (value < this%value_ranges(this%next_var_index,1)) then
             {{indent}}    write(stderr, '(11G0)') "PSyData: Variable '",                    &
-            {{indent}}                     name,"' has the value ",                         &
-            {{indent}}                     value, " in module '", trim(this%module_name),   &
+            {{indent}}                     name,"' has the value '",                        &
+            {{indent}}                     value, "' in module '", trim(this%module_name),  &
             {{indent}}                     "', region '", trim(this%region_name),           &
             {{indent}}                     "' which is less than '",                        &
             {{indent}}                     this%value_ranges(this%next_var_index,1),"'."
@@ -424,8 +424,8 @@ contains
             {# The spaces take care of proper indentation #}
             {{indent}}if (value > this%value_ranges(this%next_var_index,2)) then
             {{indent}}    write(stderr, '(11G0)') "PSyData: Variable '",                    &
-            {{indent}}                     name,"' has the value ",                         &
-            {{indent}}                     value, " in module '", trim(this%module_name),   &
+            {{indent}}                     name,"' has the value '",                        &
+            {{indent}}                     value, "' in module '", trim(this%module_name),  &
             {{indent}}                     "', region '", trim(this%region_name),           &
             {{indent}}                     "', which is greater than '",                    &
             {{indent}}                     this%value_ranges(this%next_var_index,2),"'."
@@ -435,8 +435,8 @@ contains
             {{indent}}if (value < this%value_ranges(this%next_var_index,1)  .or.               &
             {{indent}}    value > this%value_ranges(this%next_var_index,2)) then
             {{indent}}    write(stderr, '(13G0)') "PSyData: Variable '",                       &
-            {{indent}}                     name,"' has the value ",                            &
-            {{indent}}                     value , " in module '", trim(this%module_name),     &
+            {{indent}}                     name,"' has the value '",                           &
+            {{indent}}                     value , "' in module '", trim(this%module_name),    &
             {{indent}}                     "', region '", trim(this%region_name),              &
             {{indent}}                     "', which is not between '",                        &
             {{indent}}                     this%value_ranges(this%next_var_index,1),"' and '", &
@@ -450,8 +450,8 @@ contains
         {% else -%}    {# floating point #}
         if (IEEE_SUPPORT_DATATYPE(value)) then
             if (.not. IEEE_IS_FINITE(value)) then
-                write(stderr, '(8G0)') "PSyData: Variable '", name,"' has invalid value ", &
-                                 value, " in module '", trim(this%module_name),            &
+                write(stderr, '(8G0)') "PSyData: Variable '", name,"' has invalid value '", &
+                                 value, "' in module '", trim(this%module_name),           &
                                  "', region '", trim(this%region_name),"'."
             endif
         endif
@@ -514,8 +514,8 @@ contains
             {% endfor %}
             {{indent}}if (value({{vars}}) < this%value_ranges(this%next_var_index,1)) then
             {{indent}}    write(stderr, '(5G0,{{dim}}(1G0,1X),7G0)') "PSyData: Variable '",   &
-            {{indent}}                     name,"' has the value ",                         &
-            {{indent}}                     value({{vars}}), " at index/indices ", {{vars}}, &
+            {{indent}}                     name,"' has the value '",                        &
+            {{indent}}                     value({{vars}}), "' at index/indices ", {{vars}}, &
             {{indent}}                     "in module '", trim(this%module_name),           &
             {{indent}}                     "', region '", trim(this%region_name),           &
             {{indent}}                     "' which is less than '",                        &
@@ -531,8 +531,8 @@ contains
             {% endfor %}
             {{indent}}if (value({{vars}}) > this%value_ranges(this%next_var_index,2)) then
             {{indent}}    write(stderr, '(5G0,{{dim}}(1G0,1X),7G0)') "PSyData: Variable '",   &
-            {{indent}}                     name,"' has the value ",                         &
-            {{indent}}                     value({{vars}}), " at index/indices ", {{vars}}, &
+            {{indent}}                     name,"' has the value '",                        &
+            {{indent}}                     value({{vars}}), "' at index/indices ", {{vars}}, &
             {{indent}}                     "in module '", trim(this%module_name),           &
             {{indent}}                     "', region '", trim(this%region_name),           &
             {{indent}}                     "', which is greater than '",                    &
@@ -548,9 +548,9 @@ contains
             {% endfor %}
             {{indent}}if (value({{vars}}) < this%value_ranges(this%next_var_index,1)  .or.     &
             {{indent}}    value({{vars}}) > this%value_ranges(this%next_var_index,2)) then
-            {{indent}}    write(stderr, '(5G0,{{dim}}(1G0,1X),9G0)') "PSyData: Variable '",      &
-            {{indent}}                     name,"' has the value ",                            &
-            {{indent}}                     value({{vars}}), " at index/indices ", {{vars}},    &
+            {{indent}}    write(stderr, '(5G0,{{dim}}(1G0,1X),9G0)') "PSyData: Variable '",    &
+            {{indent}}                     name,"' has the value '",                           &
+            {{indent}}                     value({{vars}}), "' at index/indices ", {{vars}},   &
             {{indent}}                     "in module '", trim(this%module_name),              &
             {{indent}}                     "', region '", trim(this%region_name),              &
             {{indent}}                     "', which is not between '",                        &
@@ -572,7 +572,7 @@ contains
             {{ " "*3*(dim-j)}}do i{{j}}=1, size(value, {{j}})
             {% endfor %}
             {{indent}}if (.not. IEEE_IS_FINITE(value({{vars}}))) then
-            {{indent}}    write(stderr, '(5G0,{{dim}}(1G0,1X),5G0)') "PSyData: Variable '",    &
+            {{indent}}    write(stderr, '(5G0,{{dim}}(1G0,1X),5G0)') "PSyData: Variable '",  &
             {{indent}}                     name,"' has the invalid value '",                 &
             {{indent}}                     value({{vars}}), "' at index/indices ", {{vars}}, &
             {{indent}}                     "in module '", trim(this%module_name),            &

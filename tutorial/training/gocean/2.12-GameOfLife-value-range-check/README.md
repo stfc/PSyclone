@@ -28,13 +28,13 @@ outer loop:
             # apply transformation to `loop`
 
 
-A value range is specified using environment variables starting with
-PSYVERIFY. Valid ranges for a variable can be specified in three ways:
+A value range is specified using the environment variable PSY_VALUE_RANGE.
+It contains a list of `;` separated `key=range` pairs. starting with
+Valid key for a variable can be specified in three ways:
 
-
-    PSYVERIFY__psy_time_step_alg_mod__invoke_compute_r0__neighbours=0:8
-    PSYVERIFY__psy_time_step_alg_mod__neighbours=0:8
-    PSYVERIFY__neighbours=0:8
+    psy_time_step_alg_mod.invoke_compute_r0.neighbours%data=0:8
+    psy_time_step_alg_mod.neighbours%data=0:8
+    neighbours%data=0:8
 
 The first one will check the variables `neighbours` in the module
 `psy_time_step_alg_mod` when calling the kernel `invoke_compute_r0`.
@@ -51,9 +51,6 @@ file `time_step_alg_mod_psy.f90` - the first call (to `PreStart`) contains
 the module and region name:
 
     CALL value_range_check_psy_data % PreStart("psy_time_step_alg_mod", "invoke_compute-r0", 5, 3)
-
-When setting the environment variables, any `-` must be replaced with
-an underscore (`_`).
 
 With the setting above, no messages will be printed, but you can
 see the effect of the value checking by setting e.g. an upper limit
