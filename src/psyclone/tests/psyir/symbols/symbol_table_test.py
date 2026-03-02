@@ -1536,7 +1536,7 @@ def test_view():
                       "  var2: DataSymbol<Scalar<INTEGER, UNDEFINED>, "
                       "Automatic>\n"
                       "RoutineSymbol:\n"
-                      "  func: RoutineSymbol<NoType, pure=unknown, "
+                      "  func: RoutineSymbol<UnresolvedType, pure=unknown, "
                       "elemental=unknown>\n")
 
 
@@ -2465,7 +2465,7 @@ def test_new_symbol():
     assert sym2.visibility is symbols.Symbol.Visibility.PUBLIC
     assert isinstance(sym1.interface, symbols.AutomaticInterface)
     assert isinstance(sym2.interface, symbols.AutomaticInterface)
-    assert isinstance(sym1.datatype, symbols.NoType)
+    assert isinstance(sym1.datatype, symbols.UnresolvedType)
     assert sym2.datatype is symbols.INTEGER_TYPE
     assert sym2.initial_value is None
 
