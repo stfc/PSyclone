@@ -248,7 +248,7 @@ contains
         integer, intent(out) :: has_values
         real(kind=real64), dimension(2), intent(out) :: value_range
 
-        character(len=:), allocatable :: env_name, env_value, sub_str
+        character(len=:), allocatable :: env_name, sub_str
         ! We need a copy of the names to replace '-' with '_'
         integer      :: status, value_len, index_colon, indx
 
@@ -276,8 +276,8 @@ contains
         if (index_colon == 0) then
             ! No range at all, must be a constant value??
             write(stderr,*) "PSyData: env variable '", env_name,"' = ",  &
-                            trim(env_value), " does not contain a ':' ", &
-                            "- ignored"
+                            trim(variable_values(indx)%str), " does ",   &
+                            "not contain a ':' - ignored"
             has_values = has_none
         else if (index_colon == 1) then
             ! ":5" i.e. 5 or smaller
@@ -288,7 +288,7 @@ contains
                                 "' region '", trim(region),"' :",    &
                                 variable_name, " <= ", value_range(2)
             endif
-        else if (index_colon == len(env_value)) then
+        else if (index_colon == len(variable_values(indx)%str)) then
             ! "5:"   i.e. 5 or larger:
             has_values = has_min
             read(variable_values(indx)%str(:index_colon-1), *) value_range(1)
