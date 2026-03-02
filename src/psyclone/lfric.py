@@ -1799,13 +1799,14 @@ class LFRicCMAOperators(LFRicCollection):
                 f"{op_name}_{suffix}")
             tag = f"{op_name}:{suffix}"
             arg = self._cma_ops[op_name]["arg"]
-            precision = LFRicConstants().precision_for_type(arg.data_type)
+            # Ensure that the appropriate precision symbol exists.
+            kind_sym = self.symtab.add_lfric_precision_symbol(arg.precision)
             array_type = ArrayType(
-                LFRicTypes("LFRicRealScalarDataType")(precision),
+                LFRicTypes("LFRicRealScalarDataType")(kind_sym),
                 [ArrayType.Extent.DEFERRED]*3)
             index_str = ",".join(3*[":"])
             dtype = UnsupportedFortranType(
-                f"real(kind={arg.precision}), pointer, "
+                f"real(kind={kind_sym.name}), pointer, "
                 f"dimension({index_str}) :: {new_name} => null()",
                 partial_datatype=array_type)
             self.symtab.new_symbol(new_name,
@@ -3021,10 +3022,12 @@ class LFRicBasisFunctions(LFRicCollection):
                     dims.append(Literal(value, INTEGER_TYPE))
                 except ValueError:
                     dims.append(Reference(self.symtab.find_or_create(value)))
+            kind_sym = self.symtab.add_lfric_precision_symbol("r_def")
+            arr_type = ArrayType(ScalarType(ScalarType.Intrinsic.REAL,
+                                            Reference(kind_sym)), dims)
             arg = self.symtab.find_or_create_tag(
                 basis, symbol_type=DataSymbol,
-                datatype=ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
-                                   dims))
+                datatype=arr_type)
             arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(arg)
 
@@ -3037,11 +3040,9 @@ class LFRicBasisFunctions(LFRicCollection):
                 raise InternalError(
                     f"Quadrature shapes other than {supported_shapes} are not "
                     f"yet supported - got: '{shape}'")
-            kind_sym = self.symtab.find_or_create(
-                const.QUADRATURE_TYPE_MAP[shape]["kind"],
-                symbol_type=DataSymbol, datatype=UnresolvedType(),
-                interface=ImportInterface(
-                    self.symtab.lookup("constants_mod")))
+
+            kind_sym = self.symtab.add_lfric_precision_symbol(
+                const.QUADRATURE_TYPE_MAP[shape]["kind"])
 
             # All quatratures are REAL
             intr_type = ScalarType(ScalarType.Intrinsic.REAL,
@@ -3106,6 +3107,8 @@ class LFRicBasisFunctions(LFRicCollection):
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
         # or an evaluator
         if self._qr_vars or self._eval_targets:
+            # Quadrature weights and basis functions are in r_def precision.
+            self.symtab.add_lfric_precision_symbol("r_def")
             module = self.symtab.find_or_create(
                 const.FUNCTION_SPACE_TYPE_MAP["function_space"]["module"],
                 symbol_type=ContainerSymbol)
@@ -3205,6 +3208,7 @@ class LFRicBasisFunctions(LFRicCollection):
             # to evaluate basis/diff-basis functions
             nodes_name = "nodes_" + fspace.mangled_name
             kind = api_config.default_kind["real"]
+            self.symtab.add_lfric_precision_symbol(kind)
             symbol = self.symtab.new_symbol(
                 nodes_name, symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
