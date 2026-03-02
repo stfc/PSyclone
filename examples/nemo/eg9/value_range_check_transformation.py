@@ -62,5 +62,6 @@ def trans(psyir):
             # Only instrument outer loops. So if this loop is inside
             # another loop, don't do anything.
             continue
-        value_range_check.apply(loop),
-        #{"region_name": ("main", "init")})
+        value_range_check.apply(loop)
+        # You can specify a module and region name adding
+        # options={"region_name": ("main", "init")})
