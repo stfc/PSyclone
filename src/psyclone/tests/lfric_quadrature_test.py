@@ -79,7 +79,6 @@ def test_field_xyoz(tmpdir):
     module_declns = (
         "  use field_mod, only : field_proxy_type, field_type\n"
         "  use constants_mod, only : i_def, r_def\n"
-        "  use testkern_qr_mod, only : testkern_qr_code\n"
     )
     assert module_declns in generated_code
 
@@ -90,6 +89,7 @@ def test_field_xyoz(tmpdir):
         "quadrature_xyoz_type\n"
         "    use mesh_mod, only : mesh_type\n"
         "    use function_space_mod, only : BASIS, DIFF_BASIS\n"
+        "    use testkern_qr_mod, only : testkern_qr_code\n"
         in generated_code)
     assert """
     type(field_type), intent(in) :: f1
@@ -293,7 +293,6 @@ def test_face_qr(tmpdir, dist_mem):
 
     module_declns = (
         "  use field_mod, only : field_proxy_type, field_type\n"
-        "  use testkern_qr_faces_mod, only : testkern_qr_faces_code\n"
         "  use constants_mod, only : r_def\n")
     assert module_declns in generated_code
 
@@ -302,7 +301,9 @@ def test_face_qr(tmpdir, dist_mem):
     if dist_mem:
         output_decls += "    use mesh_mod, only : mesh_type\n"
     output_decls += (
-        "    use function_space_mod, only : BASIS, DIFF_BASIS\n")
+        "    use function_space_mod, only : BASIS, DIFF_BASIS\n"
+        "    use testkern_qr_faces_mod, only : testkern_qr_faces_code\n"
+    )
     assert output_decls in generated_code
     assert """\
     type(field_type), intent(in) :: f1

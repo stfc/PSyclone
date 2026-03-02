@@ -550,6 +550,7 @@ def test_derived_type_deref_naming(tmpdir):
         "  subroutine invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
         "    use mesh_mod, only : mesh_type\n"
+        "    use testkern_mod, only : testkern_code\n"
         "    use constants_mod, only : i_def\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1_my_field\n"

@@ -2007,6 +2007,7 @@ def test_minmaxval_x(fortran_writer, tmp_path):
 
     psy, invoke = get_invoke("15.10.9_min_max_X_builtin.f90", api=API, idx=0,
                              dist_mem=True)
+    invoke.setup_psy_layer_symbols()
     output = fortran_writer(invoke.schedule)
     assert "global_min%value = amin" in output
     assert "amin = global_min%get_min()" in output
