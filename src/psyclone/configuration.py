@@ -561,7 +561,7 @@ class Config:
         if not isinstance(value, str) or value not in SUPPORTED_FRONTENDS:
             raise ConfigurationError(
                 f"frontend must be one of {SUPPORTED_FRONTENDS} but got "
-                f"{value}")
+                f"'{value}''")
         self._frontend = value
 
     @property

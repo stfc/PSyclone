@@ -38,8 +38,11 @@
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
 
 import pytest
+from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran_treesitter_reader import \
+    FortranTreeSitterReader
 from psyclone.psyir.nodes import (
     Routine, FileContainer, UnaryOperation, BinaryOperation, Literal,
     Assignment, CodeBlock, IntrinsicCall, Loop, Reference)
@@ -92,6 +95,12 @@ def test_fortran_reader_constructor():
 
     # Check that the initialised parser can parse Fortran 2008 standard,
     # the return value of this function is tested in the following tests
+    freader.psyir_from_source(ONLY_2008_CODE)
+
+    # Now repeat the process with treesitter
+    Config.get().frontend = "treesitter"
+    freader = FortranReader()
+    assert isinstance(freader._processor, FortranTreeSitterReader)
     freader.psyir_from_source(ONLY_2008_CODE)
 
 
