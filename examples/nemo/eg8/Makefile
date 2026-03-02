@@ -64,7 +64,7 @@ transform:
 
 compile: transform traadv.exe
 
-run: traadv.exe
+run: transform traadv.exe
 	IT=10 JPI=64 JPJ=64 JPK=32 ${RUN_CMD}
 
 traadv.exe: traadv_instrumented.o ${PSYCLONE_PROFILING_LIB}
