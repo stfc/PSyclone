@@ -41,11 +41,14 @@ sub-classes.'''
 
 from abc import ABCMeta
 from enum import Enum
-from typing import Tuple
+from typing import Tuple, TYPE_CHECKING
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+
+if TYPE_CHECKING:
+    from psyclone.psyir.symbols.datatypes import DataType
 
 
 class Operation(DataNode, metaclass=ABCMeta):
@@ -321,7 +324,7 @@ class BinaryOperation(Operation):
                             f"boolean, but found '{type(value).__name__}'.")
         self._has_explicit_grouping = value
 
-    def get_result_scalar_type(self, optypes):
+    def get_result_scalar_type(self, optypes: list["DataType"]) -> "DataType":
         '''
         Examines the two operand types to determine the base type of the
         operation using the rules in Section 7.2 of the Fortran2008 standard.
@@ -329,11 +332,8 @@ class BinaryOperation(Operation):
         is returned.
 
         :param optypes: the types of the two operands.
-        :type optypes: list[:py:class:`psyclone.psyir.symbols.DataType`,
-                             :py:class:`psyclone.psyir.symbols.DataType`]
 
         :returns: the base type of the result of the operation.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
         :raises TypeError: if an unexpected intrinsic type is found for
                            either of the operands to a numeric operation.
@@ -411,7 +411,6 @@ class BinaryOperation(Operation):
                         dtype = ArrayType(UnresolvedType(), shape=dtype.shape)
 
             optypes.append(dtype)
-
         # Determine the base (scalar) type of the result.
         base_type = self.get_result_scalar_type(optypes)
         if (isinstance(base_type, UnresolvedType) or

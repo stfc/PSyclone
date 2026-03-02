@@ -156,7 +156,9 @@ class ArrayReference(ArrayMixin, Reference):
             # its fully defined without needing to use size intrinsics.
             if (orig_shape and len(orig_shape) == len(shape) and
                 all(self.is_full_range(idx) for idx in range(len(shape)))
-                and all(isinstance(idx, ArrayType.ArrayBounds) for idx in
+                and all(isinstance(idx, ArrayType.ArrayBounds)
+                        and not isinstance(idx.lower, ArrayType.Extent) and
+                        not isinstance(idx.upper, ArrayType.Extent) for idx in
                         orig_shape)):
                 return self.symbol.datatype
             if type(self.symbol) is Symbol or isinstance(self.symbol.datatype,

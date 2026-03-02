@@ -303,11 +303,16 @@ def test_binaryop_array_datatype():
             IntrinsicCall.Intrinsic.SIZE,
             [Reference(sym2)])
         )])
-    print("------------")
+    # Test that we choose the option that has a defined shape and not a size
+    # intrinsic regardless of argument order.
     binop7 = BinaryOperation.create(oper, ref7.copy(), ref6.copy())
     dtype6 = binop7.datatype
     assert dtype6.shape[0].lower.value == "1"
     assert dtype6.shape[0].upper.debug_string() == "5"
+    binop8 = BinaryOperation.create(oper, ref6.copy(), ref7.copy())
+    dtype7 = binop8.datatype
+    assert dtype7.shape[0].lower.value == "1"
+    assert dtype7.shape[0].upper.debug_string() == "5"
 
 
 def test_binaryop_array_section_datatype():
