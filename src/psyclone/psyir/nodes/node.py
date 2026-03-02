@@ -366,6 +366,7 @@ class Node():
             raise TypeError(f"The parent of a Node must also be a Node but "
                             f"got '{type(parent).__name__}'")
         self._disable_tree_update = True
+        self._locked = False
         # Keep a record of whether a parent node was supplied when constructing
         # this object. In this case it still won't appear in the parent's
         # children list. When both ends of the reference are connected this
@@ -1769,6 +1770,12 @@ class Node():
         if self._disable_tree_update:
             return
 
+        # If the node is locked, no modifications are permited
+        if self._locked:
+            raise ValueError(
+                f"Attempted modification to '{self.debug_string()}', "
+                f"but this node is locked.")
+
         # Perform the update, disabling the recursive call of this routine on
         # this node.
         self._disable_tree_update = True
@@ -1778,6 +1785,14 @@ class Node():
         # Propagate the signal up the tree.
         if self._parent:
             self._parent.update_signal()
+
+    def lock(self) -> None:
+        ''' Do not permit modifications to this node or its decendants. '''
+        self._locked = True
+
+    def unlock(self) -> None:
+        ''' Permit modifications to this node or its decendants. '''
+        self._locked = False
 
     def _update_node(self):
         '''

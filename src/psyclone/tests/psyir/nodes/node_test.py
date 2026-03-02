@@ -2027,3 +2027,11 @@ def test_get_all_accessed_symbols(fortran_reader):
     assert "j" in symbol_names
     assert "k" in symbol_names
     assert "l" in symbol_names
+
+def test_node_locking():
+    symbol = DataSymbol("tmp", REAL_TYPE)
+    assignment = Assignment.create(Reference(symbol),
+                                   Literal("0.0", REAL_TYPE))
+    
+    assignment.lock()
+    assignment.rhs.replace_with(Literal("1.0", REAL_TYPE))
