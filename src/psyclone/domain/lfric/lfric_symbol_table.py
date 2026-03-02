@@ -32,14 +32,16 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
+#          I. Kavcic, Met Office
+#          J. Henrichs, Bureau of Meteorology
 # Modified: O.Brunt, Met Office
 # -----------------------------------------------------------------------------
 
 ''' This module contains the LFRic-specific SymbolTable implementation.
 It provides convenience functions to create often used symbols.
 '''
+
+from typing import Optional
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
@@ -56,54 +58,23 @@ class LFRicSymbolTable(SymbolTable):
     '''
     Sub-classes SymbolTable to provide an LFRic-specific implementation.
 
-    :param node: reference to the Schedule or Container to which this \
-        symbol table belongs.
-    :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
-        :py:class:`psyclone.psyir.nodes.Container` or NoneType
-    :param default_visibility: optional default visibility value for this \
-        symbol table, if not provided it defaults to PUBLIC visibility.
-    :type default_visibility: \
-        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-
     '''
-
-    # The container symbol for all precision variables
-    _constants_mod = None
-    # A mapping of 'i_def' etc. to the corresponding DataSymbol
-    _precision_map = {}
-
-    def __init__(self, node=None, default_visibility=Symbol.Visibility.PUBLIC):
-        super().__init__(node, default_visibility)
-        # First time an instance of this is created, define
-        # the precision mapping.
-        if 0:   # ARPDBG not LFRicSymbolTable._precision_map:
-            const = LFRicConstants()
-            mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
-            LFRicSymbolTable._constants_mod = ContainerSymbol(mod_name)
-
-            api_config = Config.get().api_conf("lfric")
-            for precision in api_config.precision_map:
-                LFRicSymbolTable._precision_map[precision] = \
-                    DataSymbol(precision, INTEGER_TYPE,
-                               interface=ImportInterface(self._constants_mod))
-
-    def find_or_create_integer_symbol(self, name, tag=None):
+    def find_or_create_integer_symbol(self, name: str,
+                                      tag: Optional[str] = None) -> Symbol:
         '''This function returns a symbol for an integer reference. If a
         tag is specified, it will be used to search for an existing symbol,
         otherwise the name will be used. If the symbol should not already
         exist in the symbol table, it will be returned, otherwise a new
         symbol will be created.
 
-        :param str name: name of the integer variable to declare.
+        :param name: name of the integer variable to declare.
         :param tag: optional tag of the integer variable to declare.
-        :type tag: Optional[str]
 
         :returns: the symbol for the variable.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
-        :raises TypeError: TypeError if the symbol exists but is not \
+        :raises TypeError: TypeError if the symbol exists but is not
             a DataSymbol.
-        :raises TypeError: TypeError if the symbol exists and is a \
+        :raises TypeError: TypeError if the symbol exists and is a
             DataSymbol, but not an Integer.
 
         '''
@@ -207,16 +178,15 @@ class LFRicSymbolTable(SymbolTable):
         return sym
 
     # ------------------------------------------------------------------------
-    def add_lfric_precision_symbol(self, name):
+    def add_lfric_precision_symbol(self, name: str) -> DataSymbol:
         '''
         If the named LFRic precision symbol is not already in the table then
         add it. Also ensure that the Container symbol from which it is
         imported is in the table.
 
-        :param str name: name of the LFRic precision symbol to add to table.
+        :param name: name of the LFRic precision symbol to add to table.
 
         :returns: the specified LFRic precision symbol.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :raises ValueError: if the supplied name is not a recognised LFRic
             precision variable.

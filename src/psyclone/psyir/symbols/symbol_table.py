@@ -817,18 +817,42 @@ class SymbolTable():
                             other_sym.name, other_table=other_table))
             self.update_import_interface(isym)
 
-    def update_import_interface(self, isym):
+    def update_import_interface(self, isym: Symbol):
         '''
         Update the import interface of the supplied Symbol so that it
         refers to a Container in this or an ancestor scope.
 
+        If no ContainerSymbol is found with the name of the one in the
+        ImportInterface of the Symbol, then the ContainerSymboll in the
+        ImportInterface is added to this table.
+
+        :param isym: a Symbol with an import interface.
+
+        :raises ValueError: if the supplied symbol is not an import.
+        :raises SymbolError: if there is already a Symbol in scope with the
+            name of the originating Container and it is not a ContainerSymbol.
+
         '''
+        if not isym.is_import:
+            raise ValueError(
+                f"Expected a Symbol with an ImportInterface but '{isym.name}' "
+                f"has a(n) {isym.interface}.")
+
         csym = isym.interface.container_symbol
         if csym not in self.symbols:
             new_ctr = self.lookup(csym.name, otherwise=None)
             if not new_ctr:
+                # No matching symbol found in this scope so add the current
+                # ContainerSymbol.
                 self.add(csym)
                 new_ctr = csym
+            elif not isinstance(new_ctr, ContainerSymbol):
+                raise SymbolError(
+                    f"Cannot update the import interface of '{isym.name}' "
+                    f"because the name of the Container from which it is "
+                    f"imported clashes with an existing "
+                    f"{type(new_ctr).__name__} in this scope.")
+
             isym.interface = ImportInterface(
                 new_ctr, orig_name=isym.interface.orig_name)
 
