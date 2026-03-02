@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
-# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 
 '''An example PSyclone transformation script to demonstrate
@@ -40,12 +40,11 @@ optimisations to the matrix vector kernel to improve its performance
 on CPUs. It replaces the matmul Fortran intrinsic with inline matrix
 vector code.
 
-This script can be applied via the -s option to the psyclone
+This script can be applied via the -s option in the psyclone
 command, it is not designed to be directly run from python.
 
 '''
 
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.transformations import Matmul2CodeTrans
 
@@ -62,14 +61,13 @@ def trans(psyir):
 
     '''
     matmul2code_trans = Matmul2CodeTrans()
-    mod_inline_trans = KernelModuleInlineTrans()
 
     for kernel in psyir.coded_kernels():
         if kernel.name.lower() == "scaled_matrix_vector_code":
-            mod_inline_trans.apply(kernel)
-            schedules = kernel.get_callees()
+            kernel.modified = True
+            kernel_schedule = kernel.get_callees()
             # Replace matmul with inline code
-            for icall in schedules[0].walk(IntrinsicCall):
+            for icall in kernel_schedule.walk(IntrinsicCall):
                 if icall.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
                     matmul2code_trans.apply(icall)
-            print(schedules[0].view())
+            print(kernel_schedule.view())

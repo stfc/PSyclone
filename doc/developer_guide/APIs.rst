@@ -628,7 +628,7 @@ invokes found in the algorithm layer. This schedule includes all required
 loops and kernel calls that need to be generated in the PSy layer for
 the particular invoke call. Once the loops and kernel calls have been
 created then (if the ``DISTRIBUTED_MEMORY`` flag is set to ``true``) PSyclone
-adds any required halo exchanges and global sums. This work is all
+adds any required halo exchanges and global reductions. This work is all
 performed in the ``LFRicInvoke`` constructor (``__init__``) method.
 
 In PSyclone we apply a lazy halo exchange approach (as opposed to an
@@ -949,6 +949,37 @@ exchange before the loop) or add existing halo exchanges after a loop
 (as an increase in depth will only make it more likely that a halo
 exchange is no longer required after the loop).
 
+Kernel Transformations
+++++++++++++++++++++++
+
+Since PSyclone is invoked separately for each Algorithm file in an
+application, the naming of the new, transformed kernels is done with
+reference to the kernel output directory. All transformed kernels (and
+the modules that contain them) are re-named following the PSyclone
+Fortran naming conventions (:ref:`lfric-conventions`). This enables the
+reliable identification of transformed versions of any given kernel
+within the output directory.
+
+If the "multiple" kernel-renaming scheme is in use, PSyclone simply
+appends an integer to the original kernel name, checks whether such a
+kernel is present in the output directory and if not, creates it. If a
+kernel with the generated name is present then the integer is
+incremented and the process repeated. If the "single" kernel-renaming
+scheme is in use, the same procedure is followed but if a matching
+kernel is already present in the output directory then the new kernel
+is not written (and we check that the contents of the existing kernel
+are the same as the one we would create).
+
+If an application is being built in parallel then it is possible that
+different invocations of PSyclone will happen simultaneously and
+therefore we must take care to avoid race conditions when querying the
+filesystem. For this reason we use ``os.open``::
+
+    fd = os.open(<filename>, os.O_CREAT | os.O_WRONLY | os.O_EXCL)
+
+The ``os.O_CREATE`` and ``os.O_EXCL`` flags in combination mean that
+``open()`` raises an error if the file in question already exists.
+
 Colouring
 +++++++++
 
@@ -996,10 +1027,8 @@ Lowering
 
 As described in :ref:`psy_layer_backends`, the use of a PSyIR backend to
 generate code for the LFRic PSy layer requires that each LFRic-specific
-node be lowered to 'language-level' PSyIR. Although this is work in progress
-(see e.g. https://github.com/stfc/PSyclone/issues/1010), some nodes already
-have the ``lower_to_language_level()`` method implemented. These are
-described in the sub-sections below.
+node be lowered to 'language-level' PSyIR. This requires that each node
+have the ``lower_to_language_level()`` method implemented.
 
 BuiltIns
 ++++++++
@@ -1013,21 +1042,13 @@ PSyIR for the arithmetic operations required by the particular BuiltIn.
 This PSyIR forms the new body of the dof loop containing the original
 BuiltIn node.
 
-In constructing this PSyIR, suitable Symbols for the loop
-variable and the various kernel arguments must be looked up. Since the
-migration to the use of language-level PSyIR for the LFRic PSy layer
-is at an early stage, in practise this often requires that suitable
-Symbols be constructed and inserted into the symbol table of the PSy
-layer routine. A lot of this work is currently performed in the
-``LFRicKernelArgument.infer_datatype()`` method but ultimately (see
-https://github.com/stfc/PSyclone/issues/1258) much of this will be
-removed.
-
-The sum and inner product BuiltIns require extending PSyIR to handle
-reductions in the ``GlobalSum`` class in ``psyGen.py``. Conversions from
-``real`` to ``int`` and vice-versa require the target precisions be
-available as symbols, which is being implemented as a part of the mixed
-precision support.
+The sum, inner-product, maxval and minval BuiltIns require extending
+PSyIR to handle reductions. When any of these are encountered during the
+initial construction of the PSy layer, an instance of ``LFRicGlobalSum``,
+``LFRicGlobalMax`` or ``LFRicGlobalMin`` is inserted, as required. Each of
+these nodes uses the parameterised ``lower_to_language_level()`` method of the
+``_LFRicGlobalReduction`` base class when generating the final
+PSyIR that is passed to a backend.
 
 Kernel Metadata
 ---------------

@@ -48,7 +48,7 @@ from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Container, Loop
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import (
     LoopFuseTrans, LoopTrans, TransformationError,
     OMPParallelTrans)
@@ -1392,13 +1392,8 @@ def test_acc_enter_directive_infrastructure_setup_error():
     accdata.apply(schedule)
 
     # Remove the InvokeSchedule from its Container so that OpenACC will not
-    # find where to add the read_from_device function. However, we have to
-    # put the symbol representing the Kernel routine into the local table
-    # in order to get to that error.
-    sym = schedule.ancestor(Container).symbol_table.lookup("compute_cu_code")
+    # find where to add the read_from_device function.
     schedule.detach()
-    schedule.symbol_table.add(sym.interface.container_symbol)
-    schedule.symbol_table.add(sym)
 
     # Generate the code
     with pytest.raises(GenerationError) as err:
@@ -1517,7 +1512,6 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     assert isinstance(kern, GOKern)
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
-    KernelModuleInlineTrans().apply(kern)
     rtrans.apply(kern)
     # Check that there is a acc routine directive in the kernel
     schedules = kern.get_callees()

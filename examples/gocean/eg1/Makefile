@@ -109,6 +109,8 @@ dag:
 openacc:
 	$(ENV) ${PYTHON} ./runme_openacc.py
 
+# The "--kernel-renaming single" parameter avoids generating duplicate
+# versions of OpenCL kernels called multiple times.
 opencl:
-	${PSYCLONE} -nodm -s ./opencl_transformation.py \
+	${PSYCLONE} -nodm -s ./opencl_transformation.py --kernel-renaming single \
 		-api gocean  -I${INF_INC} shallow_alg.f90

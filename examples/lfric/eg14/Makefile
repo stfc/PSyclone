@@ -46,12 +46,14 @@ PSYROOT=../../..
 include ../lfric_common.mk
 
 GENERATED_FILES = *.o *.mod $(EXEC) main_alg.f90 main_psy.f90 \
-                  other_alg_mod_psy.f90 other_alg_mod_alg.f90
+                  other_alg_mod_psy.f90 other_alg_mod_alg.f90 \
+                  testkern_w0_kernel_?_mod.f90
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
 
-OBJ = main_psy.o main_alg.o other_alg_mod_psy.o other_alg_mod_alg.o
+OBJ = main_psy.o main_alg.o other_alg_mod_psy.o other_alg_mod_alg.o \
+      testkern_w0_kernel_0_mod.o
 
 EXEC = example_openacc
 
@@ -68,8 +70,13 @@ PROFILE_LINK=-ldummy
 
 .PHONY: transform compile run
 
+# This makefile assumes that the transformed kernel will be named
+# 'testkern_w0_kernel_0_mod.f90'. However, if it already exists then PSyclone
+# will create 'testkern_..._1_mod.f90' so remove it first. Also remove
+# main_psy.f90, since testkern_w0_kernel_0_mod will not be recreated
+# if main_psy.f90 exists
 transform:
-	rm -f main_psy.f90
+	rm -f testkern_w0_kernel_0_mod.f90 main_psy.f90
 	${MAKE} main_psy.f90
 	${MAKE} other_alg_mod_psy.f90
 
@@ -78,6 +85,8 @@ transform:
 %_psy.f90: %.x90
 	${PSYCLONE} -api lfric -dm -s ./acc_parallel.py  --profile invokes \
 	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
+
+testkern_w0_kernel_0_mod.f90: main_psy.f90
 
 compile: transform ${EXEC}
 
@@ -92,8 +101,8 @@ $(PROFILE_LIB):
 	$(MAKE) -C $(PROFILE_PATH)
 
 # Dependencies
-main_psy.o:	other_alg_mod_psy.o
-main_alg.o:	other_alg_mod_alg.o main_psy.o
+main_psy.o:	other_alg_mod_psy.o testkern_w0_kernel_0_mod.o
+main_alg.o:	other_alg_mod_alg.o main_psy.o testkern_w0_kernel_0_mod.o
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) -c $<
