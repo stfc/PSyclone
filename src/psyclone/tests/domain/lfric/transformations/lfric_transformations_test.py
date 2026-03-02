@@ -7376,7 +7376,6 @@ def test_kern_const_apply(capsys, monkeypatch):
 
     # nlayers only
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
-    mod_inline_trans.apply(kernel)
     kctrans.apply(kernel, {"number_of_layers": 20})
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected
