@@ -47,7 +47,7 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (DataSymbol, UnresolvedType,
                                     UnsupportedFortranType, UnsupportedType,
                                     DataTypeSymbol, ScalarType, ArrayType,
-                                    INTEGER_TYPE, Symbol)
+                                    INTEGER_TYPE, Symbol, DataType)
 
 
 class ArrayReference(ArrayMixin, Reference):
@@ -123,10 +123,16 @@ class ArrayReference(ArrayMixin, Reference):
         return result
 
     @property
-    def datatype(self):
+    def datatype(self) -> DataType:
         '''
-        :returns: the datatype of the accessed array element(s).
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+        Note that if the resulting datatype is an ArrayType,
+        this will convert Extent attributes to the appropriate inquiry
+        intrinsic, which is convenient to directly use the resulting
+        expression as executable code. Use `node.symbol.datatype`
+        to obtain the type declaration of the array symbol (with its
+        Extent attributes).
+
+        :returns: the resulting datatype of the array access expression.
         '''
         try:
             shape = self._get_effective_shape()
