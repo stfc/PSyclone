@@ -2028,10 +2028,24 @@ def test_get_all_accessed_symbols(fortran_reader):
     assert "k" in symbol_names
     assert "l" in symbol_names
 
+
 def test_node_locking():
+    ''' Test that locked nodes cannot be modified. '''
+
+    # Create a simple expression
     symbol = DataSymbol("tmp", REAL_TYPE)
     assignment = Assignment.create(Reference(symbol),
                                    Literal("0.0", REAL_TYPE))
-    
+
+    # Lock the expression
     assignment.lock()
+
+    # Attempt to modify it
+    with pytest.raises(ValueError) as err:
+        assignment.rhs.replace_with(Literal("1.0", REAL_TYPE))
+    assert ("Attempted modification of locked node:\ntmp = 1.0"
+            in str(err.value))
+
+    # Unlock it and modify it
+    assignment.unlock()
     assignment.rhs.replace_with(Literal("1.0", REAL_TYPE))

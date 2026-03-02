@@ -1773,8 +1773,8 @@ class Node():
         # If the node is locked, no modifications are permited
         if self._locked:
             raise ValueError(
-                f"Attempted modification to '{self.debug_string()}', "
-                f"but this node is locked.")
+                f"Attempted modification of locked node:\n"
+                f"{self.debug_string()}")
 
         # Perform the update, disabling the recursive call of this routine on
         # this node.
