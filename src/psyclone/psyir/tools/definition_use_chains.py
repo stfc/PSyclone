@@ -470,7 +470,7 @@ class DefinitionUseChain:
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
                     # positives for structure accesses inside CodeBlocks.
-                    if isinstance(reference._fp2_nodes[0], Goto_Stmt):
+                    if isinstance(reference.get_ast_nodes()[0], Goto_Stmt):
                         raise NotImplementedError(
                             "DefinitionUseChains can't handle code containing"
                             " GOTO statements."
@@ -478,7 +478,7 @@ class DefinitionUseChain:
                     # If we find an Exit or Cycle statement, we can't
                     # reach further in this code region so we can return.
                     if isinstance(
-                        reference._fp2_nodes[0], (Exit_Stmt, Cycle_Stmt)
+                        reference.get_ast_nodes()[0], (Exit_Stmt, Cycle_Stmt)
                     ):
                         if defs_out is not None:
                             self._defsout.append(defs_out)
@@ -737,7 +737,7 @@ class DefinitionUseChain:
                     stop_position = min(reference.abs_position, stop_position)
                 if isinstance(reference, CodeBlock):
                     if isinstance(
-                        reference._fp2_nodes[0], (Exit_Stmt, Cycle_Stmt)
+                        reference.get_ast_nodes()[0], (Exit_Stmt, Cycle_Stmt)
                     ):
                         stop_position = min(
                             reference.abs_position, stop_position
@@ -761,7 +761,7 @@ class DefinitionUseChain:
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
                     # positives for structure accesses inside CodeBlocks.
-                    if isinstance(reference._fp2_nodes[0], Goto_Stmt):
+                    if isinstance(reference.get_ast_nodes()[0], Goto_Stmt):
                         raise NotImplementedError(
                             "DefinitionUseChains can't handle code containing"
                             " GOTO statements."

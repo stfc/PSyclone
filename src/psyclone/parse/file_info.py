@@ -47,8 +47,8 @@ from typing import Optional, Union, Iterable
 
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
+from fparser.common.readfortran import FortranStringReader
 
-from psyclone.psyir.frontend.fortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import FileContainer
 from psyclone.errors import PSycloneError

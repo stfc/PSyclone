@@ -50,7 +50,7 @@ from psyclone.psyGen import (
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-        Routine, Call, Reference, Literal,
+        Routine, Call, Reference, Literal, Fparser2CodeBlock,
         Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation,
         StructureReference, FileContainer, CodeBlock, IntrinsicCall,
         Container, DataNode)
@@ -371,7 +371,7 @@ class GOOpenCLTrans(Transformation):
         # Set up cmd_queues pointer
         ptree = Fortran2003.Pointer_Assignment_Stmt(
             f"{qlist.name} => {get_cmd_queues.name}()")
-        cblock = CodeBlock([ptree], CodeBlock.Structure.STATEMENT)
+        cblock = Fparser2CodeBlock([ptree], CodeBlock.Structure.STATEMENT)
         setup_block.if_body.addchild(cblock)
 
         # Declare and assign kernel pointers

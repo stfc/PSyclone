@@ -125,7 +125,7 @@ def test_structure_constructor(fortran_reader):
 
     lfric_invoke_trans.validate(subroutine.children[0])
     lfric_invoke_trans._validate_fp2_node(
-        subroutine[0].arguments[0]._fp2_nodes[0])
+        subroutine[0].arguments[0].get_ast_nodes()[0])
 
 
 @pytest.mark.parametrize("string", ["error='hello'", "name=0"])
@@ -198,7 +198,7 @@ def test_codeblock_invalid(monkeypatch, fortran_reader):
     subroutine = psyir.children[0]
     code_block = subroutine[0].arguments[0]
     assert isinstance(code_block, CodeBlock)
-    monkeypatch.setattr(code_block, "_fp2_nodes", [None])
+    monkeypatch.setattr(code_block, "_parse_tree", [None])
 
     lfric_invoke_trans = RaisePSyIR2LFRicAlgTrans()
 

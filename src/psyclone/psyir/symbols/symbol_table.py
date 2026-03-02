@@ -1999,7 +1999,7 @@ class SymbolTable():
                              cblock.get_symbol_names()]
                 if old_name in sym_names:
                     cblk_txt = "\n".join(str(anode) for anode in
-                                         cblock.get_ast_nodes)
+                                         cblock.get_ast_nodes())
                     raise SymbolError(
                         f"Cannot rename Symbol '{symbol.name}' because it is "
                         f"accessed in a CodeBlock:\n"
