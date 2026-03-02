@@ -763,7 +763,8 @@ class LFRicKern(CodedKern):
         stub_module = Container(self._base_name+"_mod")
 
         # Create the subroutine
-        stub_routine = Routine.create(self._base_name+"_code")
+        stub_routine = Routine.create(self._base_name+"_code",
+                                      symbol_table=LFRicSymbolTable())
         stub_module.addchild(stub_routine)
         self._stub_symbol_table = stub_routine.symbol_table
 
