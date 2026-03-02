@@ -149,3 +149,13 @@ supported for generic transformations.
 A simple stand-alone example that shows verification that read-only data
 is not modified, e.g. by out-of-bounds accesses to other variables.
 This uses the PSyData interface to instrument generic Fortran code.
+
+## Example 7
+
+OpenMP parallelisation (for CPU and GPU) of `tra_adv` over levels, using
+`nowait` and minimisation of introduced barriers.
+
+## Example 8
+
+A simple profiling example that shows OpenMP offloading transformations
+with profiling hooks enabled.

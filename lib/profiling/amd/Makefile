@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2026, Science and Technology Facilities Council
+# Copyright (c) 2024-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,28 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors S. Siso, STFC Daresbury Lab
+# Author: T. H. Gibson, Advanced Micro Devices, Inc.
 
-'''A package module for psyclone.domain.common.psylayer'''
+# Makefile for the PSyclone wrapper to the AMD ROCTx profiling library.
 
-from psyclone.domain.common.psylayer.global_reduction import GlobalReduction
-from psyclone.domain.common.psylayer.psyloop import PSyLoop
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?= -g
+# -----------------------------------------------------------------------------
 
+PSYDATA_LIB_NAME = roctx_prof
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
+
+default: $(PSYDATA_LIB)
+
+.PHONY: default clean allclean
+
+$(PSYDATA_LIB): $(PSYDATA_LIB_NAME).f90
+	$(F90) -c $(F90FLAGS) $<
+	ar rs $(PSYDATA_LIB) $(PSYDATA_LIB_NAME).o
+
+clean:
+	rm -f *.o *.mod $(PSYDATA_LIB)
+
+allclean: clean
