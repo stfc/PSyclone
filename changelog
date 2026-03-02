@@ -1,3 +1,6 @@
+   56) PR 3343 towards #1960 and #1799. Improves ArrayAssignment2Loop
+   by using call/RoutineSymbol datatype information.
+ 
    55) PR #3333 for #2381 - Restructures global reduction nodes to support
    LFRicGlobalMax/Min/Sum operations.
 
