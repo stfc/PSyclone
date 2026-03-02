@@ -255,7 +255,7 @@ library is included in ``examples/nemo/eg6/``.
 Value Range Check
 -----------------
 
-This transformation can be used for the DSK's LFRic and GOcean, but also
+This transformation can be used for the DSL's LFRic and GOcean, but also
 for generic Fortran code. It will test all input and output parameters of
 a region of code to make sure they are within a user-specified range.
 Additionally, it will also verify that floating
@@ -281,7 +281,7 @@ The syntax for a variable specification is one of:
 
 ``PSY_VALUE_RANGE="module.region.variable=..."``
     The specified variable is tested when calling the specified kernel in the
-    specified module. 
+    specified module.
 
 ``PSY_VALUE_RANGE="module.variable=..."``
     The specified variable name is tested in all kernel calls of the
