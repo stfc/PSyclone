@@ -52,7 +52,7 @@ from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol,
@@ -579,18 +579,19 @@ class SymbolTable():
             idx += 1
         return candidate_name
 
-    def add(self, new_symbol, tag=None):
+    def add(self, new_symbol: Symbol, tag: Optional[str] = None):
         '''Add a new symbol to the symbol table if the symbol name is not
         already in use.
 
         :param new_symbol: the symbol to add to the symbol table.
-        :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param str tag: a tag identifier for the new symbol, by default no \
-            tag is given.
+        :param tag: a tag identifier for the new symbol, by default no
+                    tag is given.
 
         :raises InternalError: if the new_symbol argument is not a symbol.
         :raises KeyError: if the symbol name is already in use.
         :raises KeyError: if a tag is supplied and it is already in use.
+        :raises SymbolError: if the supplied symbol has an ImportInterface that
+                             refers to a ContainerSymbol that is not in scope.
 
         '''
         if not isinstance(new_symbol, Symbol):
@@ -615,13 +616,15 @@ class SymbolTable():
             csym = new_symbol.interface.container_symbol
             sym_in_scope = self.lookup(csym.name, otherwise=None)
             if not sym_in_scope:
-                raise InternalError(
-                    f"Cannot add {new_symbol.name} because it is imported "
+                raise SymbolError(
+                    f"Cannot add {type(new_symbol).__name__} "
+                    f"'{new_symbol.name}' because it is imported "
                     f"from '{csym.name}' but that ContainerSymbol is not in "
                     f"scope.")
             if sym_in_scope is not csym:
-                raise InternalError(
-                    f"Cannot add {new_symbol.name} because it is imported "
+                raise SymbolError(
+                    f"Cannot add {type(new_symbol).__name__} "
+                    f"'{new_symbol.name}' because it is imported "
                     f"from '{csym.name}' and the ContainerSymbol of that name "
                     f"in scope in this table is not the same instance that "
                     f"the import interface refers to.")
@@ -836,7 +839,7 @@ class SymbolTable():
         if not isym.is_import:
             raise ValueError(
                 f"Expected a Symbol with an ImportInterface but '{isym.name}' "
-                f"has a(n) {isym.interface}.")
+                f"has a {isym.interface} interface.")
 
         csym = isym.interface.container_symbol
         if csym not in self.symbols:
@@ -850,7 +853,7 @@ class SymbolTable():
                 raise SymbolError(
                     f"Cannot update the import interface of '{isym.name}' "
                     f"because the name of the Container from which it is "
-                    f"imported clashes with an existing "
+                    f"imported ('{csym.name}') clashes with an existing "
                     f"{type(new_ctr).__name__} in this scope.")
 
             isym.interface = ImportInterface(
