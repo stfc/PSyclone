@@ -64,31 +64,6 @@ class ArrayReductionBaseTrans(Transformation, ABC):
     _INTRINSIC_NAME = None
     _INTRINSIC_TYPE = None
 
-    @staticmethod
-    def _get_args(node):
-        '''Utility method that returns the array-reduction intrinsic arguments
-        (array reference, dimension and mask).
-
-        :param node: an array-reduction intrinsic.
-        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
-
-        returns: a tuple containing the 3 arguments.
-        rtype: Tuple[py:class:`psyclone.psyir.nodes.reference.Reference`,
-            py:class:`psyclone.psyir.nodes.Literal` |
-            :py:class:`psyclone.psyir.nodes.Reference`,
-            Optional[:py:class:`psyclone.psyir.nodes.Node`]]
-
-        '''
-        # Determine the arguments to the intrinsic
-        args = [None, None, None]
-        arg_names_map = {"array": 0, "dim": 1, "mask": 2}
-        # Add argument names to the intrinsic.
-        node.compute_argument_names()
-        for idx, child in enumerate(node.arguments):
-            name = node.argument_names[idx].lower()
-            args[arg_names_map[name]] = child
-        return tuple(args)
-
     def __str__(self):
         return (f"Convert the PSyIR {self._INTRINSIC_NAME} intrinsic "
                 "to equivalent PSyIR code.")
@@ -133,7 +108,16 @@ class ArrayReductionBaseTrans(Transformation, ABC):
                 f"argument is not a {self._INTRINSIC_NAME.lower()} "
                 f"intrinsic, found '{node.routine.name}'.")
 
-        array_ref, dim_ref, _ = self._get_args(node)
+        try:
+            node.compute_argument_names()
+        except (ValueError, NotImplementedError) as err:
+            raise TransformationError(
+                f"Error in {self.name} transformation. Psyclone cannot "
+                f"disambiguate the arguments names in:\n{node.debug_string()}"
+            ) from err
+
+        array_ref = node.argument_by_name("array")
+        dim_ref = node.argument_by_name("dim")
 
         # dim_ref is not yet supported by this transformation.
         if dim_ref:
@@ -226,7 +210,8 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         else:
             new_lhs = orig_lhs.copy()
 
-        expr, _, mask_ref = self._get_args(node)
+        expr = node.argument_by_name("array")
+        mask_ref = node.argument_by_name("mask")
 
         # Step 1: replace all references to arrays within the
         # intrinsic expressions and mask argument (if it exists) to

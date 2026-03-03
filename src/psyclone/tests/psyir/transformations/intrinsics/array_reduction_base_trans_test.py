@@ -40,9 +40,8 @@ transformations.
 '''
 import pytest
 
-from psyclone.psyir.nodes import IntrinsicCall, Reference, Literal
-from psyclone.psyir.symbols import (
-    Symbol, BOOLEAN_TYPE, INTEGER_TYPE, DataSymbol, REAL_TYPE)
+from psyclone.psyir.nodes import IntrinsicCall, Reference
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import (
     TransformationError, Maxval2LoopTrans)
 from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
@@ -63,24 +62,6 @@ def test_init_exception():
     assert "abstract methods" in str(info.value)
     assert "_init_var" in str(info.value)
     assert "_loop_body" in str(info.value)
-
-
-def test_get_args():
-    '''Check the _get_args static method works as expected.'''
-    # array
-    array_reference = Reference(Symbol("array"))
-    node = IntrinsicCall.create(IntrinsicCall.Intrinsic.SUM, [array_reference])
-    result = ArrayReductionBaseTrans._get_args(node)
-    assert result == (array_reference, None, None)
-
-    # array, mask, dim
-    mask_reference = Literal("true", BOOLEAN_TYPE)
-    dim_reference = Literal("1", INTEGER_TYPE)
-    node = IntrinsicCall.create(IntrinsicCall.Intrinsic.SUM, [
-        array_reference.copy(), ("mask", mask_reference),
-        ("dim", dim_reference)])
-    result = ArrayReductionBaseTrans._get_args(node)
-    assert result == (array_reference, dim_reference, mask_reference)
 
 
 def test_str():
@@ -749,3 +730,32 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
     # Check that the failed transformation does not modify the code
     code_after = fortran_writer(psyir)
     assert code_before == code_after
+
+
+def test_replace_reduction_with_type_changes(tmpdir, fortran_reader,
+                                             fortran_writer):
+    ''' Check that the temporary created to aggregate the partial results
+    is of the correct type even when the the reduction operation is inside and
+    expression that has implicit or explicit casts.
+    '''
+    code = (
+        "subroutine maxval_test(array,n,m)\n"
+        "  integer, parameter :: nk = 4\n"
+        "  integer :: n, m\n"
+        "  real :: array(10,20)\n"
+        "  integer :: result1\n"
+        "  integer(kind=nk) :: result2\n"
+        "  logical :: result3\n"
+        "  result1 = INT(maxval(array))\n"
+        "  result2 = REAL(maxval(array), nk)\n"
+        "  result3 = maxval(array) > 4\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Maxval2LoopTrans()
+    for intr_node in psyir.walk(IntrinsicCall):
+        if intr_node.intrinsic == IntrinsicCall.Intrinsic.MAXVAL:
+            trans.apply(intr_node)
+    output = fortran_writer(psyir)
+    print(output)
+    assert False
+    assert Compile(tmpdir).string_compiles(output)
