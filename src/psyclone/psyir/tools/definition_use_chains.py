@@ -36,7 +36,7 @@
 """This module contains the DefinitionUseChain class"""
 
 import sys
-from typing import Iterable
+from typing import Iterable, Optional
 
 from fparser.two.Fortran2003 import (
     Cycle_Stmt,
