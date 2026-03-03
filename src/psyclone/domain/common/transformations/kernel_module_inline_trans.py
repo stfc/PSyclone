@@ -299,10 +299,11 @@ class KernelModuleInlineTrans(Transformation):
             for symbol in symbols_to_bring_in:
                 if symbol.name not in code_to_inline.symbol_table:
                     if symbol.is_import:
+                        # We must update its import interface (to ensure it
+                        # references a ContainerSymbol in the correct scope)
+                        # before it can be added to the table.
                         code_to_inline.symbol_table.update_import_interface(
                             symbol)
-                    # Ensure that any references to this Symbol within the
-                    # symbol table are updated.
                     code_to_inline.symbol_table.add(symbol)
                 # And when necessary the modules where they come from
                 if symbol.is_unresolved:
