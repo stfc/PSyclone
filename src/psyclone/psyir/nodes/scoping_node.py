@@ -165,6 +165,47 @@ class ScopingNode(Node):
             self._symbol_table._tags[tag] = self._symbol_table.lookup(
                     removed_tags[tag].name)
 
+        # Now that the copied children are connected into the tree (following
+        # the super()._refine_copy() call), ensure any dangling symbols are
+        # re-connected.
+        # Update imports first
+        for isym in self.symbol_table.imported_symbols:
+            self.symbol_table.update_import_interface(isym)
+
+        all_symbols: set[Symbol] = set(self.symbol_table.symbols)
+        while all_symbols:
+            for sym in list(all_symbols)[:]:
+                found_new_sym = False
+                # Examine all of the Symbols used in the definition of sym.
+                for dep_sym in sym.get_all_accessed_symbols():
+                    # Allow for shadowing by checking for the presence of
+                    # this Symbol object rather than its name.
+                    if dep_sym not in self.symbol_table.symbols:
+                        new_sym = self.symbol_table.lookup(dep_sym.name,
+                                                           otherwise=None)
+                        if not new_sym:
+                            # We have a reference to an unresolved symbol.
+                            # Add it to the table but, since it too may
+                            # contain further references, we add it to
+                            # the set of all symbols to examine and start
+                            # again.
+                            if dep_sym.is_import:
+                                self.symbol_table.update_import_interface(
+                                    dep_sym)
+                            self.symbol_table.add(dep_sym)
+                            all_symbols.add(dep_sym)
+                            found_new_sym = True
+                            break
+                        # Update the definition of this symbol using the
+                        # new one we have found.
+                        sym.replace_symbols_using(new_sym)
+                else:
+                    # Have looked at all dependencies of this symbol so
+                    # remove it from the set.
+                    all_symbols.remove(sym)
+                if found_new_sym:
+                    break
+
         # Now we've updated the symbol table, walk back down the tree and
         # update any Symbols.
         # Since this will get called from every ScopingNode in the tree, there

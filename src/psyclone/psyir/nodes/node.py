@@ -1678,9 +1678,9 @@ class Node():
         # Now that the copied children are connected into the tree, ensure
         # any dangling symbols are re-connected.
         from psyclone.psyir.nodes.scoping_node import ScopingNode
-        for child in self.children:
-            if not isinstance(child, ScopingNode):
-                continue
+        if 0:  # for child in self.children:
+            #if not isinstance(child, ScopingNode):
+            #    continue
             # Update imports first
             for isym in child.symbol_table.imported_symbols:
                 child.symbol_table.update_import_interface(isym)
