@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021-2025, Science and Technology Facilities Council.
+! Copyright (c) 2026, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,28 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: I. Kavcic, Met Office
-!          A. R. Porter, STFC Daresbury Laboratory
+! Author J. Henrichs, Bureau of Meteorology
 
-program single_invoke
+!> This module implements a PSyData-based verification that checks if
+!! variable values are within a certain range. It is based on the
+!! ValueRangeCheckBaseType (from which it inherits the handling of the
+!! basic Fortran data types and 2d-arrays, as specified in the Makefile),
+!! and just extends it with a dummy implementation to provide the same
+!! module name as the domain-specific implemenations
 
-  ! Description: three point-wise operations (setval, min and max of field
-  ! elements) specified in an invoke call.
-  use constants_mod, only: r_def
-  use field_mod,     only: field_type
+module value_range_check_psy_data_mod
 
-  implicit none
+    use value_range_check_base_mod, only : ValueRangeCheckBaseType
 
-  type(field_type) :: f1
-  real(r_def)      :: amin, amax
+    implicit none
 
-  call invoke( setval_C(f1, 1.0_r_def), &
-               minval_X(amin, f1),      &
-               maxval_X(amax, f1) )
+    !> This is the data type that manages the information required
+    !! to write data to a binary file using the PSyData API. A
+    !! static instance of this type is created for each instrumented
+    !! region with PSyclone (and each region will write a separate
+    !! file).
+    type, extends(ValueRangeCheckBaseType), public :: value_range_check_psydatatype
 
-end program single_invoke
+    end type value_range_check_psydatatype
+
+end module value_range_check_psy_data_mod

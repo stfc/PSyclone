@@ -232,7 +232,7 @@ def test_symbolic_math_never_equal(fortran_reader, exp1, exp2, result):
     source = f'''program test_prog
                 use some_mod
                 integer :: i, j, k, x
-                type(my_mod_type) :: a, b
+                real, dimension(10) :: a, b
                 x = {exp1}
                 x = {exp2}
                 end program test_prog
