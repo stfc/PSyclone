@@ -1,3 +1,5 @@
+   59) PR #3353 for #3328. Fix a case of duplicated nodes returned by DUC.
+
    58) PR #3354 for #2429. Extends the fparser2 frontend such that all
    structure constructors and functions with unknown delcarations are
    represented by Call nodes.
