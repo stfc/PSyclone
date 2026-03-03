@@ -86,8 +86,8 @@ class DefinitionUseChain:
         self,
         reference: Reference,
         control_flow_region: Iterable[Node] = (),
-        start_point: int = None,
-        stop_point: int = None,
+        start_point: Optional[int] = None,
+        stop_point: Optional[int] = None,
     ):
         if not isinstance(reference, Reference):
             raise TypeError(
@@ -357,7 +357,10 @@ class DefinitionUseChain:
                             return self._reaches
 
                     for ref in chain._reaches:
-                        # We need to check for uniqueness
+                        # Add node to the _reaches list if it is not already
+                        # contained. Note that a "not in" check is not
+                        # sufficient as it checks for equality, but this needs
+                        # identity uniqueness.
                         for ref2 in self._reaches:
                             if ref2 is ref:
                                 break
