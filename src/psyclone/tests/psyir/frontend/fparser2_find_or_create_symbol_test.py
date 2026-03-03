@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import (
     BinaryOperation)
 from psyclone.psyir.symbols import (
     Symbol, DataSymbol, SymbolTable, REAL_TYPE, ScalarType,
-    UnresolvedInterface, RoutineSymbol, NoType)
+    UnresolvedInterface, RoutineSymbol, UnresolvedType)
 from psyclone.tests.utilities import get_invoke
 
 
@@ -235,7 +235,7 @@ def test_find_or_create_change_symbol_type():
                                              symbol_type=RoutineSymbol)
     assert sym2 is sub_sym
     assert type(sym2) is RoutineSymbol
-    assert isinstance(sym2.datatype, NoType)
+    assert isinstance(sym2.datatype, UnresolvedType)
 
 
 @pytest.mark.parametrize("visibility", [

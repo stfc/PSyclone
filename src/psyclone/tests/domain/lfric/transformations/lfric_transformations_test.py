@@ -47,12 +47,13 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
+from psyclone.domain.lfric.lfric_global_reductions import LFRicGlobalSum
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.domain.lfric import LFRicLoop
 from psyclone.lfric import (LFRicHaloExchangeStart,
                             LFRicHaloExchangeEnd, LFRicHaloExchange)
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
+from psyclone.psyGen import InvokeSchedule, BuiltIn
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
     colored, Loop, Schedule, Literal, Directive, OMPDoDirective,
@@ -3837,7 +3838,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     ompdefault = colored("OMPDefaultClause", Directive._colour)
     ompprivate = colored("OMPPrivateClause", Directive._colour)
     ompfprivate = colored("OMPFirstprivateClause", Directive._colour)
-    gsum = colored("GlobalSum", GlobalSum._colour)
+    gsum = colored("LFRicGlobalSum", LFRicGlobalSum._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)
     sched = colored("Schedule", Schedule._colour)
