@@ -1,3 +1,7 @@
+   58) PR #3354 for #2429. Extends the fparser2 frontend such that all
+   structure constructors and functions with unknown delcarations are
+   represented by Call nodes.
+
    57) PR #3355 towards #3252. Improves PSY_VALUE_RANGE format, introduces a
    generic value_range_check library and runs examples during the tests.
  
