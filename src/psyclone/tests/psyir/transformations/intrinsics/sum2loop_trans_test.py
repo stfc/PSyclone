@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the sum2loop transformation.'''
 

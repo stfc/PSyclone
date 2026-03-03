@@ -46,13 +46,14 @@ from psyclone.psyir.nodes import (
     Assignment, Reference, ArrayReference, IfBlock, IntrinsicCall, Node,
     UnaryOperation, BinaryOperation)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, ScalarType, UnresolvedType, UnsupportedType)
+    ArrayType, DataSymbol, UnresolvedType, UnsupportedType)
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 from psyclone.utils import transformation_documentation_wrapper
+from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
 
 
 @transformation_documentation_wrapper
@@ -148,6 +149,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
                 f"{self.name} only works when the intrinsic is part "
                 f"of an Assignment.")
 
+        # FIXME: are they now?
         assignment = array_ref.ancestor(Assignment)
         for this_node in assignment.lhs.walk(Node):
             if this_node == array_ref:
@@ -163,19 +165,6 @@ class ArrayReductionBaseTrans(Transformation, ABC):
                     raise TransformationError(
                         f"Unexpected shape for array. Expecting one of "
                         f"Deferred, Attribute or Bounds but found '{shape}'.")
-
-        # If the lhs symbol is used anywhere on the assignment rhs, we need
-        # to create a temporary, and for this we need to resolve its datatype
-        for rhs_reference in assignment.rhs.walk(Reference):
-            if rhs_reference.symbol is assignment.lhs.symbol:
-                if not (isinstance(assignment.lhs.symbol, DataSymbol) and
-                        isinstance(assignment.lhs.datatype, ScalarType)):
-                    line = assignment.debug_string().strip('\n')
-                    raise TransformationError(
-                        f"To loopify '{line}'"
-                        f" we need a temporary variable, but the type of "
-                        f"'{assignment.lhs.debug_string()}' can not be "
-                        f"resolved or is unsupported.")
 
     # pylint: disable=too-many-locals
     def apply(self, node, options=None, **kwargs):
@@ -195,7 +184,10 @@ class ArrayReductionBaseTrans(Transformation, ABC):
 
         self.validate(node, options, **kwargs)
 
-        orig_rhs = node.ancestor(Assignment).rhs.copy()
+        # Get nodes of interest
+        orig_assignment = node.ancestor(Assignment)
+        array_arg = node.argument_by_name("array")
+        mask_arg = node.argument_by_name("mask")
 
         # Create a temporary symbol to accomulate the reduction value
         tmp_symbol = node.scope.symbol_table.new_symbol(
@@ -203,61 +195,51 @@ class ArrayReductionBaseTrans(Transformation, ABC):
                 datatype=node.datatype)
         tmp_ref = Reference(tmp_symbol)
 
-        expr = node.argument_by_name("array")
-        mask_ref = node.argument_by_name("mask")
-
-        # Step 1: replace all references to arrays within the
-        # intrinsic expressions and mask argument (if it exists) to
-        # array ranges. For example, 'maxval(a+b, mask=mod(c,2.0)==1)'
+        # Step 1: Replace all references to arrays within the intrinsic array
+        # and mask arguments (if it exists) to array ranges.
+        # For example, 'maxval(a+b, mask=mod(c,2.0)==1)'
         # becomes 'maxval(a(:,:)+b(:,:), mask=mod(c(:,:),2.0)==1)' if
         # 'a', 'b' and 'c' are 2 dimensional arrays.
-        rhs = expr.copy()
-        _ = UnaryOperation.create(UnaryOperation.Operator.PLUS, rhs)
-        reference2arrayrange = Reference2ArrayRangeTrans()
-        # The reference to rhs becomes invalid in the following
-        # transformation so we keep a copy of the parent here and
-        # reset rhs to rhs_parent.children[0] after the
-        # transformation.
-        rhs_parent = rhs.parent
-        for reference in rhs.walk(Reference):
-            reference2arrayrange.apply(reference)
-        # Reset rhs from its parent as the previous transformation
-        # makes the value of rhs become invalid. We know there is only
-        # one child so can safely use children[0].
-        rhs = rhs_parent.children[0]
-        if mask_ref:
-            mask_ref_parent = mask_ref.parent
-            mask_ref_index = mask_ref.position
-            for reference in mask_ref.walk(Reference):
-                reference2arrayrange.apply(reference)
-            mask_ref = mask_ref_parent.children[mask_ref_index]
+        # We need to do this in a detached copy because Reference2ArrayRange
+        # does not normally expand arguments of non-elemental functions.
+        dummy = UnaryOperation.create(UnaryOperation.Operator.PLUS,
+                                      array_arg.copy())
+        for reference in dummy.walk(Reference):
+            Reference2ArrayRangeTrans().apply(reference)
+        new_array_expr = dummy.children[0]
+        if mask_arg:
+            dummy = UnaryOperation.create(UnaryOperation.Operator.PLUS,
+                                          mask_arg.copy())
+            for reference in dummy.walk(Reference):
+                Reference2ArrayRangeTrans().apply(reference)
+            new_mask_expr = dummy.children[0]
 
-        # Step 2: Put the intrinsic's extracted expression (stored in
-        # the 'rhs' variable) on the rhs of an argument with one of
-        # the arrays within the expression being added to the lhs of
-        # the argument. For example if:
+        # Step 2: Put the intrinsic's extracted expression on the rhs of an
+        # assignment with one of the arrays within the expression being added
+        # to the lhs of the assignment (because ArrayAssignment2Loops uses it
+        # to obtain the loop bounds). For example if:
         # x = maxval(a(:,:)+b(:,:))
         # then
         # rhs = a(:,:)+b(:,:)
         # resulting in the following code being created:
         # a(:,:) = a(:,:)+b(:,:)
-        array_refs = rhs.walk(ArrayReference)
-        # The lhs of the created expression needs to be an array
-        # reference from the expression itself because the
-        # ArrayAssignment2Loops transformation uses it to obtain the loop
-        # bounds.
-        lhs = array_refs[0].copy()
+        array_refs = new_array_expr.walk(ArrayReference)
+        assignment = Assignment.create(array_refs[0].copy(),
+                                       new_array_expr.detach())
 
-        assignment = Assignment.create(lhs, rhs.detach())
-        # Replace existing code so the new code gets access to symbol
-        # tables etc.
-        orig_assignment = node.ancestor(Assignment)
+        # If there is a mask, also add its expression to the assignment
+        if mask_arg:
+            combined_expression = BinaryOperation.create(
+                BinaryOperation.Operator.AND, assignment.rhs.detach(),
+                new_mask_expr.detach())
+            assignment.addchild(combined_expression)
+
+        # Replace the existing expression so the new code gets replaces by
+        # loops in-place and the new iteration symbols have access to the scope
         orig_assignment.replace_with(assignment)
 
-        # Step 3 call ArrayAssignment2Loops to create loop bounds
-        # and array indexing from the array ranges created in step 2
-        # (keeping track of where the new loop nest is created). Also
-        # extract the mask if it exists. For example:
+        # Step 3: call ArrayAssignment2Loops to create loop and array indexing
+        # to the array ranges created in step 2. For example:
         # a(:,:) = a(:,:)+b(:,:)
         # becomes
         # do idx2 = LBOUND(a,2), UBOUND(a,2)
@@ -265,18 +247,11 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         #     a(idx,idx2) = a(idx,idx2) + b(idx,idx2)
         #   enddo
         # enddo
-        if mask_ref:
-            # add mask to the rhs of the assignment
-            assignment_rhs = BinaryOperation.create(
-                BinaryOperation.Operator.AND, assignment.rhs.copy(),
-                mask_ref.copy())
-            assignment.rhs.replace_with(assignment_rhs)
 
         assignment_parent = assignment.parent
         assignment_position = assignment.position
         # Must be placed here to avoid circular imports
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
         try:
             ArrayAssignment2LoopsTrans().apply(assignment)
         except TransformationError as err:
@@ -292,14 +267,15 @@ class ArrayReductionBaseTrans(Transformation, ABC):
                 f"expression:\n{assignment.debug_string()}\n into a loop "
                 f"because:\n{err.value}")
         outer_loop = assignment_parent.children[assignment_position]
-        if mask_ref:
+        if mask_arg:
             # remove mask from the rhs of the assignment
-            new_assignment = assignment_rhs.children[0].copy()
-            indexed_mask_ref = assignment_rhs.children[1].copy()
-            assignment_rhs.replace_with(new_assignment)
+            indexed_mask_expr = combined_expression.children[1].detach()
+            assignment.rhs.replace_with(
+                combined_expression.children[0].detach()
+            )
 
-        # Step 4 convert the original assignment (now within a loop
-        # and indexed) to its intrinsic form by replacing the
+        # Step 4: convert the original assignment (now within a loop
+        # and indices) to its intrinsic form by replacing the
         # assignment with tmp=INTRINSIC(orig_lhs,<expr>). Also
         # add in the mask if one has been specified. For example:
         # do idx2 = LBOUND(a,2), UBOUND(a,2)
@@ -318,10 +294,10 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         new_assignment = Assignment.create(
             tmp_ref.copy(), self._loop_body(
                 tmp_ref.copy(), assignment.rhs.copy()))
-        if mask_ref:
+        if mask_arg:
             # Place the indexed mask around the statement.
             new_assignment = IfBlock.create(
-                indexed_mask_ref.copy(), [new_assignment])
+                indexed_mask_expr.copy(), [new_assignment])
 
         assignment.replace_with(new_assignment)
 
@@ -354,7 +330,6 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         assignment = Assignment.create(lhs, rhs)
         outer_loop.parent.children.insert(outer_loop.position, assignment)
         # Update original assignment with the reduced value
-        rhs = orig_rhs.copy()
         for child in orig_assignment.walk(Node):
             if child is node:
                 child.replace_with(tmp_ref.copy())

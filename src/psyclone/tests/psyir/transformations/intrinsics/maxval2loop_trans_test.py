@@ -33,11 +33,12 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the maxval2loop transformation.'''
 
-import pytest
 import warnings
+import pytest
 
 from psyclone.psyir.nodes import Reference, Literal
 from psyclone.psyir.symbols import REAL_TYPE, DataSymbol
