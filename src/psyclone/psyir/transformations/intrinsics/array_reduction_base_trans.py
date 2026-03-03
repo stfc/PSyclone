@@ -45,7 +45,8 @@ import warnings
 from psyclone.psyir.nodes import (
     Assignment, Reference, ArrayReference, IfBlock, IntrinsicCall, Node,
     UnaryOperation, BinaryOperation)
-from psyclone.psyir.symbols import ArrayType, DataSymbol, ScalarType
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, ScalarType, UnresolvedType, UnsupportedType)
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
@@ -112,18 +113,22 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             node.compute_argument_names()
         except (ValueError, NotImplementedError) as err:
             raise TransformationError(
-                f"Error in {self.name} transformation. Psyclone cannot "
-                f"disambiguate the arguments names in:\n{node.debug_string()}"
+                f"Error in {self.name} transformation. Cannot "
+                f"disambiguate the arguments names in '{node.debug_string()}'"
             ) from err
 
         array_ref = node.argument_by_name("array")
         dim_ref = node.argument_by_name("dim")
 
-        # dim_ref is not yet supported by this transformation.
         if dim_ref:
             raise TransformationError(
                 f"The dimension argument to {self._INTRINSIC_NAME} is not "
                 f"yet supported.")
+
+        if isinstance(node.datatype, (UnresolvedType, UnsupportedType)):
+            raise TransformationError(
+                f"Error in {self.name} transformation. Cannot create "
+                f"a temporary variable for '{node.debug_string()}'")
 
         # There should be at least one arrayreference or reference to
         # an array in the expression
@@ -190,25 +195,13 @@ class ArrayReductionBaseTrans(Transformation, ABC):
 
         self.validate(node, options, **kwargs)
 
-        orig_lhs = node.ancestor(Assignment).lhs.copy()
         orig_rhs = node.ancestor(Assignment).rhs.copy()
 
-        # Determine whether the assignment is an increment (as we have
-        # to use a temporary if so) e.g. x = x + MAXVAL(a) and store a
-        # reference to the appropriate variable in new_lhs for future
-        # use.
-        lhs_symbol = orig_lhs.symbol
-        increment = False
-        for rhs_reference in orig_rhs.walk(Reference):
-            if rhs_reference.symbol is lhs_symbol:
-                increment = True
-        if increment:
-            new_lhs_symbol = node.scope.symbol_table.new_symbol(
-                root_name="tmp_var", symbol_type=DataSymbol,
-                datatype=orig_lhs.datatype)
-            new_lhs = Reference(new_lhs_symbol)
-        else:
-            new_lhs = orig_lhs.copy()
+        # Create a temporary symbol to accomulate the reduction value
+        tmp_symbol = node.scope.symbol_table.new_symbol(
+                root_name="reduction_var", symbol_type=DataSymbol,
+                datatype=node.datatype)
+        tmp_ref = Reference(tmp_symbol)
 
         expr = node.argument_by_name("array")
         mask_ref = node.argument_by_name("mask")
@@ -301,13 +294,13 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         outer_loop = assignment_parent.children[assignment_position]
         if mask_ref:
             # remove mask from the rhs of the assignment
-            orig_assignment = assignment_rhs.children[0].copy()
+            new_assignment = assignment_rhs.children[0].copy()
             indexed_mask_ref = assignment_rhs.children[1].copy()
-            assignment_rhs.replace_with(orig_assignment)
+            assignment_rhs.replace_with(new_assignment)
 
         # Step 4 convert the original assignment (now within a loop
         # and indexed) to its intrinsic form by replacing the
-        # assignment with new_lhs=INTRINSIC(orig_lhs,<expr>). Also
+        # assignment with tmp=INTRINSIC(orig_lhs,<expr>). Also
         # add in the mask if one has been specified. For example:
         # do idx2 = LBOUND(a,2), UBOUND(a,2)
         #   do idx = LBOUND(a,1), UBOUND(a,1)
@@ -323,8 +316,8 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         #   enddo
         # enddo
         new_assignment = Assignment.create(
-            new_lhs.copy(), self._loop_body(
-                new_lhs.copy(), assignment.rhs.copy()))
+            tmp_ref.copy(), self._loop_body(
+                tmp_ref.copy(), assignment.rhs.copy()))
         if mask_ref:
             # Place the indexed mask around the statement.
             new_assignment = IfBlock.create(
@@ -355,23 +348,19 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         #   enddo
         # enddo
         # x = value1 + x * value2
-        lhs = new_lhs.copy()
+        # Initialisation statement:
+        lhs = tmp_ref.copy()
         rhs = self._init_var(lhs)
         assignment = Assignment.create(lhs, rhs)
         outer_loop.parent.children.insert(outer_loop.position, assignment)
-        if not (isinstance(orig_rhs, IntrinsicCall) and
-                orig_rhs.intrinsic is self._INTRINSIC_TYPE):
-            # The intrinsic call is not the only thing on the rhs of
-            # the expression, so we need to deal with the additional
-            # computation.
-            rhs = orig_rhs.copy()
-            for child in rhs.walk(IntrinsicCall):
-                if child.intrinsic is self._INTRINSIC_TYPE:
-                    child.replace_with(new_lhs.copy())
-                    break
-            assignment = Assignment.create(orig_lhs.copy(), rhs)
-            outer_loop.parent.children.insert(
-                outer_loop.position+1, assignment)
+        # Update original assignment with the reduced value
+        rhs = orig_rhs.copy()
+        for child in orig_assignment.walk(Node):
+            if child is node:
+                child.replace_with(tmp_ref.copy())
+                break
+        outer_loop.parent.children.insert(outer_loop.position+1,
+                                          orig_assignment)
 
     @abstractmethod
     def _loop_body(self, lhs, rhs):

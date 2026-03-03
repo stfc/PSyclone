@@ -264,10 +264,10 @@ def test_apply(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
         f"  result = maxval(array)\n"
         f"end subroutine\n")
     expected = (
-        f"  result = -HUGE(result)\n"
+        f"  reduction_var = -HUGE(reduction_var)\n"
         f"  do idx = {rdim21}, {rdim22}, 1\n"
         f"    do idx_1 = {rdim11}, {rdim12}, 1\n"
-        f"      result = MAX(result, array(idx_1,idx))\n"
+        f"      reduction_var = MAX(reduction_var, array(idx_1,idx))\n"
         f"    enddo\n"
         f"  enddo\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -297,13 +297,13 @@ def test_apply_multi(fortran_reader, fortran_writer, tmpdir):
         "  result = value1 + maxval(array) * value2\n"
         "end subroutine\n")
     expected = (
-        "  result = -HUGE(result)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, m, 1\n"
         "    do idx_1 = 1, n, 1\n"
-        "      result = MAX(result, array(idx_1,idx))\n"
+        "      reduction_var = MAX(reduction_var, array(idx_1,idx))\n"
         "    enddo\n"
         "  enddo\n"
-        "  result = value1 + result * value2\n")
+        "  result = value1 + reduction_var * value2\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
     # BinaryOperation(MUL)/IntrinsicCall
@@ -351,14 +351,15 @@ def test_mask(fortran_reader, fortran_writer, tmpdir):
         "  result = maxval(array, mask=MOD(array, 2.0)==1)\n"
         "end program\n")
     expected = (
-        "  result = -HUGE(result)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 10, 1\n"
         "    do idx_1 = 1, 10, 1\n"
         "      if (MOD(array(idx_1,idx), 2.0) == 1) then\n"
-        "        result = MAX(result, array(idx_1,idx))\n"
+        "        reduction_var = MAX(reduction_var, array(idx_1,idx))\n"
         "      end if\n"
         "    enddo\n"
-        "  enddo\n")
+        "  enddo\n"
+        "  result = reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.walk(IntrinsicCall)[0]
@@ -388,10 +389,10 @@ def test_mask_array_indexed(fortran_reader, fortran_writer, tmpdir):
         "  result = maxval(a, mask=b(1)>a)\n"
         "end program\n")
     expected = (
-        "  result = -HUGE(result)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 4, 1\n"
         "    if (b(1) > a(idx)) then\n"
-        "      result = MAX(result, a(idx))\n"
+        "      reduction_var = MAX(reduction_var, a(idx))\n"
         "    end if\n"
         "  enddo\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -421,14 +422,15 @@ def test_allocate(fortran_reader, fortran_writer, tmpdir):
         "end program\n")
     expected = (
         "  ALLOCATE(a(1:4,1:4,1:4))\n"
-        "  result = -HUGE(result)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
         "    do idx_1 = LBOUND(a, dim=2), UBOUND(a, dim=2), 1\n"
         "      do idx_2 = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
-        "        result = MAX(result, a(idx_2,idx_1,idx))\n"
+        "        reduction_var = MAX(reduction_var, a(idx_2,idx_1,idx))\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n"
+        "  result = reduction_var\n"
         "  DEALLOCATE(a)\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
@@ -455,12 +457,12 @@ def test_references(fortran_reader, fortran_writer, tmpdir):
         "zmax(1) = MAXVAL(ABS(sshn + ssh_ref * tmask), mask=tmask==1.0)\n"
         "end subroutine\n")
     expected = (
-        "  zmax(1) = -HUGE(zmax(1))\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 10, 1\n"
         "    do idx_1 = 1, 10, 1\n"
         "      if (tmask(idx_1,idx) == 1.0) then\n"
-        "        zmax(1) = MAX(zmax(1), ABS(sshn(idx_1,idx) + ssh_ref * "
-        "tmask(idx_1,idx)))\n"
+        "        reduction_var = MAX(reduction_var, ABS(sshn(idx_1,idx) + "
+        "ssh_ref * tmask(idx_1,idx)))\n"
         "      end if\n"
         "    enddo\n"
         "  enddo\n")
@@ -484,12 +486,12 @@ def test_nemo_example(fortran_reader, fortran_writer, tmpdir):
         "zmax(1) = MAXVAL(ABS(sshn(:,:) + ssh_ref * tmask(:,:,1)))\n"
         "end subroutine\n")
     expected = (
-        "  zmax(1) = -HUGE(zmax(1))\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(sshn, dim=2), UBOUND(sshn, dim=2), 1\n"
         "    do idx_1 = LBOUND(sshn, dim=1), "
         "UBOUND(sshn, dim=1), 1\n"
-        "      zmax(1) = MAX(zmax(1), ABS(sshn(idx_1,idx) + ssh_ref * "
-        "tmask(idx_1,idx,1)))\n"
+        "      reduction_var = MAX(reduction_var, ABS(sshn(idx_1,idx) + "
+        "ssh_ref * tmask(idx_1,idx,1)))\n"
         "    enddo\n"
         "  enddo\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -514,10 +516,10 @@ def test_constant_dims(fortran_reader, fortran_writer, tmpdir):
         "x = maxval(a(:,1)+b(10,:), mask=c(:)==1.0)\n"
         "end subroutine\n")
     expected = (
-        "  x = -HUGE(x)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
         "    if (c(idx) == 1.0) then\n"
-        "      x = MAX(x, a(idx,1) + b(10,idx))\n"
+        "      reduction_var = MAX(reduction_var, a(idx,1) + b(10,idx))\n"
         "    end if\n"
         "  enddo\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -546,11 +548,13 @@ def test_expression_1d(fortran_reader, fortran_writer, tmpdir):
         "  real, dimension(10) :: a\n"
         "  real, dimension(10) :: b\n"
         "  real :: x\n"
+        "  real :: reduction_var\n"
         "  integer :: idx\n\n"
-        "  x = -HUGE(x)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
-        "    x = MAX(x, a(idx) + b(idx))\n"
-        "  enddo\n\n"
+        "    reduction_var = MAX(reduction_var, a(idx) + b(idx))\n"
+        "  enddo\n"
+        "  x = reduction_var\n\n"
         "end subroutine test\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
@@ -577,18 +581,21 @@ def test_expression_3d(fortran_reader, fortran_writer, tmpdir):
         "subroutine test()\n"
         "  real, dimension(10,10,10) :: a\n"
         "  real :: x\n"
+        "  real :: reduction_var\n"
         "  integer :: idx\n"
         "  integer :: idx_1\n"
         "  integer :: idx_2\n\n"
-        "  x = -HUGE(x)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
         "    do idx_1 = LBOUND(a, dim=2), UBOUND(a, dim=2), 1\n"
         "      do idx_2 = LBOUND(a, dim=1), "
         "UBOUND(a, dim=1), 1\n"
-        "        x = MAX(x, -a(idx_2,idx_1,idx) + 10.0)\n"
+        "        reduction_var = MAX(reduction_var, -a(idx_2,idx_1,idx) "
+        "+ 10.0)\n"
         "      enddo\n"
         "    enddo\n"
-        "  enddo\n\n"
+        "  enddo\n"
+        "  x = reduction_var\n\n"
         "end subroutine test\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
@@ -612,11 +619,11 @@ def test_multi_intrinsics(fortran_reader, fortran_writer, tmpdir):
         "x = maxval(a(:)) + maxval(b(:))\n"
         "end subroutine\n")
     expected = (
-        "  x = -HUGE(x)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
-        "    x = MAX(x, a(idx))\n"
+        "    reduction_var = MAX(reduction_var, a(idx))\n"
         "  enddo\n"
-        "  x = x + MAXVAL(b(:))\n")
+        "  x = reduction_var + MAXVAL(b(:))\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/BinaryOp/IntrinsicCall
@@ -639,11 +646,11 @@ def test_increment(fortran_reader, fortran_writer, tmpdir):
         "x = x + maxval(a)\n"
         "end subroutine\n")
     expected = (
-        "  tmp_var = -HUGE(tmp_var)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 10, 1\n"
-        "    tmp_var = MAX(tmp_var, a(idx))\n"
+        "    reduction_var = MAX(reduction_var, a(idx))\n"
         "  enddo\n"
-        "  x = x + tmp_var\n")
+        "  x = x + reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     node = psyir.walk(IntrinsicCall)[0]
@@ -665,13 +672,13 @@ def test_increment_with_accessor(fortran_reader, fortran_writer, tmpdir):
         "real, dimension(1) :: x\n"
         "x(1) = x(1) + maxval(a)\n"
         "end subroutine\n")
-    expected_decl = "real :: tmp_var"
+    expected_decl = "real :: reduction_var"
     expected = (
-        "  tmp_var = -HUGE(tmp_var)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 10, 1\n"
-        "    tmp_var = MAX(tmp_var, a(idx))\n"
+        "    reduction_var = MAX(reduction_var, a(idx))\n"
         "  enddo\n"
-        "  x(1) = x(1) + tmp_var\n")
+        "  x(1) = x(1) + reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     node = psyir.walk(IntrinsicCall)[0]
@@ -694,9 +701,9 @@ def test_reduce_to_struct_and_array_accessors(fortran_reader, fortran_writer):
         "mystruct%x(3) = maxval(a)\n"
         "end subroutine\n")
     expected = (
-        "  mystruct%x(3) = -HUGE(mystruct%x(3))\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 10, 1\n"
-        "    mystruct%x(3) = MAX(mystruct%x(3), a(idx))\n"
+        "    reduction_var = MAX(reduction_var, a(idx))\n"
         "  enddo\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
@@ -724,8 +731,8 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
     code_before = fortran_writer(psyir)
     with pytest.raises(TransformationError) as info:
         trans.apply(node)
-    assert ("ArrayAssignment2LoopsTrans does not accept calls which "
-            "are not guaranteed to return a scalar or be elemental"
+    assert ("Error in Maxval2LoopTrans transformation. Cannot create a "
+            "temporary variable for 'MAXVAL(a(:) + b(3))'"
             in str(info.value))
     # Check that the failed transformation does not modify the code
     code_after = fortran_writer(psyir)
@@ -740,9 +747,9 @@ def test_replace_reduction_with_type_changes(tmpdir, fortran_reader,
     '''
     code = (
         "subroutine maxval_test(array,n,m)\n"
-        "  integer, parameter :: nk = 4\n"
+        "  integer, parameter :: nk = 4, orig = 8\n"
         "  integer :: n, m\n"
-        "  real :: array(10,20)\n"
+        "  real(kind=orig) :: array(10,20)\n"
         "  integer :: result1\n"
         "  integer(kind=nk) :: result2\n"
         "  logical :: result3\n"
@@ -756,6 +763,14 @@ def test_replace_reduction_with_type_changes(tmpdir, fortran_reader,
         if intr_node.intrinsic == IntrinsicCall.Intrinsic.MAXVAL:
             trans.apply(intr_node)
     output = fortran_writer(psyir)
-    print(output)
-    assert False
+
+    # The aggregation value will be of the same time as the array
+    assert "real(kind=orig) :: reduction_var\n" in output
+    assert "real(kind=orig) :: reduction_var_1\n" in output
+    assert "real(kind=orig) :: reduction_var_2\n" in output
+
+    # The final assignment will have the original cast operation
+    assert "result1 = INT(reduction_var)" in output
+    assert "result2 = REAL(reduction_var_1, kind=nk)" in output
+    assert "result3 = reduction_var_2 > 4" in output
     assert Compile(tmpdir).string_compiles(output)

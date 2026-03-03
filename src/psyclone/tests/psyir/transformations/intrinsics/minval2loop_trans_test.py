@@ -116,12 +116,13 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
         "  result = minval(array)\n"
         "end subroutine\n")
     expected = (
-        "  result = HUGE(result)\n"
+        "  reduction_var = HUGE(reduction_var)\n"
         "  do idx = 1, 20, 1\n"
         "    do idx_1 = 1, 10, 1\n"
-        "      result = MIN(result, array(idx_1,idx))\n"
+        "      reduction_var = MIN(reduction_var, array(idx_1,idx))\n"
         "    enddo\n"
-        "  enddo\n")
+        "  enddo\n"
+        "  result = reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     intrinsic_node = psyir.children[0].children[0].children[1]
