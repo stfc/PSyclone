@@ -1172,7 +1172,7 @@ def test_definition_use_chain_find_forward_accesses_continue_at_call(
     integer, intent(inout) :: a, b
     a = 2
     b = 1
-    b = 1+a   ! Stops dependency
+    b = 1 + a   ! Stops dependency
     call foo(b)
     a = a + 2
     call bar(b)
