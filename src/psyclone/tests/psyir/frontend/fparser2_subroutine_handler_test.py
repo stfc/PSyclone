@@ -583,7 +583,29 @@ def test_module_contains_subroutine_contains_subroutine(
     end function func_a
     end module my_mod"""
     psyir = fortran_reader.psyir_from_source(code)
-    # FIXME: explain
-    psyir.children[0].symbol_table.lookup("s")
+
     out = fortran_writer(psyir)
     assert "subroutine func_a" not in out
+
+    # It is unclear if Codeblock represent their own scope (by definition
+    # we don't know what a Codeblock represents). Some of them do (e.g.
+    # associate blocks, unsupported functions, ...) and some don't.
+
+    # So there is no good way to decide if symbols should be propagated to its
+    # parent scope or not, but it seems preferable to let the symbol escape the
+    # codeblock because:
+    # - If it is not its own scope and we don't propagate it, it won't be part
+    # of the symbol table, and it will be possible to create a double
+    # declaration with symbols with overlapping names.
+    # - If it is its own scope and we wrongly propate it:
+    #  * if a symbol exist with the same name, it must be a location where
+    #    shadowing is possible (otherwise this would be invalid Fortran) and
+    #    it will create a false dependency.
+    #  * if a symbol does not exist, it will unnecessary reserve the name in
+    #    the parent symbol table.
+    # The consequences of propagating it are not fatal, while the ones of not
+    # propagating it are.
+
+    if "s" in psyir.children[0].symbol_table:
+        pytest.xfail("TODO #3361: When support for Routines inside Routines"
+                     " is added, the symbol will not be propagated")

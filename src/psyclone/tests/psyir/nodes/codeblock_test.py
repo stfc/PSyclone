@@ -127,6 +127,10 @@ def test_codeblock_get_symbol_names_and_representative_references(parser):
     sym_names = block.get_symbol_names()
     refs = block.walk(Reference)
 
+    # Check that all refs are immediate children of the codeblock
+    for ref in refs:
+        assert ref.parent is block
+
     # Check strings that are symbols
     for name in ['a', 'b', 'c', 'i', 'mytest', 'this_is_true', 'nested',
                  'that_is_true']:
