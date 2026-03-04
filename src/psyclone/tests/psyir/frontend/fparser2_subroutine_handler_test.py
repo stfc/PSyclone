@@ -607,5 +607,5 @@ def test_module_contains_subroutine_contains_subroutine(
     # propagating it are.
 
     if "s" in psyir.children[0].symbol_table:
-        pytest.xfail("TODO #3361: When support for Routines inside Routines"
+        pytest.xfail("TODO #2205: When support for Routines inside Routines"
                      " is added, the symbol will not be propagated")

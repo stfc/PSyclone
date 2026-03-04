@@ -1076,15 +1076,19 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         :raises VisitorError: if the attached symbol table contains
-            any non-routine symbols.
+            any symbols that can not be declard in a FileContainer.
         :raises VisitorError: if more than one child is a Routine Node
             with is_program set to True.
 
         '''
         for symbol in node.symbol_table.symbols:
-            # TODO #2201 - ContainerSymbols should be accepted but
-            # currently are stored in its containing scope.
-            if isinstance(symbol, DataSymbol):
+            # Only RoutineSymbols and ContainerSymbol can be declared here
+            # pylint: disable=unidiomatic-typecheck
+            if type(symbol) is Symbol and symbol.is_unresolved:
+                # However we also accept symbols that we don't know where
+                # they are declared, so we propagated upwards.
+                continue
+            if not isinstance(symbol, (RoutineSymbol, ContainerSymbol)):
                 raise VisitorError(
                     f"In the Fortran backend, a file container should not "
                     f"have any data symbols associated with it, "

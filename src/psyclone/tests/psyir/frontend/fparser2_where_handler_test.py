@@ -1257,57 +1257,6 @@ def test_nested_where(fortran_reader, fortran_writer, tmp_path):
             " 'UnresolvedType'. Consider adding the name of the file "
             "containing the declaration of this quantity to RESOLVE_IMPORTS.")
 
-    # If some information is provided, one of the WHEREs can be resolved, but
-    # the other still is a CodeBlock
-    code = ("module my_mod\n"
-            "  use some_mod\n"
-            "contains\n"
-            "subroutine my_sub()\n"
-            "  type :: mytype\n"
-            "    real, dimension(10,10,10) :: D11\n"
-            "    real, dimension(10,10,10) :: D12\n"
-            "    real, dimension(10,10,10) :: D22\n"
-            "  end type\n"
-            "  type(mytype) :: p_dal\n"
-            "  WHERE ( z_lenp4(:,:) <= 0.0_wp )\n"
-            "    p_dal%D12(:,:,1) = 0.0_wp\n"
-            "    z_lenp2(:,:) = SQRT( p_dal%D11(:,:,1) * p_dal%D22(:,:,1) )\n"
-            "    WHERE ( z_lenp2(:,:) == 0.0_wp )\n"
-            "      p_dal%D11(:,:,1) = p_ens%D11_min(:,:)\n"
-            "      p_dal%D22(:,:,1) = p_ens%D22_min(:,:)\n"
-            "      z_lenp2(:,:) = z_lenp2_min(:,:)\n"
-            "    END WHERE\n"
-            "  END WHERE\n"
-            "end subroutine my_sub\n"
-            "end module my_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    code = fortran_writer(psyir)
-    # FIXME
-    return
-    assert """
-    do widx2 = 1, SIZE(z_lenp4, dim=2), 1
-      do widx1 = 1, SIZE(z_lenp4, dim=1), 1
-        if (z_lenp4(LBOUND(z_lenp4, dim=1) + widx1 - 1,LBOUND(z_lenp4, dim=2) \
-+ widx2 - 1) <= 0.0_wp) then
-          p_dal%D12(widx1,widx2,1) = 0.0_wp
-          z_lenp2(LBOUND(z_lenp2, dim=1) + widx1 - 1,LBOUND(z_lenp2, dim=2) + \
-widx2 - 1) = SQRT(p_dal%D11(widx1,widx2,1) * p_dal%D22(widx1,widx2,1))
-
-          ! PSyclone CodeBlock (unsupported code) reason:
-          !  - WHERE not supported because 'p_ens' cannot be converted to an \
-array due to: Transformation Error: The supplied node should be a Reference \
-to a symbol of known type, but 'p_ens%D11_min(:,:)' is 'UnresolvedType'. \
-Consider adding the name of the file containing the declaration of this \
-quantity to RESOLVE_IMPORTS.
-          WHERE (z_lenp2(:, :) == 0.0_wp)
-            p_dal % D11(:, :, 1) = p_ens % D11_min(:, :)
-            p_dal % D22(:, :, 1) = p_ens % D22_min(:, :)
-            z_lenp2(:, :) = z_lenp2_min(:, :)
-          END WHERE
-        end if
-      enddo
-    enddo""" == code
-
     # If enough information is provided, both WHEREs are resolved and nested
     code = ("module my_mod\n"
             "contains\n"

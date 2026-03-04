@@ -174,6 +174,7 @@ class RaisePSyIR2AlgTrans(Transformation):
             arg_info = []
             if node.argument_names[idx]:
                 call_name = f"{call_arg.value}"
+                continue
             else:
                 # Get the symbols and args to reconstruct it as a
                 # higher-abstraction AlgorithmInvokeCall node
