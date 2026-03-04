@@ -153,11 +153,11 @@ details).
 
 .. code-block:: shell
 
-    PSYVERIFY__main__init__b_fld=2:3 ./value_range_check
+    PSY_VALUE_RANGE="main.init.b_fld%data=2:3" ./value_range_check
     ...
-    PSyData: Variable b_fld has the value 0.0000000000000000 at index/indices 6 1 in module 'main', region 'init', which is not between '2.0000000000000000' and '3.0000000000000000'.
+    PSyData: Variable 'b_fld%data' has the value '0.0000000000000000' at index/indices 6 1 in module 'main', region 'init', which is not between '2.0000000000000000' and '3.0000000000000000'.
     ...
-    PSyData: Variable a_fld has the invalid value 'Inf' at index/indices 1 1 in module 'main', region 'update'.
+    PSyData: Variable 'a_fld%data' has the invalid value 'Inf' at index/indices 1 1 in module 'main', region 'update'.
 
 As indicated in :ref:`value range check<psydata_value_range_check>`, you can
 also check a variable in all kernels of a module, or in any instrumented
@@ -166,8 +166,8 @@ will create the same warnings):
 
 .. code-block:: shell
 
-    PSYVERIFY__main__b_fld=2:3 ./value_range_check
-    PSYVERIFY__b_fld=2:3 ./value_range_check
+    PSY_VALUE_RANGE="main.b_fld%data=2:3" ./value_range_check
+    PSY_VALUE_RANGE="b_fld%data=2:3" ./value_range_check
     ...
     PSyData: Variable b_fld has the value 0.0000000000000000 at index/indices 6 1 in module 'main', region 'init', which is not between '2.0000000000000000' and '3.0000000000000000'.
     ...
