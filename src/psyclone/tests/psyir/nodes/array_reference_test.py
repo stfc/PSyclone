@@ -472,45 +472,78 @@ def test_array_indices():
             "has none" in str(err.value))
 
 
-def test_array_datatype():
+def test_array_datatype(fortran_reader):
     '''Test the datatype() method for an ArrayReference.'''
-    test_sym = DataSymbol("test", ArrayType(REAL_TYPE, [10]))
-    one = Literal("1", INTEGER_TYPE)
-    two = Literal("2", INTEGER_TYPE)
-    four = Literal("4", INTEGER_TYPE)
-    six = Literal("6", INTEGER_TYPE)
-    # Reference to a single element of an array.
-    aref = ArrayReference.create(test_sym, [one])
+
+    code = """subroutine code
+    real, dimension(10) :: test
+    real, dimension(10, 8) :: test_2d
+    real, dimension(3:) :: test3
+    real :: thing
+
+    thing = test(1)
+    thing = test_2d(2, 2:4)
+    thing = test_2d(2, 2:6:2)
+    thing = test3(:)
+    thing = test_2d(:, 1)
+
+
+    end subroutine code"""
+    psyir = fortran_reader.psyir_from_source(code)
+    refs = psyir.walk(ArrayReference)
+
+    # Reference to a single element of an array - test(1).
+    aref = refs[0]
     assert aref.datatype == REAL_TYPE
-    # Reference to a 1D sub-array of a 2D array.
-    test_sym2d = DataSymbol("test", ArrayType(REAL_TYPE, [10, 8]))
-    bref = ArrayReference.create(test_sym2d, [two.copy(),
-                                              Range.create(two.copy(),
-                                                           four.copy())])
+    # Reference to a 1D sub-array of a 2D array - test_2d(2, 2:4).
+    bref = refs[1]
     assert isinstance(bref.datatype, ArrayType)
     assert bref.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert len(bref.datatype.shape) == 1
     # The sub-array will have a lower bound of one.
-    assert bref.datatype.shape[0].lower == one
+    assert bref.datatype.shape[0].lower.value == "1"
     upper = bref.datatype.shape[0].upper
     assert isinstance(upper, BinaryOperation)
     # The easiest way to check the expression is to use debug_string()
     code = upper.debug_string()
     assert code == "4 - 2 + 1"
-    # Reference to a non-contiguous 1D sub-array of a 2D array.
-    ucref = ArrayReference.create(test_sym2d, [two.copy(),
-                                               Range.create(two.copy(),
-                                                            six.copy(),
-                                                            two.copy())])
+    # Reference to a non-contiguous 1D sub-array of a 2D array:
+    # test_2d(2, 2:6:2).
+    ucref = refs[2]
     assert isinstance(ucref.datatype, ArrayType)
     assert ucref.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert len(ucref.datatype.shape) == 1
     # The sub-array will have a lower bound of one.
-    assert ucref.datatype.shape[0].lower == one
+    assert ucref.datatype.shape[0].lower.value == "1"
     # Upper bound must be computed as (stop - start)/step + 1
     upper = ucref.datatype.shape[0].upper
     assert upper.debug_string() == "(6 - 2) / 2 + 1"
+
+    # Test we get a size for the deferred declaration - test3(:)
+    dref = refs[3]
+    dtype = dref.datatype
+    assert isinstance(dtype, ArrayType)
+    assert dtype.intrinsic == ScalarType.Intrinsic.REAL
+    assert len(dtype.shape) == 1
+    assert dtype.shape[0].lower.value == "1"
+    assert isinstance(dtype.shape[0].upper, IntrinsicCall)
+    assert dtype.shape[0].upper.intrinsic.name == "SIZE"
+    assert dtype.shape[0].upper.arguments[0].symbol.name == "test3"
+
+    # Test we don't get a size for the 1D access to a 2D array:
+    # test_2d(:, 1).
+    dref = refs[4]
+    dtype = dref.datatype
+    assert isinstance(dtype, ArrayType)
+    assert dtype.intrinsic == ScalarType.Intrinsic.REAL
+    assert len(dtype.shape) == 1
+    assert dtype.shape[0].lower.value == "1"
+    assert dtype.shape[0].upper.value == "10"
+
     # Reference to a single element of an array of structures.
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    four = Literal("4", INTEGER_TYPE)
     stype = DataTypeSymbol("grid_type", UnresolvedType())
     atype = ArrayType(stype, [10])
     asym = DataSymbol("aos", atype)

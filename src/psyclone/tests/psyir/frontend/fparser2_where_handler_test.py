@@ -562,8 +562,8 @@ def test_where_with_scalar_assignment(fortran_reader, fortran_writer):
   integer :: widx2
   integer :: widx1
 
-  do widx2 = 1, SIZE(dry, dim=3), 1
-    do widx1 = 1, SIZE(dry, dim=2), 1
+  do widx2 = 1, 100, 1
+    do widx1 = 1, 100, 1
       if (dry(1,widx1,widx2)) then
         var1 = depth
         z1_st(widx1,2,widx2) = var1 / ptsu(widx1,widx2,3)

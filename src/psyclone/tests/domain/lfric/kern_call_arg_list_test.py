@@ -579,21 +579,23 @@ def test_indirect_dofmap(fortran_writer):
         # because the PSyIR doesn't support pointers. However, its
         # 'partial_datatype' is the type of the member accessed, i.e. it's
         # the 1D real array.
-        assert isinstance(psyir_args[i].datatype, UnsupportedFortranType)
-        assert isinstance(psyir_args[i].datatype.partial_datatype,
+        assert isinstance(psyir_args[i].symbol.datatype,
+                          UnsupportedFortranType)
+        assert isinstance(psyir_args[i].symbol.datatype.partial_datatype,
                           ArrayType)
-        assert (psyir_args[i].datatype.partial_datatype.intrinsic ==
+        assert (psyir_args[i].symbol.datatype.partial_datatype.intrinsic ==
                 ScalarType.Intrinsic.REAL)
 
     # Test all 3D real arrays:
-    assert isinstance(psyir_args[4].datatype, UnsupportedFortranType)
-    assert (psyir_args[4].datatype.partial_datatype.intrinsic ==
+    print(psyir_args[4].datatype)
+    assert isinstance(psyir_args[4].symbol.datatype, UnsupportedFortranType)
+    assert (psyir_args[4].symbol.datatype.partial_datatype.intrinsic ==
             ScalarType.Intrinsic.REAL)
-    assert len(psyir_args[4].datatype.partial_datatype.shape) == 3
+    assert len(psyir_args[4].symbol.datatype.partial_datatype.shape) == 3
 
     # Test all 1D integer arrays:
     for i in [15, 19]:
-        assert "(:)" in psyir_args[i].datatype.declaration
+        assert "(:)" in psyir_args[i].symbol.datatype.declaration
 
     # Test all 2D integer arrays:
     for i in [14, 18]:
