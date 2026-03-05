@@ -2021,7 +2021,6 @@ def test_omp_serial_compute_accesses_bad_binop():
     )
     with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail8, [], None)
-    print(str(excinfo.value))
     assert (
         "Found a dependency index that is a BinaryOperation with a child "
         "BinaryOperation with a non-MUL operator which is not supported."

@@ -162,9 +162,7 @@ these is probably to use your package manager, e.g. on Ubuntu:
 $ sudo apt install libnetcdf-dev libnetcdff-dev
 ```
 
-(see e.g. this page for an overview
-https://cloud-gc.readthedocs.io/en/latest/chapter04_developer-guide/install-basic.html#install-netcdf-with-package-manager). If
-you're not using gfortran then you will probably have to build NetCDF
+If you're not using gfortran then you will probably have to build NetCDF
 yourself. This process is described here:
 https://docs.unidata.ucar.edu/nug/current/getting_and_building_netcdf.html.
 
