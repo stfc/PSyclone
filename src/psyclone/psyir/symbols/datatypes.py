@@ -50,6 +50,7 @@ from typing import Any, Optional, Union
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.commentable_mixin import CommentableMixin
+from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 
@@ -692,16 +693,8 @@ class ArrayType(DataType):
                     "When creating an array of structures, the type of "
                     "those structures must be supplied as a DataTypeSymbol "
                     "but got a StructureType instead.")
-            if not isinstance(elemental_type,
-                              (UnsupportedType, UnresolvedType)):
-                self._intrinsic = elemental_type.intrinsic
-                self._precision = elemental_type.precision
-            else:
-                self._intrinsic = elemental_type
-                self._precision = None
         elif isinstance(elemental_type, DataTypeSymbol):
-            self._intrinsic = elemental_type
-            self._precision = None
+            pass
         else:
             raise TypeError(
                 f"ArrayType expected 'elemental_type' argument to be of type "
@@ -737,22 +730,26 @@ class ArrayType(DataType):
         return self._elemental_type
 
     @property
-    def intrinsic(self):
+    def intrinsic(self) -> Union[
+        DataType, DataTypeSymbol, ScalarType.Intrinsic
+    ]:
         '''
         :returns: the intrinsic type of each element in the array.
-        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic` |
-                :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         '''
-        return self._intrinsic
+        if isinstance(self._elemental_type,
+                      (DataTypeSymbol, UnresolvedType, UnsupportedType)):
+            return self._elemental_type
+        return self._elemental_type.intrinsic
 
     @property
-    def precision(self):
+    def precision(self) -> Union[None, ScalarType.Precision, int, DataSymbol]:
         '''
         :returns: the precision of each element in the array.
-        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`,
-            int or :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
-        return self._precision
+        if isinstance(self._elemental_type,
+                      (DataTypeSymbol, UnresolvedType, UnsupportedType)):
+            return None
+        return self._elemental_type.precision
 
     @property
     def is_allocatable(self) -> bool:
@@ -1037,24 +1034,6 @@ class ArrayType(DataType):
             self.elemental_type.replace_symbols_using(table_or_symbol)
 
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.datanode import DataNode
-        # TODO #1857: we will probably remove '_precision' and have
-        # 'intrinsic' be 'datatype'.
-        if isinstance(self._precision, DataNode):
-            self._precision.replace_symbols_using(table_or_symbol)
-        if self._intrinsic and isinstance(self._intrinsic, Symbol):
-            if isinstance(table_or_symbol, Symbol):
-                if (table_or_symbol.name.lower() ==
-                        self._intrinsic.name.lower()):
-                    self._intrinsic = table_or_symbol
-            else:
-                try:
-                    self._intrinsic = table_or_symbol.lookup(
-                        self._intrinsic.name)
-                except KeyError:
-                    pass
-
-        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Node
 
         # Update any Symbols referenced in the array shape
@@ -1073,13 +1052,10 @@ class ArrayType(DataType):
         '''
         symbols = super().get_all_accessed_symbols()
 
-        if isinstance(self.intrinsic, Symbol):
-            symbols.add(self.intrinsic)
-
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.datanode import DataNode
-        if isinstance(self.precision, DataNode):
-            symbols.update(self.precision.get_all_accessed_symbols())
+        if not isinstance(self.elemental_type, Symbol):
+            symbols.update(self.elemental_type.get_all_accessed_symbols())
+        else:
+            symbols.add(self.elemental_type)
 
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
