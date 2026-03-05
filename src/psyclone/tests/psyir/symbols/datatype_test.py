@@ -426,7 +426,6 @@ def test_arraytype():
     assert shape0.upper.value == "10"
     assert shape0.upper.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert shape0.upper.datatype.precision == ScalarType.Precision.UNDEFINED
-    # TODO #1857: the datatype property might be affected.
     assert array_type.elemental_type == scalar_type
     # Provided and stored as a Literal (DataNode)
     assert array_type.shape[1].upper == literal

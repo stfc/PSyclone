@@ -726,7 +726,6 @@ class ArrayType(DataType):
         '''
         :returns: the datatype of each element in the array.
         '''
-        # TODO #1857: This property might be affected.
         return self._elemental_type
 
     @property
