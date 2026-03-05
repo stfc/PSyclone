@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2026, Science and Technology Facilities Council
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,37 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors S. Siso, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
-'''A package module for psyclone.domain.common.psylayer'''
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. It adds kernel NAN-verification to
+the invokes. This then creates code that, at runtime, verifies that
+all input and output parameters of a region are a valid number, i.e.
+not infinity or NAN.
+'''
 
-from psyclone.domain.common.psylayer.global_reduction import GlobalReduction
-from psyclone.domain.common.psylayer.psyloop import PSyLoop
+from psyclone.psyir.nodes import Loop
+from psyclone.psyir.transformations import ValueRangeCheckTrans
 
+
+def trans(psyir):
+    '''
+    Add verification to both invokes that read only parameters are
+    not modified.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
+
+    value_range_check = ValueRangeCheckTrans()
+
+    for loop in psyir.walk(Loop):
+        if loop.ancestor(Loop):
+            # Only instrument outer loops. So if this loop is inside
+            # another loop, don't do anything.
+            continue
+        value_range_check.apply(loop)
+        # You can specify a module and region name adding
+        # options={"region_name": ("main", "init")})

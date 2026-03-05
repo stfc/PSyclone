@@ -432,6 +432,7 @@ def test_validate_with_dependency(fortran_reader):
             A(fn(3):fn(4)) = A(fn(3):fn(4)) + B(:) ! fn is not known to be pure
             A(A(:)) = B(:)
             A(globalvar,:) = A(globalvar, :) + fn(3) ! fn may update globalvar
+            A(1:3) = sum(A(1:3))
 
             ! These are valid
             A(:) = A(:) + B(:)
@@ -444,27 +445,41 @@ def test_validate_with_dependency(fortran_reader):
     loop = psyir.walk(Loop)[0]
     assignments = loop.walk(Assignment)
     trans = ArrayAssignment2LoopsTrans()
+    # Test: A(2:10) = A(1:9) + B(2:10)
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[0])
-    assert ("ArrayAssignment2LoopsTrans does not support statements containing"
-            " dependencies that would generate loop-carried dependencies when "
-            "naively converting them to a loop" in str(err.value))
+    errmsg = (
+        "ArrayAssignment2LoopsTrans does not support statements containing"
+        " dependencies that would generate loop-carried dependencies when "
+        "naively converting them to a loop")
+    assert errmsg in str(err.value)
 
     # Some of them fail with other unsupported error messages, but we keep them
     # here in case the other issue is resolved, this should still fail due to
     # the possible dependency
+    # Test: A(fn(3):fn(4)) = A(fn(3):fn(4)) + B(:)
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[1])
+    # Test: A(A(:)) = B(:)
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[2])
+    assert errmsg in str(err.value)
+    # Test: A(globalvar,:) = A(globalvar, :) + fn(3)
     with pytest.raises(TransformationError) as err:
         trans.apply(assignments[3])
+    # Test: A(1:3) = sum(A(1:3))
+    with pytest.raises(TransformationError) as err:
+        trans.apply(assignments[4])
+    assert errmsg in str(err.value)
 
     # The following 2 statements are fine, because the range is the same
-    trans.apply(assignments[4])
+    # Test: A(:) = A(:) + B(:)
     trans.apply(assignments[5])
-    # The following is fine because the accesses are independent
+    # Test: A(3:4) = A(3:4) + B(:)
     trans.apply(assignments[6])
+    # The following is fine because the accesses are independent
+    # Test: A(1,:) = A(2,:) + B(:)
+    trans.apply(assignments[7])
 
 
 def test_apply_calls_validate():
@@ -792,67 +807,119 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
     ) in fortran_writer(psyir)
 
 
-def test_validate_non_elemental_functions(fortran_reader):
-    '''Check that the validate method returns an exception if the rhs of
-    the assignment contains a call that is not elemental.'''
+def test_apply_functions(fortran_reader, fortran_writer):
+    ''' Check that pure functions that are guaranteed to return a scalar or
+    be elemental can be expanded.
+
+    Everything else is currently not supported.
+    '''
     psyir = fortran_reader.psyir_from_source('''
     module mymod
         implicit none
+        use other
 
         contains
 
-        real function mylocalfunc()
-            mylocalfunc = 3.4
+        pure integer function scalarpurefunc()
+            scalarpurefunc = 3.4
+        end function
+        pure function arraypurefunc()
+            integer, dimension(3) :: arraypurefunc
+            arraypurefunc = (/1,2,3/)
+        end function
+        real function counter()
+            integer, save :: count = 0
+            count = count + 1
+            counter = count
         end function
 
         subroutine test()
           use other, only: myfunc
           integer, dimension(:,:) :: x, y, z
-          x(:) = matmul(y, z)
-          x(:) = mylocalfunc(y)
-          x(:) = myfunc(y)
-          x(:) = var%myfunc(y)
+          integer, dimension(:,:,:) :: array3d
+          integer, dimension(3) :: array1d
+
+          ! Pure functions that return a scalar or are elemental are supported
+          x = sum(y + z) + sin(y + z)
+          x = scalarpurefunc(y)
+          x(1:sum(y(3:4,1)),1) = 1
+
+          ! Pure functions that return an array could (by saving the resulting
+          ! array in a temporary and then indexing it), but currently
+          ! are not supported
+          array1d = arraypurefunc() + array1d + 3
+          x = sum(array3d, dim=2)
+          x = matmul(y, z)
+          array1d = shape(array3d)
+
+          ! Impure functions are not supported, even if they return a scalar
+          x = counter()
+          x = unknownfunc(y)
+          x = var%myfunc(name=y)
+
         end subroutine test
     end module mymod
     ''')
     trans = ArrayAssignment2LoopsTrans()
-    assignment1 = psyir.walk(Assignment)[1]
-    assignment2 = psyir.walk(Assignment)[2]
-    assignment3 = psyir.walk(Assignment)[3]
-    assignment4 = psyir.walk(Assignment)[4]
 
-    # When we know for sure that they are not elemental
+    assignments = psyir.walk(Assignment)
+    valid = assignments[4:7]
+    invalid = assignments[7:14]
+
+    # Pure functions returning a scalar
+    trans.apply(valid[0])
+    trans.apply(valid[1])
+    trans.apply(valid[2])
+
+    # Pure functions returning an array
+    errormsg = "ArrayAssignment2LoopsTrans does not accept calls which are "
     with pytest.raises(TransformationError) as err:
-        trans.validate(assignment1, options={"verbose": True})
-    errormsg = ("ArrayAssignment2LoopsTrans does not accept calls which are "
-                "not guaranteed to be elemental, but found: MATMUL")
-    assert errormsg in assignment1.preceding_comment
+        trans.validate(invalid[0])
+    assert errormsg in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(invalid[1], verbose=True)
+    assert errormsg in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(invalid[2])
+    assert errormsg in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(invalid[3])
     assert errormsg in str(err.value)
 
+    # These are impure (or we don't know the purity)
     with pytest.raises(TransformationError) as err:
-        trans.validate(assignment2, options={"verbose": True})
-    errormsg = ("ArrayAssignment2LoopsTrans does not accept calls which are "
-                "not guaranteed to be elemental, but found: mylocalfunc")
-    assert errormsg in assignment2.preceding_comment
+        trans.validate(invalid[4])
+    assert errormsg in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(invalid[5])
+    assert errormsg in str(err.value)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(invalid[6])
     assert errormsg in str(err.value)
 
-    # Also, when calls are to unresolved symbols and we don't know if they
-    # are elemental or not
-    with pytest.raises(TransformationError) as err:
-        trans.validate(assignment3, options={"verbose": True})
-    errormsg = ("Reference2ArrayRangeTrans could not decide if the reference "
-                "'y' is an array or not. Resolving the import that brings "
-                "this variable into scope may help.")
-    assert errormsg in assignment3.preceding_comment
-    assert errormsg in str(err.value)
+    # Check the ones that have been extended
+    code = fortran_writer(psyir)
+    # Expressions inside non-elemental calls must not indexed
+    assert """
+    do idx = LBOUND(x, dim=2), UBOUND(x, dim=2), 1
+      do idx_1 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1
+        x(idx_1,idx) = SUM(y(:,:) + z(:,:)) + SIN(y(idx_1,idx) + z(idx_1,idx))
+      enddo
+    enddo
+    do idx_2 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1
+      do idx_3 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1
+        x(idx_3,idx_2) = scalarpurefunc(y)
+      enddo
+    enddo
+    do idx_4 = 1, SUM(y(3:4,1)), 1
+      x(idx_4,1) = 1
+    enddo""" in code
 
-    with pytest.raises(TransformationError) as err:
-        trans.validate(assignment4, options={"verbose": True})
-    errormsg = ("Reference2ArrayRangeTrans could not decide if the reference "
-                "'var' is an array or not. Resolving the import that brings "
-                "this variable into scope may help.")
-    assert errormsg in assignment4.preceding_comment
-    assert errormsg in str(err.value)
+    # This one was requested to be verbose, so a comment must be attached
+    assert """
+    ! ArrayAssignment2LoopsTrans does not accept calls which are not \
+guaranteed to return a scalar or be elemental, but found 'SUM'
+    x = SUM(array3d, 2)""" in code
 
 
 def test_validate_indirect_indexing(fortran_reader):
@@ -894,8 +961,8 @@ def test_validate_indirect_indexing(fortran_reader):
     with pytest.raises(TransformationError) as err:
         trans.validate(assignments[3])
     assert ("ArrayAssignment2LoopsTrans does not accept calls which are not "
-            "guaranteed to be elemental, but found: my_func"
-            in str(err.value))
+            "guaranteed to return a scalar or be elemental, but found "
+            "'my_func'" in str(err.value))
 
 
 def test_validate_structure(fortran_reader):
@@ -948,23 +1015,3 @@ def test_validate_structure(fortran_reader):
             "'grid1' is an array or not. Resolving the import that brings "
             "this variable into scope may help."
             in str(err.value))
-
-
-def test_shape_intrinsic(fortran_reader):
-    '''
-    Check the validation of the transformation when it has a call to an inquiry
-    intrinsic which does not return a scalar.
-    '''
-    psyir = fortran_reader.psyir_from_source('''
-    SUBROUTINE fld_map_core( pdta_read)
-      REAL(wp), DIMENSION(:,:,:), INTENT(in   ) ::   pdta_read
-      INTEGER,  DIMENSION(3) ::   idim_read
-      idim_read(:) = SHAPE( pdta_read )
-    end subroutine
-    ''')
-    assignments = psyir.walk(Assignment)
-    trans = ArrayAssignment2LoopsTrans()
-    with pytest.raises(TransformationError) as err:
-        trans.validate(assignments[0])
-    assert ("ArrayAssignment2LoopsTrans does not accept calls which "
-            "are not guaranteed to be elemental" in str(err.value))

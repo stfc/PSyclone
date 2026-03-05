@@ -21,6 +21,13 @@ test_run: test $(EXE)
 	@# Since we introduce Infinity values, the output is
 	@# not correct. Check instead for the warnings:
 	$(MAKE) --no-print-directory run 2>&1 | grep "has the invalid value 'Inf'">/dev/null
+	@# Check that we can specify a value range for a variable. Note that
+	@# values for current are out of [0,1] because of errors introduced in
+	@# the kernel on purpose! The error will have the value -1.0, so provide
+	@# a flexible regex to identify a floating point number
+	PSY_VALUE_RANGE="current%data=0:1" $(MAKE) --no-print-directory run 2>&1 \
+		|grep "Variable 'current%data' has the value '[-0-9+.]\+' at index/indices 2 3" \
+		>/dev/null
 
 # External libs
 # -------------

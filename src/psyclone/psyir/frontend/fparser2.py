@@ -249,8 +249,11 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     # tree has not been built so the symbol table is not connected to
     # a node.
     symbol_table = location.scope.symbol_table
-    while symbol_table and symbol_table.node and not isinstance(
-            symbol_table.node, (Routine, Container)):
+    while (
+        symbol_table and symbol_table.node
+        and not isinstance(symbol_table.node, (Routine, Container))
+        and symbol_table.parent_symbol_table() is not None
+    ):
         symbol_table = symbol_table.parent_symbol_table()
 
     # All requested Nodes have been checked but there has been no
@@ -838,7 +841,10 @@ def _get_arg_names(node_list):
     arg_names = []
     arg_nodes = []
     for node in node_list:
-        if isinstance(node, Fortran2003.Actual_Arg_Spec):
+        # We get names from what fparser consider Arg_Spec (functions)
+        # or Component_Spec (derived type)
+        if isinstance(node, (Fortran2003.Actual_Arg_Spec,
+                             Fortran2003.Component_Spec)):
             arg_names.append(node.children[0].string)
             arg_nodes.append(node.children[1])
         else:
@@ -965,6 +971,7 @@ class Fparser2Reader():
             Fortran2003.Allocate_Stmt: self._allocate_handler,
             Fortran2003.Allocate_Shape_Spec: self._allocate_shape_spec_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
+            Fortran2003.Structure_Constructor: self._call_handler,
             Fortran2003.Data_Pointer_Object: self._structure_accessor_handler,
             Fortran2003.Data_Ref: self._structure_accessor_handler,
             Fortran2003.Pointer_Assignment_Stmt: self._assignment_handler,
@@ -4036,9 +4043,31 @@ class Fparser2Reader():
         selector = None
         # The position of the 'case default' clause, if any
         default_clause_idx = None
+        # Stores the current set of comments.
+        current_comments = []
+        # Stores the current set of directives and its preceding comments.
+        current_dirs: list[tuple[Fortran2003.Directives,
+                                 list[Fortran2003.Comment]]] = []
         for idx, child in enumerate(node.content):
+            # Find any comments and directives that appear before the first
+            # Case statement and keep them to add into the tree.
+            if (not clause_indices and
+                    isinstance(child, Fortran2003.Directive)):
+                current_dirs.append((child, current_comments))
+                current_comments = []
+                continue
+            if (not clause_indices and
+                    isinstance(child, Fortran2003.Comment)):
+                # TODO: #3350 Inline comments will no longer be inline
+                # comments for select case statements, however since IfBlocks
+                # put inline comments on their endif statement this is
+                # currently the best option available.
+                if len(child.tostr()) > 0:
+                    current_comments.append(child)
+                continue
             if isinstance(child, Fortran2003.Select_Case_Stmt):
                 selector = child.items[0]
+                continue
             if isinstance(child, Fortran2003.Case_Stmt):
                 if not isinstance(child.items[0], Fortran2003.Case_Selector):
                     raise InternalError(
@@ -4087,9 +4116,23 @@ class Fparser2Reader():
                 elsebody.ast = node.content[start_idx + 1]
                 elsebody.ast_end = node.content[end_idx - 1]
             else:
+                # If we have any directives before the select case then add
+                # them before the IfBlock.
+                if current_dirs:
+                    for direc, prev_comments in current_dirs:
+                        directive = self._directive_handler(
+                            direc, currentparent
+                        )
+                        currentparent.addchild(directive)
+                        directive.preceding_comment = (
+                            self._comments_list_to_string(prev_comments)
+                        )
                 ifblock = IfBlock(parent=currentparent,
                                   annotations=['was_case'])
                 rootif = ifblock
+                ifblock.preceding_comment = (
+                    self._comments_list_to_string(current_comments)
+                )
 
             if idx == 0:
                 # If this is the first IfBlock then have it point to
@@ -4105,7 +4148,6 @@ class Fparser2Reader():
             # Process the logical expression
             self._process_case_value_list(selector, case.items[0].items,
                                           ifblock)
-
             # Add If_body
             ifbody = Schedule(parent=ifblock)
             self.process_nodes(parent=ifbody,
@@ -5090,7 +5132,7 @@ class Fparser2Reader():
         Transforms an fparser2 Part_Ref to the PSyIR representation.
 
         fparser2 cannot always disambiguate between Array Accessors, Calls and
-        DerivedType constructors, and it falls back to Part_Ref when unknown.
+        DerivedType constructors (sometimes the last two end up as Part_Ref).
         PSyclone has a better chance of properly categorising them because we
         can follow 'use' statements to retrieve symbol information. If
         psyclone does not find the definition it falls back to a Call. The
@@ -5119,13 +5161,16 @@ class Fparser2Reader():
         _refine_symbols_with_usage_location(parent, node)
         symbol = _find_or_create_unresolved_symbol(parent, reference_name)
 
-        if isinstance(symbol, DataSymbol):
-            call_or_array = ArrayReference(symbol, parent=parent)
-        else:
-            # Generic Symbols (unresolved), RoutineSymbols and DataTypeSymbols
-            # (constructors) are all processed as Calls
+        if (
+            not isinstance(symbol, DataSymbol) or
+            isinstance(symbol.datatype, DataTypeSymbol)
+        ):
+            # Fallback to Call if the type is unknown, or it is a Derived
+            # Type constructor
             call_or_array = Call(parent=parent)
             call_or_array.addchild(Reference(symbol))
+        else:
+            call_or_array = ArrayReference(symbol, parent=parent)
         self.process_nodes(parent=call_or_array, nodes=node.items[1].items)
         return call_or_array
 
@@ -5328,10 +5373,14 @@ class Fparser2Reader():
 
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
-        # If it's a plain reference, promote the symbol to a RoutineSymbol
+        # If it's a call statement, it is unambiguously a RoutineSymbol
         # pylint: disable=unidiomatic-typecheck
-        if type(routine) is Reference:
+        if (
+            isinstance(node, Fortran2003.Call_Stmt) and
+            type(routine) is Reference
+        ):
             routine_symbol = routine.symbol
+
             if type(routine_symbol) is Symbol:
                 # Specialise routine_symbol from a Symbol to a
                 # RoutineSymbol
@@ -5345,11 +5394,17 @@ class Fparser2Reader():
                     f"type 'Symbol' or 'RoutineSymbol', but found "
                     f"'{type(routine_symbol).__name__}'.")
 
+            # If it is a call statement, it must be a subroutine (not a
+            # function) otherwise this would be invalid Fortran.
+            if isinstance(node, Fortran2003.Call_Stmt):
+                routine_symbol.datatype = NoType()
+
         return self._process_args(node, call)
 
     def _process_args(self, node: Union[
                           Fortran2003.Call_Stmt,
-                          Fortran2003.Intrinsic_Function_Reference
+                          Fortran2003.Intrinsic_Function_Reference,
+                          Fortran2003.Structure_Constructor
                       ],
                       call: Union[Call, IntrinsicCall],
                       check_valid_argument_ordering: bool = False) -> Union[
@@ -5930,7 +5985,7 @@ class Fparser2Reader():
         ])
         if to_direc:
             content = str_rep[2:].lstrip()
-            return UnknownDirective(content)
+            return UnknownDirective(content, parent=parent)
         code_block = CodeBlock(
             [node],
             CodeBlock.Structure.STATEMENT,

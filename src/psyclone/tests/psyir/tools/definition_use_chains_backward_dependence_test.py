@@ -850,3 +850,25 @@ def test_definition_use_chain_find_backward_accesses_ancestor_call(
     # The correct previous access should be the Reference to b in
     # b = c + d.
     assert all_prev[0] is routine.children[1].lhs
+
+
+def test_backward_accesses_nested_loop(fortran_reader):
+    """Test that if we have many nested loops we don't repeat the same
+    reference in the result."""
+    code = """subroutine x
+    integer :: i, j, k, l
+
+    do i = 1, 100
+      do j = 1, 100
+        do k = 1, 100
+          l = 1
+        end do
+      end do
+    end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    lhs = routine.walk(Assignment)[0].lhs
+    chains = DefinitionUseChain(lhs)
+    reaches = chains.find_backward_accesses()
+    assert len(reaches) == 1

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2026, Science and Technology Facilities Council
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,11 +30,13 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors S. Siso, STFC Daresbury Lab
+# ------------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
 
-'''A package module for psyclone.domain.common.psylayer'''
-
-from psyclone.domain.common.psylayer.global_reduction import GlobalReduction
-from psyclone.domain.common.psylayer.psyloop import PSyLoop
+# Set environment variables required to define the domain size and number of
+# time steps for the tra_adv benchmark.
+export JPK=30
+export JPJ=100
+export JPI=100
+export IT=10
 
