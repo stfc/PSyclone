@@ -4372,13 +4372,11 @@ class Fparser2Reader():
                 first_rank = rank
                 first_array = array
 
-            base_ref = _copy_full_base_reference(array)
             array_ref = array.ancestor(Reference, include_self=True)
             if not isinstance(array_ref.datatype, ArrayType):
                 raise NotImplementedError(
                     f"We can not get the resulting shape of the expression: "
                     f"{array_ref.debug_string()}")
-            shape = array_ref.datatype.shape
             add_op = BinaryOperation.Operator.ADD
             sub_op = BinaryOperation.Operator.SUB
             # Replace the PSyIR Ranges with appropriate index expressions.
