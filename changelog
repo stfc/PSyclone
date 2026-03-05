@@ -1,3 +1,6 @@
+   61) PR #3336 for #3325. Improve datatype method to prevent returning
+   array Extents and select better operand type when possible.
+
    60) PR #3357 for #1857. Re-names ArrayType.datatype to
    ArrayType.elemental_type and precision and intrinsic properties.
 
