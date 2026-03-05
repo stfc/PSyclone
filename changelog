@@ -1,4 +1,13 @@
-   56) PR 3343 towards #1960 and #1799. Improves ArrayAssignment2Loop
+   59) PR #3353 for #3328. Fix a case of duplicated nodes returned by DUC.
+
+   58) PR #3354 for #2429. Extends the fparser2 frontend such that all
+   structure constructors and functions with unknown delcarations are
+   represented by Call nodes.
+
+   57) PR #3355 towards #3252. Improves PSY_VALUE_RANGE format, introduces a
+   generic value_range_check library and runs examples during the tests.
+ 
+   56) PR #3343 towards #1960 and #1799. Improves ArrayAssignment2Loop
    by using call/RoutineSymbol datatype information.
  
    55) PR #3333 for #2381 - Restructures global reduction nodes to support
