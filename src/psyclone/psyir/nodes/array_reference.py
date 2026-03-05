@@ -180,7 +180,6 @@ class ArrayReference(ArrayMixin, Reference):
             else:
                 # Create a copy of the base datatype.
                 base_type = self.symbol.datatype.datatype.copy()
-
             # TODO #1857 - passing base_type as an instance of ArrayType
             # only works because the ArrayType constructor just pulls out
             # the intrinsic and precision properties of the type.

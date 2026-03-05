@@ -601,6 +601,22 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         if (isinstance(start, IntrinsicCall) and
                 isinstance(stop, IntrinsicCall) and self.is_full_range(idx)):
+            # If the upper and lower dimension are both integers then we can
+            # compute the size and return it as a literal. This only works for
+            # an ArrayReference as ArrayMembers don't have a symbol to find
+            # the shape from.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import ArrayReference
+            if (isinstance(self, ArrayReference) and
+                len(self.symbol.shape) > idx and
+                isinstance(self.symbol.shape[idx], ArrayType.ArrayBounds) and
+                isinstance(self.symbol.shape[idx].lower, Literal) and
+                    isinstance(self.symbol.shape[idx].upper, Literal)):
+                upper = self.symbol.shape[idx].upper.value_as_python
+                lower = self.symbol.shape[idx].lower.value_as_python
+                size = upper - lower + 1
+                return Literal(str(size), INTEGER_TYPE)
+
             # Access is to full range and start and stop are expressed in terms
             # of LBOUND and UBOUND. Therefore, it's simpler to use SIZE.
             return IntrinsicCall.create(
@@ -674,7 +690,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 raise InternalError(
                     f"Found unexpected node of type '{type(idx_expr)}' "
                     f"as an index expression.")
-
         return shape
 
     def get_outer_range_index(self):

@@ -485,17 +485,17 @@ def test_array_datatype(fortran_reader):
     thing = test_2d(2, 2:4)
     thing = test_2d(2, 2:6:2)
     thing = test3(:)
-    thing = test(:, 1)
+    thing = test_2d(:, 1)
 
 
     end subroutine code"""
     psyir = fortran_reader.psyir_from_source(code)
     refs = psyir.walk(ArrayReference)
 
-    # Reference to a single element of an array.
+    # Reference to a single element of an array - test(1).
     aref = refs[0]
     assert aref.datatype == REAL_TYPE
-    # Reference to a 1D sub-array of a 2D array.
+    # Reference to a 1D sub-array of a 2D array - test_2d(2, 2:4).
     bref = refs[1]
     assert isinstance(bref.datatype, ArrayType)
     assert bref.datatype.intrinsic == ScalarType.Intrinsic.REAL
@@ -507,7 +507,8 @@ def test_array_datatype(fortran_reader):
     # The easiest way to check the expression is to use debug_string()
     code = upper.debug_string()
     assert code == "4 - 2 + 1"
-    # Reference to a non-contiguous 1D sub-array of a 2D array.
+    # Reference to a non-contiguous 1D sub-array of a 2D array:
+    # test_2d(2, 2:6:2).
     ucref = refs[2]
     assert isinstance(ucref.datatype, ArrayType)
     assert ucref.datatype.intrinsic == ScalarType.Intrinsic.REAL
@@ -518,7 +519,7 @@ def test_array_datatype(fortran_reader):
     upper = ucref.datatype.shape[0].upper
     assert upper.debug_string() == "(6 - 2) / 2 + 1"
 
-    # Test we get a size for the deferred declaration
+    # Test we get a size for the deferred declaration - test3(:)
     dref = refs[3]
     dtype = dref.datatype
     assert isinstance(dtype, ArrayType)
@@ -529,7 +530,8 @@ def test_array_datatype(fortran_reader):
     assert dtype.shape[0].upper.intrinsic.name == "SIZE"
     assert dtype.shape[0].upper.arguments[0].symbol.name == "test3"
 
-    # Test we don't get a size for the 1D access to a 2D array.
+    # Test we don't get a size for the 1D access to a 2D array:
+    # test_2d(:, 1).
     dref = refs[4]
     dtype = dref.datatype
     assert isinstance(dtype, ArrayType)
