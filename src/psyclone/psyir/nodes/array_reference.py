@@ -180,7 +180,6 @@ class ArrayReference(ArrayMixin, Reference):
                 if isinstance(self.symbol.datatype.partial_datatype,
                               ArrayType):
                     return self.symbol.datatype.partial_datatype.elemental_type
-                return self.symbol.datatype.partial_datatype
             # Since we're accessing a single element of an array of
             # UnsupportedType we have to create a new UnsupportedFortranType.
             # Ideally we would re-write the original Fortran
