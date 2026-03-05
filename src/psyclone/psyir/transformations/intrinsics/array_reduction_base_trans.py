@@ -189,12 +189,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         orig_assignment = node.ancestor(Assignment)
         array_arg = node.argument_by_name("array")
         mask_arg = node.argument_by_name("mask")
-
-        # Create a temporary symbol to accomulate the reduction value
-        tmp_symbol = node.scope.symbol_table.new_symbol(
-                root_name="reduction_var", symbol_type=DataSymbol,
-                datatype=node.datatype)
-        tmp_ref = Reference(tmp_symbol)
+        symtab = node.scope.symbol_table
 
         # Step 1: Replace all references to arrays within the intrinsic array
         # and mask arguments (if it exists) to array ranges.
@@ -292,6 +287,15 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         #     end if
         #   enddo
         # enddo
+
+        # Create a temporary symbol to accomulate the reduction value (make
+        # sure to do that after ArrayAssignment2LoopsTrans, so it does not
+        # have to be clean up if that transformation fails)
+        tmp_symbol = symtab.new_symbol(
+                root_name="reduction_var", symbol_type=DataSymbol,
+                datatype=node.datatype)
+        tmp_ref = Reference(tmp_symbol)
+
         new_assignment = Assignment.create(
             tmp_ref.copy(), self._loop_body(
                 tmp_ref.copy(), assignment.rhs.copy()))

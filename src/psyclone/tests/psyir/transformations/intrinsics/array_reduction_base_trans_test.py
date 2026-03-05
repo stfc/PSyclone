@@ -44,7 +44,7 @@ import pytest
 from psyclone.psyir.nodes import IntrinsicCall, Reference
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import (
-    TransformationError, Maxval2LoopTrans)
+    TransformationError, Maxval2LoopTrans, ArrayAssignment2LoopsTrans)
 from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
     import ArrayReductionBaseTrans
 from psyclone.tests.utilities import Compile
@@ -239,7 +239,36 @@ def test_validate_increment_with_unsupported_type(fortran_reader):
             "RESOLVE_IMPORTS." in str(info.value))
 
 
-# apply
+def test_apply_unsupported_arrayassingment2loop(
+        fortran_reader, fortran_writer, monkeypatch):
+    ''' Check that if an error is produced in the internal call to
+    ArrayAssignment2LoopsTrans, the proper message is given and the output
+    code does not have leftover temporaries.
+
+    '''
+    code = (
+        "subroutine test()\n"
+        "integer, dimension(10,10) :: a, b\n"
+        "integer :: c\n"
+        "c = maxval(a(:,:) + b(:,:))\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+
+    def mock_validate(*args, **kwargs):
+        raise TransformationError("myerror")
+    monkeypatch.setattr(ArrayAssignment2LoopsTrans, "validate", mock_validate)
+
+    trans = Maxval2LoopTrans()
+    node = psyir.walk(IntrinsicCall)[0]
+    with pytest.raises(TransformationError) as info:
+        trans.apply(node)
+    assert ("ArrayAssignment2LoopsTrans could not convert the expression:\n"
+            "a(:,:) = a(:,:) + b(:,:)\n\n into a loop because:\n"
+            "Transformation Error: myerror" in str(info.value))
+
+    # Also check that the output does not have any leftover temporary var
+    assert "reduction_var" not in fortran_writer(psyir)
+
 
 @pytest.mark.parametrize("idim1,idim2,rdim11,rdim12,rdim21,rdim22",
                          [("10", "20", "1", "10", "1", "20"),
@@ -520,8 +549,8 @@ def test_expression_1d(fortran_reader, fortran_writer, tmpdir):
         "  real, dimension(10) :: a\n"
         "  real, dimension(10) :: b\n"
         "  real :: x\n"
-        "  real :: reduction_var\n"
-        "  integer :: idx\n\n"
+        "  integer :: idx\n"
+        "  real :: reduction_var\n\n"
         "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
         "    reduction_var = MAX(reduction_var, a(idx) + b(idx))\n"
@@ -553,10 +582,10 @@ def test_expression_3d(fortran_reader, fortran_writer, tmpdir):
         "subroutine test()\n"
         "  real, dimension(10,10,10) :: a\n"
         "  real :: x\n"
-        "  real :: reduction_var\n"
         "  integer :: idx\n"
         "  integer :: idx_1\n"
-        "  integer :: idx_2\n\n"
+        "  integer :: idx_2\n"
+        "  real :: reduction_var\n\n"
         "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
         "    do idx_1 = LBOUND(a, dim=2), UBOUND(a, dim=2), 1\n"
