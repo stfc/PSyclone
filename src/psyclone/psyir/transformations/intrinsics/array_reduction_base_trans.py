@@ -167,7 +167,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
                         f"Deferred, Attribute or Bounds but found '{shape}'.")
 
     # pylint: disable=too-many-locals
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node, options=None, verbose: bool = False, **kwargs):
         '''Apply the array-reduction intrinsic conversion transformation to
         the specified node. This node must be one of these intrinsic
         operations which is converted to an equivalent loop structure.
@@ -181,6 +181,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         # TODO 2668: options are now deprecated:
         if options:
             warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+            verbose = options.get("verbose", False)
 
         self.validate(node, options, **kwargs)
 
@@ -328,6 +329,10 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         lhs = tmp_ref.copy()
         rhs = self._init_var(lhs)
         assignment = Assignment.create(lhs, rhs)
+        if verbose:
+            assignment.preceding_comment = (
+                f"{self.name} expansion of: {orig_assignment.debug_string()}"
+            )
         outer_loop.parent.children.insert(outer_loop.position, assignment)
         # Update original assignment with the reduced value
         for child in orig_assignment.walk(Node):

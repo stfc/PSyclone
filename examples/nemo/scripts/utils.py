@@ -221,7 +221,7 @@ def normalise_loops(
         for intr in schedule.walk(IntrinsicCall):
             if intr.intrinsic.name == "MAXVAL":
                 try:
-                    Maxval2LoopTrans().apply(intr)
+                    Maxval2LoopTrans().apply(intr, verbose=True)
                 except TransformationError as err:
                     print(err.value)
 
