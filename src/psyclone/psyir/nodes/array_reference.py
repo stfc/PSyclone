@@ -44,10 +44,9 @@ from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import (DataSymbol, UnresolvedType,
-                                    UnsupportedFortranType, UnsupportedType,
-                                    DataTypeSymbol, ScalarType, ArrayType,
-                                    INTEGER_TYPE, Symbol)
+from psyclone.psyir.symbols import (
+    DataSymbol, UnresolvedType, UnsupportedFortranType, UnsupportedType,
+    DataTypeSymbol, ArrayType, INTEGER_TYPE, Symbol)
 
 
 class ArrayReference(ArrayMixin, Reference):
@@ -169,9 +168,7 @@ class ArrayReference(ArrayMixin, Reference):
                 base_type = UnresolvedType()
             else:
                 base_type = self.symbol.datatype
-            # TODO #1857 - passing base_type as an instance of ArrayType
-            # only works because the ArrayType constructor just pulls out
-            # the intrinsic and precision properties of the type.
+
             return ArrayType(base_type, shape)
 
         # Otherwise, we're accessing a single element of the array.
@@ -180,11 +177,9 @@ class ArrayReference(ArrayMixin, Reference):
         if isinstance(self.symbol.datatype, UnsupportedType):
             if (isinstance(self.symbol.datatype, UnsupportedFortranType) and
                     self.symbol.datatype.partial_datatype):
-                intrinsic = self.symbol.datatype.partial_datatype.intrinsic
-                if isinstance(intrinsic, DataTypeSymbol):
-                    return intrinsic
-                precision = self.symbol.datatype.partial_datatype.precision
-                return ScalarType(intrinsic, precision)
+                if isinstance(self.symbol.datatype.partial_datatype,
+                              ArrayType):
+                    return self.symbol.datatype.partial_datatype.elemental_type
             # Since we're accessing a single element of an array of
             # UnsupportedType we have to create a new UnsupportedFortranType.
             # Ideally we would re-write the original Fortran
@@ -200,11 +195,7 @@ class ArrayReference(ArrayMixin, Reference):
 
         if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
             return self.symbol.datatype.intrinsic
-        # TODO #1857: Really we should just be able to return
-        # self.symbol.datatype here but currently arrays of scalars are
-        # handled in a different way to all other types of array.
-        return ScalarType(self.symbol.datatype.intrinsic,
-                          self.symbol.datatype.precision)
+        return self.symbol.datatype.elemental_type
 
 
 # For AutoAPI documentation generation
