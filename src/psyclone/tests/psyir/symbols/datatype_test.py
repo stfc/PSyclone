@@ -272,7 +272,7 @@ def test_scalartype_invalid_precision_datasymbol():
     Unresolved).
 
     '''
-    # Create an r_def precision symbol with a constant value of 8
+    # Create an r_def 'precision' symbol of REAL type.
     data_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     precision_symbol = DataSymbol("r_def", data_type)
     with pytest.raises(ValueError) as excinfo:

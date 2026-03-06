@@ -356,6 +356,8 @@ class UnsupportedFortranType(UnsupportedType):
 
 class IntrinsicType(DataType):
     '''
+    Abstract base class for types that have a precision.
+
     :param precision: the precision of this scalar type.
     :type precision: :py:class:`psyclone.psyir.symbols.ScalarType.Precision` |
                      int | :py:class:`psyclone.psyir.nodes.DataNode`
@@ -500,10 +502,9 @@ class ScalarType(IntrinsicType):
         self._intrinsic = intrinsic
 
     @property
-    def intrinsic(self):
+    def intrinsic(self) -> ScalarType.Intrinsic:
         '''
         :returns: the intrinsic used by this scalar type.
-        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
         '''
         return self._intrinsic
 
@@ -541,10 +542,9 @@ class ScalarType(IntrinsicType):
             precision_match = self.precision == other.precision
         return precision_match and self.intrinsic == other.intrinsic
 
-    def copy(self):
+    def copy(self) -> ScalarType:
         '''
         :returns: a copy of self.
-        :rtype: :py:class:`psyclone.psyir.symbols.DatatTypes.ScalarType`
         '''
         # TODO #3135 After the precision is always either a Precision or
         # a DataNode this hasattr check can be removed.
@@ -559,16 +559,6 @@ class CharacterType(IntrinsicType):
     :param length: the length of this character type.
 
     '''
-    class Length(Enum):
-        DEFERRED = 1
-
-        def copy(self) -> CharacterType.Length:
-            '''
-            TODO have a base EnumWithCopy class?
-            :returns: a copy of self.
-            '''
-            return copy.copy(self)
-
     def __init__(self,
                  precision: Union[IntrinsicType.Precision,
                                   int, "DataNode"],
@@ -581,7 +571,7 @@ class CharacterType(IntrinsicType):
         return f"Character<{self._precision_str}, len:{self.length}>"
 
     @property
-    def length(self) -> Union["DataNode", CharacterType.Length.DEFERRED]:
+    def length(self) -> "DataNode":
         '''
         :returns: the length of this character string.
         '''
