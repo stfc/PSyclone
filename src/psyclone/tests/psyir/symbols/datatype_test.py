@@ -237,7 +237,7 @@ def test_scalartype_invalid_intrinsic_type():
 
     '''
     with pytest.raises(TypeError) as excinfo:
-        _ = ScalarType(None, None)
+        _ = ScalarType(None, 4)
     assert ("ScalarType expected 'intrinsic' argument to be of type "
             "ScalarType.Intrinsic but found 'NoneType'." in str(excinfo.value))
 
@@ -279,7 +279,8 @@ def test_scalartype_invalid_precision_datasymbol():
         _ = ScalarType(ScalarType.Intrinsic.REAL, Reference(precision_symbol))
     assert ("A DataNode representing the precision of another DataSymbol "
             "must be of either 'unresolved' or scalar, integer type but got: "
-            "ScalarType with datatype Scalar<REAL, 4>" in str(excinfo.value))
+            "IntrinsicType with datatype Scalar<REAL, 4>"
+            in str(excinfo.value))
 
 
 def test_scalartype_str():

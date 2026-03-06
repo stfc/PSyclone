@@ -45,7 +45,8 @@ from typing import Union
 
 from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import ScalarType, ArrayType, Symbol
+from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.symbols.datatypes import IntrinsicType, ArrayType
 
 
 class Literal(DataNode):
@@ -88,10 +89,10 @@ class Literal(DataNode):
         super().__init__(parent=parent)
 
         # Checks for the datatype
-        if not isinstance(datatype, (ScalarType, ArrayType)):
+        if not isinstance(datatype, (IntrinsicType, ArrayType)):
             raise TypeError(
                 f"The datatype of a Literal must be an instance of "
-                f"psyir.symbols.ScalarType or psyir.symbols.ArrayType "
+                f"psyir.symbols.IntrinsicType or psyir.symbols.ArrayType "
                 f"but found '{type(datatype).__name__}'")
 
         if not isinstance(value, str):
@@ -99,17 +100,18 @@ class Literal(DataNode):
                 f"Literals must be supplied with a value encoded as a string "
                 f"but found '{type(value).__name__}'")
 
-        if not value and datatype.intrinsic != ScalarType.Intrinsic.CHARACTER:
+        if not value and (datatype.intrinsic !=
+                          IntrinsicType.Intrinsic.CHARACTER):
             raise ValueError("A non-character literal value cannot be empty.")
 
-        if (isinstance(datatype, ScalarType) and
-                datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN and
+        if (isinstance(datatype, IntrinsicType) and
+                datatype.intrinsic == IntrinsicType.Intrinsic.BOOLEAN and
                 value not in ("true", "false")):
             raise ValueError(
                 f"A scalar boolean literal can only be: 'true' or "
                 f"'false' but found '{value}'.")
 
-        if datatype.intrinsic == ScalarType.Intrinsic.REAL:
+        if datatype.intrinsic == IntrinsicType.Intrinsic.REAL:
             if not re.match(Literal._real_value, value):
                 raise ValueError(
                     f"A scalar real literal value must conform to the "
@@ -117,8 +119,8 @@ class Literal(DataNode):
                     f"'{value}'.")
             # Ensure we always store any exponent with a lowercase 'e'
             self._value = value.replace("E", "e", 1)
-        elif isinstance(datatype, ScalarType) and datatype.intrinsic \
-                == ScalarType.Intrinsic.INTEGER:
+        elif isinstance(datatype, IntrinsicType) and datatype.intrinsic \
+                == IntrinsicType.Intrinsic.INTEGER:
             if not re.fullmatch(Literal._int_value, value):
                 raise ValueError(
                     f"A scalar integer literal value must conform to the "
@@ -224,13 +226,13 @@ class Literal(DataNode):
 
         :returns: the python representation of this Literal.
         '''
-        if self.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+        if self.datatype.intrinsic == IntrinsicType.Intrinsic.INTEGER:
             return int(self.value)
-        if self.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+        if self.datatype.intrinsic == IntrinsicType.Intrinsic.REAL:
             return float(self.value)
-        if self.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+        if self.datatype.intrinsic == IntrinsicType.Intrinsic.BOOLEAN:
             return self.value == "true"
-        if self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+        if self.datatype.intrinsic == IntrinsicType.Intrinsic.CHARACTER:
             return self.value
 
 

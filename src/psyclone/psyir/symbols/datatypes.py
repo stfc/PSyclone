@@ -427,6 +427,15 @@ class IntrinsicType(DataType):
         '''
         return self._precision
 
+    @property
+    def _precision_str(self) -> str:
+        '''
+        Utility to provide the precision of this type as a string.
+        '''
+        if isinstance(self.precision, ScalarType.Precision):
+            return self.precision.name
+        return str(self.precision)
+
     def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
         :returns: a set of all the symbols accessed inside this DataType.
@@ -464,7 +473,6 @@ class ScalarType(IntrinsicType):
     '''Describes a scalar datatype (and its precision).
 
     :param intrinsic: the intrinsic of this scalar type.
-    :type intrinsic: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
 
     :raises TypeError: if any of the arguments are of the wrong type.
     :raises ValueError: if any of the argument have unexpected values.
@@ -479,8 +487,10 @@ class ScalarType(IntrinsicType):
         IntrinsicType.Intrinsic.BOOLEAN: bool,
         IntrinsicType.Intrinsic.REAL: float}
 
-    def __init__(self, intrinsic, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, intrinsic: IntrinsicType.Intrinsic,
+                 precision: Union[IntrinsicType.Precision,
+                                  int, "DataNode"]):
+        super().__init__(precision)
         if not isinstance(intrinsic, ScalarType.Intrinsic):
             raise TypeError(
                 f"ScalarType expected 'intrinsic' argument to be of type "
@@ -502,18 +512,13 @@ class ScalarType(IntrinsicType):
         :returns: a description of this scalar datatype.
 
         '''
-        if isinstance(self.precision, ScalarType.Precision):
-            precision_str = self.precision.name
-        else:
-            precision_str = str(self.precision)
-        return f"Scalar<{self.intrinsic.name}, {precision_str}>"
+        return f"Scalar<{self.intrinsic.name}, {self._precision_str}>"
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         '''
-        :param Any other: the object to check equality to.
+        :param other: the object to check equality to.
 
         :returns: whether this type is equal to the 'other' type.
-        :rtype: bool
         '''
         if not super().__eq__(other):
             return False
@@ -564,39 +569,81 @@ class CharacterType(IntrinsicType):
             '''
             return copy.copy(self)
 
-    def __init__(self, length: Union[int, str, "DataNode"], **kwargs):
-        super().__init__(**kwargs)
-        self._intrinsic = IntrinsicType.Intrinsic.CHARACTER
+    def __init__(self,
+                 precision: Union[IntrinsicType.Precision,
+                                  int, "DataNode"],
+                 length: Union[int, str, "DataNode"]):
+        super().__init__(precision)
+        self.intrinsic = IntrinsicType.Intrinsic.CHARACTER
         self.length = length
 
+    def __str__(self) -> str:
+        return f"Character<{self._precision_str}, len:{self.length}>"
+
     @property
-    def length(self) -> Union[DataNode, CharacterType.Length.DEFERRED]:
+    def length(self) -> Union["DataNode", CharacterType.Length.DEFERRED]:
         '''
+        :returns: the length of this character string.
         '''
         return self._length
 
     @length.setter
     def length(self, value: Union[int, str, "DataNode"]):
         '''
+        Setter for the length of this character string. If the new value
+        is supplied as an int or str then this is converted into a Literal.
+
+        :value: the new length to assign.
+
+        :raises ValueError: if the supplied value is a str but is not ":"
+                            or "*".
+        :raises ValueError: if the supplied value is an int with value < 0.
+        :raises TypeError: if the supplied value is of the wrong type.
+
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.datanode import DataNode
         if isinstance(value, str):
             if value not in [":", "*"]:
-                raise ValueError("huh")
-            self._length = CharacterType.Length.DEFERRED
-        elif isinstance(value, int):
+                raise ValueError(
+                    f"If the length of a CharacterType is specified as a "
+                    f"str then it must contain only ':' or '*' but got: "
+                    f"'{value}'")
+            from psyclone.psyir.nodes.literal import Literal
+            # We could have an Enum to record ':' and '*' but I don't think
+            # that buys us anything over just storing the strings.
+            self._length = Literal(
+                value, CharacterType(IntrinsicType.Precision.UNDEFINED, 1))
+        elif isinstance(value, int) and not isinstance(value, bool):
+            if value < 0:
+                raise ValueError(
+                    f"If the length of a CharacterType is specified using an"
+                    f" int then it must be >= 0 but got: {value}")
             from psyclone.psyir.nodes import Literal
-            self._length = Literal(value, INTEGER_TYPE)
+            self._length = Literal(str(value), INTEGER_TYPE)
         elif isinstance(value, DataNode):
-            # TODO Need to copy this?
             self._length = value
         else:
-            raise TypeError(f"The length property must be an int or DataNode "
-                            f"but got '{type(value).__name__}'")
+            raise TypeError(
+                f"The length property of a CharacterType must be an int, str "
+                f"or DataNode but got '{type(value).__name__}'")
 
-    def copy(self):
+    def copy(self) -> CharacterType:
+        '''
+        Creates a copy of this type.
+        '''
         new = super().copy()
         return CharacterType(length=self.length.copy(),
                              precision=new.precision)
+
+    def get_all_accessed_symbols(self) -> set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this DataType.
+        '''
+        symbols = super().get_all_accessed_symbols()
+        symbols.update(self.length.get_all_accessed_symbols())
+
+        return symbols
 
 
 class ArrayType(DataType):
