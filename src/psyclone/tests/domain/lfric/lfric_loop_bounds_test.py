@@ -71,10 +71,10 @@ def test_lbounds_initialise(monkeypatch, fortran_writer):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    lbounds = LFRicLoopBounds(invoke)
 
     table = invoke.schedule.symbol_table
-
+    invoke.setup_psy_layer_symbols()
+    lbounds = LFRicLoopBounds(invoke)
     lbounds.initialise(0)
 
     # Check that new symbols exist

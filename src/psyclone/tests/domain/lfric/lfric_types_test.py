@@ -95,7 +95,9 @@ def test_constants_mod():
         # pylint: disable=no-member
         assert isinstance(symbol, DataSymbol)
         assert isinstance(symbol.interface, ImportInterface)
-        assert symbol.interface.container_symbol is module
+        # Just check the name as we don't actually use the generated module
+        # symbol instance.
+        assert symbol.interface.container_symbol.name == module.name
 
 
 # Generic scalars

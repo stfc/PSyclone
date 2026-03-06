@@ -55,7 +55,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
-    ImportInterface, ScalarType, ArrayType, UnsupportedFortranType,
+    ImportInterface, ScalarType, ArrayType, Symbol, UnsupportedFortranType,
     ArgumentInterface)
 
 # psyir has classes created at runtime
@@ -93,20 +93,20 @@ class KernCallArgList(ArgOrdering):
         self._nqp_positions = []
         self._ndf_positions = []
 
-    def get_user_type(self, module_name, user_type, name, tag=None):
+    def get_user_type(self, module_name: str,
+                      user_type: str, name: str,
+                      tag: Optional[str] = None) -> Symbol:
         # pylint: disable=too-many-arguments
         '''Returns the symbol for a user-defined type. If required, the
-        required import statements will all be generated.
+        source ContainerSymbols will be created too.
 
-        :param str module_name: the name of the module from which the \
+        :param module_name: the name of the module from which the
             user-defined type must be imported.
-        :param str user_type: the name of the user-defined type.
-        :param str name: the name of the variable to be used in the Reference.
-        :param Optional[str] tag: tag to use for the variable, defaults to \
-            the name
+        :param user_type: the name of the user-defined type.
+        :param name: the name of the variable to be used in the Reference.
+        :param tag: tag to use for the variable, defaults to the name
 
         :return: the symbol that is used in the reference
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if not tag:
@@ -119,12 +119,18 @@ class KernCallArgList(ArgOrdering):
             pass
 
         # The symbol does not exist already. So we potentially need to
-        # create the import statement for the type:
+        # create the ContainerSymbol for the import for the type:
         try:
             # Check if the module is already declared:
             module = self._symtab.lookup(module_name)
-            # Get the symbol table in which the module is declared:
-            mod_sym_tab = module.find_symbol_table(self._kern)
+            # Get the symbol table in which the module is declared. Check
+            # the current table first:
+            if module in self._symtab.symbols:
+                mod_sym_tab = self._symtab
+            else:
+                # Otherwise, we have to search for the table.
+                mod_sym_tab = module.find_symbol_table(self._symtab.node)
+
         except KeyError:
             module = self._symtab.new_symbol(module_name,
                                              symbol_type=ContainerSymbol)

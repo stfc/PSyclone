@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import (
     Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode,
     Node, Routine)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface)
+    AutomaticInterface, DataSymbol, INTEGER_TYPE, UnresolvedType)
 
 
 class LFRicLoop(PSyLoop):
@@ -951,7 +951,7 @@ class LFRicLoop(PSyLoop):
                                 field.proxy_name,
                                 symbol_type=DataSymbol,
                                 datatype=UnresolvedType(),
-                                interface=UnresolvedInterface())
+                                interface=AutomaticInterface())
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
             from psyclone.lfric import HaloWriteAccess
