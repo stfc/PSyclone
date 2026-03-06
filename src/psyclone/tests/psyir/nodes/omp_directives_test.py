@@ -74,6 +74,7 @@ from psyclone.transformations import (
     LFRicOMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, LFRicOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPLoopTrans, TransformationError)
+from psyclone.psyir.tools import (ArrayIndexAnalysisOptions)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")
@@ -5384,6 +5385,7 @@ def test_array_analysis_option(fortran_reader, fortran_writer):
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(
-        loop, collapse=True, use_smt_array_index_analysis=True)
+        loop, collapse=True,
+        use_smt_array_index_analysis=ArrayIndexAnalysisOptions())
     output = fortran_writer(psyir)
     assert "collapse(2)" in output

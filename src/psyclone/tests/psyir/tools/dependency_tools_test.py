@@ -1201,8 +1201,8 @@ def test_array_analysis_failure(use_bv, fortran_reader, fortran_writer):
       end subroutine''')
     if use_bv:
         opts = ArrayIndexAnalysisOptions(use_bv=True)
-        dep_tools = DependencyTools(use_smt_array_index_analysis=opts)
     else:
-        dep_tools = DependencyTools(use_smt_array_index_analysis=True)
+        opts = ArrayIndexAnalysisOptions()
+    dep_tools = DependencyTools(use_smt_array_index_analysis=opts)
     loop = psyir.walk(Loop)[0]
     assert not dep_tools.can_loop_be_parallelised(loop)

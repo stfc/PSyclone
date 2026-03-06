@@ -41,7 +41,7 @@
 
 import abc
 from collections.abc import Iterable
-from typing import Union, List
+from typing import Union, List, Optional
 import warnings
 
 from psyclone import psyGen
@@ -189,7 +189,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             privatise_arrays = options.get("privatise_arrays", False)
             reduction_ops = options.get("reduction_ops", [])
             use_smt_array_index_analysis = options.get(
-                "use_smt_array_index_analysis", False)
+                "use_smt_array_index_analysis", None)
 
         # Check type of reduction_ops (not handled by validate_options)
         if not isinstance(reduction_ops, list):
@@ -333,7 +333,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
               reduction_ops: List[Union[BinaryOperation.Operator,
                                         IntrinsicCall.Intrinsic]] = None,
               use_smt_array_index_analysis:
-                  Union[bool, ArrayIndexAnalysisOptions] = False,
+                  Optional[ArrayIndexAnalysisOptions] = None,
               **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
@@ -378,11 +378,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         :param reduction_ops: if non-empty, attempt parallelisation
             of loops by inferring reduction clauses involving any of
             the reduction operators in the list.
-        :param use_smt_array_index_analysis: if True, the SMT-based
+        :param use_smt_array_index_analysis: if not None, the SMT-based
             array index analysis will be used for detecting array access
-            conflicts. An ArrayIndexAnalysisOptions value can also be given,
-            instead of a bool, in which case the analysis will be invoked
-            with the given options.
+            conflicts, and the argument holds an ArrayIndexAnalysisOptions
+            structure with the options to use for the analysis.
 
         '''
         if not options:
@@ -415,7 +414,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             nowait = options.get("nowait", False)
             reduction_ops = options.get("reduction_ops", [])
             use_smt_array_index_analysis = options.get(
-                "use_smt_array_index_analysis", False)
+                "use_smt_array_index_analysis", None)
 
         self.validate(node, options=options, verbose=verbose,
                       collapse=collapse, force=force,

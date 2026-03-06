@@ -40,6 +40,7 @@
     dependency analysis.'''
 
 from enum import IntEnum
+from typing import Union, Optional, List
 
 import sympy
 
@@ -163,21 +164,18 @@ class DependencyTools():
         parallelised. The actually supported list of loop types is
         specified in the PSyclone config file. This can be used to
         exclude for example 1-dimensional loops.
-    :type loop_types_to_parallelise: Optional[List[str]]
-    :param use_smt_array_index_analysis: if True, the SMT-based
+    :param use_smt_array_index_analysis: if not None, the SMT-based
         array index analysis will be used for detecting array access
-        conflicts. An ArrayIndexAnalysisOptions value can also be given,
-        instead of a bool, in which case the analysis will be invoked
-        with the given options.
-    :type use_smt_array_index_analysis: Union[
-        bool, ArrayIndexAnalysisOptions]
+        conflicts, and the argument holds an ArrayIndexAnalysisOptions
+        structure with the options to use for the analysis.
 
     :raises TypeError: if an invalid loop type is specified.
 
     '''
     def __init__(self,
-                 loop_types_to_parallelise=None,
-                 use_smt_array_index_analysis=False):
+                 loop_types_to_parallelise: Optional[List[str]] = None,
+                 use_smt_array_index_analysis: Optional[
+                   ArrayIndexAnalysisOptions] = None):
         if loop_types_to_parallelise:
             # Verify that all loop types specified are valid:
             config = Config.get()
@@ -918,11 +916,7 @@ class DependencyTools():
 
         # Apply the SMT-based array index analysis, if enabled
         if self._use_smt_array_index_analysis:
-            if isinstance(self._use_smt_array_index_analysis,
-                          ArrayIndexAnalysisOptions):
-                options = self._use_smt_array_index_analysis
-            else:
-                options = ArrayIndexAnalysisOptions()
+            options = self._use_smt_array_index_analysis
             analysis = ArrayIndexAnalysis(options)
             conflict_free = analysis.is_loop_conflict_free(loop)
             if not conflict_free:
