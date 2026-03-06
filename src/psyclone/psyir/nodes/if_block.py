@@ -205,13 +205,12 @@ class IfBlock(Statement):
            (if there are any) are recursively gathered. The condition for
            the final 'else' in the chain (if there is one) is 'None'.
         '''
-        if self.else_body is None:
-            branches = []
-        elif (isinstance(self.else_body, Schedule) and
-              len(self.else_body.children) == 1 and
-              isinstance(self.else_body.children[0], IfBlock)):
-            branches = self.else_body.children[0].flat()
-        else:
-            branches = [(None, self.else_body)]
-        branches.insert(0, (self.condition, self.if_body))
+        branches = [(self.condition, self.if_body)]
+        if self.else_body:
+            if (isinstance(self.else_body, Schedule) and
+                    len(self.else_body.children) == 1 and
+                    isinstance(self.else_body.children[0], IfBlock)):
+                branches.extend(self.else_body.children[0].flat())
+            else:
+                branches.append((None, self.else_body))
         return branches

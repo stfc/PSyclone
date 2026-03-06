@@ -352,3 +352,28 @@ def test_if_block_flat_partial(fortran_reader, fortran_writer):
     assert (fortran_writer(branches[0][1]).startswith("result = 1"))
     assert (fortran_writer(branches[1][1]).startswith("result = 2"))
     assert (fortran_writer(branches[2][1]).startswith("if (c)"))
+
+
+def test_if_block_flat_no_else(fortran_reader, fortran_writer):
+    '''Test the IfBlock's flat() method on a chain with no final 'else'
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+      subroutine sub(a, b, c, result)
+        logical, intent(in) :: a, b, c
+        integer, intent(out) :: result
+        if (a) then
+          result = 1
+        else if (b) then
+          result = 2
+        end if
+      end subroutine''')
+    if_block = psyir.walk(IfBlock)[0]
+    branches = if_block.flat()
+    # The flat view of the IfBlock should give 2 branches
+    assert len(branches) == 2
+    # Check the other conditions
+    assert (fortran_writer(branches[0][0]) == "a")
+    assert (fortran_writer(branches[1][0]) == "b")
+    # Check the bodies
+    assert (fortran_writer(branches[0][1]).startswith("result = 1"))
+    assert (fortran_writer(branches[1][1]).startswith("result = 2"))
