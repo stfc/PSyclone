@@ -149,7 +149,6 @@ class ArrayReductionBaseTrans(Transformation, ABC):
                 f"{self.name} only works when the intrinsic is part "
                 f"of an Assignment.")
 
-        # FIXME: are they now?
         assignment = array_ref.ancestor(Assignment)
         for this_node in assignment.lhs.walk(Node):
             if this_node == array_ref:
