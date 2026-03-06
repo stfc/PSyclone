@@ -94,6 +94,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             an assignment.
 
         '''
+        super().validate(node, options=options, **kwargs)
 
         if not options:
             self.validate_options(**kwargs)
@@ -182,7 +183,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
             verbose = options.get("verbose", False)
 
-        self.validate(node, options, **kwargs)
+        self.validate(node, options, verbose=verbose, **kwargs)
 
         # Get nodes of interest
         orig_assignment = node.ancestor(Assignment)
@@ -256,6 +257,11 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             # to the original statement (with maybe some leftover tmp variable)
             # and produce the error here.
             assignment.replace_with(orig_assignment)
+            if verbose:
+                orig_assignment.append_preceding_comment(
+                    f"{self.name} failed because ArrayAssignment2LoopsTrans: "
+                    f"{err.value}"
+                )
             # pylint: disable=raise-missing-from
             raise TransformationError(
                 f"ArrayAssignment2LoopsTrans could not convert the "
@@ -333,9 +339,9 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         rhs = self._init_var(lhs)
         assignment = Assignment.create(lhs, rhs)
         if verbose:
-            assignment.preceding_comment = (
-                f"{self.name} expansion of: {orig_assignment.debug_string()}"
-            )
+            code = orig_assignment.debug_string().strip()
+            assignment.append_preceding_comment(
+                f"{self.name} expansion of: {code}")
         outer_loop.parent.children.insert(outer_loop.position, assignment)
         # Update original assignment with the reduced value
         for child in orig_assignment.walk(Node):

@@ -239,11 +239,11 @@ def test_validate_increment_with_unsupported_type(fortran_reader):
             "RESOLVE_IMPORTS." in str(info.value))
 
 
-def test_apply_unsupported_arrayassingment2loop(
+def test_apply_unsupported_arrayassingment2loop_and_compute_arg_names(
         fortran_reader, fortran_writer, monkeypatch):
     ''' Check that if an error is produced in the internal call to
-    ArrayAssignment2LoopsTrans, the proper message is given and the output
-    code does not have leftover temporaries.
+    ArrayAssignment2LoopsTrans or compute_argument_names, the proper message
+    is given and the output code does not have leftover temporaries.
 
     '''
     code = (
@@ -253,21 +253,36 @@ def test_apply_unsupported_arrayassingment2loop(
         "c = maxval(a(:,:) + b(:,:))\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
+    trans = Maxval2LoopTrans()
+    node = psyir.walk(IntrinsicCall)[0]
 
+    # Create a faulty ArrayAssignment2LoopsTrans
     def mock_validate(*args, **kwargs):
         raise TransformationError("myerror")
     monkeypatch.setattr(ArrayAssignment2LoopsTrans, "validate", mock_validate)
 
-    trans = Maxval2LoopTrans()
-    node = psyir.walk(IntrinsicCall)[0]
     with pytest.raises(TransformationError) as info:
-        trans.apply(node)
+        trans.apply(node, verbose=True)
     assert ("ArrayAssignment2LoopsTrans could not convert the expression:\n"
             "a(:,:) = a(:,:) + b(:,:)\n\n into a loop because:\n"
             "Transformation Error: myerror" in str(info.value))
-
-    # Also check that the output does not have any leftover temporary var
+    # Also check that the output does not have any leftover temporary var, but
+    # it has a verbose comment if requested
+    code = fortran_writer(psyir)
     assert "reduction_var" not in fortran_writer(psyir)
+    assert ("! Maxval2LoopTrans failed because ArrayAssignment2LoopsTrans: "
+            "Transformation Error: myerror" in code)
+
+    # Create a faulty compute_argument_names
+    def mock_compute(*args, **kwargs):
+        raise NotImplementedError("myerror")
+    monkeypatch.setattr(IntrinsicCall, "compute_argument_names", mock_compute)
+
+    with pytest.raises(TransformationError) as info:
+        trans.apply(node)
+    assert ("Error in Maxval2LoopTrans transformation. Cannot disambiguate "
+            "the arguments names in 'MAXVAL(array=a(:,:) + b(:,:))'"
+            in str(info.value))
 
 
 @pytest.mark.parametrize("idim1,idim2,rdim11,rdim12,rdim21,rdim22",
@@ -296,6 +311,7 @@ def test_apply(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
         f"  result = maxval(array)\n"
         f"end subroutine\n")
     expected = (
+        f"  ! Maxval2LoopTrans expansion of: result = MAXVAL(array)\n"
         f"  reduction_var = -HUGE(reduction_var)\n"
         f"  do idx = {rdim21}, {rdim22}, 1\n"
         f"    do idx_1 = {rdim11}, {rdim12}, 1\n"
@@ -307,7 +323,7 @@ def test_apply(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.walk(IntrinsicCall)[0]
     trans = Maxval2LoopTrans()
-    trans.apply(node)
+    trans.apply(node, verbose=True)
     result = fortran_writer(psyir)
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
