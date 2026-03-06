@@ -44,7 +44,7 @@ from typing import Union
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols.datatypes import (
-    ScalarType, UnresolvedType, DataType
+    ScalarType, UnresolvedType, DataType, ArrayType
 )
 
 
@@ -102,7 +102,7 @@ def compute_precision(
 
 def compute_scalar_type(
     argtypes: list[DataType]
-) -> ScalarType.Intrinsic:
+) -> ScalarType:
     '''
     Examines the argtypes to determine the base type of the result of a
     numerical operation with them as operands. Usesthe rules in Section 7.2
@@ -130,7 +130,9 @@ def compute_scalar_type(
         return UnresolvedType()
 
     # If all the datatypes are the same then we can return the first.
-    if (argtypes[0] == argtypes[1]):
+    if argtypes[0] == argtypes[1]:
+        if isinstance(argtypes[0], ArrayType):
+            return argtypes[0].elemental_type
         return argtypes[0]
 
     # TODO 1590 - ensure support for complex numbers here in the future.
@@ -145,8 +147,12 @@ def compute_scalar_type(
 
     # If either has REAL intrinsic type, the result is a REAL.
     if argtypes[0].intrinsic == ScalarType.Intrinsic.REAL:
+        if isinstance(argtypes[0], ArrayType):
+            return argtypes[0].elemental_type
         return argtypes[0]
     if argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
+        if isinstance(argtypes[1], ArrayType):
+            return argtypes[1].elemental_type
         return argtypes[1]
 
     # Otherwise, the type of the result is not consistent with
