@@ -290,9 +290,9 @@ def test_field_prolong(tmpdir, dist_mem):
         "    use mesh_mod, only : mesh_type\n"
         "    use mesh_map_mod, only : mesh_map_type\n"
         "    use prolong_test_kernel_mod, only : prolong_test_kernel_code\n"
+        "    integer(kind=i_def) :: cell\n"
         "    type(field_type), intent(in) :: field1\n"
-        "    type(field_type), intent(in) :: field2\n"
-        "    integer(kind=i_def) :: cell\n")
+        "    type(field_type), intent(in) :: field2\n")
     assert expected in code
 
     assert "integer(kind=i_def) :: ncell_field1" in code
@@ -391,6 +391,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
         "    use mesh_map_mod, only : mesh_map_type\n"
         "    use restrict_test_kernel_mod, "
         "only : restrict_test_kernel_code\n"
+        "    integer(kind=i_def) :: cell\n"
         "    type(field_type), intent(in) :: field1\n"
         "    type(field_type), intent(in) :: field2\n")
     assert defs in output

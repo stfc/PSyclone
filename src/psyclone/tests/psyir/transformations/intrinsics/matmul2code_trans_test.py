@@ -945,10 +945,10 @@ def test_apply_matvec_varexpr_index(tmpdir, fortran_reader, fortran_writer):
     trans.apply(assign.rhs)
     out = fortran_writer(psyir)
     assert (
-        "  integer, parameter :: arg = 0\n"
         "  real, dimension(2,4,6) :: jac\n"
         "  real, dimension(4,6,3) :: jac_inv\n"
         "  real, dimension(2) :: result\n"
+        "  integer, parameter :: arg = 0\n"
         "  integer :: i\n"
         "  integer :: j\n"
         "\n"
