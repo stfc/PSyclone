@@ -49,7 +49,7 @@ from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import LFRicColourTrans, \
                                      LFRicOMPLoopTrans, \
                                      LFRicRedundantComputationTrans, \
-                                     LFRicAsyncHaloExchangeTrans, \
+                                     LFRicAsyncHaloExchangeTrans
 from psyclone.psyir.transformations import MoveTrans, TransformationError
 
 ENABLE_REDUNDANT_COMPUTATION = True
