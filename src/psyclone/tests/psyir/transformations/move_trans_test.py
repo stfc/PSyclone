@@ -38,10 +38,7 @@ import pytest
 
 from psyclone.psyir.nodes import (
     Assignment,
-    Literal,
-    Loop
 )
-from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.psyir.transformations import (
     MoveTrans,
     TransformationError
@@ -74,7 +71,8 @@ def test_move_trans_validate(fortran_reader, monkeypatch):
     assign = psyir.walk(Assignment)[1]
     assign2 = psyir.walk(Assignment)[2]
     # Monkeypatch is_valid_location so we can check it easier.
-    monkeypatch.setattr(assign2, "is_valid_location", lambda x, position: False)
+    monkeypatch.setattr(assign2, "is_valid_location", lambda x,
+                        position: False)
     with pytest.raises(TransformationError) as err:
         MoveTrans().validate(assign2, assign, position="before")
     assert ("In MoveTrans, data dependencies forbid the move to the new "
