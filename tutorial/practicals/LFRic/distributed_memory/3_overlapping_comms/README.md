@@ -246,7 +246,7 @@ Therefore let's try the next haloexchangestart (at position 3 in our case).
 First import the `MoveTrans` transformation:
 
 ```python
-from psyclone.transformations import MoveTrans
+from psyclone.psyir.transformations import MoveTrans
 ```
 
 Next create an instance of the transformation:
