@@ -92,7 +92,6 @@ def test_move_trans_apply(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
 
     assigns = psyir.walk(Assignment)
-    i_assign = assigns[0]
     j_assign = assigns[1]
     k_assign = assigns[2]
 
