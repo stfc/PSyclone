@@ -342,16 +342,23 @@ class FortranWriter(LanguageWriter):
                     f"ScalarType.Precision.DOUBLE is not supported for "
                     f"datatypes other than floating point numbers in "
                     f"Fortran, found '{fortrantype}'")
+            if datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                # Include length information.
+                return f"{fortrantype}(len={self._visit(datatype.length)})"
             return fortrantype
 
         if isinstance(precision, DataNode):
-            if fortrantype not in ["real", "integer", "logical"]:
+            if fortrantype not in ["real", "integer", "logical", "character"]:
                 raise VisitorError(
                     f"kind not supported for datatype '{fortrantype}' in "
                     f"symbol '{name}' in Fortran backend.")
+            len_str = ""
+            if datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                # Include length information.
+                len_str = f", len={self._visit(datatype.length)}"
             # The precision information is provided by a parameter,
             # so use KIND.
-            return f"{fortrantype}(kind={self._visit(precision)})"
+            return f"{fortrantype}(kind={self._visit(precision)}{len_str})"
 
         raise VisitorError(
             f"Unsupported precision type '{type(precision).__name__}' found "
