@@ -44,7 +44,7 @@ in the generator.py script.
 from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
 from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import LFRicAsyncHaloExchangeTrans
-from psyclone.psyir.transforamtions import MoveTrans, TransformationError
+from psyclone.psyir.transformations import MoveTrans, TransformationError
 
 
 def trans(psyir):
