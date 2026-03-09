@@ -1195,3 +1195,25 @@ def test_definition_use_chain_find_forward_accesses_continue_at_call(
 
     assert len(reaches) == 5
     assert isinstance(reaches[1], Call)
+
+
+def test_forward_accesses_nested_loop(fortran_reader):
+    """Test that if we have many nested loops we don't repeat the same
+    reference in the result."""
+    code = """subroutine x
+    integer :: i, j, k, l
+
+    do i = 1, 100
+      do j = 1, 100
+        do k = 1, 100
+          l = 1
+        end do
+      end do
+    end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    lhs = routine.walk(Assignment)[0].lhs
+    chains = DefinitionUseChain(lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 1

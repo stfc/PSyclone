@@ -67,6 +67,25 @@ def test_omp_remove_barrier_validate():
            in str(excinfo.value))
 
 
+def test_omp_eliminate_uncontained_barriers(fortran_reader):
+    '''
+    Test the _eliminate_uncontained_barriers routine of the
+    OMPMinimiseSyncTrans.'''
+    code = """subroutine test
+
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    routine.addchild(OMPBarrierDirective())
+    routine.addchild(OMPBarrierDirective())
+    partrans = OMPParallelTrans()
+    partrans.apply(routine.children[1])
+    assert len(routine.walk(OMPBarrierDirective)) == 2
+    OMPMinimiseSyncTrans()._eliminate_uncontained_barriers(routine)
+    assert len(routine.walk(OMPBarrierDirective)) == 1
+
+
 def test_omp_eliminate_adjacent_barriers(fortran_reader):
     '''Test the _eliminate_adjacent_barriers routine of the
     OMPMinimiseSyncTrans.'''

@@ -1,12 +1,73 @@
+   61) PR #3336 for #3325. Improve datatype method to prevent returning
+   array Extents and select better operand type when possible.
+
+   60) PR #3357 for #1857. Re-names ArrayType.datatype to
+   ArrayType.elemental_type and precision and intrinsic properties.
+
+   59) PR #3353 for #3328. Fix a case of duplicated nodes returned by DUC.
+
+   58) PR #3354 for #2429. Extends the fparser2 frontend such that all
+   structure constructors and functions with unknown delcarations are
+   represented by Call nodes.
+
+   57) PR #3355 towards #3252. Improves PSY_VALUE_RANGE format, introduces a
+   generic value_range_check library and runs examples during the tests.
+ 
+   56) PR #3343 towards #1960 and #1799. Improves ArrayAssignment2Loop
+   by using call/RoutineSymbol datatype information.
+ 
+   55) PR #3333 for #2381 - Restructures global reduction nodes to support
+   LFRicGlobalMax/Min/Sum operations.
+
+   54) PR #3349 for #3347 - bug fix to prevent comments and directives
+   from being lost when on/in SELECT CASE blocks.
+ 
+   53) PR #3317 - adds a profiling wrapper libary for ROCTx (AMD) as
+   well as a new nemo example to show profiling with OMP offload.
+ 
+   52) PR #3342 for #3339 - adds a value_as_python property to Literal.
+ 
+   51) PR #3205 for #3306 and towards #3157. Initial implementation of
+   a generic MaximalRegionTrans and specialisations to create spanning
+   OMPParallel regions and NEMO Profiling regions.
+
+   50) PR #3338 for #1651. Fixes Reference2ArrayRange issues with
+   capitalisation and test nested WHEREs.
+
+   49) PR #3331 for #3291. Update docs for LFRic BUILTIN_MAP.
+
+   48) PR #3296 for #2951. Improves ArrayAssignment2LoopTrans to allow
+   for dependencies between LHS and RHS.
+
+   47) PR #3332 for #3143 - fixes bug in DependenceUseChain so that
+   previous access of a call argument does not return the call.
+
+   46) PR #3319 for #3318. Alters the logging set-up performed by PSyclone
+   so that it does not affect the root Python logger.
+
+   45) PR #3125 towards #3060. IntrinsicCall reference_accesses now returns
+   appropriate access_types (instead of a generic READWRITE).
+
+   44) PR #3301 towards #1646. Adds new DataNodeToTempTrans() that allows
+   an expression to be replaced with a temporary variable.
+
+   43) PR #3326 for #3323. Bug fix for comments before directives on
+   loops or if statements.
+
+   42) PR #3324 updates Intel OneAPI configuration in Integration Tests.
+
+   41) PR #3321 for #3320. Removes null integer arithmetic operations in the
+   frontend when no changes to the resultant code will occur.
+
    40) PR #3316 for 3314. Fixes a bug where inline comments could break
    the line length limit.
 
    39) PR #3309 for #3281. Improves check in IncreaseRankLoopArraysTrans to
    allow for inquiry intrinsics on a specified dim.
- 
+
    38) PR #3311 for #3310. Small optimisation to the dependence-analysis
    functionality for array indices consisting of simple References.
- 
+
    37) PR #3295 for #3292. Add command-line flag to permit config-file
    settings to be overridden and extend possible settings for the
    runtime warnings option.

@@ -37,6 +37,7 @@
 """This module contains the DefinitionUseChain class"""
 
 import sys
+from typing import Iterable, Optional
 
 from fparser.two.Fortran2003 import (
     Cycle_Stmt,
@@ -69,16 +70,13 @@ class DefinitionUseChain:
 
     :param reference: The Reference for which the dependencies will be
                       computed.
-    :type reference: :py:class:`psyclone.psyir.nodes.Reference`
     :param control_flow_region: Optional region to search for data
                                 dependencies. Default is the parent Routine or
                                 the root of the tree's children if no ancestor
                                 Routine exists.
-    :type control_flow_region: Optional[List[
-                               :py:class:`psyclone.psyir.nodes.Node`]]
-    :param int start_point: Optional argument to define a start point for the
+    :param start_point: Optional argument to define a start point for the
                             dependency search.
-    :param int stop_point: Optional argument to define a stop point for the
+    :param stop_point: Optional argument to define a stop point for the
                            dependency search.
 
     :raises TypeError: If one of the arguments is the wrong type.
@@ -87,11 +85,11 @@ class DefinitionUseChain:
 
     def __init__(
         self,
-        reference,
-        control_flow_region=None,
-        start_point=None,
-        stop_point=None,
-        stop_at_call=True,
+        reference: Reference,
+        control_flow_region: Iterable[Node] = (),
+        start_point: Optional[int] = None,
+        stop_point: Optional[int] = None,
+        stop_at_call: bool = True
     ):
         if not isinstance(reference, Reference):
             raise TypeError(
@@ -119,7 +117,7 @@ class DefinitionUseChain:
         self._start_point = start_point
         self._stop_point = stop_point
         self._stop_at_call = stop_at_call
-        if control_flow_region is None:
+        if not control_flow_region:
             self._scope = [reference.ancestor(Routine)]
             if self._scope[0] is None:
                 self._scope = reference.root.children[:]
@@ -148,40 +146,36 @@ class DefinitionUseChain:
         self._reaches = []
 
     @property
-    def uses(self):
+    def uses(self) -> list[Node]:
         """
         :returns: the list of nodes using the value that the referenced symbol
                   has before it is reassigned.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         """
         return self._uses
 
     @property
-    def defsout(self):
+    def defsout(self) -> list[Node]:
         """
         :returns: the list of nodes that reach the end of the block without
                   being killed, and therefore can have dependencies outside
                   of this block.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         """
         return self._defsout
 
     @property
-    def killed(self):
+    def killed(self) -> list[Node]:
         """
         :returns: the list of nodes that represent the last use of an assigned
                   variable. Calling next_access on any of these nodes will find
                   a write that reassigns it's value.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         """
         return self._killed
 
     @property
-    def is_basic_block(self):
+    def is_basic_block(self) -> bool:
         """
         :returns: whether the scope of this DefinitionUseChain is a basic
                   block, i.e. whether it contains any control flow nodes.
-        :rtype: bool
         """
         # A basic block is a scope without any control flow nodes inside.
         # In PSyclone, possible control flow nodes are IfBlock, Loop
@@ -192,7 +186,7 @@ class DefinitionUseChain:
                 return False
         return True
 
-    def find_forward_accesses(self):
+    def find_forward_accesses(self) -> list[Node]:
         """
         Find all the forward accesses for the reference defined in this
         DefinitionUseChain.
@@ -205,7 +199,6 @@ class DefinitionUseChain:
 
         :returns: the forward accesses of the reference given to this
                   DefinitionUseChain
-        :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
         """
         # Compute the abs position caches as we'll use these a lot.
         # The compute_cached_abs_position will only do this if needed
@@ -371,9 +364,15 @@ class DefinitionUseChain:
                             return self._reaches
 
                     for ref in chain._reaches:
-                        # We will only ever reach a reference once, so
-                        # we don't need to check uniqueness.
-                        self._reaches.append(ref)
+                        # Add node to the _reaches list if it is not already
+                        # contained. Note that a "not in" check is not
+                        # sufficient as it checks for equality, but this needs
+                        # identity uniqueness.
+                        for ref2 in self._reaches:
+                            if ref2 is ref:
+                                break
+                        else:
+                            self._reaches.append(ref)
         else:
             # Check if there is an ancestor Assignment.
             ancestor = self._reference.ancestor(Assignment)
@@ -435,7 +434,7 @@ class DefinitionUseChain:
         self._stop_point = save_stop_position
         return self._reaches
 
-    def _compute_forward_uses(self, basic_block_list):
+    def _compute_forward_uses(self, basic_block_list: list[Node]):
         """
         Compute the forward uses for self._reference for the
         basic_block_list provided. This function will not work
@@ -448,7 +447,6 @@ class DefinitionUseChain:
 
         :param basic_block_list: The list of nodes that make up the basic
                                  block to find the forward uses in.
-        :type basic_block_list: list[:py:class:`psyclone.psyir.nodes.Node`]
 
         :raises NotImplementedError: If a GOTO statement is found in the code
                                      region.
@@ -574,7 +572,9 @@ class DefinitionUseChain:
         if defs_out is not None:
             self._defsout.append(defs_out)
 
-    def _find_basic_blocks(self, nodelist):
+    def _find_basic_blocks(
+        self, nodelist: list[Node]
+    ) -> tuple[list[Node], list[list[Node]]]:
         """
         Compute the blocks inside the provided list of nodes.
         Each block is a set of nodes inside a control flow region, and
@@ -585,12 +585,11 @@ class DefinitionUseChain:
         contain the associated Loop at the same index in the control_flow_nodes
         return value.
 
+        :param nodelist: The nodelist to compute the basic blocks from.
+
         :returns: (control_flow_nodes, basic_blocks). control_flow_nodes
                   contains the list of control_flow_nodes corresponding to
                   the lists of nodes contained in the basic_block list.
-        :rtype: tuple(list[:py:class:`psyclone.psyir.nodes.Node],
-                      list[list[:py:class:`psyclone.psyir.nodes.Node]])
-
         """
         current_block = []
         # Keep track of the basic blocks.
@@ -711,7 +710,7 @@ class DefinitionUseChain:
             control_flow_nodes.append(None)
         return control_flow_nodes, basic_blocks
 
-    def _compute_backward_uses(self, basic_block_list):
+    def _compute_backward_uses(self, basic_block_list: list[Node]):
         """
         Compute the backward uses for self._reference for the
         basic_block_list provided. This function will not work
@@ -726,7 +725,6 @@ class DefinitionUseChain:
 
         :param basic_block_list: The list of nodes that make up the basic
                                  block to find the forward uses in.
-        :type basic_block_list: list[:py:class:`psyclone.psyir.nodes.Node`]
 
         :raises NotImplementedError: If a GOTO statement is found in the code
                                      region.
@@ -794,6 +792,10 @@ class DefinitionUseChain:
                     # If its a local variable we can ignore it as we'll catch
                     # the Reference later if its passed into the Call.
                     if self._reference.symbol.is_automatic:
+                        continue
+                    # If the call is an ancestor of the Reference then
+                    # we skip it for backwards accesses.
+                    if self._reference.is_descendant_of(reference):
                         continue
                     if isinstance(reference, IntrinsicCall):
                         # IntrinsicCall can only do stuff to arguments, these
@@ -874,7 +876,7 @@ class DefinitionUseChain:
         if defs_out is not None:
             self._defsout.append(defs_out)
 
-    def find_backward_accesses(self):
+    def find_backward_accesses(self) -> list[Node]:
         """
         Find all the backward accesses for the reference defined in this
         DefinitionUseChain.
@@ -887,7 +889,6 @@ class DefinitionUseChain:
 
         :returns: the backward accesses of the reference given to this
                   DefinitionUseChain
-        :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
         """
         # Compute the abs position caches as we'll use these a lot.
         # The compute_cached_abs_position will only do this if needed

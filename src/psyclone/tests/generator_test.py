@@ -485,7 +485,7 @@ def test_invalid_gocean_alg(monkeypatch, caplog, capsys):
         raise ValueError("This is a test")
 
     monkeypatch.setattr(FortranReader, "psyir_from_file", _broken)
-    with caplog.at_level(logging.ERROR):
+    with caplog.at_level(logging.ERROR, logger="psyclone.generator"):
         with pytest.raises(SystemExit):
             _ = generate(
                 os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
@@ -786,7 +786,49 @@ def test_main_invalid_api(capsys):
     assert output == expected_output
 
 
-def test_main_api(capsys, caplog):
+def test_main_logger(capsys, caplog, tmp_path):
+    """
+    Test the setup of the logger.
+    """
+
+    # The conftest `setup_logging` fixture will add a handler to the
+    # PSyclone top-level logger - meaning the corresponding line in
+    # generator.py is not executed. Remove the handler here so we
+    # trigger adding a handler in generator.py
+    logger = logging.getLogger("psyclone")
+    logger.removeHandler(logger.handlers[0])
+
+    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    # Give invalid logging level
+    # Reset capsys
+    capsys.readouterr()
+    with pytest.raises(SystemExit):
+        main([filename, "-api", "lfric", "--log-level", "fail"])
+    _, err = capsys.readouterr()
+    # Error message check truncated as Python 3.13 changes how the
+    # array is output.
+    assert ("error: argument --log-level: invalid choice: 'fail'"
+            in err)
+
+    # Test we get the logging debug correctly with caplog, including
+    # redirection into a file:
+    caplog.clear()
+    out_file = str(tmp_path / "test.out")
+    with caplog.at_level(logging.DEBUG):
+        main([filename, "-api", "dynamo0.3", "--log-level", "DEBUG",
+              "--log-file", out_file])
+        assert Config.get().api == "lfric"
+        assert caplog.records[0].levelname == "DEBUG"
+        assert "Logging system initialised. Level is DEBUG." in caplog.text
+        # Check that we have a file handler installed as expected
+        file_handlers = [h for h in logger.handlers
+                         if isinstance(h, logging.FileHandler)]
+        # There should be exactly one file handler, pointing to out_file:
+        assert len(file_handlers) == 1
+        assert file_handlers[0].baseFilename == out_file
+
+
+def test_main_api():
     ''' Test that the API can be set by a command line parameter, also using
     the API name aliases. '''
 
@@ -815,30 +857,6 @@ def test_main_api(capsys, caplog):
 
     main([filename, "-api", "dynamo0.3"])
     assert Config.get().api == "lfric"
-
-    # Give invalid logging level
-    # Reset capsys
-    capsys.readouterr()
-    with pytest.raises(SystemExit):
-        main([filename, "-api", "dynamo0.3", "--log-level", "fail"])
-    _, err = capsys.readouterr()
-    # Error message check truncated as Python 3.13 changes how the
-    # array is output.
-    assert ("error: argument --log-level: invalid choice: 'fail'"
-            in err)
-
-    # Test we get the logging debug correctly with caplog. This
-    # overrides the file output that PSyclone attempts.
-    caplog.clear()
-    # Pytest fully controls the logging level, overriding anything we
-    # set in generator.main so we can't test for it.
-    with caplog.at_level(logging.DEBUG):
-        main([filename, "-api", "dynamo0.3", "--log-level", "DEBUG",
-              "--log-file", "test.out"])
-        assert Config.get().api == "lfric"
-        assert caplog.records[0].levelname == "DEBUG"
-        assert ("Logging system initialised. Level is DEBUG." in
-                caplog.record_tuples[0][2])
 
 
 def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory):
@@ -899,7 +917,7 @@ end subroutine a
 """
     assert output == correct
 
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING, logger="psyclone.generator"):
         main([filename, "--keep-directives"])
     assert ("keep_directives requires keep_comments so "
             "PSyclone enabled keep_comments." in caplog.text)
@@ -1296,7 +1314,7 @@ end subroutine test"""
     caplog.clear()
     # Check an unknown file extension gives a log message and fails for a
     # fixed form input.
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger="psyclone.generator"):
         inputfile = str(tmpdir.join("fixed_form.1s2"))
         with open(inputfile, "w", encoding='utf-8') as my_file:
             my_file.write(code)
@@ -1358,7 +1376,7 @@ def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
     inputfile = str(tmpdir.join("funny_syntax.f90"))
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
-    with caplog.at_level(logging.ERROR):
+    with caplog.at_level(logging.ERROR, logger="psyclone.generator"):
         with pytest.raises(SystemExit):
             code_transformation_mode(inputfile, None, None, False, False,
                                      False)

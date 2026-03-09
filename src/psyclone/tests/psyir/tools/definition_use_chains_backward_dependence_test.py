@@ -856,3 +856,55 @@ def test_definition_use_chain_find_backward_accesses_continue_at_call(
 
     assert len(reaches) == 4
     assert isinstance(reaches[2], Call)
+
+
+def test_definition_use_chain_find_backward_accesses_ancestor_call(
+    fortran_reader,
+):
+    """Test that we don't find an ancestor call for a Reference when
+    looking for its backward accesses."""
+    code = """
+    subroutine foo(a, b)
+    real, intent(inout) :: a
+    real, intent(inout) :: b
+    real :: c, d, e, f
+
+    c = d * a
+    b = c + d
+    call bar(c, b)
+    b = b + c
+    end subroutine foo
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.find_routine_psyir("foo")
+    call = psyir.walk(Call)[0]
+    arg = call.arguments[1]
+    chain = DefinitionUseChain(arg)
+    all_prev = chain.find_backward_accesses()
+    # Check that the ancestor call of b isn't a backward access.
+    assert not isinstance(all_prev[0], Call)
+    # The correct previous access should be the Reference to b in
+    # b = c + d.
+    assert all_prev[0] is routine.children[1].lhs
+
+
+def test_backward_accesses_nested_loop(fortran_reader):
+    """Test that if we have many nested loops we don't repeat the same
+    reference in the result."""
+    code = """subroutine x
+    integer :: i, j, k, l
+
+    do i = 1, 100
+      do j = 1, 100
+        do k = 1, 100
+          l = 1
+        end do
+      end do
+    end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    lhs = routine.walk(Assignment)[0].lhs
+    chains = DefinitionUseChain(lhs)
+    reaches = chains.find_backward_accesses()
+    assert len(reaches) == 1

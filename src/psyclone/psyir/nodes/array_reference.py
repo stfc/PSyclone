@@ -44,10 +44,9 @@ from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import (DataSymbol, UnresolvedType,
-                                    UnsupportedFortranType, UnsupportedType,
-                                    DataTypeSymbol, ScalarType, ArrayType,
-                                    INTEGER_TYPE, Symbol)
+from psyclone.psyir.symbols import (
+    DataSymbol, UnresolvedType, UnsupportedFortranType, UnsupportedType,
+    DataTypeSymbol, ArrayType, INTEGER_TYPE, Symbol, DataType)
 
 
 class ArrayReference(ArrayMixin, Reference):
@@ -123,10 +122,16 @@ class ArrayReference(ArrayMixin, Reference):
         return result
 
     @property
-    def datatype(self):
+    def datatype(self) -> DataType:
         '''
-        :returns: the datatype of the accessed array element(s).
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+        Note that if the resulting datatype is an ArrayType,
+        this will convert Extent attributes to the appropriate inquiry
+        intrinsic, which is convenient to directly use the resulting
+        expression as executable code. Use `node.symbol.datatype`
+        to obtain the type declaration of the array symbol (with its
+        Extent attributes).
+
+        :returns: the resulting datatype of the array access expression.
         '''
         try:
             shape = self._get_effective_shape()
@@ -150,16 +155,20 @@ class ArrayReference(ArrayMixin, Reference):
                 # We don't have any information on the shape of the original
                 # declaration.
                 orig_shape = None
-            if (orig_shape is not None and len(shape) == len(orig_shape) and
-                    all(self.is_full_range(idx) for idx in range(len(shape)))):
-                # Although this access has a shape, it is in fact for the
-                # whole array and therefore the type of the result is just
-                # that of the base symbol. (This wouldn't be true for a
-                # StructureReference but they have their own implementation
-                # of this method.)
+
+            # When we access the full array, and the array's shape has no
+            # ArrayType.Extent elements we can return the original shape as
+            # its fully defined without needing to use size intrinsics.
+            if (orig_shape and len(orig_shape) == len(shape) and
+                all(self.is_full_range(idx) for idx in range(len(shape)))
+                and all(isinstance(idx, ArrayType.ArrayBounds)
+                        and not isinstance(idx.lower, ArrayType.Extent) and
+                        not isinstance(idx.upper, ArrayType.Extent) for idx in
+                        orig_shape)):
                 return self.symbol.datatype
             if type(self.symbol) is Symbol or isinstance(self.symbol.datatype,
-                                                         UnsupportedType):
+                                                         (UnsupportedType,
+                                                          UnresolvedType)):
                 # Even if an Unsupported(Fortran)Type has partial type
                 # information, we can't easily use it here because we'd need
                 # to re-write the original Fortran declaration stored in the
@@ -168,23 +177,18 @@ class ArrayReference(ArrayMixin, Reference):
                 # the variable name should be (TODO #2137).
                 base_type = UnresolvedType()
             else:
-                base_type = self.symbol.datatype
-            # TODO #1857 - passing base_type as an instance of ArrayType
-            # only works because the ArrayType constructor just pulls out
-            # the intrinsic and precision properties of the type.
+                # Create a copy of the base datatype.
+                base_type = self.symbol.datatype.elemental_type.copy()
             return ArrayType(base_type, shape)
-
         # Otherwise, we're accessing a single element of the array.
         if type(self.symbol) is Symbol:
             return UnresolvedType()
         if isinstance(self.symbol.datatype, UnsupportedType):
             if (isinstance(self.symbol.datatype, UnsupportedFortranType) and
                     self.symbol.datatype.partial_datatype):
-                intrinsic = self.symbol.datatype.partial_datatype.intrinsic
-                if isinstance(intrinsic, DataTypeSymbol):
-                    return intrinsic
-                precision = self.symbol.datatype.partial_datatype.precision
-                return ScalarType(intrinsic, precision)
+                if isinstance(self.symbol.datatype.partial_datatype,
+                              ArrayType):
+                    return self.symbol.datatype.partial_datatype.elemental_type
             # Since we're accessing a single element of an array of
             # UnsupportedType we have to create a new UnsupportedFortranType.
             # Ideally we would re-write the original Fortran
@@ -200,11 +204,7 @@ class ArrayReference(ArrayMixin, Reference):
 
         if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
             return self.symbol.datatype.intrinsic
-        # TODO #1857: Really we should just be able to return
-        # self.symbol.datatype here but currently arrays of scalars are
-        # handled in a different way to all other types of array.
-        return ScalarType(self.symbol.datatype.intrinsic,
-                          self.symbol.datatype.precision)
+        return self.symbol.datatype.elemental_type
 
 
 # For AutoAPI documentation generation
