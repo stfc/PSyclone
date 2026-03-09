@@ -80,7 +80,7 @@ class MoveTrans(Transformation):
     @property
     def name(self):
         ''' Returns the name of this transformation as a string.'''
-        return "Move"
+        return "MoveTrans"
 
     def validate(self, node: Node, location: Node, options=None, **kwargs):
         # pylint: disable=arguments-differ
@@ -96,7 +96,6 @@ class MoveTrans(Transformation):
         :raises TransformationError: if the location is not valid.
         '''
         if not options:
-            print(kwargs)
             self.validate_options(**kwargs)
             position = self.get_option("position", **kwargs)
         else:
@@ -105,15 +104,16 @@ class MoveTrans(Transformation):
         # Check that the first argument is a Node
         if not isinstance(node, Node):
             raise TransformationError(
-                "In the Move transformation apply method the first argument "
-                "is not a Node")
+                f"The node argument to {self.name} should be a Node but got "
+                f"'{type(node).__name__}'."
+            )
 
         # Check new location conforms to any data dependencies
         # This also checks the location and position arguments
         if not node.is_valid_location(location, position=position):
             raise TransformationError(
-                "In the Move transformation apply method, data dependencies "
-                "forbid the move to the new location")
+                f"In {self.name}, data dependencies "
+                f"forbid the move to the new location")
 
     def apply(self, node: Node, location: Node, position: str = "before",
               options=None, **kwargs):

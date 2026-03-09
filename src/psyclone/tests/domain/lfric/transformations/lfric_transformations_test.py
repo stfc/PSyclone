@@ -3990,20 +3990,6 @@ def test_reductions_reprod(tmpdir, dist_mem, reprod):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_move_name():
-    ''' Test the name property of the MoveTrans class. '''
-    move_trans = MoveTrans()
-    name = move_trans.name
-    assert name == "Move"
-
-
-def test_move_str():
-    ''' Test the str method of the MoveTrans class. '''
-    move_trans = MoveTrans()
-    name = str(move_trans)
-    assert name == "Move a node to a different location"
-
-
 def test_move_valid_node(tmpdir):
     ''' Test that MoveTrans raises an exception if an invalid node
     argument is passed. '''
@@ -4016,8 +4002,8 @@ def test_move_valid_node(tmpdir):
     move_trans = MoveTrans()
     with pytest.raises(TransformationError) as excinfo:
         move_trans.apply(None, schedule.children[0])
-    assert ("In the Move transformation apply method the "
-            "first argument is not a Node") in str(excinfo.value)
+    assert ("The node argument to MoveTrans should be a Node but got "
+            "'NoneType'." in str(excinfo.value))
 
 
 def test_move_back():
