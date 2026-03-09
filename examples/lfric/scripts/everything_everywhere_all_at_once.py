@@ -50,8 +50,7 @@ from psyclone.transformations import LFRicColourTrans, \
                                      LFRicOMPLoopTrans, \
                                      LFRicRedundantComputationTrans, \
                                      LFRicAsyncHaloExchangeTrans, \
-                                     MoveTrans, \
-                                     TransformationError
+from psyclone.psyir.transformations import MoveTrans, TransformationError
 
 ENABLE_REDUNDANT_COMPUTATION = True
 ENABLE_ASYNC_HALOS = False  # TODO #2903: Async fails with FFSL
