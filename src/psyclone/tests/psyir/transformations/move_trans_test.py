@@ -77,3 +77,35 @@ def test_move_trans_validate(fortran_reader, monkeypatch):
         MoveTrans().validate(assign2, assign, position="before")
     assert ("In MoveTrans, data dependencies forbid the move to the new "
             "location" in str(err.value))
+
+
+def test_move_trans_apply(fortran_reader, fortran_writer):
+    '''Test the apply method of the MoveTrans.'''
+
+    code = """subroutine a
+    integer :: i, j, k
+
+        i = 1
+        j = 2
+        k = 3
+    end subroutine a"""
+    psyir = fortran_reader.psyir_from_source(code)
+
+    assigns = psyir.walk(Assignment)
+    i_assign = assigns[0]
+    j_assign = assigns[1]
+    k_assign = assigns[2]
+
+    mtrans = MoveTrans()
+
+    mtrans.apply(j_assign, k_assign, position="after")
+
+    correct = """k = 3
+  j = 2"""
+    assert correct in fortran_writer(psyir)
+
+    mtrans.apply(j_assign, k_assign, position="before")
+
+    correct = """j = 2
+  k = 3"""
+    assert correct in fortran_writer(psyir)
