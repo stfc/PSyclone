@@ -67,9 +67,10 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans,
-    LFRicOMPParallelLoopTrans, MoveTrans, LFRicRedundantComputationTrans,
+    LFRicOMPParallelLoopTrans, LFRicRedundantComputationTrans,
     LFRicAsyncHaloExchangeTrans, LFRicKernelConstTrans,
     ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
+from psyclone.psyir.transformations import MoveTrans
 
 
 # The version of the API that the tests in this file
@@ -2261,7 +2262,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
         # Move the first global sum after the second loop
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
     otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     ftrans = LFRicLoopFuseTrans()
@@ -2356,7 +2357,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
         # Move the first global sum after the second loop
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
     otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do to the loop
@@ -2703,7 +2704,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
     if dist_mem:  # annexed can be True or False
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
     rtrans.apply(schedule.children[0:2])
     result = str(psy.gen)
 
@@ -2789,7 +2790,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
     if dist_mem and annexed:
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
         with pytest.raises(TransformationError) as excinfo:
             ftrans.apply(schedule.children[0], schedule.children[1],
                          {"same_space": True})
@@ -2799,7 +2800,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
             # first move the loop as the global sum is in the way
             mtrans = MoveTrans()
             mtrans.apply(schedule.children[1], schedule.children[2],
-                         {"position": "after"})
+                         position="after")
         rtrans = LFRicOMPParallelLoopTrans()
         ftrans.apply(schedule.children[0], schedule.children[1],
                      {"same_space": True})
@@ -2874,7 +2875,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
     if dist_mem and annexed:
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
         with pytest.raises(TransformationError) as excinfo:
             ftrans.apply(schedule.children[0], schedule.children[1],
                          {"same_space": True})
@@ -2883,7 +2884,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
         if dist_mem:  # annexed must be False here
             mtrans = MoveTrans()
             mtrans.apply(schedule.children[1], schedule.children[2],
-                         {"position": "after"})
+                         position="after")
         rtrans = OMPParallelTrans()
         otrans = LFRicOMPLoopTrans()
         ftrans.apply(schedule.children[0], schedule.children[1],
@@ -3351,7 +3352,7 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
     if dist_mem:  # annexed can be True or False
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
     rtrans.apply(schedule.children[0:2])
     result = str(psy.gen)
 
@@ -3468,7 +3469,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
     if dist_mem:  # annexed can be True or False
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
     if dist_mem and annexed:
         # we can't loop fuse as the loop bounds differ
         with pytest.raises(TransformationError) as excinfo:
@@ -4054,7 +4055,7 @@ def test_move_back_after():
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index],
-                     {"position": "after"})
+                     position="after")
 
     new_arg = schedule.children[target_index+1]
     assert orig_arg is new_arg
@@ -4095,7 +4096,7 @@ def test_move_forward_after():
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index],
-                     {"position": "after"})
+                     position="after")
 
     new_arg = schedule.children[target_index]
     assert orig_arg is new_arg
@@ -6988,7 +6989,7 @@ def test_async_hex_move_error_2():
     # End after following reader
     with pytest.raises(TransformationError) as excinfo:
         mtrans.apply(schedule.children[6], schedule.children[7],
-                     {"position": "after"})
+                     position="after")
     assert "dependencies forbid" in str(excinfo.value)
 
 
