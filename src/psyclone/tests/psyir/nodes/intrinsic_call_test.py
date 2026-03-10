@@ -727,7 +727,7 @@ def test_type_of_arg_with_rank_minus_one(fortran_reader):
     assert isinstance(res2, ArrayType)
     assert len(res2.shape) == 2
     assert all(x == ArrayType.Extent.DEFERRED for x in res2.shape)
-    assert res2.datatype == REAL_TYPE
+    assert res2.elemental_type == REAL_TYPE
 
 
 def test_index_intrinsic(fortran_reader, fortran_writer):
@@ -1055,8 +1055,8 @@ def test_type_of_named_arg_with_optional_kind_and_dim(
     assert isinstance(dtype, ArrayType)
     assert len(dtype.shape) == 1
     assert dtype.shape[0] == ArrayType.Extent.DEFERRED
-    assert dtype.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
-    assert dtype.datatype.precision == ScalarType.Precision.UNDEFINED
+    assert dtype.elemental_type.intrinsic == ScalarType.Intrinsic.BOOLEAN
+    assert dtype.elemental_type.precision == ScalarType.Precision.UNDEFINED
     dtype = _type_of_named_arg_with_optional_kind_and_dim(
             all_calls[2], "array"
     )
@@ -1356,7 +1356,7 @@ def test_get_bound_function_return_type(fortran_reader):
     res = _get_bound_function_return_type(intrinsics[0])
     assert isinstance(res, ArrayType)
     assert len(res.shape) == 1
-    assert res.datatype == INTEGER_TYPE
+    assert res.elemental_type == INTEGER_TYPE
     assert res.shape[0].lower.value == "1"
     assert res.shape[0].upper.value == "2"
 

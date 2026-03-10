@@ -4372,13 +4372,11 @@ class Fparser2Reader():
                 first_rank = rank
                 first_array = array
 
-            base_ref = _copy_full_base_reference(array)
             array_ref = array.ancestor(Reference, include_self=True)
             if not isinstance(array_ref.datatype, ArrayType):
                 raise NotImplementedError(
                     f"We can not get the resulting shape of the expression: "
                     f"{array_ref.debug_string()}")
-            shape = array_ref.datatype.shape
             add_op = BinaryOperation.Operator.ADD
             sub_op = BinaryOperation.Operator.SUB
             # Replace the PSyIR Ranges with appropriate index expressions.
@@ -4390,21 +4388,13 @@ class Fparser2Reader():
                 # array as we will index relative to it. Note that the 'shape'
                 # of the datatype only gives us extents, not the lower bounds
                 # of the declaration or slice.
-                if isinstance(shape[range_idx], ArrayType.Extent):
-                    # We don't know the bounds of this array so we have
-                    # to query using LBOUND.
-                    lbound = IntrinsicCall.create(
-                        IntrinsicCall.Intrinsic.LBOUND,
-                        [base_ref.copy(),
-                         ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+                if array.is_full_range(idx):
+                    # The access to this index is to the full range of
+                    # the array.
+                    lbound = array.get_lbound_expression(idx)
                 else:
-                    if array.is_full_range(idx):
-                        # The access to this index is to the full range of
-                        # the array.
-                        lbound = array.get_lbound_expression(idx)
-                    else:
-                        # We need the lower bound of this access.
-                        lbound = child.start.copy()
+                    # We need the lower bound of this access.
+                    lbound = child.start.copy()
 
                 # Create the index expression.
                 symbol = table.lookup(loop_vars[range_idx])
@@ -4611,25 +4601,16 @@ class Fparser2Reader():
             # according to the lower bound of that array.
             loop.addchild(Literal("1", integer_type))
             # Add loop upper bound using the shape of the mask.
-            if isinstance(mask_shape[idx-1], ArrayType.Extent):
-                # We don't have an explicit value for the upper bound so we
-                # have to query it using SIZE.
-                loop.addchild(
-                    IntrinsicCall.create(IntrinsicCall.Intrinsic.SIZE,
-                                         [array_ref.copy(),
-                                          ("dim", Literal(str(idx),
-                                                          integer_type))]))
+            lbound = mask_shape[idx-1].lower
+            if isinstance(lbound, Literal) and lbound.value == "1":
+                # Lower bound is unity so size is just the upper bound.
+                expr2 = mask_shape[idx-1].upper.copy()
             else:
-                lbound = mask_shape[idx-1].lower
-                if isinstance(lbound, Literal) and lbound.value == "1":
-                    # Lower bound is unity so size is just the upper bound.
-                    expr2 = mask_shape[idx-1].upper.copy()
-                else:
-                    # Size = upper-bound - lower-bound + 1
-                    expr = BinaryOperation.create(
-                        sub_op, mask_shape[idx-1].upper.copy(), lbound.copy())
-                    expr2 = BinaryOperation.create(add_op, expr, one.copy())
-                loop.addchild(expr2)
+                # Size = upper-bound - lower-bound + 1
+                expr = BinaryOperation.create(
+                    sub_op, mask_shape[idx-1].upper.copy(), lbound.copy())
+                expr2 = BinaryOperation.create(add_op, expr, one.copy())
+            loop.addchild(expr2)
 
             # Add loop increment
             loop.addchild(Literal("1", integer_type))
