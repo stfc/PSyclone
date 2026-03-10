@@ -869,6 +869,8 @@ def translate_integer_expr(expr_root: Node,
        return a constraint that prohibits/ignores bit-vector overflow in the
        expression.
 
+       :param expr_root: the expression to translate.
+       :param opts: analysis options, used to guide the translation.
        :return: a pair containing the expression translated to Z3, and
          a Z3 boolean. The boolean is used to introduce new
          constraints, e.g. to prohibit/ignore bit-vector overflow.
@@ -877,6 +879,13 @@ def translate_integer_expr(expr_root: Node,
     constraints = []
 
     def trans(expr: Node) -> z3.ExprRef:
+        '''Internal recursive function that has implicit access to the
+           analysis 'opts' and a mutable list of 'constraints'.
+
+           :param expr: the expression to translate.
+           :return: the translated expression.
+        '''
+
         # Check that type is a scalar integer of unspecified precision
         type_ok = _is_scalar_integer(expr.datatype)
 
