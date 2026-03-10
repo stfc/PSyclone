@@ -438,7 +438,6 @@ then
             self.validate_options(**kwargs)
             allow_accroutine = self.get_option("allow_accroutine", **kwargs)
 
-
         # The node should be a Routine.
         if not isinstance(node, Routine):
             raise TransformationError(

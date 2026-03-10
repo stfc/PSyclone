@@ -106,7 +106,6 @@ class LoopFuseTrans(LoopTrans):
         super().validate(node1, options=options, **kwargs)
         super().validate(node2, options=options, **kwargs)
 
-
         # Check loop1 and loop2 have the same parent
         if not node1.sameParent(node2):
             raise TransformationError(

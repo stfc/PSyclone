@@ -44,7 +44,6 @@ from psyclone.utils import transformation_documentation_wrapper
 
 
 @transformation_documentation_wrapper
-
 class GOceanLoopFuseTrans(LoopFuseTrans):
     ''' GOcean API specialisation of the :py:class:`base class <LoopFuseTrans>`
     in order to fuse two GOcean loops after performing validity checks (e.g.
@@ -100,7 +99,6 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
 
         super().validate(node1, node2, options=options, **kwargs)
 
-    
     def apply(self, node1, node2,
               options=None, **kwargs):
         '''Applies the GoceanLoopFuseTrans to the provided nodes.

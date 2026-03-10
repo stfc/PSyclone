@@ -267,5 +267,6 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             options = {}
         super().apply(node1, node2, options=options, **kwargs)
 
+
 # For automatic documentation generation
 __all__ = ["LFRicLoopFuseTrans"]
