@@ -108,3 +108,9 @@ def test_move_trans_apply(fortran_reader, fortran_writer):
     correct = """j = 2
   k = 3"""
     assert correct in fortran_writer(psyir)
+
+    # TODO #2668: Check the options dictionary still works until removal.
+    mtrans.apply(j_assign, k_assign, options={"position": "after"})
+    correct = """k = 3
+  j = 2"""
+    assert correct in fortran_writer(psyir)

@@ -99,6 +99,7 @@ class MoveTrans(Transformation):
             self.validate_options(**kwargs)
             position = self.get_option("position", **kwargs)
         else:
+            # TODO #2668: Deprecate options dictionary.
             position = options.get("position", "before")
 
         # Check that the first argument is a Node
@@ -140,6 +141,7 @@ class MoveTrans(Transformation):
         self.validate(node, location, options=options, position=position)
 
         if options:
+            # TODO #2668: Deprecate options dictionary.
             position = options.get("position", "before")
             warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
