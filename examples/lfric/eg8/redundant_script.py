@@ -55,8 +55,8 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    from psyclone.transformations import LFRicRedundantComputationTrans, \
-        MoveTrans
+    from psyclone.transformations import LFRicRedundantComputationTrans
+    from psyclone.psyir.transformations import MoveTrans
     rc_trans = LFRicRedundantComputationTrans()
     m_trans = MoveTrans()
 
