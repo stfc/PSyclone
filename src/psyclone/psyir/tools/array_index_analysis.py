@@ -885,7 +885,8 @@ def translate_integer_expr(expr_root: Node,
        return a constraint that prohibits/ignores bit-vector overflow in the
        expression.
 
-       :param expr_root: the expression to translate.
+       :param expr_root: the expression to translate. This is assumed
+         to have scalar integer type.
        :param opts: analysis options, used to guide the translation.
        :return: a pair containing the expression translated to Z3, and
          a Z3 boolean. The boolean is used to introduce new
@@ -1075,9 +1076,16 @@ def translate_logical_expr(expr_root: Node,
                            opts: ArrayIndexAnalysisOptions
                            ) -> (z3.BoolRef, z3.BoolRef):
     '''Translate a scalar logical Fortran expression to SMT. In addition,
-    return a constraint that prohibits/ignores bit-vector overflow in the
-    expression.'''
+       return a constraint that prohibits/ignores bit-vector overflow in the
+       expression.
 
+       :param expr_root: the expression to translate. This is assumed
+         to have scalar logical type.
+       :param opts: analysis options, used to guide the translation.
+       :return: a pair containing the expression translated to Z3, and
+         a Z3 boolean. The boolean is used to introduce new
+         constraints, e.g. to prohibit/ignore bit-vector overflow.
+    '''
     # Constraints to prohibit bit-vector overflow
     overflow = []
 
@@ -1160,8 +1168,15 @@ def translate_logical_expr(expr_root: Node,
 
 def translate_array_intrinsic_call(call: IntrinsicCall) -> (str, str):
     '''Translate array intrinsic call to an array name and a scalar
-    integer variable name.'''
+       integer variable name. Only a small number of important array
+       intrinsics are recognised, such as 'size', 'lbound', and 'ubound'.
 
+       :param call: the intrinsic call being transatled to SMT.
+       :return: a pair containing the name of the array on which
+          the intrinsic is being applied, and a scalar integer
+          variable name representing the result of the intrinsic.
+          If the intrinisic call is not recognised then None is returned.
+    '''
     if call.intrinsic == IntrinsicCall.Intrinsic.SIZE:
         var = "#size"
     elif call.intrinsic == IntrinsicCall.Intrinsic.LBOUND:
