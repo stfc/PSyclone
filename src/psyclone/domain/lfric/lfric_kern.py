@@ -61,7 +61,7 @@ from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule, Container, Routine)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    GenericInterfaceSymbol, ImportInterface, ScalarType, UnresolvedType,
+    GenericInterfaceSymbol, ImportInterface, UnresolvedType,
     INTEGER_TYPE, UnsupportedFortranType)
 
 
@@ -575,15 +575,17 @@ class LFRicKern(CodedKern):
         const = LFRicConstants()
 
         if ubnd_name in const.HALO_ACCESS_LOOP_BOUNDS:
-            return self.scope.symbol_table.find_or_create_array(
-                "last_halo_cell_all_colours", 2,
-                ScalarType.Intrinsic.INTEGER,
-                tag="last_halo_cell_all_colours")
+            return self.scope.symbol_table.find_or_create(
+                "last_halo_cell_all_colours", tag="last_halo_cell_all_colours",
+                symbol_type=DataSymbol, datatype=ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    2*[ArrayType.Extent.DEFERRED]))
 
-        return self.scope.symbol_table.find_or_create_array(
-            "last_edge_cell_all_colours", 1,
-            ScalarType.Intrinsic.INTEGER,
-            tag="last_edge_cell_all_colours")
+        return self.scope.symbol_table.find_or_create(
+            "last_edge_cell_all_colours", tag="last_edge_cell_all_colours",
+            symbol_type=DataSymbol, datatype=ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    [ArrayType.Extent.DEFERRED]))
 
     @property
     def ncolours_var(self):

@@ -43,7 +43,7 @@
 
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicSymbolTable, LFRicInvokes
+from psyclone.domain.lfric import LFRicInvokes
 from psyclone.psyGen import PSy
 from psyclone.psyir.nodes import ScopingNode
 
@@ -61,9 +61,6 @@ class LFRicPSy(PSy):
 
     '''
     def __init__(self, invoke_info):
-        # Make sure the scoping node creates LFRicSymbolTables
-        # TODO #1954: Remove the protected access using a factory
-        ScopingNode._symbol_table_class = LFRicSymbolTable
         Config.get().api = "lfric"
         super().__init__(invoke_info)
 
