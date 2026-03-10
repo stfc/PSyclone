@@ -176,8 +176,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             reduction_ops = self.get_option("reduction_ops", **kwargs)
             if reduction_ops is None:
                 reduction_ops = []
-            use_smt_array_index_analysis = self.get_option(
-                "use_smt_array_index_analysis", **kwargs)
+            dep_tools = self.get_option("dep_tools", **kwargs)
         else:
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
@@ -188,8 +187,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             sequential = options.get("sequential", False)
             privatise_arrays = options.get("privatise_arrays", False)
             reduction_ops = options.get("reduction_ops", [])
-            use_smt_array_index_analysis = options.get(
-                "use_smt_array_index_analysis", None)
+            dep_tools = options.get("dep_tools", None)
 
         # Check type of reduction_ops (not handled by validate_options)
         if not isinstance(reduction_ops, list):
@@ -265,8 +263,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     f" object containing str representing the "
                     f"symbols to ignore, but got '{ignore_dependencies_for}'.")
 
-        dep_tools = DependencyTools(
-            use_smt_array_index_analysis=use_smt_array_index_analysis)
+        if dep_tools is None:
+            dep_tools = DependencyTools()
 
         signatures = [Signature(name) for name in ignore_dependencies_for]
 
@@ -332,8 +330,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
               nowait: bool = False,
               reduction_ops: List[Union[BinaryOperation.Operator,
                                         IntrinsicCall.Intrinsic]] = None,
-              use_smt_array_index_analysis:
-                  Optional[ArrayIndexAnalysisOptions] = None,
+              dep_tools: Optional[DependencyTools] = None,
               **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
@@ -378,10 +375,9 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         :param reduction_ops: if non-empty, attempt parallelisation
             of loops by inferring reduction clauses involving any of
             the reduction operators in the list.
-        :param use_smt_array_index_analysis: if not None, the SMT-based
-            array index analysis will be used for detecting array access
-            conflicts, and the argument holds an ArrayIndexAnalysisOptions
-            structure with the options to use for the analysis.
+        :param dep_tools: an optional instance of DependencyTools so that the
+            caller can provide specific options to (or query specific results
+            from) the dependency analysis.
 
         '''
         if not options:
@@ -391,7 +387,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     privatise_arrays=privatise_arrays,
                     sequential=sequential, nowait=nowait,
                     reduction_ops=reduction_ops,
-                    use_smt_array_index_analysis=use_smt_array_index_analysis,
+                    dep_tools=dep_tools,
                     **kwargs
             )
             # Rename the input options that are renamed in this apply method.
@@ -413,8 +409,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             privatise_arrays = options.get("privatise_arrays", False)
             nowait = options.get("nowait", False)
             reduction_ops = options.get("reduction_ops", [])
-            use_smt_array_index_analysis = options.get(
-                "use_smt_array_index_analysis", None)
+            dep_tools = options.get("dep_tools", None)
 
         self.validate(node, options=options, verbose=verbose,
                       collapse=collapse, force=force,
@@ -422,13 +417,15 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                       privatise_arrays=privatise_arrays,
                       sequential=sequential, nowait=nowait,
                       reduction_ops=reduction_ops,
-                      use_smt_array_index_analysis=(
-                          use_smt_array_index_analysis),
+                      dep_tools=dep_tools,
                       **kwargs)
 
         list_of_signatures = [Signature(name) for name in list_of_names]
-        dtools = DependencyTools(
-                   use_smt_array_index_analysis=use_smt_array_index_analysis)
+
+        if dep_tools is None:
+            dtools = DependencyTools()
+        else:
+            dtools = dep_tools
 
         # Add all reduction variables inferred by 'validate' to the list
         # of signatures to ignore
