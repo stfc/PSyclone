@@ -77,11 +77,6 @@ class MoveTrans(Transformation):
     def __str__(self):
         return "Move a node to a different location"
 
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "MoveTrans"
-
     def validate(self, node: Node, location: Node, options=None, **kwargs):
         # pylint: disable=arguments-differ
         ''' validity checks for input arguments.
@@ -154,3 +149,6 @@ class MoveTrans(Transformation):
             location.parent.children.insert(location_index, my_node)
         else:
             location.parent.children.insert(location_index+1, my_node)
+
+
+__all__ = ["MoveTrans"]
