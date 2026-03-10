@@ -47,8 +47,10 @@ from psyclone.psyir.nodes import DynamicOMPTaskDirective
 from psyclone.psyir.transformations.inline_trans import InlineTrans
 from psyclone.psyir.transformations.transformation_error import \
         TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class OMPTaskTrans(ParallelLoopTrans):
     ''' Apply an OpenMP Task Transformation to a Loop. The Loop must
     be within an OpenMP Serial region (Single or Master) at codegen time.
@@ -85,6 +87,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         :param options: a dictionary with options for transformations.
         :type options: dict of string:values or None
         '''
+        self.validate_options(**kwargs)
         # Disallow CodeBlocks inside the region
         if any(node.walk(CodeBlock)):
             raise GenerationError(
@@ -223,11 +226,11 @@ class OMPTaskTrans(ParallelLoopTrans):
                         and validation.
         :type options: dictionary of string:values or None
         '''
-        self.validate(node, options=options)
+        self.validate(node, options=options, **kwargs)
         if not options:
             options = {}
         self._inline_kernels(node)
-        super().apply(node, options)
+        super().apply(node, options, **kwargs)
 
 
 # For AutoAPI documentation generation.

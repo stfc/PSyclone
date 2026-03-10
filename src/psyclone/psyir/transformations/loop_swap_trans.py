@@ -42,8 +42,10 @@ from psyclone.psyir.nodes import Call, CodeBlock, Reference
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
         TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class LoopSwapTrans(LoopTrans):
     ''' Provides a loop-swap transformation, e.g.:
 
@@ -83,7 +85,7 @@ class LoopSwapTrans(LoopTrans):
         return "Exchange the order of two nested loops: inner becomes " + \
                "outer and vice versa"
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         # pylint: disable=arguments-differ
         '''Checks if the given node contains a valid Fortran structure
         to allow swapping loops. This means the node must represent
@@ -100,7 +102,7 @@ class LoopSwapTrans(LoopTrans):
                                      has a symbol table.
 
         '''
-        super().validate(node, options=options)
+        super().validate(node, options=options, **kwargs)
         node_outer = node
 
         if not node_outer.loop_body or not node_outer.loop_body.children:
@@ -172,7 +174,7 @@ class LoopSwapTrans(LoopTrans):
                     f"of the inner loop boundary expressions, so their order "
                     f"can not be swapped.")
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         # pylint: disable=arguments-differ
         '''The argument :py:obj:`outer` must be a loop which has exactly
         one inner loop. This transform then swaps the outer and inner loop.
@@ -186,7 +188,8 @@ class LoopSwapTrans(LoopTrans):
                                      allow a loop swap to be done.
 
         '''
-        self.validate(node, options=options)
+        # TODO #2668: Deprecate options dict.
+        self.validate(node, options=options, **kwargs)
         outer = node
         inner = outer.loop_body[0]
         # Detach the inner code

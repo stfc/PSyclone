@@ -40,8 +40,10 @@
 
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 import psyclone.gocean1p0
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class GOceanLoopFuseTrans(LoopFuseTrans):
     ''' GOcean API specialisation of the :py:class:`base class <LoopFuseTrans>`
     in order to fuse two GOcean loops after performing validity checks (e.g.
@@ -64,7 +66,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         return ("Fuse two adjacent loops together with GOcean-specific "
                 "validity checks")
 
-    def validate(self, node1, node2, options=None):
+    def validate(self, node1, node2, options=None, **kwargs):
         '''Checks if it is valid to apply the GOceanLoopFuseTrans
         transform. It ensures that the fused loops are over
         the same grid-point types, before calling the normal
@@ -95,7 +97,17 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
                 f"fuse loops that are over different grid-point types: "
                 f"{node1.field_space} and {node2.field_space}")
 
-        super().validate(node1, node2, options=options)
+        super().validate(node1, node2, options=options, **kwargs)
+
+    def apply(self, node1, node2,
+              options=None, **kwargs):
+        '''Applies the GoceanLoopFuseTrans to the provided nodes.
+        :param node1: the first Node representing a GOLoop.
+        :type node1: :py:class:`psyclone.gocean1p0.GOLoop`
+        :param node2: the second Node representing a GOLoop.
+        :type node2: :py:class:`psyclone.gocean1p0.GOLoop`
+        '''
+        super().apply(node1, node2, options=options, **kwargs)
 
 
 # For automatic documentation generation
