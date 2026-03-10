@@ -374,10 +374,8 @@ class KernelModuleInlineTrans(Transformation):
                         symbol.name not in table else table)
         # Find the table containing the ContainerSymbol from which
         # the symbol is imported.
-        # TODO #1734 - this *should* always be the same as `actual_table` but
-        # this is not currently guaranteed.
         ctable = (csym.find_symbol_table(table.node) if
-                  csym.name not in table else table)
+                  table.node else table)
         remove_csym = (ctable.symbols_imported_from(csym) == [symbol] and
                        not csym.wildcard_import)
         if csym.wildcard_import:

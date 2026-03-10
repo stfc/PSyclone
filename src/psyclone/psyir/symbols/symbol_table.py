@@ -52,7 +52,7 @@ from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol,
@@ -262,7 +262,7 @@ class SymbolTable():
         new_st._default_visibility = self.default_visibility
         return new_st
 
-    def deep_copy(self, new_node: "ScopingNode" = None) -> SymbolTable:
+    def deep_copy(self, attached_to: "ScopingNode" = None) -> SymbolTable:
         '''Create a copy of the symbol table with new instances of the
         top-level data structures and also new instances of the symbols
         contained in these data structures. Modifying a symbol attribute
@@ -270,31 +270,51 @@ class SymbolTable():
         table.
 
         The only attribute not copied is the _node reference to the scope,
-        since that scope can only have one symbol table associated to it.
+        since that scope can only have one symbol table associated to it. If
+        a dangling reference to a ContainerSymbol is encountered during the
+        copy (e.g. one of the symbols in the table is imported from an
+        unknown ContainerSymbol) then a new ContainerSymbol is created and
+        added to the copy of the table. TODO #2874 - once KernCallArgList
+        is guaranteed to create only the correct Symbols, this feature
+        can be removed.
 
-        :param new_node: the PSyIR Node to be associated with the copied
-            table (if different from self.node).
+        :param attached_to: the PSyIR Node that the copied table is to be
+                            attached to (if different from self.node).
 
         :returns: a deep copy of this symbol table.
+
+        :raises TypeError: if `attached_to` is not a (subclass) of ScopingNode.
 
         '''
         # pylint: disable=protected-access
         new_st = type(self)()
-        if new_node:
-            new_st._node = new_node
+        if attached_to:
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.psyir.nodes import ScopingNode
+            if not isinstance(attached_to, ScopingNode):
+                raise TypeError(
+                    f"A SymbolTable may only be attached to a subclass of "
+                    f"ScopingNode but got an instance of "
+                    f"'{type(attached_to).__name__}'")
+            new_st._node = attached_to
 
         # Make a copy of each symbol in the symbol table ensuring we do any
         # ContainerSymbols first as there may be imports from them.
         for symbol in self.containersymbols:
             new_st.add(symbol.copy())
         for symbol in self.symbols:
-            if not isinstance(symbol, ContainerSymbol):
-                new_sym = symbol.copy()
-                if new_sym.is_import:
-                    name = new_sym.interface.container_symbol.name
-                    new_sym.interface.container_symbol = new_st.find_or_create(
-                        name, symbol_type=ContainerSymbol)
-                new_st.add(new_sym)
+            if isinstance(symbol, ContainerSymbol):
+                continue
+            new_sym = symbol.copy()
+            if new_sym.is_import:
+                name = new_sym.interface.container_symbol.name
+                # TODO #2874 this 'find_or_create' *should* be just 'lookup'
+                # but, when we create a temporary copy of a symbol table
+                # within LFRicKern, we lose container symbols from the
+                # outer scope.
+                new_sym.interface.container_symbol = new_st.find_or_create(
+                    name, symbol_type=ContainerSymbol)
+            new_st.add(new_sym)
 
         # Prepare the new argument list
         new_arguments = []
@@ -877,7 +897,7 @@ class SymbolTable():
         refers to a Container in this or an ancestor scope.
 
         If no ContainerSymbol is found with the name of the one in the
-        ImportInterface of the Symbol, then the ContainerSymboll in the
+        ImportInterface of the Symbol, then the ContainerSymbol in the
         ImportInterface is added to this table.
 
         :param isym: a Symbol with an import interface.

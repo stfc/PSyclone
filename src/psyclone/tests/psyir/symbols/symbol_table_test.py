@@ -2289,6 +2289,7 @@ def test_deep_copy():
                               interface=symbols.ArgumentInterface(
                                   symbols.ArgumentInterface.Access.READ))
     symtab.add(sym1)
+
     sym2 = symbols.Symbol(
         "symbol2",
         interface=symbols.ImportInterface(mod, orig_name="altsym2"))
@@ -2352,6 +2353,12 @@ def test_deep_copy():
     # remove method, it is worth checking that we handle the situation
     symtab._tags["broken"] = symbols.DataSymbol(
         "not_in_the_st", symbols.REAL_DOUBLE_TYPE)
+
+    # Check we raise the expected error if 'attached_to' is not a ScopingNode
+    with pytest.raises(TypeError) as err:
+        _ = symtab.deep_copy(attached_to=maxcall)
+    assert ("A SymbolTable may only be attached to a subclass of ScopingNode "
+            "but got an instance of 'IntrinsicCall'" in str(err.value))
 
     # Create a copy and check the contents are the same
     symtab2 = symtab.deep_copy()
