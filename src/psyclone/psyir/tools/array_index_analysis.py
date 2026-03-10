@@ -901,12 +901,8 @@ def translate_integer_expr(expr_root: Node,
            :param expr: the expression to translate.
            :return: the translated expression.
         '''
-
-        # Check that type is a scalar integer of unspecified precision
-        type_ok = _is_scalar_integer(expr.datatype)
-
         # Literal
-        if isinstance(expr, Literal) and type_ok:
+        if isinstance(expr, Literal):
             if opts.use_bv:
                 return z3.BitVecVal(int(expr.value), opts.int_width)
             else:
@@ -914,8 +910,7 @@ def translate_integer_expr(expr_root: Node,
 
         # Reference
         if (isinstance(expr, Reference)
-                and not isinstance(expr, ArrayReference)
-                and type_ok):
+                and not isinstance(expr, ArrayReference)):
             (sig, indices) = expr.get_signature_and_indices()
             indices_flat = [i for inds in indices for i in inds]
             if indices_flat == []:
@@ -1087,11 +1082,8 @@ def translate_logical_expr(expr_root: Node,
     overflow = []
 
     def trans(expr: Node):
-        # Check that type is a scalar logical
-        type_ok = _is_scalar_logical(expr.datatype)
-
         # Literal
-        if isinstance(expr, Literal) and type_ok:
+        if isinstance(expr, Literal):
             if expr.value == "true":
                 return z3.BoolVal(True)
             if expr.value == "false":
@@ -1099,8 +1091,7 @@ def translate_logical_expr(expr_root: Node,
 
         # Reference
         if (isinstance(expr, Reference)
-                and not isinstance(expr, ArrayReference)
-                and type_ok):
+                and not isinstance(expr, ArrayReference)):
             (sig, indices) = expr.get_signature_and_indices()
             indices_flat = [i for inds in indices for i in inds]
             if indices_flat == []:
