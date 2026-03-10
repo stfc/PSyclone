@@ -628,7 +628,8 @@ class ArrayIndexAnalysis:
             i_val = result_values.pop(0)
             j_val = result_values.pop(0)
             components = []
-            for (field, inds) in zip(sig._signature, sig_inds):
+            sig_fields = [sig[i] for i in range(len(sig))]
+            for (field, inds) in zip(sig_fields, sig_inds):
                 vals = []
                 for ind in inds:
                     if result_values:
