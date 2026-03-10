@@ -66,7 +66,7 @@ def test_reverse(use_bv, num_sweep_threads, fortran_reader, fortran_writer):
                                      num_sweep_threads=num_sweep_threads)
     results = []
     for loop in psyir.walk(Loop):
-        results.append(ArrayIndexAnalysis(opts).is_loop_conflict_free(loop))
+        results.append(ArrayIndexAnalysis(opts).get_loop_conflicts(loop) == [])
     assert results == [True]
 
 
@@ -91,7 +91,7 @@ def test_odd_even_trans(fortran_reader, fortran_writer):
     results = []
     opts = ArrayIndexAnalysisOptions(prohibit_overflow=True)
     for loop in psyir.walk(Loop):
-        results.append(ArrayIndexAnalysis(opts).is_loop_conflict_free(loop))
+        results.append(ArrayIndexAnalysis(opts).get_loop_conflicts(loop) == [])
     assert results == [True]
 
 
@@ -127,7 +127,7 @@ def test_tiled_matmul(fortran_reader, fortran_writer):
         end subroutine my_matmul''')
     results = []
     for loop in psyir.walk(Loop):
-        results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
+        results.append(ArrayIndexAnalysis().get_loop_conflicts(loop) == [])
     assert results == [True, True, False, True, True, False]
 
 
@@ -159,7 +159,7 @@ def test_chunking_loop(fortran_reader, fortran_writer):
     opts = ArrayIndexAnalysisOptions(use_bv=False)
     results = []
     for loop in psyir.walk(Loop):
-        results.append(ArrayIndexAnalysis(opts).is_loop_conflict_free(loop))
+        results.append(ArrayIndexAnalysis(opts).get_loop_conflicts(loop) == [])
     assert results == [True]
 
 
@@ -184,7 +184,7 @@ def test_flatten(fortran_reader, fortran_writer):
         end subroutine''')
     results = []
     for loop in psyir.walk(Loop):
-        results.append(ArrayIndexAnalysis().is_loop_conflict_free(loop))
+        results.append(ArrayIndexAnalysis().get_loop_conflicts(loop) == [])
     assert results == [True, True]
 
 
@@ -237,7 +237,8 @@ def test_translate_expr(use_bv,
     test("1 <= 1 .and. 0 <= 1")
     test("1 >= 1 .and. 2 >= 1")
     test("1 * 1 == 1")
-    test("mod(3, 2) == 1")
+    test("mod(-8, 3) == -2")
+    test("modulo(-8, 3) == 1")
     test("foo(1)")
     test("foo(1) == 1")
     test("size(arr,tmp) == 1")
@@ -245,7 +246,7 @@ def test_translate_expr(use_bv,
 
 
 # -----------------------------------------------------------------------------
-def check_conflict_free(fortran_reader, loop_str, yesno):
+def check_conflict_free(fortran_reader, loop_str, yesno, threads = 1):
     '''Helper function to check that given loop for conflicts.
        The loop may refer to array "arr", integer variables "i" and "n",
        and logical variable "ok".
@@ -258,10 +259,11 @@ def check_conflict_free(fortran_reader, loop_str, yesno):
                 {loop_str}
               end subroutine''')
     results = []
-    opts = ArrayIndexAnalysisOptions(prohibit_overflow=True)
+    opts = ArrayIndexAnalysisOptions(prohibit_overflow=True,
+                                     num_sweep_threads=threads)
     for loop in psyir.walk(Loop):
         analysis = ArrayIndexAnalysis(opts)
-        results.append(analysis.is_loop_conflict_free(loop))
+        results.append(analysis.get_loop_conflicts(loop) == [])
     assert results == yesno
 
 
@@ -364,7 +366,8 @@ def test_last_iteration(fortran_reader, fortran_writer):
 
 
 # -----------------------------------------------------------------------------
-def test_triangular_loop(fortran_reader, fortran_writer):
+@pytest.mark.parametrize("num_sweep_threads", [1, 4])
+def test_triangular_loop(num_sweep_threads, fortran_reader, fortran_writer):
     '''Test a triangular nested loop'''
     check_conflict_free(fortran_reader,
                         '''n = size(arr)
@@ -373,7 +376,7 @@ def test_triangular_loop(fortran_reader, fortran_writer):
                                arr(j) = arr(j) + arr(i)
                              end do
                            end do''',
-                        [False, True])
+                        [False, True], num_sweep_threads)
 
 
 # -----------------------------------------------------------------------------
@@ -382,7 +385,7 @@ def test_errors(fortran_reader, fortran_writer):
        error cases
     '''
     with pytest.raises(TypeError) as err:
-        ArrayIndexAnalysis().is_loop_conflict_free(Reference(Symbol("foo")))
+        ArrayIndexAnalysis().get_loop_conflicts(Reference(Symbol("foo")))
     assert ("ArrayIndexAnalysis: Loop argument expected"
             in str(err.value))
 
@@ -397,6 +400,6 @@ def test_errors(fortran_reader, fortran_writer):
     loop = psyir.walk(Loop)[0]
     loop.detach()
     with pytest.raises(ValueError) as err:
-        ArrayIndexAnalysis().is_loop_conflict_free(loop)
+        ArrayIndexAnalysis().get_loop_conflicts(loop) is None
     assert ("ArrayIndexAnalysis: loop has no enclosing routine"
             in str(err.value))

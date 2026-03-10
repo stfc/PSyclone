@@ -46,17 +46,18 @@ import threading
 from psyclone.psyir.nodes import Loop, DataNode, Literal, Assignment, \
     Reference, UnaryOperation, BinaryOperation, IntrinsicCall, \
     Routine, Node, IfBlock, Schedule, ArrayReference, Range, WhileLoop
+from psyclone.core import Signature
 from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
     INTEGER_TYPE
 
 # Outline
 # =======
 #
-# The analysis class provides a method 'is_loop_conflict_free()' to
-# decide whether or not the array accesses in a given loop are
+# The analysis class provides a method 'get_loop_conflicts()' to
+# determine whether or not the array accesses in a given loop are
 # conflicting between iterations. Two array accesses are conflicting
 # if they access the same element of the same array, and at least one
-# of the accesses is a write.
+# is a write.
 #
 # The analysis assumes that any scalar integer or scalar logical
 # variables written by the loop can safely be considered as private
@@ -239,7 +240,7 @@ class ArrayIndexAnalysis:
             self.psyir_node = psyir_node
 
     def __init__(self, options=ArrayIndexAnalysisOptions()):
-        '''This class provides a method 'is_loop_conflict_free()' to
+        '''This class provides a method 'get_loop_conflicts()' to
         determine whether or not distinct iterations of a given loop
         can generate conflicting array accesses.
 
@@ -266,6 +267,9 @@ class ArrayIndexAnalysis:
         self.saved_access_dicts = []
         # Are we currently analysing the loop to parallelise?
         self.in_loop_to_parallelise = False
+        # The SMT variables representing each loop iteration variable
+        self.smt_loop_var_i = None
+        self.smt_loop_var_j = None
         # Has the analaysis finished?
         self.finished = False
         # We map array intrinsic calls (e.g. size, lbound, ubound) to SMT
@@ -501,9 +505,18 @@ class ArrayIndexAnalysis:
         self.saved_access_dicts.append(self.access_dict)
         self.access_dict = {}
 
-    def is_loop_conflict_free(self, loop: Loop) -> bool:
+    def get_loop_conflicts(self, loop: Loop, all_conflicts: bool = False) -> \
+            list[tuple[Signature, None | str]]:
         '''Determine whether or not distinct iterations of the given loop
-        can generate conflicting array accesses.'''
+           can generate conflicting array accesses.
+
+           :param loop: loop to be analysed.
+           :param all_conflicts: if True, enumerate all conflicts, otherwise
+              stop after the first conflict. Defaults to False.
+           :return: a list of pairs array-name/message pairs. If the list
+              is empty, the loop is conflict free. If the solver times out,
+              the message is None.
+        '''
 
         # Type checking
         if not isinstance(loop, Loop):
@@ -543,8 +556,8 @@ class ArrayIndexAnalysis:
         if not (self.finished and len(self.saved_access_dicts) == 2):
             return None  # pragma: no cover
 
-        # A list of lists holding a sum (OR) of products (AND) of constraints
-        sum_of_prods = []
+        # A list of conflicts to return
+        conflicts = []
 
         # Forumlate constraints for solving, considering the two iterations
         iter_i = self.saved_access_dicts[0]
@@ -557,29 +570,61 @@ class ArrayIndexAnalysis:
                     # For each write access in the i iteration
                     for i_access in i_accesses:
                         if i_access.is_write:
-                            # Check for conflicts against every access in the
-                            # j iteration
-                            for j_access in j_accesses:
-                                indices_equal = []
-                                for (i_idxs, j_idxs) in zip(i_access.indices,
-                                                            j_access.indices):
-                                    for (i_idx, j_idx) in zip(i_idxs, j_idxs):
-                                        indices_equal.append(i_idx == j_idx)
-                                sum_of_prods.append(indices_equal +
-                                                    [i_access.cond] +
-                                                    [j_access.cond])
+                            conflict = self._get_conflict(i_access, j_accesses)
+                            if conflict:
+                                conflicts.append(conflict)
+                                if all_conflicts == False:
+                                    return conflicts
 
-        # Solve the constraints
-        if self.opts.num_sweep_threads <= 1:
-            s = z3.Solver()
-            if self.opts.smt_timeout is not None:
-                s.set("timeout", self.opts.smt_timeout)
-            s.add(z3.And(self.constraints))
-            s.add(z3.Or([z3.And(prod) for prod in sum_of_prods]))
-            result = s.check()
+        return conflicts
+
+    def _get_conflict(self, write: ArrayAccess, accs: list[ArrayAccess]) -> \
+            None | tuple[Signature, None | str]:
+        '''Get the conflict between the write access 'write' and
+           any access in 'accs', if there is one.
+
+           :param write: a write access from one iteration.
+           :param accs: a list of accesses from another iteration.
+           :return: a pair containing an array name and a message string,
+              if a conflict exists, and None otherwise. If the solver
+              times out, the message is None.
+        '''
+        sum_of_prods = []
+        for acc in accs:
+            indices_equal = []
+            for (i_idxs, j_idxs) in zip(write.indices, acc.indices):
+                for (i_idx, j_idx) in zip(i_idxs, j_idxs):
+                    indices_equal.append(i_idx == j_idx)
+            sum_of_prods.append(indices_equal + [write.cond, acc.cond])
+
+        # Invoke solver
+        (result, result_values) = self._solve(
+            sum_of_prods,
+            [self.smt_loop_var_i, self.smt_loop_var_j] +
+            [ind for inds in write.indices for ind in inds])
+
+        # Determine return value
+        (sig, sig_inds) = write.psyir_node.get_signature_and_indices()
+        if result == z3.sat:
+            # Produce message
+            i_val = result_values.pop(0)
+            j_val = result_values.pop(0)
+            components = []
+            for (field, inds) in zip(sig._signature, sig_inds):
+                vals = []
+                for ind in inds:
+                    if result_values:
+                        vals.append(result_values.pop(0))
+                if vals:
+                  components.append(field + '(' + ','.join(vals) + ')')
+            access_str = '%'.join(components)
+            msg = (f"Iterations {i_val} and {j_val} have conflicting "
+                   f"accesses to {access_str}")
+            return (sig, msg)
+        elif result == z3.unknown: # pragma: no cover
+            return (sig, None)
         else:
-            result = self._sweep_solve(sum_of_prods)
-        return result == z3.unsat
+            return None
 
     def _step(self, stmt: Node, cond: z3.BoolRef):
         '''Analyse the given statement in recursive-descent fashion.'''
@@ -651,6 +696,8 @@ class ArrayIndexAnalysis:
                 j_var = self._fresh_integer_var()
                 self._add_constraint(i_var != j_var)
                 iteration_vars = [i_var, j_var]
+                self.smt_loop_var_i = i_var
+                self.smt_loop_var_j = j_var
             else:
                 # Consider a single, arbitrary iteration
                 i_var = self._fresh_integer_var()
@@ -694,29 +741,71 @@ class ArrayIndexAnalysis:
             self._add_all_array_accesses(stmt, cond)
         self._kill_all_written_vars(stmt)
 
-    def _sweep_solve(self, sum_of_prods: list[list[z3.BoolRef]]) -> \
-            z3.CheckSatResult:
-        '''The solver is quite sensitive to the order of constraints.
-        This sweeper runs multiple solvers in parallel, with each one
-        using a different constraint order. As soon as one solver completes,
-        the others are cancelled. This reduces the aforementioned sensitivity.
-        In future, the sweeper could also run solvers with different
-        paramters in parallel, or solve each product list in
-        'sum_of_prods' in parallel (OR parallelism).
+    def _solve(self, sum_of_prods: list[list[z3.BoolRef]],
+                     exprs_to_eval: list[z3.ExprRef] = []) -> \
+            (z3.CheckSatResult, list[str]):
+        '''Invoke the solver on the given constraints. If the constraints
+        are satisfiable then the given expressions are evaluated and their
+        values are returned as strings.
 
         :param sum_of_prods: a sum of products of constraints to solve.
            These constraints are implicitly ANDed with the global
            constraint set.
+        :param exprs_to_eval: a list of expressions to evaluate, assuming
+           the constraints are satisfiable.
+        :return: the result of the solver and a list of evaluated expressions
+           (the list is empty if the constraints were not satisifiable)
+        '''
+        if self.opts.num_sweep_threads <= 1:
+            s = z3.Solver()
+            if self.opts.smt_timeout is not None:
+                s.set("timeout", self.opts.smt_timeout)
+            s.add(z3.And(self.constraints))
+            s.add(z3.Or([z3.And(prod) for prod in sum_of_prods]))
+            result = s.check()
+            result_values = []
+            if result == z3.sat:
+                m = s.model()
+                for expr in exprs_to_eval:
+                    result_values.append(str(m.eval(expr,
+                                                    model_completion=True)))
+            return (result, result_values)
+        else:
+            return self._sweep_solve(sum_of_prods, exprs_to_eval)
+
+    def _sweep_solve(self, sum_of_prods: list[list[z3.BoolRef]],
+                           exprs_to_eval: list[z3.ExprRef] = []) -> \
+            (z3.CheckSatResult, list[str]):
+        '''The solver is quite sensitive to the order of constraints.
+        This sweeper runs multiple solvers in parallel, with each one
+        using a different constraint order. As soon as one solver completes,
+        the others are cancelled. If the constraints are satisfiable then
+        the given expressions are evaluated and their values are returned
+        as strings.
+
+        :param sum_of_prods: a sum of products of constraints to solve.
+           These constraints are implicitly ANDed with the global
+           constraint set.
+        :param exprs_to_eval: a list of expressions to evaluate, assuming
+           the constraints are satisfiable.
+        :return: the result of the solver and a list of evaluated expressions
+           (the list is empty if the constraints were not satisifiable)
         '''
         result = []
+        result_values = []
         result_lock = threading.Lock()
         done_event = threading.Event()
 
         # Function that runs in each thread
-        def wrapper(solver):
+        def wrapper(solver, exprs_to_eval):
             out = solver.check()
             with result_lock:
                 if not done_event.is_set():
+                    if out == z3.sat:
+                        m = solver.model()
+                        for expr in exprs_to_eval:
+                            result_values.append(str(
+                               m.eval(expr, model_completion=True)))
                     result.append(out)
                     done_event.set()
 
@@ -736,9 +825,10 @@ class ArrayIndexAnalysis:
             sum_constraint = z3.Or([z3.And(prod) for prod in sum_of_prods])
             s.add(sum_constraint.translate(ctx))
             solvers.append(s)
+            exprs_to_eval_ctx = [e.translate(ctx) for e in exprs_to_eval]
 
             # Create a thread for this solver and start it
-            t = threading.Thread(target=wrapper, args=(s,))
+            t = threading.Thread(target=wrapper, args=(s,exprs_to_eval_ctx))
             threads.append(t)
             t.start()
 
@@ -764,7 +854,7 @@ class ArrayIndexAnalysis:
                 if not t.is_alive():
                     break
 
-        return result[0]
+        return (result[0], result_values)
 
 # Translating Fortran expressions to SMT formulae
 # ===============================================
@@ -861,12 +951,19 @@ def translate_integer_expr(expr_root: Node,
                                   IntrinsicCall.Intrinsic.IAND,
                                   IntrinsicCall.Intrinsic.IOR,
                                   IntrinsicCall.Intrinsic.IEOR,
+                                  IntrinsicCall.Intrinsic.MODULO,
                                   IntrinsicCall.Intrinsic.MOD]:
                 left_smt = trans(expr.children[1])
                 right_smt = trans(expr.children[2])
 
-                if expr.intrinsic == IntrinsicCall.Intrinsic.MOD:
+                if (expr.intrinsic == IntrinsicCall.Intrinsic.MODULO):
                     return left_smt % right_smt
+
+                if (expr.intrinsic == IntrinsicCall.Intrinsic.MOD):
+                    m = left_smt % right_smt
+                    return (z3.If(z3.And(m != 0,
+                                         (left_smt < 0) != (right_smt < 0)),
+                                  m-right_smt, m))
 
                 if opts.use_bv:
                     # TODO: when fparser supports shift operations (#428),

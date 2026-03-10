@@ -918,13 +918,14 @@ class DependencyTools():
         if self._use_smt_array_index_analysis:
             options = self._use_smt_array_index_analysis
             analysis = ArrayIndexAnalysis(options)
-            conflict_free = analysis.is_loop_conflict_free(loop)
-            if not conflict_free:
-                self._add_message(
-                    "The ArrayIndexAnalysis has determined that the"
-                    "array accesses in the loop may be conflicting "
-                    "and hence cannot be parallelised.",
-                    DTCode.ERROR_DEPENDENCY)
+            conflicts = analysis.get_loop_conflicts(loop)
+            for (sig, msg) in conflicts:
+                if msg is None:
+                    msg = ("Array conflict constraints could not be solved "
+                           "using given SMT options. Try increasing the "
+                           "'smt_timeout' or 'num_sweep_threads' options to "
+                           "ArrayIndexAnalysis")
+                self._add_message(msg, DTCode.ERROR_DEPENDENCY, [sig.var_name])
                 result = False
 
         return result
