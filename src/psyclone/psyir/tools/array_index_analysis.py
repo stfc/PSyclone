@@ -36,7 +36,7 @@
 
 '''This module provides a class to determine whether or not distinct
 iterations of a given loop can generate conflicting array accesses (if
-not, the loop can potentially be parallelised).  It formulates the
+not, the loop can potentially be parallelised). It formulates the
 problem as a set of SMT constraints over array indices which are then
 are passed to the Z3 solver.'''
 
@@ -56,12 +56,13 @@ from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
 # The analysis class provides a method 'get_loop_conflicts()' to
 # determine whether or not the array accesses in a given loop are
 # conflicting between iterations. Two array accesses are conflicting
-# if they access the same element of the same array, and at least one
-# is a write.
+# if they access the same element of the same array in different loop
+# iterations, and at least one is a write.
 #
 # The analysis assumes that any scalar integer or scalar logical
 # variables written by the loop can safely be considered as private
-# to each iteration. This should be validated by the callee.
+# to each iteration. This should be validated by the callee and is
+# typically done by DependencyTools.
 #
 # The analysis algorithm operates, broadly, as follows.
 #
@@ -73,7 +74,7 @@ from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
 # For each Fortran variable, the substitution points to an SMT
 # variable that is constrained (in the set of constraints) such that
 # it captures the value of the Fortran variable at the current point
-# in the code. When a Fortran variable is mutated, the substitution is
+# in the code. When a Fortran variable is updated, the substitution is
 # modified to point to a fresh SMT variable, with new constraints,
 # without destroying the old constraints.
 #
@@ -81,7 +82,7 @@ from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
 # integer/logical variable, of the form 'x = rhs', we translate 'rhs'
 # to the SMT formula 'smt_rhs' with the current substitution applied.
 # We then add a constraint 'var = smt_rhs' where 'var' is a fresh SMT
-# variable, and update the substition so that 'x' maps to 'var'.
+# variable, and update the substitution so that 'x' maps to 'var'.
 #
 # The Fortran-expression-to-SMT translator knows about several Fortran
 # operators and intrinsics, but not all of them; when it sees
@@ -98,13 +99,13 @@ from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
 # restored before and after analysing a block of code that may or may
 # not be executed at run time.
 #
-# We also maintain a "current condition".  This can be viewed as a
-# constraint that has not been comitted to the constraint set because
+# We also maintain a "current condition". This can be viewed as a
+# constraint that has not been committed to the constraint set because
 # we want to be able to grow, contract, and retract it as we enter and
 # exit conditional blocks of code. This current condition is passed in
 # recursive calls, so there is an implicit stack of them.
 #
-# More concretely, when we encouter an 'if' statement, we copy the
+# More concretely, when we encounter an 'if' statement, we copy the
 # current substitution onto the stack, then recurse into the 'then'
 # body, passing in the 'if' condition as an argument, and then restore
 # the old substitution. We do the same for the 'else' body if there is
@@ -126,29 +127,30 @@ from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
 # before recursing into the loop body. First, we kill all variables
 # written by the loop body, because we don't know whether we are
 # entering the loop (at run time) for the first time or not. Second,
-# we create two SMT variables to represent two arbitary but distinct
-# iterations of the loop. Each variable is constrained to the start,
-# stop, and step of the loop, and the two variables are constrained to
-# be not equal. After that, we analyse the loop body twice, each time
-# mapping the loop variable in the substitution to each of the SMT
-# loop variables.  After analysing the loop body for the first time,
-# we save the array access list and start afresh with a new one.
-# Therefore, once the analysis is complete, we have two array access
-# lists, one for each iteration.
+# we create two SMT variables to represent the loop variables of two
+# arbitary but distinct iterations of the loop. Each of these two
+# variables is constrained to the start, stop, and step of the loop,
+# and the two variables are constrained to be not equal. After that,
+# we analyse the loop body twice, each time mapping the loop variable
+# in the substitution to each of the SMT loop variables. After
+# analysing the loop body for the first time, we save the array access
+# list and start afresh with a new one. Therefore, once the analysis
+# is complete, we have two array access lists, one for each iteration.
 #
 # When we encounter a loop that is not the loop of interest, we follow
 # a similar approach but only consider a single arbitrary iteration of
 # the loop.
 #
 # When the recursive descent is complete, we are left with two array
-# access lists. We are interested in whether any pair of accesses to
-# the same array (in which one of the accesses is a write) represents
-# a conflict.  An access pair is conflict-free if an equality
-# constraint between each access's indices, when combined with the
-# current condition of each access and the global constraint set, is
-# unsatisfiable.  In this way, we can check every access pair and
-# determine whether or not the loop is conflict free.
-
+# access lists representing two different iterations of the same loop.
+# A conflict occurs if there is an access to an array in the first
+# list that can have the same loop indices as an access to the same
+# array in the second list, and one of which is a write.  This is
+# determined by asserting an equality constraint between each access's
+# indices which, when combined with the current condition of each
+# access and the global constraint set, will be satisfiable if and
+# only if there is a conflict.  In this way, we check every access
+# pair and determine whether or not the loop contains conflicts.
 
 # Analysis Options
 # ================
@@ -160,7 +162,7 @@ class ArrayIndexAnalysisOptions:
     :param int_width: the bit width of Fortran integers. This is 32 by
        default but it can be useful to reduce it to (say) 8 in particular
        cases to improve the ability of solver to find a timely solution,
-       provided the user considers it safe to do so.  (Note that the analysis
+       provided the user considers it safe to do so. (Note that the analysis
        currently only gathers information about Fortran integer values of
        unspecified width.)
 
@@ -180,7 +182,7 @@ class ArrayIndexAnalysisOptions:
 
     :param handle_array_intrins: handle array intrinsics 'size()',
        'lbound()', and 'ubound()' specially. For example, multiple
-       occurences of 'size(arr)' will be assumed to return the same value,
+       occurrences of 'size(arr)' will be assumed to return the same value,
        provided that those occurrences are not separated by a statement
        that may modify the size/bounds of 'arr'.
 
@@ -250,8 +252,8 @@ class ArrayIndexAnalysis:
         self.opts = options
 
     def _init_analysis(self):
-        '''Intialise the analysis by setting all the internal state
-        varibles accordingly.'''
+        '''Initialise the analysis by setting all the internal state
+        variables accordingly.'''
 
         # The substitution maps integer and logical Fortran variables
         # to SMT symbols
@@ -403,7 +405,7 @@ class ArrayIndexAnalysis:
         return z3.substitute(expr, *subst_pairs)
 
     def _translate_integer_expr_with_subst(self, expr: Node):
-        '''Translate the given integer expresison to SMT, and apply the
+        '''Translate the given integer expression to SMT, and apply the
         current substitution.'''
         (smt_expr, prohibit_overflow) = translate_integer_expr(
             expr, self.opts)
@@ -412,7 +414,7 @@ class ArrayIndexAnalysis:
         return self._apply_subst(smt_expr)
 
     def _translate_logical_expr_with_subst(self, expr: Node):
-        '''Translate the given logical expresison to SMT, and apply the
+        '''Translate the given logical expression to SMT, and apply the
         current substitution.'''
         (smt_expr, prohibit_overflow) = translate_logical_expr(
             expr, self.opts)
@@ -421,7 +423,7 @@ class ArrayIndexAnalysis:
         return self._apply_subst(smt_expr)
 
     def _translate_cond_expr_with_subst(self, expr: Node):
-        '''Translate the given conditional expresison to SMT, and apply
+        '''Translate the given conditional expression to SMT, and apply
         the current substitution. Instead of adding constraints to
         the constraint set, this function ANDs constraints with the
         translated expression.'''
@@ -864,8 +866,13 @@ def translate_integer_expr(expr_root: Node,
                            opts: ArrayIndexAnalysisOptions
                            ) -> (z3.ExprRef, z3.BoolRef):
     '''Translate a scalar integer Fortran expression to SMT. In addition,
-    return a constraint that prohibits/ignores bit-vector overflow in the
-    expression.'''
+       return a constraint that prohibits/ignores bit-vector overflow in the
+       expression.
+
+       :return: a pair containing the expression translated to Z3, and
+         a Z3 boolean. The boolean is used to introduce new
+         constraints, e.g. to prohibit/ignore bit-vector overflow.
+    '''
 
     constraints = []
 
