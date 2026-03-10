@@ -278,7 +278,8 @@ def test_fuse_removes_unused_symbols(
     fuse = LoopFuseTrans()
     # Monkeypatch to mimic the case where these are fine to fuse (e.g.
     # because of additional DSL knowledge)
-    monkeypatch.setattr(fuse, "validate", lambda _1, _2, options: True)
+    monkeypatch.setattr(fuse, "validate",
+                        lambda _1, _2, options, **kwargs: True)
 
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
@@ -650,7 +651,8 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
-    fuse.apply(loop1, loop2)
+    # TODO #2668 deprecate options dict. This is to keep current coverage.
+    fuse.apply(loop1, loop2, options={"force": False})
 
 
 def test_loop_fuse_different_variables(fortran_reader, fortran_writer):
