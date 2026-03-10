@@ -5389,4 +5389,5 @@ def test_array_analysis_option(fortran_reader, fortran_writer):
     omplooptrans.apply(
         loop, collapse=True, dep_tools=dtools)
     output = fortran_writer(psyir)
+    assert "!$omp parallel do" in output
     assert "collapse(2)" in output
