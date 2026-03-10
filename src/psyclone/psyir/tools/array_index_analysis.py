@@ -236,10 +236,26 @@ class ArrayIndexAnalysis:
                      is_write:   bool,
                      indices:    list[list[z3.ExprRef]],
                      psyir_node: Node):
-            self.cond = cond
-            self.is_write = is_write
-            self.indices = indices
-            self.psyir_node = psyir_node
+            self._cond = cond
+            self._is_write = is_write
+            self._indices = indices
+            self._psyir_node = psyir_node
+
+        @property
+        def cond(self):
+            return self._cond
+
+        @property
+        def is_write(self):
+            return self._is_write
+
+        @property
+        def indices(self):
+            return self._indices
+
+        @property
+        def psyir_node(self):
+            return self._psyir_node
 
     def __init__(self, options=ArrayIndexAnalysisOptions()):
         '''This class provides a method 'get_loop_conflicts()' to
