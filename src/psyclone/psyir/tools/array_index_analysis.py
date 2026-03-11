@@ -45,10 +45,12 @@ import random
 import threading
 from psyclone.psyir.nodes import Loop, DataNode, Literal, Assignment, \
     Reference, UnaryOperation, BinaryOperation, IntrinsicCall, \
-    Routine, Node, IfBlock, Schedule, ArrayReference, Range, WhileLoop
+    Routine, Node, IfBlock, Schedule, ArrayReference, Range, WhileLoop, \
+    CodeBlock
 from psyclone.core import Signature
 from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
     INTEGER_TYPE
+from fparser.two import Fortran2003, Fortran2008
 
 # Outline
 # =======
@@ -755,6 +757,13 @@ class ArrayIndexAnalysis:
             self._restore_subst()
             return
 
+        # Stop statement
+        if _is_stop(stmt):
+            # We can assume that the current condition must hold everywhere
+            # beyond this point
+            self._add_constraint(cond)
+            return
+
         # Fall through
         if self.in_loop_to_parallelise:
             self._add_all_array_accesses(stmt, cond)
@@ -1233,3 +1242,14 @@ def _free_vars(expr: z3.ExprRef) -> list[z3.ExprRef]:
             return {}
     else:
         return {fv for child in expr.children() for fv in _free_vars(child)}
+
+
+def _is_stop(node: Node) -> bool:
+    '''Determines whether or not the given PSyIR node represents a
+    Fortran "stop" or "error stop" statement.'''
+    if isinstance(node, CodeBlock) and len(node.get_ast_nodes) == 1:
+        stmt = node.get_ast_nodes[0]
+        if (isinstance(stmt, Fortran2003.Stop_Stmt) or
+            isinstance(stmt, Fortran2008.Error_Stop_Stmt)):
+                return True
+    return False
