@@ -33,11 +33,12 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the maxval2loop transformation.'''
 
-import pytest
 import warnings
+import pytest
 
 from psyclone.psyir.nodes import Reference, Literal
 from psyclone.psyir.symbols import REAL_TYPE, DataSymbol
@@ -124,13 +125,15 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
         "  real, dimension(10,20) :: array\n"
         "  real :: result\n"
         "  integer :: idx\n"
-        "  integer :: idx_1\n\n"
-        "  result = -HUGE(result)\n"
+        "  integer :: idx_1\n"
+        "  real :: reduction_var\n\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 20, 1\n"
         "    do idx_1 = 1, 10, 1\n"
-        "      result = MAX(result, array(idx_1,idx))\n"
+        "      reduction_var = MAX(reduction_var, array(idx_1,idx))\n"
         "    enddo\n"
-        "  enddo\n\n"
+        "  enddo\n"
+        "  result = reduction_var\n\n"
         "end subroutine maxval_test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
