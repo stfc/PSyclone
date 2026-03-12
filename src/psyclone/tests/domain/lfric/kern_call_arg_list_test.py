@@ -49,7 +49,8 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
 from psyclone.psyir.symbols import (
-    ArrayType, ScalarType, UnsupportedFortranType)
+    ArrayType, ContainerSymbol, DataTypeSymbol, ScalarType,
+    UnsupportedFortranType)
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import LFRicColourTrans
 
@@ -87,6 +88,44 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
         result.append(re.sub(r"[(]\s*:(,\s*:)*\s*[)]$", "", out))
 
     assert result == create_arg_list._arglist
+
+
+def test_get_user_type():
+    '''
+    Tests for the get_user_type() method.
+    '''
+    # Get a Kernel object.
+    _, invoke = get_invoke("1_single_invoke.f90", api=TEST_API, idx=0)
+    kernel = invoke.schedule.kernels()[0]
+
+    assert not kernel.scope.symbol_table.lookup("operator_mod", otherwise=None)
+
+    create_arg_list = KernCallArgList(kernel)
+    sym = create_arg_list.get_user_type("operator_mod",
+                                        "operator_type",
+                                        "my_op")
+    assert isinstance(sym.datatype, DataTypeSymbol)
+    assert sym.datatype.name == "operator_type"
+    op_mod = kernel.scope.symbol_table.lookup("operator_mod")
+    assert isinstance(op_mod, ContainerSymbol)
+
+    # Repeat - to check that the ContainerSymbol added last time is
+    # re-used.
+    sym = create_arg_list.get_user_type("operator_mod",
+                                        "operator_proxy_type",
+                                        "my_op_proxy",
+                                        tag="my_tag")
+    assert kernel.scope.symbol_table.lookup_with_tag("my_tag") is sym
+    assert isinstance(sym.datatype, DataTypeSymbol)
+    assert sym.datatype.name == "operator_proxy_type"
+    proxy_type = kernel.scope.symbol_table.lookup("operator_proxy_type")
+    assert proxy_type.interface.container_symbol is op_mod
+    # Repeat with the same tag -> should get the same symbol.
+    sym2 = create_arg_list.get_user_type("operator_mod",
+                                         "operator_proxy_type",
+                                         "my_op_proxy",
+                                         tag="my_tag")
+    assert sym2 is sym
 
 
 def test_cellmap_intergrid(dist_mem, fortran_writer):
