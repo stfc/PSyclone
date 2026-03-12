@@ -1681,7 +1681,7 @@ class Node():
         # made (above).
         for child in self.children:
             if hasattr(child, "symbol_table"):
-                child.symbol_table.update_symbol_dependencies()
+                child.symbol_table.localise_all_symbol_dependencies()
 
         self._disable_tree_update = False
         self._cached_abs_position = None

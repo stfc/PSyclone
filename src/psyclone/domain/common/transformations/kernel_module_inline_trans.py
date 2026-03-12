@@ -302,8 +302,8 @@ class KernelModuleInlineTrans(Transformation):
                         # We must update its import interface (to ensure it
                         # references a ContainerSymbol in the correct scope)
                         # before it can be added to the table.
-                        code_to_inline.symbol_table.update_import_interface(
-                            symbol)
+                        code_to_inline.symbol_table.\
+                            localise_import_interface_of(symbol)
                     code_to_inline.symbol_table.add(symbol)
                 # And when necessary the modules where they come from
                 if symbol.is_unresolved:

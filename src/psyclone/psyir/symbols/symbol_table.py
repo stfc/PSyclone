@@ -838,9 +838,9 @@ class SymbolTable():
                         other_sym,
                         self.next_available_name(
                             other_sym.name, other_table=other_table))
-            self.update_import_interface(isym)
+            self.localise_import_interface_of(isym)
 
-    def update_symbol_dependencies(self):
+    def localise_all_symbol_dependencies(self):
         '''
         For each Symbol in this table, examines the Symbols upon which it
         depends and updates them to be the Symbols in scope in this table.
@@ -867,18 +867,16 @@ class SymbolTable():
                         # references, we add it to the set of all symbols to
                         # examine and start again.
                         if dep_sym.is_import:
-                            self.update_import_interface(dep_sym)
+                            self.localise_import_interface_of(dep_sym)
                         self.add(dep_sym)
                         all_symbols.add(dep_sym)
                         found_new_sym = True
                         break
-                    else:
-                        if type(new_sym) is not type(dep_sym):
-                            raise SymbolError(
-                                f"Attempting to update dependencies of '{sym}'"
-                                f" but found '{new_sym}' which is not of the "
-                                f"same type as the original dependency "
-                                f"'{dep_sym}'.")
+                    if type(new_sym) is not type(dep_sym):
+                        raise SymbolError(
+                            f"Attempting to update dependencies of '{sym}' but"
+                            f" found '{new_sym}' which is not of the same type"
+                            f" as the original dependency '{dep_sym}'.")
                     # Update the definition of this symbol using the
                     # new one we have found.
                     sym.replace_symbols_using(new_sym)
@@ -891,7 +889,7 @@ class SymbolTable():
                     # Symbols to update.
                     break
 
-    def update_import_interface(self, isym: Symbol):
+    def localise_import_interface_of(self, isym: Symbol):
         '''
         Update the import interface of the supplied Symbol so that it
         refers to a Container in this or an ancestor scope.
