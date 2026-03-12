@@ -1170,6 +1170,33 @@ def test_localise_all_symbol_dependencies():
             in str(err.value))
 
 
+def test_localise_all_symbol_dependencies_shadowed():
+    '''
+    Check that localise_all_symbol_dependencies respects shadowing.
+    '''
+    cntr = Container("my_mod")
+    ctable = cntr.symbol_table
+    # Add a symbol that will be shadowed in an inner scope.
+    ctable.add(symbols.DataSymbol("rdef", symbols.REAL_TYPE))
+
+    cntr.addchild(Routine.create("my_sub"))
+    rtable = cntr.children[0].symbol_table
+    csym = symbols.ContainerSymbol("other_mod")
+    rtable.add(csym)
+    # Create an imported precision symbol that shadows the symbol we
+    # added to the outer scope.
+    rdef = symbols.DataSymbol("rdef", symbols.INTEGER_TYPE,
+                              interface=symbols.ImportInterface(csym))
+    rtable.add(rdef)
+    rtable.add(symbols.DataSymbol("var", symbols.ScalarType(
+        symbols.ScalarType.Intrinsic.REAL,
+        Reference(rdef))))
+    # Calling localise_all_symbol_dependencies() shouldn't alter the import
+    # interface.
+    rtable.localise_all_symbol_dependencies()
+    assert rtable.lookup("var").datatype.precision.symbol is rdef
+
+
 def test_localise_import_interface_of():
     '''Test the localise_import_interface_of() method.'''
     table1 = symbols.SymbolTable()
