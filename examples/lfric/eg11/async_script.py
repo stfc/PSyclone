@@ -52,8 +52,8 @@ def trans(psyir):
     '''
     from psyclone.transformations import \
         LFRicRedundantComputationTrans, \
-        LFRicAsyncHaloExchangeTrans, \
-        MoveTrans
+        LFRicAsyncHaloExchangeTrans
+    from psyclone.psyir.transformations import MoveTrans
 
     # Get first subroutine of the first module
     schedule = psyir.children[0].children[0]
