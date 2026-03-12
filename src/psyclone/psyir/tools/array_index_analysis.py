@@ -49,6 +49,7 @@ from psyclone.core import Signature
 from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
     INTEGER_TYPE
 from psyclone.psyir.tools.fortran_to_z3 import FortranToZ3
+from typing import Optional, Tuple
 from fparser.two import Fortran2003, Fortran2008
 
 # Outline
@@ -523,7 +524,7 @@ class ArrayIndexAnalysis:
         self.access_dict = {}
 
     def get_loop_conflicts(self, loop: Loop, all_conflicts: bool = False) -> \
-            list[tuple[Signature, None | str]]:
+            list[Tuple[Signature, Optional[str]]]:
         '''Determine whether or not distinct iterations of the given loop
            can generate conflicting array accesses.
 
@@ -608,7 +609,7 @@ class ArrayIndexAnalysis:
         return conflicts
 
     def _get_conflict(self, write: ArrayAccess, accs: list[ArrayAccess]) -> \
-            None | tuple[Signature, None | str]:
+            Optional[Tuple[Signature, Optional[str]]]:
         '''Get the conflict between the write access 'write' and
            any access in 'accs', if there is one.
 
