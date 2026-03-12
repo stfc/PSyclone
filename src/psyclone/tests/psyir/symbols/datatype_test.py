@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
 ''' Perform py.test tests on the psyclone.psyir.symbols.datatype module. '''
 
 import pytest
-from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     BinaryOperation, Container, KernelSchedule,
@@ -62,7 +61,7 @@ def test_datatype():
     # Python >= 3.9 spots that 'method' should be singular. Prior to this it
     # was plural. Python >= 3.12 tweaks the error message yet again to mention
     # the lack of an implementation and to quote the method name.
-    # We split the check to accomodate for this.
+    # We split the check to accommodate for this.
     assert "Can't instantiate abstract class DataType with" in msg
     assert "abstract method" in msg
     assert "__str__" in msg
@@ -180,7 +179,7 @@ def test_scalartype_int_precision(intrinsic, precision):
 def test_scalartype_datasymbol_precision(intrinsic):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType intrinsics and the precision specified by another
-    symbol.  Also test that two such types are equal.
+    symbol. Also test that two such types are equal.
 
     '''
     # Create an r_def precision symbol with a constant value of 8
@@ -197,7 +196,7 @@ def test_scalartype_datasymbol_precision(intrinsic):
     assert scalar_type == scalar_type2
 
 
-def test_scalartype_not_equal():
+def test_scalartype_equal():
     '''
     Check that ScalarType instances with different precision or intrinsic type
     are recognised as being different. Also check that an ArrayType is !=
@@ -211,6 +210,12 @@ def test_scalartype_not_equal():
                                   initial_value=8)
     # Set the precision of our ScalarType to be the precision symbol
     scalar_type = ScalarType(intrinsic, Reference(precision_symbol))
+
+    # Equivalent precision symbol and intrinsic type will be equal
+    scalar_type2 = ScalarType(intrinsic, Reference(precision_symbol.copy()))
+    assert scalar_type == scalar_type2
+
+    # Every other difference will make it not equal:
     # Same precision symbol but different intrinsic type
     scalar_type2 = ScalarType(ScalarType.Intrinsic.REAL,
                               Reference(precision_symbol))
@@ -319,15 +324,13 @@ def test_scalartype_replace_symbols():
     assert stype2.precision.symbol is rdef2
 
 
-def test_scalartype_reference_accesses():
-    '''Test for the ScalarType.reference_accesses() method.'''
+def test_scalartype_get_all_accessed_symbols():
+    '''Test for the ScalarType.get_all_accessed_symbols() method.'''
     rdef = DataSymbol("rdef", INTEGER_TYPE)
     stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
                         Reference(rdef))
-    vam = stype2.reference_accesses()
-    svaccess = vam[Signature("rdef")]
-    assert svaccess.has_data_access() is False
-    assert svaccess[0].node is stype2.precision
+    dependent_symbols = stype2.get_all_accessed_symbols()
+    assert rdef in dependent_symbols
 
 
 def test_scalartype_copy():
@@ -359,12 +362,11 @@ def test_scalartype_copy():
 
 def test_arraytype_extent():
     '''Test the ArrayType.Extent class. This is just an enum with a
-    copy() method and an empty reference_accesses() method. '''
+    copy() method and an empty get_all_accessed_symbols() method. '''
     xtent = ArrayType.Extent.ATTRIBUTE
     ytent = xtent.copy()
     assert isinstance(ytent, ArrayType.Extent)
-    vam = ytent.reference_accesses()
-    assert not vam.all_signatures
+    assert not ytent.get_all_accessed_symbols()
 
 
 def test_arraytype_arraybounds():
@@ -388,6 +390,16 @@ def test_arraytype_arraybounds():
     assert ("The upper bound provided when constructing an ArrayBounds must "
             "be either ArrayType.Extent.ATTRIBUTE or an instance of "
             "DataNode but got 'Extent'" in str(err.value))
+
+    # Test the arraybounds copy functionality
+    # The lower bound is a DataNode so is copied.
+    # The upper bound is an extent so is the same object.
+    bound2 = bounds.copy()
+    assert bound2 is not bounds
+    assert bound2.lower == bounds.lower
+    assert bound2.lower is not bounds.lower
+    assert bound2.upper == bounds.upper
+    assert bound2.upper is bounds.upper
 
 
 def test_arraytype():
@@ -414,8 +426,7 @@ def test_arraytype():
     assert shape0.upper.value == "10"
     assert shape0.upper.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert shape0.upper.datatype.precision == ScalarType.Precision.UNDEFINED
-    # TODO #1857: the datatype property might be affected.
-    assert array_type.datatype == scalar_type
+    assert array_type.elemental_type == scalar_type
     # Provided and stored as a Literal (DataNode)
     assert array_type.shape[1].upper == literal
     # Provided and stored as an Operator (DataNode)
@@ -455,8 +466,9 @@ def test_arraytype_invalid_datatype():
     '''
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(None, None)
-    assert ("ArrayType expected 'datatype' argument to be of type DataType "
-            "or DataTypeSymbol but found 'NoneType'." in str(excinfo.value))
+    assert ("ArrayType expected 'elemental_type' argument to be of type "
+            "DataType or DataTypeSymbol but found 'NoneType'."
+            in str(excinfo.value))
 
 
 def test_arraytype_datatypesymbol_only():
@@ -477,7 +489,7 @@ def test_arraytype_datatypesymbol():
     tsym = DataTypeSymbol("my_type", UnresolvedType())
     atype = ArrayType(tsym, [5])
     assert isinstance(atype, ArrayType)
-    assert atype.datatype == tsym
+    assert atype.elemental_type == tsym
     assert len(atype.shape) == 1
     assert atype.intrinsic is tsym
     assert atype.precision is None
@@ -489,7 +501,7 @@ def test_arraytype_unsupportedtype():
     utype = UnsupportedFortranType("integer, pointer :: var")
     atype = ArrayType(utype, [8])
     assert isinstance(atype, ArrayType)
-    assert atype.datatype is utype
+    assert atype.elemental_type is utype
     assert atype.precision is None
     assert utype.declaration == "integer, pointer :: var"
     # Since no partial datatype is provided, these return None
@@ -821,20 +833,20 @@ def test_arraytype_replace_symbols_using(table):
     assert etype.shape[0].upper.datatype.precision.symbol is newidef
 
 
-def test_arraytype_reference_accesses():
-    '''Tests for the ArrayType.reference_accesses() method.'''
+def test_arraytype_get_all_accessed_symbols():
+    '''Tests for the ArrayType.get_all_accessed_symbols() method.'''
 
     rdef = DataSymbol("rdef", INTEGER_TYPE)
     idef = DataSymbol("idef", INTEGER_TYPE)
+    ndim = DataSymbol("ndim", INTEGER_TYPE)
     etype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef)),
                       [Literal("10", ScalarType(ScalarType.Intrinsic.INTEGER,
                                Reference(idef))),
-                       Reference(DataSymbol("ndim", INTEGER_TYPE))])
-    vam = etype.reference_accesses()
-    all_names = [sig.var_name for sig in vam.all_signatures]
-    assert "rdef" in all_names
-    assert "idef" in all_names
-    assert "ndim" in all_names
+                       Reference(ndim)])
+    dependent_symbols = etype.get_all_accessed_symbols()
+    assert rdef in dependent_symbols
+    assert idef in dependent_symbols
+    assert ndim in dependent_symbols
 
 
 # UnsupportedFortranType tests
@@ -1050,23 +1062,23 @@ def test_unsupported_fortran_type_replace_symbols():
     assert stype2.partial_datatype.precision.symbol is newp
 
 
-def test_unsupported_fortran_type_reference_accesses():
+def test_unsupported_fortran_type_get_all_accessed_symbols():
     '''
-    Test the reference_accesses() method of UnsupportedFortranType.
+    Test the get_all_accessed_symbols() method of UnsupportedFortranType.
     '''
     decl = "type(some_type), dimension(nelem) :: var"
     stype = DataTypeSymbol("some_type", UnresolvedType())
     nelem = DataSymbol("nelem", INTEGER_TYPE)
     ptype = ArrayType(stype, [Reference(nelem)])
     utype = UnsupportedFortranType(decl, partial_datatype=ptype)
-    vam = utype.reference_accesses()
-    all_names = [sig.var_name for sig in vam.all_signatures]
-    assert "nelem" in all_names
-    assert "some_type" in all_names
+    dependent_symbols = utype.get_all_accessed_symbols()
+    assert nelem in dependent_symbols
+    assert stype in dependent_symbols
+
     decl2 = "type(some_type), pointer :: var"
     u2type = UnsupportedFortranType(decl2, partial_datatype=stype)
-    vai2 = u2type.reference_accesses()
-    assert "some_type" in [sig.var_name for sig in vai2.all_signatures]
+    dependent_symbols = u2type.get_all_accessed_symbols()
+    assert stype in dependent_symbols
 
 
 # StructureType tests
@@ -1129,7 +1141,7 @@ def test_structure_type():
 def test_create_structuretype():
     ''' Test the create() method of StructureType. '''
     # One member will have its type defined by a DataTypeSymbol
-    # One memeber will have its initial value defined by the
+    # One member will have its initial value defined by the
     # default.
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     stype = StructureType.create([
@@ -1186,7 +1198,7 @@ def test_structuretype_eq():
         ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
         ("peggy", REAL_TYPE, Symbol.Visibility.PUBLIC,
          Literal("1.0", REAL_TYPE))])
-    # Component wth a different initialisation
+    # Component with a different initialisation
     assert stype != StructureType.create([
         ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
         ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE, None)])
@@ -1228,18 +1240,19 @@ def test_structuretype_replace_symbols(table):
     assert stype.components["barry"].datatype is newtsymbol
 
 
-def test_structuretype_reference_accesses():
-    '''Tests for the reference_accesses() method of StructureType.'''
+def test_structuretype_get_all_accessed_symbols():
+    '''Tests for the get_all_accessed_symbols() method of StructureType.'''
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
-    atype = ArrayType(REAL_TYPE, [Reference(Symbol("ndim"))])
+    ndim = Symbol("ndim")
+    atype = ArrayType(REAL_TYPE, [Reference(ndim)])
     stype = StructureType.create([
         ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
         ("george", atype, Symbol.Visibility.PRIVATE,
          Literal("1.0", REAL_TYPE)),
         ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
-    vam = stype.reference_accesses()
-    assert Signature("my_type") in vam.all_signatures
-    assert Signature("ndim") in vam.all_signatures
+    dependent_symbols = stype.get_all_accessed_symbols()
+    assert tsymbol in dependent_symbols
+    assert ndim in dependent_symbols
 
 
 def test_structuretype_componenttype_eq():

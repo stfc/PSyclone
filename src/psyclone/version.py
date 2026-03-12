@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,10 @@
 
 __MAJOR__ = 3
 __MINOR__ = 2
-__MICRO__ = 0
+__MICRO__ = 2
 
-__SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}-dev"
-__VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}-dev"
+# Version suffix (e.g. -rc1 or -dev)
+_VERSION_SUFFIX = "-dev"
+
+__SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}{_VERSION_SUFFIX}"
+__VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}{_VERSION_SUFFIX}"

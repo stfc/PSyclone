@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,7 @@ from psyclone.tests.utilities import get_invoke
 
 def setup_module():
     '''
-    This setup routine ensures that any pre-exisiting Config object is
+    This setup routine ensures that any pre-existing Config object is
     wiped when this module is first entered and the teardown function below
     guarantees it for subsequent tests.  (Necessary when running tests in
     parallel.)
@@ -380,7 +380,7 @@ end module my_mod'''
     # Validation should now pass.
     rtrans.validate(routine)
 
-    # TYPE_INFO imports should be ok
+    # CONSTANT imports should be ok
     code = '''module my_mod
     use other_mod, only: wp
 contains

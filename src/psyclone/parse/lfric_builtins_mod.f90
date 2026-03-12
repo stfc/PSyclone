@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2025, Science and Technology Facilities Council
+! Copyright (c) 2017-2026, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,7 @@ use argument_mod,  only : arg_type,            &
                           GH_REAL, GH_INTEGER, &
                           GH_READ, GH_WRITE,   &
                           GH_READWRITE,        &
+                          GH_REDUCTION,        &
                           ANY_SPACE_1, DOF
 
 ! ******************************************************************* !
@@ -560,7 +561,7 @@ use argument_mod,  only : arg_type,            &
   type, public, extends(kernel_type) :: X_innerproduct_Y
      private
      type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_SCALAR, GH_REAL, GH_SUM              ),         &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION        ),         &
           arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_SPACE_1),         &
           arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_SPACE_1)          &
           /)
@@ -573,7 +574,7 @@ use argument_mod,  only : arg_type,            &
   type, public, extends(kernel_type) :: X_innerproduct_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_SCALAR, GH_REAL, GH_SUM              ),         &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION        ),         &
           arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_SPACE_1)          &
           /)
      integer :: operates_on = DOF
@@ -589,7 +590,7 @@ use argument_mod,  only : arg_type,            &
   type, public, extends(kernel_type) :: sum_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
-          arg_type(GH_SCALAR, GH_REAL, GH_SUM              ),         &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION        ),         &
           arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_SPACE_1)          &
           /)
      integer :: operates_on = DOF
@@ -671,6 +672,32 @@ use argument_mod,  only : arg_type,            &
    contains
      procedure, nopass :: inc_min_aX_code
   end type inc_min_aX
+
+! ------------------------------------------------------------------- !
+! ============ Minimum, maximum value of real field elements) ======= !
+! ------------------------------------------------------------------- !
+
+  type, public, extends(kernel_type) :: minval_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION         ),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: minval_X_code
+  end type minval_X
+
+  type, public, extends(kernel_type) :: maxval_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION         ),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: maxval_X_code
+  end type maxval_X
 
 ! ------------------------------------------------------------------- !
 ! ============== Converting real to integer field elements ========== !
@@ -1168,6 +1195,13 @@ contains
 
   subroutine inc_min_aX_code()
   end subroutine inc_min_aX_code
+
+  ! Minimum and maximum values contained within a field
+  subroutine minval_X_code()
+  end subroutine minval_X_code
+
+  subroutine maxval_X_code()
+  end subroutine maxval_X_code
 
   ! Converting real to integer field elements
   subroutine real_to_int_X_code()

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,24 +37,67 @@
 '''This module contains the DataSharingAttributeMixin.'''
 
 import abc
-from typing import Set, Tuple
+from typing import Optional, Union
 
-from psyclone.core.access_type import AccessType
+from psyclone.core import AccessType, AccessSequence, Signature
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.nodes.omp_clauses import OMPReductionClause
+from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import DataSymbol, Symbol
+from psyclone.psyir.symbols import DataSymbol, Symbol, SymbolTable
 
 
 class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
     ''' Abstract class used to compute data sharing attributes about variables
     in regions used for parallelism.
     '''
+    def __init__(self, *args, **kwargs):
+        self._explicitly_private_symbols = set()
+        super().__init__(*args, **kwargs)
+
+    @property
+    def explicitly_private_symbols(self) -> set[DataSymbol]:
+        '''
+        :returns: the set of symbols inside the loop which are private to each
+            iteration of the loop if it is executed concurrently.
+        '''
+        return self._explicitly_private_symbols
+
+    def replace_symbols_using(
+        self,
+        table_or_symbol: Union[Symbol, SymbolTable]
+    ):
+        '''
+        Replace the Symbol referred to by this object's
+        `explicitly_private_symbols` set with those in the supplied
+        SymbolTable (or just the supplied Symbol instance) if they
+        have matching names. If there is no match for a given Symbol then it
+        is left unchanged.
+
+        :param table_or_symbol: the symbol table from which to get replacement
+            symbols or a single, replacement Symbol.
+
+        '''
+
+        for symbol in list(self._explicitly_private_symbols):
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == symbol.name.lower():
+                    self._explicitly_private_symbols.remove(symbol)
+                    self._explicitly_private_symbols.add(table_or_symbol)
+            else:
+                try:
+                    new_sym = table_or_symbol.lookup(symbol.name)
+                    self._explicitly_private_symbols.remove(symbol)
+                    self._explicitly_private_symbols.add(new_sym)
+                except KeyError:
+                    pass
+        super().replace_symbols_using(table_or_symbol)
 
     def infer_sharing_attributes(self) -> \
-            Tuple[Set[Symbol], Set[Symbol], Set[Symbol]]:
+            tuple[set[Symbol], set[Symbol], set[Symbol]]:
         '''
         The PSyIR does not specify if each symbol inside an OpenMP region is
         private, firstprivate, shared or shared but needs synchronisation,
@@ -116,13 +159,15 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                 for ref in clause.children:
                     red_vars.append(ref.name)
 
+        n_cblocks = len(self.walk(CodeBlock))
+
         # Determine variables that must be private, firstprivate or need_sync
         var_accesses = self.reference_accesses()
         for signature in var_accesses.all_signatures:
             if not var_accesses[signature].has_data_access():
                 continue
-            # Skip those that are TYPE_INFO accesses.
-            if any(x.access_type == AccessType.TYPE_INFO
+            # Skip those that are CONSTANT accesses.
+            if any(x.access_type == AccessType.CONSTANT
                     for x in var_accesses[signature]):
                 continue
             accesses = var_accesses[signature]
@@ -149,24 +194,10 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
             # If it is manually marked as a local symbol, add it to private or
             # firstprivate set
             if (isinstance(symbol, DataSymbol) and
-                    isinstance(self.dir_body[0], Loop) and
-                    symbol in self.dir_body[0].explicitly_private_symbols):
-                visited = set()
-                for access in accesses:
-                    if not isinstance(access.node, Reference):
-                        # Nodes that are not References do not have
-                        # 'enters_scope', so the analysis below can't be
-                        # done and we defensively use 'firstprivate'
-                        # TODO #3124: Remove this special-case
-                        fprivate.add(symbol)
-                        break
-                    if access.node.enters_scope(self, visited):
-                        # If it uses a value coming from before the loop
-                        # scope, make it 'firstprivate'
-                        fprivate.add(symbol)
-                        break
+                    symbol in self.explicitly_private_symbols):
+                if self._should_it_be_fprivate(accesses, n_cblocks):
+                    fprivate.add(symbol)
                 else:
-                    # Everything else can be just 'private'
                     private.add(symbol)
                 continue
 
@@ -194,7 +225,6 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
 
             has_been_read = False
             last_read_position = 0
-            visited_nodes = set()  # To avoid enters_scope repetitions
             for access in accesses:
                 if access.is_any_read():
                     has_been_read = True
@@ -242,21 +272,85 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                         limit=loop_ancestor,
                         include_self=True)
                     if conditional_write:
-                        # Check if it gets a value from before the loop
-                        for access in accesses:
-                            if not isinstance(access.node, Reference):
-                                # Nodes that are not References do not have
-                                # 'enters_scope', so the analysis below can't
-                                # be done and we defensively use 'firstprivate'
-                                # TODO #3124: Remove this special-case
-                                fprivate.add(symbol)
-                                break
-                            if access.node.enters_scope(self, visited_nodes):
-                                fprivate.add(symbol)
-                                break
+                        if self._should_it_be_fprivate(accesses, n_cblocks):
+                            fprivate.add(symbol)
                     # Otherwise it is just 'private'
                     if symbol not in fprivate:
                         private.add(symbol)
                     break
 
         return private, fprivate, need_sync
+
+    def _should_it_be_fprivate(
+        self, accesses: AccessSequence, num_of_codeblocks: int
+    ) -> bool:
+        '''
+        :param accesses: the sequence of accesses to the analysed variable.
+        :param num_of_codeblocs: number of codeblocks in the analysed regrion.
+
+        :returns: whether the variable represented by the provided accesses
+        should be firstprivate (because there is the possibility that one of
+        the accesses gets the value that the symbol had before the loop).
+
+        '''
+        if num_of_codeblocks > 10:
+            # Any codeblock would make the involved variables firstprivate
+            # and we found that loops with many codeblocks are slow to
+            # process, so if we have more than a certain number of codeblocks
+            # we skip the analysis and just return firstprivate for all symbols
+            # TODO #3183: If enters_scope gets faster we can get rid of this
+            return True
+
+        # Check if it gets a value from before the loop
+        visited_nodes = set()  # Store visited nodes to reduce repetitions
+        for access in accesses:
+            if not isinstance(access.node, Reference):
+                # TODO #3124: Remove this special-case
+                # Nodes that are not References do not have
+                # 'enters_scope', so the analysis below can't
+                # be done and we defensively use 'firstprivate'
+                return True
+            if access.node.enters_scope(self, visited_nodes):
+                return True
+
+        # If not, it can be just 'private'
+        return False
+
+    def _add_reduction_clauses(self,
+                               need_sync: Optional[list[Symbol]] = None
+                               ) -> None:
+        '''
+        Analyses the code beneath this node and adds the necessary
+        OMPReductionClause nodes.
+
+        :param need_sync: optional list of Symbols that require
+            synchronisation (to avoid the expensive call to
+            infer_sharing_attributes).
+
+        '''
+        if need_sync is None:
+            # infer_sharing_attributes() is expensive so only call it
+            # when necessary.
+            _, _, need_sync = self.infer_sharing_attributes()
+
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.reduction_inference import (
+            ReductionInferenceTool)
+        from psyclone.psyir.nodes.omp_directives import (
+            MAP_REDUCTION_OP_TO_OMP)
+
+        vam = self.children[0].reference_accesses()
+        # Currently we only support *summation* reductions in DSL code. More
+        # operations are supported for generic code but these are inserted
+        # during the transformation.
+        red_tool = ReductionInferenceTool(
+            [BinaryOperation.Operator.ADD])
+
+        for sym in need_sync:
+            sig = Signature(sym.name)
+            acc_seq = vam[sig]
+            clause = red_tool.attempt_reduction(sig, acc_seq)
+            if clause:
+                self.children.append(
+                    OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[clause[0]],
+                                       children=[clause[1].copy()]))

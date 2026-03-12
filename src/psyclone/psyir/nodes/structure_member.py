@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 
 
-class StructureMember(Member, StructureAccessorMixin):
+class StructureMember(StructureAccessorMixin, Member):
     '''
     Node representing a membership expression of the parent's Reference that
     resolves into another structure.

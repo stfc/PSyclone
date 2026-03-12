@@ -29,8 +29,8 @@ The xDSL backend has the following dependencies:
 5. Once you have installed the above dependencies, you will need to set your `PYTHONPATH` environment variable to include the following directories:
 
     1. The `ftn` repository directory 
-    2. The `psy` repository direcotry 
-    3. The `xdsl` subdirectory of the xDSL respository directory
+    2. The `psy` repository directory
+    3. The `xdsl` subdirectory of the xDSL repository directory
 
     So, for example, we might have a `build` subdirectory in our home directory that contains the `ftn`, `psy` and `xdsl` repositories and we would set the `PYTHONPATH` to:
     ```bash
@@ -78,7 +78,7 @@ We then compile the stencil and main driver files:
 clang -g -c stencil.bc ; flang-new -fc1 -emit-obj generated/module_1.mlir ; flang-new -o stencil stencil.o generated/module_1.o -I/opt/homebrew/Cellar/mpich/4.2.1/include -L/opt/homebrew/Cellar/mpich/4.2.1/lib -L /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lmpi -lpmpi -lomp -lmlir_c_runner_utils
 ```
 
-> NOTE: The correct MPI include file and library directories will need to be substituted in place of the Hombrew MPICH paths in the example command above - these can be obtained by using the following commands:
+> NOTE: The correct MPI include file and library directories will need to be substituted in place of the Homebrew MPICH paths in the example command above - these can be obtained by using the following commands:
 >
 > For MPICH:
 > `mpicc -compile_info`

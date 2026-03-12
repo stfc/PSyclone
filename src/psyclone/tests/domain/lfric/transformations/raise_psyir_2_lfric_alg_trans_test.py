@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council
+# Copyright (c) 2021-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -108,26 +108,6 @@ def test_init():
     assert isinstance(invoke_trans, RaisePSyIR2LFRicAlgTrans)
 
 
-def test_structure_contructor(fortran_reader):
-    '''Test that validation does not raise an exception if the fparser2
-    node is a structure constructor.
-
-    '''
-    code = (
-        "subroutine alg()\n"
-        "  use kern_mod\n"
-        "  call invoke(kern(1.0))\n"
-        "end subroutine alg\n")
-
-    psyir = fortran_reader.psyir_from_source(code)
-    subroutine = psyir.children[0]
-    lfric_invoke_trans = RaisePSyIR2LFRicAlgTrans()
-
-    lfric_invoke_trans.validate(subroutine.children[0])
-    lfric_invoke_trans._validate_fp2_node(
-        subroutine[0].arguments[0]._fp2_nodes[0])
-
-
 @pytest.mark.parametrize("string", ["error='hello'", "name=0"])
 def test_named_arg_error(string, fortran_reader):
     '''Test that the validation method raises an exception if a named
@@ -198,14 +178,15 @@ def test_codeblock_invalid(monkeypatch, fortran_reader):
     subroutine = psyir.children[0]
     code_block = subroutine[0].arguments[0]
     assert isinstance(code_block, CodeBlock)
-    monkeypatch.setattr(code_block, "_fp2_nodes", [None])
 
     lfric_invoke_trans = RaisePSyIR2LFRicAlgTrans()
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(subroutine[0])
-    assert ("Expecting an algorithm invoke codeblock to contain a "
-            "Structure-Constructor, but found 'NoneType'." in str(info.value))
+    assert ("Error in RaisePSyIR2LFRicAlgTrans transformation. The arguments "
+            "to this invoke call are expected to be kernel calls which are "
+            "represented in generic PSyIR as Calls, but ''xx' // 'xx'' is of "
+            "type 'CodeBlock'." in str(info.value))
 
 
 def test_arg_declaration_error(fortran_reader):
@@ -227,8 +208,8 @@ def test_arg_declaration_error(fortran_reader):
     invoke_trans = RaisePSyIR2LFRicAlgTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir.children[0][0])
-    assert ("The invoke call argument 'setval_c' has been used as a routine "
-            "name. This is not allowed." in str(info.value))
+    assert ("The invoke call argument 'setval_c' has been used as the "
+            "Algorithm routine name. This is not allowed." in str(info.value))
 
 
 def test_apply_codedkern_arrayref(fortran_reader):

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -111,11 +111,11 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         for signature in reads+writes:
             accesses = var_accesses[signature]
             sym_name = signature.var_name
-            # TODO #3060: If any of the accesses are TYPE_INFO then this
+            # TODO #3060: If any of the accesses are CONSTANT then this
             # is a kind parameter, which can currently sometimes appear as
             # a READ. If the only access to a kind parameter is detected as
             # a READ, then we won't skip it.
-            if any([x.access_type == AccessType.TYPE_INFO for x in accesses]):
+            if any([x.access_type == AccessType.CONSTANT for x in accesses]):
                 continue
             last_access = accesses[-1].node
             sym = last_access.scope.symbol_table.lookup(sym_name)
@@ -184,7 +184,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                     closest = access
                     closest_position = abs_position
                     continue
-        # If this directive is contained inside a loop the closest foward
+        # If this directive is contained inside a loop the closest forward
         # dependency might be itself. So if closest is not within the ancestor
         # loop of node then we can't do nowait, so return False.
         node_ancestor = directive.ancestor((Loop, WhileLoop))

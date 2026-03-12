@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,18 +40,16 @@
 ''' This module contains the implementation of the abstract ArrayMixin. '''
 
 import abc
-from typing import Tuple
+from typing import Tuple, Optional
 
 from psyclone.core import SymbolicMaths
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes.call import Call
-from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.operation import Operation, BinaryOperation
+from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol
@@ -195,11 +193,12 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         return self._is_bound(index, "lower")
 
-    def _get_bound_expression(self, pos: int, bound: str):
+    def _get_bound_expression(self, position: int, bound: str):
         '''
         Lookup the upper or lower bound of this ArrayMixin.
 
-        :param pos: the dimension of the array for which to lookup the bound.
+        :param position: the dimension of the array for which to lookup the
+            bound.
         :param bound: "upper" or "lower" - the bound which to lookup.
 
         :returns: the declared bound for the specified dimension of this array
@@ -207,6 +206,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises InternalError: if bound is neither "upper" or "lower".
+        :raises ValueError: if the shape of the given 'position' is needed to
+            generate the bound expression, but we don't have that type
+            information.
 
         '''
         if bound not in ("upper", "lower"):
@@ -231,8 +233,13 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             cursor = cursor.member
             # Collect member information.
             if isinstance(cursor, ArrayMixin):
-                new_indices = [idx.copy() for idx in cursor.indices]
-                cnames.append((cursor.name.lower(), new_indices))
+                try:
+                    new_indices = [idx.copy() for idx in cursor.indices]
+                    cnames.append((cursor.name.lower(), new_indices))
+                except InternalError:
+                    # The node is incomplete, but we can still use the type
+                    # information to populate the bounds
+                    cnames.append(cursor.name.lower())
             else:
                 cnames.append(cursor.name.lower())
             # Continue to resolve datatype unless we hit an
@@ -245,17 +252,23 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 continue
             cursor_type = cursor_type.components[cursor.name.lower()].datatype
 
-        if (isinstance(cursor_type, ArrayType) and
-                cursor_type.shape[pos] not in [ArrayType.Extent.DEFERRED,
-                                               ArrayType.Extent.ATTRIBUTE]):
-            # We have the full type information and the bound is known.
-            if bound == "lower":
-                return cursor_type.shape[pos].lower.copy()
-            # If the upper bound is required and is of ArrayType.Extent type
-            # then we'll have to proceed to construct a call to the UBOUND
-            # intrinsic.
-            if not isinstance(cursor_type.shape[pos].upper, ArrayType.Extent):
-                return cursor_type.shape[pos].upper.copy()
+        if isinstance(cursor_type, ArrayType):
+            if position > len(cursor_type.shape):
+                raise ValueError(
+                    f"In '{type(self).__name__}' '{self.name}' the specified "
+                    f"index '{position}' must be less than the number of "
+                    f"dimensions '{len(cursor_type.shape)}'.")
+            if cursor_type.shape[position] not in [ArrayType.Extent.DEFERRED,
+                                                   ArrayType.Extent.ATTRIBUTE]:
+                # We have the full type information and the bound is known.
+                if bound == "lower":
+                    return cursor_type.shape[position].lower.copy()
+                # If the upper bound is required and is of ArrayType.Extent
+                # type then we'll have to proceed to construct a call to the
+                # UBOUND intrinsic.
+                if not isinstance(cursor_type.shape[position].upper,
+                                  ArrayType.Extent):
+                    return cursor_type.shape[position].upper.copy()
 
         # We've either failed to resolve the type or we don't know the extent
         # of the array dimension so construct a call to the BOUND intrinsic.
@@ -281,10 +294,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if bound == "lower":
             return IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.LBOUND,
-                [ref, ("dim", Literal(str(pos+1), INTEGER_TYPE))])
+                [ref, ("dim", Literal(str(position+1), INTEGER_TYPE))])
         return IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.UBOUND,
-                [ref, ("dim", Literal(str(pos+1), INTEGER_TYPE))])
+                [ref, ("dim", Literal(str(position+1), INTEGER_TYPE))])
 
     def get_lbound_expression(self, pos):
         '''
@@ -296,12 +309,11 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         lower bound.
 
         :returns: the declared lower bound for the specified dimension of
-            the array accesed or a call to the LBOUND intrinsic if it is
+            the array accessed or a call to the LBOUND intrinsic if it is
             unknown.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        self._validate_index(pos)
         # Call the helper function
         return self._get_bound_expression(pos, "lower")
 
@@ -315,12 +327,11 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         upper bound.
 
         :returns: the declared upper bound for the specified dimension of
-            the array accesed or a call to the UBOUND intrinsic if it is
+            the array accessed or a call to the UBOUND intrinsic if it is
             unknown.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        self._validate_index(pos)
         # Call the helper function
         return self._get_bound_expression(pos, "upper")
 
@@ -336,8 +347,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                   pos for this ArrayMixin.
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
         '''
-        self._validate_index(pos)
-
         lbound = self.get_lbound_expression(pos)
         ubound = self.get_ubound_expression(pos)
 
@@ -496,32 +505,39 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 return False
         return True
 
-    def is_full_range(self, index):
-        '''Returns True if the specified array index is a Range Node that
-        specifies all elements in this index. In the PSyIR this is
-        specified by using LBOUND(name,index) for the lower bound of
-        the range, UBOUND(name,index) for the upper bound of the range
-        and "1" for the range step.
+    def is_full_range(self, index: Optional[int] = None) -> bool:
+        ''' Returns whether the array access iterates over the whole
+        associated array. Can optionally be provided a single index
+        to check if it iterates over a whole dimension of the array.
 
-        :param int index: the array index to check.
+        :param index: only check the given array index.
 
-        :returns: True if the access to this array index is a range \
-            that specifies all index elements. Otherwise returns \
+        :returns: True if the access to this array (or specified array
+            dimension) iterates over all elements. Otherwise returns
             False.
-        :rtype: bool
 
         '''
-        self._validate_index(index)
+        if index is not None:
+            self._validate_index(index)
+            indices_to_check = [index]
+        else:
+            indices_to_check = range(len(self.indices))
 
-        array_dimension = self.indices[index]
-        if isinstance(array_dimension, Range):
-            if self.is_lower_bound(index) and self.is_upper_bound(index):
-                step = array_dimension.children[2]
-                if (isinstance(step, Literal) and
+        for idx in indices_to_check:
+            array_dimension = self.indices[idx]
+            # Check that it is a range going from the lower to the upper
+            # bound with step 1
+            if isinstance(array_dimension, Range):
+                if self.is_lower_bound(idx) and self.is_upper_bound(idx):
+                    step = array_dimension.children[2]
+                    if (
+                        isinstance(step, Literal) and
                         step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-                        and str(step.value) == "1"):
-                    return True
-        return False
+                        and str(step.value) == "1"
+                    ):
+                        continue
+            return False
+        return True
 
     @property
     def indices(self) -> Tuple[Node]:
@@ -549,6 +565,16 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                     f"expression but found '{type(child).__name__}'")
         return tuple(self.children)
 
+    def component_indices(self) -> tuple[tuple[Node]]:
+        '''
+        :returns: a tuple of tuples of index expressions; one for every
+            component in the accessor. For example, for a scalar it
+            returns `(())`, for `a%b` it returns ((),()) - two components
+            with 0 indices in each, and for `a(i)%b(j,k+1)` it
+            returns `((i,),(j,k+1))`.
+        '''
+        return (self.indices,)
+
     def _extent(self, idx):
         '''
         Create PSyIR for the number of elements in dimension `idx` of this
@@ -564,7 +590,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         '''
         expr = self.indices[idx]
-        one = Literal("1", INTEGER_TYPE)
 
         if isinstance(expr, Range):
             start = expr.start
@@ -572,10 +597,26 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             step = expr.step
         else:
             # No range so just a single element is accessed.
-            return one
+            return Literal("1", INTEGER_TYPE)
 
         if (isinstance(start, IntrinsicCall) and
                 isinstance(stop, IntrinsicCall) and self.is_full_range(idx)):
+            # If the upper and lower dimension are both integers then we can
+            # compute the size and return it as a literal. This only works for
+            # an ArrayReference as ArrayMembers don't have a symbol to find
+            # the shape from.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import ArrayReference
+            if (isinstance(self, ArrayReference) and
+                len(self.symbol.shape) > idx and
+                isinstance(self.symbol.shape[idx], ArrayType.ArrayBounds) and
+                isinstance(self.symbol.shape[idx].lower, Literal) and
+                    isinstance(self.symbol.shape[idx].upper, Literal)):
+                upper = self.symbol.shape[idx].upper.value_as_python
+                lower = self.symbol.shape[idx].lower.value_as_python
+                size = upper - lower + 1
+                return Literal(str(size), INTEGER_TYPE)
+
             # Access is to full range and start and stop are expressed in terms
             # of LBOUND and UBOUND. Therefore, it's simpler to use SIZE.
             return IntrinsicCall.create(
@@ -583,14 +624,15 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 [start.arguments[0].copy(),
                  ("dim", Literal(str(idx+1), INTEGER_TYPE))])
 
-        if start == one and step == one:
+        if (isinstance(start, Literal) and start.value_as_python == 1 and
+                isinstance(step, Literal) and step.value_as_python == 1):
             # The range starts at 1 and the step is 1 so the extent is just
             # the upper bound.
             return stop.copy()
 
         extent = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                         stop.copy(), start.copy())
-        if step != one:
+        if not (isinstance(step, Literal) and step.value_as_python == 1):
             # Step is not unity so have to divide range by it.
             result = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                             extent, step.copy())
@@ -599,7 +641,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         # Extent is currently 'stop-start' or '(stop-start)/step' so we have
         # to add a '+ 1'
         return BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                      result, one.copy())
+                                      result, Literal("1", INTEGER_TYPE))
 
     def _get_effective_shape(self):
         '''
@@ -608,17 +650,18 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         :raises NotImplementedError: if any of the array-indices involve a
                                      function call or are of unknown type.
+        :raises InternalError: if any index expression has an unexpected type.
         '''
         shape = []
         for idx, idx_expr in enumerate(self.indices):
             if isinstance(idx_expr, Range):
                 shape.append(self._extent(idx))
 
-            elif isinstance(idx_expr, (Reference, Operation)):
+            elif isinstance(idx_expr, DataNode):
                 dtype = idx_expr.datatype
                 if isinstance(dtype, ArrayType):
                     # An array slice can be defined by a 1D slice of another
-                    # array, e.g. `a(b(1:4))` or `a(b)`.
+                    # array, e.g. `a(b(1:4))`, `a(b)` or a(b(:)).
                     indirect_array_shape = dtype.shape
                     if len(indirect_array_shape) > 1:
                         raise NotImplementedError(
@@ -628,7 +671,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                             f"{len(indirect_array_shape)} dimensions.")
                     # pylint: disable=protected-access
                     if isinstance(idx_expr, ArrayMixin):
-                        shape.append(idx_expr._extent(idx))
+                        shape.append(idx_expr._get_effective_shape()[0])
                     else:
                         # We have some expression with a shape but no explicit
                         # indexing. The extent of this is then the SIZE of
@@ -643,15 +686,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         f"'{self.debug_string()}' is of '{dtype}' type and "
                         f"therefore whether it is an array slice (i.e. an "
                         f"indirect access) cannot be determined.")
-            elif isinstance(idx_expr, (Call, CodeBlock)):
-                # We can't yet straightforwardly query the type of a function
-                # call - TODO #1799.
-                raise NotImplementedError(
-                    f"The array index expressions for access "
-                    f"'{self.debug_string()}' include a function call or "
-                    f"unsupported feature. Querying the return type of "
-                    f"such things is yet to be implemented.")
-
+            else:
+                raise InternalError(
+                    f"Found unexpected node of type '{type(idx_expr)}' "
+                    f"as an index expression.")
         return shape
 
     def get_outer_range_index(self):

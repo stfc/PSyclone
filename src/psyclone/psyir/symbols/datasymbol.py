@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,10 @@
 ''' This module contains the DataSymbol and its interfaces.'''
 
 from __future__ import annotations
+
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.psyir.symbols.interfaces import StaticInterface
+from psyclone.psyir.symbols.symbol import Symbol
 
 
 class DataSymbol(TypedSymbol):
@@ -138,7 +140,7 @@ class DataSymbol(TypedSymbol):
         if new_initial_value is not None:
             self.initial_value = new_initial_value
 
-        # Now that we know whether or not we have an intial_value and an
+        # Now that we know whether or not we have an initial_value and an
         # interface, we can call the is_constant setter.
         if new_is_constant_value is not None:
             self.is_constant = new_is_constant_value
@@ -383,20 +385,14 @@ class DataSymbol(TypedSymbol):
                     continue
                 bnd.replace_symbols_using(table_or_symbol)
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this Symbol, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this Symbol.
         '''
-        access_info = super().reference_accesses()
-
+        symbols = super().get_all_accessed_symbols()
         if self.initial_value:
-            access_info.update(self.initial_value.reference_accesses())
-        return access_info
+            symbols.update(self.initial_value.get_all_accessed_symbols())
+        return symbols
 
     def get_bounds(self, idx: int):
         '''

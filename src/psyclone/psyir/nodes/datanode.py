@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,13 @@ class DataNode(Node):
         :rtype: :py:class:`psyclone.psyir.symbols.UnresolvedType`
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import UnresolvedType
+        from psyclone.psyir.nodes.loop import Loop
+        from psyclone.psyir.nodes.ranges import Range
+        from psyclone.psyir.symbols.datatypes import (
+            UnresolvedType, INTEGER_TYPE)
+        # If it is a direct child of Loop or Range, it can only be an Integer
+        if self.parent and isinstance(self.parent, (Loop, Range)):
+            return INTEGER_TYPE
         return UnresolvedType()
 
     def is_character(self, unknown_as=None):

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2025, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2026, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
     from psyclone.parse import ModuleManager
 
     # Define SOURCE_FILE to point to an existing gocean 1.0 file.
-    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+    SOURCE_FILE = ("../src/psyclone/tests/test_files/"
         "gocean1p0/test11_different_iterates_over_one_invoke.f90")
 
 .. _devguide_psy_data:

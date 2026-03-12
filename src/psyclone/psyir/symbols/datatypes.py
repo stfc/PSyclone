@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@
 
 ''' This module contains the datatype definitions.'''
 
+from __future__ import annotations
+
 import abc
 import copy
 from collections import OrderedDict
@@ -48,6 +50,7 @@ from typing import Any, Optional, Union
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.commentable_mixin import CommentableMixin
+from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 
@@ -93,19 +96,11 @@ class DataType(metaclass=abc.ABCMeta):
 
         '''
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this object, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this DataType.
         '''
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core import VariablesAccessMap
-        return VariablesAccessMap()
+        return set()
 
     @property
     def is_allocatable(self) -> Optional[bool]:
@@ -327,30 +322,19 @@ class UnsupportedFortranType(UnsupportedType):
             return self.partial_datatype.intrinsic
         return None
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this object, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this DataType.
         '''
-        access_info = super().reference_accesses()
+        symbols = super().get_all_accessed_symbols()
 
         if self.partial_datatype:
             if isinstance(self.partial_datatype, DataTypeSymbol):
-                # Avoid circular import
-                # pylint: disable=import-outside-toplevel
-                from psyclone.core.signature import Signature
-                from psyclone.core.access_type import AccessType
-                access_info.add_access(
-                    Signature(self.partial_datatype.name),
-                    AccessType.TYPE_INFO, self)
+                symbols.add(self.partial_datatype)
             else:
-                access_info.update(
-                    self.partial_datatype.reference_accesses())
-        return access_info
+                symbols.update(
+                    self.partial_datatype.get_all_accessed_symbols())
+        return symbols
 
     @property
     def is_allocatable(self) -> Optional[bool]:
@@ -527,34 +511,19 @@ class ScalarType(DataType):
         if isinstance(self.precision, DataNode):
             self._precision.replace_symbols_using(table_or_symbol)
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this object, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this DataType.
         '''
-        access_info = super().reference_accesses()
+        symbols = super().get_all_accessed_symbols()
 
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.core.access_type import AccessType
         from psyclone.psyir.nodes.datanode import DataNode
         if isinstance(self.precision, DataNode):
-            precision_ras = self.precision.reference_accesses()
-            # TODO #3060, use the helper function implemented in
-            # 3119.
-            # Change all the precision_ras to be of TYPE_INFO type,
-            # since this is a kind expression we know the symbols
-            # are not runtime-read
-            for sig in precision_ras:
-                for access in precision_ras[sig]:
-                    access._access_type = AccessType.TYPE_INFO
-            access_info.update(precision_ras)
+            symbols.update(self.precision.get_all_accessed_symbols())
 
-        return access_info
+        return symbols
 
     def copy(self):
         '''
@@ -574,9 +543,7 @@ class ArrayType(DataType):
     integer) or of structure types. For the latter, the type must currently be
     specified as a DataTypeSymbol (see #1031).
 
-    :param datatype: the datatype of the array elements.
-    :type datatype: :py:class:`psyclone.psyir.datatypes.DataType` |
-                    :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+    :param elemental_type: the datatype of the array elements.
     :param list shape: shape of the symbol in column-major order (leftmost
         index is contiguous in memory). Each entry represents an array
         dimension. If it is ArrayType.Extent.ATTRIBUTE the extent of that
@@ -618,18 +585,11 @@ class ArrayType(DataType):
             '''
             return copy.copy(self)
 
-        def reference_accesses(self):
+        def get_all_accessed_symbols(self) -> set[Symbol]:
             '''
-            :returns: a map of all the symbol accessed inside this object, the
-                keys are Signatures (unique identifiers to a symbol and its
-                structure acccessors) and the values are
-                AccessSequence (a sequence of AccessTypes).
-            :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+            :returns: a set of all the symbols accessed inside this Extent.
             '''
-            # pylint: disable=import-outside-toplevel
-            from psyclone.core import VariablesAccessMap
-            return VariablesAccessMap()
+            return set()
 
     @dataclass(frozen=True)
     class ArrayBounds:
@@ -693,7 +653,19 @@ class ArrayType(DataType):
             object.__setattr__(self, 'lower', _dangling_parent(self.lower))
             object.__setattr__(self, 'upper', _dangling_parent(self.upper))
 
-    def __init__(self, datatype, shape):
+        def copy(self) -> ArrayType.ArrayBounds:
+            '''
+            :returns: a copy of this ArrayBounds object.
+            '''
+            return ArrayType.ArrayBounds(
+                    self.lower.copy(), self.upper.copy()
+            )
+
+    def __init__(
+        self,
+        elemental_type: Union[DataType, DataTypeSymbol],
+        shape
+    ):
 
         # This import must be placed here to avoid circular dependencies.
         # pylint: disable-next=import-outside-toplevel
@@ -714,27 +686,20 @@ class ArrayType(DataType):
                 return Literal(str(var), INTEGER_TYPE)
             return var
 
-        if isinstance(datatype, DataType):
-            if isinstance(datatype, StructureType):
+        if isinstance(elemental_type, DataType):
+            if isinstance(elemental_type, StructureType):
                 # TODO #1031 remove this restriction.
                 raise NotImplementedError(
                     "When creating an array of structures, the type of "
                     "those structures must be supplied as a DataTypeSymbol "
                     "but got a StructureType instead.")
-            if not isinstance(datatype, (UnsupportedType, UnresolvedType)):
-                self._intrinsic = datatype.intrinsic
-                self._precision = datatype.precision
-            else:
-                self._intrinsic = datatype
-                self._precision = None
-        elif isinstance(datatype, DataTypeSymbol):
-            self._intrinsic = datatype
-            self._precision = None
+        elif isinstance(elemental_type, DataTypeSymbol):
+            pass
         else:
             raise TypeError(
-                f"ArrayType expected 'datatype' argument to be of type "
+                f"ArrayType expected 'elemental_type' argument to be of type "
                 f"DataType or DataTypeSymbol but found "
-                f"'{type(datatype).__name__}'.")
+                f"'{type(elemental_type).__name__}'.")
         # We do not have a setter for shape as it is an immutable property,
         # therefore we have a separate validation routine.
         self._validate_shape(shape)
@@ -754,34 +719,36 @@ class ArrayType(DataType):
             else:
                 self._shape.append(dim)
 
-        self._datatype = datatype
+        self._elemental_type = elemental_type
 
     @property
-    def datatype(self):
+    def elemental_type(self) -> Union[DataType, DataTypeSymbol]:
         '''
         :returns: the datatype of each element in the array.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
-        # TODO #1857: This property might be affected.
-        return self._datatype
+        return self._elemental_type
 
     @property
-    def intrinsic(self):
+    def intrinsic(self) -> Union[
+        DataType, DataTypeSymbol, ScalarType.Intrinsic
+    ]:
         '''
         :returns: the intrinsic type of each element in the array.
-        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic` |
-                :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         '''
-        return self._intrinsic
+        if isinstance(self._elemental_type,
+                      (DataTypeSymbol, UnresolvedType, UnsupportedType)):
+            return self._elemental_type
+        return self._elemental_type.intrinsic
 
     @property
-    def precision(self):
+    def precision(self) -> Union[None, ScalarType.Precision, int, DataSymbol]:
         '''
         :returns: the precision of each element in the array.
-        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`,
-            int or :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
-        return self._precision
+        if isinstance(self._elemental_type,
+                      (DataTypeSymbol, UnresolvedType, UnsupportedType)):
+            return None
+        return self._elemental_type.precision
 
     @property
     def is_allocatable(self) -> bool:
@@ -980,7 +947,7 @@ class ArrayType(DataType):
                     f"instance of ArrayType.Extent but found "
                     f"'{type(dimension).__name__}'")
 
-        return f"Array<{self._datatype}, shape=[{', '.join(dims)}]>"
+        return f"Array<{self._elemental_type}, shape=[{', '.join(dims)}]>"
 
     def __eq__(self, other):
         '''
@@ -1032,11 +999,11 @@ class ArrayType(DataType):
                 new_shape.append(dim)
         # If we copy the ScalarType then we need to create a copy of it, as
         # it can contain DataNodes, which must be copied.
-        if isinstance(self.datatype, ScalarType):
-            return ArrayType(self.datatype.copy(), new_shape)
+        if isinstance(self.elemental_type, ScalarType):
+            return ArrayType(self.elemental_type.copy(), new_shape)
         # Otherwise we continue with this type's datatype, to handle cases
         # such as a DataTypeSymbol datatype (which should not be copied).
-        return ArrayType(self.datatype, new_shape)
+        return ArrayType(self.elemental_type, new_shape)
 
     def replace_symbols_using(self, table_or_symbol):
         '''
@@ -1051,35 +1018,19 @@ class ArrayType(DataType):
             :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        if isinstance(self.datatype, DataTypeSymbol):
+        if isinstance(self.elemental_type, DataTypeSymbol):
             if isinstance(table_or_symbol, Symbol):
-                if table_or_symbol.name.lower() == self._datatype.name.lower():
-                    self._datatype = table_or_symbol
+                if table_or_symbol.name.lower() == \
+                        self._elemental_type.name.lower():
+                    self._elemental_type = table_or_symbol
             else:
                 try:
-                    self._datatype = table_or_symbol.lookup(self.datatype.name)
+                    self._elemental_type = \
+                        table_or_symbol.lookup(self.elemental_type.name)
                 except KeyError:
                     pass
         else:
-            self.datatype.replace_symbols_using(table_or_symbol)
-
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.datanode import DataNode
-        # TODO #1857: we will probably remove '_precision' and have
-        # 'intrinsic' be 'datatype'.
-        if isinstance(self._precision, DataNode):
-            self._precision.replace_symbols_using(table_or_symbol)
-        if self._intrinsic and isinstance(self._intrinsic, Symbol):
-            if isinstance(table_or_symbol, Symbol):
-                if (table_or_symbol.name.lower() ==
-                        self._intrinsic.name.lower()):
-                    self._intrinsic = table_or_symbol
-            else:
-                try:
-                    self._intrinsic = table_or_symbol.lookup(
-                        self._intrinsic.name)
-                except KeyError:
-                    pass
+            self.elemental_type.replace_symbols_using(table_or_symbol)
 
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Node
@@ -1094,44 +1045,23 @@ class ArrayType(DataType):
                 if isinstance(bnd, Node):
                     bnd.replace_symbols_using(table_or_symbol)
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this object, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this DataType.
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core.signature import Signature
-        from psyclone.core.access_type import AccessType
-        from psyclone.psyir.nodes.datanode import DataNode
+        symbols = super().get_all_accessed_symbols()
 
-        access_info = super().reference_accesses()
-
-        if isinstance(self.intrinsic, Symbol):
-            access_info.add_access(
-                Signature(self.intrinsic.name),
-                AccessType.TYPE_INFO, self)
-
-        if isinstance(self.precision, DataNode):
-            precision_ras = self.precision.reference_accesses()
-            # TODO #3060, use the helper function implemented in
-            # 3119.
-            # Change all the precision_ras to be of TYPE_INFO type,
-            # since this is a kind expression we know the symbols
-            # are not runtime-read
-            for sig in precision_ras:
-                for access in precision_ras[sig]:
-                    access._access_type = AccessType.TYPE_INFO
-            access_info.update(precision_ras)
+        if not isinstance(self.elemental_type, Symbol):
+            symbols.update(self.elemental_type.get_all_accessed_symbols())
+        else:
+            symbols.add(self.elemental_type)
 
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
-                access_info.update(dim.lower.reference_accesses())
-                access_info.update(dim.upper.reference_accesses())
-        return access_info
+                symbols.update(dim.lower.get_all_accessed_symbols())
+                symbols.update(dim.upper.get_all_accessed_symbols())
+
+        return symbols
 
 
 class StructureType(DataType):
@@ -1366,30 +1296,20 @@ class StructureType(DataType):
                      preceding_comment=component.preceding_comment,
                      inline_comment=component.inline_comment)
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this object, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this DataType.
         '''
-        access_info = super().reference_accesses()
+        symbols = super().get_all_accessed_symbols()
         for cmpt in self.components.values():
             if isinstance(cmpt.datatype, DataTypeSymbol):
-                # Avoid circular import
-                # pylint: disable=import-outside-toplevel
-                from psyclone.core.signature import Signature
-                from psyclone.core.access_type import AccessType
-                access_info.add_access(
-                    Signature(cmpt.datatype.name),
-                    AccessType.TYPE_INFO, self)
+                symbols.add(cmpt.datatype)
             else:
-                access_info.update(cmpt.datatype.reference_accesses())
+                symbols.update(cmpt.datatype.get_all_accessed_symbols())
             if cmpt.initial_value:
-                access_info.update(cmpt.initial_value.reference_accesses())
-        return access_info
+                symbols.update(
+                    cmpt.initial_value.get_all_accessed_symbols())
+        return symbols
 
 
 # Create common scalar datatypes

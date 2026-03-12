@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 
 ''' This module contains the ScopingNode implementation.'''
 
-from psyclone.core import VariablesAccessMap
+from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
     RoutineSymbol, SymbolError, SymbolTable)
@@ -175,7 +175,7 @@ class ScopingNode(Node):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -183,7 +183,9 @@ class ScopingNode(Node):
         # During the updating process when moving a Routine (and its
         # associated Symbol), it's possible that we won't have a SymbolTable.
         if self._symbol_table:
-            var_accesses.update(self._symbol_table.reference_accesses())
+            for symbol in self._symbol_table.get_all_accessed_symbols():
+                var_accesses.add_access(
+                    Signature(symbol.name), AccessType.CONSTANT, self)
         var_accesses.update(super().reference_accesses())
         return var_accesses
 

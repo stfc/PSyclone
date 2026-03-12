@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
-from typing import Optional, Set
+from typing import Optional
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 # We cannot import from 'nodes' directly due to circular import
@@ -193,11 +193,19 @@ class Reference(DataNode):
         '''
         return (Signature(self.name), [[]])
 
+    def get_all_accessed_symbols(self) -> set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this Reference.
+        '''
+        symbols = super().get_all_accessed_symbols()
+        symbols.add(self.symbol)
+        return symbols
+
     def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -206,7 +214,7 @@ class Reference(DataNode):
         for indices in all_indices:
             for index in indices:
                 var_accesses.update(index.reference_accesses())
-        var_accesses.add_access(sig, AccessType.READ, self, all_indices)
+        var_accesses.add_access(sig, AccessType.READ, self)
         return var_accesses
 
     @property
@@ -218,9 +226,13 @@ class Reference(DataNode):
         '''
         # pylint: disable=unidiomatic-typecheck
         # Use type() directly as we need to ignore inheritance.
-        if type(self.symbol) is Symbol:
-            # We don't even have a DataSymbol
-            return UnresolvedType()
+        if (
+            type(self.symbol) is Symbol or
+            isinstance(self.symbol.datatype, UnresolvedType)
+        ):
+            # We don't know the type of the symbol, but maybe we can infer
+            # it from its location.
+            return super().datatype
         return self.symbol.datatype
 
     def previous_accesses(self):
@@ -250,7 +262,7 @@ class Reference(DataNode):
         return chain.find_forward_accesses()
 
     def escapes_scope(
-            self, scope: Node, visited_nodes: Optional[Set] = None
+            self, scope: Node, visited_nodes: Optional[set] = None
     ) -> bool:
         '''
         Whether the symbol lifetime continues after the given scope. For
@@ -292,6 +304,13 @@ class Reference(DataNode):
 
         # Check if this instance is in the provided scope
         if not self.is_descendant_of(scope):
+            # If the next_access is an array access that does not cover all
+            # elements of the array, therefore, it has escaped the scope
+            # because  some array elements will still have the scope values.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes.array_mixin import ArrayMixin
+            if isinstance(self, ArrayMixin):
+                return not self.is_full_range()
             # If following the recursive calls through next_accesses()
             # it reaches a point outside the scope, return True (
             # it has escaped the scope), unless this is a write-only
@@ -312,7 +331,7 @@ class Reference(DataNode):
         return False
 
     def enters_scope(
-            self, scope: Node, visited_nodes: Optional[Set] = None
+            self, scope: Node, visited_nodes: Optional[set] = None
     ) -> bool:
         '''
         Whether the symbol lifetime starts before the given scope. For
@@ -390,6 +409,16 @@ class Reference(DataNode):
 
         # Walk on down the tree.
         super().replace_symbols_using(table_or_symbol)
+
+    def component_indices(self) -> tuple[tuple[Node]]:
+        '''
+        :returns: a tuple of tuples of index expressions; one for every
+            component in the accessor. For example, for a scalar it
+            returns `(())`, for `a%b` it returns ((),()) - two components
+            with 0 indices in each, and for `a(i)%b(j,k+1)` it
+            returns `((i,),(j,k+1))`.
+        '''
+        return tuple(tuple())
 
 
 # For AutoAPI documentation generation

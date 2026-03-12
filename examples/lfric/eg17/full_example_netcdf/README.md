@@ -18,7 +18,7 @@ steps are required for this (using simplified code examples):
                                1, 1,  &    ! # procs in x and y direction
                                0,     &    ! max stencil size
                                0,     &    ! local rank
-                               1)          ! number of proceses
+                               1)          ! number of processes
     ```
 
 3) Create a uniform extrusion:
@@ -66,7 +66,7 @@ A simple makefile is provided to compile the example. It needs
 a full installation of NetCDF, since it is using ``nf-config`` to
 query the required compiler and linker flags, and the
 infrastructure library ``liblfric_netcdf.a`` provided in
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
+``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
 If the latter is not available, it will be automatically compiled.
 
 The following environment variables can be set to define the compiler

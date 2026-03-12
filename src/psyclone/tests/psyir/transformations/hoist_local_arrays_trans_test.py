@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -138,8 +138,8 @@ def test_apply_multi_dim_imported_limits(fortran_reader, fortran_writer):
     # We cannot test the compilation of the generated code because of
     # the 'use some_mod'.
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
-    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= jpi .or. "
-            "ubound(a, dim=2) /= jpj) then\n"
+    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= jpi "
+            ".or. ubound(a, dim=2) /= jpj) then\n"
             "      if (allocated(a)) then\n"
             "        deallocate(a)\n"
             "      end if\n"
@@ -167,8 +167,8 @@ def test_apply_arg_limits(fortran_reader, fortran_writer, tmpdir):
     hoist_trans.apply(routine)
     code = fortran_writer(psyir).lower()
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
-    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx .or. "
-            "ubound(a, dim=2) /= ny) then\n"
+    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx "
+            ".or. ubound(a, dim=2) /= ny) then\n"
             "      if (allocated(a)) then\n"
             "        deallocate(a)\n"
             "      end if\n"
@@ -199,16 +199,16 @@ def test_apply_runtime_checks(fortran_reader, fortran_writer, tmpdir):
     hoist_trans.apply(routine)
     code = fortran_writer(psyir).lower()
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
-    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx .or. "
-            "ubound(a, dim=2) /= ny) then\n"
+    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx "
+            ".or. ubound(a, dim=2) /= ny) then\n"
             "      if (allocated(a)) then\n"
             "        deallocate(a)\n"
             "      end if\n"
             "      allocate(a(1:nx,1:ny))\n"
             "    end if\n" in code)
-    assert ("    if (.not.allocated(b) .or. lbound(b, dim=1) /= nx .or. "
-            "ubound(b, dim=1) /= ny .or. lbound(b, dim=2) /= nx .or. "
-            "ubound(b, dim=2) /= ny) then\n"
+    assert ("    if (.not.allocated(b) .or. lbound(b, dim=1) /= nx "
+            ".or. ubound(b, dim=1) /= ny .or. lbound(b, dim=2) "
+            "/= nx .or. ubound(b, dim=2) /= ny) then\n"
             "      if (allocated(b)) then\n"
             "        deallocate(b)\n"
             "      end if\n"
@@ -244,8 +244,8 @@ def test_apply_multi_arrays(fortran_reader, fortran_writer):
     assert "real, allocatable, dimension(:,:), private :: a" in code
     assert "integer, allocatable, dimension(:,:), private :: mask" in code
     assert (
-        "    if (.not.allocated(mask) .or. ubound(mask, dim=1) /= jpi .or. "
-        "ubound(mask, dim=2) /= jpj) then\n"
+        "    if (.not.allocated(mask) .or. ubound(mask, dim=1) /= jpi "
+        ".or. ubound(mask, dim=2) /= jpj) then\n"
         "      if (allocated(mask)) then\n"
         "        deallocate(mask)\n"
         "      end if\n"
@@ -283,8 +283,8 @@ def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
     code = fortran_writer(psyir).lower()
     assert ("  real, allocatable, dimension(:,:), private :: a\n"
             "  real, allocatable, dimension(:,:), private :: a_2\n" in code)
-    assert ("    if (.not.allocated(a_2) .or. ubound(a_2, dim=1) /= nx .or. "
-            "ubound(a_2, dim=2) /= ny) then\n"
+    assert ("    if (.not.allocated(a_2) .or. ubound(a_2, dim=1) /= nx "
+            ".or. ubound(a_2, dim=2) /= ny) then\n"
             "      if (allocated(a_2)) then\n"
             "        deallocate(a_2)\n"
             "      end if\n"
@@ -392,8 +392,8 @@ def test_get_local_arrays(fortran_reader):
         "function test(c) result(a)\n"
         "  use some_mod, only: b\n"
         "  real, dimension(10,10), intent(in) :: c\n"
-        "  real, dimension(10) :: wrk\n"
-        "  real, dimension(:), allocatable :: wrk2\n"
+        "  real, dimension(10) :: work\n"
+        "  real, dimension(:), allocatable :: work2\n"
         "  integer :: i\n"
         "  real :: a(10)\n"
         "  do i=1,10\n"
@@ -406,8 +406,8 @@ def test_get_local_arrays(fortran_reader):
     hoist_trans = HoistLocalArraysTrans()
     symbols = hoist_trans._get_local_arrays(routine)
     assert len(symbols) == 2
-    assert symbols[0] is routine.symbol_table.lookup("wrk")
-    assert symbols[1] is routine.symbol_table.lookup("wrk2")
+    assert symbols[0] is routine.symbol_table.lookup("work")
+    assert symbols[1] is routine.symbol_table.lookup("work2")
 
 
 def test_get_local_arrays_codeblock(fortran_reader):
@@ -715,7 +715,7 @@ def test_apply_with_allocatables(fortran_reader, fortran_writer, tmpdir):
     psyir = fortran_reader.psyir_from_source(code)
     alloc1 = psyir.walk(IntrinsicCall)[0]
     # the fparser reader always puts ranges in the allocate indices, but for
-    # 'a' force it to be somthing else
+    # 'a' force it to be something else
     alloc1.arguments[0].children[0].replace_with(
         Literal("10", INTEGER_TYPE)
     )
@@ -767,7 +767,7 @@ UBOUND(c, dim=1) /= var + 5) then
 
       ! PSyclone warning: HoistLocalArraysTrans found an ALLOCATE with \
 alloc-options, this is not supported
-      ALLOCATE(d(1:10), MOLD=arg)
+      ALLOCATE(d(1:10), mold=arg)
 
       ! PSyclone warning: HoistLocalArraysTrans found more than one ALLOCATE \
 for this variable, but currently it just supports cases with single allocations

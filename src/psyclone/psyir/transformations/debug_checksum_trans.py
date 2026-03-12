@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -147,7 +147,7 @@ PSYCLONE_INTERNAL_line_ + 1
                     member = member.member
                 datatype = assign.lhs.datatype
                 while not isinstance(datatype, ScalarType):
-                    datatype = datatype.datatype
+                    datatype = datatype.elemental_type
                 # If the final member is the only array, and its a supported
                 # datatype then we add it to the writes.
                 if (isinstance(member, ArrayMixin) and datatype.intrinsic in

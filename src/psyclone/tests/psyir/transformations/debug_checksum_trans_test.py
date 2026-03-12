@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -149,7 +149,7 @@ PSYCLONE_INTERNAL_line_ + 1
     PRINT *, "values%i checksum", SUM(values % i(1 : 100))"""
     assert correct in out
 
-    # Check Unknown types are exlcuded
+    # Check Unknown types are excluded
     code = """subroutine test()
     use my_mod
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -278,8 +278,8 @@ def test_kernels_around_where_construct(fortran_reader, fortran_writer):
     assert isinstance(schedule[0], ACCKernelsDirective)
     assert isinstance(schedule[0].dir_body[0], Loop)
     assert ("  !$acc kernels\n"
-            "  do widx2 = 1, SIZE(a(:,:), dim=2), 1\n"
-            "    do widx1 = 1, SIZE(a(:,:), dim=1), 1\n"
+            "  do widx2 = 1, SIZE(a, dim=2), 1\n"
+            "    do widx1 = 1, SIZE(a, dim=1), 1\n"
             "      if (a(LBOUND(a, dim=1) + widx1 - 1,"
             "LBOUND(a, dim=2) + widx2 - 1) < flag) then\n"
             "        b(LBOUND(b, dim=1) + widx1 - 1,"
@@ -305,8 +305,8 @@ def test_kernels_around_where_stmt(fortran_reader, fortran_writer):
     acc_trans.apply([schedule[1]])
     assert ("  a(:,:) = 1.0\n"
             "  !$acc kernels\n"
-            "  do widx2 = 1, SIZE(a(:,:), dim=2), 1\n"
-            "    do widx1 = 1, SIZE(a(:,:), dim=1), 1\n"
+            "  do widx2 = 1, SIZE(a, dim=2), 1\n"
+            "    do widx1 = 1, SIZE(a, dim=1), 1\n"
             "      if (a(LBOUND(a, dim=1) + widx1 - 1,"
             "LBOUND(a, dim=2) + widx2 - 1) < flag) then\n"
             "        b(LBOUND(b, dim=1) + widx1 - 1,"
@@ -469,26 +469,27 @@ end
             "OpenACC region but found 'if (assumed_size_char == 'literal')"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[1], options={"allow_string": True})
+        acc_trans.validate(sub.children[1], options={"allow_strings": True})
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
-            " region but found 'assumed_size_char(:LEN(explicit_size_char)) = "
+            " region but found 'assumed_size_char(:LEN("
+            "explicit_size_char)) = "
             in str(err.value))
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[2], options={"allow_string": True})
+        acc_trans.validate(sub.children[2], options={"allow_strings": True})
     assert ("Cannot include 'ACHAR(9)' in an OpenACC region because "
             "it is not available on GPU" in str(err.value))
     # Check that the character assignment is excluded by default.
     with pytest.raises(TransformationError) as err:
         acc_trans.validate(sub.children[2])
     assert ("ACCKernelsTrans does not permit assignments involving character "
-            "variables by default (use the 'allow_string' option to include "
+            "variables by default (use the 'allow_strings' option to include "
             "them), but found:" in str(err.value))
     # Check the verbose option.
     with pytest.raises(TransformationError) as err:
         acc_trans.validate(sub.children[2], options={"verbose": True})
     assert (sub.children[2].preceding_comment ==
             "ACCKernelsTrans does not permit assignments involving character "
-            "variables by default (use the 'allow_string' option to include "
+            "variables by default (use the 'allow_strings' option to include "
             "them)")
 
     # String with explicit length is fine.

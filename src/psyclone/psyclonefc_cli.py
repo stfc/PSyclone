@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council
+# Copyright (c) 2025-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@ from pathlib import Path
 from psyclone.generator import main
 
 FORTRAN_EXTENSIONS = ('.f90', '.f', '.F90', '.F')
+PWD = str(Path.cwd())
 
 
 def compiler_wrapper(arguments):
@@ -88,12 +89,17 @@ def compiler_wrapper(arguments):
             'psyclonefc error: PSYCLONE_COMPILER environment variable not '
             'found! This environment variable must be set to the Fortran '
             'compiler to use.')
+    if fortran_compiler.endswith("psyclonefc"):
+        sys.exit(
+            'psyclonefc error: PSYCLONE_COMPILER environment variable must '
+            'not be set to psyclonefc. This environment variable must be set '
+            'to the Fortran compiler to use.')
     # Remove empty strings from the list (caused by the default empty envvar or
     # multi-spaces gaps)
     while "" in psyclone_options:
         psyclone_options.remove("")
 
-    # Capture the dirctory where the .mod files are written because this is
+    # Capture the directory where the .mod files are written because this is
     # also where we want to place the output psyclone file (so following
     # -I search_path finds them).
     # output_dir = Path.cwd()
@@ -123,7 +129,13 @@ def compiler_wrapper(arguments):
             stem = Path(argument).stem
             suffix = Path(argument).suffix
             output = f"{stem}.psycloned{suffix}"
-            psyclone_args = psyclone_options + ['-o', output, argument]
+            # Always add an include to the current directory, because even if
+            # it is the default, psyclone removes it when adding another -I.
+            # Also, having the absolute path instead of '.' is convenient to
+            # copy/paste the resulting command when debugging
+            psyclone_args = psyclone_options + [
+                '-I', PWD, '-o', output, argument
+            ]
             print("psyclone " + ' '.join(psyclone_args))
             main(psyclone_args)
 

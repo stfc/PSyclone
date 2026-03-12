@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -990,7 +990,7 @@ def _sig_set_to_string(sig_set: Set[Signature]) -> str:
     :returns: a lexically sorted string of comma-separated (sub)signatures.
 
     '''
-    names = {s[:i+1].to_language() for s in sig_set for i in range(len(s))}
+    names = {str(s[:i+1]) for s in sig_set for i in range(len(s))}
     return ",".join(sorted(names))
 
 
@@ -1037,7 +1037,7 @@ class ACCWaitDirective(ACCStandaloneDirective):
         # check
         if (wait_queue is not None
            and not isinstance(wait_queue, (int, Reference))):
-            raise TypeError("Invalid value type as wait_group, shoule be"
+            raise TypeError("Invalid value type as wait_group, should be"
                             "in (None, int, Signature) !")
 
         # set

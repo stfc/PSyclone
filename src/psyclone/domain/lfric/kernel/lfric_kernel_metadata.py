@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
+# Copyright (c) 2022-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -387,7 +387,7 @@ class LFRicKernelMetadata(CommonMetadata):
     def _cma_kernel_type(self):
         '''Determine the type of CMA (Column Matrix Assembly) kernel this is.
 
-        :returns: the type of cma kernel this metadata respresents.
+        :returns: the type of cma kernel this metadata represents.
         :rtype: str
 
         '''

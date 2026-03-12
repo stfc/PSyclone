@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -155,7 +155,7 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         :raises TransformationError: if it contains calls to routines that
             are not available in the accelerator device.
         :raises TransformationError: if its a function and the target region
-            attempts to enclose the assingment setting the return value.
+            attempts to enclose the assignment setting the return value.
         :raises TransformationError: if the target region attempts to enclose
             string operations and the 'allow_strings' option is not set.
         '''

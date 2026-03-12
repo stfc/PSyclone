@@ -1,5 +1,5 @@
 ##############################################################################
-# (c) Crown copyright 2025 Met Office. All rights reserved.
+# (c) Crown copyright 2025-2026 Met Office. All rights reserved.
 # The file LICENCE, distributed with the LFRic code
 # (https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE),
 # contains details of the terms under which the code may be used.

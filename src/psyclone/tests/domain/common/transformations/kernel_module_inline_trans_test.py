@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,13 +39,15 @@
 
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
-import pytest
 import warnings
+import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.parse import ModuleManager
 from psyclone.psyGen import CodedKern, Kern
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
@@ -426,8 +428,9 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
                      " nested scopes")
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
-    ''' Test that we can succesfully inline a basic kernel subroutine
+    ''' Test that we can successfully inline a basic kernel subroutine
     routine into the PSy layer module using a transformation '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
                              idx=0, dist_mem=False)
@@ -838,7 +841,7 @@ def test_module_inline_with_interfaces(tmpdir):
     inline_trans = KernelModuleInlineTrans()
     inline_trans.apply(kern_calls[0])
     sym = kern_calls[0].scope.symbol_table.lookup("mixed_code")
-    # Check that the inteface symbol is declared and is private.
+    # Check that the interface symbol is declared and is private.
     assert isinstance(sym, GenericInterfaceSymbol)
     assert sym.visibility == Symbol.Visibility.PRIVATE
     # Check that module-inlining the second kernel call (which is to the
@@ -1114,10 +1117,12 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
     assert len(prog_psyir.children) == 2
     assert set(child.name for child in prog_psyir.children) == {"my_sub",
                                                                 "my_prog"}
+    output = fortran_writer(prog_psyir)
+
+    assert "use my_mod" not in output
+
     # Now that we've 'privatised' the target of the call, the code can be
     # compiled standalone.
-    output = fortran_writer(prog_psyir)
-    assert "use my_mod" not in output
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -1299,7 +1304,7 @@ def test_mod_inline_all_calls_updated(monkeypatch, fortran_reader):
 
 def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     '''
-    Test that module inlining proceeeds successfully when the parent
+    Test that module inlining proceeds successfully when the parent
     Container happens to contain an unresolved RoutineSymbol representing
     the target Routine. In the usual scheme of things this should never
     happen as the frontend will put an unresolved Symbol in the table that
@@ -1350,6 +1355,65 @@ def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     ctr_sym = container.symbol_table.lookup("my_mod")
     (isym,) = container.symbol_table.symbols_imported_from(ctr_sym)
     assert isym.interface.orig_name == "my_sub"
+
+
+def test_mod_inline_shared_wildcard_import(monkeypatch, tmp_path,
+                                           clear_module_manager_instance):
+    '''
+    Check that symbols are resolved correctly when module inlining, provided
+    the frontend is told to chase the imports.
+
+    '''
+    with open(tmp_path / "ice_params.f90", "w") as ffile:
+        ffile.write('''\
+    module ice_params
+      real, parameter :: eps20 = 1.023
+    end module ice_params''')
+    # Create the module containing the subroutine definition that accesses
+    # eps20.
+    with open(tmp_path / "my_mod.f90", "w") as ffile:
+        ffile.write('''\
+    module my_mod
+      use ice_params
+      use not_found
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = eps20
+      end subroutine my_sub
+    end module my_mod
+    ''')
+    code = '''\
+    module this_mod
+      use ice_params
+      use my_mod
+    contains
+      subroutine do_it()
+        real, dimension(10) :: a
+        ! When finding the routine to inline, the frontend will chase the
+        ! imports from "ice_params" and "my_mod" and therefore eps20
+        ! should be resolved.
+        a(:) = eps20
+        call my_sub(a)
+      end subroutine do_it
+    end module this_mod'''
+    # Tell the ModuleManager to chase imports from specific modules.
+    ModuleManager.get().resolve_indirect_imports = ["ice_params", "my_mod"]
+    ModuleManager.get().add_search_path(tmp_path)
+    reader = FortranReader(resolve_modules=["ice_params", "my_mod"])
+    psyir = reader.psyir_from_source(code)
+    container = psyir.children[0]
+    calls = container.walk(Call)
+    intrans = KernelModuleInlineTrans()
+    intrans.apply(calls[-1])
+    # Check that eps20 has the correct interface in the inlined Routine.
+    # The imports in the inlined routine should have been followed and
+    # hence 'eps20' resolved.
+    inlined = container.find_routine_psyir("my_sub", allow_private=True)
+    eps_sym = inlined.symbol_table.lookup("eps20")
+    assert not eps_sym.is_unresolved
+    assert eps_sym.is_import
+    assert eps_sym.interface.container_symbol.name == "ice_params"
 
 
 # TODO 2668 Remove test.

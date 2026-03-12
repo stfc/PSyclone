@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -94,7 +94,7 @@ class AlgTrans(Transformation):
         '''
         self.validate(node, options=options, **kwargs)
         idx = 0
-        for call in node.walk(Call):
+        for call in node.walk(Call, stop_type=Call):
             if call.routine.name.lower() == "invoke":
                 self._invoke_trans.apply(call, idx, options=options, **kwargs)
                 idx += 1

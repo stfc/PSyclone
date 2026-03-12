@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,9 @@
 
 '''Module containing py.test tests for the ModuleManager.'''
 
+import logging
 import os
+from pathlib import Path
 import pytest
 
 from psyclone.errors import InternalError
@@ -57,6 +59,37 @@ def test_mod_manager_instance() -> None:
 
     assert ("You need to use 'ModuleManager.get()' to get the singleton "
             "instance." in str(err.value))
+
+
+def test_mod_manager_properties():
+    ''' Test the ModuleManager getter and setter properties '''
+    mod_man = ModuleManager.get()
+
+    # Setter with wrong types
+    with pytest.raises(TypeError) as err:
+        mod_man.cache_active = 3
+    assert "'cache_active' must be a bool, but found" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        mod_man.cache_path = 3
+    assert "'cache_path' must be a str, but found" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        mod_man.resolve_indirect_imports = 3
+    assert ("'resolve_indirect_imports' must be a boolean or an Iterable, "
+            "but found" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        mod_man.resolve_indirect_imports = [3, 3]
+    assert ("'resolve_indirect_imports' must be an Iterable of str, but "
+            "found an item of" in str(err.value))
+
+    # Setters
+    mod_man.cache_active = True
+    mod_man.cache_path = "/tmp"
+    mod_man.resolve_indirect_imports = ["a", "b"]
+
+    # Getters
+    assert mod_man.cache_active
+    assert mod_man.cache_path == "/tmp"
+    assert mod_man.resolve_indirect_imports == ["a", "b"]
 
 
 # ----------------------------------------------------------------------------
@@ -82,6 +115,8 @@ def test_mod_manager_directory_reading() -> None:
     # to the search path
     mod_man.add_search_path(["d1"])
     assert list(mod_man._remaining_search_paths) == ["d1", "d1/d3"]
+    mod_man.add_search_path([Path("d1")])
+    assert list(mod_man._remaining_search_paths) == ["d1", "d1/d3"]
     mod_man.add_search_path(["d1/d3"])
     assert list(mod_man._remaining_search_paths) == ["d1", "d1/d3"]
 
@@ -89,8 +124,8 @@ def test_mod_manager_directory_reading() -> None:
     mod_man.add_search_path(["d2"], recursive=False)
     assert list(mod_man._remaining_search_paths) == ["d1", "d1/d3", "d2"]
     # Added same path again with recursive, which should only
-    # add the new subdirectories
-    mod_man.add_search_path(["d2"], recursive=True)
+    # add the new subdirectories. Also use a Path
+    mod_man.add_search_path([Path("d2")], recursive=True)
     assert list(mod_man._remaining_search_paths) == ["d1", "d1/d3", "d2",
                                                      "d2/d4"]
 
@@ -99,6 +134,12 @@ def test_mod_manager_directory_reading() -> None:
         mod_man.add_search_path("does_not_exist")
     assert ("Directory 'does_not_exist' does not exist or cannot be read"
             in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        # Invalid Type
+        mod_man.add_search_path(123)
+    assert ("ModuleManager.add_search_path expects a string or Path as "
+            "directory, got '123', which is ' of type 'int'" in str(err.value))
 
 
 # ----------------------------------------------------------------------------
@@ -175,7 +216,11 @@ def test_mod_manager_get_module_info() -> None:
     '''
 
     mod_man = ModuleManager.get()
-    mod_man.add_search_path("d1")
+    # Using Path here means that we test that the error message at
+    # the end works as expected (otherwise an error in the module manager
+    # happens trying to use `",".join(...)` with a Path). So, this
+    # Path makes sure that the ModuleManager correctly handles the Path.
+    mod_man.add_search_path(Path("d1"))
     mod_man.add_search_path("d2")
     assert list(mod_man._remaining_search_paths) == ["d1", "d1/d3", "d2",
                                                      "d2/d4"]
@@ -429,7 +474,7 @@ def test_mod_manager_add_files_and_more() -> None:
 
     dummy = mod_man.all_file_infos
     assert dummy is not None
-    mod_man.load_all_module_infos(verbose=True)
+    mod_man.load_all_module_infos()
 
     # Only one module loaded
     assert len(mod_man._modules) == 1
@@ -441,16 +486,15 @@ def test_mod_manager_add_files_and_more() -> None:
     # was already processed
     with pytest.raises(KeyError) as einfo:
         mod_man.load_all_module_infos(
-                error_if_module_already_processed=True,
-                verbose=True
-            )
+                error_if_module_already_processed=True)
 
     assert "Module 'a_mod' already processed" in str(einfo.value)
 
 
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_mod_manager_load_all_module_trigger_error_module_read_twice() -> None:
+def test_mod_manager_load_all_module_trigger_error_module_read_twice(
+        caplog) -> None:
     '''
     Make particular check for load_all_module_infos():
     - Reading in the same module twice is triggering an error.
@@ -463,20 +507,22 @@ def test_mod_manager_load_all_module_trigger_error_module_read_twice() -> None:
     mod_man.add_files("d1/a_mod.f90")
 
     # Load all module infos
-    mod_man.load_all_module_infos(
-            verbose=True
-        )
+    with caplog.at_level(logging.INFO, logger="psyclone.parse.module_manager"):
+        mod_man.load_all_module_infos()
+
+    assert "Loading module information for file 'd1/a_mod.f90'" in caplog.text
 
     # Doing this a 2nd time should not raise any error
-    mod_man.load_all_module_infos(
-            verbose=True
-        )
+    with caplog.at_level(logging.INFO, logger="psyclone.parse.module_manager"):
+        mod_man.load_all_module_infos()
+
+    assert "Module 'a_mod' already processed" in caplog.text
+    assert "File 'd1/a_mod.f90' already processed" in caplog.text
 
     # This should raise an error that a module has been already processed
     with pytest.raises(KeyError) as einfo:
         mod_man.load_all_module_infos(
-                error_if_module_already_processed=True,
-                verbose=True
+                error_if_module_already_processed=True
             )
 
     assert "Module 'a_mod' already processed" in str(einfo.value)
@@ -494,13 +540,10 @@ def test_mod_manager_load_all_module_trigger_error_file_read_twice() -> None:
         f_out.write("\n")   # Just an empty file
 
     mod_man.add_files("t_mod.f90")
-    mod_man.load_all_module_infos(verbose=True)
+    mod_man.load_all_module_infos()
 
     # Should raise an error that the file was already processed
     with pytest.raises(KeyError) as einfo:
-        mod_man.load_all_module_infos(
-                error_if_file_already_processed=True,
-                verbose=True
-            )
+        mod_man.load_all_module_infos(error_if_file_already_processed=True)
 
     assert "File 't_mod.f90' already processed" in str(einfo.value)

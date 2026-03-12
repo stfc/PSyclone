@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2025, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2026, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -50,16 +50,19 @@ by the command:
 
 .. parsed-literal::
 
+
   > psyclone -h
-    usage: psyclone [-h] [-v] [-c CONFIG] [-s SCRIPT] [--enable-cache] [-l {off,all,output}]
-                    [-p {invokes,routines,kernels}]
-                    [--backend {disable-validation,disable-indentation}] [-o OUTPUT_FILE]
-                    [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE]
+    usage: psyclone [-h] [-v] [-c CONFIG] [-s SCRIPT] [--enable-cache] [--config-opts CONFIG_OPTS]
+                    [-l {off,all,output}] [-p {invokes,routines,kernels}]
+                    [-o OUTPUT_FILE] [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE]
                     [-okern OUTPUT_KERNEL_PATH] [-dm] [-nodm]
                     [--kernel-renaming {multiple,single}]
                     [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--log-file LOG_FILE]
-                    [--keep-comments] [--keep-directives] [-I INCLUDE] [-d DIRECTORY]
+                    [--keep-comments] [--keep-directives] [--keep-conditional-openmp-statements]
+                    [-I INCLUDE] [-d DIRECTORY]
                     [--modman-file-ignore IGNORE_PATTERN] [--free-form | --fixed-form]
+                    [--backend-disable-validation] [--backend-disable-indentation]
+                    [--backend-add-all-intrinsic-arg-names]
                     filename
 
     Transform a file using the PSyclone source-to-source Fortran compiler
@@ -77,17 +80,16 @@ by the command:
       --enable-cache        whether to enable caching of imported module dependencies (if
                             enabled, it will generate a .psycache file of each imported module in
                             the same location as the imported source file).
+      --config-opts CONFIG_OPTS
+                            Settings that will overwrite values in the config file as a
+                            space-separated list of key=value pairs. Example:
+                            --config-opts "reproducible_reductions=true run_time_checks=warn".
       -l {off,all,output}, --limit {off,all,output}
                             limit the Fortran line length to 132 characters (default 'off'). Use
                             'all' to apply limit to both input and output Fortran. Use 'output'
                             to apply line-length limit to output Fortran only.
       -p {invokes,routines,kernels}, --profile {invokes,routines,kernels}
                             add profiling hooks for 'kernels', 'invokes' or 'routines'
-      --backend {disable-validation,disable-indentation}
-                            options to control the PSyIR backend used for code generation. Use
-                            'disable-validation' to disable the validation checks that are
-                            performed by default. Use 'disable-indentation' to turn off all
-                            indentation in the generated code.
       -o OUTPUT_FILE        (code-transformation mode) output file
       -api DSL, --psykal-dsl DSL
                             whether to use a PSyKAl DSL (one of ['lfric', 'gocean'])
@@ -108,6 +110,9 @@ by the command:
       --keep-comments       keeps comments from the original code (defaults to False). Directives
                             are not kept with this option (use --keep-directives).
       --keep-directives     keeps directives from the original code (defaults to False).
+      --keep-conditional-openmp-statements
+                            keeps conditional OpenMP statements, see
+                            https://www.openmp.org/spec-html/5.0/openmpsu24.html for more details.
       --free-form           forces PSyclone to parse this file as free format (default is to look
                             at the input file extension).
       --fixed-form          forces PSyclone to parse this file as fixed format (default is to
@@ -122,6 +127,18 @@ by the command:
                             arguments. These directories will be searchedrecursively.
       --modman-file-ignore IGNORE_PATTERN
                             Ignore files that contain the specified pattern.
+
+    Fortran backend control options.:
+        These settings control how PSyclone outputs Fortran.
+
+        --backend-disable-validation
+                        Disables validation checks that PSyclone backends perform by default.
+        --backend-disable-indentation
+                        Disables all indentation in the generated output code.
+        --backend-add-all-intrinsic-arg-names
+                        By default, the backend outputs the names of only optional arguments to intrinsic calls.
+                        This option enables all argument names on intrinsic
+                        calls, i.e. SUM(array=arr, mask=maskarr) instead of SUM(arr, mask=maskarr).
 
 Basic Use
 ---------
@@ -317,6 +334,16 @@ The default behaviour may be changed by adding the
 :ref:`configuration file <config-default-section>`. Note that any
 command-line setting always takes precedence.
 
+Overriding Fortran Intrinsics
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+PSyclone internally computes the argument names for each argument provided to
+a Fortran IntrinsicCall PSyIR node. This can
+cause problems with code that overrides Fortran intrinsics. To ensure correct
+behaviour of the output, the ``--backend-add-all-intrinsic-arg-names`` option
+must **not** be passed to PSyclone, else the resultant code may not compile or
+run correctly.
+
 Automatic Profiling Instrumentation
 -----------------------------------
 
@@ -352,7 +379,7 @@ memory (DM) code (unless otherwise specified in the :ref:`configuration` file).
 Alternatively, whether or not to generate DM code can be specified as an
 argument to the ``psyclone`` command using the ``-dm``/``--dist_mem`` or
 ``-nodm``/``--no_dist_mem`` flags, respectively.
-For exampe the following command will generate GOcean PSyKAl code with DM:
+For example the following command will generate GOcean PSyKAl code with DM:
 
 .. code-block:: console
 
@@ -494,8 +521,7 @@ Enabling the Logging Infrastructure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 PSyclone supports logging which can provide additional information
-on what is happening inside PSyclone. This logging will also
-control the behaviour of any logging calls inside a user script.
+on what is happening inside PSyclone.
 
 Logging output can be controlled through the ``--log-level`` option.
 By default, logging is set to ``OFF``, which means
@@ -505,7 +531,7 @@ detailed in the ``psyclone -h`` information.
 By default the output from the logging goes into stderr.
 To control the logging output, PSyclone provides the
 ``--log-file`` option. If this is set, the logging output will instead
-be directed to the provided file.
+be directed to the specified file.
 
 Keeping Comments and Directives
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -520,6 +546,9 @@ some limitations:
      nodes. Also PSyclone will not know any details about these nodes
      (including that they contain directives) but this functionality will
      be improved over time.
+  3. Directives that appear before or inside the declaration section of a
+     Subroutine, Program or Module are converted to comments (the default
+     output add a space after the ``!``, effectively disabling the directive.
 
-Note that using the ``keep-comments`` option alone means that any comments
-that PSyclone interprets as directives will be lost from the input.
+Note that using the ``--keep-comments`` option without the ``--keep-directives``
+option means that any comments that PSyclone interprets as directives will be excluded.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ class LFRicDriverCreator(DriverCreator):
 
     :param region_name: the suggested region_name.
     '''
-    def __init__(self, region_name: Optional[tuple[str, str]] = None):
+    def __init__(self, region_name: Optional[tuple[str, str]] = None) -> None:
         super().__init__(region_name)
         # TODO #2069: check if this list can be taken from LFRicConstants
         # TODO #2018: once r_field is defined in the LFRic infrastructure,

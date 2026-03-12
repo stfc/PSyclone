@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
     CodeBlock, Container, DataNode, FileContainer, IfBlock, IntrinsicCall,
     Literal, Loop, Node, Range, Routine, Reference, Return, Schedule,
-    ScopingNode, Statement, StructureMember, StructureReference)
+    ScopingNode, Statement, StructureMember, StructureReference, Assignment)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType,
@@ -236,25 +236,11 @@ class InlineTrans(Transformation):
                 f"have been caught by the validate() method. Original error "
                 f"was {err}") from err
 
-        # When constructing new references to replace references to formal
-        # args, we need to know whether any of the actual arguments are array
-        # accesses. If they use 'array notation' (i.e. represent a whole array)
-        # then they won't have index expressions and will have been captured
-        # as a Reference.
-        ref2arraytrans = Reference2ArrayRangeTrans()
-
-        for child in node.arguments:
-            try:
-                # TODO #1858, this won't yet work for arrays inside structures.
-                ref2arraytrans.apply(child, allow_call_arguments=True)
-            except (TransformationError, ValueError):
-                pass
-
         # Replace any references to formal arguments with copies of the
         # actual arguments.
         formal_args = routine_table.argument_list
         for ref in refs[:]:
-            self._replace_formal_arg(
+            self._replace_formal_args_in_expr(
                 ref, node, formal_args, routine_node=routine,
                 use_first_callee_and_no_arg_check=(
                     use_first_callee_and_no_arg_check)
@@ -272,20 +258,20 @@ class InlineTrans(Transformation):
                 if isinstance(dim, ArrayType.Extent):
                     new_shape.append(dim)
                 else:
-                    lower = self._replace_formal_arg(
+                    lower = self._replace_formal_args_in_expr(
                         dim.lower, node, formal_args,
                         routine_node=routine,
                         use_first_callee_and_no_arg_check=(
                             use_first_callee_and_no_arg_check),
                     )
-                    upper = self._replace_formal_arg(
+                    upper = self._replace_formal_args_in_expr(
                         dim.upper, node, formal_args,
                         routine_node=routine,
                         use_first_callee_and_no_arg_check=(
                             use_first_callee_and_no_arg_check),
                     )
                     new_shape.append(ArrayType.ArrayBounds(lower, upper))
-            sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
+            sym.datatype = ArrayType(sym.datatype.elemental_type, new_shape)
 
         for sym in table.datatypesymbols:
             if not isinstance(sym.datatype, StructureType):
@@ -294,13 +280,13 @@ class InlineTrans(Transformation):
                 if isinstance(ctype.datatype, ArrayType):
                     new_shape = []
                     for dim in ctype.datatype.shape:
-                        lower = self._replace_formal_arg(
+                        lower = self._replace_formal_args_in_expr(
                             dim.lower, node, formal_args,
                             routine_node=routine,
                             use_first_callee_and_no_arg_check=(
                                 use_first_callee_and_no_arg_check),
                         )
-                        upper = self._replace_formal_arg(
+                        upper = self._replace_formal_args_in_expr(
                             dim.upper, node, formal_args,
                             routine_node=routine,
                             use_first_callee_and_no_arg_check=(
@@ -310,7 +296,7 @@ class InlineTrans(Transformation):
                     sym.datatype.components[name] = (
                         StructureType.ComponentType(
                             name=name,
-                            datatype=ArrayType(ctype.datatype.datatype,
+                            datatype=ArrayType(ctype.datatype.elemental_type,
                                                new_shape),
                             visibility=ctype.visibility,
                             initial_value=ctype.initial_value))
@@ -443,9 +429,9 @@ class InlineTrans(Transformation):
                 # Only keep else block
                 if_else_replace(if_block.parent, if_block, if_block.else_body)
 
-    def _replace_formal_arg(
+    def _replace_formal_args_in_expr(
         self,
-        ref: DataNode,
+        expression: Node,
         call_node: Call,
         formal_args: List[DataSymbol],
         routine_node: Routine,
@@ -465,15 +451,16 @@ class InlineTrans(Transformation):
         :returns: the replacement reference.
 
         '''
-        if not isinstance(ref, Reference):
+        if not isinstance(expression, Reference):
             # Recurse down in case this is e.g. an Operation or Range.
-            for child in ref.children[:]:
-                self._replace_formal_arg(
+            for child in expression.children[:]:
+                self._replace_formal_args_in_expr(
                     child, call_node, formal_args, routine_node,
                     use_first_callee_and_no_arg_check=(
                         use_first_callee_and_no_arg_check))
-            return ref
+            return expression
 
+        ref = expression
         if ref.symbol not in formal_args:
             # The supplied reference is not to a formal argument.
             return ref
@@ -506,41 +493,9 @@ class InlineTrans(Transformation):
             # argument.
             actual_arg = call_node.arguments[actual_arg_idx]
 
-        # If the local reference is a simple Reference then we can just
-        # replace it with a copy of the actual argument, e.g.
-        #
-        #   call my_sub(my_struc%data(i,j))
-        #
-        #   subroutine my_sub(var)
-        #     ...
-        #     var = 0.0
-        #
-        # pylint: disable=unidiomatic-typecheck
-        if type(ref) is Reference:
-            arg_copy = actual_arg.copy()
-            # If the local reference we are replacing has a parent then we
-            # must ensure the parent's child list is updated. (It may not
-            # have a parent if we are in the process of constructing a brand
-            # new reference.)
-            if ref.parent:
-                ref.replace_with(arg_copy)
-            return arg_copy
-
-        # Local reference is not simple but the actual argument is, e.g.:
-        #
-        #   call my_sub(my_struc)
-        #
-        #   subroutine my_sub(var)
-        #     ...
-        #     var%data(i,j) = 0.0
-        #
-        if type(actual_arg) is Reference:
-            ref.symbol = actual_arg.symbol
-            return ref
-
-        # Neither the actual or local references are simple, i.e. they
-        # include array accesses and/or structure accesses.
-        new_ref = self._replace_formal_struc_arg(
+        # Generate a expression that replaces the formal argument using
+        # the actual argument.
+        new_ref = self._generate_formal_arg_replacement(
             actual_arg, ref, call_node, formal_args,
             routine_node=routine_node,
             use_first_callee_and_no_arg_check=(
@@ -617,7 +572,7 @@ class InlineTrans(Transformation):
                 use_first_callee_and_no_arg_check=(
                     use_first_callee_and_no_arg_check)
             )
-            step = self._replace_formal_arg(
+            step = self._replace_formal_args_in_expr(
                 local_idx.step,
                 call_node,
                 formal_args,
@@ -627,7 +582,7 @@ class InlineTrans(Transformation):
             )
             return Range.create(lower.copy(), upper.copy(), step.copy())
 
-        uidx = self._replace_formal_arg(
+        uidx = self._replace_formal_args_in_expr(
             local_idx,
             call_node,
             formal_args,
@@ -639,7 +594,7 @@ class InlineTrans(Transformation):
             # the same then we don't need to shift the index.
             return uidx
 
-        ustart = self._replace_formal_arg(
+        ustart = self._replace_formal_args_in_expr(
             decln_start,
             call_node,
             formal_args,
@@ -712,7 +667,7 @@ class InlineTrans(Transformation):
                     if isinstance(local_decln_start, Node):
                         # Ensure any references to formal arguments within
                         # the declared array lower bound are updated.
-                        local_decln_start = self._replace_formal_arg(
+                        local_decln_start = self._replace_formal_args_in_expr(
                             local_decln_start,
                             call_node,
                             formal_args,
@@ -767,7 +722,7 @@ class InlineTrans(Transformation):
             local_idx_posn += 1
         return new_indices
 
-    def _replace_formal_struc_arg(
+    def _generate_formal_arg_replacement(
         self,
         actual_arg: Reference,
         ref: Reference,
@@ -777,13 +732,14 @@ class InlineTrans(Transformation):
         use_first_callee_and_no_arg_check: bool = False,
     ) -> Reference:
         '''
-        Called by _replace_formal_arg() whenever a formal or actual argument
-        involves an array or structure access that can't be handled with a
-        simple substitution, e.g.
+        Called by _replace_formal_args_in_expr() whenever a reference to
+        the formal argument is found. This will need to be replaced with
+        the actual argument (accounting for possible index offsets between
+        the two). For example:
 
         .. code-block:: fortran
 
-            call my_sub(my_struc%grid(:,2,:), 10)
+            call my_sub(my_struct%grid(:,2,:), 10)
 
             subroutine my_sub(grid, ngrids)
               ...
@@ -797,12 +753,12 @@ class InlineTrans(Transformation):
 
         .. code-block:: fortran
 
-            my_struc%grid(igrid,2,jgrid)%data(i,j) = 0.0
+            my_struct%grid(igrid,2,jgrid)%data(i,j) = 0.0
 
         This routine therefore recursively combines any References to formal
         arguments in the supplied Reference (including any array-index
-        expressions) with the corresponding Reference
-        from the call site to make a new Reference for use in the inlined code.
+        expressions) with the corresponding Reference from the call site to
+        make a new Reference for use in the inlined code.
 
         :param actual_arg: an actual argument to the routine being inlined.
         :param ref: the corresponding reference to a formal argument.
@@ -815,9 +771,60 @@ class InlineTrans(Transformation):
         :returns: the replacement reference.
 
         '''
-        # The final stage of this method creates a brand new
-        # [ArrayOf]Structure[s]Reference so we have to collect the indices and
-        # members as we walk down both the actual and local references.
+        actual_arg = actual_arg.copy()
+
+        # If the local reference is a simple Reference then we can just
+        # replace it with a copy of the actual argument, e.g.
+        #
+        #   call my_sub(my_struct%data(i,j))
+        #
+        #   subroutine my_sub(var)
+        #     ...
+        #     var = 0.0
+        #
+        # pylint: disable=unidiomatic-typecheck
+        if type(ref) is Reference:
+            return actual_arg
+
+        # Below this point we need to know if the reference is to an Array
+        # and if so, what are their boundaries. To do so we can use the
+        # Reference2ArrayRangeTrans
+        if type(actual_arg) is Reference:
+            if isinstance(actual_arg.datatype, ArrayType):
+                dummy = Assignment()
+                dummy.addchild(actual_arg)
+                Reference2ArrayRangeTrans().apply(actual_arg)
+                actual_arg = dummy.children[0]
+
+        # If the local reference is not simple but the actual argument is
+        # guaranteed to not be an array, e.g.:
+        #
+        #   call my_sub(my_struct)
+        #
+        #   subroutine my_sub(var)
+        #     ...
+        #     var%data(i,j) = 0.0
+        #
+        # we just need to replicate the local expression but using the
+        # actual argument symbol.
+        if type(actual_arg) is Reference:
+            new_ref = ref.copy()
+            new_ref.symbol = actual_arg.symbol
+            for child in new_ref.children[:]:
+                self._replace_formal_args_in_expr(
+                    child,
+                    call_node,
+                    formal_args,
+                    routine_node,
+                    use_first_callee_and_no_arg_check=(
+                        use_first_callee_and_no_arg_check),
+                )
+
+            return new_ref
+
+        # If we reach this point we need to create the appropriate
+        # [Array][Of][Structure][s]Reference so we have to collect the indices
+        # and members as we walk down both the actual and local references.
         local_indices = None
         members = []
 
@@ -853,17 +860,14 @@ class InlineTrans(Transformation):
                 break
             cursor = cursor.member
 
-        # TODO #1858 - once we support converting structure accesses into
-        # explicit array accesses, we can put back the testing in
-        # inline_trans_test.py that covers this code and remove the pragma:
-        if not actual_arg.walk(Range) and local_indices:  # pragma: no cover
+        if not actual_arg.walk(Range) and local_indices:
             # There are no Ranges in the actual argument but the local
             # reference is an array access.
             # Create updated index expressions for that access.
             new_indices = []
             for idx in local_indices:
                 new_indices.append(
-                    self._replace_formal_arg(
+                    self._replace_formal_args_in_expr(
                         idx.copy(),
                         call_node,
                         formal_args,
@@ -889,7 +893,7 @@ class InlineTrans(Transformation):
                     # Update each index expression in case it refers to
                     # formal arguments.
                     new_indices.append(
-                        self._replace_formal_arg(
+                        self._replace_formal_args_in_expr(
                             idx.copy(),
                             call_node,
                             formal_args,
@@ -1138,9 +1142,8 @@ class InlineTrans(Transformation):
         # (automatic) array, are passed by argument and are written
         # to before the call then we can't perform inlining.
         for asym in routine.symbol_table.automatic_datasymbols:
-            vam = asym.reference_accesses()
-            for sig in vam.all_signatures:
-                sym = routine_table.lookup(sig.var_name)
+            dependent_symbols = asym.get_all_accessed_symbols()
+            for sym in dependent_symbols:
                 if sym not in routine_table.argument_list:
                     # This dependency is not an argument to the routine.
                     continue

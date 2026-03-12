@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -138,10 +138,10 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
         'f2_3_data', 'f3_data', 'istp', 'ndf_w2', 'undf_w2',
         'map_w2(:,cell)', 'basis_w2_qr_xyoz', 'basis_w2_qr_face', 'ndf_wchi',
         'undf_wchi', 'map_wchi(:,cell)', 'diff_basis_wchi_qr_xyoz',
-        'diff_basis_wchi_qr_face', 'ndf_adspc1_f3', 'undf_adspc1_f3',
-        'map_adspc1_f3(:,cell)', 'basis_adspc1_f3_qr_xyoz',
-        'basis_adspc1_f3_qr_face', 'diff_basis_adspc1_f3_qr_xyoz',
-        'diff_basis_adspc1_f3_qr_face', 'np_xy_qr_xyoz', 'np_z_qr_xyoz',
+        'diff_basis_wchi_qr_face', 'ndf_ads1_f3', 'undf_ads1_f3',
+        'map_ads1_f3(:,cell)', 'basis_ads1_f3_qr_xyoz',
+        'basis_ads1_f3_qr_face', 'diff_basis_ads1_f3_qr_xyoz',
+        'diff_basis_ads1_f3_qr_face', 'np_xy_qr_xyoz', 'np_z_qr_xyoz',
         'weights_xy_qr_xyoz', 'weights_z_qr_xyoz', 'nfaces_qr_face',
         'np_xyz_qr_face', 'weights_xyz_qr_face']
 
@@ -231,9 +231,9 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
     var_info = VariablesAccessMap()
     create_arg_list.generate(var_accesses=var_info)
     assert str(var_info) == (
-        "nlayers_f1: READ, a: READ, f1_data: INC, ndf_w1: READ, undf_w1: READ,"
-        " cell: READ, colour: READ, cmap: READ, map_w1: READ, nfaces_re_h: "
-        "READ, adjacent_face: READ")
+        "a: READ, adjacent_face: READ, cell: READ, cmap: READ, colour: READ, "
+        "f1_data: INC, map_w1: READ, ndf_w1: READ, nfaces_re_h: READ, "
+        "nlayers_f1: READ, undf_w1: READ")
     # Tests that multiple reads are reported as expected:
     assert str(var_info[Signature("cell")]) == "cell:[READ,READ]"
     assert str(var_info[Signature("colour")]) == "colour:[READ,READ]"
@@ -355,8 +355,8 @@ def test_kerncallarglist_bcs(fortran_writer, monkeypatch):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers_a', 'a_data', 'ndf_aspc1_a', 'undf_aspc1_a',
-        'map_aspc1_a(:,cell)', 'boundary_dofs_a']
+        'nlayers_a', 'a_data', 'ndf_as1_a', 'undf_as1_a',
+        'map_as1_a(:,cell)', 'boundary_dofs_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
 
@@ -390,7 +390,7 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     create_arg_list.generate(access_info)
     assert create_arg_list._arglist == [
         'cell', 'nlayers_op_a', 'op_a_proxy%ncell_3d', 'op_a_local_stencil',
-        'ndf_aspc1_op_a', 'ndf_aspc2_op_a', 'boundary_dofs_op_a']
+        'ndf_as1_op_a', 'ndf_as2_op_a', 'boundary_dofs_op_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
     assert (create_arg_list.psyir_arglist[2].datatype ==
@@ -557,10 +557,10 @@ def test_indirect_dofmap(fortran_writer):
         'cma_op1_cma_matrix', 'cma_op1_nrow', 'cma_op1_ncol',
         'cma_op1_bandwidth', 'cma_op1_alpha', 'cma_op1_beta',
         'cma_op1_gamma_m', 'cma_op1_gamma_p',
-        'ndf_adspc1_field_a', 'undf_adspc1_field_a',
-        'map_adspc1_field_a(:,cell)', 'cma_indirection_map_adspc1_field_a',
-        'ndf_aspc1_field_b', 'undf_aspc1_field_b', 'map_aspc1_field_b(:,cell)',
-        'cma_indirection_map_aspc1_field_b'])
+        'ndf_ads1_field_a', 'undf_ads1_field_a',
+        'map_ads1_field_a(:,cell)', 'cma_indirection_map_ads1_field_a',
+        'ndf_as1_field_b', 'undf_as1_field_b', 'map_as1_field_b(:,cell)',
+        'cma_indirection_map_as1_field_b'])
 
     check_psyir_results(create_arg_list, fortran_writer)
 
@@ -579,21 +579,23 @@ def test_indirect_dofmap(fortran_writer):
         # because the PSyIR doesn't support pointers. However, its
         # 'partial_datatype' is the type of the member accessed, i.e. it's
         # the 1D real array.
-        assert isinstance(psyir_args[i].datatype, UnsupportedFortranType)
-        assert isinstance(psyir_args[i].datatype.partial_datatype,
+        assert isinstance(psyir_args[i].symbol.datatype,
+                          UnsupportedFortranType)
+        assert isinstance(psyir_args[i].symbol.datatype.partial_datatype,
                           ArrayType)
-        assert (psyir_args[i].datatype.partial_datatype.intrinsic ==
+        assert (psyir_args[i].symbol.datatype.partial_datatype.intrinsic ==
                 ScalarType.Intrinsic.REAL)
 
     # Test all 3D real arrays:
-    assert isinstance(psyir_args[4].datatype, UnsupportedFortranType)
-    assert (psyir_args[4].datatype.partial_datatype.intrinsic ==
+    print(psyir_args[4].datatype)
+    assert isinstance(psyir_args[4].symbol.datatype, UnsupportedFortranType)
+    assert (psyir_args[4].symbol.datatype.partial_datatype.intrinsic ==
             ScalarType.Intrinsic.REAL)
-    assert len(psyir_args[4].datatype.partial_datatype.shape) == 3
+    assert len(psyir_args[4].symbol.datatype.partial_datatype.shape) == 3
 
     # Test all 1D integer arrays:
     for i in [15, 19]:
-        assert "(:)" in psyir_args[i].datatype.declaration
+        assert "(:)" in psyir_args[i].symbol.datatype.declaration
 
     # Test all 2D integer arrays:
     for i in [14, 18]:
@@ -616,10 +618,10 @@ def test_ref_element_handling(fortran_writer):
         'nfaces_re_h', 'nfaces_re_v', 'normals_to_horiz_faces',
         'normals_to_vert_faces'])
 
-    assert ("nlayers_f1: READ, f1_data: INC, ndf_w1: READ, undf_w1: READ, "
-            "cell: READ, map_w1: READ, nfaces_re_h: READ, nfaces_re_v: READ, "
-            "normals_to_horiz_faces: READ, normals_to_vert_faces: READ"
-            == str(vam))
+    assert ("cell: READ, f1_data: INC, map_w1: READ, ndf_w1: READ, "
+            "nfaces_re_h: READ, nfaces_re_v: READ, nlayers_f1: READ, "
+            "normals_to_horiz_faces: READ, normals_to_vert_faces: READ, "
+            "undf_w1: READ" == str(vam))
 
     check_psyir_results(create_arg_list, fortran_writer)
 

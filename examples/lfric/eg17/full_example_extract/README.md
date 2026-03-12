@@ -25,7 +25,7 @@ or ``netcdf`` when compiling to use the other libraries::
 
  To compile the example, the following dependencies are needed:
 - the infrastructure library ``liblfric.a`` provided in
-  ``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``
+  ``<PSYCLONEHOME>/external/lfric_infrastructure/src``
 - one of the LFRic PSyData wrapper libraries, either:
     - ``lib_kernel_data_netcdf`` from
       ``<PSYCLONEHOME>/lib/extract/netcdf/lfric`` and NetCDF,
@@ -48,7 +48,7 @@ This example can also be used to showcase the extraction if MPI is enabled.
 Note that the code is *not* setup to run in parallel with MPI, but it can
 be compiled with MPI and run as a single process job.
 Extraction in this case means that the single process will write
-its output data by appending its rank to the outpout filename. To enable
+its output data by appending its rank to the output filename. To enable
 this, set the environment variable ``MPI=yes``.
 
 

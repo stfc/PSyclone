@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -712,13 +712,13 @@ m4, f5, f6, m5, m6, f7, f8, m7)
     integer(kind=i_def) :: undf_wchi
     integer(kind=i_def) :: ndf_any_w2
     integer(kind=i_def) :: undf_any_w2
-    integer(kind=i_def) :: ndf_aspc1_f8
-    integer(kind=i_def) :: undf_aspc1_f8
-    integer(kind=i_def) :: ndf_adspc1_m7
-    integer(kind=i_def) :: undf_adspc1_m7
-    integer(kind=i_def), pointer :: map_adspc1_m7(:,:) => null()
+    integer(kind=i_def) :: ndf_as1_f8
+    integer(kind=i_def) :: undf_as1_f8
+    integer(kind=i_def) :: ndf_ads1_m7
+    integer(kind=i_def) :: undf_ads1_m7
+    integer(kind=i_def), pointer :: map_ads1_m7(:,:) => null()
     integer(kind=i_def), pointer :: map_any_w2(:,:) => null()
-    integer(kind=i_def), pointer :: map_aspc1_f8(:,:) => null()
+    integer(kind=i_def), pointer :: map_as1_f8(:,:) => null()
     integer(kind=i_def), pointer :: map_w0(:,:) => null()
     integer(kind=i_def), pointer :: map_w1(:,:) => null()
     integer(kind=i_def), pointer :: map_w2(:,:) => null()
@@ -803,8 +803,8 @@ m4, f5, f6, m5, m6, f7, f8, m7)
         "    map_w2vtrace => m5_proxy%vspace%get_whole_dofmap()\n"
         "    map_wchi => m6_proxy%vspace%get_whole_dofmap()\n"
         "    map_any_w2 => f7_proxy%vspace%get_whole_dofmap()\n"
-        "    map_aspc1_f8 => f8_proxy%vspace%get_whole_dofmap()\n"
-        "    map_adspc1_m7 => m7_proxy%vspace%get_whole_dofmap()\n"
+        "    map_as1_f8 => f8_proxy%vspace%get_whole_dofmap()\n"
+        "    map_ads1_m7 => m7_proxy%vspace%get_whole_dofmap()\n"
         "\n"
         "    ! Initialise number of DoFs for w1\n"
         "    ndf_w1 = f1_proxy%vspace%get_ndf()\n"
@@ -858,13 +858,13 @@ m4, f5, f6, m5, m6, f7, f8, m7)
         "    ndf_any_w2 = f7_proxy%vspace%get_ndf()\n"
         "    undf_any_w2 = f7_proxy%vspace%get_undf()\n"
         "\n"
-        "    ! Initialise number of DoFs for aspc1_f8\n"
-        "    ndf_aspc1_f8 = f8_proxy%vspace%get_ndf()\n"
-        "    undf_aspc1_f8 = f8_proxy%vspace%get_undf()\n"
+        "    ! Initialise number of DoFs for as1_f8\n"
+        "    ndf_as1_f8 = f8_proxy%vspace%get_ndf()\n"
+        "    undf_as1_f8 = f8_proxy%vspace%get_undf()\n"
         "\n"
-        "    ! Initialise number of DoFs for adspc1_m7\n"
-        "    ndf_adspc1_m7 = m7_proxy%vspace%get_ndf()\n"
-        "    undf_adspc1_m7 = m7_proxy%vspace%get_undf()\n"
+        "    ! Initialise number of DoFs for ads1_m7\n"
+        "    ndf_ads1_m7 = m7_proxy%vspace%get_ndf()\n"
+        "    undf_ads1_m7 = m7_proxy%vspace%get_undf()\n"
         "\n"
         "    ! Set-up all of the loop bounds\n"
         "    loop0_start = 1\n"
@@ -927,9 +927,9 @@ m4, f5, f6, m5, m6, f7, f8, m7)
         "map_w2trace(:,cell), ndf_w2htrace, undf_w2htrace, "
         "map_w2htrace(:,cell), ndf_w2vtrace, undf_w2vtrace, "
         "map_w2vtrace(:,cell), ndf_wchi, undf_wchi, map_wchi(:,cell), "
-        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell), ndf_aspc1_f8, "
-        "undf_aspc1_f8, map_aspc1_f8(:,cell), ndf_adspc1_m7, "
-        "undf_adspc1_m7, map_adspc1_m7(:,cell))\n"
+        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell), ndf_as1_f8, "
+        "undf_as1_f8, map_as1_f8(:,cell), ndf_ads1_m7, "
+        "undf_ads1_m7, map_ads1_m7(:,cell))\n"
         "    enddo\n"
         "\n"
         "    ! Set halos dirty/clean for fields modified in the above "
@@ -944,7 +944,9 @@ m4, f5, f6, m5, m6, f7, f8, m7)
         "  end subroutine invoke_0_testkern_fs_int_field_type\n"
         "\n"
         "end module single_invoke_fs_int_field_psy\n")
-    assert output in generated_code
+    for line in output.split("\n"):
+        if line:
+            assert line in generated_code, line
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -965,16 +967,18 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
     assert ("    type(quadrature_xyoz_type), intent(in) :: qr_xyoz\n"
             "    type(quadrature_face_type), intent(in) :: qr_face\n"
             in code)
-    assert """
+    expected = """
     real(kind=r_def), allocatable :: basis_w2_qr_xyoz(:,:,:,:)
     real(kind=r_def), allocatable :: basis_w2_qr_face(:,:,:,:)
     real(kind=r_def), allocatable :: diff_basis_wchi_qr_xyoz(:,:,:,:)
     real(kind=r_def), allocatable :: diff_basis_wchi_qr_face(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_adspc1_f3_qr_xyoz(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_adspc1_f3_qr_xyoz(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_adspc1_f3_qr_face(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_adspc1_f3_qr_face(:,:,:,:)
-""" in code
+    real(kind=r_def), allocatable :: basis_ads1_f3_qr_xyoz(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_ads1_f3_qr_xyoz(:,:,:,:)
+    real(kind=r_def), allocatable :: basis_ads1_f3_qr_face(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_ads1_f3_qr_face(:,:,:,:)
+"""
+    for line in expected.split("\n"):
+        assert line in code, line
     assert ("    real(kind=r_def), pointer, dimension(:,:) :: "
             "weights_xyz_qr_face => null()\n" in code)
     assert "    integer(kind=i_def) :: np_xyz_qr_face\n" in code
@@ -991,35 +995,35 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
     assert "type(quadrature_xyoz_proxy_type) :: qr_xyoz_proxy\n" in code
     # Allocation and computation of (some of) the basis/differential
     # basis functions
-    assert ("    ALLOCATE(basis_adspc1_f3_qr_xyoz(dim_adspc1_f3,"
-            "ndf_adspc1_f3,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
-            "    ALLOCATE(diff_basis_adspc1_f3_qr_xyoz(diff_dim_adspc1_f3,"
-            "ndf_adspc1_f3,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
-            "    ALLOCATE(basis_adspc1_f3_qr_face(dim_adspc1_f3,"
-            "ndf_adspc1_f3,np_xyz_qr_face,nfaces_qr_face))\n"
-            "    ALLOCATE(diff_basis_adspc1_f3_qr_face(diff_dim_adspc1_f3,"
-            "ndf_adspc1_f3,np_xyz_qr_face,nfaces_qr_face))\n"
+    assert ("    ALLOCATE(basis_ads1_f3_qr_xyoz(dim_ads1_f3,"
+            "ndf_ads1_f3,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
+            "    ALLOCATE(diff_basis_ads1_f3_qr_xyoz(diff_dim_ads1_f3,"
+            "ndf_ads1_f3,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
+            "    ALLOCATE(basis_ads1_f3_qr_face(dim_ads1_f3,"
+            "ndf_ads1_f3,np_xyz_qr_face,nfaces_qr_face))\n"
+            "    ALLOCATE(diff_basis_ads1_f3_qr_face(diff_dim_ads1_f3,"
+            "ndf_ads1_f3,np_xyz_qr_face,nfaces_qr_face))\n"
             in code)
     assert ("    call qr_xyoz%compute_function(BASIS, f3_proxy%vspace, "
-            "dim_adspc1_f3, ndf_adspc1_f3, basis_adspc1_f3_qr_xyoz)\n"
+            "dim_ads1_f3, ndf_ads1_f3, basis_ads1_f3_qr_xyoz)\n"
             "    call qr_xyoz%compute_function(DIFF_BASIS, "
-            "f3_proxy%vspace, diff_dim_adspc1_f3, ndf_adspc1_f3, "
-            "diff_basis_adspc1_f3_qr_xyoz)\n"
+            "f3_proxy%vspace, diff_dim_ads1_f3, ndf_ads1_f3, "
+            "diff_basis_ads1_f3_qr_xyoz)\n"
             "    call qr_face%compute_function(BASIS, f3_proxy%vspace, "
-            "dim_adspc1_f3, ndf_adspc1_f3, basis_adspc1_f3_qr_face)\n"
+            "dim_ads1_f3, ndf_ads1_f3, basis_ads1_f3_qr_face)\n"
             "    call qr_face%compute_function(DIFF_BASIS, "
-            "f3_proxy%vspace, diff_dim_adspc1_f3, ndf_adspc1_f3, "
-            "diff_basis_adspc1_f3_qr_face)\n" in code)
+            "f3_proxy%vspace, diff_dim_ads1_f3, ndf_ads1_f3, "
+            "diff_basis_ads1_f3_qr_face)\n" in code)
     # Check that the kernel call itself is correct
     assert (
         "testkern_2qr_int_field_code(nlayers_f1, f1_data, "
         "f2_1_data, f2_2_data, f2_3_data, f3_data, "
         "istp, ndf_w2, undf_w2, map_w2(:,cell), basis_w2_qr_xyoz, "
         "basis_w2_qr_face, ndf_wchi, undf_wchi, map_wchi(:,cell), "
-        "diff_basis_wchi_qr_xyoz, diff_basis_wchi_qr_face, ndf_adspc1_f3, "
-        "undf_adspc1_f3, map_adspc1_f3(:,cell), basis_adspc1_f3_qr_xyoz, "
-        "basis_adspc1_f3_qr_face, diff_basis_adspc1_f3_qr_xyoz, "
-        "diff_basis_adspc1_f3_qr_face, np_xy_qr_xyoz, np_z_qr_xyoz, "
+        "diff_basis_wchi_qr_xyoz, diff_basis_wchi_qr_face, ndf_ads1_f3, "
+        "undf_ads1_f3, map_ads1_f3(:,cell), basis_ads1_f3_qr_xyoz, "
+        "basis_ads1_f3_qr_face, diff_basis_ads1_f3_qr_xyoz, "
+        "diff_basis_ads1_f3_qr_face, np_xy_qr_xyoz, np_z_qr_xyoz, "
         "weights_xy_qr_xyoz, weights_z_qr_xyoz, nfaces_qr_face, "
         "np_xyz_qr_face, weights_xyz_qr_face)\n" in code)
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1145,8 +1149,8 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "    map_w2vtrace => n5_proxy%vspace%get_whole_dofmap()\n"
         "    map_wchi => n6_proxy%vspace%get_whole_dofmap()\n"
         "    map_any_w2 => i7_proxy%vspace%get_whole_dofmap()\n"
-        "    map_aspc1_i8 => i8_proxy%vspace%get_whole_dofmap()\n"
-        "    map_adspc1_n7 => n7_proxy%vspace%get_whole_dofmap()\n")
+        "    map_as1_i8 => i8_proxy%vspace%get_whole_dofmap()\n"
+        "    map_ads1_n7 => n7_proxy%vspace%get_whole_dofmap()\n")
     assert output in generated_code
     # Kernel calls are the same regardless of distributed memory
     kern1_call = (
@@ -1163,9 +1167,9 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "undf_w2trace, map_w2trace(:,cell), ndf_w2htrace, undf_w2htrace, "
         "map_w2htrace(:,cell), ndf_w2vtrace, undf_w2vtrace, "
         "map_w2vtrace(:,cell), ndf_wchi, undf_wchi, map_wchi(:,cell), "
-        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell), ndf_aspc1_i8, "
-        "undf_aspc1_i8, map_aspc1_i8(:,cell), ndf_adspc1_n7, "
-        "undf_adspc1_n7, map_adspc1_n7(:,cell))\n")
+        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell), ndf_as1_i8, "
+        "undf_as1_i8, map_as1_i8(:,cell), ndf_ads1_n7, "
+        "undf_ads1_n7, map_ads1_n7(:,cell))\n")
     assert kern1_call in generated_code
     kern2_call = (
         "      call testkern_fs_code(nlayers_f1, f1_data, f2_data, "

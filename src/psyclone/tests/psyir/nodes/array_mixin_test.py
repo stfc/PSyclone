@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,11 +42,12 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, ArrayReference, BinaryOperation, Range,
-    Literal, Routine, StructureReference, Assignment, Reference, IntrinsicCall)
+    Literal, Routine, StructureReference, Assignment, Reference, IntrinsicCall,
+    Schedule)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, INTEGER_TYPE,
-    REAL_TYPE, StructureType, Symbol)
+    REAL_TYPE, StructureType, Symbol, SymbolTable)
 
 
 _ONE = Literal("1", INTEGER_TYPE)
@@ -638,6 +639,7 @@ def test_get_effective_shape(fortran_reader):
         "  b(idx, 1+indices(1,1):) = 1\n"
         "  b(idx, a) = -1.0\n"
         "  b(scalarval, arrayval) = 1\n"
+        "  b(:,indices(:)) = 1\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
@@ -659,7 +661,7 @@ def test_get_effective_shape(fortran_reader):
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
-    assert "SIZE(a, dim=1)" in shape[0].debug_string()
+    assert "10" in shape[0].debug_string()
     # Array slice with only lower-bound specified.
     #   a(2:) = 0.0
     child_idx += 1
@@ -687,7 +689,8 @@ def test_get_effective_shape(fortran_reader):
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
-    assert shape[0].debug_string() == "UBOUND(b, 2) - LBOUND(b, 1) + 1"
+    assert (shape[0].debug_string() ==
+            "UBOUND(b, dim=2) - LBOUND(b, dim=1) + 1")
     # Indirect array slice.
     #   b(indices(2:3,1), 2:5) = 2.0
     child_idx += 1
@@ -712,7 +715,11 @@ def test_get_effective_shape(fortran_reader):
     child_idx += 1
     with pytest.raises(NotImplementedError) as err:
         _ = routine.children[child_idx].lhs._get_effective_shape()
-    assert "include a function call or unsupported feature" in str(err.value)
+    assert (
+        "The array index expression 'f()' in access 'a(f())' is of "
+        "'UnresolvedType' type and therefore whether it is an array "
+        "slice (i.e. an indirect access) cannot be determined."
+        in str(err.value))
     # Array access with simple expression in indices.
     #   a(2+3) = 1.0
     child_idx += 1
@@ -742,6 +749,11 @@ def test_get_effective_shape(fortran_reader):
             " of 'UnresolvedType' type and therefore whether it is an array "
             "slice (i.e. an indirect access) cannot be determined."
             in str(err.value))
+    # Nested array accesses with ranges with implicit bounds
+    child_idx += 1
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert "10" == shape[0].debug_string()
+    assert "8" == shape[1].debug_string()
 
 
 def test_struct_get_effective_shape(fortran_reader):
@@ -770,6 +782,21 @@ def test_struct_get_effective_shape(fortran_reader):
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert isinstance(shape[0], IntrinsicCall)
+
+
+def test_unexpected_type_in_get_effective_shape(monkeypatch):
+    '''Tests for the _get_effective_shape() throws the appropriate
+    error if a node of an unexpected type is found.'''
+
+    monkeypatch.setattr(ArrayMixin, "_validate_child", lambda x, y, z: True)
+    arrayref = ArrayReference.create(
+        DataSymbol("a", UnresolvedType()),
+        indices=[Schedule()]
+    )
+    with pytest.raises(InternalError) as err:
+        arrayref._get_effective_shape()
+    assert ("Found unexpected node of type '<class 'psyclone.psyir.nodes."
+            "schedule.Schedule'>' as an index expression" in str(err.value))
 
 
 # get_outer_range_index
@@ -804,8 +831,15 @@ def test_get_outer_range_index_error():
 def test_same_range_error(fortran_reader):
     ''' Test that the same_range method produces the expected errors. '''
 
-    array1 = fortran_reader.psyir_from_statement("a(i) = 0").lhs
-    array2 = fortran_reader.psyir_from_statement("b(j) = 0").lhs
+    symtab = SymbolTable()
+    symtab.new_symbol("a", symbol_type=DataSymbol,
+                      datatype=ArrayType(INTEGER_TYPE, shape=[10]))
+    symtab.new_symbol("b", symbol_type=DataSymbol,
+                      datatype=ArrayType(INTEGER_TYPE, shape=[10]))
+    array1 = fortran_reader.psyir_from_statement(
+                                    "a(i) = 0", symbol_table=symtab).lhs
+    array2 = fortran_reader.psyir_from_statement(
+                                    "b(j) = 0", symbol_table=symtab).lhs
 
     with pytest.raises(TypeError) as info:
         array1.same_range(None, None, None)
@@ -839,7 +873,8 @@ def test_same_range_error(fortran_reader):
     assert ("The child of the first array argument at the specified index '0' "
             "should be a Range node, but found 'Reference'" in str(info.value))
 
-    array1 = fortran_reader.psyir_from_statement("a(:) = 0").lhs
+    array1 = fortran_reader.psyir_from_statement(
+                                "a(:) = 0", symbol_table=symtab).lhs
 
     with pytest.raises(TypeError) as info:
         array1.same_range(0, array2, 0)
@@ -882,7 +917,7 @@ def test_same_range(fortran_reader):
     # Unless they refer to the same symbol and dimension
     assert array1.same_range(1, array3, 1) is True
 
-    # The assumtion of same size is for the matching slice sections
+    # The assumption of same size is for the matching slice sections
     code = '''
     subroutine test(A)
         use other_mod

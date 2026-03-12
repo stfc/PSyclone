@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,8 @@ from psyclone.tests.utilities import (change_dir, CompileError, Compile,
 
 class LFRicBuild(Compile):
     '''Build class for compilation of test files for the LFRic api.
-    It uses the wrapper library from test_files/lfric/infrastructure.
+    It uses the infrastructure library from
+    ``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
     The very first time the constructor is called it will automatically
     compile the infrastructure library in a temporary, process-specific
     location. These files will be used by all test compilations of this

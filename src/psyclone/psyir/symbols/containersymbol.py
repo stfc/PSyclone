@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ class ContainerSymbol(Symbol):
     :param str name: name of the symbol.
     :param bool wildcard_import: if all public Symbols of the Container are
         imported into the current scope. Defaults to False.
-    :param bool is_intrinsic: if the module is an intrinsic import. Defauts
+    :param bool is_intrinsic: if the module is an intrinsic import. Defaults
         to False.
     :param kwargs: additional keyword arguments provided by
         :py:class:`psyclone.psyir.symbols.Symbol`.

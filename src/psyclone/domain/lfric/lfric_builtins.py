@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@
 
 # pylint: disable=too-many-lines
 import abc
+from enum import Enum, auto
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, VariablesAccessMap
@@ -56,11 +57,12 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
                                   Reference, IntrinsicCall)
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import UnsupportedFortranType
 from psyclone.utils import a_or_an
 
-# The name of the file containing the meta-data describing the
-# built-in operations for this API
+#: The name of the file containing the meta-data describing the
+#: built-in operations for this API
 BUILTIN_DEFINITIONS_FILE = "lfric_builtins_mod.f90"
 
 
@@ -161,12 +163,27 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     '''Abstract base class for a node representing a call to an LFRic
     built-in.
 
-    :raises NotImplementedError: if a subclass of this abstract class \
+    :raises NotImplementedError: if a subclass of this abstract class
         does not set the value of '_datatype'.
 
     '''
+    class ReductionType(Enum):
+        '''
+        Enumeration of the types of reduction an LFRicBuiltIn can perform.
+        '''
+        #: No reduction.
+        NONE = auto()
+        #: Summation reduction.
+        SUM = auto()
+        #: Global minimum value.
+        MIN = auto()
+        #: Global maximum value.
+        MAX = auto()
+
     _case_name = None
     _datatype = None
+    #: The type of reduction performed by this kernel.
+    _reduction_type: ReductionType = ReductionType.NONE
 
     def __init__(self):
         # Builtins do not accept quadrature
@@ -210,7 +227,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     def __str__(self):
         metadata = self.metadata()
         plural = ""
-        # Builtins are currenty limited to fields and scalars but add
+        # Builtins are currently limited to fields and scalars but add
         # in a check for field-vectors as well for future proofing.
         if len(metadata.meta_args_get([
                 FieldArgMetadata, FieldVectorArgMetadata])) > 1:
@@ -222,7 +239,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         :raises InternalError: if an unsupported argument type is encountered.
@@ -310,6 +327,10 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         write_count = 0  # Only one argument must be written to
         field_count = 0  # We must have one or more fields as arguments
         spaces = set()   # All field arguments must be on the same space
+        # Built-ins update fields DoF by DoF and therefore can have
+        # WRITE/READWRITE access
+        write_access_modes = [AccessType.REDUCTION, AccessType.WRITE,
+                              AccessType.READWRITE]
         # Field data types must be the same except for the conversion built-ins
         data_types = set()
         for arg in self.arg_descriptors:
@@ -327,10 +348,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                     f"must have one of {const.VALID_BUILTIN_DATA_TYPES} as "
                     f"a data type but kernel '{self.name}' has an argument "
                     f"of data type '{arg.data_type}'.")
-            # Built-ins update fields DoF by DoF and therefore can have
-            # WRITE/READWRITE access
-            if arg.access in [AccessType.WRITE, AccessType.SUM,
-                              AccessType.READWRITE]:
+            # Check for write accesses
+            if arg.access in write_access_modes:
                 write_count += 1
             if arg.argument_type in const.VALID_FIELD_NAMES:
                 field_count += 1
@@ -449,6 +468,13 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         return self._fs_descriptors
 
+    @property
+    def reduction_type(self) -> ReductionType:
+        '''
+        :returns: the type of reduction operation performed by this Built-in.
+        '''
+        return self._reduction_type
+
     def get_dof_loop_index_symbol(self):
         '''
         Finds or creates the symbol representing the index in any loops
@@ -525,7 +551,6 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
         return assign
 
-
 # ******************************************************************* #
 # ************** Built-ins for real-valued fields ******************* #
 # ******************************************************************* #
@@ -564,15 +589,16 @@ class LFRicXPlusYKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (add "
                 f"{self._datatype}-valued fields)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This Built-In node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
 
@@ -610,15 +636,16 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (increment "
                 f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
 
@@ -654,15 +681,16 @@ class LFRicAPlusXKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -699,15 +727,16 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -746,15 +775,16 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -794,15 +824,16 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -842,15 +873,16 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -892,15 +924,16 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -944,15 +977,16 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -996,15 +1030,16 @@ class LFRicAXPlusAYKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1053,15 +1088,16 @@ class LFRicXMinusYKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (subtract "
                 f"{self._datatype}-valued fields)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
 
@@ -1100,15 +1136,16 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (decrement "
                 f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
 
@@ -1144,15 +1181,16 @@ class LFRicAMinusXKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1189,15 +1227,16 @@ class LFRicIncAMinusXKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1235,15 +1274,16 @@ class LFRicXMinusAKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
             ScalarArgMetadata(gh_datatype, "gh_read")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1280,15 +1320,16 @@ class LFRicIncXMinusAKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
             ScalarArgMetadata(gh_datatype, "gh_read")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1327,15 +1368,16 @@ class LFRicAXMinusYKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1376,15 +1418,16 @@ class LFRicXMinusBYKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1424,15 +1467,16 @@ class LFRicIncXMinusBYKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1474,15 +1518,16 @@ class LFRicAXMinusBYKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1534,15 +1579,16 @@ class LFRicXTimesYKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (multiply "
                 f"{self._datatype}-valued fields)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
 
@@ -1580,15 +1626,16 @@ class LFRicIncXTimesYKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (multiply one "
                 f"{self._datatype}-valued field by another)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
 
@@ -1624,15 +1671,16 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1681,15 +1729,16 @@ class LFRicATimesXKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (copy a scaled "
                 f"{self._datatype}-valued field)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1729,15 +1778,16 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (scale "
                 f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1783,15 +1833,16 @@ class LFRicXDividebyYKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (divide "
                 f"{self._datatype}-valued fields)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
 
@@ -1829,15 +1880,16 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (divide one "
                 f"{self._datatype}-valued field by another)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
 
@@ -1878,15 +1930,16 @@ class LFRicXDividebyAKern(LFRicBuiltIn):
                 f"by {a_or_an(self._datatype)} {self._datatype} scalar "
                 "(Y = X/a))")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1927,15 +1980,16 @@ class LFRicIncXDividebyAKern(LFRicBuiltIn):
                 f"by {a_or_an(self._datatype)} {self._datatype} scalar "
                 f"(X = X/a))")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -1983,15 +2037,16 @@ class LFRicADividebyXKern(LFRicBuiltIn):
                 f"{a_or_an(self._datatype)} {self._datatype}-valued "
                 f"field (Y = a/X))")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -2034,15 +2089,16 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
                 f"{a_or_an(self._datatype)} {self._datatype}-valued "
                 f"field (X = a/X))")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -2088,15 +2144,16 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
                 f"{a_or_an(self._datatype)} {self._datatype}-valued field "
                 f"to a real power)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get PSyIR for each of the arguments.
         arg_refs = self.get_indexed_field_argument_references()
         scalar_args = self.get_scalar_argument_references()
@@ -2136,15 +2193,16 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
                 f"{a_or_an(self._datatype)} {self._datatype}-valued field "
                 f"to an integer power)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get PSyIR for each of the arguments.
         arg_refs = self.get_indexed_field_argument_references()
         scalar_args = self.get_scalar_argument_references()
@@ -2189,15 +2247,16 @@ class LFRicSetvalCKern(LFRicBuiltIn):
                 f"{self._datatype}-valued field to a {self._datatype} "
                 f"scalar value)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -2236,15 +2295,16 @@ class LFRicSetvalXKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (set {a_or_an(self._datatype)} "
                 f"{self._datatype}-valued field equal to another such field)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed refs for both of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
 
@@ -2280,15 +2340,16 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (fill {a_or_an(self._datatype)} "
                 f"{self._datatype}-valued field with pseudo-random numbers)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an IntrinsicCall node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.IntrinsicCall`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed refs for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()
 
@@ -2314,6 +2375,7 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
     '''
     _case_name = "X_innerproduct_Y"
     _datatype = "real"
+    _reduction_type = LFRicBuiltIn.ReductionType.SUM
 
     @classmethod
     def metadata(cls):
@@ -2325,19 +2387,20 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
         '''
         gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
         return cls._builtin_metadata([
-            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            ScalarArgMetadata(gh_datatype, "gh_reduction"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar reduction argument.
@@ -2360,6 +2423,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
     '''
     _case_name = "X_innerproduct_X"
     _datatype = "real"
+    _reduction_type = LFRicBuiltIn.ReductionType.SUM
 
     @classmethod
     def metadata(cls):
@@ -2371,18 +2435,19 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
         '''
         gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
         return cls._builtin_metadata([
-            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            ScalarArgMetadata(gh_datatype, "gh_reduction"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar reduction argument.
@@ -2409,6 +2474,7 @@ class LFRicSumXKern(LFRicBuiltIn):
     '''
     _case_name = "sum_X"
     _datatype = "real"
+    _reduction_type = LFRicBuiltIn.ReductionType.SUM
 
     @classmethod
     def metadata(cls):
@@ -2420,22 +2486,23 @@ class LFRicSumXKern(LFRicBuiltIn):
         '''
         gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
         return cls._builtin_metadata([
-            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            ScalarArgMetadata(gh_datatype, "gh_reduction"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def __str__(self):
         return (f"Built-in: {self._case_name} (sum {a_or_an(self._datatype)} "
                 f"{self._datatype}-valued field)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar reduction argument.
@@ -2481,15 +2548,16 @@ class LFRicSignXKern(LFRicBuiltIn):
                 f"{a_or_an(self._datatype)} {self._datatype}-valued field, "
                 f"applied to a scalar argument)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -2533,15 +2601,16 @@ class LFRicMaxAXKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -2579,15 +2648,16 @@ class LFRicIncMaxAXKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -2630,15 +2700,16 @@ class LFRicMinAXKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -2676,15 +2747,16 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_read"),
             FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
         # Get a reference for the kernel scalar argument.
@@ -2698,6 +2770,90 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
 
         # Create assignment and replace node
         return self._replace_with_assignment(lhs, rhs)
+
+# ------------------------------------------------------------------- #
+# ============ Minimum, maximum value of real field elements) ======= #
+# ------------------------------------------------------------------- #
+
+
+class LFRicMinvalXKern(LFRicBuiltIn):
+    '''
+    Computes the (global) minimum scalar value held in
+    the supplied field.
+    '''
+    _case_name = "minval_X"
+    _datatype = "real"
+    _reduction_type = LFRicBuiltIn.ReductionType.MIN
+
+    @classmethod
+    def metadata(cls) -> LFRicKernelMetadata:
+        """
+        :returns: kernel metadata describing this built-in.
+        """
+        return cls._builtin_metadata([
+            ScalarArgMetadata("gh_real", "gh_reduction"),
+            FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
+
+    def __str__(self):
+        return (f"Built-in: {self._case_name} (compute the global minimum "
+                f"value contained in a field)")
+
+    def lower_to_language_level(self) -> Node:
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+
+        '''
+        super().lower_to_language_level()
+        # Get indexed references for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar reduction argument.
+        lhs = self._reduction_reference()
+        minval = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
+                                      [lhs.copy(), arg_refs[0]])
+        return self._replace_with_assignment(lhs, minval)
+
+
+class LFRicMaxvalXKern(LFRicBuiltIn):
+    '''
+    Computes the (global) maximum scalar value held in
+    the supplied field.
+    '''
+    _case_name = "maxval_X"
+    _datatype = "real"
+    _reduction_type = LFRicBuiltIn.ReductionType.MAX
+
+    @classmethod
+    def metadata(cls) -> LFRicKernelMetadata:
+        """
+        :returns: kernel metadata describing this built-in.
+        """
+        return cls._builtin_metadata([
+            ScalarArgMetadata("gh_real", "gh_reduction"),
+            FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
+
+    def __str__(self):
+        return (f"Built-in: {self._case_name} (compute the global maximum "
+                f"value contained in a field)")
+
+    def lower_to_language_level(self) -> Node:
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+
+        '''
+        super().lower_to_language_level()
+        # Get indexed references for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar reduction argument.
+        lhs = self._reduction_reference()
+        minval = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                      [lhs.copy(), arg_refs[0]])
+        return self._replace_with_assignment(lhs, minval)
 
 # ------------------------------------------------------------------- #
 # ============== Converting real to integer field elements ========== #
@@ -2731,15 +2887,16 @@ class LFRicRealToIntXKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (convert a real-valued to "
                 f"an integer-valued field)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
 
@@ -2789,15 +2946,16 @@ class LFRicRealToRealXKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (convert a real-valued "
                 f"to a real-valued field)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
 
@@ -3135,15 +3293,16 @@ class LFRicIntToRealXKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (convert an integer-valued "
                 f"to a real-valued field)")
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Node:
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        super().lower_to_language_level()
+
         # Get indexed references for each of the field (proxy) arguments.
         arg_refs = self.get_indexed_field_argument_references()
 
@@ -3162,7 +3321,7 @@ class LFRicIntToRealXKern(LFRicBuiltIn):
 # describing these kernels is in lfric_builtins_mod.f90. This dictionary
 # can only be defined after all of the necessary 'class' statements have
 # been executed (happens when this module is imported into another).
-# Built-ins for real-valued fields
+#: Built-ins for real-valued fields
 REAL_BUILTIN_MAP_CAPITALISED = {
     # Adding (scaled) real fields
     "X_plus_Y": LFRicXPlusYKern,
@@ -3223,12 +3382,15 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Minimum of a real scalar value and real field elements
     "min_aX": LFRicMinAXKern,
     "inc_min_aX": LFRicIncMinAXKern,
+    # Minimum and maximum values contained in a field
+    "minval_X": LFRicMinvalXKern,
+    "maxval_X": LFRicMaxvalXKern,
     # Converting real to integer field elements
     "real_to_int_X": LFRicRealToIntXKern,
     # Converting real to real field elements
     "real_to_real_X": LFRicRealToRealXKern}
 
-# Built-ins for integer-valued fields
+#: Built-ins for integer-valued fields
 INT_BUILTIN_MAP_CAPITALISED = {
     # Adding integer fields
     "int_X_plus_Y": LFRicIntXPlusYKern,
@@ -3263,13 +3425,13 @@ INT_BUILTIN_MAP_CAPITALISED = {
     # Converting integer to real field elements
     "int_to_real_X": LFRicIntToRealXKern}
 
-# Built-in map dictionary for all built-ins
+#: Built-in map dictionary for all built-ins
 BUILTIN_MAP_CAPITALISED = REAL_BUILTIN_MAP_CAPITALISED
 BUILTIN_MAP_CAPITALISED.update(INT_BUILTIN_MAP_CAPITALISED)
 
-# Built-in map dictionary in lowercase keys for invoke generation and
-# comparison purposes. This does not enforce case sensitivity to Fortran
-# built-in names.
+#: Built-in map dictionary in lowercase keys for invoke generation and
+#: comparison purposes. This does not enforce case sensitivity to Fortran
+#: built-in names.
 BUILTIN_MAP = get_lowercase_builtin_map(BUILTIN_MAP_CAPITALISED)
 
 

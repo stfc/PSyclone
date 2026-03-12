@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council
+# Copyright (c) 2023-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -82,14 +82,11 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         # Determine the arguments to the intrinsic
         args = [None, None, None]
         arg_names_map = {"array": 0, "dim": 1, "mask": 2}
+        # Add argument names to the intrinsic.
+        node.compute_argument_names()
         for idx, child in enumerate(node.arguments):
-            if not node.argument_names[idx]:
-                # positional arg
-                args[idx] = child
-            else:
-                # named arg
-                name = node.argument_names[idx].lower()
-                args[arg_names_map[name]] = child
+            name = node.argument_names[idx].lower()
+            args[arg_names_map[name]] = child
         return tuple(args)
 
     def __str__(self):
@@ -245,10 +242,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         # transformation.
         rhs_parent = rhs.parent
         for reference in rhs.walk(Reference):
-            try:
-                reference2arrayrange.apply(reference)
-            except TransformationError:
-                pass
+            reference2arrayrange.apply(reference)
         # Reset rhs from its parent as the previous transformation
         # makes the value of rhs become invalid. We know there is only
         # one child so can safely use children[0].
@@ -257,10 +251,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             mask_ref_parent = mask_ref.parent
             mask_ref_index = mask_ref.position
             for reference in mask_ref.walk(Reference):
-                try:
-                    reference2arrayrange.apply(reference)
-                except TransformationError:
-                    pass
+                reference2arrayrange.apply(reference)
             mask_ref = mask_ref_parent.children[mask_ref_index]
 
         # Step 2: Put the intrinsic's extracted expression (stored in
@@ -314,7 +305,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             # The ArrayAssignment2LoopsTrans could fail to convert the ranges,
             # unfortunately this can not be tested before modifications to the
             # tree (e.g. in the validate), so the best we can do is reverting
-            # to the orginal statement (with maybe some leftover tmp variable)
+            # to the original statement (with maybe some leftover tmp variable)
             # and produce the error here.
             assignment.replace_with(orig_assignment)
             # pylint: disable=raise-missing-from

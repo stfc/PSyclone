@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -89,14 +89,13 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
                                       f"Both nodes must be of the same "
                                       f"GOLoop class.")
 
-        super(GOceanLoopFuseTrans, self).validate(node1, node2,
-                                                  options=options)
-
         if node1.field_space != node2.field_space:
             raise TransformationError(
                 f"Error in {self.name} transformation. Cannot "
                 f"fuse loops that are over different grid-point types: "
                 f"{node1.field_space} and {node2.field_space}")
+
+        super().validate(node1, node2, options=options)
 
 
 # For automatic documentation generation
