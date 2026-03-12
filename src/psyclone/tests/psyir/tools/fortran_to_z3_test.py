@@ -68,8 +68,7 @@ def test_translate_expr(use_bv,
         for assign in psyir.walk(Assignment):
             (rhs_smt, cs) = trans.translate_logical_expr(assign.rhs)
             (result, expr_vals) = trans.solve(
-                                      constraints = [],
-                                      sum_of_prods = [[rhs_smt] + cs],
+                                      constraints = [rhs_smt] + cs,
                                       exprs_to_eval = [rhs_smt])
             assert result == z3.sat
 

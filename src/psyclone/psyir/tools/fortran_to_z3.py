@@ -419,7 +419,8 @@ class FortranToZ3:
         return None
 
     def solve(self, constraints: list[z3.BoolRef],
-                    sum_of_prods: list[list[z3.BoolRef]],
+                    sum_of_prods: list[list[z3.BoolRef]] = \
+                                  [[z3.BoolVal(True)]],
                     exprs_to_eval: list[z3.ExprRef] = []) -> \
             (z3.CheckSatResult, list[z3.ExprRef]):
         '''Invoke the solver on the given constraints. If the constraints
@@ -463,7 +464,8 @@ class FortranToZ3:
             return self.sweep_solve(constraints, sum_of_prods, exprs_to_eval)
 
     def sweep_solve(self, constraints: list[z3.BoolRef],
-                          sum_of_prods: list[list[z3.BoolRef]],
+                          sum_of_prods: list[list[z3.BoolRef]] = \
+                                        [[z3.BoolVal(True)]],
                           exprs_to_eval: list[z3.ExprRef] = []) -> \
             (z3.CheckSatResult, list[z3.ExprRef]):
         '''The interface to this method is identical to that of the
