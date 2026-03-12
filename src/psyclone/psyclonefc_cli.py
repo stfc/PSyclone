@@ -123,7 +123,6 @@ def compiler_wrapper(arguments):
 
         filename = Path(argument).name
         if argument.endswith(FORTRAN_EXTENSIONS) and (filename not in psyclone_exclude_files):
-            print(filename, psyclone_exclude_files)
             # 1) Run the preprocessor
             # TODO #3012: preprocessing is currently ignored, this is not a
             # problem for NEMO because the build system does the proprocessor
