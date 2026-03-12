@@ -54,4 +54,5 @@ __all__ = ['CallTreeUtils',
            'ReadWriteInfo',
            'ReductionInferenceTool',
            'ArrayIndexAnalysis',
-           'ArrayIndexAnalysisOptions']
+           'ArrayIndexAnalysisOptions',
+           'FortranToZ3']

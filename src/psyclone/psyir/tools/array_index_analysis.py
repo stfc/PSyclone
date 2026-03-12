@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, University of Cambridge, UK.
+# Copyright (c) 2026, University of Cambridge, UK.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,7 @@ from psyclone.psyir.nodes import Loop, DataNode, Literal, Assignment, \
 from psyclone.core import Signature
 from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
     INTEGER_TYPE
+from psyclone.psyir.tools.fortran_to_z3 import FortranToZ3
 from fparser.two import Fortran2003, Fortran2008
 
 # Outline
@@ -161,16 +162,16 @@ class ArrayIndexAnalysisOptions:
     '''The analysis supports a range of different options, which are all
     captured together in this class.
 
+    :param use_bv: whether to treat Fortran integers as bit vectors or
+       arbitrary-precision integers. If None is specified then the
+       analysis will use a simple heuristic to decide.
+
     :param int_width: the bit width of Fortran integers. This is 32 by
        default but it can be useful to reduce it to (say) 8 in particular
        cases to improve the ability of solver to find a timely solution,
        provided the user considers it safe to do so. (Note that the analysis
        currently only gathers information about Fortran integer values of
        unspecified width.)
-
-    :param use_bv: whether to treat Fortran integers as bit vectors or
-       arbitrary-precision integers. If None is specified then the
-       analysis will use a simple heuristic to decide.
 
     :param smt_timeout_ms: the time limit (in milliseconds) given to
        the SMT solver to find a solution. If the solver does not
@@ -310,7 +311,8 @@ class ArrayIndexAnalysis:
         if self.opts.handle_array_intrins:
             for stmt in routine.children:
                 for call in stmt.walk(IntrinsicCall):
-                    intrins_pair = translate_array_intrinsic_call(call)
+                    intrins_pair = \
+                        self.trans.translate_array_intrinsic_call(call)
                     if intrins_pair:
                         (arr_name, var_name) = intrins_pair
                         if arr_name not in self.array_intrins_vars:
@@ -425,19 +427,17 @@ class ArrayIndexAnalysis:
     def _translate_integer_expr_with_subst(self, expr: Node):
         '''Translate the given integer expression to SMT, and apply the
         current substitution.'''
-        (smt_expr, prohibit_overflow) = translate_integer_expr(
-            expr, self.opts)
-        if self.opts.prohibit_overflow:
-            self._add_constraint(self._apply_subst(prohibit_overflow))
+        (smt_expr, cs) = self.trans.translate_integer_expr(expr)
+        for c in cs:
+            self._add_constraint(self._apply_subst(c))
         return self._apply_subst(smt_expr)
 
     def _translate_logical_expr_with_subst(self, expr: Node):
         '''Translate the given logical expression to SMT, and apply the
         current substitution.'''
-        (smt_expr, prohibit_overflow) = translate_logical_expr(
-            expr, self.opts)
-        if self.opts.prohibit_overflow:
-            self._add_constraint(self._apply_subst(prohibit_overflow))
+        (smt_expr, cs) = self.trans.translate_logical_expr(expr)
+        for c in cs:
+            self._add_constraint(self._apply_subst(c))
         return self._apply_subst(smt_expr)
 
     def _translate_cond_expr_with_subst(self, expr: Node):
@@ -445,10 +445,8 @@ class ArrayIndexAnalysis:
         the current substitution. Instead of adding constraints to
         the constraint set, this function ANDs constraints with the
         translated expression.'''
-        (smt_expr, prohibit_overflow) = translate_logical_expr(
-            expr, self.opts)
-        if self.opts.prohibit_overflow:
-            smt_expr = z3.And(smt_expr, prohibit_overflow)
+        (smt_expr, cs) = self.trans.translate_logical_expr(expr)
+        smt_expr = z3.And([smt_expr] + cs)
         return self._apply_subst(smt_expr)
 
     def _constrain_loop_var(self,
@@ -553,7 +551,6 @@ class ArrayIndexAnalysis:
         # Start with an empty constraint set and substitution
         self._init_analysis()
         self.loop_to_parallelise = loop
-        self._init_array_intrins_vars(routine)
 
         # Resolve choice of integers v. bit vectors
         if self.opts.use_bv is None:
@@ -567,6 +564,19 @@ class ArrayIndexAnalysis:
                          IntrinsicCall.Intrinsic.IEOR]:
                     self.opts.use_bv = True
                     break
+
+        # Create Fortran-to-Z3 translator
+        self.trans = FortranToZ3(
+                         use_bv = self.opts.use_bv,
+                         int_width = self.opts.int_width,
+                         smt_timeout_ms = self.opts.smt_timeout,
+                         prohibit_overflow = self.opts.prohibit_overflow,
+                         handle_array_intrins = self.opts.handle_array_intrins,
+                         num_sweep_threads = self.opts.num_sweep_threads,
+                         sweep_seed = self.opts.sweep_seed)
+
+        # Initialise array intrinsic variables
+        self._init_array_intrins_vars(routine)
 
         # Step through body of the enclosing routine, statement by statement
         for stmt in routine.children:
@@ -618,7 +628,8 @@ class ArrayIndexAnalysis:
             sum_of_prods.append(indices_equal + [write.cond, acc.cond])
 
         # Invoke solver
-        (result, result_values) = self._solve(
+        (result, result_values) = self.trans.solve(
+            self.constraints,
             sum_of_prods,
             [self.smt_loop_var_i, self.smt_loop_var_j] +
             [ind for inds in write.indices for ind in inds])
@@ -627,15 +638,15 @@ class ArrayIndexAnalysis:
         (sig, sig_inds) = write.psyir_node.get_signature_and_indices()
         if result == z3.sat:
             # Produce message
-            i_val = result_values.pop(0)
-            j_val = result_values.pop(0)
+            i_val = str(result_values.pop(0))
+            j_val = str(result_values.pop(0))
             components = []
             sig_fields = [sig[i] for i in range(len(sig))]
             for (field, inds) in zip(sig_fields, sig_inds):
                 vals = []
                 for ind in inds:
                     if result_values:
-                        vals.append(result_values.pop(0))
+                        vals.append(str(result_values.pop(0)))
                 if vals:
                   components.append(field + '(' + ','.join(vals) + ')')
             access_str = '%'.join(components)
@@ -759,461 +770,15 @@ class ArrayIndexAnalysis:
 
         # Stop statement
         if _is_stop(stmt):
-            # We can assume that the current condition must hold everywhere
+            # We can assume that the current condition doesn't hold anywhere
             # beyond this point
-            self._add_constraint(cond)
+            self._add_constraint(z3.Not(cond))
             return
 
         # Fall through
         if self.in_loop_to_parallelise:
             self._add_all_array_accesses(stmt, cond)
         self._kill_all_written_vars(stmt)
-
-    def _solve(self, sum_of_prods: list[list[z3.BoolRef]],
-                     exprs_to_eval: list[z3.ExprRef] = []) -> \
-            (z3.CheckSatResult, list[str]):
-        '''Invoke the solver on the given constraints. If the constraints
-        are satisfiable then the given expressions are evaluated and their
-        values are returned as strings.
-
-        :param sum_of_prods: a sum of products of constraints to solve.
-           These constraints are implicitly ANDed with the global
-           constraint set.
-        :param exprs_to_eval: a list of expressions to evaluate, assuming
-           the constraints are satisfiable.
-        :return: the result of the solver and a list of evaluated expressions
-           (the list is empty if the constraints were not satisifiable)
-        '''
-        if self.opts.num_sweep_threads <= 1:
-            s = z3.Solver()
-            if self.opts.smt_timeout is not None:
-                s.set("timeout", self.opts.smt_timeout)
-            s.add(z3.And(self.constraints))
-            s.add(z3.Or([z3.And(prod) for prod in sum_of_prods]))
-            result = s.check()
-            result_values = []
-            if result == z3.sat:
-                m = s.model()
-                for expr in exprs_to_eval:
-                    result_values.append(str(m.eval(expr,
-                                                    model_completion=True)))
-            return (result, result_values)
-        else:
-            return self._sweep_solve(sum_of_prods, exprs_to_eval)
-
-    def _sweep_solve(self, sum_of_prods: list[list[z3.BoolRef]],
-                           exprs_to_eval: list[z3.ExprRef] = []) -> \
-            (z3.CheckSatResult, list[str]):
-        '''The solver is quite sensitive to the order of constraints.
-        This sweeper runs multiple solvers in parallel, with each one
-        using a different constraint order. As soon as one solver completes,
-        the others are cancelled. If the constraints are satisfiable then
-        the given expressions are evaluated and their values are returned
-        as strings.
-
-        :param sum_of_prods: a sum of products of constraints to solve.
-           These constraints are implicitly ANDed with the global
-           constraint set.
-        :param exprs_to_eval: a list of expressions to evaluate, assuming
-           the constraints are satisfiable.
-        :return: the result of the solver and a list of evaluated expressions
-           (the list is empty if the constraints were not satisifiable)
-        '''
-        result = []
-        result_values = []
-        result_lock = threading.Lock()
-        done_event = threading.Event()
-
-        # Function that runs in each thread
-        def wrapper(solver, exprs_to_eval):
-            out = solver.check()
-            with result_lock:
-                if not done_event.is_set():
-                    if out == z3.sat:
-                        m = solver.model()
-                        for expr in exprs_to_eval:
-                            result_values.append(str(
-                               m.eval(expr, model_completion=True)))
-                    result.append(out)
-                    done_event.set()
-
-        # Random number generator for shuffling constraints
-        rnd = random.Random(self.opts.sweep_seed)
-
-        # Create a solver per thread
-        solvers = []
-        threads = []
-        for i in range(0, self.opts.num_sweep_threads):
-            # Create a solver for the problem
-            ctx = z3.Context()
-            s = z3.Solver(ctx=ctx)
-            if self.opts.smt_timeout is not None:
-                s.set("timeout", self.opts.smt_timeout)
-            s.add(z3.And(self.constraints).translate(ctx))
-            sum_constraint = z3.Or([z3.And(prod) for prod in sum_of_prods])
-            s.add(sum_constraint.translate(ctx))
-            solvers.append(s)
-            exprs_to_eval_ctx = [e.translate(ctx) for e in exprs_to_eval]
-
-            # Create a thread for this solver and start it
-            t = threading.Thread(target=wrapper, args=(s,exprs_to_eval_ctx))
-            threads.append(t)
-            t.start()
-
-            # Shuffle the constraints for the next thread
-            rnd.shuffle(self.constraints)
-            for prod in sum_of_prods:
-                rnd.shuffle(prod)
-            if done_event.is_set():
-                break
-
-        # Wait for first thread to complete
-        done_event.wait()
-
-        # Interrupt all solvers and wait for all threads to complete.
-        # This loop appears more complex than necessary, but we want to
-        # handle the possibility that we may interrupt a solver before
-        # it has started, in which case the interrupt would have no effect
-        # and we'd have to wait for that solver's timeout to expire.
-        for (s, t) in zip(solvers, threads):
-            while True:
-                s.interrupt()
-                t.join(timeout=0.1)
-                if not t.is_alive():
-                    break
-
-        return (result[0], result_values)
-
-# Translating Fortran expressions to SMT formulae
-# ===============================================
-
-
-def translate_integer_expr(expr_root: Node,
-                           opts: ArrayIndexAnalysisOptions
-                           ) -> (z3.ExprRef, z3.BoolRef):
-    '''Translate a scalar integer Fortran expression to SMT. In addition,
-       return a constraint that prohibits/ignores bit-vector overflow in the
-       expression.
-
-       :param expr_root: the expression to translate. This is assumed
-         to have scalar integer type.
-       :param opts: analysis options, used to guide the translation.
-       :return: a pair containing the expression translated to Z3, and
-         a Z3 boolean. The boolean is used to introduce new
-         constraints, e.g. to prohibit/ignore bit-vector overflow.
-    '''
-
-    constraints = []
-
-    def trans(expr: Node) -> z3.ExprRef:
-        '''Internal recursive function that has implicit access to the
-           analysis 'opts' and a mutable list of 'constraints'.
-
-           :param expr: the expression to translate.
-           :return: the translated expression.
-        '''
-        # Literal
-        if isinstance(expr, Literal):
-            if opts.use_bv:
-                return z3.BitVecVal(int(expr.value), opts.int_width)
-            else:
-                return z3.IntVal(int(expr.value))
-
-        # Reference
-        if (isinstance(expr, Reference)
-                and not isinstance(expr, ArrayReference)):
-            (sig, indices) = expr.get_signature_and_indices()
-            indices_flat = [i for inds in indices for i in inds]
-            if indices_flat == []:
-                if opts.use_bv:
-                    return z3.BitVec(str(sig), opts.int_width)
-                else:
-                    return z3.Int(str(sig))
-
-        # UnaryOperation
-        if isinstance(expr, UnaryOperation):
-            arg_smt = trans(expr.operand)
-            if expr.operator == UnaryOperation.Operator.MINUS:
-                if opts.use_bv:
-                    constraints.append(z3.BVSNegNoOverflow(arg_smt))
-                return -arg_smt
-            if expr.operator == UnaryOperation.Operator.PLUS:
-                return arg_smt
-
-        # BinaryOperation
-        if isinstance(expr, BinaryOperation):
-            (left, right) = expr.operands
-            left_smt = trans(left)
-            right_smt = trans(right)
-
-            if expr.operator == BinaryOperation.Operator.ADD:
-                if opts.use_bv:
-                    constraints.append(z3.BVAddNoOverflow(
-                      left_smt, right_smt, True))
-                    constraints.append(z3.BVAddNoUnderflow(
-                      left_smt, right_smt))
-                return left_smt + right_smt
-            if expr.operator == BinaryOperation.Operator.SUB:
-                if opts.use_bv:
-                    constraints.append(z3.BVSubNoOverflow(
-                      left_smt, right_smt))
-                    constraints.append(z3.BVSubNoUnderflow(
-                      left_smt, right_smt, True))
-                return left_smt - right_smt
-            if expr.operator == BinaryOperation.Operator.MUL:
-                if opts.use_bv:
-                    constraints.append(z3.BVMulNoOverflow(
-                      left_smt, right_smt, True))
-                    constraints.append(z3.BVMulNoUnderflow(
-                      left_smt, right_smt))
-                return left_smt * right_smt
-            if expr.operator == BinaryOperation.Operator.DIV:
-                if opts.use_bv:
-                    constraints.append(z3.BVSDivNoOverflow(
-                      left_smt, right_smt))
-                return left_smt / right_smt
-
-        # IntrinsicCall
-        if isinstance(expr, IntrinsicCall):
-            # Unary operators
-            if expr.intrinsic == IntrinsicCall.Intrinsic.ABS:
-                smt_arg = trans(expr.children[1])
-                if opts.use_bv:
-                    constraints.append(z3.BVSNegNoOverflow(smt_arg))
-                return z3.Abs(smt_arg)
-
-            # Binary operators
-            if expr.intrinsic in [IntrinsicCall.Intrinsic.SHIFTL,
-                                  IntrinsicCall.Intrinsic.SHIFTR,
-                                  IntrinsicCall.Intrinsic.SHIFTA,
-                                  IntrinsicCall.Intrinsic.IAND,
-                                  IntrinsicCall.Intrinsic.IOR,
-                                  IntrinsicCall.Intrinsic.IEOR,
-                                  IntrinsicCall.Intrinsic.MODULO,
-                                  IntrinsicCall.Intrinsic.MOD]:
-                left_smt = trans(expr.children[1])
-                right_smt = trans(expr.children[2])
-
-                if (expr.intrinsic == IntrinsicCall.Intrinsic.MODULO):
-                    return left_smt % right_smt
-
-                if (expr.intrinsic == IntrinsicCall.Intrinsic.MOD):
-                    m = left_smt % right_smt
-                    return (z3.If(z3.And(m != 0,
-                                         (left_smt < 0) != (right_smt < 0)),
-                                  m-right_smt, m))
-
-                if opts.use_bv:
-                    # TODO: when fparser supports shift operations (#428),
-                    # we can uncomment tests and remove the "no cover" block
-                    if True:  # pragma: no cover
-                        if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTL:
-                            return left_smt << right_smt
-                        if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTR:
-                            return z3.LShR(left_smt, right_smt)
-                        if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTA:
-                            return left_smt >> right_smt
-                    if expr.intrinsic == IntrinsicCall.Intrinsic.IAND:
-                        return left_smt & right_smt
-                    if expr.intrinsic == IntrinsicCall.Intrinsic.IOR:
-                        return left_smt | right_smt
-                    if expr.intrinsic == IntrinsicCall.Intrinsic.IEOR:
-                        return left_smt ^ right_smt
-                else:
-                    # TODO: when fparser supports shift operations (#428),
-                    # we can uncomment tests and remove the "no cover" block
-                    if True:  # pragma: no cover
-                        if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTL:
-                            return z3.BV2Int(
-                                     z3.Int2BV(left_smt, opts.int_width) <<
-                                     z3.Int2BV(right_smt, opts.int_width),
-                                     is_signed=True)
-                        if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTR:
-                            return z3.BV2Int(z3.LShR(
-                                     z3.Int2BV(left_smt, opts.int_width),
-                                     z3.Int2BV(right_smt, opts.int_width)),
-                                     is_signed=True)
-                        if expr.intrinsic == IntrinsicCall.Intrinsic.SHIFTA:
-                            return z3.BV2Int(
-                                     z3.Int2BV(left_smt, opts.int_width) >>
-                                     z3.Int2BV(right_smt, opts.int_width),
-                                     is_signed=True)
-                    if expr.intrinsic == IntrinsicCall.Intrinsic.IAND:
-                        return z3.BV2Int(z3.Int2BV(left_smt, opts.int_width) &
-                                         z3.Int2BV(right_smt, opts.int_width),
-                                         is_signed=True)
-                    if expr.intrinsic == IntrinsicCall.Intrinsic.IOR:
-                        return z3.BV2Int(z3.Int2BV(left_smt, opts.int_width) |
-                                         z3.Int2BV(right_smt, opts.int_width),
-                                         is_signed=True)
-                    if expr.intrinsic == IntrinsicCall.Intrinsic.IEOR:
-                        return z3.BV2Int(z3.Int2BV(left_smt, opts.int_width) ^
-                                         z3.Int2BV(right_smt, opts.int_width),
-                                         is_signed=True)
-
-            # N-ary operators
-            if expr.intrinsic in [IntrinsicCall.Intrinsic.MIN,
-                                  IntrinsicCall.Intrinsic.MAX]:
-                smt_args = [trans(arg) for arg in expr.children[1:]]
-                reduced = smt_args[0]
-                for arg in smt_args[1:]:
-                    if expr.intrinsic == IntrinsicCall.Intrinsic.MIN:
-                        reduced = z3.If(reduced < arg, reduced, arg)
-                    elif expr.intrinsic == IntrinsicCall.Intrinsic.MAX:
-                        reduced = z3.If(reduced < arg, arg, reduced)
-                return reduced
-
-            # Array intrinsics
-            if opts.handle_array_intrins:
-                array_intrins_pair = translate_array_intrinsic_call(expr)
-                if array_intrins_pair:
-                    if opts.use_bv:
-                        return z3.BitVec(array_intrins_pair[1], opts.int_width)
-                    else:
-                        return z3.Int(array_intrins_pair[1])
-
-        # Fall through: return a fresh, unconstrained symbol
-        if opts.use_bv:
-            return z3.FreshConst(z3.BitVecSort(opts.int_width))
-        else:
-            return z3.FreshInt()
-
-    expr_root_smt = trans(expr_root)
-    return (expr_root_smt, z3.And(*constraints))
-
-
-def translate_logical_expr(expr_root: Node,
-                           opts: ArrayIndexAnalysisOptions
-                           ) -> (z3.BoolRef, z3.BoolRef):
-    '''Translate a scalar logical Fortran expression to SMT. In addition,
-       return a constraint that prohibits/ignores bit-vector overflow in the
-       expression.
-
-       :param expr_root: the expression to translate. This is assumed
-         to have scalar logical type.
-       :param opts: analysis options, used to guide the translation.
-       :return: a pair containing the expression translated to Z3, and
-         a Z3 boolean. The boolean is used to introduce new
-         constraints, e.g. to prohibit/ignore bit-vector overflow.
-    '''
-    # Constraints to prohibit bit-vector overflow
-    overflow = []
-
-    def trans(expr: Node):
-        # Literal
-        if isinstance(expr, Literal):
-            if expr.value == "true":
-                return z3.BoolVal(True)
-            if expr.value == "false":
-                return z3.BoolVal(False)
-
-        # Reference
-        if (isinstance(expr, Reference)
-                and not isinstance(expr, ArrayReference)):
-            (sig, indices) = expr.get_signature_and_indices()
-            indices_flat = [i for inds in indices for i in inds]
-            if indices_flat == []:
-                return z3.Bool(str(sig))
-
-        # UnaryOperation
-        if isinstance(expr, UnaryOperation):
-            arg_smt = trans(expr.operand)
-            if expr.operator == UnaryOperation.Operator.NOT:
-                return z3.Not(arg_smt)
-
-        # BinaryOperation
-        if isinstance(expr, BinaryOperation):
-            # Operands are logicals
-            if expr.operator in [BinaryOperation.Operator.AND,
-                                 BinaryOperation.Operator.OR,
-                                 BinaryOperation.Operator.EQV,
-                                 BinaryOperation.Operator.NEQV]:
-                (left, right) = expr.operands
-                left_smt = trans(left)
-                right_smt = trans(right)
-
-                if expr.operator == BinaryOperation.Operator.AND:
-                    return z3.And(left_smt, right_smt)
-                if expr.operator == BinaryOperation.Operator.OR:
-                    return z3.Or(left_smt, right_smt)
-                if expr.operator == BinaryOperation.Operator.EQV:
-                    return left_smt == right_smt
-                if expr.operator == BinaryOperation.Operator.NEQV:
-                    return left_smt != right_smt
-
-            # Operands are numbers
-            if expr.operator in [BinaryOperation.Operator.EQ,
-                                 BinaryOperation.Operator.NE,
-                                 BinaryOperation.Operator.GT,
-                                 BinaryOperation.Operator.LT,
-                                 BinaryOperation.Operator.GE,
-                                 BinaryOperation.Operator.LE]:
-                (left, right) = expr.operands
-                (left_smt, prohibit_overflow) = translate_integer_expr(
-                    left, opts)
-                overflow.append(prohibit_overflow)
-                (right_smt, prohibit_overflow) = translate_integer_expr(
-                    right, opts)
-                overflow.append(prohibit_overflow)
-
-                if expr.operator == BinaryOperation.Operator.EQ:
-                    return left_smt == right_smt
-                if expr.operator == BinaryOperation.Operator.NE:
-                    return left_smt != right_smt
-                if expr.operator == BinaryOperation.Operator.GT:
-                    return left_smt > right_smt
-                if expr.operator == BinaryOperation.Operator.LT:
-                    return left_smt < right_smt
-                if expr.operator == BinaryOperation.Operator.GE:
-                    return left_smt >= right_smt
-                if expr.operator == BinaryOperation.Operator.LE:
-                    return left_smt <= right_smt
-
-        # Fall through: return a fresh, unconstrained symbol
-        return z3.FreshBool()
-
-    expr_root_smt = trans(expr_root)
-    return (expr_root_smt, z3.And(*overflow))
-
-
-def translate_array_intrinsic_call(call: IntrinsicCall) -> (str, str):
-    '''Translate array intrinsic call to an array name and a scalar
-       integer variable name. Only a small number of important array
-       intrinsics are recognised, such as 'size', 'lbound', and 'ubound'.
-
-       :param call: the intrinsic call being transatled to SMT.
-       :return: a pair containing the name of the array on which
-          the intrinsic is being applied, and a scalar integer
-          variable name representing the result of the intrinsic.
-          If the intrinisic call is not recognised then None is returned.
-    '''
-    if call.intrinsic == IntrinsicCall.Intrinsic.SIZE:
-        var = "#size"
-    elif call.intrinsic == IntrinsicCall.Intrinsic.LBOUND:
-        var = "#lbound"
-    elif call.intrinsic == IntrinsicCall.Intrinsic.UBOUND:
-        var = "#ubound"
-    else:
-        return None
-
-    if (len(call.children) != 2 and len(call.children) != 3):
-        return None  # pragma: no cover
-
-    array = call.children[1]
-    if isinstance(array, Reference):
-        (sig, indices) = array.get_signature_and_indices()
-        indices_flat = [i for inds in indices for i in inds]
-        if indices_flat == [] and len(sig) == 1:
-            var = var + "_" + sig.var_name
-            if len(call.children) == 3:
-                rank = call.children[2]
-                if isinstance(rank, Literal):
-                    var = var + "_" + rank.value
-                else:
-                    return None
-            return (sig.var_name, var)
-
-    return None
 
 # Helper functions
 # ================

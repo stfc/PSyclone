@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, University of Cambridge, UK
+# Copyright (c) 2026, University of Cambridge, UK
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@ from psyclone.psyir.nodes import (Loop, Assignment, Reference)
 from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.tools import (
     ArrayIndexAnalysis, ArrayIndexAnalysisOptions)
-from psyclone.psyir.tools.array_index_analysis import translate_logical_expr
 import z3
 
 
@@ -63,6 +62,7 @@ def test_reverse(use_bv, num_sweep_threads, fortran_reader, fortran_writer):
           end do
         end subroutine''')
     opts = ArrayIndexAnalysisOptions(use_bv=use_bv,
+                                     prohibit_overflow=True,
                                      num_sweep_threads=num_sweep_threads)
     results = []
     for loop in psyir.walk(Loop):
@@ -89,7 +89,7 @@ def test_odd_even_trans(fortran_reader, fortran_writer):
           end do
         end subroutine''')
     results = []
-    opts = ArrayIndexAnalysisOptions(prohibit_overflow=True)
+    opts = ArrayIndexAnalysisOptions()
     for loop in psyir.walk(Loop):
         results.append(ArrayIndexAnalysis(opts).get_loop_conflicts(loop) == [])
     assert results == [True]
@@ -189,64 +189,11 @@ def test_flatten(fortran_reader, fortran_writer):
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.parametrize("use_bv", [True, False])
-def test_translate_expr(use_bv,
-                        fortran_reader,
-                        fortran_writer):
-    '''Test that Fortran expressions are being correctly translated to SMT.
-    '''
-    opts = ArrayIndexAnalysisOptions(
-               use_bv=use_bv,
-               prohibit_overflow=True)
-
-    def test(expr):
-        psyir = fortran_reader.psyir_from_source(f'''
-                  subroutine sub(x)
-                    integer :: arr(10)
-                    logical, intent(out) :: x
-                    integer :: i
-                    x = {expr}
-                  end subroutine''')
-        for assign in psyir.walk(Assignment):
-            (rhs_smt, prohibit_overflow) = translate_logical_expr(
-                assign.rhs, opts)
-            solver = z3.Solver()
-            assert solver.check(rhs_smt) == z3.sat
-
-    test("+1 == 1")
-    test("abs(-1) == 1")
-    # TODO: when fparser supports shift operations (#428), we can uncomment
-    # these tests and remove "no cover" blocks in ArrayIndexAnalysis
-    # test("shiftl(2,1) == 4")
-    # test("shiftr(2,1) == 1")
-    # test("shifta(-2,1) == -1")
-    test("iand(5,1) == 1")
-    test("ior(1,2) == 3")
-    test("ieor(3,1) == 2")
-    test("max(3,1) == 3")
-    test("i == 3")
-    test(".true.")
-    test(".not. .false.")
-    test(".true. .and. .true.")
-    test(".true. .or. .false.")
-    test(".false. .eqv. .false.")
-    test(".false. .neqv. .true.")
-    test("1 /= 2")
-    test("1 < 2")
-    test("10 > 2")
-    test("1 <= 1 .and. 0 <= 1")
-    test("1 >= 1 .and. 2 >= 1")
-    test("1 * 1 == 1")
-    test("mod(-8, 3) == -2")
-    test("modulo(-8, 3) == 1")
-    test("foo(1)")
-    test("foo(1) == 1")
-    test("size(arr,tmp) == 1")
-    test("size(arr(1:2)) == 2")
-
-
-# -----------------------------------------------------------------------------
-def check_conflict_free(fortran_reader, loop_str, yesno, threads = 1):
+def check_conflict_free(fortran_reader,
+                        loop_str,
+                        yesno,
+                        use_bv = False,
+                        threads = 1):
     '''Helper function to check that given loop for conflicts.
        The loop may refer to array "arr", integer variables "i" and "n",
        and logical variable "ok".
@@ -259,8 +206,9 @@ def check_conflict_free(fortran_reader, loop_str, yesno, threads = 1):
                 {loop_str}
               end subroutine''')
     results = []
-    opts = ArrayIndexAnalysisOptions(prohibit_overflow=True,
-                                     num_sweep_threads=threads)
+    opts = ArrayIndexAnalysisOptions(prohibit_overflow = True,
+                                     use_bv = use_bv,
+                                     num_sweep_threads = threads)
     for loop in psyir.walk(Loop):
         analysis = ArrayIndexAnalysis(opts)
         results.append(analysis.get_loop_conflicts(loop) == [])
@@ -352,7 +300,8 @@ def test_invariant_if(fortran_reader, fortran_writer):
 
 
 # -----------------------------------------------------------------------------
-def test_last_iteration(fortran_reader, fortran_writer):
+@pytest.mark.parametrize("use_bv", [True, False])
+def test_last_iteration(use_bv, fortran_reader, fortran_writer):
     '''Test a do loop with special behaviour on final iteration'''
     check_conflict_free(fortran_reader,
                         '''n = size(arr)
@@ -362,7 +311,7 @@ def test_last_iteration(fortran_reader, fortran_writer):
                                arr(i+1) = 10
                              end if
                            end do''',
-                        [True])
+                        [True], use_bv=use_bv)
 
 
 # -----------------------------------------------------------------------------
@@ -376,7 +325,22 @@ def test_triangular_loop(num_sweep_threads, fortran_reader, fortran_writer):
                                arr(j) = arr(j) + arr(i)
                              end do
                            end do''',
-                        [False, True], num_sweep_threads)
+                        [False, True], threads=num_sweep_threads)
+
+
+# -----------------------------------------------------------------------------
+def test_stop_statement(fortran_reader, fortran_writer):
+    '''Test a program with a stop statement'''
+    check_conflict_free(fortran_reader,
+                        '''ok = n+1 == iand(2, 2)
+                           if (.not. ok) then
+                             stop
+                           end if
+                           ! n must be 1 at this point, so no loop conflict
+                           do i = 1, n
+                             arr(1) = i
+                           end do''',
+                        [True], use_bv=None)
 
 
 # -----------------------------------------------------------------------------
