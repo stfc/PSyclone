@@ -36,11 +36,10 @@
 ''' Module containing tests for the SMT-based array index analysis.'''
 
 import pytest
-from psyclone.psyir.nodes import (Loop, Assignment, Reference)
+from psyclone.psyir.nodes import (Loop, Reference)
 from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.tools import (
     ArrayIndexAnalysis, ArrayIndexAnalysisOptions)
-import z3
 
 
 # -----------------------------------------------------------------------------
@@ -192,8 +191,8 @@ def test_flatten(fortran_reader, fortran_writer):
 def check_conflict_free(fortran_reader,
                         loop_str,
                         yesno,
-                        use_bv = False,
-                        threads = 1):
+                        use_bv=False,
+                        threads=1):
     '''Helper function to check that given loop for conflicts.
        The loop may refer to array "arr", integer variables "i" and "n",
        and logical variable "ok".
@@ -206,9 +205,9 @@ def check_conflict_free(fortran_reader,
                 {loop_str}
               end subroutine''')
     results = []
-    opts = ArrayIndexAnalysisOptions(prohibit_overflow = True,
-                                     use_bv = use_bv,
-                                     num_sweep_threads = threads)
+    opts = ArrayIndexAnalysisOptions(prohibit_overflow=True,
+                                     use_bv=use_bv,
+                                     num_sweep_threads=threads)
     for loop in psyir.walk(Loop):
         analysis = ArrayIndexAnalysis(opts)
         results.append(analysis.get_loop_conflicts(loop) == [])

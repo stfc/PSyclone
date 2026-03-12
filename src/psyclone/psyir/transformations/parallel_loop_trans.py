@@ -53,8 +53,7 @@ from psyclone.psyir.nodes import (
         BinaryOperation, IntrinsicCall
 )
 from psyclone.psyir.tools import (
-        DependencyTools, DTCode, ReductionInferenceTool,
-        ArrayIndexAnalysisOptions
+        DependencyTools, DTCode, ReductionInferenceTool
 )
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.async_trans_mixin import \

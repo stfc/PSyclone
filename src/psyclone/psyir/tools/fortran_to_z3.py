@@ -40,12 +40,9 @@ supports translation of scalar integer and scalar logical expressions.'''
 import z3
 import random
 import threading
-from psyclone.psyir.nodes import Loop, DataNode, Literal, Assignment, \
-    Reference, UnaryOperation, BinaryOperation, IntrinsicCall, \
-    Routine, Node, IfBlock, Schedule, ArrayReference, Range, WhileLoop, \
-    CodeBlock
-from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
-    INTEGER_TYPE
+from psyclone.psyir.nodes import Literal, Reference, UnaryOperation, \
+    BinaryOperation, IntrinsicCall, Node, ArrayReference
+
 
 class FortranToZ3:
     '''The class provides methods to translate Fortran expressions to Z3
@@ -97,8 +94,8 @@ class FortranToZ3:
         self.sweep_seed = sweep_seed
 
     def translate_integer_expr(self, expr_root: Node) \
-                                -> (z3.ExprRef, list[z3.BoolRef]):
-        '''Translate a Fortran scalar integer expression to SMT. 
+            -> (z3.ExprRef, list[z3.BoolRef]):
+        '''Translate a Fortran scalar integer expression to SMT.
 
            :param expr_root: the expression to translate. This is assumed
              to have scalar integer type.
@@ -188,13 +185,13 @@ class FortranToZ3:
 
                 # Binary operators
                 if e.intrinsic in [IntrinsicCall.Intrinsic.SHIFTL,
-                                      IntrinsicCall.Intrinsic.SHIFTR,
-                                      IntrinsicCall.Intrinsic.SHIFTA,
-                                      IntrinsicCall.Intrinsic.IAND,
-                                      IntrinsicCall.Intrinsic.IOR,
-                                      IntrinsicCall.Intrinsic.IEOR,
-                                      IntrinsicCall.Intrinsic.MODULO,
-                                      IntrinsicCall.Intrinsic.MOD]:
+                                   IntrinsicCall.Intrinsic.SHIFTR,
+                                   IntrinsicCall.Intrinsic.SHIFTA,
+                                   IntrinsicCall.Intrinsic.IAND,
+                                   IntrinsicCall.Intrinsic.IOR,
+                                   IntrinsicCall.Intrinsic.IEOR,
+                                   IntrinsicCall.Intrinsic.MODULO,
+                                   IntrinsicCall.Intrinsic.MOD]:
                     left_smt = trans(e.children[1])
                     right_smt = trans(e.children[2])
 
@@ -203,8 +200,9 @@ class FortranToZ3:
 
                     if (e.intrinsic == IntrinsicCall.Intrinsic.MOD):
                         m = left_smt % right_smt
-                        return (z3.If(z3.And(m != 0,
-                                        (left_smt < 0) != (right_smt < 0)),
+                        return (z3.If(z3.And(
+                                          m != 0,
+                                          (left_smt < 0) != (right_smt < 0)),
                                       m-right_smt, m))
 
                     if self.use_bv:
@@ -262,7 +260,7 @@ class FortranToZ3:
 
                 # N-ary operators
                 if e.intrinsic in [IntrinsicCall.Intrinsic.MIN,
-                                      IntrinsicCall.Intrinsic.MAX]:
+                                   IntrinsicCall.Intrinsic.MAX]:
                     smt_args = [trans(arg) for arg in e.children[1:]]
                     reduced = smt_args[0]
                     for arg in smt_args[1:]:
@@ -293,7 +291,7 @@ class FortranToZ3:
         return (expr_root_smt, constraints)
 
     def translate_logical_expr(self, expr_root: Node) \
-                                -> (z3.BoolRef, list[z3.BoolRef]):
+            -> (z3.BoolRef, list[z3.BoolRef]):
         '''Translate a scalar logical Fortran expression to SMT.
 
            :param expr_root: the expression to translate. This is assumed
@@ -379,7 +377,8 @@ class FortranToZ3:
         expr_root_smt = trans(expr_root)
         return (expr_root_smt, constraints)
 
-    def translate_array_intrinsic_call(self, call: IntrinsicCall) -> (str, str):
+    def translate_array_intrinsic_call(self, call: IntrinsicCall) \
+            -> (str, str):
         '''Translate array intrinsic call to an array name and a scalar
            integer variable name. Only a small number of important array
            intrinsics are recognised, such as 'size', 'lbound', and 'ubound'.
@@ -418,11 +417,11 @@ class FortranToZ3:
 
         return None
 
-    def solve(self, constraints: list[z3.BoolRef],
-                    sum_of_prods: list[list[z3.BoolRef]] = \
-                                  [[z3.BoolVal(True)]],
-                    exprs_to_eval: list[z3.ExprRef] = []) -> \
-            (z3.CheckSatResult, list[z3.ExprRef]):
+    def solve(self,
+              constraints: list[z3.BoolRef],
+              sum_of_prods: list[list[z3.BoolRef]] = [[z3.BoolVal(True)]],
+              exprs_to_eval: list[z3.ExprRef] = []) \
+            -> (z3.CheckSatResult, list[z3.ExprRef]):
         '''Invoke the solver on the given constraints. If the constraints
         are satisfiable then the given expressions are evaluated and
         returned.
@@ -430,7 +429,7 @@ class FortranToZ3:
         The solver is quite sensitive to the order of constraints.
         If the sweeper is enabled, multiple solvers are run in parallel,
         with each one using a different constraint order. As soon as one
-        solver completes, the others are cancelled. 
+        solver completes, the others are cancelled.
 
         :param constraints: a set of constraints to solve. These are
            implicitly ANDed together. If the sweeper is enabled,
@@ -463,11 +462,12 @@ class FortranToZ3:
         else:
             return self.sweep_solve(constraints, sum_of_prods, exprs_to_eval)
 
-    def sweep_solve(self, constraints: list[z3.BoolRef],
-                          sum_of_prods: list[list[z3.BoolRef]] = \
-                                        [[z3.BoolVal(True)]],
-                          exprs_to_eval: list[z3.ExprRef] = []) -> \
-            (z3.CheckSatResult, list[z3.ExprRef]):
+    def sweep_solve(self,
+                    constraints: list[z3.BoolRef],
+                    sum_of_prods: list[list[z3.BoolRef]] =
+                                      [[z3.BoolVal(True)]],
+                    exprs_to_eval: list[z3.ExprRef] = []) \
+            -> (z3.CheckSatResult, list[z3.ExprRef]):
         '''The interface to this method is identical to that of the
         'solve()' method. This method implements the sweeper.'''
         result = []
@@ -507,7 +507,7 @@ class FortranToZ3:
             exprs_to_eval_ctx = [e.translate(ctx) for e in exprs_to_eval]
 
             # Create a thread for this solver and start it
-            t = threading.Thread(target=wrapper, args=(s,exprs_to_eval_ctx))
+            t = threading.Thread(target=wrapper, args=(s, exprs_to_eval_ctx))
             threads.append(t)
             t.start()
 

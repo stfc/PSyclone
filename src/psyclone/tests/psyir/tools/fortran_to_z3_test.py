@@ -36,8 +36,7 @@
 ''' Module containing tests for Fortran-to-Z3 translation.'''
 
 import pytest
-from psyclone.psyir.nodes import (Loop, Assignment, Reference)
-from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.nodes import (Assignment)
 from psyclone.psyir.tools.fortran_to_z3 import FortranToZ3
 import z3
 
@@ -68,8 +67,8 @@ def test_translate_expr(use_bv,
         for assign in psyir.walk(Assignment):
             (rhs_smt, cs) = trans.translate_logical_expr(assign.rhs)
             (result, expr_vals) = trans.solve(
-                                      constraints = [rhs_smt] + cs,
-                                      exprs_to_eval = [rhs_smt])
+                                      constraints=[rhs_smt] + cs,
+                                      exprs_to_eval=[rhs_smt])
             assert result == z3.sat
 
     test("+1 == 1")

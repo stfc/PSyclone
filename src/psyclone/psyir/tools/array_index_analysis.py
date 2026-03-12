@@ -41,11 +41,9 @@ problem as a set of SMT constraints over array indices which are then
 are passed to the Z3 solver.'''
 
 import z3
-import random
-import threading
 from psyclone.psyir.nodes import Loop, DataNode, Literal, Assignment, \
-    Reference, UnaryOperation, BinaryOperation, IntrinsicCall, \
-    Routine, Node, IfBlock, Schedule, ArrayReference, Range, WhileLoop, \
+    Reference, IntrinsicCall, \
+    Routine, Node, IfBlock, Schedule, Range, WhileLoop, \
     CodeBlock
 from psyclone.core import Signature
 from psyclone.psyir.symbols import DataType, ScalarType, ArrayType, \
@@ -157,6 +155,7 @@ from fparser.two import Fortran2003, Fortran2008
 
 # Analysis Options
 # ================
+
 
 class ArrayIndexAnalysisOptions:
     '''The analysis supports a range of different options, which are all
@@ -567,13 +566,13 @@ class ArrayIndexAnalysis:
 
         # Create Fortran-to-Z3 translator
         self.trans = FortranToZ3(
-                         use_bv = self.opts.use_bv,
-                         int_width = self.opts.int_width,
-                         smt_timeout_ms = self.opts.smt_timeout,
-                         prohibit_overflow = self.opts.prohibit_overflow,
-                         handle_array_intrins = self.opts.handle_array_intrins,
-                         num_sweep_threads = self.opts.num_sweep_threads,
-                         sweep_seed = self.opts.sweep_seed)
+                         use_bv=self.opts.use_bv,
+                         int_width=self.opts.int_width,
+                         smt_timeout_ms=self.opts.smt_timeout,
+                         prohibit_overflow=self.opts.prohibit_overflow,
+                         handle_array_intrins=self.opts.handle_array_intrins,
+                         num_sweep_threads=self.opts.num_sweep_threads,
+                         sweep_seed=self.opts.sweep_seed)
 
         # Initialise array intrinsic variables
         self._init_array_intrins_vars(routine)
@@ -603,7 +602,7 @@ class ArrayIndexAnalysis:
                             conflict = self._get_conflict(i_access, j_accesses)
                             if conflict:
                                 conflicts.append(conflict)
-                                if all_conflicts == False:
+                                if not all_conflicts:
                                     return conflicts
 
         return conflicts
@@ -648,12 +647,12 @@ class ArrayIndexAnalysis:
                     if result_values:
                         vals.append(str(result_values.pop(0)))
                 if vals:
-                  components.append(field + '(' + ','.join(vals) + ')')
+                    components.append(field + '(' + ','.join(vals) + ')')
             access_str = '%'.join(components)
             msg = (f"Iterations {i_val} and {j_val} have conflicting "
                    f"accesses to {access_str}")
             return (sig, msg)
-        elif result == z3.unknown: # pragma: no cover
+        elif result == z3.unknown:  # pragma: no cover
             return (sig, None)
         else:
             return None
@@ -815,6 +814,6 @@ def _is_stop(node: Node) -> bool:
     if isinstance(node, CodeBlock) and len(node.get_ast_nodes) == 1:
         stmt = node.get_ast_nodes[0]
         if (isinstance(stmt, Fortran2003.Stop_Stmt) or
-            isinstance(stmt, Fortran2008.Error_Stop_Stmt)):
-                return True
+                isinstance(stmt, Fortran2008.Error_Stop_Stmt)):
+            return True
     return False

@@ -40,7 +40,7 @@
     dependency analysis.'''
 
 from enum import IntEnum
-from typing import Union, Optional, List
+from typing import Optional, List
 
 import sympy
 

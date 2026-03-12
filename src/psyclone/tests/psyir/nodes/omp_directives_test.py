@@ -5384,8 +5384,8 @@ def test_array_analysis_option(fortran_reader, fortran_writer):
       end subroutine my_matmul''')
     omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
-    dtools = DependencyTools(use_smt_array_index_analysis = 
-                                 ArrayIndexAnalysisOptions())
+    dtools = DependencyTools(
+                 use_smt_array_index_analysis=ArrayIndexAnalysisOptions())
     omplooptrans.apply(
         loop, collapse=True, dep_tools=dtools)
     output = fortran_writer(psyir)
