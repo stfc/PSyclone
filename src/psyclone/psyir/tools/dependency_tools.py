@@ -939,7 +939,7 @@ class DependencyTools():
             analysis = ArrayIndexAnalysis(options)
             conflicts = analysis.get_loop_conflicts(loop)
             for (sig, msg) in conflicts:
-                if msg is None:
+                if msg is None:  # pragma: no cover
                     msg = ("Array conflict constraints could not be solved "
                            "using given SMT options. Try increasing the "
                            "'smt_timeout' or 'num_sweep_threads' options to "
