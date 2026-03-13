@@ -52,108 +52,6 @@ from psyclone.psyir.tools.fortran_to_z3 import FortranToZ3
 from typing import Optional, Tuple
 from fparser.two import Fortran2003, Fortran2008
 
-# Outline
-# =======
-#
-# The analysis class provides a method 'get_loop_conflicts()' to
-# determine whether or not the array accesses in a given loop are
-# conflicting between iterations. Two array accesses are conflicting
-# if they access the same element of the same array in different loop
-# iterations, and at least one is a write.
-#
-# The analysis assumes that any scalar integer or scalar logical
-# variables written by the loop can safely be considered as private
-# to each iteration. This should be validated by the callee and is
-# typically done by DependencyTools.
-#
-# The analysis algorithm operates, broadly, as follows.
-#
-# Given a loop, we find its enclosing routine, and start analysing the
-# routine statement-by-statement in a recursive-descent fashion.
-#
-# As we proceed, we maintain a set of SMT constraints and a
-# substitution that maps Fortran variable names to SMT variable names.
-# For each Fortran variable, the substitution points to an SMT
-# variable that is constrained (in the set of constraints) such that
-# it captures the value of the Fortran variable at the current point
-# in the code. When a Fortran variable is updated, the substitution is
-# modified to point to a fresh SMT variable, with new constraints,
-# without destroying the old constraints.
-#
-# More concretely, when we encounter an assignment of a scalar
-# integer/logical variable, of the form 'x = rhs', we translate 'rhs'
-# to the SMT formula 'smt_rhs' with the current substitution applied.
-# We then add a constraint 'var = smt_rhs' where 'var' is a fresh SMT
-# variable, and update the substitution so that 'x' maps to 'var'.
-#
-# The Fortran-expression-to-SMT translator knows about several Fortran
-# operators and intrinsics, but not all of them; when it sees
-# something it doesn't know about, it simply translates it to a fresh
-# unconstrained SMT variable.
-#
-# Sometimes we reach a statement that modifies a Fortran variable in
-# an unknown way (e.g. calling a subroutine). This can be handled by
-# updating the substitution to point to a fresh unconstrained SMT
-# variable; we refer to this process as "killing" the variable.
-#
-# In addition to the current substitution, we maintain a stack of
-# previous substitutions. This allows substitutions to be saved and
-# restored before and after analysing a block of code that may or may
-# not be executed at run time.
-#
-# We also maintain a "current condition". This can be viewed as a
-# constraint that has not been committed to the constraint set because
-# we want to be able to grow, contract, and retract it as we enter and
-# exit conditional blocks of code. This current condition is passed in
-# recursive calls, so there is an implicit stack of them.
-#
-# More concretely, when we encounter an 'if' statement, we copy the
-# current substitution onto the stack, then recurse into the 'then'
-# body, passing in the 'if' condition as an argument, and then restore
-# the old substitution. We do the same for the 'else' body if there is
-# one (in this case the negated condition is passed to the recursive
-# call). Finally, we kill all variables written by the 'then' and
-# 'else' bodies, because we don't know which will be executed at run
-# time. (In future, we could do better here by introducing OR
-# constraints, e.g. each variable written is either equal to the value
-# written in the 'then' OR the 'else' depending on the condition.)
-#
-# As the analysis proceeds, we also maintain a list of array accesses.
-# For each access, we record various information including the name of
-# the array, whether it is a read or a write, the current condition at
-# the point the access is made, and its list of indices (translated to
-# SMT). When we are analysing code that is inside the loop of
-# interest, we add all array accesses encountered to the list.
-#
-# When we encounter the loop of interest, we perform a couple of steps
-# before recursing into the loop body. First, we kill all variables
-# written by the loop body, because we don't know whether we are
-# entering the loop (at run time) for the first time or not. Second,
-# we create two SMT variables to represent the loop variables of two
-# arbitary but distinct iterations of the loop. Each of these two
-# variables is constrained to the start, stop, and step of the loop,
-# and the two variables are constrained to be not equal. After that,
-# we analyse the loop body twice, each time mapping the loop variable
-# in the substitution to each of the SMT loop variables. After
-# analysing the loop body for the first time, we save the array access
-# list and start afresh with a new one. Therefore, once the analysis
-# is complete, we have two array access lists, one for each iteration.
-#
-# When we encounter a loop that is not the loop of interest, we follow
-# a similar approach but only consider a single arbitrary iteration of
-# the loop.
-#
-# When the recursive descent is complete, we are left with two array
-# access lists representing two different iterations of the same loop.
-# A conflict occurs if there is an access to an array in the first
-# list that can have the same loop indices as an access to the same
-# array in the second list, and one of which is a write.  This is
-# determined by asserting an equality constraint between each access's
-# indices which, when combined with the current condition of each
-# access and the global constraint set, will be satisfiable if and
-# only if there is a conflict.  In this way, we check every access
-# pair and determine whether or not the loop contains conflicts.
-
 # Analysis Options
 # ================
 
@@ -219,6 +117,106 @@ class ArrayIndexAnalysisOptions:
 # ========
 
 class ArrayIndexAnalysis:
+    '''The analysis class provides a method 'get_loop_conflicts()' to
+    determine whether or not the array accesses in a given loop are
+    conflicting between iterations. Two array accesses are conflicting
+    if they access the same element of the same array in different loop
+    iterations, and at least one is a write.
+
+    The analysis assumes that any scalar integer or scalar logical
+    variables written by the loop can safely be considered as private
+    to each iteration. This should be validated by the callee and is
+    typically done by DependencyTools.
+
+    The analysis algorithm operates, broadly, as follows.
+
+    Given a loop, we find its enclosing routine, and start analysing the
+    routine statement-by-statement in a recursive-descent fashion.
+
+    As we proceed, we maintain a set of SMT constraints and a
+    substitution that maps Fortran variable names to SMT variable names.
+    For each Fortran variable, the substitution points to an SMT
+    variable that is constrained (in the set of constraints) such that
+    it captures the value of the Fortran variable at the current point
+    in the code. When a Fortran variable is updated, the substitution is
+    modified to point to a fresh SMT variable, with new constraints,
+    without destroying the old constraints.
+
+    More concretely, when we encounter an assignment of a scalar
+    integer/logical variable, of the form 'x = rhs', we translate 'rhs'
+    to the SMT formula 'smt_rhs' with the current substitution applied.
+    We then add a constraint 'var = smt_rhs' where 'var' is a fresh SMT
+    variable, and update the substitution so that 'x' maps to 'var'.
+
+    The Fortran-expression-to-SMT translator knows about several Fortran
+    operators and intrinsics, but not all of them; when it sees
+    something it doesn't know about, it simply translates it to a fresh
+    unconstrained SMT variable.
+
+    Sometimes we reach a statement that modifies a Fortran variable in
+    an unknown way (e.g. calling a subroutine). This can be handled by
+    updating the substitution to point to a fresh unconstrained SMT
+    variable; we refer to this process as "killing" the variable.
+
+    In addition to the current substitution, we maintain a stack of
+    previous substitutions. This allows substitutions to be saved and
+    restored before and after analysing a block of code that may or may
+    not be executed at run time.
+
+    We also maintain a "current condition". This can be viewed as a
+    constraint that has not been committed to the constraint set because
+    we want to be able to grow, contract, and retract it as we enter and
+    exit conditional blocks of code. This current condition is passed in
+    recursive calls, so there is an implicit stack of them.
+
+    More concretely, when we encounter an 'if' statement, we copy the
+    current substitution onto the stack, then recurse into the 'then'
+    body, passing in the 'if' condition as an argument, and then restore
+    the old substitution. We do the same for the 'else' body if there is
+    one (in this case the negated condition is passed to the recursive
+    call). Finally, we kill all variables written by the 'then' and
+    'else' bodies, because we don't know which will be executed at run
+    time. (In future, we could do better here by introducing OR
+    constraints, e.g. each variable written is either equal to the value
+    written in the 'then' OR the 'else' depending on the condition.)
+
+    As the analysis proceeds, we also maintain a list of array accesses.
+    For each access, we record various information including the name of
+    the array, whether it is a read or a write, the current condition at
+    the point the access is made, and its list of indices (translated to
+    SMT). When we are analysing code that is inside the loop of
+    interest, we add all array accesses encountered to the list.
+
+    When we encounter the loop of interest, we perform a couple of steps
+    before recursing into the loop body. First, we kill all variables
+    written by the loop body, because we don't know whether we are
+    entering the loop (at run time) for the first time or not. Second,
+    we create two SMT variables to represent the loop variables of two
+    arbitary but distinct iterations of the loop. Each of these two
+    variables is constrained to the start, stop, and step of the loop,
+    and the two variables are constrained to be not equal. After that,
+    we analyse the loop body twice, each time mapping the loop variable
+    in the substitution to each of the SMT loop variables. After
+    analysing the loop body for the first time, we save the array access
+    list and start afresh with a new one. Therefore, once the analysis
+    is complete, we have two array access lists, one for each iteration.
+
+    When we encounter a loop that is not the loop of interest, we follow
+    a similar approach but only consider a single arbitrary iteration of
+    the loop.
+
+    When the recursive descent is complete, we are left with two array
+    access lists representing two different iterations of the same loop.
+    A conflict occurs if there is an access to an array in the first
+    list that can have the same loop indices as an access to the same
+    array in the second list, and one of which is a write.  This is
+    determined by asserting an equality constraint between each access's
+    indices which, when combined with the current condition of each
+    access and the global constraint set, will be satisfiable if and
+    only if there is a conflict.  In this way, we check every access
+    pair and determine whether or not the loop contains conflicts.
+    '''
+
     class ArrayAccess:
         '''This class is used to record details of each array access
         encountered during the analysis.
