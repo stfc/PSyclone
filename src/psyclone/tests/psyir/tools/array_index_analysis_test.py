@@ -1,0 +1,383 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2026, University of Cambridge, UK
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author M. Naylor, University of Cambridge, UK
+
+''' Module containing tests for the SMT-based array index analysis.'''
+
+import pytest
+from psyclone.psyir.nodes import (Loop, Reference)
+from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.tools import (
+    ArrayIndexAnalysis, ArrayIndexAnalysisOptions)
+
+
+# -----------------------------------------------------------------------------
+def conflict_free(loop, opts):
+    '''Helper function to determine if a loop is conflict free.
+    Note that this function returns True if the solver times out,
+    so that the test suite does not fail due to slow solving.'''
+    conflicts = ArrayIndexAnalysis(opts).get_loop_conflicts(loop)
+    if conflicts:
+        return all([c[1] is None for c in conflicts])
+    else:
+        return True
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("use_bv", [True, False])
+@pytest.mark.parametrize("num_sweep_threads", [1, 4])
+def test_reverse(use_bv, num_sweep_threads, fortran_reader, fortran_writer):
+    '''Test that an array reversal routine has no array conflicts
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine reverse(arr)
+          real, intent(inout) :: arr(:)
+          real :: tmp
+          integer :: i, n
+          n = size(arr)
+          do i = 1, n/2
+            tmp = arr(i)
+            arr(i) = arr(n+1-i)
+            arr(n+1-i) = tmp
+          end do
+        end subroutine''')
+    opts = ArrayIndexAnalysisOptions(use_bv=use_bv,
+                                     smt_timeout_ms=500,
+                                     prohibit_overflow=True,
+                                     num_sweep_threads=num_sweep_threads)
+    results = []
+    for loop in psyir.walk(Loop):
+        results.append(conflict_free(loop, opts))
+    assert results == [True]
+
+
+# -----------------------------------------------------------------------------
+def test_odd_even_trans(fortran_reader, fortran_writer):
+    '''Test that Knuth's odd-even transposition has no array conflicts
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine odd_even_transposition(arr, start)
+          real, intent(inout) :: arr(:)
+          integer, intent(in) :: start
+          real :: tmp
+          integer :: i
+          do i = start, size(arr), 2
+            if (arr(i) > arr(i+1)) then
+              tmp = arr(i+1)
+              arr(i+1) = arr(i)
+              arr(i) = tmp
+            end if
+          end do
+        end subroutine''')
+    results = []
+    opts = ArrayIndexAnalysisOptions(smt_timeout_ms=500)
+    for loop in psyir.walk(Loop):
+        results.append(conflict_free(loop, opts))
+    assert results == [True]
+
+
+# -----------------------------------------------------------------------------
+def test_tiled_matmul(fortran_reader, fortran_writer):
+    '''Test that tiled matmul has no array conflicts in 4/6 loops
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_matmul(a, b, c)
+          integer, dimension(:,:), intent(in) :: a
+          integer, dimension(:,:), intent(in) :: b
+          integer, dimension(:,:), intent(out) :: c
+          integer :: x, y, k, k_out_var, x_out_var, y_out_var, a1_n, a2_n, b1_n
+
+          a2_n = SIZE(a, 2)
+          b1_n = SIZE(b, 1)
+          a1_n = SIZE(a, 1)
+
+          c(:,:) = 0
+          do y_out_var = 1, a2_n, 8
+            do x_out_var = 1, b1_n, 8
+              do k_out_var = 1, a1_n, 8
+                do y = y_out_var, MIN(y_out_var + (8 - 1), a2_n), 1
+                  do x = x_out_var, MIN(x_out_var + (8 - 1), b1_n), 1
+                    do k = k_out_var, MIN(k_out_var + (8 - 1), a1_n), 1
+                      c(x,y) = c(x,y) + a(k,y) * b(x,k)
+                    enddo
+                  enddo
+                enddo
+              enddo
+            enddo
+          enddo
+        end subroutine my_matmul''')
+    results = []
+    opts = ArrayIndexAnalysisOptions(smt_timeout_ms=500)
+    for loop in psyir.walk(Loop):
+        results.append(conflict_free(loop, opts))
+    assert results == [True, True, False, True, True, False]
+
+
+# -----------------------------------------------------------------------------
+def test_chunking_loop(fortran_reader, fortran_writer):
+    '''Test that a loop with array chunking has no array conflicts
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        module chunking_example
+        contains
+
+        subroutine chunking(arr, chunk_size)
+          integer, dimension(:), intent(inout) :: arr
+          integer, intent(in) :: chunk_size
+          integer :: n, chunk_begin, chunk_end
+
+          n = size(arr)
+          do chunk_begin = 1, n, chunk_size
+            chunk_end = min(chunk_begin+chunk_size-1, n)
+            call modify(arr(chunk_begin:chunk_end))
+          end do
+        end subroutine
+
+        pure subroutine modify(a)
+          integer, intent(inout) :: a(:)
+        end subroutine
+
+      end module''')
+    opts = ArrayIndexAnalysisOptions(use_bv=False, smt_timeout_ms=500)
+    results = []
+    for loop in psyir.walk(Loop):
+        results.append(conflict_free(loop, opts))
+    assert results == [True]
+
+
+# -----------------------------------------------------------------------------
+def test_flatten(fortran_reader, fortran_writer):
+    '''Test that an array flattening routine has no array conflicts in
+    either loop.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine flatten1(mat, arr)
+          real, intent(in) :: mat(0:,0:)
+          real, intent(out) :: arr(0:)
+          integer :: x, y
+          integer :: nx, ny
+          nx = size(mat, 1)
+          ny = size(mat, 2)
+          do y = 0, ny-1
+            do x = 0, nx-1
+              arr(nx * y + x) = mat(x, y)
+            end do
+          end do
+        end subroutine''')
+    results = []
+    opts = ArrayIndexAnalysisOptions(smt_timeout_ms=500)
+    for loop in psyir.walk(Loop):
+        results.append(conflict_free(loop, opts))
+    assert results == [True, True]
+
+
+# -----------------------------------------------------------------------------
+def check_conflict_free(fortran_reader,
+                        loop_str,
+                        yesno,
+                        use_bv=False,
+                        threads=1):
+    '''Helper function to check that given loop for conflicts.
+       The loop may refer to array "arr", integer variables "i" and "n",
+       and logical variable "ok".
+    '''
+    psyir = fortran_reader.psyir_from_source(f'''
+              subroutine sub(arr, n)
+                integer, intent(inout) :: arr(:)
+                integer, intent(inout) :: n, i, j, tmp, tmp2
+                logical :: ok
+                {loop_str}
+              end subroutine''')
+    results = []
+    opts = ArrayIndexAnalysisOptions(prohibit_overflow=True,
+                                     use_bv=use_bv,
+                                     smt_timeout_ms=500,
+                                     num_sweep_threads=threads)
+    for loop in psyir.walk(Loop):
+        results.append(conflict_free(loop, opts))
+    assert results == yesno
+
+
+# -----------------------------------------------------------------------------
+def test_ifblock_with_else(fortran_reader, fortran_writer):
+    '''Test that an IfBlock with an "else" is correctly handled'''
+    check_conflict_free(fortran_reader,
+                        '''do i = 1, n
+                             ok = i == 1
+                             if (ok) then
+                               arr(ior(1, 1)) = 0
+                             else
+                               tmp = i
+                               arr(tmp) = i
+                             end if
+                           end do
+                           arr(2) = 0
+                        ''',
+                        [True])
+
+
+# -----------------------------------------------------------------------------
+def test_array_reference(fortran_reader, fortran_writer):
+    '''Test an array Reference with no indices is correctly handled'''
+    check_conflict_free(fortran_reader,
+                        '''do i = 1, n
+                             arr = arr + i
+                           end do
+                        ''',
+                        [False])
+
+
+# -----------------------------------------------------------------------------
+def test_singleton_slice(fortran_reader, fortran_writer):
+    '''Test that an array slice with a single element is correctly handled'''
+    check_conflict_free(fortran_reader,
+                        '''do i = 1, n
+                             arr(i:i:) = 0
+                           end do
+                        ''',
+                        [True])
+
+
+# -----------------------------------------------------------------------------
+def test_while_loop(fortran_reader, fortran_writer):
+    '''Test a do loop nested within a while loop'''
+    check_conflict_free(fortran_reader,
+                        '''do while (tmp > 0)
+                             do i = 1, n
+                               tmp2 = arr(i)
+                               arr(i) = 0
+                               do while (tmp2 > 0)
+                                 tmp2 = tmp2 - 1
+                               end do
+                             end do
+                             tmp = tmp - 1
+                           end do
+                        ''',
+                        [True])
+
+
+# -----------------------------------------------------------------------------
+def test_injective_index(fortran_reader, fortran_writer):
+    '''Test a do loop with an injective index mapping'''
+    check_conflict_free(fortran_reader,
+                        '''do i = 1, n
+                             tmp = i+1
+                             arr(tmp) = 0
+                           end do
+                        ''',
+                        [True])
+
+
+# -----------------------------------------------------------------------------
+def test_invariant_if(fortran_reader, fortran_writer):
+    '''Test a do loop with an invariant if-condition'''
+    check_conflict_free(fortran_reader,
+                        '''do i = 1, size(arr)-1
+                             if (tmp >= 0) then
+                               arr(i) = 1
+                             else
+                               arr(i+1) = 2
+                             end if
+                           end do''',
+                        [True])
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("use_bv", [True, False])
+def test_last_iteration(use_bv, fortran_reader, fortran_writer):
+    '''Test a do loop with special behaviour on final iteration'''
+    check_conflict_free(fortran_reader,
+                        '''n = size(arr)
+                           do i = 1, n-1
+                             arr(i) = 0
+                             if (i == n-1) then
+                               arr(i+1) = 10
+                             end if
+                           end do''',
+                        [True], use_bv=use_bv)
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("num_sweep_threads", [1, 4])
+def test_triangular_loop(num_sweep_threads, fortran_reader, fortran_writer):
+    '''Test a triangular nested loop'''
+    check_conflict_free(fortran_reader,
+                        '''n = size(arr)
+                           do i = 1, n-1
+                             do j = i+1, n
+                               arr(j) = arr(j) + arr(i)
+                             end do
+                           end do''',
+                        [False, True], threads=num_sweep_threads)
+
+
+# -----------------------------------------------------------------------------
+def test_stop_statement(fortran_reader, fortran_writer):
+    '''Test a program with a stop statement'''
+    check_conflict_free(fortran_reader,
+                        '''ok = n+1 == iand(2, 2)
+                           if (.not. ok) then
+                             stop
+                           end if
+                           ! n must be 1 at this point, so no loop conflict
+                           do i = 1, n
+                             arr(1) = i
+                           end do''',
+                        [True], use_bv=None)
+
+
+# -----------------------------------------------------------------------------
+def test_errors(fortran_reader, fortran_writer):
+    '''Test that ArrayIndexAnalysis raises appropriate exceptions in
+       error cases
+    '''
+    with pytest.raises(TypeError) as err:
+        ArrayIndexAnalysis().get_loop_conflicts(Reference(Symbol("foo")))
+    assert ("ArrayIndexAnalysis: Loop argument expected"
+            in str(err.value))
+
+    psyir = fortran_reader.psyir_from_source('''
+                subroutine sub(arr, n)
+                  integer, intent(inout) :: arr(:)
+                  integer, intent(in) :: n, i
+                  do i = 1, n
+                    arr(i) = i
+                  end do
+                end subroutine''')
+    loop = psyir.walk(Loop)[0]
+    loop.detach()
+    with pytest.raises(ValueError) as err:
+        ArrayIndexAnalysis().get_loop_conflicts(loop) is None
+    assert ("ArrayIndexAnalysis: loop has no enclosing routine"
+            in str(err.value))

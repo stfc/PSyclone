@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+#         M. Naylor, University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' This module contains the IfBlock node implementation.'''
@@ -195,3 +196,21 @@ class IfBlock(Statement):
         if self.else_body:
             var_accesses.update(self.else_body.reference_accesses())
         return var_accesses
+
+    def flat(self):
+        '''This method allows a chain of 'if'/'else if'/.../'else'
+        statements to be viewed in its flattened form, without nesting.
+
+        :returns: a list of condition/body pairs. Nested 'else if' chains
+           (if there are any) are recursively gathered. The condition for
+           the final 'else' in the chain (if there is one) is 'None'.
+        '''
+        branches = [(self.condition, self.if_body)]
+        if self.else_body:
+            if (isinstance(self.else_body, Schedule) and
+                    len(self.else_body.children) == 1 and
+                    isinstance(self.else_body.children[0], IfBlock)):
+                branches.extend(self.else_body.children[0].flat())
+            else:
+                branches.append((None, self.else_body))
+        return branches

@@ -585,6 +585,33 @@ can be parallelised:
 
 .. _defusechain:
 
+Array Index Analysis
+--------------------
+
+The `DependencyTools` class includes an analysis to determine whether or not
+distinct iterations of a loop might write to (or read from and write to) the
+same index of a shared array. However, there are many kinds of loop where it
+conservatively reports a conflict when there isn't one. The
+`ArrayIndexAnalysis` is a more powerfull analysis for the same job, which uses
+the Z3 SMT solver to analyse conflicts more accurately. This analysis can be
+enabled by passing `use_smt_array_index_analysis=True` option to
+`DependencyTools`.
+
+.. autoclass:: psyclone.psyir.tools.array_index_analysis.ArrayIndexAnalysis
+    :no-index:
+    :members:
+
+The main drawback of the SMT-based analysis is that the time-to-solve is not
+guaranteed to be consistent. It might be fast using one version of Z3 but slow
+using another. It might vary significantly with seemingly innocuous code
+changes. Having said that, our experience is that it generally performs well,
+especially when setting the option `num_sweep_threads=4` to explore different
+constraint orderings in parallel (this is the default setting). Nevertheless,
+it is probably best suited to static checking / linting, e.g. spotting bugs in
+parallel loops or missed opportunities for parallel loops. It is probably not
+advisable to use it in cases where a consistent result is relied upon, such as
+a transmutation script.
+
 DefinitionUseChain
 ==================
 PSyclone also provides a DefinitionUseChain class, which can search for forward
