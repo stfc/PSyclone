@@ -537,4 +537,7 @@ def iom_put_argument_to_temporary(calls: list[Call]):
             arg = call.arguments[1]
             dtype = arg.datatype
             if isinstance(dtype, ArrayType) and isinstance(arg, Operation):
-                DataNodeToTempTrans().apply(arg)
+                try:
+                    DataNodeToTempTrans().apply(arg)
+                except TransformationError:
+                    pass
