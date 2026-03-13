@@ -41,14 +41,15 @@ from typing import List, Union
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, Call,
-    Routine, Schedule, IntrinsicCall, StructureReference, IfBlock)
-from psyclone.psyir.symbols import DataSymbol
+    Routine, Schedule, IntrinsicCall, StructureReference, IfBlock,
+    Operation)
+from psyclone.psyir.symbols import DataSymbol, ArrayType
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
     OMPMinimiseSyncTrans, Reference2ArrayRangeTrans,
-    ScalarisationTrans, IncreaseRankLoopArraysTrans, MaximalRegionTrans)
-from psyclone.transformations import TransformationError
+    ScalarisationTrans, IncreaseRankLoopArraysTrans, MaximalRegionTrans,
+    DataNodeToTempTrans, TransformationError)
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
@@ -526,3 +527,14 @@ def add_profiling(children: Union[List[Node], Schedule]):
     routine_name = parent_routine.name if parent_routine else ""
     if routine_name not in PROFILING_IGNORE:
         MaximalProfilingOutsideDirectivesTrans().apply(children)
+
+
+def iom_put_argument_to_temporary(calls: list[Call]):
+    '''Extracts the second argument of all iom_put calls and puts them
+     in a temporary if they are an Operation with an array datatype.'''
+    for call in calls:
+        if call.symbol.name == "iom_put":
+            arg = call.arguments[1]
+            dtype = arg.datatype
+            if isinstance(dtype, ArrayType) and isinstance(arg, Operation):
+                DataNodeToTempTrans().apply(arg)
