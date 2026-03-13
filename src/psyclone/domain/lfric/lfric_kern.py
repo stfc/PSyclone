@@ -48,7 +48,6 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
 from psyclone.domain.lfric.lfric_types import LFRicTypes
@@ -61,7 +60,7 @@ from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule, Container, Routine)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    GenericInterfaceSymbol, ImportInterface, UnresolvedType,
+    GenericInterfaceSymbol, ImportInterface, SymbolTable, UnresolvedType,
     INTEGER_TYPE, UnsupportedFortranType)
 
 
@@ -95,7 +94,7 @@ class LFRicKern(CodedKern):
         # is called from load().
         # pylint: disable=super-init-not-called
         self._parent = None
-        self._stub_symbol_table = LFRicSymbolTable()
+        self._stub_symbol_table = SymbolTable()
         self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None
@@ -765,8 +764,7 @@ class LFRicKern(CodedKern):
         stub_module = Container(self._base_name+"_mod")
 
         # Create the subroutine
-        stub_routine = Routine.create(self._base_name+"_code",
-                                      symbol_table=LFRicSymbolTable())
+        stub_routine = Routine.create(self._base_name+"_code")
         stub_module.addchild(stub_routine)
         self._stub_symbol_table = stub_routine.symbol_table
 

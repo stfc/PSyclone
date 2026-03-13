@@ -45,7 +45,6 @@
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicInvokes
 from psyclone.psyGen import PSy
-from psyclone.psyir.nodes import ScopingNode
 
 
 class LFRicPSy(PSy):

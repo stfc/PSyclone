@@ -53,10 +53,10 @@ from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Container, Literal,
-                                  Reference, Routine, ScopingNode)
+                                  Reference, Routine)
 from psyclone.psyir.symbols import (
     UnresolvedType, UnsupportedFortranType, DataTypeSymbol, DataSymbol,
-    ArrayType, ImportInterface, ContainerSymbol, RoutineSymbol, SymbolTable,
+    ArrayType, ImportInterface, ContainerSymbol, RoutineSymbol,
     ArgumentInterface)
 
 
