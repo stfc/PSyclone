@@ -55,7 +55,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
-    ImportInterface, ScalarType, ArrayType, UnsupportedFortranType,
+    ImportInterface, ScalarType, ArrayType, Symbol, UnsupportedFortranType,
     ArgumentInterface)
 
 # psyir has classes created at runtime
@@ -93,20 +93,20 @@ class KernCallArgList(ArgOrdering):
         self._nqp_positions = []
         self._ndf_positions = []
 
-    def get_user_type(self, module_name, user_type, name, tag=None):
+    def get_user_type(self, module_name: str,
+                      user_type: str, name: str,
+                      tag: Optional[str] = None) -> Symbol:
         # pylint: disable=too-many-arguments
         '''Returns the symbol for a user-defined type. If required, the
-        required import statements will all be generated.
+        source ContainerSymbols will be created too.
 
-        :param str module_name: the name of the module from which the \
+        :param module_name: the name of the module from which the
             user-defined type must be imported.
-        :param str user_type: the name of the user-defined type.
-        :param str name: the name of the variable to be used in the Reference.
-        :param Optional[str] tag: tag to use for the variable, defaults to \
-            the name
+        :param user_type: the name of the user-defined type.
+        :param name: the name of the variable to be used in the Reference.
+        :param tag: tag to use for the variable, defaults to the name
 
         :return: the symbol that is used in the reference
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if not tag:
@@ -119,19 +119,17 @@ class KernCallArgList(ArgOrdering):
             pass
 
         # The symbol does not exist already. So we potentially need to
-        # create the import statement for the type:
-        try:
-            # Check if the module is already declared:
-            module = self._symtab.lookup(module_name)
-            # Get the symbol table in which the module is declared:
-            mod_sym_tab = module.find_symbol_table(self._kern)
-        except KeyError:
+        # create the ContainerSymbol for the import for the type:
+        module = self._symtab.lookup(module_name, otherwise=None)
+        if not module:
             module = self._symtab.new_symbol(module_name,
                                              symbol_type=ContainerSymbol)
             mod_sym_tab = self._symtab
+        else:
+            mod_sym_tab = module.find_symbol_table(self._symtab.node)
 
         # The user-defined type must be declared in the same symbol
-        # table as the container (otherwise errors will happen later):
+        # table as the container.
         user_type_symbol = mod_sym_tab.find_or_create(
             user_type,
             symbol_type=DataTypeSymbol,
@@ -372,8 +370,9 @@ class KernCallArgList(ArgOrdering):
                 f"{argvect.name}_{idx}:{suffix}")
             if self._kern.iterates_over == "dof":
                 # If dof kernel, add access to the field by dof ref
-                dof_sym = self._symtab.find_or_create_integer_symbol(
-                    "df", tag="dof_loop_idx")
+                dof_sym = self._symtab.find_or_create(
+                    "df", tag="dof_loop_idx", symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                 # TODO #1010 removes the need to declare type and
                 # allows this to be fixed
                 self.append_array_reference(cmpt_sym.name,
@@ -410,8 +409,9 @@ class KernCallArgList(ArgOrdering):
 
         if self._kern.iterates_over == "dof":
             # If dof kernel, add access to the field by dof ref
-            dof_sym = self._symtab.find_or_create_integer_symbol(
-                "df", tag="dof_loop_idx")
+            dof_sym = self._symtab.find_or_create(
+                "df", tag="dof_loop_idx", symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             # TODO #1010 removes the need to declare type and
             # allows this to be fixed
             self.append_array_reference(sym.name, [Reference(dof_sym)],
@@ -969,15 +969,17 @@ class KernCallArgList(ArgOrdering):
         and similar methods should be refactored.
 
         '''
-        cell_sym = self._symtab.find_or_create_integer_symbol(
-            "cell", tag="cell_loop_idx")
+        cell_sym = self._symtab.find_or_create(
+            "cell", tag="cell_loop_idx", symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         if var_accesses is not None:
             var_accesses.add_access(Signature(cell_sym.name), AccessType.READ,
                                     self._kern)
 
         if self._kern.is_coloured():
-            colour_sym = self._symtab.find_or_create_integer_symbol(
-                "colour", tag="colours_loop_idx")
+            colour_sym = self._symtab.find_or_create(
+                "colour", tag="colours_loop_idx", symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             if var_accesses is not None:
                 var_accesses.add_access(Signature(colour_sym.name),
                                         AccessType.READ, self._kern)
@@ -987,8 +989,9 @@ class KernCallArgList(ArgOrdering):
             loop_type = self._kern.ancestor(LFRicLoop).loop_type
 
             if loop_type == "cells_in_tile":
-                tile_sym = self._symtab.find_or_create_integer_symbol(
-                    "tile", tag="tile_loop_idx")
+                tile_sym = self._symtab.find_or_create(
+                    "tile", tag="tile_loop_idx", symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                 map_sym = self._symtab.lookup(self._kern.tilecolourmap)
                 array_ref = ArrayReference.create(
                     map_sym, [Reference(colour_sym), Reference(tile_sym),

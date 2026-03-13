@@ -48,7 +48,6 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
 from psyclone.domain.lfric.lfric_types import LFRicTypes
@@ -60,9 +59,9 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule, Container, Routine)
 from psyclone.psyir.symbols import (
-    DataSymbol, GenericInterfaceSymbol, ScalarType, ArrayType, DataTypeSymbol,
-    UnresolvedType, ContainerSymbol, INTEGER_TYPE, UnresolvedInterface,
-    UnsupportedFortranType)
+    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    GenericInterfaceSymbol, ImportInterface, SymbolTable, UnresolvedType,
+    INTEGER_TYPE, UnsupportedFortranType)
 
 
 class LFRicKern(CodedKern):
@@ -95,7 +94,7 @@ class LFRicKern(CodedKern):
         # is called from load().
         # pylint: disable=super-init-not-called
         self._parent = None
-        self._stub_symbol_table = LFRicSymbolTable()
+        self._stub_symbol_table = SymbolTable()
         self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None
@@ -334,13 +333,14 @@ class LFRicKern(CodedKern):
                 f"Evaluator shape(s) {list(invalid_shapes)} is/are not "
                 f"recognised. Must be one of {const.VALID_EVALUATOR_SHAPES}.")
 
-        # If this kernel operates into the halo then it must be passed a
+        # If this kernel operates into the halo and distributed-memory is
+        # enabled then it must be passed a
         # halo depth. This is currently restricted to being either a simple
         # variable name or a literal value.
         freader = FortranReader()
         invoke_schedule = self.ancestor(InvokeSchedule)
         symtab = invoke_schedule.symbol_table if invoke_schedule else None
-        if "halo" in ktype.iterates_over:
+        if "halo" in ktype.iterates_over and Config.get().distributed_memory:
             self._halo_depth = freader.psyir_from_expression(
                 args[-1].text.lower(), symbol_table=symtab)
             if isinstance(self._halo_depth, Reference):
@@ -350,8 +350,10 @@ class LFRicKern(CodedKern):
                 if not hasattr(sym, "datatype"):
                     self._halo_depth.symbol.specialise(
                         DataSymbol,
-                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")(),
+                        interface=ArgumentInterface())
+                    if symtab:
+                        symtab.append_argument(self._halo_depth.symbol)
         # Check that compute-annexed-dofs is False if the kernel must operate
         # only on owned entities.
         api_conf = Config.get().api_conf()
@@ -401,19 +403,21 @@ class LFRicKern(CodedKern):
 
             qr_arg = args[idx]
             quad_map = const.QUADRATURE_TYPE_MAP[shape]
-
             # Use the InvokeSchedule or Stub symbol_table that we obtained
             # earlier to create a unique symbol name
             if qr_arg.varname:
                 # If we have a name for the qr argument, we are dealing with
                 # an Invoke
+                mod_name = quad_map["module"]
+                mod_sym = symtab.find_or_create(
+                    mod_name, symbol_type=ContainerSymbol)
                 tag = "AlgArgs_" + qr_arg.text
                 qr_sym = symtab.find_or_create(
                     qr_arg.varname, tag=tag, symbol_type=DataSymbol,
                     datatype=symtab.find_or_create(
                         quad_map["type"], symbol_type=DataTypeSymbol,
                         datatype=UnresolvedType(),
-                        interface=UnresolvedInterface())
+                        interface=ImportInterface(mod_sym))
                 )
                 qr_name = qr_sym.name
             else:
@@ -570,15 +574,17 @@ class LFRicKern(CodedKern):
         const = LFRicConstants()
 
         if ubnd_name in const.HALO_ACCESS_LOOP_BOUNDS:
-            return self.scope.symbol_table.find_or_create_array(
-                "last_halo_cell_all_colours", 2,
-                ScalarType.Intrinsic.INTEGER,
-                tag="last_halo_cell_all_colours")
+            return self.scope.symbol_table.find_or_create(
+                "last_halo_cell_all_colours", tag="last_halo_cell_all_colours",
+                symbol_type=DataSymbol, datatype=ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    2*[ArrayType.Extent.DEFERRED]))
 
-        return self.scope.symbol_table.find_or_create_array(
-            "last_edge_cell_all_colours", 1,
-            ScalarType.Intrinsic.INTEGER,
-            tag="last_edge_cell_all_colours")
+        return self.scope.symbol_table.find_or_create(
+            "last_edge_cell_all_colours", tag="last_edge_cell_all_colours",
+            symbol_type=DataSymbol, datatype=ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    [ArrayType.Extent.DEFERRED]))
 
     @property
     def ncolours_var(self):
@@ -844,7 +850,8 @@ class LFRicKern(CodedKern):
             for name in names:
                 rt_psyir = container.find_routine_psyir(name,
                                                         allow_private=True)
-                routines.append(rt_psyir)
+                if rt_psyir:
+                    routines.append(rt_psyir)
 
         # Otherwise, get the PSyIR Kernel Schedule(s) from the original
         # parse tree.

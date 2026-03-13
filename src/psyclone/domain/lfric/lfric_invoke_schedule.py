@@ -47,7 +47,6 @@ the new InvokeSchedule.
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
 from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.psyGen import InvokeSchedule
 
 
@@ -66,10 +65,6 @@ class LFRicInvokeSchedule(InvokeSchedule):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    # LFRicInvokeSchedule always uses an LFRicSymbolTable for its inner scope
-    # symbol table.
-    _symbol_table_class = LFRicSymbolTable
-
     def __init__(self, symbol, alg_calls=None, parent=None, **kwargs):
         if not alg_calls:
             alg_calls = []

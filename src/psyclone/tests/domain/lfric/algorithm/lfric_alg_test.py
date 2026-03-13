@@ -44,11 +44,10 @@ import pytest
 
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import (
-    KernCallInvokeArgList, LFRicKern, LFRicSymbolTable)
+from psyclone.domain.lfric import KernCallInvokeArgList, LFRicKern
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Container, Routine, ScopingNode
+from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, UnresolvedType, DataTypeSymbol,
     ImportInterface, ArrayType, ScalarType, INTEGER_TYPE)
@@ -73,9 +72,6 @@ def create_prog_fixture():
     :rtype: :py:class:`psyclone.psyir.nodes.Routine`
     '''
     Config.get().api = "lfric"
-    # The tests below sometime fail (depending of the number of parallel
-    # jobs) if the LFRicSymbolTable has not been not set up.
-    ScopingNode._symbol_table_class = LFRicSymbolTable
     prog = Routine.create("test_prog", is_program=True)
     mesh_mod = prog.symbol_table.new_symbol("mesh_mod",
                                             symbol_type=ContainerSymbol)

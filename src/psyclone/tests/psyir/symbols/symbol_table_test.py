@@ -430,6 +430,31 @@ def test_add_with_tags_hierarchical():
     container_symbol_table.add(symbol1, tag="symbol1_tag")
 
 
+def test_add_imported_symbol():
+    '''
+    Test that the add() method refuses to add a Symbol with an
+    ImportInterface if the ContainerSymbol it references is not in scope.
+
+    '''
+    table = symbols.SymbolTable()
+    csym = symbols.ContainerSymbol("my_mod")
+    isym = symbols.DataSymbol("avar", datatype=symbols.INTEGER_TYPE,
+                              interface=symbols.ImportInterface(csym))
+    with pytest.raises(symbols.SymbolError) as err:
+        table.add(isym)
+    assert ("Cannot add DataSymbol 'avar' because it is imported from "
+            "'my_mod' but that ContainerSymbol is not in scope"
+            in str(err.value))
+    table.add(csym)
+    isym2 = symbols.RoutineSymbol(
+        "my_sub", interface=symbols.ImportInterface(csym.copy()))
+    with pytest.raises(symbols.SymbolError) as err:
+        table.add(isym2)
+    assert ("Cannot add RoutineSymbol 'my_sub' because it is imported from "
+            "'my_mod' and the ContainerSymbol of that name in scope in this "
+            "table" in str(err.value))
+
+
 def test_symbols_imported_from():
     ''' Test the Symbol Table symbols_imported_from() method. '''
     sym_table = symbols.SymbolTable()
@@ -1076,6 +1101,111 @@ def test_add_container_symbols_from_table():
     assert aclash.name != "aclash"
     assert bclash_in_1 in table1.symbols
     assert bclash_in_1.name != "bclash"
+
+
+def test_update_symbol_dependencies():
+    '''Test the update_symbol_dependencies() method.'''
+    table = symbols.SymbolTable()
+    # Empty table should be fine.
+    table.update_symbol_dependencies()
+    # Entry without dependencies should be unaffected.
+    a_local = table.new_symbol("a_local", symbol_type=symbols.DataSymbol,
+                               datatype=symbols.INTEGER_TYPE)
+    table.update_symbol_dependencies()
+    assert table.lookup("a_local") is a_local
+
+    # We can't add a symbol to the table if it is imported from a Container
+    # that's not already in scope so just check that nothing changes.
+    csym = symbols.ContainerSymbol("a_module")
+    table.add(csym)
+    table.new_symbol("an_import", symbol_type=symbols.Symbol,
+                     interface=symbols.ImportInterface(csym))
+    table.update_symbol_dependencies()
+    assert csym in table.symbols
+    assert table.lookup("an_import").interface.container_symbol is csym
+
+    # Imported entry should have originating ContainerSymbol added if it
+    # isn't present.
+    csym2 = symbols.ContainerSymbol("b_module")
+    solver = symbols.DataSymbol("solver", symbols.UnresolvedType(),
+                                interface=symbols.ImportInterface(csym2))
+    table.new_symbol(
+        "v_solver", symbol_type=symbols.DataSymbol,
+        datatype=symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL,
+                                    Reference(solver)))
+    table.update_symbol_dependencies()
+    assert csym2 in table.symbols
+    assert solver in table.symbols
+
+    solver2 = solver.copy()
+    csym3 = csym2.copy()
+    # Create a Symbol that depends on another Symbol in its shape
+    # definition. In turn, that Symbol is imported from a different instance
+    # of the same Container that is already in scope.
+    stype = symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL,
+                               Reference(solver2))
+    count = symbols.DataSymbol("count", symbols.INTEGER_TYPE,
+                               interface=symbols.ImportInterface(csym3))
+    artype = symbols.ArrayType(stype, [Reference(count)])
+    table.new_symbol("my_array", symbol_type=symbols.DataSymbol,
+                     datatype=artype)
+    table.update_symbol_dependencies()
+    array = table.lookup("my_array")
+    # Symbol in shape definition should have been added to the table and its
+    # import interface updated to point to the instance of "b_module" already
+    # in the table.
+    sym = array.datatype.shape[0].upper.symbol
+    assert sym in table.symbols
+    assert sym.interface.container_symbol is csym2
+
+    # Repeat but have the array sized by a variable with the same name as
+    # an existing (Container)Symbol.
+    clash = symbols.DataSymbol("b_module", symbols.INTEGER_TYPE)
+    artype2 = symbols.ArrayType(stype, [Reference(clash)])
+    table.new_symbol("my_array2", symbol_type=symbols.DataSymbol,
+                     datatype=artype2)
+    with pytest.raises(symbols.SymbolError) as err:
+        table.update_symbol_dependencies()
+    assert ("which is not of the same type as the original dependency"
+            in str(err.value))
+
+
+def test_update_import_interface():
+    '''Test the update_import_interface() method.'''
+    table1 = symbols.SymbolTable()
+    local_sym = table1.new_symbol("local", symbol_type=symbols.DataSymbol,
+                                  datatype=symbols.INTEGER_TYPE)
+    with pytest.raises(ValueError) as err:
+        table1.update_import_interface(local_sym)
+    assert ("Expected a Symbol with an ImportInterface but 'local' has a "
+            "Automatic interface" in str(err.value))
+
+    # When the symbol is imported from a ContainerSymbol not present in the
+    # current scope then that ContainerSymbol is added.
+    orig_csym = symbols.ContainerSymbol("kinds_mod")
+    isym = symbols.DataSymbol("wp", symbols.INTEGER_TYPE,
+                              interface=symbols.ImportInterface(orig_csym))
+    table1.update_import_interface(isym)
+    assert isym.interface.container_symbol in table1.symbols
+    # When the symbol is imported from a ContainerSymbol with a name
+    # corresponding to a different ContainerSymbol instance in the current
+    # scope the the interface is updated to use that ContainerSymbol.
+    new_csym = symbols.ContainerSymbol("kinds_mod")
+    dp = symbols.DataSymbol("dp", symbols.INTEGER_TYPE,
+                            interface=symbols.ImportInterface(new_csym))
+    table1.update_import_interface(dp)
+    assert dp.interface.container_symbol is orig_csym
+    # When the symbol is imported from a ContainerSymbol that has a clash with
+    # a different type of symbol in the current scope.
+    table1.new_symbol("the_clash")
+    clash_csym = symbols.ContainerSymbol("the_clash")
+    qp = symbols.DataSymbol("qp", symbols.INTEGER_TYPE,
+                            interface=symbols.ImportInterface(clash_csym))
+    with pytest.raises(symbols.SymbolError) as err:
+        table1.update_import_interface(qp)
+    assert ("Cannot update the import interface of 'qp' because the name of "
+            "the Container from which it is imported ('the_clash') clashes "
+            "with an existing Symbol in this scope." in str(err.value))
 
 
 def test_add_symbols_from_table_wildcard_import():

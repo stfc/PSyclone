@@ -43,16 +43,17 @@
 '''
 
 from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicConstants,
-                                   LFRicSymbolTable, LFRicTypes)
+                                   LFRicTypes)
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric import LFRicKern
 from psyclone.errors import InternalError
+from psyclone.lfric import add_lfric_precision_symbol
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Container, Literal,
-                                  Reference, Routine, ScopingNode)
+                                  Reference, Routine)
 from psyclone.psyir.symbols import (
     UnresolvedType, UnsupportedFortranType, DataTypeSymbol, DataSymbol,
     ArrayType, ImportInterface, ContainerSymbol, RoutineSymbol,
@@ -130,7 +131,7 @@ class LFRicAlg:
         # arbitrary value, we use an *integer* literal for this, irrespective
         # of the actual type of the scalar argument. The compiler/run-time will
         # take care of appropriate type casting.
-        table.add_lfric_precision_symbol("i_def")
+        add_lfric_precision_symbol(table, "i_def")
         for sym in kern_args.scalars:
             sub.addchild(Assignment.create(
                 Reference(sym),
@@ -143,7 +144,7 @@ class LFRicAlg:
         # integer rather than real) we rely on type casting by the
         # compiler/run-time.
         factory = LFRicBuiltinFunctorFactory.get()
-        table.add_lfric_precision_symbol("r_def")
+        add_lfric_precision_symbol(table, "r_def")
         kernel_list = []
         for sym, _ in kern_args.fields:
             kernel_list.append(
@@ -188,10 +189,6 @@ class LFRicAlg:
         if not isinstance(name, str):
             raise TypeError(f"Supplied routine name must be a str but got "
                             f"'{type(name).__name__}'")
-        # Make sure the scoping node creates LFRicSymbolTables
-        # pylint: disable=protected-access
-        # TODO #1954 Remove the protected access using a factory
-        ScopingNode._symbol_table_class = LFRicSymbolTable
         alg_sub = Routine.create(name)
         table = alg_sub.symbol_table
 
@@ -319,7 +316,7 @@ class LFRicAlg:
         '''
         reader = FortranReader()
 
-        prog.symbol_table.add_lfric_precision_symbol("i_def")
+        add_lfric_precision_symbol(prog.symbol_table, "i_def")
 
         if isinstance(sym.datatype, DataTypeSymbol):
             # Single field argument.
