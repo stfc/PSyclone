@@ -90,6 +90,7 @@ def test_field_xyoz(tmpdir):
         "quadrature_xyoz_type\n"
         "    use testkern_qr_mod, only : testkern_qr_code\n" in generated_code)
     assert """
+    integer(kind=i_def) :: cell
     type(field_type), intent(in) :: f1
     type(field_type), intent(in) :: f2
     type(field_type), intent(in) :: m1
@@ -97,7 +98,6 @@ def test_field_xyoz(tmpdir):
     type(field_type), intent(in) :: m2
     integer(kind=i_def), intent(in) :: istp
     type(quadrature_xyoz_type), intent(in) :: qr
-    integer(kind=i_def) :: cell
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
@@ -304,12 +304,12 @@ def test_face_qr(tmpdir, dist_mem):
         "    use testkern_qr_faces_mod, only : testkern_qr_faces_code\n")
     assert output_decls in generated_code
     assert """\
+    integer(kind=i_def) :: cell
     type(field_type), intent(in) :: f1
     type(field_type), intent(in) :: f2
     type(field_type), intent(in) :: m1
     type(field_type), intent(in) :: m2
     type(quadrature_face_type), intent(in) :: qr
-    integer(kind=i_def) :: cell
 """ in generated_code
 
     if dist_mem:

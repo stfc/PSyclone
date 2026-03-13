@@ -509,8 +509,8 @@ def test_apply_explicit_range(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n")
     expected = (
         "subroutine dot_product_test(basis_w1)\n"
-        "  real, dimension(:) :: basis_w1\n"
         "  real, dimension(3) :: wind\n"
+        "  real, dimension(:) :: basis_w1\n"
         "  integer :: result\n"
         "  integer :: i\n"
         "  real :: res_dot_product\n\n"
