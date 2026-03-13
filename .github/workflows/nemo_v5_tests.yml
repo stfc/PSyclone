@@ -152,7 +152,7 @@ jobs:
         ./nemo
         tail run.stat
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
-        for file in *.nc; do
+        for file in BENCH_*.nc; do
           diff <(ncdump ${file} | sed --expression='/TimeStamp/d') \
                <(ncdump /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5-BENCH-KGOs/${file} | sed --expression='/TimeStamp/d')
         done
@@ -263,7 +263,7 @@ jobs:
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         # We can compare all digits for this build
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
-        for file in *.nc; do
+        for file in BENCH_*.nc; do
           diff <(ncdump ${file} | sed --expression='/TimeStamp/d') \
                <(ncdump /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5-BENCH-KGOs/${file} | sed --expression='/TimeStamp/d')
         done
@@ -402,7 +402,7 @@ jobs:
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         # We can compare all digits for this build
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
-        for file in *.nc; do
+        for file in BENCH_*.nc; do
           diff <(ncdump ${file} | sed --expression='/TimeStamp/d') \
                <(ncdump /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5-BENCH-KGOs/${file} | sed --expression='/TimeStamp/d')
         done
