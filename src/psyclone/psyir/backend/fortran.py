@@ -40,6 +40,8 @@
 from a PSyIR tree. '''
 
 # pylint: disable=too-many-lines
+from typing import Union
+
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
@@ -51,10 +53,10 @@ from psyclone.psyir.nodes import (
     Literal, Node, OMPDependClause, OMPReductionClause, Operation, Range,
     Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
-    RoutineSymbol, ScalarType, StructureType, Symbol, SymbolTable,
-    UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
+    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataType,
+    DataTypeSymbol, GenericInterfaceSymbol, IntrinsicSymbol,
+    PreprocessorInterface, RoutineSymbol, ScalarType, StructureType, Symbol,
+    SymbolTable, UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
     UnsupportedType, TypedSymbol)
 
 
@@ -263,20 +265,19 @@ class FortranWriter(LanguageWriter):
             if mapping_key not in reverse_dict:
                 reverse_dict[mapping_key] = mapping_value.upper()
 
-    def gen_datatype(self, datatype, name):
+    def gen_datatype(self,
+                     datatype: Union[DataType, DataTypeSymbol],
+                     name: str) -> str:
         '''Given a DataType instance as input, return the Fortran datatype
         of the symbol including any specific precision properties.
 
         :param datatype: the DataType or DataTypeSymbol describing the type of
                          the declaration.
-        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or
-                        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-        :param str name: the name of the symbol being declared (only used for
-                         error messages).
+        :param name: the name of the symbol being declared (only used for
+                     error messages).
 
         :returns: the Fortran representation of the symbol's datatype
                   including any precision properties.
-        :rtype: str
 
         :raises NotImplementedError: if the symbol has an unsupported
             datatype.
@@ -296,9 +297,9 @@ class FortranWriter(LanguageWriter):
             return f"type({datatype.name})"
 
         if (isinstance(datatype, ArrayType) and
-                isinstance(datatype.intrinsic, DataTypeSymbol)):
+                isinstance(datatype.elemental_type, DataTypeSymbol)):
             # Symbol is an array of derived types
-            return f"type({datatype.intrinsic.name})"
+            return f"type({datatype.elemental_type.name})"
 
         try:
             fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
@@ -308,6 +309,10 @@ class FortranWriter(LanguageWriter):
                 f"'{name}' found in gen_datatype().") from error
 
         precision = datatype.precision
+        if isinstance(datatype, ArrayType):
+            scalar_type = datatype.elemental_type
+        else:
+            scalar_type = datatype
 
         if isinstance(precision, int):
             if fortrantype not in ['real', 'integer', 'logical']:
@@ -342,9 +347,9 @@ class FortranWriter(LanguageWriter):
                     f"ScalarType.Precision.DOUBLE is not supported for "
                     f"datatypes other than floating point numbers in "
                     f"Fortran, found '{fortrantype}'")
-            if datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            if scalar_type.intrinsic == ScalarType.Intrinsic.CHARACTER:
                 # Include length information.
-                return f"{fortrantype}(len={self._visit(datatype.length)})"
+                return f"{fortrantype}(len={self._visit(scalar_type.length)})"
             return fortrantype
 
         if isinstance(precision, DataNode):
@@ -353,9 +358,9 @@ class FortranWriter(LanguageWriter):
                     f"kind not supported for datatype '{fortrantype}' in "
                     f"symbol '{name}' in Fortran backend.")
             len_str = ""
-            if datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            if scalar_type.intrinsic == ScalarType.Intrinsic.CHARACTER:
                 # Include length information.
-                len_str = f", len={self._visit(datatype.length)}"
+                len_str = f", len={self._visit(scalar_type.length)}"
             # The precision information is provided by a parameter,
             # so use KIND.
             return f"{fortrantype}(kind={self._visit(precision)}{len_str})"

@@ -388,12 +388,24 @@ class ScalarType(DataType):
         DOUBLE = 2
         UNDEFINED = 3
 
-        def copy(self):
+        def copy(self) -> Precision:
             '''
             :returns: a copy of self.
-            :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`
             '''
             return copy.copy(self)
+
+    class CharLengthParameter(Enum):
+        ASTERISK = 1
+        COLON = 2
+
+        def copy(self) -> CharLengthParameter:
+            '''
+            :returns: a copy of self.
+            '''
+            return copy.copy(self)
+
+        def debug_string(self) -> str:
+            return self.name
 
     #: Mapping from PSyIR scalar data types to intrinsic Python types
     #: ignoring precision.
@@ -477,7 +489,8 @@ class ScalarType(DataType):
                 from psyclone.psyir.nodes.literal import Literal
                 # Default length of a character string is 1.
                 self._length = Literal("1", INTEGER_TYPE)
-            self._length = None
+            else:
+                self._length = None
             return
 
         if self._intrinsic != ScalarType.Intrinsic.CHARACTER:
@@ -488,30 +501,21 @@ class ScalarType(DataType):
 
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.datanode import DataNode
-        if isinstance(value, str):
-            if value not in [":", "*"]:
-                raise ValueError(
-                    f"If the length of a CharacterType is specified as a "
-                    f"str then it must contain only ':' or '*' but got: "
-                    f"'{value}'")
-            from psyclone.psyir.nodes.literal import Literal
-            # We could have an Enum to record ':' and '*' but I don't think
-            # that buys us anything over just storing the strings.
-            self._length = Literal(
-                value, ScalarType(ScalarType.Intrinsic.CHARACTER,
-                                  ScalarType.Precision.UNDEFINED, 1))
+        if isinstance(value, ScalarType.CharLengthParameter):
+            self._length = value
         elif isinstance(value, int) and not isinstance(value, bool):
             if value < 0:
                 raise ValueError(
                     f"If the length of a character ScalarType is specified "
                     f"using an int then it must be >= 0 but got: {value}")
-            from psyclone.psyir.nodes import Literal
+            from psyclone.psyir.nodes.literal import Literal
             self._length = Literal(str(value), INTEGER_TYPE)
         elif isinstance(value, DataNode):
             self._length = value
         else:
             raise TypeError(
-                f"The length property of a CharacterType must be an int, str "
+                f"The length property of a CharacterType must be an int, "
+                f"ScalarType.CharLengthParameter "
                 f"or DataNode but got '{type(value).__name__}'")
 
     @property

@@ -141,7 +141,7 @@ def test_gen_indices_error(fortran_writer):
     "type_name,result",
     [(ScalarType.Intrinsic.REAL, "real"),
      (ScalarType.Intrinsic.INTEGER, "integer"),
-     (ScalarType.Intrinsic.CHARACTER, "character"),
+     (ScalarType.Intrinsic.CHARACTER, "character(len=1)"),
      (ScalarType.Intrinsic.BOOLEAN, "logical")])
 def test_gen_datatype_default_precision(fortran_writer, type_name, result):
     '''Check for all supported datatype names that the gen_datatype
@@ -167,7 +167,7 @@ def test_gen_datatype_default_precision(fortran_writer, type_name, result):
       "double precision"),
      (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.SINGLE, "integer"),
      (ScalarType.Intrinsic.CHARACTER, ScalarType.Precision.SINGLE,
-      "character"),
+      "character(len=1)"),
      (ScalarType.Intrinsic.BOOLEAN, ScalarType.Precision.SINGLE, "logical"),])
 def test_gen_datatype_relative_precision(fortran_writer, type_name, precision,
                                          result):
@@ -299,11 +299,8 @@ def test_gen_datatype_kind_precision(fortran_writer, type_name, result):
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
         if type_name == ScalarType.Intrinsic.CHARACTER:
-            with pytest.raises(VisitorError) as excinfo:
-                fortran_writer.gen_datatype(my_type, symbol_name)
-            assert (f"kind not supported for datatype 'character' in symbol "
-                    f"'{symbol_name}' in Fortran backend."
-                    in str(excinfo.value))
+            assert (fortran_writer.gen_datatype(my_type, symbol_name) ==
+                    f"{result}(kind={precision_name}, len=1)")
         else:
             assert (fortran_writer.gen_datatype(my_type, symbol_name) ==
                     f"{result}(kind={precision_name})")

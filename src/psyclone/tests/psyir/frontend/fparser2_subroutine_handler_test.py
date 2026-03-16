@@ -187,7 +187,7 @@ def test_function_handler(fortran_reader, fortran_writer):
 @pytest.mark.parametrize("basic_type, rhs_val", [("real", "1.0"),
                                                  ("integer", "1"),
                                                  ("logical", ".false."),
-                                                 ("character", "'b'")])
+                                                 ("character(len=1)", "'b'")])
 def test_function_type_prefix(fortran_reader, fortran_writer,
                               basic_type, rhs_val):
     '''

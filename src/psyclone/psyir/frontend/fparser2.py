@@ -1632,12 +1632,12 @@ class Fparser2Reader():
                 precision = self._process_precision(type_spec, parent)
             if not precision:
                 precision = default_precision(data_name)
-            # We don't support len or kind specifiers for character variables
-            if fort_type == "character" and type_spec.children[1]:
-                raise NotImplementedError(
-                    f"Length or kind attributes not supported on a character "
-                    f"variable: '{type_spec}'")
-            base_type = ScalarType(data_name, precision)
+
+            if fort_type == "character":
+                # Character types can have a length
+                char_len = self._process_char_length(type_spec, parent)
+
+            base_type = ScalarType(data_name, precision, length=char_len)
 
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
             # This is a variable of derived type
@@ -2827,11 +2827,13 @@ class Fparser2Reader():
         '''
         symbol_table = psyir_parent.scope.symbol_table
 
-        if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
+        for child in type_spec.children:
+            if isinstance(child, Fortran2003.Kind_Selector):
+                kind_selector = child
+                break
+        else:
             # No precision is specified
             return None
-
-        kind_selector = type_spec.items[1]
 
         if (isinstance(kind_selector.children[0], str) and
                 kind_selector.children[0] == "*"):
@@ -2888,6 +2890,37 @@ class Fparser2Reader():
                 f"{kind_expression.debug_string()}"
             )
         return kind_expression
+
+    def _process_char_length(self,
+                             type_spec,
+                             psyir_parent: Node) -> Optional[DataNode]:
+        '''
+        '''
+        for child in type_spec.children:
+            if isinstance(child, Fortran2003.Length_Selector):
+                len_selector = child
+                break
+        else:
+            # No length is specified
+            return None
+
+        # Children 0 holds '(' for a '(len=xxx)'
+        # or '*' for a '* char-length'
+        if isinstance(len_selector.children[1],
+                      Fortran2003.Char_Length):
+            char_len = len_selector.children[1].children[1]
+        else:
+            char_len = len_selector.children[1]
+
+        if isinstance(char_len, Fortran2003.Type_Param_Value):
+            if char_len.string == ":":
+                return ScalarType.CharLengthParameter.COLON
+            return ScalarType.CharLengthParameter.ASTERISK
+
+        dummy = Assignment(parent=psyir_parent)
+        dummy.addchild(Reference(Symbol("a")))
+        self.process_nodes(parent=dummy, nodes=[char_len])
+        return dummy.rhs.detach()
 
     def _add_comments_to_tree(self, parent: Node, preceding_comments,
                               psy_child: Node) -> None:
@@ -5577,10 +5610,10 @@ class Fparser2Reader():
             if routine_node.name.lower() == name.lower():
                 routine = routine_node
                 break
-        if routine is None:
+        else:
             routine = Routine.create(name)
             # We add this to the parent so the finally of the next block
-            # can safe call detach on the routine. This handles the case
+            # can safely call detach on the routine. This handles the case
             # where an error occurs which should result in a codeblock, but
             # we had forward declared the Routine and we need to ensure the
             # empty Routine is detached from the tree.
