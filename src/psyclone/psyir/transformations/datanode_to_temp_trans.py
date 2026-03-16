@@ -147,9 +147,11 @@ class DataNodeToTempTrans(Transformation):
                     symbols.update(element.upper.get_all_accessed_symbols())
                 # Compare the symbols in the array bounds with the symbols
                 # already in the scope.
-                scope_symbols = node.scope.symbol_table.get_symbols()
+                scope_table = node.scope.symbol_table
                 for sym in symbols:
-                    scoped_name_sym = scope_symbols.get(sym.name, None)
+                    scoped_name_sym = scope_table.lookup(
+                        sym.name, otherwise=None
+                    )
                     # If sym is not scoped_name_sym, then there is a
                     # symbol collision from an imported symbol.
                     if scoped_name_sym and sym is not scoped_name_sym:
@@ -176,9 +178,9 @@ class DataNodeToTempTrans(Transformation):
                     # If its an imported symbol we need to check if its
                     # the same import interface.
                     if isinstance(sym.interface, ImportInterface):
-                        scoped_name_sym = scope_symbols.get(
-                                sym.interface.container_symbol.name,
-                                None
+                        scoped_name_sym = scope_table.lookup(
+                            sym.interface.container_symbol.name,
+                            otherwise=None
                         )
                         if scoped_name_sym and not isinstance(
                                 scoped_name_sym, ContainerSymbol):
@@ -248,18 +250,20 @@ class DataNodeToTempTrans(Transformation):
                     symbols.update(element.lower.get_all_accessed_symbols())
                 if isinstance(element.upper, DataNode):
                     symbols.update(element.upper.get_all_accessed_symbols())
-                scope_symbols = node.scope.symbol_table.get_symbols()
+                scope_table = node.scope.symbol_table
                 for sym in symbols:
-                    scoped_name_sym = scope_symbols.get(sym.name, None)
+                    scoped_name_sym = scope_table.lookup(
+                        sym.name, otherwise=None
+                    )
                     # If no symbol with the name exists then create one.
                     if not scoped_name_sym:
                         sym_copy = sym.copy()
                         if isinstance(sym_copy.interface, ImportInterface):
                             # Check if the ContainerSymbol is already in the
                             # interface
-                            container = scope_symbols.get(
+                            container = scope_table.lookup(
                                 sym_copy.interface.container_symbol.name,
-                                None
+                                otherwise=None
                             )
                             if container is None:
                                 # Add the container symbol to the symbol table
