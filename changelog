@@ -1,3 +1,8 @@
+   63) PR #3372 for #3369. Extends NEMOv5 integration tests to do output
+   and compares the resulting files with KGOs.   
+
+   62) PR #3363 towards #2971. Move MoveTrans into psyir.transformations.
+ 
    61) PR #3336 for #3325. Improve datatype method to prevent returning
    array Extents and select better operand type when possible.
 
