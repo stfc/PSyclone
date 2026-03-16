@@ -89,6 +89,8 @@ TL_IF_CODE = (
     "end subroutine test\n"
 )
 
+TEST_LOGGER = "psyclone.psyad.adjoint_visitor"
+
 
 def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
                   tmpdir, fortran_writer):
@@ -175,10 +177,10 @@ def test_create_container_logger(caplog):
     '''
     tangent_linear = FileContainer("blah")
     adj_visitor = AdjointVisitor(["dummy"])
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
         _ = adj_visitor.container_node(tangent_linear)
         assert caplog.text == ""
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger=TEST_LOGGER):
         _ = adj_visitor._visit(tangent_linear)
         assert "Copying Container" in caplog.text
 
@@ -221,10 +223,10 @@ def test_create_schedule_logger(caplog, fortran_reader):
     tl_schedule = tl_psyir.children[0]
     assert isinstance(tl_schedule, Schedule)
     adj_visitor = AdjointVisitor(["a", "b", "c"])
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
         _ = adj_visitor.schedule_node(tl_schedule)
         assert caplog.text == ""
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger=TEST_LOGGER):
         _ = adj_visitor._visit(tl_schedule)
         assert "Transforming Schedule" in caplog.text
         assert "Zero-ing any local active variables" in caplog.text
@@ -522,10 +524,10 @@ def test_assignment_node_logger(caplog, fortran_reader):
     adj_visitor = AdjointVisitor(["a", "b", "c"])
     # set up self._active_variables
     _ = adj_visitor._visit(tl_psyir)
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
         _ = adj_visitor.assignment_node(assignment)
         assert caplog.text == ""
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger=TEST_LOGGER):
         _ = adj_visitor.assignment_node(assignment)
         assert "Transforming active assignment" in caplog.text
 
@@ -741,10 +743,10 @@ def test_loop_logger(fortran_reader, caplog):
     _ = adj_visitor._visit(tl_psyir)
 
     # active loop
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
         _ = adj_visitor.loop_node(tl_loop)
         assert caplog.text == ""
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger=TEST_LOGGER):
         _ = adj_visitor.loop_node(tl_loop)
         assert "Transforming active loop" in caplog.text
 
@@ -808,10 +810,10 @@ def test_ifblock_logger(fortran_reader, caplog):
     tl_psyir = fortran_reader.psyir_from_source(TL_IF_CODE)
 
     adj_visitor = AdjointVisitor(["d", "e"])
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
         _ = adj_visitor._visit(tl_psyir)
         assert "Transforming active ifblock" not in caplog.text
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger=TEST_LOGGER):
         _ = adj_visitor._visit(tl_psyir)
         assert "Transforming active ifblock" in caplog.text
 

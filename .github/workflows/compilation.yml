@@ -51,14 +51,14 @@ on:
   push
 
 env:
-  CUDA_VERSION: 13
-  GFORTRAN_VERSION: 15
-  HDF5_VERSION: 1.14
-  NETCDF_C_VERSION: 4.9
-  NETCDF_FORTRAN_VERSION: 4.6
-  NVFORTRAN_VERSION: 26.1
-  OPENMPI_VERSION: 5.0
-  PYTHON_VERSION: 3.14
+  CUDA_VERSION: "13"
+  GFORTRAN_VERSION: "15"
+  HDF5_VERSION: "2.1"
+  NETCDF_C_VERSION: "4.10"
+  NETCDF_FORTRAN_VERSION: "4.6"
+  NVFORTRAN_VERSION: "26.1"
+  OPENMPI_VERSION: "5.0"
+  PYTHON_VERSION: "3.14"
   NUM_PARALLEL: 16
 
 jobs:
@@ -130,7 +130,7 @@ jobs:
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         module load cuda/${CUDA_VERSION}
         # TODO #3074: Examples compilation cannot be run in parallel
-        F90=gfortran make -C examples compile
+        F90=gfortran make -C examples run
     - name: Tutorials with compilation - gfortran
       run: |
         . .runner_venv/bin/activate
@@ -150,7 +150,7 @@ jobs:
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         # TODO #3074: Examples compilation cannot be run in parallel
-        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C examples compile
+        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C examples run
     - name: Tutorials with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate

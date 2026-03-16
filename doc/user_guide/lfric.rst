@@ -2871,6 +2871,31 @@ scheme presented below. Any new Built-in needs to comply with these rules.
       ``real``-valued arguments and ``"LFRicInt"`` for the Built-in
       operations on the ``integer``-valued fields.
 
+Querying Built-in Operations
+++++++++++++++++++++++++++++
+
+Within a Python script, the (lowercase) names of all available
+Built-ins in the LFRIc API can be queried using the ``BUILTIN_MAP``
+dictionary object from the ``psyclone.domain.lfric.lfric_builtins``
+module.
+
+Example code:
+
+.. highlight:: python
+.. testcode::
+
+    from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
+    
+    kernel_name = "setval_x"    # example only
+    if kernel_name.lower() in BUILTIN_MAP:
+        print(f"Name '{kernel_name}' is a Built-in kernel.")
+    else:
+        print(f"Name '{kernel_name}' is not a Built-in.")
+
+.. testoutput::
+
+  Name 'setval_x' is a Built-in kernel.
+
 .. _lfric-built-ins-real:
 
 Built-in operations on ``real``-valued fields
@@ -3462,10 +3487,6 @@ Global minimum and maximum field-element values
 Built-ins which scan through all elements of a field and return its
 maximum or minimum value.
 
-.. warning::
-   Support for these built-ins is not yet complete and therefore they
-   cannot currently be used. TODO #2381.
-
 minval_X
 ^^^^^^^^
 
@@ -3948,7 +3969,16 @@ Run-time Checks
 PSyclone performs static consistency checks where possible. When this
 is not possible PSyclone can generate run-time checks. As there may be
 performance costs associated with run-time checks they may be switched
-on or off by the `RUN_TIME_CHECKS` option in the configuration file.
+on or off by the `RUN_TIME_CHECKS` option in the configuration file
+(or by using the ``--config-opts`` command line option to overwrite
+the setting in the configuration file). The value of `RUN_TIME_CHECKS`
+must be one of:
+
+- `none` No runtime checks will be added (default)
+- `warn` Runtime checks will be added, and violations will cause a warning
+  message to be logged.
+- `error` Runtime checks will be added, and violations will cause an error
+  message to be logged. The application will then abort.
 
 Currently run-time checks can be generated to:
 

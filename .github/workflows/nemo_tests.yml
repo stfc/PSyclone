@@ -42,13 +42,13 @@ on:
   push
 
 env:
-  HDF5_VERSION: 1.14
-  NETCDF_C_VERSION: 4.9
-  NETCDF_FORTRAN_VERSION: 4.6
-  NVFORTRAN_VERSION: 26.1
+  HDF5_VERSION: "2.1"
+  NETCDF_C_VERSION: "4.10"
+  NETCDF_FORTRAN_VERSION: "4.6"
+  NVFORTRAN_VERSION: "26.1"
   INTEL_TOOLCHAIN: intel25_3_openmpi
-  PERL_VERSION: 5.42
-  PYTHON_VERSION: 3.14
+  PERL_VERSION: "5.42"
+  PYTHON_VERSION: "3.14"
   NUM_PARALLEL: 16
   PREFIX: /archive/psyclone-tests/latest-run/
 
@@ -202,7 +202,6 @@ jobs:
         # Load environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
         spack unload && spack load nemo-build-environment %${INTEL_TOOLCHAIN}
-        spack load intel-oneapi-compilers@2025.3.1
         source .runner_venv/bin/activate
 
         # Set up envvars

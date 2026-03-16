@@ -48,7 +48,7 @@ from psyclone.core import (AccessType, Signature, SymbolicMaths,
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Loop, Node, Range
+from psyclone.psyir.nodes import Loop, Node, Range, Reference
 
 
 # pylint: disable=too-many-lines
@@ -657,7 +657,21 @@ class DependencyTools():
                         return True
                 elif len(set_of_vars) == 1:
                     # One loop variable used in both accesses.
-                    # E.g. `a(2*i+3) = a(i*i)`
+                    # E.g. `a(2*i+3) = a(i*i)`. Add a shortcut for
+                    # a very common case - the index is a simple reference
+                    if (isinstance(index_write, Reference) and
+                            isinstance(index_other, Reference) and
+                            index_write == index_other):
+                        if index_write.name == loop_var:
+                            # a(j, ...) and a(j, ...) - these accesses
+                            # will never overlap for different j, independent
+                            # of the expressions in the other dimensions
+                            return True
+                        # The expression does not depend on the loop variable
+                        # at all (dependency distance would return None),
+                        # again no need for an explicit test, we can continue
+                        # the outer loop
+                        continue
                     distance = self._get_dependency_distance(loop_var,
                                                              index_write,
                                                              index_other)

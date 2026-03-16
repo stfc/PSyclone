@@ -41,7 +41,6 @@ invoke calls which uses specialised classes.
 from psyclone.domain.common.transformations import RaisePSyIR2AlgTrans
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicBuiltinFunctorFactory, LFRicKernelFunctor, LFRicAlgorithmInvokeCall)
-from psyclone.psyir.nodes import Call
 
 
 class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
@@ -74,7 +73,7 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
 
             if call.argument_names[idx]:
                 call_name = f"{call_arg.value}"
-            elif isinstance(call_arg, Call):
+            else:
                 symbol = call_arg.routine.symbol
                 args = call_arg.pop_all_children()[1:]
                 try:
@@ -83,23 +82,6 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
                     # No match for a builtin so create a user-defined kernel.
                     self._specialise_symbol(symbol)
                     calls.append(LFRicKernelFunctor.create(symbol, args))
-            else:
-                for fp2_node in call_arg.get_ast_nodes:
-                    # This child is a kernel or builtin
-                    name = fp2_node.children[0].string
-                    args = RaisePSyIR2AlgTrans._parse_args(call_arg,
-                                                           fp2_node)
-                    name = fp2_node.children[0].string
-                    try:
-                        calls.append(factory.create(name, table, args))
-                    except KeyError:
-                        # No match for a builtin so create a user-defined
-                        # kernel.
-                        type_symbol = RaisePSyIR2AlgTrans._get_symbol(
-                            call, fp2_node)
-                        self._specialise_symbol(type_symbol)
-                        calls.append(LFRicKernelFunctor.create(type_symbol,
-                                                               args))
 
         invoke_call = LFRicAlgorithmInvokeCall.create(
             call.routine.symbol, calls, index, name=call_name)

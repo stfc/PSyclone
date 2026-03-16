@@ -63,6 +63,7 @@ process: value_range_check_base.f90
 
 all:
 	$(MAKE) -C dl_esm_inf
+	$(MAKE) -C generic
 	$(MAKE) -C lfric
 
 %.f90:	%.jinja Makefile
@@ -79,8 +80,10 @@ value_range_check_base.o: psy_data_base.o
 clean:
 	rm -f value_range_check_base.f90 psy_data_base.f90 *.o *.mod
 	$(MAKE) -C dl_esm_inf clean
+	$(MAKE) -C generic clean
 	$(MAKE) -C lfric clean
 
 allclean: clean
 	$(MAKE) -C dl_esm_inf allclean
+	$(MAKE) -C generic allclean
 	$(MAKE) -C lfric allclean

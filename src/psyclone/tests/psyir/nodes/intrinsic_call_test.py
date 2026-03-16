@@ -44,14 +44,16 @@ TODO #2341 - tests need to be added for all of the supported intrinsics.
 
 import pytest
 
+from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     ArrayReference,
-    Literal,
-    Reference,
-    Schedule,
     Assignment,
-    Call
+    BinaryOperation,
+    Call,
+    Literal,
+    Schedule,
+    Reference,
 )
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall,
@@ -171,6 +173,32 @@ def test_intrinsiccall_datatype(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(IntrinsicCall)[0]
     assert isinstance(call.datatype, UnresolvedType)
+
+
+def test_intrinsiccall_reference_accesses_no_arg_names():
+    """Test the case of IntrinsicCall's reference_accesses method where the
+    call to compute_argument_names fails."""
+    # If the IntrinsicCall cannot compute the argument names (e.g. for SUM
+    # with no naming), it cannot guarantee the result of reference_accesses.
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
+    # References should be READWRITE.
+    intrinsic.addchild(Reference(DataSymbol("a", INTEGER_TYPE)))
+    # BinaryOperations should be READ
+    binop = BinaryOperation.create(
+            BinaryOperation.Operator.ADD,
+            Reference(DataSymbol("b", INTEGER_TYPE)),
+            Reference(DataSymbol("c", INTEGER_TYPE))
+    )
+    intrinsic.addchild(binop)
+    var_accs = intrinsic.reference_accesses()
+    sigs = var_accs.all_signatures
+    assert len(sigs) == 3
+    assert str(sigs[0]) == "a"
+    assert var_accs[sigs[0]][0].access_type == AccessType.READWRITE
+    assert str(sigs[1]) == "b"
+    assert var_accs[sigs[1]][0].access_type == AccessType.READ
+    assert str(sigs[2]) == "c"
+    assert var_accs[sigs[2]][0].access_type == AccessType.READ
 
 
 def test_intrinsiccall_is_elemental():
@@ -699,7 +727,7 @@ def test_type_of_arg_with_rank_minus_one(fortran_reader):
     assert isinstance(res2, ArrayType)
     assert len(res2.shape) == 2
     assert all(x == ArrayType.Extent.DEFERRED for x in res2.shape)
-    assert res2.datatype == REAL_TYPE
+    assert res2.elemental_type == REAL_TYPE
 
 
 def test_index_intrinsic(fortran_reader, fortran_writer):
@@ -830,7 +858,7 @@ def test_intrinsic_compute_argument_names_not_implemented_errors():
             in str(err.value))
 
     # The only case I can see that can hit line 2473
-    # (i not in available args: continue) is an invalid BESSEL_JN Intrinsic
+    # (if name not in optional_names) is an invalid BESSEL_JN Intrinsic
     # This is future-proofing for context-sensitive argument handling.
     # TODO #2302
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.BESSEL_JN)
@@ -1027,8 +1055,8 @@ def test_type_of_named_arg_with_optional_kind_and_dim(
     assert isinstance(dtype, ArrayType)
     assert len(dtype.shape) == 1
     assert dtype.shape[0] == ArrayType.Extent.DEFERRED
-    assert dtype.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
-    assert dtype.datatype.precision == ScalarType.Precision.UNDEFINED
+    assert dtype.elemental_type.intrinsic == ScalarType.Intrinsic.BOOLEAN
+    assert dtype.elemental_type.precision == ScalarType.Precision.UNDEFINED
     dtype = _type_of_named_arg_with_optional_kind_and_dim(
             all_calls[2], "array"
     )
@@ -1328,7 +1356,7 @@ def test_get_bound_function_return_type(fortran_reader):
     res = _get_bound_function_return_type(intrinsics[0])
     assert isinstance(res, ArrayType)
     assert len(res.shape) == 1
-    assert res.datatype == INTEGER_TYPE
+    assert res.elemental_type == INTEGER_TYPE
     assert res.shape[0].lower.value == "1"
     assert res.shape[0].upper.value == "2"
 

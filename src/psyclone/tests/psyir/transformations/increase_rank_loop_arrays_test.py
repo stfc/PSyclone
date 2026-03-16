@@ -221,13 +221,16 @@ def test_irla_apply(fortran_reader, fortran_writer):
 
 def test_irla_apply_accesses_outside_loop(
         fortran_reader, fortran_writer, tmpdir):
-    ''' Check that the accesses outside the loop are also populate the whole
-    array, this will imply duplicated computations for each value '''
+    ''' Check that simple accesses outside the loop, such as array
+    assignments where we can populate the whole array, or uses within
+    an inquiry intrinsic with a 'dim' which will return information
+    about the same rank, are valid. '''
     psyir = fortran_reader.psyir_from_source("""
      program test
          integer, parameter :: N=10, M=10
          integer :: i, j
          real, dimension(N) :: ztmp
+         integer :: size_of_ztmp_dim
          ! Implicit loops
          ztmp = 1
          ! Range loop
@@ -243,6 +246,7 @@ def test_irla_apply_accesses_outside_loop(
              end do
              ztmp(:) = 5
          end do
+         size_of_ztmp_dim = SIZE(ztmp, dim=1)
      end program
     """)
     trans = IncreaseRankLoopArraysTrans()

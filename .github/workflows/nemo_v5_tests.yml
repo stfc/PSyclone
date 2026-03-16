@@ -45,7 +45,7 @@ env:
   GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_TOOLCHAIN: nvhpc26_1_openmpi
   INTEL_TOOLCHAIN: intel25_3_openmpi
-  PYTHON_VERSION: 3.14
+  PYTHON_VERSION: "3.14"
   NUM_PARALLEL: 16
 
 jobs:
@@ -152,6 +152,10 @@ jobs:
         ./nemo
         tail run.stat
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
+        for file in BENCH_*.nc; do
+          diff <(ncdump ${file} | sed --expression='/TimeStamp/d') \
+               <(ncdump /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5-BENCH-KGOs/${file} | sed --expression='/TimeStamp/d')
+        done
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
 
@@ -259,6 +263,10 @@ jobs:
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         # We can compare all digits for this build
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
+        for file in BENCH_*.nc; do
+          diff <(ncdump ${file} | sed --expression='/TimeStamp/d') \
+               <(ncdump /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5-BENCH-KGOs/${file} | sed --expression='/TimeStamp/d')
+        done
 
         # Now do a fast-build (without reproducible or profiling options, which have a
         # big impact for BENCH due to some inner-loop REAL intrinsics)
@@ -347,6 +355,10 @@ jobs:
         export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
+        for file in ORCA2_*.nc; do
+          diff <(ncdump ${file} | sed --expression='/TimeStamp/d') \
+               <(ncdump /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5-ORCA2-KGOs/${file} | sed --expression='/TimeStamp/d')
+        done
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
@@ -390,6 +402,10 @@ jobs:
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         # We can compare all digits for this build
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
+        for file in BENCH_*.nc; do
+          diff <(ncdump ${file} | sed --expression='/TimeStamp/d') \
+               <(ncdump /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5-BENCH-KGOs/${file} | sed --expression='/TimeStamp/d')
+        done
 
         # Now do a fast-build (without reproducible or profiling options, which have a
         # big impact for BENCH due to some inner-loop REAL intrinsics)
@@ -441,6 +457,10 @@ jobs:
         export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
+        for file in ORCA2_*.nc; do
+          diff <(ncdump ${file} | sed --expression='/TimeStamp/d') \
+               <(ncdump /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv5-ORCA2-KGOs/${file} | sed --expression='/TimeStamp/d')
+        done
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 

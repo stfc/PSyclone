@@ -507,13 +507,13 @@ def test_mod_manager_load_all_module_trigger_error_module_read_twice(
     mod_man.add_files("d1/a_mod.f90")
 
     # Load all module infos
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger="psyclone.parse.module_manager"):
         mod_man.load_all_module_infos()
 
     assert "Loading module information for file 'd1/a_mod.f90'" in caplog.text
 
     # Doing this a 2nd time should not raise any error
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger="psyclone.parse.module_manager"):
         mod_man.load_all_module_infos()
 
     assert "Module 'a_mod' already processed" in caplog.text

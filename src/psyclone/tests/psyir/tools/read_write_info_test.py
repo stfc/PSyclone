@@ -148,7 +148,8 @@ def test_remove_var(caplog) -> None:
 
     # sig_b must have the module name specified,
     # otherwise it must not be removed, and a warning must be logged:
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.tools.read_write_info"):
         rwi.remove(sig_b)
     assert ("Variable 'b' is to be removed from ReadWriteInfo, but it's "
             "neither in the list of read variables" in caplog.text)
