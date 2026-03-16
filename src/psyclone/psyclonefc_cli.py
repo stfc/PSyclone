@@ -82,7 +82,7 @@ def compiler_wrapper(arguments):
     '''
     fortran_compiler = os.getenv("PSYCLONE_COMPILER", default=None)
     psyclone_options = os.getenv("PSYCLONE_OPTS", default="").split(' ')
-    psyclone_exclude_files = os.getenv("PSYCLONE_EXCLUDE_FILES", default="").split(',')
+    psyclone_exclude_files = os.getenv("PSYCLONEFC_EXCLUDE_FILES", default="").split(',')
 
     # Validate mandatory PSYCLONE_COMPILER
     if fortran_compiler is None:

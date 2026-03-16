@@ -92,7 +92,7 @@ def test_psyclonefc(monkeypatch, capsys):
         'PSYCLONE_COMPILER': 'true',
         # Also check that multi-spaces are fine
         'PSYCLONE_OPTS': '  -l   output  ',
-        'PSYCLONE_EXCLUDE_FILES': 'source3.f90',
+        'PSYCLONEFC_EXCLUDE_FILES': 'source3.f90',
     })
     with pytest.raises(SystemExit) as err:
         compiler_wrapper(['source1.f90', 'source2.f90', 'source3.f90', '-c', '-o', 'app.exe'])
