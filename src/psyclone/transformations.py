@@ -63,7 +63,7 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Directive, Literal, Loop,
     Return, Schedule, PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -1184,109 +1184,6 @@ class ACCParallelTrans(ParallelRegionTrans):
         # of the nodes being enclosed and at the original location
         # of the first of these nodes
         node_parent.addchild(directive, index=node_position)
-
-
-class MoveTrans(Transformation):
-    '''Provides a transformation to move a node in the tree. For
-    example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> ast,invokeInfo=parse("lfric.F90")
-    >>> psy=PSyFactory("lfric").create(invokeInfo)
-    >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> from psyclone.transformations import MoveTrans
-    >>> trans=MoveTrans()
-    >>> trans.apply(schedule.children[0], schedule.children[2],
-    ...             options = {"position":"after")
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-
-    Nodes may only be moved to a new location with the same parent
-    and must not break any dependencies otherwise an exception is
-    raised.'''
-
-    def __str__(self):
-        return "Move a node to a different location"
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "Move"
-
-    def validate(self, node, location, options=None):
-        # pylint: disable=arguments-differ
-        ''' validity checks for input arguments.
-
-        :param node: the node to be moved.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param location: node before or after which the given node\
-            should be moved.
-        :type location: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["position"]: either 'before' or 'after'.
-
-        :raises TransformationError: if the given node is not an instance \
-            of :py:class:`psyclone.psyir.nodes.Node`
-        :raises TransformationError: if the location is not valid.
-        '''
-
-        # Check that the first argument is a Node
-        if not isinstance(node, Node):
-            raise TransformationError(
-                "In the Move transformation apply method the first argument "
-                "is not a Node")
-
-        # Check new location conforms to any data dependencies
-        # This also checks the location and position arguments
-        if not options:
-            options = {}
-        position = options.get("position", "before")
-        if not node.is_valid_location(location, position=position):
-            raise TransformationError(
-                "In the Move transformation apply method, data dependencies "
-                "forbid the move to the new location")
-
-    def apply(self, node, location, options=None):
-        '''Move the node represented by :py:obj:`node` before location
-        :py:obj:`location` (which is also a node) by default and after
-        if the optional `position` argument is set to 'after'.
-
-        :param node: the node to be moved.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param location: node before or after which the given node\
-            should be moved.
-        :type location: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["position"]: either 'before' or 'after'.
-
-        :raises TransformationError: if the given node is not an instance \
-            of :py:class:`psyclone.psyir.nodes.Node`
-        :raises TransformationError: if the location is not valid.
-
-        '''
-        # pylint:disable=arguments-differ
-
-        self.validate(node, location, options)
-
-        if not options:
-            options = {}
-        position = options.get("position", "before")
-
-        parent = node.parent
-
-        my_node = parent.children.pop(node.position)
-
-        location_index = location.position
-        if position == "before":
-            location.parent.children.insert(location_index, my_node)
-        else:
-            location.parent.children.insert(location_index+1, my_node)
 
 
 class LFRicRedundantComputationTrans(LoopTrans):
@@ -2556,7 +2453,6 @@ __all__ = [
    "GOceanOMPLoopTrans",
    "GOceanOMPParallelLoopTrans",
    "KernelImportsToArguments",
-   "MoveTrans",
    "OMPMasterTrans",
    "OMPParallelLoopTrans",
    "OMPSingleTrans",

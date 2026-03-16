@@ -39,7 +39,7 @@ parallelisation, and then tiles the fused loops.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.transformations import MoveTrans, TransformationError
+from psyclone.psyir.transformations import MoveTrans, TransformationError
 from psyclone.transformations import OMPLoopTrans
 from psyclone.psyir.transformations import (InlineTrans, LoopFuseTrans,
                                             LoopTiling2DTrans,
