@@ -531,11 +531,14 @@ class Call(Statement, DataNode):
 
         return new_copy
 
-    def get_callees(self) -> List[Routine]:
+    def get_callees(self, load_external_files: bool = True) -> List[Routine]:
         '''
         Searches for the implementation(s) of all potential target routines
         for this Call. It does *not* attempt to resolve static polymorphism
         by checking the argument types.
+
+        :param load_external_files: allow this method to load external files
+            to find the needed declarations.
 
         :returns: the Routine(s) that this call targets.
 
@@ -627,7 +630,9 @@ class Call(Statement, DataNode):
                 else:
                     target_name = cursor.name
                 try:
-                    container = csym.find_container_psyir(local_node=self)
+                    container = csym.find_container_psyir(
+                        local_node=self,
+                        load_external_files=load_external_files)
                 except SymbolError:
                     raise NotImplementedError(
                         f"RoutineSymbol '{rsym.name}' is imported from "
@@ -872,6 +877,7 @@ class Call(Statement, DataNode):
     def get_callee(
             self,
             use_first_callee_and_no_arg_check: bool = False
+            load_external_files: bool = True
     ) -> Tuple[Routine, List[int]]:
         '''
         Searches for the implementation(s) of the target routine for this Call
@@ -886,6 +892,8 @@ class Call(Statement, DataNode):
         :param use_first_callee_and_no_arg_check: whether or not (the default)
             to just find the first potential callee without checking its
             arguments.
+        :param load_external_files: allow this method to load external files
+            to find the needed declarations.
 
         :returns: A tuple of two elements. The first element is the routine
             that this call targets. The second one a list of arguments
@@ -893,7 +901,6 @@ class Call(Statement, DataNode):
 
         :raises NotImplementedError: if the routine is not local and not found
             in any containers in scope at the call site.
-
         '''
         routine_list = self.get_callees()
 
