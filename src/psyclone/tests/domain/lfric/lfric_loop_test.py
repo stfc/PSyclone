@@ -46,13 +46,13 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
-                                   LFRicKern, LFRicKernMetadata, LFRicLoop,
-                                   LFRicInvokeSchedule)
+from psyclone.domain.lfric import (
+    LFRicConstants, LFRicKern, LFRicKernMetadata, LFRicLoop,
+    LFRicInvokeSchedule)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InvokeSchedule, Kern
-from psyclone.psyir.nodes import Call, ScopingNode, Loop
+from psyclone.psyir.nodes import Call, Loop
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import Message, DTCode
@@ -115,10 +115,6 @@ def test_set_lower_bound_functions(monkeypatch):
     an LFRicLoop is set to invalid values.
 
     '''
-    # Make sure we get an LFRicSymbolTable
-    # TODO #1954: Remove the protected access using a factory
-    monkeypatch.setattr(ScopingNode, "_symbol_table_class",
-                        LFRicSymbolTable)
     schedule = LFRicInvokeSchedule.create("test")
     my_loop = LFRicLoop(parent=schedule)
     schedule.children = [my_loop]
@@ -136,10 +132,6 @@ def test_set_upper_bound_functions(monkeypatch):
     an LFRicLoop is set to invalid values.
 
     '''
-    # Make sure we get an LFRicSymbolTable
-    # TODO #1954: Remove the protected access using a factory
-    monkeypatch.setattr(ScopingNode, "_symbol_table_class",
-                        LFRicSymbolTable)
     schedule = LFRicInvokeSchedule.create("test")
     my_loop = LFRicLoop(parent=schedule)
     schedule.children = [my_loop]

@@ -42,15 +42,18 @@
 
 # pylint: disable=too-many-lines
 
+from __future__ import annotations
 from collections import OrderedDict
 from collections.abc import Iterable
 import inspect
 import copy
 import logging
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
+if TYPE_CHECKING:  # pragma: no cover
+    from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
@@ -259,7 +262,7 @@ class SymbolTable():
         new_st._default_visibility = self.default_visibility
         return new_st
 
-    def deep_copy(self, new_node=None):
+    def deep_copy(self, new_node: "ScopingNode" = None) -> SymbolTable:
         '''Create a copy of the symbol table with new instances of the
         top-level data structures and also new instances of the symbols
         contained in these data structures. Modifying a symbol attribute
@@ -271,10 +274,8 @@ class SymbolTable():
 
         :param new_node: the PSyIR Node to be associated with the copied
             table (if different from self.node).
-        :type new_node: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
         :returns: a deep copy of this symbol table.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
         # pylint: disable=protected-access
@@ -291,7 +292,8 @@ class SymbolTable():
                 new_sym = symbol.copy()
                 if new_sym.is_import:
                     name = new_sym.interface.container_symbol.name
-                    new_sym.interface.container_symbol = new_st.lookup(name)
+                    new_sym.interface.container_symbol = new_st.find_or_create(
+                        name, symbol_type=ContainerSymbol)
                 new_st.add(new_sym)
 
         # Prepare the new argument list
@@ -577,18 +579,19 @@ class SymbolTable():
             idx += 1
         return candidate_name
 
-    def add(self, new_symbol, tag=None):
+    def add(self, new_symbol: Symbol, tag: Optional[str] = None):
         '''Add a new symbol to the symbol table if the symbol name is not
         already in use.
 
         :param new_symbol: the symbol to add to the symbol table.
-        :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param str tag: a tag identifier for the new symbol, by default no \
-            tag is given.
+        :param tag: a tag identifier for the new symbol, by default no
+                    tag is given.
 
         :raises InternalError: if the new_symbol argument is not a symbol.
         :raises KeyError: if the symbol name is already in use.
         :raises KeyError: if a tag is supplied and it is already in use.
+        :raises SymbolError: if the supplied symbol has an ImportInterface that
+                             refers to a ContainerSymbol that is not in scope.
 
         '''
         if not isinstance(new_symbol, Symbol):
@@ -600,18 +603,6 @@ class SymbolTable():
             raise KeyError(f"Symbol table already contains a symbol with "
                            f"name '{new_symbol.name}'.")
 
-        # TODO #1734 - enable this check to ensure that an imported Symbol is
-        # only ever added to the table containing the ContainerSymbol from
-        # which it is imported.
-        # if new_symbol.is_import:
-        #     if (new_symbol.interface.container_symbol not in
-        #             self._symbols.values()):
-        #         raise SymbolError(
-        #             f"Symbol '{new_symbol.name}' is imported from Container "
-        #             f"'{new_symbol.interface.container_symbol.name}' but the"
-        #             f" associated ContainerSymbol does not exist in this "
-        #             f"table.")
-
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
@@ -620,6 +611,23 @@ class SymbolTable():
                     f" '{self.lookup_with_tag(tag).name}', so it can not be "
                     f"associated with symbol '{new_symbol.name}'.")
             self._tags[tag] = new_symbol
+
+        if new_symbol.is_import:
+            csym = new_symbol.interface.container_symbol
+            sym_in_scope = self.lookup(csym.name, otherwise=None)
+            if not sym_in_scope:
+                raise SymbolError(
+                    f"Cannot add {type(new_symbol).__name__} "
+                    f"'{new_symbol.name}' because it is imported "
+                    f"from '{csym.name}' but that ContainerSymbol is not in "
+                    f"scope.")
+            if sym_in_scope is not csym:
+                raise SymbolError(
+                    f"Cannot add {type(new_symbol).__name__} "
+                    f"'{new_symbol.name}' because it is imported "
+                    f"from '{csym.name}' and the ContainerSymbol of that name "
+                    f"in scope in this table is not the same instance that "
+                    f"the import interface refers to.")
 
         self._symbols[key] = new_symbol
 
@@ -791,28 +799,116 @@ class SymbolTable():
                     # that too.
                     if csym.wildcard_import:
                         outer_sym.wildcard_import = True
-            # We must update all Symbols within this table that are imported
-            # from this ContainerSymbol so that they now point to the one in
-            # scope in this table instead.
-            imported_syms = other_table.symbols_imported_from(csym)
-            for isym in imported_syms:
-                other_sym = self.lookup(isym.name, otherwise=None)
-                if other_sym:
-                    # We have a potential clash with a symbol imported
-                    # into the other table.
-                    if not other_sym.is_import:
-                        # The calling merge() method has already checked that
-                        # we don't have a clash between symbols of the same
-                        # name imported from different containers. We don't
-                        # support renaming an imported symbol but the
-                        # symbol in this table can be renamed so we do that.
-                        self.rename_symbol(
-                            other_sym,
-                            self.next_available_name(
-                                other_sym.name, other_table=other_table))
-                isym.interface = ImportInterface(
-                        self.lookup(csym.name),
-                        orig_name=isym.interface.orig_name)
+        # We must update all Symbols within this table that are imported
+        # from this ContainerSymbol so that they now point to the one in
+        # scope in this table instead.
+        for isym in other_table.imported_symbols:
+
+            other_sym = self.lookup(isym.name, otherwise=None)
+            if other_sym:
+                # We have a potential clash with a symbol imported
+                # into the other table.
+                if not other_sym.is_import:
+                    # The calling merge() method has already checked that
+                    # we don't have a clash between symbols of the same
+                    # name imported from different containers. We don't
+                    # support renaming an imported symbol but the
+                    # symbol in this table can be renamed so we do that.
+                    self.rename_symbol(
+                        other_sym,
+                        self.next_available_name(
+                            other_sym.name, other_table=other_table))
+            self.update_import_interface(isym)
+
+    def update_symbol_dependencies(self):
+        '''
+        For each Symbol in this table, examines the Symbols upon which it
+        depends and updates them to be the Symbols in scope in this table.
+        If there is no corresponding Symbol in scope then the dependency
+        is added to this table.
+
+        :raises SymbolError: if the Symbol found in the current scope is
+                             of a different type to the original dependency.
+        '''
+        all_symbols: set[Symbol] = set(self.symbols)
+        while all_symbols:
+            for sym in list(all_symbols)[:]:
+                found_new_sym = False
+                # Examine all of the Symbols used in the definition of sym.
+                for dep_sym in sym.get_all_accessed_symbols():
+                    # Allow for shadowing by checking for the presence of
+                    # this Symbol object rather than its name.
+                    if dep_sym in self.symbols:
+                        continue
+                    new_sym = self.lookup(dep_sym.name, otherwise=None)
+                    if not new_sym:
+                        # We have a reference to an unresolved symbol. Add it
+                        # to the table but, since it too may contain further
+                        # references, we add it to the set of all symbols to
+                        # examine and start again.
+                        if dep_sym.is_import:
+                            self.update_import_interface(dep_sym)
+                        self.add(dep_sym)
+                        all_symbols.add(dep_sym)
+                        found_new_sym = True
+                        break
+                    else:
+                        if type(new_sym) is not type(dep_sym):
+                            raise SymbolError(
+                                f"Attempting to update dependencies of '{sym}'"
+                                f" but found '{new_sym}' which is not of the "
+                                f"same type as the original dependency "
+                                f"'{dep_sym}'.")
+                    # Update the definition of this symbol using the
+                    # new one we have found.
+                    sym.replace_symbols_using(new_sym)
+                else:
+                    # Have looked at all dependencies of this symbol so
+                    # remove it from the set.
+                    all_symbols.remove(sym)
+                if found_new_sym:
+                    # We found a new Symbol so re-start the loop over
+                    # Symbols to update.
+                    break
+
+    def update_import_interface(self, isym: Symbol):
+        '''
+        Update the import interface of the supplied Symbol so that it
+        refers to a Container in this or an ancestor scope.
+
+        If no ContainerSymbol is found with the name of the one in the
+        ImportInterface of the Symbol, then the ContainerSymboll in the
+        ImportInterface is added to this table.
+
+        :param isym: a Symbol with an import interface.
+
+        :raises ValueError: if the supplied symbol is not an import.
+        :raises SymbolError: if there is already a Symbol in scope with the
+            name of the originating Container and it is not a ContainerSymbol.
+
+        '''
+        if not isym.is_import:
+            raise ValueError(
+                f"Expected a Symbol with an ImportInterface but '{isym.name}' "
+                f"has a {isym.interface} interface.")
+
+        csym = isym.interface.container_symbol
+        if csym not in self.symbols:
+            new_ctr = self.lookup(csym.name, otherwise=None)
+            if not new_ctr:
+                # No matching symbol found in this scope so add the current
+                # ContainerSymbol.
+                self.add(csym)
+                new_ctr = csym
+            elif not isinstance(new_ctr, ContainerSymbol):
+                raise SymbolError(
+                    f"Cannot update the import interface of '{isym.name}' "
+                    f"because the name of the Container from which it is "
+                    f"imported ('{csym.name}') clashes with an existing "
+                    f"{type(new_ctr).__name__} in this scope.")
+
+            isym.interface = ImportInterface(
+                new_ctr, orig_name=isym.interface.orig_name)
 
     def _add_symbols_from_table(self, other_table, symbols_to_skip=()):
         '''
