@@ -43,7 +43,6 @@ of a Kernel as required by an `invoke` of that kernel.
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 # Avoid circular dependency:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
-from psyclone.lfric import add_lfric_precision_symbol
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, SymbolTable,
     ContainerSymbol, ImportInterface)
@@ -163,7 +162,7 @@ class KernCallInvokeArgList(ArgOrdering):
 
         consts = LFRicConstants()
         precision_name = consts.SCALAR_PRECISION_MAP[scalar_arg.intrinsic_type]
-        add_lfric_precision_symbol(self._symtab, precision_name)
+        LFRicTypes.add_precision_symbol(self._symtab, precision_name)
 
         sym = self._symtab.new_symbol(scalar_arg.name,
                                       symbol_type=DataSymbol,

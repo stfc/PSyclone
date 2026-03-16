@@ -85,50 +85,6 @@ from psyclone.psyir.symbols import (
 # ---------- Functions ------------------------------------------------------ #
 
 
-def add_lfric_precision_symbol(table: SymbolTable, name: str) -> DataSymbol:
-    '''
-    If the named LFRic precision symbol is not already in the supplied table
-    then add it. Also ensure that the Container symbol from which it is
-    imported is in the table.
-
-    :param table: the symbol table to use.
-    :param name: name of the LFRic precision symbol to add to table.
-
-    :returns: the specified LFRic precision symbol.
-
-    :raises ValueError: if the supplied name is not a recognised LFRic
-        precision variable.
-    :raises ValueError: if a symbol with the same name is already in the
-        table but is not imported from the correct container.
-
-    '''
-    api_config = Config.get().api_conf("lfric")
-    if name not in api_config.precision_map.keys():
-        raise ValueError(f"'{name}' is not a recognised LFRic precision.")
-
-    const = LFRicConstants()
-    mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
-
-    sym = table.lookup(name, otherwise=None)
-
-    if sym:
-        if (not sym.is_import or
-                sym.interface.container_symbol.name != mod_name):
-            raise ValueError(
-                f"Precision symbol '{name}' is already in scope but is "
-                f"not imported from the LFRic constants module "
-                f"('{mod_name}').")
-        return sym
-
-    constants_mod = table.find_or_create(mod_name,
-                                         symbol_type=ContainerSymbol)
-    sym = DataSymbol(name, INTEGER_TYPE,
-                     interface=ImportInterface(constants_mod))
-    table.add(sym)
-
-    return sym
-
-
 def qr_basis_alloc_args(first_dim, basis_fn):
     '''
     Generate the list of dimensions required to allocate the
@@ -1335,7 +1291,7 @@ class LFRicProxies(LFRicCollection):
             if arg.argument_type == "gh_columnwise_operator":
                 # CMA operators are handled by the LFRicCMAOperators class.
                 continue
-            add_lfric_precision_symbol(ctable, arg.precision)
+            LFRicTypes.add_precision_symbol(ctable, arg.precision)
             intrinsic_type = "integer" if arg in int_field_args else "real"
             suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
             if arg.vector_size > 1:
@@ -1845,7 +1801,8 @@ class LFRicCMAOperators(LFRicCollection):
             tag = f"{op_name}:{suffix}"
             arg = self._cma_ops[op_name]["arg"]
             # Ensure that the appropriate precision symbol exists.
-            kind_sym = add_lfric_precision_symbol(self.symtab, arg.precision)
+            kind_sym = LFRicTypes.add_precision_symbol(self.symtab,
+                                                       arg.precision)
             array_type = ArrayType(
                 LFRicTypes("LFRicRealScalarDataType")(kind_sym),
                 [ArrayType.Extent.DEFERRED]*3)
@@ -3078,7 +3035,7 @@ class LFRicBasisFunctions(LFRicCollection):
                     dims.append(Literal(value, INTEGER_TYPE))
                 except ValueError:
                     dims.append(Reference(self.symtab.find_or_create(value)))
-            kind_sym = add_lfric_precision_symbol(self.symtab, "r_def")
+            kind_sym = LFRicTypes.add_precision_symbol(self.symtab, "r_def")
             arr_type = ArrayType(ScalarType(ScalarType.Intrinsic.REAL,
                                             Reference(kind_sym)), dims)
             arg = self.symtab.find_or_create_tag(
@@ -3097,7 +3054,7 @@ class LFRicBasisFunctions(LFRicCollection):
                     f"Quadrature shapes other than {supported_shapes} are not "
                     f"yet supported - got: '{shape}'")
 
-            kind_sym = add_lfric_precision_symbol(
+            kind_sym = LFRicTypes.add_precision_symbol(
                 self.symtab, const.QUADRATURE_TYPE_MAP[shape]["kind"])
 
             # All quatratures are REAL
@@ -3164,7 +3121,7 @@ class LFRicBasisFunctions(LFRicCollection):
         # or an evaluator
         if self._qr_vars or self._eval_targets:
             # Quadrature weights and basis functions are in r_def precision.
-            add_lfric_precision_symbol(self.symtab, "r_def")
+            LFRicTypes.add_precision_symbol(self.symtab, "r_def")
             module = self.symtab.find_or_create(
                 const.FUNCTION_SPACE_TYPE_MAP["function_space"]["module"],
                 symbol_type=ContainerSymbol)
@@ -3264,7 +3221,7 @@ class LFRicBasisFunctions(LFRicCollection):
             # to evaluate basis/diff-basis functions
             nodes_name = "nodes_" + fspace.mangled_name
             kind = api_config.default_kind["real"]
-            add_lfric_precision_symbol(self.symtab, kind)
+            LFRicTypes.add_precision_symbol(self.symtab, kind)
             symbol = self.symtab.new_symbol(
                 nodes_name, symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
@@ -6245,7 +6202,8 @@ class LFRicKernelArgument(KernelArgument):
             reader = FortranReader()
             if self.precision:
                 # Ensure any associated precision symbol is in the table.
-                add_lfric_precision_symbol(symbol_table, self.precision)
+                LFRicTypes.add_precision_symbol(symbol_table,
+                                                self.precision)
             lit = reader.psyir_from_expression(self.name, symbol_table)
 
             # Sanity check that the resulting expression is a literal.

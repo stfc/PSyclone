@@ -46,7 +46,6 @@ from psyclone.domain.lfric.algorithm import (
     LFRicBuiltinFunctor, LFRicAlg, LFRicBuiltinFunctorFactory,
     LFRicKernelFunctor)
 from psyclone.errors import InternalError, GenerationError
-from psyclone.lfric import add_lfric_precision_symbol
 from psyclone.psyad.domain.lfric import lfric_adjoint_harness
 from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
     _compute_lfric_inner_products,
@@ -250,7 +249,7 @@ def test_init_fields_random_vector(type_map):
 
     '''
     table = SymbolTable()
-    idef_sym = add_lfric_precision_symbol(table, "i_def")
+    idef_sym = LFRicTypes.add_precision_symbol(table, "i_def")
     idef_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                            nodes.Reference(idef_sym))
 

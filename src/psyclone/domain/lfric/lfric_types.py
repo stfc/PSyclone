@@ -46,7 +46,8 @@ from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Literal, Reference
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
-                                    ImportInterface, INTEGER_TYPE, ScalarType)
+                                    ImportInterface, INTEGER_TYPE, ScalarType,
+                                    SymbolTable)
 
 
 class LFRicTypes:
@@ -598,3 +599,48 @@ class LFRicTypes:
                  {"__init__": __my_symbol_init__,
                   "datatype_class": datatype_class,
                   "parameters": parameters})
+
+    @staticmethod
+    def add_precision_symbol(table: SymbolTable,
+                             name: str) -> DataSymbol:
+        '''
+        If the named LFRic precision symbol is not already in the supplied
+        table then add it. Also ensure that the Container symbol from which it
+        is imported is in the table.
+
+        :param table: the symbol table to use.
+        :param name: name of the LFRic precision symbol to add to table.
+
+        :returns: the specified LFRic precision symbol.
+
+        :raises ValueError: if the supplied name is not a recognised LFRic
+            precision variable.
+        :raises ValueError: if a symbol with the same name is already in the
+            table but is not imported from the correct container.
+
+        '''
+        api_config = Config.get().api_conf("lfric")
+        if name not in api_config.precision_map.keys():
+            raise ValueError(f"'{name}' is not a recognised LFRic precision.")
+
+        const = LFRicConstants()
+        mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
+
+        sym = table.lookup(name, otherwise=None)
+
+        if sym:
+            if (not sym.is_import or
+                    sym.interface.container_symbol.name != mod_name):
+                raise ValueError(
+                    f"Precision symbol '{name}' is already in scope but is "
+                    f"not imported from the LFRic constants module "
+                    f"('{mod_name}').")
+            return sym
+
+        constants_mod = table.find_or_create(mod_name,
+                                             symbol_type=ContainerSymbol)
+        sym = DataSymbol(name, INTEGER_TYPE,
+                         interface=ImportInterface(constants_mod))
+        table.add(sym)
+
+        return sym

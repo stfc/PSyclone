@@ -48,7 +48,6 @@ from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric import LFRicKern
 from psyclone.errors import InternalError
-from psyclone.lfric import add_lfric_precision_symbol
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -131,7 +130,7 @@ class LFRicAlg:
         # arbitrary value, we use an *integer* literal for this, irrespective
         # of the actual type of the scalar argument. The compiler/run-time will
         # take care of appropriate type casting.
-        add_lfric_precision_symbol(table, "i_def")
+        LFRicTypes.add_precision_symbol(table, "i_def")
         for sym in kern_args.scalars:
             sub.addchild(Assignment.create(
                 Reference(sym),
@@ -144,7 +143,7 @@ class LFRicAlg:
         # integer rather than real) we rely on type casting by the
         # compiler/run-time.
         factory = LFRicBuiltinFunctorFactory.get()
-        add_lfric_precision_symbol(table, "r_def")
+        LFRicTypes.add_precision_symbol(table, "r_def")
         kernel_list = []
         for sym, _ in kern_args.fields:
             kernel_list.append(
@@ -316,7 +315,7 @@ class LFRicAlg:
         '''
         reader = FortranReader()
 
-        add_lfric_precision_symbol(prog.symbol_table, "i_def")
+        LFRicTypes.add_precision_symbol(prog.symbol_table, "i_def")
 
         if isinstance(sym.datatype, DataTypeSymbol):
             # Single field argument.
