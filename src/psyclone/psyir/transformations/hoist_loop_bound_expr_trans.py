@@ -39,8 +39,15 @@ places them in integer scalar assignments before the loop.
 
 '''
 
-from psyclone.psyir.nodes import Routine, Literal, Reference, \
-    StructureReference, Assignment, Directive
+from psyclone.psyir.nodes import (
+    Assignment,
+    Directive,
+    Literal,
+    Loop,
+    Reference,
+    Routine,
+    StructureReference,
+)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.loop_trans import LoopTrans, \
     TransformationError
@@ -87,12 +94,11 @@ class HoistLoopBoundExprTrans(LoopTrans):
     <BLANKLINE>
 
     '''
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node: Loop, options=None, **kwargs):
         '''Move complex bounds expressions out of the given loop construct and
         place them in integer scalar assignments before the loop.
 
         :param node: target PSyIR loop.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: Dict[str, Any]
 
@@ -124,12 +130,11 @@ class HoistLoopBoundExprTrans(LoopTrans):
             parent.addchild(Assignment.create(Reference(symbol), bound),
                             position)
 
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node: Loop, options=None, **kwargs):
         '''Checks that the supplied node is a valid target for the
         transformation.
 
         :param node: target PSyIR loop.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: Dict[str, Any]
 

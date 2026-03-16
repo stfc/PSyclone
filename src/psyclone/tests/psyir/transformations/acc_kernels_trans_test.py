@@ -165,7 +165,8 @@ def test_implicit_loop(fortran_reader, fortran_writer):
                 "end program implicit_loop\n")
     schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
-    # TODO #2668 deprecate options coverage. This test is left for coverage
+    # TODO #2668 deprecate options coverage. This test is left for options
+    # coverage
     acc_trans.apply(schedule.children[0:1], {"default_present": True})
     code = fortran_writer(psyir)
     assert ("  !$acc kernels default(present)\n"
@@ -532,6 +533,8 @@ def test_check_async_queue_with_enter_data(fortran_reader):
                 "  end do\n"
                 "end program two_loops\n")
     prog = psyir.walk(Routine)[0]
+    # TODO #2668 deprecate options coverage. This test is left for options
+    # coverage
     acc_edata_trans.apply(prog, options={"async_queue": 1})
     with pytest.raises(TransformationError) as err:
         acc_trans.check_async_queue(prog.walk(Loop), 2)

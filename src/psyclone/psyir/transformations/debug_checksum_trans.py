@@ -120,10 +120,10 @@ PSYCLONE_INTERNAL_line_ + 1
         if "node_type_check" in kwargs:
             raise TransformationError(
                 f"node_type_check was passed as an argument to {self.name}. "
-                f"This transformation sets this option itself so don't "
-                f"supply it."
+                f"This transformation sets this option internally so it "
+                f"cannot be supplied."
             )
-        # This transofmration doesn't need the node_type_check so
+        # This transformation doesn't need the node_type_check so
         # it forces it to False
         self.validate(node, node_type_check=False,
                       **kwargs)

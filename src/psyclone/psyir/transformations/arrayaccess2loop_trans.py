@@ -84,7 +84,7 @@ class ArrayAccess2LoopTrans(Transformation):
     <BLANKLINE>
 
     '''
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node: Node, options=None, **kwargs):
         '''Apply the ArrayAccess2Loop transformation if the supplied node
         is an access to an array index within an Array Reference that
         is on the left-hand-side of an Assignment node. The access
@@ -97,7 +97,6 @@ class ArrayAccess2LoopTrans(Transformation):
         placed immediately around the assignment.
 
         :param node: an array index.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
             This is an optional argument that defaults to None.
         :type options: Optional[Dict[str, Any]]
@@ -139,12 +138,11 @@ class ArrayAccess2LoopTrans(Transformation):
         # modified assignment.
         loc_parent.children.insert(loc_index, loop)
 
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node: Node, options=None, **kwargs):
         '''Perform various checks to ensure that it is valid to apply the
         ArrayAccess2LoopTrans transformation to the supplied PSyIR Node.
 
         :param node: the node that is being checked.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
             This is an optional argument that defaults to None.
         :type options: Optional[Dict[str, Any]]

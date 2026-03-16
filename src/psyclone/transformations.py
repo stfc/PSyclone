@@ -47,6 +47,7 @@
 # pylint: disable=too-many-lines
 
 from typing import Any, Dict, Optional
+import warnings
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -2041,8 +2042,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         :param parallelism: the level of parallelism that the
             target routine (or a callee) exposes. One of "seq" (the default),
             "vector", "worker" or "gang".
-        :param device_string: provide a compiler-platform
-            identifier.
+        :param device_string: provide a compiler-platform identifier.
 
         '''
         # Check that we can safely apply this transformation
@@ -2050,6 +2050,10 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
                       parallelism=parallelism,
                       device_string=device_string,
                       **kwargs)
+
+        # TODO 2668: options are now deprecated:
+        if options is not None:
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
         if isinstance(node, Kern):
             # Flag that the kernel has been modified
@@ -2060,7 +2064,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         else:
             routines = [node]
 
-        para = options.get("parallelism", "seq") if options else "seq"
+        para = options.get("parallelism", "seq") if options else parallelism
         for routine in routines:
             # Insert the directive to the routine if it doesn't already exist
             for child in routine.children:
@@ -2103,6 +2107,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         self.validate_it_can_run_on_gpu(node, options, **kwargs)
 
         if options:
+            # TODO #2668: Deprecate options dictionary
             parallelism = options.get("parallelism", "seq")
         else:
             parallelism = self.get_option("parallelism", **kwargs)

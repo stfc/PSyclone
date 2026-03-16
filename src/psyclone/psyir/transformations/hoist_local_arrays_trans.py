@@ -115,7 +115,8 @@ then
     By default, the target routine will be rejected if it is found to contain
     an ACCRoutineDirective since this usually implies that the routine will be
     launched in parallel on the OpenACC device. This check can be disabled
-    by setting 'allow_accroutine' to True in the `options` dictionary.
+    by setting the 'allow_accroutine' keyword argument to True on the apply
+    call.
 
     '''
     def apply(self, node: Routine, options=None,
@@ -409,13 +410,12 @@ then
 
         return list(local_arrays.values())
 
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node: Routine, options=None, **kwargs):
         '''Checks that the supplied node is a valid target for a hoist-
         local-arrays transformation. It must be a Routine that is within
         a Container (that is not a FileContainer).
 
         :param node: target PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
         :param options: any options for the transformation.
         :type options: Optional[Dict[str, Any]]
 

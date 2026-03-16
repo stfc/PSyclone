@@ -195,5 +195,5 @@ def test_node_type_check_kwarg_blocked():
     with pytest.raises(TransformationError) as err:
         DebugChecksumTrans().apply(None, node_type_check=True)
     assert ("node_type_check was passed as an argument to "
-            "DebugChecksumTrans. This transformation sets this option itself "
-            "so don't supply it." in str(err.value))
+            "DebugChecksumTrans. This transformation sets this option "
+            "internally so it cannot be supplied." in str(err.value))

@@ -87,12 +87,11 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
         '''Returns the name of this transformation as a string.'''
         return "FoldConditionalReturnExpressionsTrans"
 
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node: Routine, options=None, **kwargs):
         '''Ensure that it is valid to apply this transformation to the
         supplied node.
 
         :param node: the node to validate.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -108,11 +107,10 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
                 f"can only be applied to 'Routine' nodes, but found "
                 f"'{type(node).__name__}'.")
 
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node: Routine, options=None, **kwargs):
         '''Apply this transformation to the supplied node.
 
         :param node: the node to transform.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 

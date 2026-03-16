@@ -311,7 +311,7 @@ class ACCKernelsTrans(RegionTrans):
                         f"Cannot include '{icall.debug_string()}' in an "
                         f"OpenACC region because it is not available on GPU.")
 
-        # extract async option and check validity
+        # Check the validity of the supplied async option (if any).
         self.check_async_queue(node_list, async_queue)
 
         # Check that we have at least one loop or array range within

@@ -42,7 +42,7 @@ import warnings
 
 from psyclone.psyir.nodes import (
     CodeBlock, OMPTargetDirective, Call, Routine, Reference, Literal,
-    OMPTaskwaitDirective, Directive, Schedule)
+    OMPTaskwaitDirective, Directive, Schedule, Node)
 from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
@@ -138,7 +138,7 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
             sched.addchild(OMPTaskwaitDirective(), path[0])
         instance.nowait = True
 
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node: list[Node], options=None, **kwargs):
         # pylint: disable=signature-differs
         '''
         Check that we can safely enclose the supplied node or list of nodes
@@ -146,7 +146,6 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
 
         :param node: the PSyIR node or nodes to enclose in the OpenMP
                       target region.
-        :type node: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -213,7 +212,7 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
                             raise TransformationError(message)
                     # TODO #3054: Deal with UnresolvedType
 
-    def apply(self, node, options=None, nowait: bool = False,
+    def apply(self, node: list[Node], options=None, nowait: bool = False,
               device_string: str = "",
               allow_strings: bool = False, verbose: bool = False,
               **kwargs):
@@ -222,7 +221,6 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
 
         :param node: the PSyIR node or nodes to enclose in the OpenMP
                      target region.
-        :type node: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str,Any]]
         :param nowait: whether to add a nowait clause and a

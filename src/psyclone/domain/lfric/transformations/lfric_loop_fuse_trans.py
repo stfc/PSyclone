@@ -40,7 +40,7 @@
 '''
 
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, LFRicLoop
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 from psyclone.transformations import check_intergrid
 from psyclone.utils import transformation_documentation_wrapper
@@ -79,14 +79,13 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         return ("Fuse two adjacent loops together with LFRic-specific "
                 "validity checks")
 
-    def validate(self, node1, node2, options=None, **kwargs):
+    def validate(self, node1: LFRicLoop, node2: LFRicLoop,
+                 options=None, **kwargs):
         ''' Performs various checks to ensure that it is valid to apply
         the LFRicLoopFuseTrans transformation to the supplied loops.
 
         :param node1: the first Loop to fuse.
-        :type node1: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param node2: the second Loop to fuse.
-        :type node2: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param bool options["same_space"]: this optional flag, set to `True`, \
@@ -245,12 +244,11 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                             f"the second loop reads the result of the "
                             f"reduction.")
 
-    def apply(self, node1, node2, options=None, **kwargs):
+    def apply(self, node1: LFRicLoop, node2: LFRicLoop,
+              options=None, **kwargs):
         ''' Applies the LFricLoopFuseTrans to the provided nodes.
         :param node1: the first Loop to fuse.
-        :type node1: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param node2: the second Loop to fuse.
-        :type node2: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param bool options["same_space"]: this optional flag, set to `True`, \
@@ -259,10 +257,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             risk. If both iteration spaces are discontinuous the loops can be \
             fused without having to use the `same_space` flag.
         '''
-        # TODO #2668: Deprecate options dict.
-        # Modifying this class to use either options or kwargs is more
-        # difficult than the scope of this PR (#3365) which is focused on
-        # psyir.transformations and not domain transformations.
+        # TODO #2668: Deprecate options dict. This function exists for
+        # the purposes of documentation required by 2668.
         if not options:
             options = {}
         super().apply(node1, node2, options=options, **kwargs)

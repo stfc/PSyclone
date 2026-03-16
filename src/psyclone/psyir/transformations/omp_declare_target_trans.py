@@ -38,8 +38,9 @@
 This module provides the implementation of OMPDeclareTargetTrans
 
 '''
+from typing import Union
 
-from psyclone.psyir.nodes import OMPDeclareTargetDirective
+from psyclone.psyir.nodes import OMPDeclareTargetDirective, Routine
 from psyclone.psyGen import Transformation, Kern
 from psyclone.psyir.transformations.mark_routine_for_gpu_mixin import (
         MarkRoutineForGPUMixin)
@@ -89,21 +90,18 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
         end subroutine
 
     '''
-    def apply(self, node, options=None, force: bool = False,
-              device_string: str = "", **kwargs):
+    def apply(self, node: Union[Routine, Kern], options=None,
+              force: bool = False, device_string: str = "", **kwargs):
         ''' Insert an OMPDeclareTargetDirective inside the provided routine or
         associated PSyKAl kernel.
 
         :param node: the kernel or routine which is the target of this
             transformation.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine` |
-                    :py:class:`psyclone.psyGen.Kern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param force: whether to allow routines with
             CodeBlocks to run on the GPU.
-        :param device_string: provide a compiler-platform
-                    identifier.
+        :param device_string: provide a compiler-platform identifier.
 
         '''
         self.validate(node, options, force=force, device_string=device_string,
@@ -123,13 +121,11 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
                        child in routine.children):
                 routine.children.insert(0, OMPDeclareTargetDirective())
 
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node: Union[Routine, Kern], options=None, **kwargs):
         ''' Check that an OMPDeclareTargetDirective can be inserted.
 
         :param node: the kernel or routine which is the target of this
             transformation.
-        :type node: :py:class:`psyclone.psyGen.Kern` |
-                    :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 

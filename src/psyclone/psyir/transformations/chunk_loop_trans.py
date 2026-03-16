@@ -90,12 +90,11 @@ class ChunkLoopTrans(LoopTrans):
     def __str__(self):
         return "Split a loop into a chunked loop pair"
 
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node: Loop, options=None, **kwargs):
         '''
         Validates that the given Loop node can have a ChunkLoopTrans applied.
 
         :param node: the loop to validate.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformation.
         :type options: Optional[Dict[str, Any]]
 
@@ -199,14 +198,13 @@ class ChunkLoopTrans(LoopTrans):
                     f"the boundary variable '{access2.signature.var_name}' "
                     f"is written to inside the loop body.")
 
-    def apply(self, node, options=None, chunksize: int = 32, **kwargs):
+    def apply(self, node: Loop, options=None, chunksize: int = 32, **kwargs):
         '''
         Converts the given Loop node into a nested loop where the outer
         loop is over chunks and the inner loop is over each individual element
         of the chunk.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param chunksize: The size to chunk over for this
