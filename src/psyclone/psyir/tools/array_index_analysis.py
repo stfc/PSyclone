@@ -94,7 +94,11 @@ class ArrayIndexAnalysisOptions:
        to the order of constraints.
 
     :param sweep_seed: the seed for the random number generator used
-      by the sweeper.
+       by the sweeper.
+
+    :param succeed_on_timeout: interpret a timeout as a non-conflict.
+       This means that analysis may report no conflicts when there is one,
+       but it will have tried to find one.
     '''
     def __init__(self,
                  int_width: int = 32,
@@ -103,7 +107,8 @@ class ArrayIndexAnalysisOptions:
                  prohibit_overflow: bool = False,
                  handle_array_intrins: bool = True,
                  num_sweep_threads: int = 4,
-                 sweep_seed: int = 1):
+                 sweep_seed: int = 1,
+                 succeed_on_timeout: bool = False):
         self.smt_timeout = smt_timeout_ms
         self.int_width = int_width
         self.use_bv = use_bv
@@ -111,6 +116,7 @@ class ArrayIndexAnalysisOptions:
         self.handle_array_intrins = handle_array_intrins
         self.num_sweep_threads = num_sweep_threads
         self.sweep_seed = sweep_seed
+        self.succeed_on_timeout = succeed_on_timeout
 
 
 # Analysis
@@ -652,7 +658,10 @@ class ArrayIndexAnalysis:
                    f"accesses to {access_str}")
             return (sig, msg)
         elif result == z3.unknown:  # pragma: no cover
-            return (sig, None)
+            if self.opts.succeed_on_timeout:
+                return None
+            else:
+                return (sig, None)
         else:
             return None
 

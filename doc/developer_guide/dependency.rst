@@ -604,13 +604,14 @@ enabled by passing `use_smt_array_index_analysis=True` option to
 The main drawback of the SMT-based analysis is that the time-to-solve is not
 guaranteed to be consistent. It might be fast using one version of Z3 but slow
 using another. It might vary significantly with seemingly innocuous code
-changes. Having said that, our experience is that it generally performs well,
+changes. (Having said that, our experience is that it generally performs well,
 especially when setting the option `num_sweep_threads=4` to explore different
-constraint orderings in parallel (this is the default setting). Nevertheless,
-it is probably best suited to static checking / linting, e.g. spotting bugs in
-parallel loops or missed opportunities for parallel loops. It is probably not
-advisable to use it in cases where a consistent result is relied upon, such as
-a transmutation script.
+constraint orderings in parallel). It is therefore best suited to static
+checking / linting, e.g. spotting bugs in parallel loops or missed
+opportunities for parallel loops. If the user depends on a timely result, such
+as in a build-time transmutation script, it should be used with the
+`succeed_on_timeout=True` option. This means the analysis may report no
+conflicts when there is one, but it will have tried to find one.
 
 DefinitionUseChain
 ==================

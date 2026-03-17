@@ -47,11 +47,9 @@ def conflict_free(loop, opts):
     '''Helper function to determine if a loop is conflict free.
     Note that this function returns True if the solver times out,
     so that the test suite does not fail due to slow solving.'''
+    opts.succeed_on_timeout = True
     conflicts = ArrayIndexAnalysis(opts).get_loop_conflicts(loop)
-    if conflicts:
-        return all([c[1] is None for c in conflicts])
-    else:
-        return True
+    return conflicts == []
 
 
 # -----------------------------------------------------------------------------
