@@ -58,5 +58,4 @@ def trans(psyir):
     vrc = ValueRangeCheckTrans()
 
     for subroutine in psyir.walk(Routine):
-        print("XX", subroutine.name)
         vrc.apply(subroutine)

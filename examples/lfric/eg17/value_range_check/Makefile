@@ -64,7 +64,7 @@ EXEC = value_range_check
 
 F90FLAGS += -I$(VALUE_RANGE_DIR)
 
-transform: value_range_process main_psy.f90 main_alg.f90
+transform: main_psy.f90 main_alg.f90
 	
 compile: transform $(EXEC)
 
