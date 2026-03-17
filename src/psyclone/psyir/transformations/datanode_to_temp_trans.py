@@ -46,6 +46,7 @@ from psyclone.psyir.nodes import (
     Range,
     Reference,
     Statement,
+    Schedule,
 )
 from psyclone.psyir.symbols.datatypes import (
     ArrayType,
@@ -306,8 +307,10 @@ class DataNodeToTempTrans(Transformation):
 
         # Find the parent and position of the statement containing the
         # DataNode.
-        parent = node.ancestor(Statement).parent
-        pos = node.ancestor(Statement).position
+        schedule = node.ancestor(Schedule)
+        path = node.path_from(schedule)
+        pos = path[0]
+        parent = schedule.children[pos]
 
         # Replace the datanode with the new reference
         node.replace_with(new_ref)
