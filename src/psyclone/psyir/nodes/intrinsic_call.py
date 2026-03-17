@@ -212,14 +212,14 @@ def _type_of_named_arg_with_optional_kind_and_dim(
     arg = node.argument_by_name(arg_name)
     if "kind" in node.argument_names:
         dtype = ScalarType(
-            arg.datatype.intrinsic,
+            arg.datatype.elemental_type.intrinsic,
             node.argument_by_name("kind").copy(),
         )
     else:
         # PSyclone has the UNDEFINED Precision as the default kind for all
         # supported inbuilt datatypes.
         dtype = ScalarType(
-            arg.datatype.intrinsic,
+            arg.datatype.elemental_type.intrinsic,
             ScalarType.Precision.UNDEFINED,
         )
     # If "dim" argument isn't present then the result is an array of the same
@@ -368,7 +368,7 @@ def _findloc_return_type(node: IntrinsicCall) -> DataType:
     """
     if "kind" in node.argument_names:
         dtype = ScalarType(
-            node.argument_by_name("array").datatype.intrinsic,
+            node.argument_by_name("array").datatype.elemental_type.intrinsic,
             node.argument_by_name("kind").copy(),
         )
     else:
@@ -439,8 +439,8 @@ def _iparity_return_type(node: IntrinsicCall) -> DataType:
     :returns: the computed datatype for the IntrinsicCall.
     """
     dtype = ScalarType(
-        node.argument_by_name("array").datatype.intrinsic,
-        node.argument_by_name("array").datatype.precision,
+        node.argument_by_name("array").datatype.elemental_type.intrinsic,
+        node.argument_by_name("array").datatype.elemental_type.precision,
     )
     # If dim is not present then we return a scalar.
     if "dim" not in node.argument_names:
@@ -564,8 +564,10 @@ def _maxval_return_type(node: IntrinsicCall) -> DataType:
 
     :returns: the computed datatype for the IntrinsicCall.
     """
-    dtype = ScalarType(node.argument_by_name("array").datatype.intrinsic,
-                       node.argument_by_name("array").datatype.precision)
+    dtype = ScalarType(
+        node.argument_by_name("array").datatype.elemental_type.intrinsic,
+        node.argument_by_name("array").datatype.elemental_type.precision
+    )
     if "dim" not in node.argument_names:
         return dtype
     # We have a dimension specified. We don't know the resultant shape
@@ -588,8 +590,8 @@ def _dot_product_return_type(node: IntrinsicCall) -> DataType:
     from psyclone.psyir.tools.type_info_computation import (
         compute_scalar_type
     )
-    veca_datatype = node.argument_by_name("vector_a").datatype
-    vecb_datatype = node.argument_by_name("vector_b").datatype
+    veca_datatype = node.argument_by_name("vector_a").datatype.elemental_type
+    vecb_datatype = node.argument_by_name("vector_b").datatype.elemental_type
     return compute_scalar_type(
         [ScalarType(
             veca_datatype.intrinsic, veca_datatype.precision
@@ -3213,7 +3215,9 @@ class IntrinsicCall(Call):
             optional_args={"kind": DataNode},
             return_type=lambda node: (
                 _type_of_scalar_with_optional_kind(
-                    node, node.argument_by_name("l").datatype.intrinsic,
+                    node,
+                    node.argument_by_name("l").
+                    datatype.elemental_type.intrinsic,
                     "kind",
                 ) if "kind" in node.argument_names else
                 _type_of_named_argument(node, "l")
@@ -3761,8 +3765,10 @@ class IntrinsicCall(Call):
             optional_args={"vector": DataNode},
             return_type=lambda node: ArrayType(
                 ScalarType(
-                    node.argument_by_name("array").datatype.intrinsic,
-                    node.argument_by_name("array").datatype.precision),
+                    node.argument_by_name("array").datatype.
+                    elemental_type.intrinsic,
+                    node.argument_by_name("array").datatype.
+                    elemental_type.precision),
                 [ArrayType.Extent.DEFERRED]
             ),
             reference_accesses=lambda node: (
@@ -3886,7 +3892,8 @@ class IntrinsicCall(Call):
                 lambda node:
                 _type_with_specified_precision_and_optional_dim(
                     node, "array",
-                    node.argument_by_name("array").datatype.intrinsic
+                    node.argument_by_name("array").datatype.
+                    elemental_type.intrinsic
                 )
             ),
             reference_accesses=lambda node: (
@@ -4443,8 +4450,10 @@ class IntrinsicCall(Call):
             optional_args={},
             return_type=lambda node: ArrayType(
                 ScalarType(
-                    node.argument_by_name("source").datatype.intrinsic,
-                    node.argument_by_name("source").datatype.precision),
+                    node.argument_by_name("source").datatype.
+                    elemental_type.intrinsic,
+                    node.argument_by_name("source").datatype.
+                    elemental_type.precision),
                 ([ArrayType.Extent.DEFERRED] *
                  (len(node.argument_by_name("source").datatype.shape) + 1)
                  if isinstance(node.argument_by_name("source").datatype,
@@ -4543,7 +4552,8 @@ class IntrinsicCall(Call):
                 lambda node:
                 _type_with_specified_precision_and_optional_dim(
                     node, "array",
-                    node.argument_by_name("array").datatype.intrinsic
+                    node.argument_by_name("array").datatype.
+                    elemental_type.intrinsic
                 )
             ),
             reference_accesses=lambda node: (
@@ -4714,8 +4724,10 @@ class IntrinsicCall(Call):
                                 ArrayType))
                 else ArrayType(
                     ScalarType(
-                        node.argument_by_name("mold").datatype.intrinsic,
-                        node.argument_by_name("mold").datatype.precision
+                        node.argument_by_name("mold").datatype.
+                        elemental_type.intrinsic,
+                        node.argument_by_name("mold").datatype.
+                        elemental_type.precision
                     ),
                     [ArrayType.Extent.DEFERRED])
             ),
@@ -4737,8 +4749,10 @@ class IntrinsicCall(Call):
                 arg_names=(("matrix",),)),
             optional_args={},
             return_type=lambda node: ArrayType(ScalarType(
-                node.argument_by_name("matrix").datatype.intrinsic,
-                node.argument_by_name("matrix").datatype.precision),
+                node.argument_by_name("matrix").datatype.
+                elemental_type.intrinsic,
+                node.argument_by_name("matrix").datatype.
+                elemental_type.precision),
                 [node.argument_by_name("matrix").datatype.shape[1],
                  node.argument_by_name("matrix").datatype.shape[0]]
             ),
