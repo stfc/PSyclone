@@ -215,11 +215,9 @@ class ArrayAssignment2LoopsTrans(Transformation):
             not have Range specifying the access to at least one of its
             dimensions.
         :raises TransformationError: if two or more of the loop ranges
-            in the assignment are different or are not known to be the
-            same.
+            in the assignment are different or are not known to be the same.
         :raises TransformationError: if node contains a character type
-                                     child and the allow_strings option is
-                                     not set.
+            child and the allow_strings option is not set.
 
         '''
         super().validate(node, **kwargs)
@@ -424,19 +422,19 @@ class ArrayAssignment2LoopsTrans(Transformation):
 
         '''
         for child in node.walk((Literal, Reference)):
-            try:
+            if 1: #try:
                 forbidden = ScalarType.Intrinsic.CHARACTER
-                if (child.is_character(unknown_as=False) or
-                        (child.symbol.datatype.intrinsic == forbidden)):
+                if child.is_character(unknown_as=False): # or
+                        #(child.symbol.datatype.intrinsic == forbidden)):
                     if verbose:
                         node.append_preceding_comment(message)
                     # pylint: disable=cell-var-from-loop
                     raise TransformationError(LazyString(
                         lambda: f"{message}, but found:"
                         f"\n{node.debug_string()}"))
-            except (NotImplementedError, AttributeError):
-                # We cannot always get the datatype, we ignore this for now
-                pass
+            #except (NotImplementedError, AttributeError):
+            #    # We cannot always get the datatype, we ignore this for now
+            #    pass
 
 
 def _walk_until_non_elemental_call(

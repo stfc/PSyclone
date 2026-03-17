@@ -70,3 +70,19 @@ def test_char_decln_with_char_kind():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     l1_var = symtab.lookup("l1")
     assert isinstance(l1_var.datatype, UnsupportedFortranType)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_char_len_inline():
+    '''
+    '''
+    fake_parent = Routine.create("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    reader = FortranStringReader(f"character :: l1*3")
+    # Set reader to free format (otherwise this is a comment in fixed format)
+    reader.set_format(FortranFormat(True, True))
+    fparser2spec = Fortran2003.Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    l1_var = symtab.lookup("l1")
+    assert l1_var.datatype.length.value == 3

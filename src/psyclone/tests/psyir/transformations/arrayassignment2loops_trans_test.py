@@ -640,8 +640,9 @@ def test_unsupported_type_character(fortran_reader):
     end subroutine test'''
     psyir = fortran_reader.psyir_from_source(code)
 
+    trans = ArrayAssignment2LoopsTrans()
+
     for assign in psyir.walk(Assignment):
-        trans = ArrayAssignment2LoopsTrans()
         with pytest.raises(TransformationError) as info:
             trans.validate(assign)
         assert (

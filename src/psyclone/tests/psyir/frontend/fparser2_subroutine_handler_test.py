@@ -223,7 +223,9 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
     assert isinstance(routine, Routine)
     return_sym = routine.return_symbol
     assert isinstance(return_sym, DataSymbol)
-    assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[basic_type]
+    # Allow for the "(len=...)" on the end of the character case.
+    type_name = basic_type.split("(")[0]
+    assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[type_name]
     result = fortran_writer(psyir)
     assert result == expected
 
@@ -327,8 +329,8 @@ def test_function_unsupported_type(fortran_reader):
         "    my_func = CMPLX(1.0, 1.0)\n"
         "  end function my_func\n"
         "\n"
-        "  character(len=3) function Agrif_CFixed()\n"
-        "    Agrif_CFixed = '0'\n"
+        "  complex function Agrif_CFixed()\n"
+        "    Agrif_CFixed = (0.0, 1.0)\n"
         "  end function Agrif_CFixed\n"
         "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -426,9 +428,9 @@ def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
         assert isinstance(fsym.datatype, UnresolvedType)
 
 
-def test_unsupported_char_len_function(fortran_reader):
-    ''' Check that we get a CodeBlock if a Fortran function is of character
-    type with a specified length. '''
+def test_char_len_function(fortran_reader):
+    ''' Check that a Fortran function of character type with a specified length
+    is handled correctly. '''
     code = ("module a\n"
             "contains\n"
             "  character(len=2) function my_func()\n"
@@ -437,12 +439,11 @@ def test_unsupported_char_len_function(fortran_reader):
             "  end function my_func\n"
             "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
-    cblock = psyir.children[0].children[0]
-    assert isinstance(cblock, CodeBlock)
-    assert "LEN = 2" in str(cblock.get_ast_nodes[0])
+    my_func = psyir.children[0].children[0]
+    assert isinstance(my_func, Routine)
     fsym = psyir.children[0].symbol_table.lookup("my_func")
     assert isinstance(fsym, RoutineSymbol)
-    assert isinstance(fsym.datatype, UnresolvedType)
+    assert fsym.datatype.length.value == "2"
 
 
 def test_unsupported_contains_subroutine(fortran_reader):
