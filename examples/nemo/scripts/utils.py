@@ -533,11 +533,13 @@ def iom_put_argument_to_temporary(calls: list[Call]):
     '''Extracts the second argument of all iom_put calls and puts them
      in a temporary if they are an Operation with an array datatype.'''
     for call in calls:
-        if call.symbol.name == "iom_put":
-            arg = call.arguments[1]
+        for arg in call.arguments:
             dtype = arg.datatype
             if isinstance(dtype, ArrayType) and isinstance(arg, Operation):
                 try:
                     DataNodeToTempTrans().apply(arg)
-                except TransformationError:
-                    pass
+                except TransformationError as err:
+                    call.append_preceding_comment(
+                        f"Couldn't pull the second argument to a temporary "
+                        f"due to the following error: {str(err.value)}"
+                    )
