@@ -46,10 +46,10 @@ if TYPE_CHECKING:
     from tree_sitter import Node as TSNode
 
 
-def to_str(node: TSNode) -> str:
+def to_str(node: 'TSNode') -> str:
     '''
     :param node: a given treesitter node.
-    :returns: the string representing the node in utf8
+    :returns: the string representing the node in utf8.
     '''
     return node.text.decode('utf8') if node.text else ""
 
@@ -137,7 +137,7 @@ class FortranTreeSitterReader():
         report_errors(parse_tree.root_node)
         return parse_tree.root_node
 
-    def generate_psyir(self, parse_tree: TSNode) -> nodes.Node:
+    def generate_psyir(self, parse_tree: 'TSNode') -> nodes.Node:
         '''Translate the supplied treesitter node to PSyIR.
 
         :param parse_tree: the supplied treesitter parse tree.
