@@ -2926,8 +2926,11 @@ class Fparser2Reader():
 
             if isinstance(child, Fortran2003.Char_Selector):
                 # A CHARACTER declaration can be of Char_Selector type.
-                # The first child of Char_Selector holds the length.
+                # The first child of Char_Selector holds the length (which
+                # may be None if it is unspecified).
                 char_len = child.children[0]
+                if not char_len:
+                    return None
                 break
         else:
             # No length is specified
