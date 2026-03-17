@@ -35,10 +35,23 @@
 
 ''' PSyIR TreeSitter Fortran reader '''
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes.codeblock import TreeSitterCodeBlock, CodeBlock
+
+if TYPE_CHECKING:
+    # Purposely inside typechecking because at runtime we want to lazily
+    # import the parser (only if it is actually used)
+    from tree_sitter import Node as TSNode
+
+
+def to_str(node: TSNode) -> str:
+    '''
+    :param node: a given treesitter node.
+    :returns: the string representing the node in utf8
+    '''
+    return node.text.decode('utf8') if node.text else ""
 
 
 class FortranTreeSitterReader():
@@ -68,10 +81,11 @@ class FortranTreeSitterReader():
         self._ignore_directives = ignore_directives
         self._resolve_modules = resolve_modules
         self._last_comments_as_codeblocks = last_comments_as_codeblocks
-        self.location = None
+        self._psyir_cursor = None
         self._ongoing_codeblock = []
         self.handlers = {
-            'translation_unit': self._translation_unit
+            'translation_unit': self._translation_unit,
+            'module': self._module_handler,
         }
 
     @classmethod
@@ -86,7 +100,7 @@ class FortranTreeSitterReader():
         partial_code: str = ""
     ):
         ''' Use the provided source code and frontend options to generate
-        a fparser2 parsetree.
+        a treesitter parsetree.
 
         :param source_code: the given source code.
         :param ignore_comments: whether to let the parser ignore comments.
@@ -109,7 +123,7 @@ class FortranTreeSitterReader():
             if node.type == 'ERROR':
                 raise ValueError(
                     f"Syntax Error found at line {node.start_point[0] + 1}: "
-                    f"{node.text.decode('utf8')}")
+                    f"{to_str(node)}")
             for child in node.children:
                 report_errors(child)
 
@@ -130,20 +144,20 @@ class FortranTreeSitterReader():
         :type parse_tree: :py:class:`fparser.two.Fortran2003.Program`
         :param Optional[str] filename: associated name for FileContainer.
 
-        :returns: PSyIR of the supplied fparser2 parse_tree.
+        :returns: PSyIR of the supplied treesitter parse_tree.
         :rtype: :py:class:`psyclone.psyir.nodes.FileContainer`
 
-        :raises GenerationError: if the root of the supplied fparser2
-            parse tree is not a Program.
-
         '''
-        return self.get_handler(parse_tree)(parse_tree)
+        result = self.get_handler(parse_tree)(parse_tree)
+        if filename and isinstance(result, nodes.FileContainer):
+            result.name = filename
+        return result
 
     def process_nodes(self, list_of_nodes):
         '''
         Create the PSyIR of the supplied list of treesitter nodes.
 
-        :param nodes: List of sibling nodes in fparser2 AST.
+        :param nodes: List of sibling nodes in treesitter AST.
         :type nodes: list[:py:class:`fparser.two.utils.Base`]
 
         '''
@@ -155,8 +169,7 @@ class FortranTreeSitterReader():
             except NotImplementedError:
                 if not self._ongoing_codeblock:
                     self._ongoing_codeblock.append(tsnode)
-                if not isinstance(self.location, nodes.Schedule):
-                    children.append(self.generate_accomulated_codeblock())
+                children.append(self.generate_accomulated_codeblock())
         return children
 
     def generate_accomulated_codeblock(self, message: Optional[str] = None):
@@ -167,9 +180,10 @@ class FortranTreeSitterReader():
         :param message: comment to associate with the CodeBlock.
 
         '''
-        if isinstance(self.location, (nodes.Schedule, nodes.Container)):
+        if isinstance(self._psyir_cursor, (nodes.Schedule, nodes.Container)):
             structure = CodeBlock.Structure.STATEMENT
-        else:
+        else:  # pragma: no-cover
+            # TODO #3038 Remove no-cover when parser reaches expressions
             structure = CodeBlock.Structure.EXPRESSION
 
         code_block = TreeSitterCodeBlock(self._ongoing_codeblock, structure)
@@ -197,7 +211,20 @@ class FortranTreeSitterReader():
         :param tsnode: the node the process.
         :returns: the equivatent PSyIR Node.
         '''
-        file_container = nodes.FileContainer("test")
-        self.location = file_container
+        file_container = nodes.FileContainer("")
+        self._psyir_cursor = file_container
         file_container.children.extend(self.process_nodes(tsnode.children))
         return file_container
+
+    def _module_handler(self, tsnode) -> nodes.Node:
+        ''' Handle module treesitter node.
+
+        :param tsnode: the node the process.
+        :returns: the equivatent PSyIR Node.
+        '''
+        module_stmt, internal_proc, _end_module_stmt = tsnode.children
+        _module_keyword, module_name = module_stmt.children
+        container = nodes.Container(to_str(module_name))
+        self._psyir_cursor = container
+        container.children.extend(self.process_nodes([internal_proc]))
+        return container
