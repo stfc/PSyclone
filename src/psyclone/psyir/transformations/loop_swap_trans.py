@@ -91,11 +91,11 @@ class LoopSwapTrans(LoopTrans):
         to allow swapping loops. This means the node must represent
         a loop, and it must have exactly one child that is also a loop.
 
-        :param node: a Loop node from an AST.
+        :param node: the outer Loop Node of a loop nest.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the supplied node does not \
+        :raises TransformationError: if the supplied node does not
                                      allow a loop swap to be done.
         :raises TransformationError: if either the inner or outer loop
                                      has a symbol table.

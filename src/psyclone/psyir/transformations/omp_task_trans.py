@@ -178,13 +178,12 @@ class OMPTaskTrans(ParallelLoopTrans):
         4. Inline all the Call operations found.
 
         :param node: The node this transformation is operating on.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        '''
 
+        '''
         kerns = node.walk(Kern)
         # pylint: disable=import-outside-toplevel
-        from psyclone.domain.common.transformations import \
-            KernelModuleInlineTrans
+        from psyclone.domain.common.transformations import (
+            KernelModuleInlineTrans)
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
