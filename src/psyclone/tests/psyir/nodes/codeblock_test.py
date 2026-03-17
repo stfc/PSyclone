@@ -102,6 +102,30 @@ def test_codeblock_children_validation():
             " LeafNode and doesn't accept children.") in str(excinfo.value)
 
 
+def test_abstract_methods():
+    ''' Test that the abstract methods of CodeBlock raise a NotImplementedError
+    (to simplify other tests they still work when there is no associated parse
+    tree) '''
+    # If there is no associated parse_tree, the methods return a falsy value
+    cblock = CodeBlock([], "dummy")
+    assert not cblock.get_symbol_names()
+    assert not cblock.has_potential_control_flow_jump()
+    assert not cblock.get_fortran_lines()
+
+    # But if there is one, the node will need to be subclassed to properly
+    # interpret the meaning of the ast
+    cblock._parse_tree = "something"
+    with pytest.raises(NotImplementedError) as err:
+        _ = cblock.get_symbol_names()
+    assert "Use appropriate CodeBlock subclass" in str(err.value)
+    with pytest.raises(NotImplementedError) as err:
+        _ = cblock.has_potential_control_flow_jump()
+    assert "Use appropriate CodeBlock subclass" in str(err.value)
+    with pytest.raises(NotImplementedError) as err:
+        _ = cblock.get_fortran_lines()
+    assert "Use appropriate CodeBlock subclass" in str(err.value)
+
+
 def test_codeblock_get_symbol_names(parser):
     '''Test that the get_symbol_names methods returns the names of the symbols
     used inside the CodeBlock. This is slightly subtle as we have to avoid

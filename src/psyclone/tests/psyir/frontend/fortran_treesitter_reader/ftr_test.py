@@ -68,7 +68,7 @@ def test_constructor():
     # TODO #3038 Typecheck arguments
 
 
-def test_generate_parse_tree():
+def test_generate_parse_tree(tmpdir_factory):
     '''
     Test that generate_parse_tree returns treesitter trees or appropriate
     error messages.
@@ -92,6 +92,13 @@ def test_generate_parse_tree():
     with pytest.raises(ValueError) as err:
         _ = processor.generate_parse_tree(invalid_code)
     assert "Syntax Error found at line 2" in str(err.value)
+
+    # Test providing a source file
+    filename = str(tmpdir_factory.mktemp('ts_test').join("testfile.f90"))
+    with open(filename, "w", encoding='utf-8') as wfile:
+        wfile.write(valid_code)
+    ptree = processor.generate_parse_tree(file_path=filename)
+    assert isinstance(ptree, TSNode)
 
     # TODO #3038 All arguments are currently ignored
 
