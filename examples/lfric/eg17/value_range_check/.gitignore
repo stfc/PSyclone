@@ -1,5 +1,3 @@
-extract.ascii
-extract.binary
-extract.netcdf
+value_range_check
 main_alg.f90
 main_psy.f90
