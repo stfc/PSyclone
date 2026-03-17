@@ -2802,7 +2802,10 @@ class Fparser2Reader():
                         f"The symbol interface of a common block variable "
                         f"could not be updated because of {error}.") from error
 
-    def _process_precision(self, type_spec, psyir_parent):
+    def _process_precision(self,
+                           type_spec: Fortran2003.Intrinsic_Type_Spec,
+                           psyir_parent: Node) -> Optional[
+                               Union[ScalarType.Precision, DataNode]]:
         '''Processes the fparser2 parse tree of the type specification of a
         variable declaration in order to extract precision
         information. Two formats for specifying precision are
@@ -2810,40 +2813,42 @@ class Fparser2Reader():
         kind=KIND(x).
 
         :param type_spec: the fparser2 parse tree of the type specification.
-        :type type_spec: \
-            :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec`
-        :param psyir_parent: the parent PSyIR node where the new node \
+        :param psyir_parent: the parent PSyIR node where the new node
             will be attached.
-        :type psyir_parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: the precision associated with the type specification.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
-            :py:class:`psyclone.psyir.nodes.DataNode` or int or NoneType
 
-        :raises NotImplementedError: if a KIND intrinsic is found with an \
+        :raises NotImplementedError: if a KIND intrinsic is found with an
             argument other than a real or integer literal.
-        :raises NotImplementedError: if we have `kind=xxx` but cannot find \
+        :raises NotImplementedError: if we have `kind=xxx` but cannot find
             a valid variable name.
 
         '''
         symbol_table = psyir_parent.scope.symbol_table
 
+        is_char = False
         for child in type_spec.children:
             if isinstance(child, Fortran2003.Kind_Selector):
                 kind_selector = child
+                break
+            if isinstance(child, Fortran2003.Char_Selector):
+                # A CHARACTER declaration can be of Char_Selector type.
+                # The second child of Char_Selector holds the precision.
+                is_char = True
+                kind_selector = child.children[1]
                 break
         else:
             # No precision is specified
             return None
 
-        if (isinstance(kind_selector.children[0], str) and
-                kind_selector.children[0] == "*"):
+        if not is_char and (isinstance(kind_selector.children[0], str) and
+                            kind_selector.children[0] == "*"):
             # Precision is provided in the form *N
             precision = int(str(kind_selector.children[1]))
             return precision
 
         # Precision is supplied in the form "kind=..."
-        intrinsics = walk(kind_selector.items,
+        intrinsics = walk(kind_selector,
                           Fortran2003.Intrinsic_Function_Reference)
         if intrinsics and isinstance(intrinsics[0].items[0],
                                      Fortran2003.Intrinsic_Name) and \
@@ -2868,8 +2873,10 @@ class Fparser2Reader():
 
         # Create a dummy Routine and Assignment to capture the kind=...
         # so we can capture expressions such as 2*wp.
-        # The input from fparser2 is ['(', kind, ')']
-        kind_items = kind_selector.items[1]
+        # The input from fparser2 is ['(', kind, ')'] if it is not a
+        # Char_Selector, otherwise kind_selector already holds the kind
+        # expression.
+        kind_items = kind_selector.items[1] if not is_char else kind_selector
         fake_routine = Routine(RoutineSymbol("dummy"))
         # Create a dummy assignment "a = " to place the kind statement on
         # the rhs of.
@@ -2894,37 +2901,44 @@ class Fparser2Reader():
 
     def _process_char_length(self,
                              type_spec: Fortran2003.Intrinsic_Type_Spec,
-                             psyir_parent: Node) -> Optional[DataNode]:
+                             psyir_parent: Node) -> Optional[
+                                 Union[ScalarType.CharLengthParameter,
+                                       DataNode]]:
         '''
-        Process any length and precision attributes on a CHARACTER declaration.
+        Process any length attribute on a CHARACTER declaration.
 
         :param type_spec: the fparser2 parse tree describing the type.
         :param psyir_parent: the parent node in the PSyIR tree.
 
-        :returns: TODO
+        :returns: the length of the character string or None if it is
+                  unspecified.
 
         '''
         for child in type_spec.children:
             if isinstance(child, Fortran2003.Length_Selector):
-                len_selector = child
+                # Child 0 holds '(' for a '(len=xxx)' or '*' for a
+                # '* char-length'. Either way, child 1 holds the length.
+                if isinstance(child.children[1], Fortran2003.Char_Length):
+                    char_len = child.children[1].children[1]
+                else:
+                    char_len = child.children[1]
+                break
+
+            if isinstance(child, Fortran2003.Char_Selector):
+                # A CHARACTER declaration can be of Char_Selector type.
+                # The first child of Char_Selector holds the length.
+                char_len = child.children[0]
                 break
         else:
             # No length is specified
             return None
-
-        # Children 0 holds '(' for a '(len=xxx)'
-        # or '*' for a '* char-length'
-        if isinstance(len_selector.children[1],
-                      Fortran2003.Char_Length):
-            char_len = len_selector.children[1].children[1]
-        else:
-            char_len = len_selector.children[1]
 
         if isinstance(char_len, Fortran2003.Type_Param_Value):
             if char_len.string == ":":
                 return ScalarType.CharLengthParameter.COLON
             return ScalarType.CharLengthParameter.ASTERISK
 
+        # Create a dummy assignment so we can process the length expression.
         dummy = Assignment(parent=psyir_parent)
         dummy.addchild(Reference(Symbol("a")))
         self.process_nodes(parent=dummy, nodes=[char_len])
