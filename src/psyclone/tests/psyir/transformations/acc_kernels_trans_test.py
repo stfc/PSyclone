@@ -278,8 +278,8 @@ def test_kernels_around_where_construct(fortran_reader, fortran_writer):
     assert isinstance(schedule[0], ACCKernelsDirective)
     assert isinstance(schedule[0].dir_body[0], Loop)
     assert ("  !$acc kernels\n"
-            "  do widx2 = 1, SIZE(a(:,:), dim=2), 1\n"
-            "    do widx1 = 1, SIZE(a(:,:), dim=1), 1\n"
+            "  do widx2 = 1, SIZE(a, dim=2), 1\n"
+            "    do widx1 = 1, SIZE(a, dim=1), 1\n"
             "      if (a(LBOUND(a, dim=1) + widx1 - 1,"
             "LBOUND(a, dim=2) + widx2 - 1) < flag) then\n"
             "        b(LBOUND(b, dim=1) + widx1 - 1,"
@@ -305,8 +305,8 @@ def test_kernels_around_where_stmt(fortran_reader, fortran_writer):
     acc_trans.apply([schedule[1]])
     assert ("  a(:,:) = 1.0\n"
             "  !$acc kernels\n"
-            "  do widx2 = 1, SIZE(a(:,:), dim=2), 1\n"
-            "    do widx1 = 1, SIZE(a(:,:), dim=1), 1\n"
+            "  do widx2 = 1, SIZE(a, dim=2), 1\n"
+            "    do widx1 = 1, SIZE(a, dim=1), 1\n"
             "      if (a(LBOUND(a, dim=1) + widx1 - 1,"
             "LBOUND(a, dim=2) + widx2 - 1) < flag) then\n"
             "        b(LBOUND(b, dim=1) + widx1 - 1,"

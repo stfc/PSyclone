@@ -50,8 +50,8 @@ PSyclone, it is not designed to be run directly from python.
 
 '''
 from psyclone.psyir.nodes import Routine
-from psyclone.transformations import LFRicAsyncHaloExchangeTrans, \
-    MoveTrans, TransformationError
+from psyclone.transformations import LFRicAsyncHaloExchangeTrans
+from psyclone.psyir.transformations import MoveTrans, TransformationError
 from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
 
 

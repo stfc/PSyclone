@@ -252,8 +252,11 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     # tree has not been built so the symbol table is not connected to
     # a node.
     symbol_table = location.scope.symbol_table
-    while symbol_table and symbol_table.node and not isinstance(
-            symbol_table.node, (Routine, Container)):
+    while (
+        symbol_table and symbol_table.node
+        and not isinstance(symbol_table.node, (Routine, Container))
+        and symbol_table.parent_symbol_table() is not None
+    ):
         symbol_table = symbol_table.parent_symbol_table()
 
     # All requested Nodes have been checked but there has been no
@@ -841,7 +844,10 @@ def _get_arg_names(node_list):
     arg_names = []
     arg_nodes = []
     for node in node_list:
-        if isinstance(node, Fortran2003.Actual_Arg_Spec):
+        # We get names from what fparser consider Arg_Spec (functions)
+        # or Component_Spec (derived type)
+        if isinstance(node, (Fortran2003.Actual_Arg_Spec,
+                             Fortran2003.Component_Spec)):
             arg_names.append(node.children[0].string)
             arg_nodes.append(node.children[1])
         else:
@@ -970,6 +976,7 @@ class Fparser2Reader():
             Fortran2003.Allocate_Stmt: self._allocate_handler,
             Fortran2003.Allocate_Shape_Spec: self._allocate_shape_spec_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
+            Fortran2003.Structure_Constructor: self._call_handler,
             Fortran2003.Data_Pointer_Object: self._structure_accessor_handler,
             Fortran2003.Data_Ref: self._structure_accessor_handler,
             Fortran2003.Pointer_Assignment_Stmt: self._assignment_handler,
@@ -4442,13 +4449,11 @@ class Fparser2Reader():
                 first_rank = rank
                 first_array = array
 
-            base_ref = _copy_full_base_reference(array)
             array_ref = array.ancestor(Reference, include_self=True)
             if not isinstance(array_ref.datatype, ArrayType):
                 raise NotImplementedError(
                     f"We can not get the resulting shape of the expression: "
                     f"{array_ref.debug_string()}")
-            shape = array_ref.datatype.shape
             add_op = BinaryOperation.Operator.ADD
             sub_op = BinaryOperation.Operator.SUB
             # Replace the PSyIR Ranges with appropriate index expressions.
@@ -4460,21 +4465,13 @@ class Fparser2Reader():
                 # array as we will index relative to it. Note that the 'shape'
                 # of the datatype only gives us extents, not the lower bounds
                 # of the declaration or slice.
-                if isinstance(shape[range_idx], ArrayType.Extent):
-                    # We don't know the bounds of this array so we have
-                    # to query using LBOUND.
-                    lbound = IntrinsicCall.create(
-                        IntrinsicCall.Intrinsic.LBOUND,
-                        [base_ref.copy(),
-                         ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+                if array.is_full_range(idx):
+                    # The access to this index is to the full range of
+                    # the array.
+                    lbound = array.get_lbound_expression(idx)
                 else:
-                    if array.is_full_range(idx):
-                        # The access to this index is to the full range of
-                        # the array.
-                        lbound = array.get_lbound_expression(idx)
-                    else:
-                        # We need the lower bound of this access.
-                        lbound = child.start.copy()
+                    # We need the lower bound of this access.
+                    lbound = child.start.copy()
 
                 # Create the index expression.
                 symbol = table.lookup(loop_vars[range_idx])
@@ -4681,25 +4678,16 @@ class Fparser2Reader():
             # according to the lower bound of that array.
             loop.addchild(Literal("1", integer_type))
             # Add loop upper bound using the shape of the mask.
-            if isinstance(mask_shape[idx-1], ArrayType.Extent):
-                # We don't have an explicit value for the upper bound so we
-                # have to query it using SIZE.
-                loop.addchild(
-                    IntrinsicCall.create(IntrinsicCall.Intrinsic.SIZE,
-                                         [array_ref.copy(),
-                                          ("dim", Literal(str(idx),
-                                                          integer_type))]))
+            lbound = mask_shape[idx-1].lower
+            if isinstance(lbound, Literal) and lbound.value == "1":
+                # Lower bound is unity so size is just the upper bound.
+                expr2 = mask_shape[idx-1].upper.copy()
             else:
-                lbound = mask_shape[idx-1].lower
-                if isinstance(lbound, Literal) and lbound.value == "1":
-                    # Lower bound is unity so size is just the upper bound.
-                    expr2 = mask_shape[idx-1].upper.copy()
-                else:
-                    # Size = upper-bound - lower-bound + 1
-                    expr = BinaryOperation.create(
-                        sub_op, mask_shape[idx-1].upper.copy(), lbound.copy())
-                    expr2 = BinaryOperation.create(add_op, expr, one.copy())
-                loop.addchild(expr2)
+                # Size = upper-bound - lower-bound + 1
+                expr = BinaryOperation.create(
+                    sub_op, mask_shape[idx-1].upper.copy(), lbound.copy())
+                expr2 = BinaryOperation.create(add_op, expr, one.copy())
+            loop.addchild(expr2)
 
             # Add loop increment
             loop.addchild(Literal("1", integer_type))
@@ -5202,7 +5190,7 @@ class Fparser2Reader():
         Transforms an fparser2 Part_Ref to the PSyIR representation.
 
         fparser2 cannot always disambiguate between Array Accessors, Calls and
-        DerivedType constructors, and it falls back to Part_Ref when unknown.
+        DerivedType constructors (sometimes the last two end up as Part_Ref).
         PSyclone has a better chance of properly categorising them because we
         can follow 'use' statements to retrieve symbol information. If
         psyclone does not find the definition it falls back to a Call. The
@@ -5231,13 +5219,16 @@ class Fparser2Reader():
         _refine_symbols_with_usage_location(parent, node)
         symbol = _find_or_create_unresolved_symbol(parent, reference_name)
 
-        if isinstance(symbol, DataSymbol):
-            call_or_array = ArrayReference(symbol, parent=parent)
-        else:
-            # Generic Symbols (unresolved), RoutineSymbols and DataTypeSymbols
-            # (constructors) are all processed as Calls
+        if (
+            not isinstance(symbol, DataSymbol) or
+            isinstance(symbol.datatype, DataTypeSymbol)
+        ):
+            # Fallback to Call if the type is unknown, or it is a Derived
+            # Type constructor
             call_or_array = Call(parent=parent)
             call_or_array.addchild(Reference(symbol))
+        else:
+            call_or_array = ArrayReference(symbol, parent=parent)
         self.process_nodes(parent=call_or_array, nodes=node.items[1].items)
         return call_or_array
 
@@ -5440,10 +5431,14 @@ class Fparser2Reader():
 
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
-        # If it's a plain reference, promote the symbol to a RoutineSymbol
+        # If it's a call statement, it is unambiguously a RoutineSymbol
         # pylint: disable=unidiomatic-typecheck
-        if type(routine) is Reference:
+        if (
+            isinstance(node, Fortran2003.Call_Stmt) and
+            type(routine) is Reference
+        ):
             routine_symbol = routine.symbol
+
             if type(routine_symbol) is Symbol:
                 # Specialise routine_symbol from a Symbol to a
                 # RoutineSymbol
@@ -5466,7 +5461,8 @@ class Fparser2Reader():
 
     def _process_args(self, node: Union[
                           Fortran2003.Call_Stmt,
-                          Fortran2003.Intrinsic_Function_Reference
+                          Fortran2003.Intrinsic_Function_Reference,
+                          Fortran2003.Structure_Constructor
                       ],
                       call: Union[Call, IntrinsicCall],
                       check_valid_argument_ordering: bool = False) -> Union[

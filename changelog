@@ -1,4 +1,21 @@
-   56) PR 3343 towards #1960 and #1799. Improves ArrayAssignment2Loop
+   62) PR #3363 towards #2971. Move MoveTrans into psyir.transformations.
+ 
+   61) PR #3336 for #3325. Improve datatype method to prevent returning
+   array Extents and select better operand type when possible.
+
+   60) PR #3357 for #1857. Re-names ArrayType.datatype to
+   ArrayType.elemental_type and precision and intrinsic properties.
+
+   59) PR #3353 for #3328. Fix a case of duplicated nodes returned by DUC.
+
+   58) PR #3354 for #2429. Extends the fparser2 frontend such that all
+   structure constructors and functions with unknown delcarations are
+   represented by Call nodes.
+
+   57) PR #3355 towards #3252. Improves PSY_VALUE_RANGE format, introduces a
+   generic value_range_check library and runs examples during the tests.
+ 
+   56) PR #3343 towards #1960 and #1799. Improves ArrayAssignment2Loop
    by using call/RoutineSymbol datatype information.
  
    55) PR #3333 for #2381 - Restructures global reduction nodes to support

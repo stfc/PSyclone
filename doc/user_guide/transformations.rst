@@ -376,7 +376,7 @@ can be found in the API-specific sections).
 
 .. _sec_move_trans:
 
-.. autoclass:: psyclone.transformations.MoveTrans
+.. autoclass:: psyclone.psyir.transformations.MoveTrans
     :members: apply
     :no-index:
 

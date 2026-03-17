@@ -54,7 +54,9 @@ INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
 VALUE_RANGE_CHECK_DIR = $(PSYROOT)/lib/value_range_check/dl_esm_inf
-F90FLAGS += -I$(INF_INC) -I $(VALUE_RANGE_CHECK_DIR)
+# Don't add the include flags to F90FLAGS, that might cause problems
+# when other makefiles are called (which will also use F90FLAGS)
+F90_INC_FLAGS= -I$(INF_INC) -I $(VALUE_RANGE_CHECK_DIR)
 LIB_NAME = lib_value_range_check.a
 
 # The two kernels used in the application.
@@ -75,11 +77,15 @@ transform: test.x90 value_range_check_transformation.py
 
 run: compile
 	# Note that if the output line is not found, the make will abort with error
-	./value_range_check 2>&1| grep "PSyData: Variable a_fld has the invalid value"
+	./value_range_check 2>&1| grep "PSyData: Variable 'a_fld%data' has the invalid value"
 
 $(NAME): $(INF_LIB) $(VALUE_RANGE_CHECK_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
 	$(F90) $(F90FLAGS) $(KERNELS) alg.o psy.o -o $(NAME) \
 	-L$(VALUE_RANGE_CHECK_DIR) -l_value_range_check $(INF_LIB)
+
+# Value range check needs inf lib (otherwise in parallel re-compilation
+# inf_lib and value range might be compiled in parallel)
+$(VALUE_RANGE_CHECK_DIR)/$(LIB_NAME): $(INF_LIB)
 
 # The value_range_check library
 $(VALUE_RANGE_CHECK_DIR)/$(LIB_NAME):
@@ -107,7 +113,7 @@ alg.o:	psy.o
 psy.o:	$(KERNELS)
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(F90_INC_FLAGS) -c $<
 
 allclean: clean
 	$(MAKE) -C $(VALUE_RANGE_CHECK_DIR) allclean
