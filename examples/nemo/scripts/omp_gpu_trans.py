@@ -40,8 +40,9 @@ directives into Nemo code. '''
 import os
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
-    normalise_loops, PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
-from psyclone.psyir.nodes import Routine, Loop
+    normalise_loops, iom_put_argument_to_temporary,
+    PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
+from psyclone.psyir.nodes import Routine, Loop, Call
 from psyclone.psyir.transformations import (
     OMPTargetTrans, OMPDeclareTargetTrans)
 from psyclone.transformations import (
@@ -198,6 +199,10 @@ def trans(psyir):
                 symtab.add(symtab.lookup("pp_wgt"))
             if "pp_len" not in symtab:
                 symtab.add(symtab.lookup("pp_len"))
+
+        # Extract any array operations from iom_put calls to temporary
+        # expressions that can be parallelised.
+        iom_put_argument_to_temporary(subroutine.walk(Call))
 
         normalise_loops(
                 subroutine,
