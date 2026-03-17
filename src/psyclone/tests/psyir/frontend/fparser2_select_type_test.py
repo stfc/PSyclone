@@ -74,7 +74,7 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         "end module\n")
     expected1 = "CLASS(*), TARGET :: type_selector"
     expected2 = (
-        "    character(256) :: type_string\n"
+        "    character(len=256) :: type_string\n"
         "    INTEGER, pointer :: ptr_INTEGER => null()\n"
         "    REAL, pointer :: ptr_REAL => null()\n\n"
         "    type_string = ''\n"
@@ -135,7 +135,7 @@ def test_default(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected = (
-        "    character(256) :: type_string\n"
+        "    character(len=256) :: type_string\n"
         "    INTEGER, pointer :: ptr_INTEGER => null()\n"
         "    REAL, pointer :: ptr_REAL => null()\n\n"
         "    type_string = ''\n"
@@ -207,7 +207,7 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
         "end module\n")
     expected1 = "class(*), pointer :: type"
     expected2 = (
-        "    character(256) :: type_string\n"
+        "    character(len=256) :: type_string\n"
         "    type(type2), pointer :: ptr_type2 => null()\n"
         "    INTEGER, pointer :: ptr_INTEGER => null()\n"
         "    type(type3), pointer :: ptr_type3 => null()\n"
@@ -382,7 +382,7 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "    integer :: branch2\n"
         "    REAL(KIND=4) :: rinfo1\n"
         "    REAL(KIND=8) :: rinfo2\n"
-        "    character(256) :: type_string\n"
+        "    character(len=256) :: type_string\n"
         "    REAL(KIND = 4), pointer :: ptr_REAL_4 => null()\n"
         "    REAL(KIND = 8), pointer :: ptr_REAL_8 => null()\n").lower()
     expected2 = (
@@ -441,7 +441,7 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
         "    end type field_type\n"
         "    type(field_type) :: field_type_info\n"
         "    integer :: branch1\n"
-        "    character(256) :: type_string\n"
+        "    character(len=256) :: type_string\n"
         "    type(field_type), pointer :: ptr_field_type => null()\n")
     expected2 = (
         "    type_string = ''\n"
@@ -497,11 +497,11 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
         "    integer :: branch2\n"
         "    integer :: branch3\n"
         "    logical :: logical_type\n"
-        "    CHARACTER(LEN = 256) :: character_type\n"
+        "    character(len=256) :: character_type\n"
         "    COMPLEX :: complex_type\n"
-        "    character(256) :: type_string\n"
+        "    character(len=256) :: type_string\n"
         "    LOGICAL, pointer :: ptr_LOGICAL => null()\n"
-        "    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => null()\n"
+        "    character(len=256), pointer :: ptr_CHARACTER_star => null()\n"
         "    COMPLEX, pointer :: ptr_COMPLEX => null()\n").lower()
     expected2 = (
         "    type_string = ''\n"
@@ -540,8 +540,8 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
 
 @pytest.mark.parametrize(
     "char_type_in, char_type_out",
-    (["*256", "*256"], ["(256)", "(LEN = 256)"],
-     ["(LEN = 256)", "(LEN = 256)"]))
+    (["*256", "(len=256)"], ["(256)", "(len=256)"],
+     ["(LEN = 256)", "(len=256)"]))
 def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
                    char_type_out):
     '''Check that the correct code is output with literal and implicit
@@ -566,7 +566,7 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
         f"  subroutine select_type(type_selector)\n"
         f"    CLASS(*), TARGET :: type_selector\n"
         f"    CHARACTER{char_type_out} :: character_type\n"
-        f"    character(256) :: type_string\n"
+        f"    character(len=256) :: type_string\n"
         f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => "
         f"null()\n").lower()
     expected2 = (
@@ -611,7 +611,7 @@ def test_character_assumed_len(fortran_reader, fortran_writer, tmpdir,
         f"  subroutine select_type(type_selector)\n"
         f"    CLASS(*), TARGET :: type_selector\n"
         f"    CHARACTER{char_type_out}, POINTER :: character_type => null()\n"
-        f"    character(256) :: type_string\n"
+        f"    character(len=256) :: type_string\n"
         f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => "
         f"null()\n").lower()
     expected2 = (
@@ -633,13 +633,13 @@ def test_character_assumed_len(fortran_reader, fortran_writer, tmpdir,
 
 @pytest.mark.parametrize(
     "char_type_in, char_type_out, pointer",
-    (["(LEN=*, KIND=1)", "(LEN = *, KIND = 1)", ""],
-     ["(LEN=*, KIND=1*1)", "(LEN = *, KIND = 1 * 1)", ""],
-     ["(LEN=1*2, KIND=1*1)", "(LEN = 1 * 2, KIND = 1 * 1)", ""],
-     ["(*, KIND=1*1)", "(LEN = *, KIND = 1 * 1)", ""],
-     ["(256*1, KIND=1*1)", "(LEN = 256 * 1, KIND = 1 * 1)", ""],
-     ["(*, 1*1)", "(LEN = *, KIND = 1 * 1)", ""],
-     ["(256*1, 1*1)", "(LEN = 256 * 1, KIND = 1 * 1)", ""],
+    (["(LEN=*, KIND=1)", "(LEN=*, KIND=1)", ""],
+     ["(LEN=*, KIND=1*1)", "(LEN=*, KIND=1 * 1)", ""],
+     ["(LEN=1*2, KIND=1*1)", "(LEN=1 * 2, KIND=1 * 1)", ""],
+     ["(*, KIND=1*1)", "(LEN=*, KIND=1 * 1)", ""],
+     ["(256*1, KIND=1*1)", "(LEN=256 * 1, KIND=1 * 1)", ""],
+     ["(*, 1*1)", "(LEN=*, KIND=1 * 1)", ""],
+     ["(256*1, 1*1)", "(LEN=256*1, KIND=1 * 1)", ""],
      ["(KIND=1*1, LEN=*)", "(LEN = *, KIND = 1 * 1)", ""],
      ["(KIND=1*1, LEN=256*1)", "(LEN = 256 * 1, KIND = 1 * 1)", ""],
      ["(KIND=1*1)", "(KIND = 1 * 1)", ""],
@@ -674,7 +674,7 @@ def test_character_kind(
         f"  subroutine select_type(type_selector, character_type)\n"
         f"    class(*), target :: type_selector\n"
         f"    character{char_type_out}{pointer} :: character_type\n"
-        f"    character(256) :: type_string\n"
+        f"    character(len=256) :: type_string\n"
         f"    character(len=256), pointer :: ptr_character_star => null()\n\n"
         f"    type_string = ''\n"
         f"    select type(type_selector)\n"
@@ -725,7 +725,7 @@ def test_class_target(
         f"  subroutine select_type(type_selector, character_type)\n"
         f"    CLASS(*), {post_attribute} :: type_selector\n"
         f"    CHARACTER(LEN = *) :: character_type\n"
-        f"    character(256) :: type_string\n"
+        f"    character(len=256) :: type_string\n"
         f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => null()\n\n"
         f"    type_string = ''\n"
         f"    SELECT TYPE(type_selector)\n"

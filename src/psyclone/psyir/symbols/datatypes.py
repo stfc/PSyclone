@@ -606,7 +606,7 @@ class ScalarType(DataType):
         from psyclone.psyir.nodes.datanode import DataNode
         if isinstance(self.precision, DataNode):
             self._precision.replace_symbols_using(table_or_symbol)
-        if self._length:
+        if isinstance(self._length, DataNode):
             self._length.replace_symbols_using(table_or_symbol)
 
     def get_all_accessed_symbols(self) -> set[Symbol]:
@@ -620,7 +620,7 @@ class ScalarType(DataType):
         from psyclone.psyir.nodes.datanode import DataNode
         if isinstance(self.precision, DataNode):
             symbols.update(self.precision.get_all_accessed_symbols())
-        if self._length:
+        if isinstance(self._length, DataNode):
             symbols.update(self._length.get_all_accessed_symbols())
         return symbols
 

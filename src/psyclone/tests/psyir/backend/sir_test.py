@@ -653,9 +653,9 @@ def test_sirwriter_literal_node_error(sir_writer, value, datatype):
     rhs = get_rhs(code)
     with pytest.raises(VisitorError) as excinfo:
         sir_writer.literal_node(rhs)
-    assert (
-        f"PSyIR type 'Scalar<{datatype}, UNDEFINED>' has no representation in "
-        f"the SIR backend." in str(excinfo.value))
+    err_msg = str(excinfo.value)
+    assert f"PSyIR type 'Scalar<{datatype}, " in err_msg
+    assert ">' has no representation in the SIR backend" in err_msg
 
 
 # (1/5) Method unaryoperation_node

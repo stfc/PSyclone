@@ -349,7 +349,14 @@ class FortranWriter(LanguageWriter):
                     f"Fortran, found '{fortrantype}'")
             if scalar_type.intrinsic == ScalarType.Intrinsic.CHARACTER:
                 # Include length information.
-                return f"{fortrantype}(len={self._visit(scalar_type.length)})"
+                if (scalar_type.length ==
+                        ScalarType.CharLengthParameter.ASTERISK):
+                    len_str = "*"
+                elif scalar_type.length == ScalarType.CharLengthParameter.COLON:
+                    len_str = ":"
+                else:
+                    len_str = self._visit(scalar_type.length)
+                return f"{fortrantype}(len={len_str})"
             return fortrantype
 
         if isinstance(precision, DataNode):
@@ -360,7 +367,14 @@ class FortranWriter(LanguageWriter):
             len_str = ""
             if scalar_type.intrinsic == ScalarType.Intrinsic.CHARACTER:
                 # Include length information.
-                len_str = f", len={self._visit(scalar_type.length)}"
+                if (scalar_type.length ==
+                        ScalarType.CharLengthParameter.ASTERISK):
+                    len_str = "*"
+                elif scalar_type.length == ScalarType.CharLengthParameter.COLON:
+                    len_str = ":"
+                else:
+                    len_str = self._visit(scalar_type.length)
+                len_str = f", len={len_str}"
             # The precision information is provided by a parameter,
             # so use KIND.
             return f"{fortrantype}(kind={self._visit(precision)}{len_str})"

@@ -11,21 +11,24 @@ from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
 
 
 @pytest.mark.usefixtures("f2008_parser")
-@pytest.mark.parametrize("len_expr,length",
-                         [("", "1"),
-                          ("(len=3)", "3"),
-                          ("(3)", "3"),
-                          ("*3", "3"),
-                          ("*(3)", "3"),
-                          ("(len=2*max_len)", "2 * max_len"),
-                          ("*(2*max_len)", "2 * max_len"),
-                          ("(len=:)", "COLON"),
-                          ("(:)", "COLON"),
-                          ("*(:)", "COLON"),
-                          ("(len=*)", "ASTERISK"),
-                          ("(*)", "ASTERISK"),
-                          ("*(*)", "ASTERISK")])
-def test_char_decln_length_handling(len_expr, length):
+@pytest.mark.parametrize("len_expr,length,kind",
+                         [("", "1", ScalarType.Precision.UNDEFINED),
+                          ("(len=3)", "3", ScalarType.Precision.UNDEFINED),
+                          ("(3)", "3", ScalarType.Precision.UNDEFINED),
+                          ("*3", "3", ScalarType.Precision.UNDEFINED),
+                          ("*(3)", "3", ScalarType.Precision.UNDEFINED),
+                          ("(len=2*max_len)", "2 * max_len",
+                           ScalarType.Precision.UNDEFINED),
+                          ("*(2*max_len)", "2 * max_len",
+                           ScalarType.Precision.UNDEFINED),
+                          ("(len=:)", "COLON", ScalarType.Precision.UNDEFINED),
+                          ("(:)", "COLON", ScalarType.Precision.UNDEFINED),
+                          ("*(:)", "COLON", ScalarType.Precision.UNDEFINED),
+                          ("(len=*)", "ASTERISK",
+                           ScalarType.Precision.UNDEFINED),
+                          ("(*)", "ASTERISK", ScalarType.Precision.UNDEFINED),
+                          ("*(*)", "ASTERISK", ScalarType.Precision.UNDEFINED)])
+def test_char_decln_length_handling(len_expr, length, kind):
     '''
     '''
     fake_parent = Routine.create("dummy_schedule")
@@ -40,4 +43,5 @@ def test_char_decln_length_handling(len_expr, length):
     processor.process_declarations(fake_parent, [fparser2spec], [])
     l1_var = symtab.lookup("l1")
     assert l1_var.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
+    assert l1_var.datatype.precision == kind
     assert l1_var.datatype.length.debug_string() == length

@@ -1633,6 +1633,7 @@ class Fparser2Reader():
             if not precision:
                 precision = default_precision(data_name)
 
+            char_len = None
             if fort_type == "character":
                 # Character types can have a length
                 char_len = self._process_char_length(type_spec, parent)
@@ -2892,9 +2893,16 @@ class Fparser2Reader():
         return kind_expression
 
     def _process_char_length(self,
-                             type_spec,
+                             type_spec: Fortran2003.Intrinsic_Type_Spec,
                              psyir_parent: Node) -> Optional[DataNode]:
         '''
+        Process any length and precision attributes on a CHARACTER declaration.
+
+        :param type_spec: the fparser2 parse tree describing the type.
+        :param psyir_parent: the parent node in the PSyIR tree.
+
+        :returns: TODO
+
         '''
         for child in type_spec.children:
             if isinstance(child, Fortran2003.Length_Selector):
@@ -3785,18 +3793,16 @@ class Fparser2Reader():
 
         '''
         pointer_symbols = []
-        # Create a symbol from the supplied base name. Store as an
-        # UnsupportedFortranType in the symbol table as we do not natively
-        # support character strings (as opposed to scalars) in the PSyIR at
-        # the moment.
+        # Create a symbol from the supplied base name.
         # TODO #2550 will improve this by using an integer instead.
         type_string_name = parent.scope.symbol_table.next_available_name(
             type_string_name)
         # Length is hardcoded here so could potentially be too short.
         # TODO #2550 will improve this by using an integer instead.
-        type_string_type = UnsupportedFortranType(
-            f"character(256) :: {type_string_name}")
-        type_string_symbol = DataSymbol(type_string_name, type_string_type)
+        type_string_symbol = DataSymbol(
+            type_string_name,
+            ScalarType(ScalarType.Intrinsic.CHARACTER,
+                       ScalarType.Precision.UNDEFINED, length=256))
         parent.scope.symbol_table.add(type_string_symbol)
 
         # Create text for a select type construct using the information
