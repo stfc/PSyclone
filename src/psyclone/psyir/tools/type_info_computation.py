@@ -105,13 +105,13 @@ def compute_scalar_type(
 ) -> ScalarType:
     '''
     Examines the argtypes to determine the base type of the result of a
-    numerical operation with them as operands. Usesthe rules in Section 7.2
+    numerical operation with them as operands. Uses the rules in Section 7.2
     of the Fortran2008 standard. If the type cannot be determined then an
     instance of `UnresolvedType` is returned.
 
     :param argtypes: the types of the arguments.
 
-    :returns: the base (scalar) type of the result of the input arguments.
+    :returns: the elemental type of the result of the input arguments.
 
     :raises InternalError: If more than two argument types are provided.
     :raises TypeError: If the types differ and any are not a numeric datatype.

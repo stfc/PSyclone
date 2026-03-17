@@ -239,7 +239,7 @@ def test_validate_increment_with_unsupported_type(fortran_reader):
             "RESOLVE_IMPORTS." in str(info.value))
 
 
-def test_apply_unsupported_arrayassingment2loop_and_compute_arg_names(
+def test_apply_unsupported_arrayassignment2loop_and_compute_arg_names(
         fortran_reader, fortran_writer, monkeypatch):
     ''' Check that if an error is produced in the internal call to
     ArrayAssignment2LoopsTrans or compute_argument_names, the proper message
@@ -269,7 +269,7 @@ def test_apply_unsupported_arrayassingment2loop_and_compute_arg_names(
     # Also check that the output does not have any leftover temporary var, but
     # it has a verbose comment if requested
     code = fortran_writer(psyir)
-    assert "reduction_var" not in fortran_writer(psyir)
+    assert "reduction_var" not in code
     assert ("! Maxval2LoopTrans failed because ArrayAssignment2LoopsTrans: "
             "Transformation Error: myerror" in code)
 
@@ -750,7 +750,8 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
     with pytest.raises(TransformationError) as info:
         trans.apply(node)
     assert ("Error in Maxval2LoopTrans transformation. Cannot create a "
-            "temporary variable for 'MAXVAL(a(:) + b(3))'"
+            "temporary variable for 'MAXVAL(a(:) + b(3))' because it is"
+            " of 'UnresolvedType'."
             in str(info.value))
     # Check that the failed transformation does not modify the code
     code_after = fortran_writer(psyir)
@@ -760,7 +761,7 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
 def test_replace_reduction_with_type_changes(tmpdir, fortran_reader,
                                              fortran_writer):
     ''' Check that the temporary created to aggregate the partial results
-    is of the correct type even when the the reduction operation is inside and
+    is of the correct type even when the the reduction operation is inside an
     expression that has implicit or explicit casts.
     '''
     code = (
@@ -782,7 +783,7 @@ def test_replace_reduction_with_type_changes(tmpdir, fortran_reader,
             trans.apply(intr_node)
     output = fortran_writer(psyir)
 
-    # The aggregation value will be of the same time as the array
+    # The aggregation value will be of the same type as the array
     assert "real(kind=orig) :: reduction_var\n" in output
     assert "real(kind=orig) :: reduction_var_1\n" in output
     assert "real(kind=orig) :: reduction_var_2\n" in output

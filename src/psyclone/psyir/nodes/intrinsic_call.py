@@ -565,7 +565,7 @@ def _maxval_return_type(node: IntrinsicCall) -> DataType:
     :returns: the computed datatype for the IntrinsicCall.
     """
     arg = node.argument_by_name("array")
-    dtype = node.argument_by_name("array").datatype.elemental_type
+    dtype = arg.datatype.elemental_type
     if "dim" not in node.argument_names:
         return dtype
     # We have a dimension specified. We don't know the resultant shape

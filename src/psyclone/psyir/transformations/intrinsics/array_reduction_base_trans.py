@@ -130,7 +130,8 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         if isinstance(node.datatype, (UnresolvedType, UnsupportedType)):
             raise TransformationError(
                 f"Error in {self.name} transformation. Cannot create "
-                f"a temporary variable for '{node.debug_string()}'")
+                f"a temporary variable for '{node.debug_string()}' "
+                f"because it is of '{node.datatype}'.")
 
         # There should be at least one arrayreference or reference to
         # an array in the expression
@@ -191,7 +192,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         mask_arg = node.argument_by_name("mask")
         symtab = node.scope.symbol_table
 
-        # Step 1: Replace all references to arrays within the intrinsic array
+        # Step 1: Convert all references to arrays within the intrinsic array
         # and mask arguments (if it exists) to array ranges.
         # For example, 'maxval(a+b, mask=mod(c,2.0)==1)'
         # becomes 'maxval(a(:,:)+b(:,:), mask=mod(c(:,:),2.0)==1)' if
@@ -293,9 +294,9 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         #   enddo
         # enddo
 
-        # Create a temporary symbol to accomulate the reduction value (make
+        # Create a temporary symbol to accumulate the reduction value (make
         # sure to do that after ArrayAssignment2LoopsTrans, so it does not
-        # have to be clean up if that transformation fails)
+        # have to be cleaned up if that transformation fails)
         tmp_symbol = symtab.new_symbol(
                 root_name="reduction_var", symbol_type=DataSymbol,
                 datatype=node.datatype)
@@ -343,13 +344,15 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             assignment.append_preceding_comment(
                 f"{self.name} expansion of: {code}")
         outer_loop.parent.children.insert(outer_loop.position, assignment)
-        # Update original assignment with the reduced value
-        for child in orig_assignment.walk(Node):
+        # Update original assignment with the reduced value (after that
+        # the orig_assignment will not be usable)
+        replacement_assignment = orig_assignment
+        for child in replacement_assignment.walk(Node):
             if child is node:
                 child.replace_with(tmp_ref.copy())
                 break
         outer_loop.parent.children.insert(outer_loop.position+1,
-                                          orig_assignment)
+                                          replacement_assignment)
 
     @abstractmethod
     def _loop_body(self, lhs, rhs):
