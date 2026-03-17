@@ -1139,12 +1139,11 @@ class Fparser2Reader():
         del fp2_nodes[:]
         return code_block
 
-    def generate_psyir(self, parse_tree, filename=""):
+    def generate_psyir(self, parse_tree):
         '''Translate the supplied fparser2 parse_tree into PSyIR.
 
         :param parse_tree: the supplied fparser2 parse tree.
         :type parse_tree: :py:class:`fparser.two.Fortran2003.Program`
-        :param Optional[str] filename: associated name for FileContainer.
 
         :returns: PSyIR of the supplied fparser2 parse_tree.
         :rtype: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -1162,7 +1161,6 @@ class Fparser2Reader():
         node = Container("dummy")
         self.process_nodes(node, [parse_tree])
         result = node.children[0]
-        result.name = filename
         return result.detach()
 
     def get_routine_schedules(self, name, module_ast):
@@ -5945,7 +5943,7 @@ class Fparser2Reader():
         # fparser2 does not keep the original filename (if there was
         # one) so this can't be provided as the name of the
         # FileContainer.
-        file_container = FileContainer("None", parent=parent)
+        file_container = FileContainer("", parent=parent)
         self.process_nodes(file_container, node.children)
         return file_container
 

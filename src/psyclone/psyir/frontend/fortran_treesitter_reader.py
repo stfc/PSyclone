@@ -137,20 +137,14 @@ class FortranTreeSitterReader():
         report_errors(parse_tree.root_node)
         return parse_tree.root_node
 
-    def generate_psyir(self, parse_tree, filename=""):
+    def generate_psyir(self, parse_tree: TSNode) -> nodes.Node:
         '''Translate the supplied treesitter node to PSyIR.
 
         :param parse_tree: the supplied treesitter parse tree.
-        :type parse_tree: :py:class:`fparser.two.Fortran2003.Program`
-        :param Optional[str] filename: associated name for FileContainer.
 
         :returns: PSyIR of the supplied treesitter parse_tree.
-        :rtype: :py:class:`psyclone.psyir.nodes.FileContainer`
-
         '''
         result = self.get_handler(parse_tree)(parse_tree)
-        if filename and isinstance(result, nodes.FileContainer):
-            result.name = filename
         return result
 
     def process_nodes(self, list_of_nodes):

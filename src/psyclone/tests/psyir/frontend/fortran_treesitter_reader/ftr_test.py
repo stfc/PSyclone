@@ -116,11 +116,10 @@ def test_generate_psyir():
         end program test
     """
     ptree = processor.generate_parse_tree(valid_code)
-    psyir = processor.generate_psyir(ptree, "filename.f90")
+    psyir = processor.generate_psyir(ptree)
 
     # Currently only FileContainers with CodeBlocks inside
     assert isinstance(psyir, FileContainer)
-    assert psyir.name == "filename.f90"
     assert isinstance(psyir.children[0], CodeBlock)
     assert psyir.children[0].get_fortran_lines() == [
         'program test\n        end program test\n'

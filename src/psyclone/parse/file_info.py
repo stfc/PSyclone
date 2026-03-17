@@ -509,7 +509,8 @@ class FileInfo:
         processor = Fparser2Reader(
             resolve_modules=self._resolve_imports
         )
-        self._psyir_node = processor.generate_psyir(fparse_tree, filename)
+        self._psyir_node = processor.generate_psyir(fparse_tree)
+        self._psyir_node.name = filename
 
         # TODO #2786: Uncomment if psyir nodes are serializable
         # self._cache_save()
