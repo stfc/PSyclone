@@ -305,12 +305,11 @@ class DataNodeToTempTrans(Transformation):
         # Create a Reference to the new symbol
         new_ref = Reference(symbol)
 
-        # Find the parent and position of the statement containing the
-        # DataNode.
+        # Find the containing schedule and position of the statement
+        # containing the DataNode.
         schedule = node.ancestor(Schedule)
         path = node.path_from(schedule)
         pos = path[0]
-        parent = schedule.children[pos]
 
         # Replace the datanode with the new reference
         node.replace_with(new_ref)
@@ -319,7 +318,7 @@ class DataNodeToTempTrans(Transformation):
         assign = Assignment.create(new_ref.copy(), node)
 
         # Add the assignment into the tree.
-        parent.addchild(assign, pos)
+        schedule.addchild(assign, pos)
 
         # If the datatype is an array, we need to allocate the array
         # before the statement too.
@@ -338,7 +337,7 @@ class DataNodeToTempTrans(Transformation):
             )
             # Add the allocate statement into the tree immediately before
             # its use.
-            parent.addchild(intrinsic, pos)
+            schedule.addchild(intrinsic, pos)
 
 
 __all__ = ["DataNodeToTempTrans"]
