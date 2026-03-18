@@ -45,8 +45,10 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Assignment
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class AllArrayAccess2LoopTrans(Transformation):
     '''Provides a transformation from a PSyIR Assignment containing
     constant index accesses to an array into single-trip loops. For
@@ -82,7 +84,7 @@ class AllArrayAccess2LoopTrans(Transformation):
     <BLANKLINE>
 
     '''
-    def apply(self, node, options=None):
+    def apply(self, node: Assignment, options=None, **kwargs):
         '''Apply the AllArrayAccess2Loop transformation if the supplied
         node is an Assignment with an Array Reference on its
         left-hand-side. Each constant array index access (i.e. one not
@@ -95,13 +97,12 @@ class AllArrayAccess2LoopTrans(Transformation):
         nothing for that index and silently moves to the next.
 
         :param node: an assignment.
-        :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
             This is an optional argument that defaults to None.
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         trans = ArrayAccess2LoopTrans()
 
@@ -111,18 +112,20 @@ class AllArrayAccess2LoopTrans(Transformation):
             except TransformationError:
                 pass
 
-    def validate(self, node, options=None):
+    def validate(self, node: Assignment, options=None, **kwargs):
         '''Perform any checks to ensure that it is valid to apply the
         AllArrayAccess2LoopTrans transformation to the supplied
         PSyIR Node.
 
         :param node: the node that is being checked.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
             This is an optional argument that defaults to None.
         :type options: Optional[Dict[str, Any]]
 
         '''
+        # TODO #2668: Deprecate options dict.
+        if not options:
+            self.validate_options(**kwargs)
         # Not a PSyIR Assignment node
         if not isinstance(node, Assignment):
             raise TransformationError(
