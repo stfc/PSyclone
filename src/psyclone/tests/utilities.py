@@ -165,7 +165,6 @@ class Compile():
     of the corresponding infrastructure library.
 
     :param tmpdir: temporary directory, defaults to os.getcwd()
-    :type tmpdir: Optional[:py:class:`LocalPath`]
 
     '''
     # Class variable to store whether compilation is enabled (--compile).

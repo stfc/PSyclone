@@ -299,13 +299,13 @@ point number). In order to define a range for a variable (see
 [the documentation](https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html#value-range-check)
 for details), set the following environment variable:
 
-    PSYVERIFY__time_evolution__perturbation_data=0:4000 ./time_evolution
+    PSY_VALUE_RANGE="time_evolution.perturbation_data=0:4000" ./time_evolution
 
 This will check that each element of the perturbation variable has a value between 0
 and 4000 in the module ``time_evolution``. If the variable name is unique across
 all program units, you can also just drop the module name and use:
 
-    PSYVERIFY__perturbation_data=0:4000 ./time_evolution
+    PSY_VALUE_RANGE="perturbation_data=0:4000" ./time_evolution
 
 If you compile and run the job with this variable defines, a few elements
 will trigger a message, e.g.:

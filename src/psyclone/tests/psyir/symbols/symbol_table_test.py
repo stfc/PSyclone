@@ -40,7 +40,6 @@
 ''' Perform py.test tests on the psyclone.psyir.symbols.symbol_table file '''
 
 import re
-import os
 import logging
 from collections import OrderedDict
 import pytest
@@ -1537,7 +1536,7 @@ def test_view():
                       "  var2: DataSymbol<Scalar<INTEGER, UNDEFINED>, "
                       "Automatic>\n"
                       "RoutineSymbol:\n"
-                      "  func: RoutineSymbol<NoType, pure=unknown, "
+                      "  func: RoutineSymbol<UnresolvedType, pure=unknown, "
                       "elemental=unknown>\n")
 
 
@@ -2466,7 +2465,7 @@ def test_new_symbol():
     assert sym2.visibility is symbols.Symbol.Visibility.PUBLIC
     assert isinstance(sym1.interface, symbols.AutomaticInterface)
     assert isinstance(sym2.interface, symbols.AutomaticInterface)
-    assert isinstance(sym1.datatype, symbols.NoType)
+    assert isinstance(sym1.datatype, symbols.UnresolvedType)
     assert sym2.datatype is symbols.INTEGER_TYPE
     assert sym2.initial_value is None
 
@@ -2850,15 +2849,15 @@ def test_import_symbol_from_specific(fortran_reader):
 # resolve_imports
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
+def test_resolve_imports(fortran_reader, tmp_path, monkeypatch, caplog):
     ''' Tests that the SymbolTable resolve_imports method works as expected
     when importing symbol information from external containers and respects
     the method optional keywords. '''
 
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
 
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -2867,7 +2866,7 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
             integer :: b_1  ! Name clash but it is not imported
         end module a_mod
         ''')
-    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    filename = tmp_path / "b_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module b_mod
@@ -2946,7 +2945,8 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
     assert not isinstance(b_1, symbols.DataSymbol)
 
     # Resolve only 'not_used3' from wildcard imports
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO,
+                         logger="psyclone.psyir.symbols.symbol_table"):
         subroutine.symbol_table.resolve_imports(
             symbol_target=symbols.Symbol('not_used3'))
     not_used3 = subroutine.symbol_table.lookup('not_used3')
@@ -3002,7 +3002,8 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
 
     # Now resolve all found containers (this will not fail for the
     # unavailable c_mod, but it will be logged)
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.symbols.symbol_table"):
         subroutine.symbol_table.resolve_imports()
     assert "Module 'c_mod' not found" in caplog.text
 
@@ -3043,21 +3044,22 @@ def test_resolve_imports_missing_container(monkeypatch, caplog):
     monkeypatch.setattr(csym, "find_container_psyir", lambda local_node: None)
     table.add(csym)
     # Resolving imports should run without problems, but log a Warning.
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.symbols.symbol_table"):
         table.resolve_imports()
     assert "Module 'a_mod' not found" in caplog.text
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_different_capitalization(
-        fortran_reader, tmpdir, monkeypatch):
+        fortran_reader, tmp_path, monkeypatch):
     ''' Tests that the SymbolTable resolve_imports method works as expected
     when importing symbols with different name capitalizations '''
 
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
 
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3083,11 +3085,11 @@ def test_resolve_imports_different_capitalization(
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
+def test_resolve_imports_name_clashes(fortran_reader, tmp_path, monkeypatch):
     ''' Tests the SymbolTable resolve_imports method raises the appropriate
     errors when it finds name clashes. '''
 
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3112,7 +3114,7 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
     symtab = subroutine.symbol_table
 
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
 
     with pytest.raises(symbols.SymbolError) as err:
         symtab.resolve_imports([symtab.lookup('a_mod')])
@@ -3293,20 +3295,20 @@ def test_resolve_imports_with_datatypes(fortran_reader, monkeypatch):
 @pytest.mark.usefixtures("clear_module_manager_instance")
 @pytest.mark.parametrize('dependency_order', [['a_mod', 'b_mod'],
                                               ['b_mod', 'a_mod']])
-def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
+def test_resolve_imports_common_symbol(fortran_reader, tmp_path, monkeypatch,
                                        dependency_order):
     ''' Tests the SymbolTable resolve_imports accepts symbols with the same
     name coming from different dependency paths and keeps the most specific
     information regardless of the import order. '''
 
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
             integer :: common_import
         end module a_mod
         ''')
-    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    filename = tmp_path / "b_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module b_mod
@@ -3325,20 +3327,20 @@ def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
     symtab = subroutine.symbol_table
 
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
     for dependency in dependency_order:
         symtab.resolve_imports([symtab.lookup(dependency)])
     assert symtab.lookup("common_import").datatype.intrinsic.name == "INTEGER"
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
+def test_resolve_imports_parent_scope(fortran_reader, tmp_path, monkeypatch):
     '''Test that resolve_imports() works as expected if a Symbol is brought
     into scope from a parent table (which does not itself contain the Symbol
     in question).'''
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3371,15 +3373,15 @@ def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtab(
-        fortran_reader, tmpdir, monkeypatch):
+        fortran_reader, tmp_path, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine,
     resolve imports can resolve it from a parent module as long as
     there are no wildcard imports in the subroutine.
 
     '''
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3414,7 +3416,7 @@ def test_resolve_imports_from_child_symtab(
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtab_uft(
-        fortran_reader, tmpdir, monkeypatch):
+        fortran_reader, tmp_path, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine,
     resolve imports can resolve it from a parent module as an
     UnsupportedFortranType as long as there are no wildcard imports in the
@@ -3422,8 +3424,8 @@ def test_resolve_imports_from_child_symtab_uft(
 
     '''
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3459,7 +3461,7 @@ def test_resolve_imports_from_child_symtab_uft(
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtabs(
-        fortran_reader, tmpdir, monkeypatch):
+        fortran_reader, tmp_path, monkeypatch):
     '''Check that when an unresolved symbol is declared in more than one
     subroutine, resolve imports can resolve it from a parent module as
     long as there are no wildcard imports in the subroutine. We also
@@ -3468,8 +3470,8 @@ def test_resolve_imports_from_child_symtabs(
 
     '''
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3517,7 +3519,7 @@ def test_resolve_imports_from_child_symtabs(
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtabs_utf(
-        fortran_reader, tmpdir, monkeypatch):
+        fortran_reader, tmp_path, monkeypatch):
     '''Check that when an unresolved symbol is declared in more than one
     subroutine, resolve imports can resolve it from a parent module
     where it is declared as an UnsupportedFortranType, as long as there
@@ -3527,8 +3529,8 @@ def test_resolve_imports_from_child_symtabs_utf(
 
     '''
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3577,7 +3579,7 @@ def test_resolve_imports_from_child_symtabs_utf(
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtab_with_import(
-        fortran_reader, tmpdir, monkeypatch):
+        fortran_reader, tmp_path, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine
     with at least one wildcard use statement resolve imports can't
     resolve it from a parent. This shows one of the current
@@ -3589,8 +3591,8 @@ def test_resolve_imports_from_child_symtab_with_import(
 
     '''
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3598,7 +3600,7 @@ def test_resolve_imports_from_child_symtab_with_import(
             integer :: rau0 = 1
         end module a_mod
         ''')
-    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    filename = tmp_path / "b_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module b_mod

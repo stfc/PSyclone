@@ -37,7 +37,6 @@
 '''This module tests the inlining transformation.
 '''
 
-import os
 import pytest
 
 from psyclone.configuration import Config
@@ -83,7 +82,7 @@ def test_init():
 
 # apply
 
-def test_apply_empty_routine(fortran_reader, fortran_writer, tmpdir):
+def test_apply_empty_routine(fortran_reader, fortran_writer, tmp_path):
     '''Check that a call to an empty routine is simply removed.'''
     code = (
         "module test_mod\n"
@@ -104,10 +103,10 @@ def test_apply_empty_routine(fortran_reader, fortran_writer, tmpdir):
     output = fortran_writer(psyir)
     assert ("    i = 10\n\n"
             "  end subroutine run_it\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
-def test_apply_return_then_cb(fortran_reader, fortran_writer, tmpdir):
+def test_apply_return_then_cb(fortran_reader, fortran_writer, tmp_path):
     '''Check that a call to a routine containing a return statement followed
     by a CodeBlock is removed.'''
     code = (
@@ -131,10 +130,10 @@ def test_apply_return_then_cb(fortran_reader, fortran_writer, tmpdir):
     output = fortran_writer(psyir)
     assert ("    i = 10\n\n"
             "  end subroutine run_it\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
-def test_apply_array_arg(fortran_reader, fortran_writer, tmpdir):
+def test_apply_array_arg(fortran_reader, fortran_writer, tmp_path):
     ''' Check that the apply() method works correctly for a very simple
     call to a routine with an array reference as argument. '''
     code = (
@@ -162,10 +161,10 @@ def test_apply_array_arg(fortran_reader, fortran_writer, tmpdir):
             "      a(i) = 1.0\n"
             "      a(i) = 2.0 * a(i)\n"
             "    enddo\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
-def test_apply_array_access(fortran_reader, fortran_writer, tmpdir):
+def test_apply_array_access(fortran_reader, fortran_writer, tmp_path):
     '''
     Check that the apply method works correctly when an array is passed
     into the routine and then indexed within it.
@@ -199,7 +198,7 @@ def test_apply_array_access(fortran_reader, fortran_writer, tmpdir):
             "      do i_1 = 1, 10, 1\n"
             "        a(i_1) = 2.0 * i\n"
             "      enddo\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 def test_apply_gocean_kern(fortran_writer: FortranWriter) -> None:
@@ -231,7 +230,7 @@ def test_apply_gocean_kern(fortran_writer: FortranWriter) -> None:
     assert expected in output
 
 
-def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
+def test_apply_struct_arg(fortran_reader, fortran_writer, tmp_path):
     '''
     Check that the apply() method works correctly when the routine argument
     is a StructureReference containing an ArrayMember which is accessed inside
@@ -298,7 +297,7 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
             "      var2(i)%region%data(1:2) = 0.0\n"
             "      var2(1:5)%region%local%nx = 0\n"
             "    enddo\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
@@ -380,7 +379,7 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
             "    call sub4(mystery)\n" in output)
 
 
-def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
+def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmp_path):
     '''
     Check that the apply() method works correctly when there are slices in
     structure accesses in both the actual and formal arguments.
@@ -428,11 +427,11 @@ def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
     assert "var_list(:)%local%nx = 4" in output
     assert "var_list(1:1 + 1)%local%nx = -2" in output
     assert "cvar(2)%grids(2)%region%data(:) = 0.0" in output
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 def test_apply_struct_local_limits_caller(fortran_reader, fortran_writer,
-                                          tmpdir):
+                                          tmp_path):
     '''
     Test the apply() method when there are array bounds specified in the
     caller.
@@ -466,11 +465,11 @@ def test_apply_struct_local_limits_caller(fortran_reader, fortran_writer,
     assert "var_list(3:7)%local%nx = 3" in output
     # Element 1 in routine corresponds to element 3 in caller
     assert "var_list(5 - 1 + 3:6 + 1 - 1 + 3)%local%nx = -2" in output
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 def test_apply_struct_local_limits_caller_decln(fortran_reader, fortran_writer,
-                                                tmpdir):
+                                                tmp_path):
     '''
     Test the apply() method when there are non-default array bounds specified
     in the declaration at the call site.
@@ -521,11 +520,11 @@ def test_apply_struct_local_limits_caller_decln(fortran_reader, fortran_writer,
     assert "varat2(5 - 1 + 3:6 + 1 - 1 + 3)%local%nx = -2" in output
     assert "varat3(1 - 1 + 5:2 - 1 + 5) = 4.0\n" in output
     assert "varat3(:2 - 1 + 4) = 4.0\n" in output
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
-                                           tmpdir):
+                                           tmp_path):
     '''
     Test the apply() method when there are non-default array bounds specified
     in the declaration within the called routine.
@@ -585,7 +584,7 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
     assert "varat2(4 - 4 + 3:6 - 4 + 3)%data(2) = 2.0\n" in output
     assert "varat2(4 - 4 + 3:5 - 4 + 3)%local%nx = 4\n" in output
     assert "varat2(4 - 4 + 3:5 + 1 - 4 + 3)%local%nx = -3" in output
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 def test_apply_array_limits_are_formal_args(fortran_reader, fortran_writer):
@@ -670,10 +669,10 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
     assert "grid%data(jim2 + 2,jjp2 + 1) = -1.0\n" in output
     # TODO #2053 - we can't compile this code because the *input* isn't
     # valid Fortran (see earlier).
-    # assert Compile(tmpdir).string_compiles(output)
+    # assert Compile(tmp_path).string_compiles(output)
 
 
-def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
+def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmp_path):
     '''
     Check that the apply() method works correctly when an array slice is
     passed to a routine and then accessed within it.
@@ -732,11 +731,10 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
             "    b = 2.0 * b\n"
             "    do i_4 = 1, 10, 1\n"
             "      b(i_4,:5) = 2.0 * b(i_4,:5)\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
-def test_apply_array_slice_assumed_size_arg(fortran_reader, fortran_writer,
-                                            tmpdir):
+def test_apply_array_slice_assumed_size_arg(fortran_reader, fortran_writer):
     '''
     Check that the apply() method works correctly when an array slice is
     passed to a routine where it is declared as assumed size.
@@ -762,7 +760,7 @@ def test_apply_array_slice_assumed_size_arg(fortran_reader, fortran_writer,
     assert "a(5 - 4 + 3:6 - 4 + 3) = 1.0" in output
 
 
-def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
+def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmp_path):
     '''Check that apply works correctly when the actual argument is an
     array element within a structure.'''
     code = (
@@ -822,10 +820,11 @@ def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
             "      grid_list(ig)%local%data(i) = 2.0 * "
             "grid_list(ig)%local%data(i)\n"
             "    enddo\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
-def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
+def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer,
+                                      tmp_path):
     '''Check that apply works correctly when the actual argument is an
     array slice within a structure.'''
     code = (
@@ -894,11 +893,11 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
             "      grid%local%data(:) = 3.0\n"
             "      grid%local%data = 5.0\n"
             "    enddo\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 @pytest.mark.parametrize("type_decln", [MY_TYPE, "  use some_mod\n"])
-def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
+def test_apply_struct_array(fortran_reader, fortran_writer, tmp_path,
                             type_decln):
     '''Test that apply works correctly when the formal argument is an
     array of structures. We test both when the type of the structure is
@@ -949,7 +948,7 @@ def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
         assert ("    ji = 2\n"
                 "    micah%grids(2 - 2 + 1:4 - 2 + 1)%region%idx = 3.0\n"
                 "    micah%grids(ji - 2 + 1)%region%idx = 2.0\n" in output)
-        assert Compile(tmpdir).string_compiles(output)
+        assert Compile(tmp_path).string_compiles(output)
 
 
 def test_apply_repeated_module_use(fortran_reader, fortran_writer):
@@ -996,7 +995,7 @@ def test_apply_repeated_module_use(fortran_reader, fortran_writer):
             "    b(:,2) = radius\n" in output)
 
 
-def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
+def test_apply_name_clash(fortran_reader, fortran_writer, tmp_path):
     ''' Check that apply() correctly handles the case where a symbol
     in the routine to be in-lined clashes with an existing symbol. '''
     code = (
@@ -1025,7 +1024,7 @@ def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
             "    y = 1.0\n"
             "    i_1 = 3.0\n"
             "    y = 2.0 * y + i_1\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 def test_apply_imported_symbols(fortran_reader, fortran_writer):
@@ -1058,7 +1057,7 @@ def test_apply_imported_symbols(fortran_reader, fortran_writer):
     # We can't check this with compilation because of the import of some_mod.
 
 
-def test_apply_last_stmt_is_return(fortran_reader, fortran_writer, tmpdir):
+def test_apply_last_stmt_is_return(fortran_reader, fortran_writer, tmp_path):
     '''Test that the apply method correctly omits any final 'return'
     statement that may be present in the routine to be inlined.'''
     code = (
@@ -1083,7 +1082,7 @@ def test_apply_last_stmt_is_return(fortran_reader, fortran_writer, tmpdir):
     assert ("    i = 10\n"
             "    i = i + 3\n\n"
             "  end subroutine run_it\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 def test_apply_call_args(fortran_reader, fortran_writer):
@@ -1378,7 +1377,7 @@ def test_apply_shared_routine_call(fortran_reader):
                          "code.")
 
 
-def test_apply_function(fortran_reader, fortran_writer, tmpdir):
+def test_apply_function(fortran_reader, fortran_writer, tmp_path):
     '''Check that the apply() method works correctly for a simple call to
     a function.
 
@@ -1408,7 +1407,7 @@ def test_apply_function(fortran_reader, fortran_writer, tmpdir):
         "    inlined_func = 2.0\n"
         "    a = inlined_func")
     assert expected in output
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 # Try two different forms of function declaration.
@@ -1416,7 +1415,7 @@ def test_apply_function(fortran_reader, fortran_writer, tmpdir):
     "  function func(b) result(x)\n    real :: x\n",
     "  real function func(b) result(x)\n"])
 def test_apply_function_declare_name(
-        fortran_reader, fortran_writer, tmpdir, function_header):
+        fortran_reader, fortran_writer, tmp_path, function_header):
     '''Check that the apply() method works correctly for a simple call to
     a function where the name of the return name differs from the
     function name.
@@ -1448,10 +1447,10 @@ def test_apply_function_declare_name(
         "    inlined_x = 2.0\n"
         "    a = inlined_x")
     assert expected in output
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
-def test_apply_function_expression(fortran_reader, fortran_writer, tmpdir):
+def test_apply_function_expression(fortran_reader, fortran_writer, tmp_path):
     '''Check that the apply() method works correctly for a call to a
     function that is within an expression.
 
@@ -1480,10 +1479,10 @@ def test_apply_function_expression(fortran_reader, fortran_writer, tmpdir):
         "    b = b + 3.0\n"
         "    inlined_x = b * 2.0\n"
         "    a = (a * inlined_x + 2.0) / a\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
-def test_apply_multi_function(fortran_reader, fortran_writer, tmpdir):
+def test_apply_multi_function(fortran_reader, fortran_writer, tmp_path):
     '''Check that the apply() method works correctly when a function is
     called twice but only one of these function calls is inlined.
 
@@ -1516,7 +1515,7 @@ def test_apply_multi_function(fortran_reader, fortran_writer, tmpdir):
         "    a = inlined_func\n"
         "    c = func(a)")
     assert expected in output
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
     # inline again
     routine = psyir.walk(Call)[0]
@@ -1536,7 +1535,7 @@ def test_apply_multi_function(fortran_reader, fortran_writer, tmpdir):
     ("", "", ""),
     ("module test_mod\ncontains\n", "end module test_mod\n", "  ")])
 def test_apply_raw_subroutine(
-        fortran_reader, fortran_writer, tmpdir, start, end, indent):
+        fortran_reader, fortran_writer, tmp_path, start, end, indent):
     '''Test the apply method works correctly when the routine to be
     inlined is a raw subroutine and is called directly from another
     raw subroutine and a subroutine within a module.
@@ -1571,14 +1570,14 @@ def test_apply_raw_subroutine(
     if "use formal" not in output:
         # Compilation will not work with "use formal" as there is no
         # mod file.
-        assert Compile(tmpdir).string_compiles(output)
+        assert Compile(tmp_path).string_compiles(output)
 
 
 @pytest.mark.parametrize("use1, use2", [
     ("use inline_mod, only : sub\n", ""), ("use inline_mod\n", ""),
     ("", "use inline_mod, only : sub\n"), ("", "use inline_mod\n")])
 def test_apply_container_subroutine(
-        fortran_reader, fortran_writer, tmpdir, use1, use2):
+        fortran_reader, fortran_writer, tmp_path, use1, use2):
     '''Test the apply method works correctly when the routine to be
     inlined is in a different container and is within a module (so
     a use statement is required).
@@ -1616,7 +1615,7 @@ def test_apply_container_subroutine(
         "    real :: a\n\n"
         "    a = 2.0 * a\n\n"
         "  end subroutine run_it" in output)
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 def test_apply_validate():
@@ -1904,7 +1903,7 @@ def test_validate_unsupportedtype_argument(fortran_reader):
     )
 
 
-def test_validate_unknowninterface(fortran_reader, fortran_writer, tmpdir):
+def test_validate_unknowninterface(fortran_reader, fortran_writer, tmp_path):
     '''
     Test that validate rejects a subroutine containing variables with
     UnknownInterface.
@@ -1943,7 +1942,7 @@ subroutine main()
 
 end subroutine main
 """
-    assert Compile(tmpdir).string_compiles(fortran_writer(psyir))
+    assert Compile(tmp_path).string_compiles(fortran_writer(psyir))
 
 
 def test_validate_static_var(fortran_reader):
@@ -2007,7 +2006,7 @@ def test_validate_unresolved_precision_sym(fortran_reader, code_body,
 
 
 def test_validate_resolved_precision_sym(fortran_reader, monkeypatch,
-                                         tmpdir):
+                                         tmp_path):
     '''Test that a routine that uses a resolved precision symbol from its
     parent Container is accepted when we can be sure it's the same symbol.'''
     code = (
@@ -2031,8 +2030,8 @@ def test_validate_resolved_precision_sym(fortran_reader, monkeypatch,
         "  end subroutine sub2\n"
         "end module test_mod\n")
     # Set up include_path to import the proper module
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "kinds_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    filename = tmp_path / "kinds_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module kinds_mod
@@ -2347,7 +2346,7 @@ end subroutine main''' in output)
 
 def test_apply_optional_arg_with_special_cases(fortran_reader,
                                                fortran_writer,
-                                               tmpdir):
+                                               tmp_path):
     '''Test that the validate method inlines a routine
     that has an optional argument.
     This example has an additional if-branching condition
@@ -2404,7 +2403,7 @@ def test_apply_optional_arg_with_special_cases(fortran_reader,
 end subroutine main''' in output)
     # First optional arg. is not present
     assert "4.2" not in output
-    assert Compile(tmpdir).string_compiles(fortran_writer(psyir))
+    assert Compile(tmp_path).string_compiles(fortran_writer(psyir))
 
 
 def test_apply_optional_arg_error(fortran_reader):
@@ -2700,7 +2699,7 @@ def test_apply_merges_symbol_table_with_routine(fortran_reader):
     assert psyir.walk(Routine)[0].symbol_table.get_symbols()['i_1'] is not None
 
 
-def test_apply_argument_clash(fortran_reader, fortran_writer, tmpdir):
+def test_apply_argument_clash(fortran_reader, fortran_writer, tmp_path):
     '''
     Check that the formal arguments to the inlined routine are not included
     when checking for clashes (since they will be replaced by the actual
@@ -2741,7 +2740,7 @@ end subroutine sub
 '''
     output = fortran_writer(psyir)
     assert expected in output
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 def test_apply_function_result_clash(fortran_reader, fortran_writer):
@@ -2776,7 +2775,7 @@ def test_apply_function_result_clash(fortran_reader, fortran_writer):
     c = func(a)''' in output)
 
 
-def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmpdir):
+def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     '''
     Check that any automatic variables have their dimensioning symbols updated
     when inlined.
@@ -2815,12 +2814,11 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmpdir):
     end type nasty''' in output
     assert "real, dimension(10,10) :: work" in output
     assert "type(nasty) :: oh_deary_me" in output
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmp_path).string_compiles(output)
 
 
 def test_apply_array_access_check_unresolved_override_option(
-    fortran_reader, fortran_writer, tmpdir
-):
+        fortran_reader):
     """
     This check solely exists for the coverage report to catch
     the case where the override option to ignore unresolved

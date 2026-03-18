@@ -47,12 +47,13 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
+from psyclone.domain.lfric.lfric_global_reductions import LFRicGlobalSum
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.domain.lfric import LFRicLoop
 from psyclone.lfric import (LFRicHaloExchangeStart,
                             LFRicHaloExchangeEnd, LFRicHaloExchange)
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
+from psyclone.psyGen import InvokeSchedule, BuiltIn
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
     colored, Loop, Schedule, Literal, Directive, OMPDoDirective,
@@ -66,9 +67,10 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans,
-    LFRicOMPParallelLoopTrans, MoveTrans, LFRicRedundantComputationTrans,
+    LFRicOMPParallelLoopTrans, LFRicRedundantComputationTrans,
     LFRicAsyncHaloExchangeTrans, LFRicKernelConstTrans,
     ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
+from psyclone.psyir.transformations import MoveTrans
 
 
 # The version of the API that the tests in this file
@@ -2260,7 +2262,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
         # Move the first global sum after the second loop
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
     otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     ftrans = LFRicLoopFuseTrans()
@@ -2355,7 +2357,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
         # Move the first global sum after the second loop
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
     otrans = LFRicOMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do to the loop
@@ -2702,7 +2704,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
     if dist_mem:  # annexed can be True or False
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
     rtrans.apply(schedule.children[0:2])
     result = str(psy.gen)
 
@@ -2788,7 +2790,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
     if dist_mem and annexed:
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
         with pytest.raises(TransformationError) as excinfo:
             ftrans.apply(schedule.children[0], schedule.children[1],
                          {"same_space": True})
@@ -2798,7 +2800,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
             # first move the loop as the global sum is in the way
             mtrans = MoveTrans()
             mtrans.apply(schedule.children[1], schedule.children[2],
-                         {"position": "after"})
+                         position="after")
         rtrans = LFRicOMPParallelLoopTrans()
         ftrans.apply(schedule.children[0], schedule.children[1],
                      {"same_space": True})
@@ -2873,7 +2875,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
     if dist_mem and annexed:
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
         with pytest.raises(TransformationError) as excinfo:
             ftrans.apply(schedule.children[0], schedule.children[1],
                          {"same_space": True})
@@ -2882,7 +2884,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
         if dist_mem:  # annexed must be False here
             mtrans = MoveTrans()
             mtrans.apply(schedule.children[1], schedule.children[2],
-                         {"position": "after"})
+                         position="after")
         rtrans = OMPParallelTrans()
         otrans = LFRicOMPLoopTrans()
         ftrans.apply(schedule.children[0], schedule.children[1],
@@ -3350,7 +3352,7 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
     if dist_mem:  # annexed can be True or False
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
     rtrans.apply(schedule.children[0:2])
     result = str(psy.gen)
 
@@ -3467,7 +3469,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
     if dist_mem:  # annexed can be True or False
         mtrans = MoveTrans()
         mtrans.apply(schedule.children[1], schedule.children[2],
-                     {"position": "after"})
+                     position="after")
     if dist_mem and annexed:
         # we can't loop fuse as the loop bounds differ
         with pytest.raises(TransformationError) as excinfo:
@@ -3837,7 +3839,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     ompdefault = colored("OMPDefaultClause", Directive._colour)
     ompprivate = colored("OMPPrivateClause", Directive._colour)
     ompfprivate = colored("OMPFirstprivateClause", Directive._colour)
-    gsum = colored("GlobalSum", GlobalSum._colour)
+    gsum = colored("LFRicGlobalSum", LFRicGlobalSum._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)
     sched = colored("Schedule", Schedule._colour)
@@ -3988,20 +3990,6 @@ def test_reductions_reprod(tmpdir, dist_mem, reprod):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_move_name():
-    ''' Test the name property of the MoveTrans class. '''
-    move_trans = MoveTrans()
-    name = move_trans.name
-    assert name == "Move"
-
-
-def test_move_str():
-    ''' Test the str method of the MoveTrans class. '''
-    move_trans = MoveTrans()
-    name = str(move_trans)
-    assert name == "Move a node to a different location"
-
-
 def test_move_valid_node(tmpdir):
     ''' Test that MoveTrans raises an exception if an invalid node
     argument is passed. '''
@@ -4014,8 +4002,8 @@ def test_move_valid_node(tmpdir):
     move_trans = MoveTrans()
     with pytest.raises(TransformationError) as excinfo:
         move_trans.apply(None, schedule.children[0])
-    assert ("In the Move transformation apply method the "
-            "first argument is not a Node") in str(excinfo.value)
+    assert ("The node argument to MoveTrans should be a Node but got "
+            "'NoneType'." in str(excinfo.value))
 
 
 def test_move_back():
@@ -4053,7 +4041,7 @@ def test_move_back_after():
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index],
-                     {"position": "after"})
+                     position="after")
 
     new_arg = schedule.children[target_index+1]
     assert orig_arg is new_arg
@@ -4094,7 +4082,7 @@ def test_move_forward_after():
 
     move_trans.apply(schedule.children[initial_index],
                      schedule.children[target_index],
-                     {"position": "after"})
+                     position="after")
 
     new_arg = schedule.children[target_index]
     assert orig_arg is new_arg
@@ -6987,7 +6975,7 @@ def test_async_hex_move_error_2():
     # End after following reader
     with pytest.raises(TransformationError) as excinfo:
         mtrans.apply(schedule.children[6], schedule.children[7],
-                     {"position": "after"})
+                     position="after")
     assert "dependencies forbid" in str(excinfo.value)
 
 

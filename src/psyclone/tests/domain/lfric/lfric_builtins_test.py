@@ -1975,7 +1975,7 @@ def test_int_to_real_x_precision(tmpdir, kind_name):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_minmaxval_x(fortran_writer):
+def test_minmaxval_x(fortran_writer, tmp_path):
     '''
     Tests for the minval_x and maxval_x builtins.
     '''
@@ -1995,23 +1995,26 @@ def test_minmaxval_x(fortran_writer):
     _, invoke = get_invoke("15.10.9_min_max_X_builtin.f90", api=API, idx=0,
                            dist_mem=False)
     kerns = invoke.schedule.kernels()
-    assert str(kerns[0]) == ("Built-in: minval_X (compute the global minimum "
-                             "value contained in a field)")
-    code = fortran_writer(kerns[0])
-    assert "amin = MIN(amin, f1_data(df))" in code, code
-
-    assert str(kerns[1]) == ("Built-in: maxval_X (compute the global maximum "
+    assert str(kerns[1]) == ("Built-in: minval_X (compute the global minimum "
                              "value contained in a field)")
     code = fortran_writer(kerns[1])
+    assert "amin = MIN(amin, f1_data(df))" in code, code
+
+    assert str(kerns[2]) == ("Built-in: maxval_X (compute the global maximum "
+                             "value contained in a field)")
+    code = fortran_writer(kerns[2])
     assert "amax = MAX(amax, f1_data(df))" in code, code
 
-    # Currently psy-layer generation with DM enabled won't work because we only
-    # have support for global sums. TODO #2381.
-    with pytest.raises(GenerationError) as err:
-        _ = get_invoke("15.10.9_min_max_X_builtin.f90", api=API, idx=0,
-                       dist_mem=True)
-    assert ("TODO #2381 - currently only global *sum* reductions are supported"
-            in str(err.value))
+    psy, invoke = get_invoke("15.10.9_min_max_X_builtin.f90", api=API, idx=0,
+                             dist_mem=True)
+    output = fortran_writer(invoke.schedule)
+    assert "global_min%value = amin" in output
+    assert "amin = global_min%get_min()" in output
+    assert "global_max%value = amax" in output
+    assert "amax = global_max%get_max()" in output
+
+    # Test compilation of generated code
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_real_to_int_x(fortran_writer):

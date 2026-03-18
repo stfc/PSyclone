@@ -52,6 +52,7 @@ from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
+from psyclone.utils import transformation_documentation_wrapper
 
 
 def _eliminate_final_parallel_barrier(
@@ -70,6 +71,7 @@ def _eliminate_final_parallel_barrier(
 
 
 # Inherits from AsyncTransMixin as it needs some of the helper functions
+@transformation_documentation_wrapper
 class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
     '''
     Attempts to remove OMPTaskwaitDirective or
@@ -167,10 +169,23 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         :raises TypeError: if the supplied input isn't a Routine.
 
         '''
+        self.validate_options(**kwargs)
         super().validate(node, kwargs)
         if not isinstance(node, Routine):
             raise TypeError(f"OMPMinimiseSyncTrans expects a Routine input "
                             f"but found '{type(node).__name__}'.")
+
+    def _eliminate_uncontained_barriers(self, routine: Routine) -> None:
+        '''
+        Removes any OMPBarrierDirectives that are not inside an
+        OMPParallelRegion.
+
+        :param routine: the routine to remove uncontainined barriers from.
+        '''
+        barriers = routine.walk(OMPBarrierDirective)
+        for bar in barriers:
+            if bar.ancestor(OMPParallelDirective) is None:
+                bar.detach()
 
     def _eliminate_adjacent_barriers(self, routine: Routine,
                                      bar_type: type) -> None:
@@ -537,6 +552,9 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
             # if its a OMPBarrierDirective as they are unnecessary.
             for parallel in node.walk(OMPParallelDirective):
                 _eliminate_final_parallel_barrier(parallel)
+            # Finally eliminate any barriers leftover outside of parallel
+            # regions, as these are now superfluous
+            self._eliminate_uncontained_barriers(node)
         # Eliminate OMPTaskwaitDirectives for the gpu_directives
         if len(gpu_directives) > 0:
             self._eliminate_adjacent_barriers(node, OMPTaskwaitDirective)
