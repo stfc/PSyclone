@@ -39,13 +39,22 @@ places them in integer scalar assignments before the loop.
 
 '''
 
-from psyclone.psyir.nodes import Routine, Literal, Reference, \
-    StructureReference, Assignment, Directive
+from psyclone.psyir.nodes import (
+    Assignment,
+    Directive,
+    Literal,
+    Loop,
+    Reference,
+    Routine,
+    StructureReference,
+)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.loop_trans import LoopTrans, \
     TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class HoistLoopBoundExprTrans(LoopTrans):
     '''This transformation moves complex bounds expressions out of the loop
     construct and places them in integer scalar assignments before the loop.
@@ -85,17 +94,17 @@ class HoistLoopBoundExprTrans(LoopTrans):
     <BLANKLINE>
 
     '''
-    def apply(self, node, options=None):
+    def apply(self, node: Loop, options=None, **kwargs):
         '''Move complex bounds expressions out of the given loop construct and
         place them in integer scalar assignments before the loop.
 
         :param node: target PSyIR loop.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: Dict[str, Any]
 
         '''
-        self.validate(node, options)
+        # TODO #2668: Deprecate options dict.
+        self.validate(node, options, **kwargs)
 
         parent = node.parent
         position = node.position
@@ -121,12 +130,11 @@ class HoistLoopBoundExprTrans(LoopTrans):
             parent.addchild(Assignment.create(Reference(symbol), bound),
                             position)
 
-    def validate(self, node, options=None):
+    def validate(self, node: Loop, options=None, **kwargs):
         '''Checks that the supplied node is a valid target for the
         transformation.
 
         :param node: target PSyIR loop.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: Dict[str, Any]
 
@@ -136,7 +144,8 @@ class HoistLoopBoundExprTrans(LoopTrans):
             a Directive Schedule.
 
         '''
-        super().validate(node)
+        # keyword argument validation is done in the superclass validate.
+        super().validate(node, options=options, **kwargs)
 
         # The node should be an assignment
         if not node.ancestor(Routine):

@@ -36,8 +36,13 @@
 
 ''' This module contains the tests for the DebugChecksumTrans.'''
 
+import pytest
+
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.transformations import DebugChecksumTrans
+from psyclone.psyir.transformations import (
+    DebugChecksumTrans,
+    TransformationError
+)
 from psyclone.tests.utilities import Compile
 
 
@@ -182,3 +187,13 @@ PSYCLONE_INTERNAL_line_ + 1
   PRINT *, "a checksum", SUM(a(:))
   b(:) = 0"""
     assert correct in out
+
+
+def test_node_type_check_kwarg_blocked():
+    '''Tests that we get the TransformationError if the node_type_check
+    kwarg is provided.'''
+    with pytest.raises(TransformationError) as err:
+        DebugChecksumTrans().apply(None, node_type_check=True)
+    assert ("node_type_check was passed as an argument to "
+            "DebugChecksumTrans. This transformation sets this option "
+            "internally so it cannot be supplied." in str(err.value))
