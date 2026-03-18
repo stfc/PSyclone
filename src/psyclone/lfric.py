@@ -5975,18 +5975,6 @@ class LFRicKernelArgument(KernelArgument):
                     "supported in PSyclone.")
 
             expected_precision = const.DATA_TYPE_MAP["reduction"]["kind"]
-            # If the algorithm information is not being ignored
-            # then check that the expected precision and the
-            # precision defined in the algorithm layer are
-            # the same.
-            if check and alg_precision and \
-               alg_precision != expected_precision:
-                raise GenerationError(
-                    f"This scalar is a reduction which assumes precision "
-                    f"of type '{expected_precision}' but the algorithm "
-                    f"declares this scalar with precision "
-                    f"'{alg_precision}'.")
-
             # Use the default 'real' scalar reduction properties.
             self._precision = expected_precision
             self._data_type = const.DATA_TYPE_MAP["reduction"]["type"]
