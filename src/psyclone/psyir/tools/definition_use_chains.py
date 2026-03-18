@@ -357,7 +357,7 @@ class DefinitionUseChain:
                             # check for uniqueness. As nodes can be == but
                             # not the same object, this has to be done
                             # using a loop and `is`.
-                                for ref2 in self._reaches[sig]
+                                for ref2 in self._reaches[sig]:
                                     if ref2 is ref:
                                         break
                                 else:

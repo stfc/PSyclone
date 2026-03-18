@@ -1199,7 +1199,9 @@ def test_forward_accesses_multiple_elements(fortran_reader):
     routine = psyir.walk(Routine)[0]
     assigns = routine.walk(Assignment)
     rhs = assigns[0].rhs
-    chains = DefinitionUseChains([rhs.children[0], rhs.children[1]], start_point = ???)
+    chains = DefinitionUseChains([rhs.children[0],
+                                  rhs.children[1]],
+                                 start_point = 0) #FIXME
     reaches = chains.find_forward_accesses()
     sig0, _ = rhs.children[0].get_signature_and_indices()
     sig1, _ = rhs.children[1].get_signature_and_indices()
