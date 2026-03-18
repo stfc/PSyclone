@@ -77,7 +77,7 @@ def test_char_len_inline():
     '''
     Check that specifying the character length of an individual entity is
     supported and correctly overrides any length in the base declaration.
-    
+
     '''
     fake_parent = Routine.create("dummy_schedule")
     symtab = fake_parent.symbol_table

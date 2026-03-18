@@ -335,6 +335,16 @@ class FortranWriter(LanguageWriter):
             # ISO_FORTRAN_ENV; type(type64) :: MyType.
             return f"{fortrantype}*{precision}"
 
+        len_str = ""
+        if scalar_type.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            # Include length information for a character type.
+            if scalar_type.length == ScalarType.CharLengthParameter.ASTERISK:
+                len_str = "*"
+            elif scalar_type.length == ScalarType.CharLengthParameter.COLON:
+                len_str = ":"
+            else:
+                len_str = self._visit(scalar_type.length)
+
         if isinstance(precision, ScalarType.Precision):
             # The precision information is not absolute so is either
             # machine specific or is specified via the compiler. Fortran
@@ -347,16 +357,8 @@ class FortranWriter(LanguageWriter):
                     f"ScalarType.Precision.DOUBLE is not supported for "
                     f"datatypes other than floating point numbers in "
                     f"Fortran, found '{fortrantype}'")
-            if scalar_type.intrinsic == ScalarType.Intrinsic.CHARACTER:
-                # Include length information.
-                if (scalar_type.length ==
-                        ScalarType.CharLengthParameter.ASTERISK):
-                    len_str = "*"
-                elif scalar_type.length == ScalarType.CharLengthParameter.COLON:
-                    len_str = ":"
-                else:
-                    len_str = self._visit(scalar_type.length)
-                return f"{fortrantype}(len={len_str})"
+                if len_str:
+                    return f"{fortrantype}(len={len_str})"
             return fortrantype
 
         if isinstance(precision, DataNode):
@@ -364,20 +366,11 @@ class FortranWriter(LanguageWriter):
                 raise VisitorError(
                     f"kind not supported for datatype '{fortrantype}' in "
                     f"symbol '{name}' in Fortran backend.")
-            len_str = ""
-            if scalar_type.intrinsic == ScalarType.Intrinsic.CHARACTER:
-                # Include length information.
-                if (scalar_type.length ==
-                        ScalarType.CharLengthParameter.ASTERISK):
-                    len_str = "*"
-                elif scalar_type.length == ScalarType.CharLengthParameter.COLON:
-                    len_str = ":"
-                else:
-                    len_str = self._visit(scalar_type.length)
-                len_str = f", len={len_str}"
+            if len_str:
+                len_txt = f", len={len_str}"
             # The precision information is provided by a parameter,
             # so use KIND.
-            return f"{fortrantype}(kind={self._visit(precision)}{len_str})"
+            return f"{fortrantype}(kind={self._visit(precision)}{len_txt})"
 
         raise VisitorError(
             f"Unsupported precision type '{type(precision).__name__}' found "

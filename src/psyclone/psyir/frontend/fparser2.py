@@ -1929,8 +1929,8 @@ class Fparser2Reader():
             init_expr = None
 
             # Since specifiers on an individual entity can override those in
-            # the general declaration, we have to take a copy.
-            this_type = base_type.copy()
+            # the general declaration, we may have to take a copy.
+            this_type = base_type
 
             # If the entity has an array-spec shape, it has priority.
             # Otherwise use the declaration attribute shape.
@@ -1974,6 +1974,10 @@ class Fparser2Reader():
                 # handled earlier.
                 clen = self._process_char_length(char_len, scope)
                 if clen:
+                    # copy() does a deep copy but we need to preserve any
+                    # symbols referred to within the type.
+                    this_type = base_type.copy()
+                    this_type.replace_symbols_using(scope.symbol_table)
                     this_type.length = clen
 
             sym_name = str(name).lower()

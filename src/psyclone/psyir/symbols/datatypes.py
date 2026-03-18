@@ -388,7 +388,7 @@ class ScalarType(DataType):
         DOUBLE = 2
         UNDEFINED = 3
 
-        def copy(self) -> Precision:
+        def copy(self) -> ScalarType.Precision:
             '''
             :returns: a copy of self.
             '''
@@ -398,7 +398,7 @@ class ScalarType(DataType):
         ASTERISK = 1
         COLON = 2
 
-        def copy(self) -> CharLengthParameter:
+        def copy(self) -> ScalarType.CharLengthParameter:
             '''
             :returns: a copy of self.
             '''

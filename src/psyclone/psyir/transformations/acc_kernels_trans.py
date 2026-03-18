@@ -40,7 +40,6 @@
 
 ''' This module provides the ACCKernelsTrans transformation. '''
 
-import re
 from typing import Any, Dict, Union
 import warnings
 

@@ -160,8 +160,8 @@ def test_parameter_statements_with_unsupported_symbols():
 
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("Could not process 'PARAMETER(var1 = (1.0, 1.0))' because 'var1' has "
-            "an UnsupportedType." in str(error.value))
+    assert ("Could not process 'PARAMETER(var1 = (1.0, 1.0))' because 'var1' "
+            "has an UnsupportedType." in str(error.value))
 
     # Test with a symbol which is not a DataSymbol
     symtab.add(Symbol("var2"))

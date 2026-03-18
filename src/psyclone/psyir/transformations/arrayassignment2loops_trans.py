@@ -422,19 +422,13 @@ class ArrayAssignment2LoopsTrans(Transformation):
 
         '''
         for child in node.walk((Literal, Reference)):
-            if 1: #try:
-                forbidden = ScalarType.Intrinsic.CHARACTER
-                if child.is_character(unknown_as=False): # or
-                        #(child.symbol.datatype.intrinsic == forbidden)):
-                    if verbose:
-                        node.append_preceding_comment(message)
-                    # pylint: disable=cell-var-from-loop
-                    raise TransformationError(LazyString(
-                        lambda: f"{message}, but found:"
-                        f"\n{node.debug_string()}"))
-            #except (NotImplementedError, AttributeError):
-            #    # We cannot always get the datatype, we ignore this for now
-            #    pass
+            if child.is_character(unknown_as=False):
+                if verbose:
+                    node.append_preceding_comment(message)
+                # pylint: disable=cell-var-from-loop
+                raise TransformationError(LazyString(
+                    lambda: f"{message}, but found:"
+                    f"\n{node.debug_string()}"))
 
 
 def _walk_until_non_elemental_call(
