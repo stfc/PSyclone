@@ -1972,12 +1972,9 @@ class Fparser2Reader():
                 # Handle any character length specification. This takes
                 # precedence over anything in the declaration attributes
                 # handled earlier.
-                if isinstance(char_len, Fortran2003.Char_Length):
-                    # e.g. Char_Length('(', Name('MAX_LEN'), ')')
-                    char_len = char_len.children[1]
-                dummynode = Assignment(parent=scope)
-                self.process_nodes(parent=dummynode, nodes=[char_len])
-                this_type.length = dummynode.children[0].detach()
+                clen = self._process_char_length(char_len, scope)
+                if clen:
+                    this_type.length = clen
 
             sym_name = str(name).lower()
 
@@ -2908,11 +2905,13 @@ class Fparser2Reader():
             )
         return kind_expression
 
-    def _process_char_length(self,
-                             type_spec: Fortran2003.Intrinsic_Type_Spec,
-                             psyir_parent: Node) -> Optional[
-                                 Union[ScalarType.CharLengthParameter,
-                                       DataNode]]:
+    def _process_char_length(
+            self,
+            type_spec: Union[Fortran2003.Intrinsic_Type_Spec,
+                             Fortran2003.Int_Literal_Constant,
+                             Fortran2003.Char_Length],
+            psyir_parent: Node) -> Optional[
+                Union[ScalarType.CharLengthParameter, DataNode]]:
         '''
         Process any length attribute on a CHARACTER declaration.
 
@@ -2923,27 +2922,33 @@ class Fparser2Reader():
                   unspecified.
 
         '''
-        for child in type_spec.children:
-            if isinstance(child, Fortran2003.Length_Selector):
-                # Child 0 holds '(' for a '(len=xxx)' or '*' for a
-                # '* char-length'. Either way, child 1 holds the length.
-                if isinstance(child.children[1], Fortran2003.Char_Length):
-                    char_len = child.children[1].children[1]
-                else:
-                    char_len = child.children[1]
-                break
+        if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
+            for child in type_spec.children:
+                if isinstance(child, Fortran2003.Length_Selector):
+                    # Child 0 holds '(' for a '(len=xxx)' or '*' for a
+                    # '* char-length'. Either way, child 1 holds the length.
+                    if isinstance(child.children[1], Fortran2003.Char_Length):
+                        char_len = child.children[1].children[1]
+                    else:
+                        char_len = child.children[1]
+                    break
 
-            if isinstance(child, Fortran2003.Char_Selector):
-                # A CHARACTER declaration can be of Char_Selector type.
-                # The first child of Char_Selector holds the length (which
-                # may be None if it is unspecified).
-                char_len = child.children[0]
-                if not char_len:
-                    return None
-                break
+                if isinstance(child, Fortran2003.Char_Selector):
+                    # A CHARACTER declaration can be of Char_Selector type.
+                    # The first child of Char_Selector holds the length (which
+                    # may be None if it is unspecified).
+                    char_len = child.children[0]
+                    if not char_len:
+                        return None
+                    break
+            else:
+                # No length is specified
+                return None
+        elif isinstance(type_spec, Fortran2003.Char_Length):
+            # e.g. Char_Length('(', Name('MAX_LEN'), ')')
+            char_len = type_spec.children[1]
         else:
-            # No length is specified
-            return None
+            char_len = type_spec
 
         if isinstance(char_len, Fortran2003.Type_Param_Value):
             if char_len.string == ":":

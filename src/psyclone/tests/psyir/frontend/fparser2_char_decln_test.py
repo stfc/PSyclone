@@ -82,7 +82,8 @@ def test_char_len_inline():
     fake_parent = Routine.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
-    reader = FortranStringReader("character*5 :: l1*3, l2*(MAX_LEN), l3")
+    reader = FortranStringReader(
+        "character*5 :: l1*3, l2*(MAX_LEN), l3, l4*(:)")
     # Set reader to free format (otherwise this is a comment in fixed format)
     reader.set_format(FortranFormat(True, True))
     fparser2spec = Fortran2003.Specification_Part(reader).content[0]
@@ -92,3 +93,5 @@ def test_char_len_inline():
     l2_var = symtab.lookup("l2")
     assert l2_var.datatype.length.symbol is symtab.lookup("MAX_LEN")
     assert symtab.lookup("l3").datatype.length.value == "5"
+    assert (symtab.lookup("l4").datatype.length ==
+            ScalarType.CharLengthParameter.COLON)
