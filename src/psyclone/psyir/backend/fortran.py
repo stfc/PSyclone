@@ -357,8 +357,8 @@ class FortranWriter(LanguageWriter):
                     f"ScalarType.Precision.DOUBLE is not supported for "
                     f"datatypes other than floating point numbers in "
                     f"Fortran, found '{fortrantype}'")
-                if len_str:
-                    return f"{fortrantype}(len={len_str})"
+            if len_str:
+                return f"{fortrantype}(len={len_str})"
             return fortrantype
 
         if isinstance(precision, DataNode):
@@ -366,6 +366,8 @@ class FortranWriter(LanguageWriter):
                 raise VisitorError(
                     f"kind not supported for datatype '{fortrantype}' in "
                     f"symbol '{name}' in Fortran backend.")
+
+            len_txt = ""
             if len_str:
                 len_txt = f", len={len_str}"
             # The precision information is provided by a parameter,
