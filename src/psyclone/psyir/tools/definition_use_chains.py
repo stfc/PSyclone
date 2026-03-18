@@ -67,8 +67,8 @@ class DefinitionUseChain:
     """The DefinitionUseChain class is used to find nodes in a tree
     that have data dependencies on the provided reference.
 
-    :param reference: The Reference for which the dependencies will be
-                      computed.
+    :param references: The References for which the dependencies will be
+                       computed.
     :param control_flow_region: Optional region to search for data
                                 dependencies. Default is the parent Routine or
                                 the root of the tree's children if no ancestor
@@ -79,25 +79,47 @@ class DefinitionUseChain:
                            dependency search.
 
     :raises TypeError: If one of the arguments is the wrong type.
-
+    :raises InternalError: If not all of the references have the same parent.
     """
 
     def __init__(
         self,
-        reference: Reference,
+        references: list[Reference],
         control_flow_region: Iterable[Node] = (),
         start_point: Optional[int] = None,
         stop_point: Optional[int] = None,
     ):
-        if not isinstance(reference, Reference):
+        if not isinstance(references, list):
             raise TypeError(
-                f"The 'reference' argument passed into a DefinitionUseChain "
-                f"must be a Reference but found "
-                f"'{type(reference).__name__}'."
+                f"The 'references' argument passed into a DefinitionUseChain "
+                f"must be a list of References but found "
+                f"{type(references).__name__}'."
             )
-        self._reference = reference
-        # Store the absolute position for later.
-        self._reference_abs_pos = reference.abs_position
+        for ref in references:
+            if not isinstance(ref, Reference):
+                raise TypeError(
+                    f"The 'references' argument passed into a "
+                    f"DefinitionUseChain must be a list of References "
+                    f"but found '{type(ref).__name__}' in the list."
+                )
+        # We need all the references to have the same parent.
+        parent = references[0].parent
+        for ref in references:
+            if ref.parent is not parent:
+                raise InternalError(
+                    f"All references provided into a DefinitionUseChain "
+                    f"must have the same parent."
+                )
+        self._references = references
+        # Store the absolute positions and signatures for later.
+        self._reference_signatures = []
+        self._references_abs_pos = {}
+        self._references[0].compute_cached_abs_positions()
+        for ref in references:
+            sig, _ = ref.get_signature_and_indices()
+            self._reference_signatures.append(sig)
+            self._references_abs_pos[sig] = ref.abs_position
+
         # To enable loops to work correctly we can set the start/stop point
         # and not just use base it on the reference's absolute position
         if start_point and not isinstance(start_point, int):
@@ -115,9 +137,9 @@ class DefinitionUseChain:
         self._start_point = start_point
         self._stop_point = stop_point
         if not control_flow_region:
-            self._scope = [reference.ancestor(Routine)]
+            self._scope = [references[0].ancestor(Routine)]
             if self._scope[0] is None:
-                self._scope = reference.root.children[:]
+                self._scope = references[0].root.children[:]
         else:
             # We need a list of regions for control flow.
             if not isinstance(control_flow_region, list):
@@ -135,34 +157,34 @@ class DefinitionUseChain:
             self._scope = control_flow_region
 
         # The uses, defsout and killed sets as defined for each basic block.
-        self._uses = []
-        self._defsout = []
-        self._killed = []
+        self._uses = {}
+        self._defsout = {}
+        self._killed = {}
 
         # The output map, mapping between nodes and the reach of that node.
-        self._reaches = []
+        self._reaches = {}
 
     @property
-    def uses(self) -> list[Node]:
+    def uses(self) -> dict[list[Node]]:
         """
-        :returns: the list of nodes using the value that the referenced symbol
+        :returns: the lists of nodes using the value that the referenced symbols
                   has before it is reassigned.
         """
         return self._uses
 
     @property
-    def defsout(self) -> list[Node]:
+    def defsout(self) -> dict[list[Node]]:
         """
-        :returns: the list of nodes that reach the end of the block without
+        :returns: the lists of nodes that reach the end of the block without
                   being killed, and therefore can have dependencies outside
                   of this block.
         """
         return self._defsout
 
     @property
-    def killed(self) -> list[Node]:
+    def killed(self) -> dict[list[Node]]:
         """
-        :returns: the list of nodes that represent the last use of an assigned
+        :returns: the lists of nodes that represent the last use of an assigned
                   variable. Calling next_access on any of these nodes will find
                   a write that reassigns it's value.
         """
@@ -208,7 +230,10 @@ class DefinitionUseChain:
         # If there is no set start point, then we look for all
         # accesses after the Reference.
         if self._start_point is None:
-            self._start_point = self._reference_abs_pos
+            # Find the highest abs position, as all of these are
+            # contained in the same parent.
+            self._start_point = max(self._reference_abs_pos,
+                                    key=self._reference_abs_pos.get)
         # If there is no set stop point, then any Reference after
         # the start point can potentially be a forward access.
         if self._stop_point is None:
@@ -229,10 +254,10 @@ class DefinitionUseChain:
             # called but thats hard to otherwise track.
             if (
                 isinstance(self._scope[0], Routine)
-                or self._scope[0] is self._reference.root
+                or self._scope[0] is self._references[0].root
             ):
                 # Check if there is an ancestor Loop/WhileLoop.
-                ancestor = self._reference.ancestor((Loop, WhileLoop))
+                ancestor = self._references[0].ancestor((Loop, WhileLoop))
                 while ancestor is not None:
                     # Create a basic block for the ancestor Loop.
                     body = ancestor.loop_body.children[:]
@@ -240,7 +265,7 @@ class DefinitionUseChain:
                     # Find the stop point - this needs to be the node after
                     # the ancestor statement.
                     sub_stop_point = (
-                        self._reference.ancestor(Statement)
+                        self._references[0].ancestor(Statement)
                         .walk(Node)[-1]
                         .abs_position
                         + 1
@@ -253,7 +278,7 @@ class DefinitionUseChain:
                         # node to avoid handling the special cases based on
                         # the parents of the reference.
                         chain = DefinitionUseChain(
-                            self._reference.copy(),
+                            [ref.copy() for ref in self._references],
                             body,
                             start_point=ancestor.abs_position,
                             stop_point=sub_stop_point,
@@ -265,7 +290,7 @@ class DefinitionUseChain:
                         control_flow_nodes.insert(0, None)
                         sub_stop_point = ancestor.loop_body.abs_position
                         chain = DefinitionUseChain(
-                            self._reference.copy(),
+                            [ref.copy() for ref in self._references],
                             [ancestor.condition],
                             start_point=ancestor.abs_position,
                             stop_point=sub_stop_point,
@@ -274,10 +299,13 @@ class DefinitionUseChain:
                     ancestor = ancestor.ancestor((Loop, WhileLoop))
 
                 # Check if there is an ancestor Assignment.
-                ancestor = self._reference.ancestor(Assignment)
+                ancestor = self._references[0].ancestor(Assignment)
                 if ancestor is not None:
                     # If the reference is the lhs then we can ignore the RHS.
-                    if ancestor.lhs is self._reference:
+                    # This can only be the case if we only have a single
+                    # reference input.
+                    if (ancestor.lhs is self._references[0]
+                            and len(self._references) == 1):
                         # Find the last node in the assignment
                         last_node = ancestor.walk(Node)[-1]
                         # Modify the start_point to only include the node after
@@ -287,7 +315,7 @@ class DefinitionUseChain:
                         # Add the lhs as a potential basic block with
                         # different start and stop positions.
                         chain = DefinitionUseChain(
-                            self._reference,
+                            [ref.copy() for ref in self._references],
                             [ancestor.lhs],
                             start_point=ancestor.lhs.abs_position - 1,
                             stop_point=ancestor.lhs.abs_position + 1,
@@ -306,7 +334,7 @@ class DefinitionUseChain:
                 if len(block) == 0:
                     continue
                 chain = DefinitionUseChain(
-                    self._reference,
+                    [ref.copy() for ref in self._references],
                     block,
                     start_point=self._start_point,
                     stop_point=self._stop_point,
@@ -320,12 +348,13 @@ class DefinitionUseChain:
                 if cfn is None:
                     # We're outside a control flow region, updating the reaches
                     # here is to find all the reached nodes.
-                    for ref in chain._reaches:
-                        # Add unique references to reaches. Since we're not
-                        # in a control flow region, we can't have added
-                        # these references into the reaches array yet so
-                        # they're guaranteed to be unique.
-                        self._reaches.append(ref)
+                    for sig in chain._reaches: # TODO
+                        for ref in chain._reaches[sig]:
+                            # Add unique references to reaches. Since we're
+                            # not in a control flow region, we can't have
+                            # added these references into the reaches array
+                            # yet so they're guaranteed to be unique.
+                            self._reaches[sig].append(ref)
                     # If we have a defsout in the chain then we can stop as we
                     # will never get past the write as its not conditional.
                     if len(chain.defsout) > 0:

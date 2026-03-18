@@ -1181,3 +1181,31 @@ def test_forward_accesses_nested_loop(fortran_reader):
     chains = DefinitionUseChain(lhs)
     reaches = chains.find_forward_accesses()
     assert len(reaches) == 1
+
+
+
+def test_forward_accesses_multiple_elements(fortran_reader):
+    """Test that if we have multiple inputs we get multiple outputs as
+    expected."""
+    code = """subroutine x
+    integer :: i,j,k,l,m
+
+    i = j + k
+    j = l
+    m = k
+    k = i
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assigns = routine.walk(Assignment)
+    rhs = assigns[0].rhs
+    chains = DefinitionUseChains([rhs.children[0], rhs.children[1]], start_point = ???)
+    reaches = chains.find_forward_accesses()
+    sig0, _ = rhs.children[0].get_signature_and_indices()
+    sig1, _ = rhs.children[1].get_signature_and_indices()
+
+    assert len(reaches[sig0]) == 1
+    assert reaches[sig0][0] is assigns[1].lhs
+    assert len(reaches[sig1]) == 2
+    assert reaches[sig1][0] is assigns[2].rhs
+    assert reaches[sig1][1] is assigns[3].lhs
