@@ -63,7 +63,7 @@ def test_char_decln_with_char_kind():
     fake_parent = Routine.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
-    reader = FortranStringReader(f"character(len=3, kind=KIND('h')) :: l1")
+    reader = FortranStringReader("character(len=3, kind=KIND('h')) :: l1")
     # Set reader to free format (otherwise this is a comment in fixed format)
     reader.set_format(FortranFormat(True, True))
     fparser2spec = Fortran2003.Specification_Part(reader).content[0]
@@ -75,14 +75,20 @@ def test_char_decln_with_char_kind():
 @pytest.mark.usefixtures("f2008_parser")
 def test_char_len_inline():
     '''
+    Check that specifying the character length of an individual entity is
+    supported and correctly overrides any length in the base declaration.
+    
     '''
     fake_parent = Routine.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
-    reader = FortranStringReader(f"character :: l1*3")
+    reader = FortranStringReader("character*5 :: l1*3, l2*(MAX_LEN), l3")
     # Set reader to free format (otherwise this is a comment in fixed format)
     reader.set_format(FortranFormat(True, True))
     fparser2spec = Fortran2003.Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     l1_var = symtab.lookup("l1")
-    assert l1_var.datatype.length.value == 3
+    assert l1_var.datatype.length.value == "3"
+    l2_var = symtab.lookup("l2")
+    assert l2_var.datatype.length.symbol is symtab.lookup("MAX_LEN")
+    assert symtab.lookup("l3").datatype.length.value == "5"

@@ -45,7 +45,7 @@ from dataclasses import dataclass, field
 import re
 import os
 import sys
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional, Tuple, Union
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
@@ -1586,28 +1586,27 @@ class Fparser2Reader():
                     if symbol.name.lower() in visibility_map:
                         symbol.visibility = visibility_map[symbol.name.lower()]
 
-    def _process_type_spec(self, parent, type_spec):
+    def _process_type_spec(
+            self,
+            parent: Node,
+            type_spec: Union[Fortran2003.Intrinsic_Type_Spec,
+                             Fortran2003.Declaration_Type_Spec]
+    ) -> Tuple[
+            Union[ScalarType, DataTypeSymbol],
+            Union[ScalarType.Precision, DataSymbol, int, None]]:
         '''
         Processes the fparser2 parse tree of a type specification in order to
         extract the type and precision that are specified.
 
         :param parent: the parent of the current PSyIR node under construction.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param type_spec: the fparser2 parse tree of the type specification.
-        :type type_spec: \
-            :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec` or \
-            :py:class:`fparser.two.Fortran2003.Declaration_Type_Spec`
 
         :returns: the type and precision specified by the type-spec.
-        :rtype: 2-tuple of :py:class:`psyclone.psyir.symbols.ScalarType` or \
-            :py:class:`psyclone.psyir.symbols.DataTypeSymbol` and \
-            :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
-            :py:class:`psyclone.psyir.symbols.DataSymbol` or int or NoneType
 
         :raises NotImplementedError: if an unsupported intrinsic type is found.
-        :raises SymbolError: if a symbol already exists for the name of a \
+        :raises SymbolError: if a symbol already exists for the name of a
             derived type but is not a DataTypeSymbol.
-        :raises NotImplementedError: if the supplied type specification is \
+        :raises NotImplementedError: if the supplied type specification is
             not for an intrinsic type or a derived type.
 
         '''
@@ -1844,6 +1843,7 @@ class Fparser2Reader():
         decln_access_spec = None
         # 6) Whether this declaration has the SAVE attribute.
         has_save_attr = False
+
         if attr_specs:
             for attr in attr_specs.items:
                 if isinstance(attr, (Fortran2003.Attr_Spec,
@@ -1928,11 +1928,14 @@ class Fparser2Reader():
             (name, array_spec, char_len, initialisation) = entity.items
             init_expr = None
 
+            # Since specifiers on an individual entity can override those in
+            # the general declaration, we have to take a copy.
+            this_type = base_type.copy()
+
             # If the entity has an array-spec shape, it has priority.
             # Otherwise use the declaration attribute shape.
             if array_spec is not None:
-                entity_shape = \
-                    self._parse_dimensions(array_spec, symbol_table)
+                entity_shape = self._parse_dimensions(array_spec, symbol_table)
             else:
                 entity_shape = attribute_shape
 
@@ -1966,9 +1969,15 @@ class Fparser2Reader():
                 init_expr = dummynode.children[0].detach()
 
             if char_len is not None:
-                raise NotImplementedError(
-                    f"Could not process {decl.items}. Character length "
-                    f"specifications are not supported.")
+                # Handle any character length specification. This takes
+                # precedence over anything in the declaration attributes
+                # handled earlier.
+                if isinstance(char_len, Fortran2003.Char_Length):
+                    # e.g. Char_Length('(', Name('MAX_LEN'), ')')
+                    char_len = char_len.children[1]
+                dummynode = Assignment(parent=scope)
+                self.process_nodes(parent=dummynode, nodes=[char_len])
+                this_type.length = dummynode.children[0].detach()
 
             sym_name = str(name).lower()
 
@@ -2002,10 +2011,10 @@ class Fparser2Reader():
 
             if entity_shape:
                 # array
-                datatype = ArrayType(base_type, entity_shape)
+                datatype = ArrayType(this_type, entity_shape)
             else:
                 # scalar
-                datatype = base_type
+                datatype = this_type
 
             # Make sure the declared symbol exists in the SymbolTable.
             tag = None
@@ -5572,7 +5581,6 @@ class Fparser2Reader():
 
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
-
 
         :raises NotImplementedError: if the node contains a Contains clause.
         :raises NotImplementedError: if the node contains an ENTRY statement.
