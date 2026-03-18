@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the sum2loop transformation.'''
 
@@ -125,12 +126,13 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
         "  result = sum(array)\n"
         "end subroutine\n")
     expected = (
-        "  result = 0.0\n"
+        "  reduction_var = 0.0\n"
         "  do idx = 1, 20, 1\n"
         "    do idx_1 = 1, 10, 1\n"
-        "      result = result + array(idx_1,idx)\n"
+        "      reduction_var = reduction_var + array(idx_1,idx)\n"
         "    enddo\n"
-        "  enddo\n")
+        "  enddo\n"
+        "  result = reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     intrinsic_node = psyir.children[0].children[0].children[1]
