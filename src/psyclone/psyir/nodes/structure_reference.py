@@ -91,33 +91,33 @@ class StructureReference(StructureAccessorMixin, Reference):
         return False
 
     @staticmethod
-    def create(symbol, members, parent=None, overwrite_datatype=None):
+    def create(symbol: DataSymbol,
+               members: list[Union[str, tuple[str, list[Node]]]],
+               parent: Optional[Node] = None,
+               overwrite_datatype: Optional[DataType] = None,
+               dsl_name: Optional[str] = None) -> StructureReference:
         '''
         Create a StructureReference instance given a symbol and a
         list of components. e.g. for "field%bundle(2)%flag" this
         list would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
 
         :param symbol: the symbol that this reference is to.
-        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param members: the component(s) of the structure that make up \
-            the full access. Any components that are array accesses must \
-            provide the name of the array and a list of DataNodes describing \
+        :param members: the component(s) of the structure that make up
+            the full access. Any components that are array accesses must
+            provide the name of the array and a list of DataNodes describing
             which part of it is accessed.
-        :type members: list of str or 2-tuples containing (str, \
-            list of nodes describing array access)
         :param parent: the parent of this node in the PSyIR.
-        :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-        :param overwrite_datatype: the datatype for the reference, which will \
-            overwrite the value determined by analysing the corresponding \
-            user defined type. This is useful when e.g. the module that \
+        :param overwrite_datatype: the datatype for the reference, which will
+            overwrite the value determined by analysing the corresponding
+            user defined type. This is useful when e.g. the module that
             declares the structure cannot be accessed.
-        :type overwrite_datatype: \
-            Optional[:py:class:`psyclone.psyir.symbols.DataType`]
+        :param dsl_name: the name of a DSL field that this reference is
+            accessing (e.g. `field_proxy%data` might reference `field`)
 
         :returns: a StructureReference instance.
-        :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
 
         :raises TypeError: if the supplied symbol is not a DataSymbol.
+        :raises TypeError: if the supplied dsl_name is not a string.
 
         '''
         if not isinstance(symbol, DataSymbol):
@@ -131,9 +131,16 @@ class StructureReference(StructureAccessorMixin, Reference):
                 f"StructureReference.create() should be a DataType but found "
                 f"'{type(symbol).__name__}'.")
 
+        if dsl_name and not isinstance(dsl_name, str):
+            raise TypeError(
+                f"The 'dsl_name' argument to StructureReference.create() "
+                f"should be a string, but found "
+                f"'{type(dsl_name).__name__}'.")
+
         return StructureReference.\
             _create(symbol, symbol.datatype, members, parent=parent,
-                    overwrite_datatype=overwrite_datatype)
+                    overwrite_datatype=overwrite_datatype,
+                    dsl_name=dsl_name)
 
     @classmethod
     def _create(cls,
@@ -142,6 +149,7 @@ class StructureReference(StructureAccessorMixin, Reference):
                 members: list[Union[str, Tuple[str, list[Node]]]],
                 parent: Optional[Node] = None,
                 overwrite_datatype: Optional[DataType] = None,
+                dsl_name: Optional[str] = None
                 ) -> StructureReference:
         # pylint: disable=too-many-arguments
         '''
@@ -164,6 +172,8 @@ class StructureReference(StructureAccessorMixin, Reference):
             overwrite the value determined by analysing the corresponding
             user defined type. This is useful when e.g. the module that
             declares the structure cannot be accessed.
+        :param dsl_name: the name of a DSL field that this reference is
+            accessing (e.g. `field_proxy%data` might reference `field`)
 
         :returns: a StructureReference instance.
 
@@ -203,7 +213,7 @@ class StructureReference(StructureAccessorMixin, Reference):
                 f"symbol '{symbol.name}'")
 
         # Create the base reference to the symbol that is a structure
-        ref = cls(symbol, parent=parent)
+        ref = cls(symbol, parent=parent, dsl_name=dsl_name)
 
         # Bottom-up creation of full reference. The last element in the members
         # list must be either an ArrayMember or a Member.
