@@ -1,3 +1,6 @@
+   66) PR #3359 for #3022. Uses the improved datatype functionality to
+   correctly transform reduction intrinsics into native code.
+ 
    65) PR #3365 towards #2668. Updates more transformations to accept
    keyword arguments instead of options.
  
