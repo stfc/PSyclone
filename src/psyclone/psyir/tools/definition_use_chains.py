@@ -110,7 +110,8 @@ class DefinitionUseChain:
                     f"All references provided into a DefinitionUseChain "
                     f"must have the same parent."
                 )
-        self._references = references
+        # Make a copy of the list so we can modify it.
+        self._references = [ref for ref in references]
         # Store the absolute positions and signatures for later.
         self._reference_signatures = []
         self._references_abs_pos = {}
@@ -348,16 +349,28 @@ class DefinitionUseChain:
                 if cfn is None:
                     # We're outside a control flow region, updating the reaches
                     # here is to find all the reached nodes.
-                    for sig in chain._reaches: # TODO
+                    for sig in chain._reaches:
                         for ref in chain._reaches[sig]:
-                            # Add unique references to reaches. Since we're
-                            # not in a control flow region, we can't have
-                            # added these references into the reaches array
-                            # yet so they're guaranteed to be unique.
-                            self._reaches[sig].append(ref)
-                    # If we have a defsout in the chain then we can stop as we
-                    # will never get past the write as its not conditional.
-                    if len(chain.defsout) > 0:
+                            # Add unique references to reaches. Since we could
+                            # have multiple references to the same symbol in
+                            # the input they're not unique, so we need to
+                            # check for uniqueness. As nodes can be == but
+                            # not the same object, this has to be done
+                            # using a loop and `is`.
+                                for ref2 in self._reaches[sig]
+                                    if ref2 is ref:
+                                        break
+                                else:
+                                    self._reaches[sig].append(ref)
+                    # If we have a defsout in the chain then we can stop for
+                    # that reference as we will never get past the write
+                    # as its not conditional.
+                    for i, sig in enumerate(self._reference_signatures):
+                        if len(chains.defsout[sig]) > 0:
+                            self._references.pop(i)
+                    # If we have found an end point for all references then
+                    # we can finish.
+                    if len(self._references) == 0:
                         # Reset the start and stop points before returning
                         # the result.
                         self._start_point = save_start_position
