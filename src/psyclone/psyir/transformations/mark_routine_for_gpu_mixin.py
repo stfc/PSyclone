@@ -43,7 +43,7 @@ class MarkRoutineForGPUMixin:
     the same logic.
 
     '''
-    def validate_it_can_run_on_gpu(self, node, options):
+    def validate_it_can_run_on_gpu(self, node, options, **kwargs):
         '''
         Check that the supplied node can be marked as available to be
         called on GPU.
@@ -69,8 +69,13 @@ class MarkRoutineForGPUMixin:
         :raises TransformationError: if the kernel contains any calls to other
                                      routines.
         '''
-        force = options.get("force", False) if options else False
-        device_string = options.get("device_string", "") if options else ""
+        # TODO #2668: Deprecate options dict.
+        if options:
+            force = options.get("force", False)
+            device_string = options.get("device_string", "")
+        else:
+            force = self.get_option("force", **kwargs)
+            device_string = self.get_option("device_string", **kwargs)
 
         if not isinstance(node, (Kern, Routine)):
             raise TransformationError(
