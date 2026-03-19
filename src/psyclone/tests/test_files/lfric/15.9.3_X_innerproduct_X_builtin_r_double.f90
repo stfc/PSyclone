@@ -45,6 +45,6 @@ program single_invoke
   type(field_type) :: f1
   real(r_double)   :: asum
 
-  call invoke( minval_x(asum, f1) )
+  call invoke( X_innerproduct_X(asum, f1) )
 
 end program single_invoke
