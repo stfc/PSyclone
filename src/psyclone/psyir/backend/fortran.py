@@ -285,9 +285,6 @@ class FortranWriter(LanguageWriter):
             and this is not supported for the datatype.
         :raises VisitorError: if the size of the explicit precision is not
             supported for the datatype.
-        :raises VisitorError: if the size of the symbol is specified by
-            another variable and the datatype is not one that supports the
-            Fortran KIND option.
         :raises NotImplementedError: if the type of the precision object
             is an unsupported type.
 
@@ -362,11 +359,6 @@ class FortranWriter(LanguageWriter):
             return fortrantype
 
         if isinstance(precision, DataNode):
-            if fortrantype not in ["real", "integer", "logical", "character"]:
-                raise VisitorError(
-                    f"kind not supported for datatype '{fortrantype}' in "
-                    f"symbol '{name}' in Fortran backend.")
-
             len_txt = ""
             if len_str:
                 len_txt = f", len={len_str}"

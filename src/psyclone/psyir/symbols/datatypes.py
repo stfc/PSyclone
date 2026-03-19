@@ -470,34 +470,38 @@ class ScalarType(DataType):
         return self._length
 
     @length.setter
-    def length(self, value: Union[int, str, "DataNode"]):
+    def length(self, value: Union[int, "DataNode", None]):
         '''
         Setter for the length of a character string. If the new value
-        is supplied as an int or str then this is converted into a Literal.
+        is supplied as an int then this is converted into a Literal.
+
+        If this type is a character string and the `value` is None then
+        the length is set to the Fortran default of 1.
 
         :value: the new length to assign.
 
-        :raises ValueError: if the supplied value is a str but is not ":"
-                            or "*".
+        :raises TypeError: if value is not None and this is not a
+                           character type.
         :raises ValueError: if the supplied value is an int with value < 0.
         :raises TypeError: if the supplied value is of the wrong type.
 
         '''
-        if value is None:
-            if self._intrinsic == ScalarType.Intrinsic.CHARACTER:
-                # pylint: disable=import-outside-toplevel
-                from psyclone.psyir.nodes.literal import Literal
-                # Default length of a character string is 1.
-                self._length = Literal("1", INTEGER_TYPE)
-            else:
-                self._length = None
-            return
-
         if self._intrinsic != ScalarType.Intrinsic.CHARACTER:
+            if value is None:
+                self._length = None
+                return
             raise TypeError(
-                f"Only ScalarTypes of CHARACTER type support the length "
+                f"Only ScalarTypes of character type support the length "
                 f"property but length '{value}' was supplied to an intrinsic"
                 f" type of '{self._intrinsic}'")
+
+        # This is a character type.
+        if value is None:
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes.literal import Literal
+            # Default length of a character string is 1.
+            self._length = Literal("1", INTEGER_TYPE)
+            return
 
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.datanode import DataNode
@@ -514,8 +518,8 @@ class ScalarType(DataType):
             self._length = value
         else:
             raise TypeError(
-                f"The length property of a CharacterType must be an int, "
-                f"ScalarType.CharLengthParameter "
+                f"The length property of a character ScalarType must be an "
+                f"int, ScalarType.CharLengthParameter "
                 f"or DataNode but got '{type(value).__name__}'")
 
     @property
