@@ -569,7 +569,7 @@ def test_psy_init_defaults(kernel_outputdir):
     expected = '''
   subroutine psy_init()
     use fortcl, only : add_kernels, ocl_env_init
-    character(len = 30) :: kernel_names(1)
+    character(len=30), dimension(1) :: kernel_names
     integer, save :: ocl_device_num = 1
     logical, save :: initialised = .false.
 
@@ -606,7 +606,7 @@ def test_psy_init_multiple_kernels(kernel_outputdir):
     generated_code = str(psy.gen)
 
     # Check that the kernel_names has enough space for all kernels
-    assert "CHARACTER(LEN = 30) :: kernel_names(2)" in generated_code
+    assert "character(len=30), dimension(2) :: kernel_names" in generated_code
 
     # The order doesn't matter as far as the two kernels are loaded
     assert ("kernel_names(1) = 'kernel_with_use_code'" in generated_code or
@@ -647,7 +647,7 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
   subroutine psy_init()
     use parallel_mod, only : get_rank
     use fortcl, only : add_kernels, ocl_env_init
-    character(len = 30) :: kernel_names(1)
+    character(len=30), dimension(1) :: kernel_names
     integer, save :: ocl_device_num = 1
     logical, save :: initialised = .false.
 

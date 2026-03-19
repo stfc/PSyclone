@@ -45,7 +45,7 @@ from dataclasses import dataclass, field
 import re
 import os
 import sys
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional, Tuple, Union
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
@@ -1586,28 +1586,27 @@ class Fparser2Reader():
                     if symbol.name.lower() in visibility_map:
                         symbol.visibility = visibility_map[symbol.name.lower()]
 
-    def _process_type_spec(self, parent, type_spec):
+    def _process_type_spec(
+            self,
+            parent: Node,
+            type_spec: Union[Fortran2003.Intrinsic_Type_Spec,
+                             Fortran2003.Declaration_Type_Spec]
+    ) -> Tuple[
+            Union[ScalarType, DataTypeSymbol],
+            Union[ScalarType.Precision, DataSymbol, int, None]]:
         '''
         Processes the fparser2 parse tree of a type specification in order to
         extract the type and precision that are specified.
 
         :param parent: the parent of the current PSyIR node under construction.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param type_spec: the fparser2 parse tree of the type specification.
-        :type type_spec: \
-            :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec` or \
-            :py:class:`fparser.two.Fortran2003.Declaration_Type_Spec`
 
         :returns: the type and precision specified by the type-spec.
-        :rtype: 2-tuple of :py:class:`psyclone.psyir.symbols.ScalarType` or \
-            :py:class:`psyclone.psyir.symbols.DataTypeSymbol` and \
-            :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
-            :py:class:`psyclone.psyir.symbols.DataSymbol` or int or NoneType
 
         :raises NotImplementedError: if an unsupported intrinsic type is found.
-        :raises SymbolError: if a symbol already exists for the name of a \
+        :raises SymbolError: if a symbol already exists for the name of a
             derived type but is not a DataTypeSymbol.
-        :raises NotImplementedError: if the supplied type specification is \
+        :raises NotImplementedError: if the supplied type specification is
             not for an intrinsic type or a derived type.
 
         '''
@@ -1632,12 +1631,13 @@ class Fparser2Reader():
                 precision = self._process_precision(type_spec, parent)
             if not precision:
                 precision = default_precision(data_name)
-            # We don't support len or kind specifiers for character variables
-            if fort_type == "character" and type_spec.children[1]:
-                raise NotImplementedError(
-                    f"Length or kind attributes not supported on a character "
-                    f"variable: '{type_spec}'")
-            base_type = ScalarType(data_name, precision)
+
+            char_len = None
+            if fort_type == "character":
+                # Character types can have a length
+                char_len = self._process_char_length(type_spec, parent)
+
+            base_type = ScalarType(data_name, precision, length=char_len)
 
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
             # This is a variable of derived type
@@ -1843,6 +1843,7 @@ class Fparser2Reader():
         decln_access_spec = None
         # 6) Whether this declaration has the SAVE attribute.
         has_save_attr = False
+
         if attr_specs:
             for attr in attr_specs.items:
                 if isinstance(attr, (Fortran2003.Attr_Spec,
@@ -1927,11 +1928,14 @@ class Fparser2Reader():
             (name, array_spec, char_len, initialisation) = entity.items
             init_expr = None
 
+            # Since specifiers on an individual entity can override those in
+            # the general declaration, we may have to take a copy.
+            this_type = base_type
+
             # If the entity has an array-spec shape, it has priority.
             # Otherwise use the declaration attribute shape.
             if array_spec is not None:
-                entity_shape = \
-                    self._parse_dimensions(array_spec, symbol_table)
+                entity_shape = self._parse_dimensions(array_spec, symbol_table)
             else:
                 entity_shape = attribute_shape
 
@@ -1965,9 +1969,16 @@ class Fparser2Reader():
                 init_expr = dummynode.children[0].detach()
 
             if char_len is not None:
-                raise NotImplementedError(
-                    f"Could not process {decl.items}. Character length "
-                    f"specifications are not supported.")
+                # Handle any character length specification. This takes
+                # precedence over anything in the declaration attributes
+                # handled earlier.
+                clen = self._process_char_length(char_len, scope)
+                if clen:
+                    # copy() does a deep copy but we need to preserve any
+                    # symbols referred to within the type.
+                    this_type = base_type.copy()
+                    this_type.replace_symbols_using(scope.symbol_table)
+                    this_type.length = clen
 
             sym_name = str(name).lower()
 
@@ -2001,10 +2012,10 @@ class Fparser2Reader():
 
             if entity_shape:
                 # array
-                datatype = ArrayType(base_type, entity_shape)
+                datatype = ArrayType(this_type, entity_shape)
             else:
                 # scalar
-                datatype = base_type
+                datatype = this_type
 
             # Make sure the declared symbol exists in the SymbolTable.
             tag = None
@@ -2801,7 +2812,10 @@ class Fparser2Reader():
                         f"The symbol interface of a common block variable "
                         f"could not be updated because of {error}.") from error
 
-    def _process_precision(self, type_spec, psyir_parent):
+    def _process_precision(self,
+                           type_spec: Fortran2003.Intrinsic_Type_Spec,
+                           psyir_parent: Node) -> Optional[
+                               Union[ScalarType.Precision, DataNode]]:
         '''Processes the fparser2 parse tree of the type specification of a
         variable declaration in order to extract precision
         information. Two formats for specifying precision are
@@ -2809,38 +2823,42 @@ class Fparser2Reader():
         kind=KIND(x).
 
         :param type_spec: the fparser2 parse tree of the type specification.
-        :type type_spec: \
-            :py:class:`fparser.two.Fortran2003.Intrinsic_Type_Spec`
-        :param psyir_parent: the parent PSyIR node where the new node \
+        :param psyir_parent: the parent PSyIR node where the new node
             will be attached.
-        :type psyir_parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: the precision associated with the type specification.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol.Precision` or \
-            :py:class:`psyclone.psyir.nodes.DataNode` or int or NoneType
 
-        :raises NotImplementedError: if a KIND intrinsic is found with an \
+        :raises NotImplementedError: if a KIND intrinsic is found with an
             argument other than a real or integer literal.
-        :raises NotImplementedError: if we have `kind=xxx` but cannot find \
+        :raises NotImplementedError: if we have `kind=xxx` but cannot find
             a valid variable name.
 
         '''
         symbol_table = psyir_parent.scope.symbol_table
 
-        if not isinstance(type_spec.items[1], Fortran2003.Kind_Selector):
+        is_char = False
+        for child in type_spec.children:
+            if isinstance(child, Fortran2003.Kind_Selector):
+                kind_selector = child
+                break
+            if isinstance(child, Fortran2003.Char_Selector):
+                # A CHARACTER declaration can be of Char_Selector type.
+                # The second child of Char_Selector holds the precision.
+                is_char = True
+                kind_selector = child.children[1]
+                break
+        else:
             # No precision is specified
             return None
 
-        kind_selector = type_spec.items[1]
-
-        if (isinstance(kind_selector.children[0], str) and
-                kind_selector.children[0] == "*"):
+        if not is_char and (isinstance(kind_selector.children[0], str) and
+                            kind_selector.children[0] == "*"):
             # Precision is provided in the form *N
             precision = int(str(kind_selector.children[1]))
             return precision
 
         # Precision is supplied in the form "kind=..."
-        intrinsics = walk(kind_selector.items,
+        intrinsics = walk(kind_selector,
                           Fortran2003.Intrinsic_Function_Reference)
         if intrinsics and isinstance(intrinsics[0].items[0],
                                      Fortran2003.Intrinsic_Name) and \
@@ -2865,8 +2883,10 @@ class Fparser2Reader():
 
         # Create a dummy Routine and Assignment to capture the kind=...
         # so we can capture expressions such as 2*wp.
-        # The input from fparser2 is ['(', kind, ')']
-        kind_items = kind_selector.items[1]
+        # The input from fparser2 is ['(', kind, ')'] if it is not a
+        # Char_Selector, otherwise kind_selector already holds the kind
+        # expression.
+        kind_items = kind_selector.items[1] if not is_char else kind_selector
         fake_routine = Routine(RoutineSymbol("dummy"))
         # Create a dummy assignment "a = " to place the kind statement on
         # the rhs of.
@@ -2888,6 +2908,62 @@ class Fparser2Reader():
                 f"{kind_expression.debug_string()}"
             )
         return kind_expression
+
+    def _process_char_length(
+            self,
+            type_spec: Union[Fortran2003.Intrinsic_Type_Spec,
+                             Fortran2003.Int_Literal_Constant,
+                             Fortran2003.Char_Length],
+            psyir_parent: Node) -> Optional[
+                Union[ScalarType.CharLengthParameter, DataNode]]:
+        '''
+        Process any length attribute on a CHARACTER declaration.
+
+        :param type_spec: the fparser2 parse tree describing the type.
+        :param psyir_parent: the parent node in the PSyIR tree.
+
+        :returns: the length of the character string or None if it is
+                  unspecified.
+
+        '''
+        if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
+            for child in type_spec.children:
+                if isinstance(child, Fortran2003.Length_Selector):
+                    # Child 0 holds '(' for a '(len=xxx)' or '*' for a
+                    # '* char-length'. Either way, child 1 holds the length.
+                    if isinstance(child.children[1], Fortran2003.Char_Length):
+                        char_len = child.children[1].children[1]
+                    else:
+                        char_len = child.children[1]
+                    break
+
+                if isinstance(child, Fortran2003.Char_Selector):
+                    # A CHARACTER declaration can be of Char_Selector type.
+                    # The first child of Char_Selector holds the length (which
+                    # may be None if it is unspecified).
+                    char_len = child.children[0]
+                    if not char_len:
+                        return None
+                    break
+            else:
+                # No length is specified
+                return None
+        elif isinstance(type_spec, Fortran2003.Char_Length):
+            # e.g. Char_Length('(', Name('MAX_LEN'), ')')
+            char_len = type_spec.children[1]
+        else:
+            char_len = type_spec
+
+        if isinstance(char_len, Fortran2003.Type_Param_Value):
+            if char_len.string == ":":
+                return ScalarType.CharLengthParameter.COLON
+            return ScalarType.CharLengthParameter.ASTERISK
+
+        # Create a dummy assignment so we can process the length expression.
+        dummy = Assignment(parent=psyir_parent)
+        dummy.addchild(Reference(Symbol("a")))
+        self.process_nodes(parent=dummy, nodes=[char_len])
+        return dummy.rhs.detach()
 
     def _add_comments_to_tree(self, parent: Node, preceding_comments,
                               psy_child: Node) -> None:
@@ -3752,18 +3828,16 @@ class Fparser2Reader():
 
         '''
         pointer_symbols = []
-        # Create a symbol from the supplied base name. Store as an
-        # UnsupportedFortranType in the symbol table as we do not natively
-        # support character strings (as opposed to scalars) in the PSyIR at
-        # the moment.
+        # Create a symbol from the supplied base name.
         # TODO #2550 will improve this by using an integer instead.
         type_string_name = parent.scope.symbol_table.next_available_name(
             type_string_name)
         # Length is hardcoded here so could potentially be too short.
         # TODO #2550 will improve this by using an integer instead.
-        type_string_type = UnsupportedFortranType(
-            f"character(256) :: {type_string_name}")
-        type_string_symbol = DataSymbol(type_string_name, type_string_type)
+        type_string_symbol = DataSymbol(
+            type_string_name,
+            ScalarType(ScalarType.Intrinsic.CHARACTER,
+                       ScalarType.Precision.UNDEFINED, length=256))
         parent.scope.symbol_table.add(type_string_symbol)
 
         # Create text for a select type construct using the information
@@ -5517,7 +5591,6 @@ class Fparser2Reader():
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
-
         :raises NotImplementedError: if the node contains a Contains clause.
         :raises NotImplementedError: if the node contains an ENTRY statement.
         :raises NotImplementedError: if an unsupported prefix is found.
@@ -5577,10 +5650,10 @@ class Fparser2Reader():
             if routine_node.name.lower() == name.lower():
                 routine = routine_node
                 break
-        if routine is None:
+        else:
             routine = Routine.create(name)
             # We add this to the parent so the finally of the next block
-            # can safe call detach on the routine. This handles the case
+            # can safely call detach on the routine. This handles the case
             # where an error occurs which should result in a codeblock, but
             # we had forward declared the Routine and we need to ensure the
             # empty Routine is detached from the tree.

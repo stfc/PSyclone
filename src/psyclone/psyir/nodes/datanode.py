@@ -37,6 +37,8 @@
 
 ''' This module contains the DataNode abstract node implementation.'''
 
+from typing import Optional
+
 from psyclone.psyir.nodes.node import Node
 
 
@@ -64,28 +66,25 @@ class DataNode(Node):
             return INTEGER_TYPE
         return UnresolvedType()
 
-    def is_character(self, unknown_as=None):
+    def is_character(self, unknown_as: Optional[bool] = None) -> bool:
         '''
         :param unknown_as: Determines behaviour in the case where it cannot be
             determined whether the DataNode is a character. Defaults to None,
             in which case an exception is raised.
-        :type unknown_as: Optional[bool]
 
         :returns: True if this DataNode is a character, otherwise False.
-        :rtype: bool
 
         :raises ValueError: if the intrinsic type cannot be determined.
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import ScalarType
-        if not hasattr(self.datatype, "intrinsic"):
+        dtype = self.datatype
+        if not hasattr(dtype, "intrinsic"):
             if unknown_as is None:
                 raise ValueError(
                     "is_character could not resolve whether the expression"
                     f" '{self.debug_string()}' operates on characters."
                 )
             return unknown_as
-        return (
-            self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
-        )
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import ScalarType
+        return dtype.intrinsic == ScalarType.Intrinsic.CHARACTER

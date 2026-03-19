@@ -305,7 +305,8 @@ def test_datasymbol_initial_value_setter_invalid():
     with pytest.raises(ValueError) as error:
         DataSymbol('a', CHARACTER_TYPE, initial_value=42)
     assert ("Error setting initial value for symbol 'a'. This DataSymbol "
-            "instance datatype is 'Scalar<CHARACTER, UNDEFINED>' meaning "
+            "instance datatype is 'Scalar<CHARACTER, UNDEFINED, len:Literal["
+            "value:'1', Scalar<INTEGER, UNDEFINED>]>' meaning "
             "the initial value should be") in str(error.value)
     assert "'str'>' but found " in str(error.value)
     assert "'int'>'." in str(error.value)

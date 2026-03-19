@@ -196,6 +196,45 @@ def test_scalartype_datasymbol_precision(intrinsic):
     assert scalar_type == scalar_type2
 
 
+def test_scalartype_character_length():
+    '''
+    Test the length getter and setter of ScalarType.
+    '''
+    data_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                           ScalarType.Precision.UNDEFINED,
+                           length=Literal("5", INTEGER_TYPE))
+    assert data_type.length.value == "5"
+    data_type.length = Reference(Symbol("MAX_LEN"))
+    assert data_type.length.symbol.name == "MAX_LEN"
+    data_type.length = ScalarType.CharLengthParameter.COLON
+    assert data_type.length == ScalarType.CharLengthParameter.COLON
+
+    with pytest.raises(ValueError) as err:
+        data_type.length = -1
+    assert ("specified using an int then it must be >= 0 but got: -1"
+            in str(err.value))
+    with pytest.raises(TypeError) as err:
+        data_type.length = "yes"
+    assert ("must be an int, ScalarType.CharLengthParameter or DataNode but "
+            "got 'str'" in str(err.value))
+
+    # Now test with a non-character type.
+    non_char = INTEGER_TYPE
+    # The getter raises an error.
+    with pytest.raises(TypeError) as err:
+        _ = non_char.length
+    assert ("ScalarType of intrinsic type 'Intrinsic.INTEGER' does not have "
+            "the 'length' property" in str(err.value))
+    # The setter does permit a value of None.
+    non_char.length = None
+    # The setter rejects a value that is not None.
+    with pytest.raises(TypeError) as err:
+        non_char.length = 10
+    assert ("character type support the length property but length '10' was "
+            "supplied to an intrinsic type of 'Intrinsic.INTEGER'"
+            in str(err.value))
+
+
 def test_scalartype_equal():
     '''
     Check that ScalarType instances with different precision or intrinsic type
@@ -287,6 +326,12 @@ def test_scalartype_str():
     data_type = ScalarType(ScalarType.Intrinsic.BOOLEAN,
                            ScalarType.Precision.UNDEFINED)
     assert str(data_type) == "Scalar<BOOLEAN, UNDEFINED>"
+    str_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED,
+                          4)
+    assert str(str_type) == (
+        "Scalar<CHARACTER, UNDEFINED, "
+        "len:Literal[value:'4', Scalar<INTEGER, UNDEFINED>]>")
 
 
 def test_scalartype_immutable():
