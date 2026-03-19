@@ -134,15 +134,14 @@ def test_codeblock_generation_and_messages():
     '''
     processor = FortranTreeSitterReader()
 
-    # Valid code returns a treesitter Node
-    valid_code = """
+    unsupported_code = """
     module test
         contains
         subroutine mysub()
         end subroutine
     end module test
     """
-    ptree = processor.generate_parse_tree(valid_code)
+    ptree = processor.generate_parse_tree(unsupported_code)
     psyir = processor.generate_psyir(ptree)
 
     assert isinstance(psyir, FileContainer)
@@ -150,5 +149,25 @@ def test_codeblock_generation_and_messages():
     expected = (
         "PSyclone CodeBlock (unsupported code) reason:\n"
         "- Modules that allow implicit variables are not supported"
+    )
+    assert psyir.children[0].preceding_comment == expected
+
+    unsupported_code = """
+    module test
+        implicit none
+        integer :: a
+        contains
+        subroutine mysub()
+        end subroutine
+    end module test
+    """
+    ptree = processor.generate_parse_tree(unsupported_code)
+    psyir = processor.generate_psyir(ptree)
+
+    assert isinstance(psyir, FileContainer)
+    assert isinstance(psyir.children[0], CodeBlock)
+    expected = (
+        "PSyclone CodeBlock (unsupported code) reason:\n"
+        "- Module has an unsupported 'variable_declaration' node"
     )
     assert psyir.children[0].preceding_comment == expected
