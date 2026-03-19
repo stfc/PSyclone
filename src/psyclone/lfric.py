@@ -5901,13 +5901,10 @@ class LFRicKernelArgument(KernelArgument):
                     "Reductions for datatypes other than real are not yet "
                     "supported in PSyclone.")
 
-            expected_precision = const.DATA_TYPE_MAP["reduction"]["kind"]
-            # Use the default 'real' scalar reduction properties.
-            self._precision = expected_precision
-            self._data_type = const.DATA_TYPE_MAP["reduction"]["type"]
-            self._proxy_data_type = const.DATA_TYPE_MAP[
-                "reduction"]["proxy_type"]
-            self._module_name = const.DATA_TYPE_MAP["reduction"]["module"]
+            self._precision = alg_precision
+            self._data_type = alg_datatype
+            self._proxy_data_type = None
+            self._module_name = const.DATA_TYPE_MAP["scalar"]["module"]
         else:
             # This is a scalar that is not part of a reduction.
 
