@@ -300,7 +300,8 @@ class DriverCreator:
         # doing lookups, external variables are handled below). Note that at
         # the moment we consider all read and/or written as input variables.
         read_stmts = []
-        for module_name, signature in read_write_info.all_used_vars_list:
+        for (module_name, signature,
+                _dsl_name) in read_write_info.all_used_vars_list:
             if not module_name:
                 orig_sym = original_symtab.lookup(signature[0])
                 sym = orig_sym.copy()
@@ -315,7 +316,8 @@ class DriverCreator:
         # so that they match the literal tags of the extracting psy-layer
         ExtractNode.bring_external_symbols(read_write_info, symbol_table)
         mod_man = ModuleManager.get()
-        for module_name, signature in read_write_info.all_used_vars_list:
+        for (module_name, signature,
+                _dsl_name) in read_write_info.all_used_vars_list:
             # Only add if a variable is not supposed to be ignored
             if module_name and (module_name, signature) not in vars_to_ignore:
                 mod_info = mod_man.get_module_info(module_name)
@@ -331,7 +333,7 @@ class DriverCreator:
         # Finally handle the output variables (these are the ones compared
         # to a stored _post variable)
         output_symbols = []
-        for module_name, signature in read_write_info.write_list:
+        for module_name, signature, _dsl_name in read_write_info.write_list:
             if (module_name, signature) in vars_to_ignore:
                 continue
             # Find the right symbol for the variable. Note that all variables

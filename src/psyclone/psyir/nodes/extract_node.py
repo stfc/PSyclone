@@ -331,7 +331,7 @@ class ExtractNode(PSyDataNode):
         all_vars = read_write_info.all_used_vars_list
         # The signatures in the input/output list need to be converted
         # back to strings to easily append the suffix.
-        all_vars_string = [str(input_var) for _, input_var in all_vars]
+        all_vars_string = [str(input_var) for _, input_var, _ in all_vars]
         while any(str(out_sig)+postfix+str(suffix) in all_vars_string
                   for out_sig in read_write_info.signatures_written):
             suffix = cast(int, suffix)
@@ -464,7 +464,8 @@ class ExtractNode(PSyDataNode):
         # pylint: disable=import-outside-toplevel
         from psyclone.parse import ModuleManager
         mod_man = ModuleManager.get()
-        for module_name, signature in read_write_info.all_used_vars_list:
+        for (module_name, signature,
+                _dsl_name) in read_write_info.all_used_vars_list:
             if not module_name:
                 # Ignore local symbols, which will have been added above
                 continue

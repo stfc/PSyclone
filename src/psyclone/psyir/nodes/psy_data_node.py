@@ -496,7 +496,7 @@ class PSyDataNode(Statement):
 
         '''
         out_list = []
-        for (module_name, signature) in var_list:
+        for (module_name, signature, _dsl_name) in var_list:
             if module_name:
                 container = symbol_table.find_or_create(
                     module_name, symbol_type=ContainerSymbol)
