@@ -389,8 +389,8 @@ class LFRicConstants():
         # Data structure type mandates its proxy name, Fortran intrinsic type
         # of its data and the kind (precision) for the intrinsic type.
         LFRicConstants.DATA_TYPE_MAP = {
-            # 'real'-valued scalar reduction of default kind 'None' (used for global
-            # reductions of "field_type" data)
+            # 'real'-valued scalar reduction of default kind 'None' (used for
+            # global reductions of "field_type" data)
             "scalar": {"module": "scalar_mod",
                        "type": "scalar_type",
                        "proxy_type": None,

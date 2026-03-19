@@ -1884,6 +1884,7 @@ def test_x_innerproduct_x(fortran_writer):
     assert ("! Built-in: X_innerproduct_X (real-valued field)\n"
             "asum = asum + f1_data(df) * f1_data(df)\n") in code
 
+
 def test_x_innerproduct_x_r_double(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods for
     r_double precision.
@@ -1901,6 +1902,7 @@ def test_x_innerproduct_x_r_double(fortran_writer):
     assert str(kern) == "Built-in: X_innerproduct_X (real-valued field)"
 
     # Test the 'lower_to_language_level()' method
+    code = fortran_writer(kern)
     assert ("! Built-in: X_innerproduct_X (real-valued field)\n"
             "asum = asum + f1_data(df) * f1_data(df)\n") in code
 
