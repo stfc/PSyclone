@@ -1,3 +1,5 @@
+   67 PR #3380 for #3379. Fixes import for graphviz.Digraph.
+ 
    66) PR #3359 for #3022. Uses the improved datatype functionality to
    correctly transform reduction intrinsics into native code.
  
