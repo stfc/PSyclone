@@ -133,7 +133,7 @@ class FortranReader():
         '''
         tree = self._processor.generate_parse_tree(
                 source_code, None, self._ignore_comments, self._free_form,
-                self._ignore_directives, self._conditional_openmp_statements)
+                self._conditional_openmp_statements)
         psyir = self._processor.generate_psyir(tree)
         return psyir
 
@@ -163,7 +163,7 @@ class FortranReader():
 
         tree = self._processor.generate_parse_tree(
                 source_code, None, self._ignore_comments, self._free_form,
-                self._ignore_directives, self._conditional_openmp_statements,
+                self._conditional_openmp_statements,
                 partial_code="expression")
 
         # Create a fake sub-tree connected to the supplied symbol table so
@@ -205,7 +205,7 @@ class FortranReader():
 
         tree = self._processor.generate_parse_tree(
                 source_code, None, self._ignore_comments, self._free_form,
-                self._ignore_directives, self._conditional_openmp_statements,
+                self._conditional_openmp_statements,
                 partial_code="statement")
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the statement and lookup any symbols that it
@@ -238,7 +238,6 @@ class FortranReader():
                 file_path,
                 self._ignore_comments,
                 self._free_form,
-                self._ignore_directives,
                 self._conditional_openmp_statements
         )
         psyir = self._processor.generate_psyir(tree)

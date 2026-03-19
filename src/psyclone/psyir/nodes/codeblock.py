@@ -42,8 +42,6 @@ import re
 from enum import Enum
 from typing import List
 
-from fparser.two import Fortran2003, pattern_tools
-from fparser.two.utils import walk
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
@@ -52,8 +50,8 @@ from psyclone.psyir.nodes.datanode import DataNode
 class CodeBlock(Statement, DataNode):
     '''Node representing any generic Fortran code that PSyclone does not
     attempt to manipulate. As such it is a leaf in the PSyIR. A CodeBlock
-    can still answer answer limited questions about the encosed code. For
-    this reason it keeps reference to the underlaying parse_tree, and each
+    can still answer answer limited questions about the enclosed code. For
+    this reason it keeps reference to the underlying parse_tree, and each
     frontend parser needs to subclass CodeBlock with the concrete
     implementation.
 
@@ -166,7 +164,7 @@ class CodeBlock(Statement, DataNode):
 
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -227,6 +225,10 @@ class Fparser2CodeBlock(CodeBlock):
 
         :returns: the symbol names used inside the CodeBock.
         '''
+        # Purposely inlined to lazily load this modules only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003, pattern_tools
+        from fparser.two.utils import walk
         parse_tree = self.get_ast_nodes()
         result = []
         for node in walk(parse_tree, Fortran2003.Name):
@@ -282,6 +284,10 @@ class Fparser2CodeBlock(CodeBlock):
         :returns: whether this CodeBlock contains a potential control flow
                   jump, e.g. GOTO, EXIT or a labeled statement.
         '''
+        # Purposely inlined to lazily load this modules only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003
+        from fparser.two.utils import walk
         # Loop over the fp2_nodes and check if any are GOTO, EXIT or
         # labelled statements
         for node in self._parse_tree:
@@ -313,9 +319,11 @@ class Fparser2CodeBlock(CodeBlock):
 class TreeSitterCodeBlock(CodeBlock):
     ''' The treesitter implementation of CodeBlock. '''
 
-    def get_fortran_lines(self):
+    def get_fortran_lines(self) -> list[str]:
         '''
         :returns: a list of each line of fortran represented by this node.
         '''
-        return [str(ast_node.text, encoding="utf8") for ast_node
-                in self.get_ast_nodes()]
+        output = []
+        for node in self._parse_tree:
+            output.extend(str(node.text, encoding="utf8").split("\n"))
+        return output

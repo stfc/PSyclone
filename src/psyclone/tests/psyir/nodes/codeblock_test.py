@@ -41,7 +41,15 @@
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes.codeblock import CodeBlock, Fparser2CodeBlock
+
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran_treesitter_reader import \
+    FortranTreeSitterReader
+
+
+from psyclone.psyir.nodes.codeblock import (
+    CodeBlock, Fparser2CodeBlock, TreeSitterCodeBlock
+)
 from psyclone.psyir.nodes.node import colored
 from psyclone.errors import GenerationError
 
@@ -126,11 +134,32 @@ def test_abstract_methods():
     assert "Use appropriate CodeBlock subclass" in str(err.value)
 
 
-def test_codeblock_get_symbol_names(parser):
+def test_codeblock_get_fortran_lines():
+    '''
+    Test the get_fortran_lines method for fparser and treesiteer codeblocks.
+
+    (These should be the same to guarantee identical outcomes with both
+    frontends)
+    '''
+    code = "\nsubroutine mytest\nend subroutine"
+    tree = Fparser2Reader().generate_parse_tree(code)
+    block = Fparser2CodeBlock(tree.children, CodeBlock.Structure.STATEMENT)
+    assert isinstance(block.get_fortran_lines(), list)
+    assert "subroutine mytest" in block.get_fortran_lines()
+    assert "end subroutine" in block.get_fortran_lines()
+
+    tree = FortranTreeSitterReader().generate_parse_tree(code)
+    block = TreeSitterCodeBlock([tree], CodeBlock.Structure.STATEMENT)
+    assert isinstance(block.get_fortran_lines(), list)
+    assert "subroutine mytest" in block.get_fortran_lines()
+    assert "end subroutine" in block.get_fortran_lines()
+
+
+def test_codeblock_get_symbol_names():
     '''Test that the get_symbol_names methods returns the names of the symbols
     used inside the CodeBlock. This is slightly subtle as we have to avoid
     any labels on loop and branching statements.'''
-    reader = FortranStringReader('''
+    prog = Fparser2Reader().generate_parse_tree('''
     subroutine mytest
       myloop: DO i = 1, 10
         a = b + sqrt(c)
@@ -143,7 +172,6 @@ def test_codeblock_get_symbol_names(parser):
         END IF myifblock
       END DO myloop
     end subroutine mytest''')
-    prog = parser(reader)
     block = Fparser2CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
     sym_names = block.get_symbol_names()
     assert "a" in sym_names

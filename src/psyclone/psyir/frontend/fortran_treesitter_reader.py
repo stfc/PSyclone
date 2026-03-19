@@ -97,14 +97,12 @@ class FortranTreeSitterReader():
             'module': self._module_handler,
         }
 
-    @classmethod
     def generate_parse_tree(
-        cls,
+        self,
         source_code: Optional[str] = None,
         file_path: Optional[str] = None,
         ignore_comments: bool = True,
         free_form: bool = True,
-        ignore_directives: bool = True,
         conditional_openmp: bool = True,
         partial_code: str = ""
     ):

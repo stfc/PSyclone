@@ -956,9 +956,12 @@ class Fparser2Reader():
         num_clauses: int = -1
         default_idx: int = -1
 
-    def __init__(self, ignore_directives: bool = True,
-                 last_comments_as_codeblocks: bool = False,
-                 resolve_modules: Union[bool, list[str]] = False):
+    def __init__(
+        self,
+        ignore_directives: bool = True,
+        last_comments_as_codeblocks: bool = False,
+        resolve_modules: Union[bool, list[str]] = False
+    ):
         if isinstance(resolve_modules, bool):
             self._resolve_all_modules = resolve_modules
             self._modules_to_resolve = []
@@ -1023,15 +1026,13 @@ class Fparser2Reader():
         # Whether to keep the last comments in a given block as CodeBlocks
         self._last_comments_as_codeblocks = last_comments_as_codeblocks
 
-    @classmethod
     def generate_parse_tree(
-        cls,
-        source_code: str,
-        file_path: str,
-        ignore_comments: bool,
-        free_form: bool,
-        ignore_directives: bool,
-        conditional_openmp: bool,
+        self,
+        source_code: str = "",
+        file_path: str = "",
+        ignore_comments: bool = False,
+        free_form: bool = False,
+        conditional_openmp: bool = False,
         partial_code: str = ""
     ):
         ''' Use the provided source code and frontend options to generate
@@ -1052,7 +1053,7 @@ class Fparser2Reader():
                 file_path,
                 include_dirs=Config.get().include_paths,
                 ignore_comments=ignore_comments,
-                process_directives=not ignore_directives,
+                process_directives=not self._ignore_directives,
                 include_omp_conditional_lines=conditional_openmp,
             )
         else:
@@ -1060,7 +1061,7 @@ class Fparser2Reader():
                 source_code,
                 include_dirs=Config.get().include_paths,
                 ignore_comments=ignore_comments,
-                process_directives=not ignore_directives,
+                process_directives=not self._ignore_directives,
                 include_omp_conditional_lines=conditional_openmp,
             )
         # Set reader to free format.
@@ -1084,9 +1085,9 @@ class Fparser2Reader():
         else:
             try:
                 std = Config.get().fortran_standard
-                if not cls._parser:
-                    cls._parser = ParserFactory().create(std=std)
-                parse_tree = cls._parser(reader)
+                if not self._parser:
+                    self._parser = ParserFactory().create(std=std)
+                parse_tree = self._parser(reader)
             except (FortranSyntaxError, NoMatchError) as err:
                 raise ValueError(
                     f"Failed to parse the provided source code:\n{source_code}"
