@@ -36,6 +36,7 @@
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #          I. Kavcic and P. Elson, Met Office
 #          J. Henrichs, Bureau of Meteorology
+#          M. Naylor, University of Cambridge
 
 """Setup script. Used by easy_install and pip."""
 
@@ -170,7 +171,8 @@ if __name__ == '__main__':
         packages=PACKAGES,
         package_dir={"": "src"},
         install_requires=['pyparsing', 'fparser>=0.2.1', 'configparser',
-                          'sympy', "Jinja2", 'termcolor', 'graphviz'],
+                          'sympy', "Jinja2", 'termcolor', 'graphviz',
+                          'z3-solver'],
         # Have to pin Sphinx to a pre-9.0 version because of
         # https://github.com/sphinx-doc/sphinx/issues/14223
         extras_require={
