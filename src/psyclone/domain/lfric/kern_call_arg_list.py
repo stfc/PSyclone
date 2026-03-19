@@ -123,13 +123,13 @@ class KernCallArgList(ArgOrdering):
         try:
             # Check if the module is already declared:
             module = self._symtab.lookup(module_name)
-            # Get the symbol table in which the module is declared. Check
-            # the current table first:
-            if module in self._symtab.symbols:
-                mod_sym_tab = self._symtab
-            else:
-                # Otherwise, we have to search for the table.
+            # Get the symbol table in which the module is declared.
+            if self._symtab.node:
                 mod_sym_tab = module.find_symbol_table(self._symtab.node)
+            else:
+                assert 0
+                # We have a detached table so the symbol must be in it.
+                mod_sym_tab = self._symtab
 
         except KeyError:
             module = self._symtab.new_symbol(module_name,
