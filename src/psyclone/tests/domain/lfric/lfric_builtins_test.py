@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic and O. Brunt, Met Office
+# Modified: I. Kavcic, O. Brunt and A. Pirrie, Met Office
 # Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: by J. Henrichs, Bureau of Meteorology
 
@@ -1877,6 +1877,28 @@ def test_x_innerproduct_x(fortran_writer):
     assert metadata.meta_args[1].function_space == "any_space_1"
 
     kern = builtin_from_file("15.9.2_X_innerproduct_X_builtin.f90")
+    assert str(kern) == "Built-in: X_innerproduct_X (real-valued field)"
+
+    # Test the 'lower_to_language_level()' method
+    code = fortran_writer(kern)
+    assert ("! Built-in: X_innerproduct_X (real-valued field)\n"
+            "asum = asum + f1_data(df) * f1_data(df)\n") in code
+
+
+def test_x_innerproduct_x_r_double(fortran_writer):
+    ''' Test the metadata, str and lower_to_language_level builtin methods for
+    r_double precision.
+
+    '''
+    metadata = lfric_builtins.LFRicXInnerproductXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert isinstance(metadata.meta_args[0], ScalarArgMetadata)
+    assert metadata.meta_args[0].access == "gh_reduction"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+
+    kern = builtin_from_file("15.9.3_X_innerproduct_X_builtin_r_double.f90")
     assert str(kern) == "Built-in: X_innerproduct_X (real-valued field)"
 
     # Test the 'lower_to_language_level()' method

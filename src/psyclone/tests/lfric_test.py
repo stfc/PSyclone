@@ -1652,8 +1652,8 @@ def test_lfrickernelargument_idtp_reduction():
 
     # No algorithm information - use default precision
     reduction._init_data_type_properties(None)
-    assert reduction._precision == "r_def"
-    assert reduction._data_type == "scalar_type"
+    assert reduction._precision is None
+    assert reduction._data_type is None
     assert reduction._proxy_data_type is None
     assert reduction._module_name == "scalar_mod"
 
@@ -1661,17 +1661,9 @@ def test_lfrickernelargument_idtp_reduction():
     arg = Arg("variable", None, None, ("real", "r_def"))
     reduction._init_data_type_properties(arg)
     assert reduction._precision == "r_def"
-    assert reduction._data_type == "scalar_type"
+    assert reduction._data_type == "real"
     assert reduction._proxy_data_type is None
     assert reduction._module_name == "scalar_mod"
-
-    # Scalar reduction with inconsistent precision (expects 'r_def')
-    arg = Arg("variable", None, None, ("real", "i_def"))
-    with pytest.raises(GenerationError) as info:
-        reduction._init_data_type_properties(arg)
-    assert ("This scalar is a reduction which assumes precision of type "
-            "'r_def' but the algorithm declares this scalar with precision "
-            "'i_def'" in str(info.value))
 
     # Invalid reduction type (not a 'real')
     arg = Arg("variable", None, None, ("integer", "i_def"))
