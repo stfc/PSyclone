@@ -68,4 +68,4 @@ def test_read_only_verify_lower_to_language_level():
                 'CALL read_only_verify_psy_data % PostEnd']
 
     for codeblock, code in zip(routine.walk(CodeBlock), expected):
-        assert str(codeblock.ast) == code
+        assert str(codeblock.get_ast_nodes()[0]) == code

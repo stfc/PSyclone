@@ -395,10 +395,10 @@ def test_psy_data_node_lower_to_language_level():
     assert not routine.walk(PSyDataNode)
     codeblocks = routine.walk(CodeBlock)
     assert len(codeblocks) == 2
-    assert str(codeblocks[0].ast) == \
+    assert str(codeblocks[0].get_ast_nodes()[0]) == \
         'CALL psy_data % PreStart("my_routine", "r0", 0, 0)'
     assert "psy-data-start" in codeblocks[0].annotations
-    assert str(codeblocks[1].ast) == \
+    assert str(codeblocks[1].get_ast_nodes()[0]) == \
         'CALL psy_data % PostEnd'
 
     # Now try with a PSyDataNode with specified module and region names
@@ -411,9 +411,9 @@ def test_psy_data_node_lower_to_language_level():
     assert not routine.walk(PSyDataNode)
     codeblocks = routine.walk(CodeBlock)
     assert len(codeblocks) == 2
-    assert str(codeblocks[0].ast) == \
+    assert str(codeblocks[0].get_ast_nodes()[0]) == \
         'CALL psy_data % PreStart("my_module", "my_region", 0, 0)'
-    assert str(codeblocks[1].ast) == \
+    assert str(codeblocks[1].get_ast_nodes()[0]) == \
         'CALL psy_data % PostEnd'
 
 
@@ -446,7 +446,7 @@ def test_psy_data_node_lower_to_language_level_with_options():
                 'CALL psy_data % ProvideVariable("b", b)']
 
     for codeblock, string in zip(codeblocks, expected):
-        assert string == str(codeblock.ast)
+        assert string == str(codeblock.get_ast_nodes()[0])
 
     # 2) Test that variables suffixes are added as expected
     # -----------------------------------------------------
@@ -475,7 +475,7 @@ def test_psy_data_node_lower_to_language_level_with_options():
                 'CALL psy_data % ProvideVariable("b_post", b)']
 
     for codeblock, string in zip(codeblocks, expected):
-        assert string == str(codeblock.ast)
+        assert string == str(codeblock.get_ast_nodes()[0])
 
 
 # ----------------------------------------------------------------------------

@@ -341,7 +341,7 @@ class Routine(Schedule, CommentableMixin):
                                 f"with that name.")
                 codeblocks = new_parent.walk(CodeBlock)
                 for codeblock in codeblocks:
-                    routines = walk(codeblock.get_ast_nodes,
+                    routines = walk(codeblock.get_ast_nodes(),
                                     (Fortran2003.Subroutine_Subprogram,
                                      Fortran2003.Function_Subprogram))
                     for routine in routines:

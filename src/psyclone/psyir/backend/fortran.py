@@ -1595,13 +1595,10 @@ class FortranWriter(LanguageWriter):
         result = ""
         if node.structure == CodeBlock.Structure.STATEMENT:
             # indent and newlines required
-            for ast_node in node.get_ast_nodes:
-                # Using tofortran() ensures we get any label associated
-                # with this statement.
-                for line in ast_node.tofortran().split("\n"):
-                    result += f"{self._nindent}{line}\n"
+            for line in node.get_fortran_lines():
+                result += f"{self._nindent}{line}\n"
         elif node.structure == CodeBlock.Structure.EXPRESSION:
-            for ast_node in node.get_ast_nodes:
+            for ast_node in node.get_ast_nodes():
                 result += str(ast_node)
         else:
             raise VisitorError(

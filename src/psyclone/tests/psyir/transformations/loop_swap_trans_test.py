@@ -232,8 +232,8 @@ def test_loop_swap_validate_nodes_in_loop(fortran_reader):
     assert isinstance(schedule[1].loop_body[0].loop_body[0], CodeBlock)
     with pytest.raises(TransformationError) as err:
         swap.apply(schedule[1])
-    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a LoopSwapTrans "
-            "transformation" in str(err.value))
+    assert ("Nodes of type 'Fparser2CodeBlock' cannot be enclosed by a "
+            "LoopSwapTrans transformation" in str(err.value))
 
 
 def test_loop_swap_validate_dependent_loop(fortran_reader):

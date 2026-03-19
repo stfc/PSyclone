@@ -136,14 +136,14 @@ def test_lower_to_lang_level_single_node():
     assert isinstance(kschedule[0], CodeBlock)
     # The first CodeBlock should have the "psy-data-start" annotation.
     assert kschedule[0].annotations == ["psy-data-start"]
-    ptree = kschedule[0].get_ast_nodes
+    ptree = kschedule[0].get_ast_nodes()
     assert len(ptree) == 1
     assert isinstance(ptree[0], Fortran2003.Call_Stmt)
     assert kschedule[1] is assign1
     assert kschedule[2] is assign2
     assert isinstance(kschedule[-2], CodeBlock)
     assert kschedule[-2].annotations == []
-    ptree = kschedule[-2].get_ast_nodes
+    ptree = kschedule[-2].get_ast_nodes()
     assert len(ptree) == 1
     assert isinstance(ptree[0], Fortran2003.Call_Stmt)
     assert isinstance(kschedule[-1], Return)
@@ -169,7 +169,7 @@ def test_lower_named_profile_node():
     kschedule.lower_to_language_level()
     cblocks = kschedule.walk(CodeBlock)
     assert ("PreStart(\"my_mod\", \"first\", 0, 0)" in
-            str(cblocks[0].get_ast_nodes[0]))
+            str(cblocks[0].get_ast_nodes()[0]))
 
 
 def test_lower_to_lang_level_multi_node():
@@ -190,13 +190,13 @@ def test_lower_to_lang_level_multi_node():
     sym1 = table.lookup("profile_psy_data_1")
     assert isinstance(sym1, DataSymbol)
     cblocks = sched.walk(CodeBlock)
-    ptree = cblocks[0].get_ast_nodes
+    ptree = cblocks[0].get_ast_nodes()
     code = str(ptree[0]).lower()
     assert ("call profile_psy_data % prestart(\"psy_single_invoke_two_"
             "kernels\", \"invoke_0-compute_cu_code-r0\"" in code)
     assert cblocks[0].annotations == ["psy-data-start"]
     assert cblocks[1].annotations == []
-    ptree = cblocks[2].get_ast_nodes
+    ptree = cblocks[2].get_ast_nodes()
     code = str(ptree[0]).lower()
     assert ("call profile_psy_data_1 % prestart(\"psy_single_invoke_two_"
             "kernels\", \"invoke_0-time_smooth_code-r1\"" in code)

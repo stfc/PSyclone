@@ -50,8 +50,9 @@ from psyclone.psyir.symbols import (
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE,
     BOOLEAN_TYPE, CHARACTER_TYPE, SymbolTable, UnresolvedType,
     UnsupportedFortranType)
-from psyclone.psyir.nodes import (BinaryOperation, CodeBlock, IntrinsicCall,
-                                  Literal, Reference, Return)
+from psyclone.psyir.nodes import (
+    BinaryOperation, CodeBlock, Fparser2CodeBlock, IntrinsicCall,
+    Literal, Reference, Return)
 
 
 def test_datasymbol_initialisation():
@@ -358,7 +359,8 @@ def test_datasymbol_initial_value_codeblock():
     # We want the first child of the Initialization node in the parse tree as
     # the basis for our CodeBlock
     inits = Fortran2003.walk(fparser2spec, Fortran2003.Initialization)
-    cblock = CodeBlock([inits[0].children[1]], CodeBlock.Structure.EXPRESSION)
+    cblock = Fparser2CodeBlock([inits[0].children[1]],
+                               CodeBlock.Structure.EXPRESSION)
     assert sym.initial_value is None
     sym.initial_value = cblock
     assert isinstance(sym.initial_value, CodeBlock)

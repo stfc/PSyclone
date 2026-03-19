@@ -107,7 +107,7 @@ jobs:
           # than the latest release from pypi.
           pip install external/fparser
           pip install .[doc]
-          pip install .[test]
+          pip install .[test,treesitter]
       - name: Lint with flake8
         run: |
           # Stop the build if there are Python syntax errors or undefined names.

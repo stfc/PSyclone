@@ -392,7 +392,7 @@ class xDSLWriter(LanguageWriter):
         ops_to_return = []
 
         if node.structure == CodeBlock.Structure.STATEMENT:
-            for ast_node in node.get_ast_nodes:
+            for ast_node in node.get_ast_nodes():
                 name = \
                   str(walk(ast_node.children[0], Fortran2003.Type_Name)[0])
                 args = []
@@ -401,7 +401,7 @@ class xDSLWriter(LanguageWriter):
                 #  args.append(arg)
                 ops_to_return.append(psy_ir.CallExpr.get(name, args=args))
         elif node.structure == CodeBlock.Structure.EXPRESSION:
-            for ast_node in node.get_ast_nodes:
+            for ast_node in node.get_ast_nodes():
                 name = \
                   str(walk(ast_node.children[0], Fortran2003.Type_Name)[0])
                 args = []
