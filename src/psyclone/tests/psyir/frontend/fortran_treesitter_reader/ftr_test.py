@@ -42,7 +42,7 @@ from tree_sitter import Node as TSNode
 
 from psyclone.psyir.frontend.fortran_treesitter_reader import \
     FortranTreeSitterReader
-from psyclone.psyir.nodes import FileContainer, CodeBlock
+from psyclone.psyir.nodes import FileContainer, CodeBlock, Container
 
 
 def test_constructor():
@@ -111,16 +111,16 @@ def test_generate_psyir():
     processor = FortranTreeSitterReader()
 
     # Valid code returns a treesitter Node
-    valid_code = """
-        program test
-        end program test
+    valid_code = """\
+    module test
+        contains
+        subroutine mysub()
+        end subroutine
+    end module test
     """
     ptree = processor.generate_parse_tree(valid_code)
     psyir = processor.generate_psyir(ptree)
 
-    # Currently only FileContainers with CodeBlocks inside
     assert isinstance(psyir, FileContainer)
-    assert isinstance(psyir.children[0], CodeBlock)
-    assert psyir.children[0].get_fortran_lines() == [
-        'program test\n        end program test\n'
-    ]
+    assert isinstance(psyir.children[0], Container)
+    assert isinstance(psyir.children[0].children[0], CodeBlock)

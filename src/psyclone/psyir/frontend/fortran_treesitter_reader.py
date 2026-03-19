@@ -35,7 +35,7 @@
 
 ''' PSyIR TreeSitter Fortran reader '''
 
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Iterable, Union
 
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes.codeblock import TreeSitterCodeBlock, CodeBlock
@@ -147,14 +147,15 @@ class FortranTreeSitterReader():
         result = self.get_handler(parse_tree)(parse_tree)
         return result
 
-    def process_nodes(self, list_of_nodes):
+    def process_nodes(self, tsnodes: Union["TSNode", Iterable["TSNode"]]):
         '''
         Create the PSyIR of the supplied list of treesitter nodes.
 
-        :param nodes: List of sibling nodes in treesitter AST.
-        :type nodes: list[:py:class:`fparser.two.utils.Base`]
+        :param nodes: the list of nodes to process, for conveninece it also
+            accepts a single node without a list.
 
         '''
+        list_of_nodes = tsnodes if isinstance(tsnodes, Iterable) else [tsnodes]
         children = []
         for tsnode in list_of_nodes:
             try:
@@ -216,9 +217,21 @@ class FortranTreeSitterReader():
         :param tsnode: the node the process.
         :returns: the equivatent PSyIR Node.
         '''
-        module_stmt, internal_proc, _end_module_stmt = tsnode.children
-        _module_keyword, module_name = module_stmt.children
-        container = nodes.Container(to_str(module_name))
+        module_name = None
+        internal_proc = None
+        for child in tsnode.children:
+            if child.type == "module_statement":
+                _module_keyword, module_name = child.children
+            elif child.type == "end_module_statement":
+                pass
+            elif child.type == "internal_procedures":
+                internal_proc = child
+            else:
+                raise NotImplementedError(
+                    f"Module has an unsupported '{child.type}' node")
+
+        container = nodes.Container(to_str(module_name) if module_name else "")
         self._psyir_cursor = container
-        container.children.extend(self.process_nodes([internal_proc]))
+        if internal_proc:
+            container.children.extend(self.process_nodes(internal_proc))
         return container
