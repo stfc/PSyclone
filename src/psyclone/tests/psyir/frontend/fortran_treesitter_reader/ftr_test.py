@@ -111,8 +111,9 @@ def test_generate_psyir():
     processor = FortranTreeSitterReader()
 
     # Valid code returns a treesitter Node
-    valid_code = """\
+    valid_code = """
     module test
+        implicit none
         contains
         subroutine mysub()
         end subroutine
@@ -124,3 +125,30 @@ def test_generate_psyir():
     assert isinstance(psyir, FileContainer)
     assert isinstance(psyir.children[0], Container)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
+
+
+def test_codeblock_generation_and_messages():
+    '''
+    Test that NotImplementedErrors are catch and converted to CodeBlocks
+    with the appropriate associated comment
+    '''
+    processor = FortranTreeSitterReader()
+
+    # Valid code returns a treesitter Node
+    valid_code = """
+    module test
+        contains
+        subroutine mysub()
+        end subroutine
+    end module test
+    """
+    ptree = processor.generate_parse_tree(valid_code)
+    psyir = processor.generate_psyir(ptree)
+
+    assert isinstance(psyir, FileContainer)
+    assert isinstance(psyir.children[0], CodeBlock)
+    expected = (
+        "PSyclone CodeBlock (unsupported code) reason:\n"
+        "- Modules that allow implicit variables are not supported"
+    )
+    assert psyir.children[0].preceding_comment == expected

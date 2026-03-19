@@ -57,8 +57,15 @@ def to_str(node: 'TSNode') -> str:
 class FortranTreeSitterReader():
     ''' Processes the TreeSitter parse_tree and converts it to PSyIR.
 
-    Note: this class is in development, currently pretty much only generates
-    a CodeBlock for anything provided to it.
+    Note: this class is in development, currently only generates
+    top-level Modules and CodeBlocks.
+
+    The structure of the expected fortran parse tree can be found in the
+    'rules' section of:
+    https://github.com/stadelmanma/tree-sitter-fortran/blob/master/grammar.js
+    To interpret the rules use:
+    https://tree-sitter.github.io/tree-sitter/creating-parsers/
+    2-the-grammar-dsl.html
 
     :param ignore_directives: Whether directives should be ignored or not
         (default True). Currently ignored.
@@ -81,8 +88,10 @@ class FortranTreeSitterReader():
         self._ignore_directives = ignore_directives
         self._resolve_modules = resolve_modules
         self._last_comments_as_codeblocks = last_comments_as_codeblocks
+        # TODO #3038: Currently this reader uses a cursor pointer instead of
+        # passing around a parent argument all the time (like fparser's), but
+        # this can be re-evaluated if necessary.
         self._psyir_cursor = None
-        self._ongoing_codeblock = []
         self.handlers = {
             'translation_unit': self._translation_unit,
             'module': self._module_handler,
@@ -161,32 +170,17 @@ class FortranTreeSitterReader():
             try:
                 handler = self.get_handler(tsnode)
                 children.append(handler(tsnode))
-            except NotImplementedError:
-                if not self._ongoing_codeblock:
-                    self._ongoing_codeblock.append(tsnode)
-                children.append(self.generate_accomulated_codeblock())
+            except NotImplementedError as err:
+                # TODO #3038: Add support expression codeblocks and aggregating
+                # contiguous codeblocks into a single one.
+                structure = CodeBlock.Structure.STATEMENT
+                code_block = TreeSitterCodeBlock([tsnode], structure)
+                code_block.append_preceding_comment(
+                    f"PSyclone CodeBlock (unsupported code) reason:\n"
+                    f"- {err}"
+                )
+                children.append(code_block)
         return children
-
-    def generate_accomulated_codeblock(self, message: Optional[str] = None):
-        '''
-        Create a CodeBlock node with the contents accomulated in the
-        _ongoing_codeblock list.
-
-        :param message: comment to associate with the CodeBlock.
-
-        '''
-        if isinstance(self._psyir_cursor, (nodes.Schedule, nodes.Container)):
-            structure = CodeBlock.Structure.STATEMENT
-        else:  # pragma: no-cover
-            # TODO #3038 Remove no-cover when parser reaches expressions
-            structure = CodeBlock.Structure.EXPRESSION
-
-        code_block = TreeSitterCodeBlock(self._ongoing_codeblock, structure)
-        self._ongoing_codeblock = []
-        if message:
-            code_block.preceding_comment = message
-
-        return code_block
 
     def get_handler(self, tsnode):
         '''
@@ -219,6 +213,7 @@ class FortranTreeSitterReader():
         '''
         module_name = None
         internal_proc = None
+        implicit_statement = False
         for child in tsnode.children:
             if child.type == "module_statement":
                 _module_keyword, module_name = child.children
@@ -226,10 +221,15 @@ class FortranTreeSitterReader():
                 pass
             elif child.type == "internal_procedures":
                 internal_proc = child
+            elif child.type == "implicit_statement":
+                implicit_statement = True
             else:
                 raise NotImplementedError(
                     f"Module has an unsupported '{child.type}' node")
 
+        if not implicit_statement:
+            raise NotImplementedError(
+                "Modules that allow implicit variables are not supported")
         container = nodes.Container(to_str(module_name) if module_name else "")
         self._psyir_cursor = container
         if internal_proc:
