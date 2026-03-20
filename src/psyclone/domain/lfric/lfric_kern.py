@@ -147,6 +147,8 @@ class LFRicKern(CodedKern):
         # want those to be kept in the SymbolTable, so we copy the symbol table
         # TODO #2874 - the design could be improved so that only the right
         # symbols are created. See also the TODO in SymbolTable.deep_copy().
+        # Note that this copy misses any Symbols declared in the outer
+        # Container which complicates KernCallArgList.get_user_type().
         tmp_symtab = self.ancestor(InvokeSchedule).symbol_table.deep_copy()
         create_arg_list._forced_symtab = tmp_symtab
         create_arg_list.generate(var_accesses)
