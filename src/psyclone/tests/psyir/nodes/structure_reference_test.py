@@ -53,6 +53,10 @@ def test_struct_ref_init():
     s_ref = nodes.StructureReference(sym)
 
     assert s_ref._overwrite_datatype is None
+    assert s_ref.dsl_name is None
+
+    s_ref_dsl = nodes.StructureReference(sym, dsl_name="dsl_name")
+    assert s_ref_dsl.dsl_name == "dsl_name"
 
     with pytest.raises(TypeError) as excinfo:
         _ = nodes.StructureReference("hello")
@@ -76,17 +80,25 @@ def test_struct_ref_create():
          symbols.Symbol.Visibility.PUBLIC, None)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
-    # Reference to scalar member of structure
+
+    # Reference to scalar member of structure without dsl name
     sref = nodes.StructureReference.create(ssym, ["nx"])
     assert sref.symbol is ssym
+    assert sref.dsl_name is None
     assert len(sref.children) == 1
     assert sref.children[0].name == "nx"
     check_links(sref, sref.children)
+
     # Reference to scalar member of structure member of structure
     rref = nodes.StructureReference.create(ssym, ["region", "startx"])
     assert rref.children[0].name == "region"
     assert rref.children[0].children[0].name == "startx"
     check_links(rref.children[0], rref.children[0].children)
+
+    # Reference to scalar member of structure with dsl name
+    sref = nodes.StructureReference.create(ssym, ["nx"], dsl_name="dsl_name")
+    assert sref.dsl_name == "dsl_name"
+
     # Reference to an element of an array member of the structure
     aref = nodes.StructureReference.create(
         ssym,
@@ -172,6 +184,12 @@ def test_struct_ref_create_errors():
             "either 'str' or 2-tuple entries but found 'int' while "
             "attempting to create reference to symbol 'grid'" in
             str(err.value))
+
+    with pytest.raises(TypeError) as excinfo:
+        _ = nodes.StructureReference.create(
+            symbols.DataSymbol("grid", tsymbol_known), [], dsl_name=123)
+    assert ("The 'dsl_name' argument to StructureReference.create() should "
+            "be a string, but found 'int'." in str(excinfo.value))
 
 
 def test_struct_ref_validate_child():

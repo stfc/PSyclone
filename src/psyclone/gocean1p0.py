@@ -1056,13 +1056,17 @@ class GOKern(CodedKern):
                         depth = arg.stencil.depth(i, j)
                         for offset in range(1, depth+1):
 
-                            # Generate data accessor accounting for offsets
+                            # Generate data accessor accounting for offsets.
+                            # Also add the field name (which is the symbol
+                            # name) as 'dsl_name' for the reference, so PSyData
+                            # can support user-friendly names.
                             access = StructureReference.create(symbol, [
                                 ("data", [
                                     offset_expression(j, inner_symbol, offset),
                                     offset_expression(i, outer_symbol, offset)
                                 ])
-                            ])
+                            ],
+                                dsl_name=symbol.name)
                             if arg.access in (AccessType.WRITE,
                                               AccessType.READWRITE):
                                 write_accesses.append(access.copy())

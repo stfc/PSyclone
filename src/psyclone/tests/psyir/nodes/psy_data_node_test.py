@@ -431,8 +431,9 @@ def test_psy_data_node_lower_to_language_level_with_options():
     data_trans.apply(schedule[0].loop_body)
     data_node = schedule[0].loop_body[0]
 
-    data_node.lower_to_language_level(options={"pre_var_list": [("", "a")],
-                                               "post_var_list": [("", "b")]})
+    data_node.lower_to_language_level(
+        options={"pre_var_list": [("", "a", None)],
+                 "post_var_list": [("", "b", None)]})
 
     codeblocks = schedule.walk(CodeBlock)
     expected = ['CALL psy_data % PreStart("psy_single_invoke_different_'
@@ -458,10 +459,11 @@ def test_psy_data_node_lower_to_language_level_with_options():
     data_trans.apply(schedule[0].loop_body)
     data_node = schedule[0].loop_body[0]
 
-    data_node.lower_to_language_level(options={"pre_var_list": [("", "a")],
-                                               "post_var_list": [("", "b")],
-                                               "pre_var_postfix": "_pre",
-                                               "post_var_postfix": "_post"})
+    data_node.lower_to_language_level(
+        options={"pre_var_list": [("", "a", None)],
+                 "post_var_list": [("", "b", None)],
+                 "pre_var_postfix": "_pre",
+                 "post_var_postfix": "_post"})
 
     codeblocks = schedule.walk(CodeBlock)
     expected = ['CALL psy_data % PreStart("psy_single_invoke_different_'
