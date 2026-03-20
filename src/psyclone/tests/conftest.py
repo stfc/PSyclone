@@ -97,6 +97,16 @@ def have_graphviz():  # pragma: no-cover
     return True
 
 
+@pytest.fixture(scope="session", autouse=True)
+def disable_fparser_logging():
+    """
+    Set the fparser logging level to CRITICAL, to avoid that unnecessary
+    fparser warnings are printed in case of a pytest failure.
+    """
+    logger = logging.getLogger("fparser")
+    logger.setLevel(logging.CRITICAL)
+
+
 @pytest.fixture(scope="function", autouse=True)
 def setup_logging():
     """
