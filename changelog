@@ -1,3 +1,11 @@
+   67 PR #3380 for #3379. Fixes import for graphviz.Digraph.
+ 
+   66) PR #3359 for #3022. Uses the improved datatype functionality to
+   correctly transform reduction intrinsics into native code.
+ 
+   65) PR #3365 towards #2668. Updates more transformations to accept
+   keyword arguments instead of options.
+ 
    64) PR #3376. Update CI to use character module versions to avoid fp
    conversions.
 

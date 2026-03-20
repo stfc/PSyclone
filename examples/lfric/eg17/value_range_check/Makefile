@@ -77,7 +77,7 @@ $(EXEC): $(LFRIC_LIB) $(VALUE_RANGE_LIB) $(OBJ)
 		  -L$(VALUE_RANGE_DIR) -l$(VALUE_RANGE_NAME)            \
 		  -L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS)
 
-$(VALUE_RANGE_LIB_LIB): $(LFRIC_LIB)
+$(VALUE_RANGE_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(VALUE_RANGE_DIR)
 
 value_range_process:

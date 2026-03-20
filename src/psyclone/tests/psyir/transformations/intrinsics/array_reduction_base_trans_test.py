@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the array_reduction_base_trans which is
 an abstract parent class for the array-reduction intrinsic
@@ -40,11 +41,10 @@ transformations.
 '''
 import pytest
 
-from psyclone.psyir.nodes import IntrinsicCall, Reference, Literal
-from psyclone.psyir.symbols import (
-    Symbol, BOOLEAN_TYPE, INTEGER_TYPE, DataSymbol, REAL_TYPE)
+from psyclone.psyir.nodes import IntrinsicCall, Reference
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import (
-    TransformationError, Maxval2LoopTrans)
+    TransformationError, Maxval2LoopTrans, ArrayAssignment2LoopsTrans)
 from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
     import ArrayReductionBaseTrans
 from psyclone.tests.utilities import Compile
@@ -63,24 +63,6 @@ def test_init_exception():
     assert "abstract methods" in str(info.value)
     assert "_init_var" in str(info.value)
     assert "_loop_body" in str(info.value)
-
-
-def test_get_args():
-    '''Check the _get_args static method works as expected.'''
-    # array
-    array_reference = Reference(Symbol("array"))
-    node = IntrinsicCall.create(IntrinsicCall.Intrinsic.SUM, [array_reference])
-    result = ArrayReductionBaseTrans._get_args(node)
-    assert result == (array_reference, None, None)
-
-    # array, mask, dim
-    mask_reference = Literal("true", BOOLEAN_TYPE)
-    dim_reference = Literal("1", INTEGER_TYPE)
-    node = IntrinsicCall.create(IntrinsicCall.Intrinsic.SUM, [
-        array_reference.copy(), ("mask", mask_reference),
-        ("dim", dim_reference)])
-    result = ArrayReductionBaseTrans._get_args(node)
-    assert result == (array_reference, dim_reference, mask_reference)
 
 
 def test_str():
@@ -244,19 +226,64 @@ def test_validate_increment_with_unsupported_type(fortran_reader):
         "subroutine test()\n"
         "use othermod\n"
         "real :: a(10)\n"
-        "x(1) = x(1) + maxval(a)\n"
+        "x(1) = x(1) + maxval(a, mask=b)\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     node = psyir.walk(IntrinsicCall)[0]
     with pytest.raises(TransformationError) as info:
         trans.apply(node)
-    assert ("To loopify 'x(1) = x(1) + MAXVAL(a)' we need a temporary "
-            "variable, but the type of 'x(1)' can not be resolved or is "
-            "unsupported." in str(info.value))
+    assert ("The supplied node should be a Reference to a DataSymbol but "
+            "found 'b: Symbol<Unresolved>'. Consider adding the name of the "
+            "file containing the declaration of this quantity to "
+            "RESOLVE_IMPORTS." in str(info.value))
 
 
-# apply
+def test_apply_unsupported_arrayassignment2loop_and_compute_arg_names(
+        fortran_reader, fortran_writer, monkeypatch):
+    ''' Check that if an error is produced in the internal call to
+    ArrayAssignment2LoopsTrans or compute_argument_names, the proper message
+    is given and the output code does not have leftover temporaries.
+
+    '''
+    code = (
+        "subroutine test()\n"
+        "integer, dimension(10,10) :: a, b\n"
+        "integer :: c\n"
+        "c = maxval(a(:,:) + b(:,:))\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Maxval2LoopTrans()
+    node = psyir.walk(IntrinsicCall)[0]
+
+    # Create a faulty ArrayAssignment2LoopsTrans
+    def mock_validate(*args, **kwargs):
+        raise TransformationError("myerror")
+    monkeypatch.setattr(ArrayAssignment2LoopsTrans, "validate", mock_validate)
+
+    with pytest.raises(TransformationError) as info:
+        trans.apply(node, verbose=True)
+    assert ("ArrayAssignment2LoopsTrans could not convert the expression:\n"
+            "a(:,:) = a(:,:) + b(:,:)\n\n into a loop because:\n"
+            "Transformation Error: myerror" in str(info.value))
+    # Also check that the output does not have any leftover temporary var, but
+    # it has a verbose comment if requested
+    code = fortran_writer(psyir)
+    assert "reduction_var" not in code
+    assert ("! Maxval2LoopTrans failed because ArrayAssignment2LoopsTrans: "
+            "Transformation Error: myerror" in code)
+
+    # Create a faulty compute_argument_names
+    def mock_compute(*args, **kwargs):
+        raise NotImplementedError("myerror")
+    monkeypatch.setattr(IntrinsicCall, "compute_argument_names", mock_compute)
+
+    with pytest.raises(TransformationError) as info:
+        trans.apply(node)
+    assert ("Error in Maxval2LoopTrans transformation. Cannot disambiguate "
+            "the arguments names in 'MAXVAL(array=a(:,:) + b(:,:))'"
+            in str(info.value))
+
 
 @pytest.mark.parametrize("idim1,idim2,rdim11,rdim12,rdim21,rdim22",
                          [("10", "20", "1", "10", "1", "20"),
@@ -272,7 +299,8 @@ def test_apply(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
     assignment with a single array argument gets transformed as
     expected. Test with known and unknown array sizes. What we care
     about here are the initialisation of the result variable, the
-    generated intrinsic (MAX) and the loop bounds.
+    generated intrinsic (MAX), the loop bounds, and the assignment
+    with the replaced value.
 
     '''
     code = (
@@ -283,17 +311,19 @@ def test_apply(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
         f"  result = maxval(array)\n"
         f"end subroutine\n")
     expected = (
-        f"  result = -HUGE(result)\n"
+        f"  ! Maxval2LoopTrans expansion of: result = MAXVAL(array)\n"
+        f"  reduction_var = -HUGE(reduction_var)\n"
         f"  do idx = {rdim21}, {rdim22}, 1\n"
         f"    do idx_1 = {rdim11}, {rdim12}, 1\n"
-        f"      result = MAX(result, array(idx_1,idx))\n"
+        f"      reduction_var = MAX(reduction_var, array(idx_1,idx))\n"
         f"    enddo\n"
-        f"  enddo\n")
+        f"  enddo\n"
+        f"  result = reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.walk(IntrinsicCall)[0]
     trans = Maxval2LoopTrans()
-    trans.apply(node)
+    trans.apply(node, verbose=True)
     result = fortran_writer(psyir)
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
@@ -303,8 +333,8 @@ def test_apply_multi(fortran_reader, fortran_writer, tmpdir):
     '''Test that a MAXVAL intrinsic as part of multiple term on the rhs of
     an assignment with a single array argument gets transformed as
     expected. What we care about here are the initialisation of the
-    result variable, the generated intrinsic (MAX) and the loop
-    bounds.
+    result variable, the generated intrinsic (MAX), the loop bounds, and the
+    assignment with the replaced value.
 
     '''
     code = (
@@ -316,13 +346,13 @@ def test_apply_multi(fortran_reader, fortran_writer, tmpdir):
         "  result = value1 + maxval(array) * value2\n"
         "end subroutine\n")
     expected = (
-        "  result = -HUGE(result)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, m, 1\n"
         "    do idx_1 = 1, n, 1\n"
-        "      result = MAX(result, array(idx_1,idx))\n"
+        "      reduction_var = MAX(reduction_var, array(idx_1,idx))\n"
         "    enddo\n"
         "  enddo\n"
-        "  result = value1 + result * value2\n")
+        "  result = value1 + reduction_var * value2\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
     # BinaryOperation(MUL)/IntrinsicCall
@@ -338,8 +368,8 @@ def test_apply_dimension_1d(fortran_reader):
     '''Test that the apply method works as expected when a dimension
     argument is specified and the array is one dimensional. This
     should be the same as if dimension were not specified at all.
-    What we care about here are the initialisation of the result
-    variable, the generated intrinsic (MAX) and the loop bounds.
+
+    TODO #1658: reductions with dim argument are not supported.
 
     '''
     code = (
@@ -352,15 +382,16 @@ def test_apply_dimension_1d(fortran_reader):
     node = psyir.walk(IntrinsicCall)[0]
     trans = Maxval2LoopTrans()
     with pytest.raises(TransformationError) as info:
-        trans.validate(node)
+        trans.apply(node)
     assert ("The dimension argument to MAXVAL is not yet supported."
             in str(info.value))
 
 
 def test_mask(fortran_reader, fortran_writer, tmpdir):
     '''Test that the transformation works when there is a mask specified.
-    What we care about here are the initialisation of the result
-    variable, the generated intrinsic (MAX) and the loop bounds.
+    What we care about here are the initialisation of the result variable,
+    the generated intrinsic (MAX), the loop bounds, and the assignment with
+    the replaced value.
 
     '''
     code = (
@@ -370,14 +401,15 @@ def test_mask(fortran_reader, fortran_writer, tmpdir):
         "  result = maxval(array, mask=MOD(array, 2.0)==1)\n"
         "end program\n")
     expected = (
-        "  result = -HUGE(result)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 10, 1\n"
         "    do idx_1 = 1, 10, 1\n"
         "      if (MOD(array(idx_1,idx), 2.0) == 1) then\n"
-        "        result = MAX(result, array(idx_1,idx))\n"
+        "        reduction_var = MAX(reduction_var, array(idx_1,idx))\n"
         "      end if\n"
         "    enddo\n"
-        "  enddo\n")
+        "  enddo\n"
+        "  result = reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.walk(IntrinsicCall)[0]
@@ -407,12 +439,13 @@ def test_mask_array_indexed(fortran_reader, fortran_writer, tmpdir):
         "  result = maxval(a, mask=b(1)>a)\n"
         "end program\n")
     expected = (
-        "  result = -HUGE(result)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 4, 1\n"
         "    if (b(1) > a(idx)) then\n"
-        "      result = MAX(result, a(idx))\n"
+        "      reduction_var = MAX(reduction_var, a(idx))\n"
         "    end if\n"
-        "  enddo\n")
+        "  enddo\n"
+        "  result = reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
@@ -420,42 +453,6 @@ def test_mask_array_indexed(fortran_reader, fortran_writer, tmpdir):
     trans.apply(node)
     result = fortran_writer(psyir)
     assert expected in result
-    assert Compile(tmpdir).string_compiles(result)
-
-
-def test_allocate(fortran_reader, fortran_writer, tmpdir):
-    '''Test that a newly created array is allocated after the original
-    array is allocated (if the original array is allocated). Use the
-    Maxval2LoopTrans transformations (a subclass of
-    ArrayReductionBaseTrans), as it is easier to test.
-
-    '''
-    code = (
-        "program sum_test\n"
-        "  real, allocatable :: a(:,:,:)\n"
-        "  real :: result(4,4)\n"
-        "  allocate(a(4,4,4))\n"
-        "  result = maxval(a)\n"
-        "  deallocate(a)\n"
-        "end program\n")
-    expected = (
-        "  ALLOCATE(a(1:4,1:4,1:4))\n"
-        "  result = -HUGE(result)\n"
-        "  do idx = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
-        "    do idx_1 = LBOUND(a, dim=2), UBOUND(a, dim=2), 1\n"
-        "      do idx_2 = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
-        "        result = MAX(result, a(idx_2,idx_1,idx))\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n"
-        "  DEALLOCATE(a)\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    trans = Maxval2LoopTrans()
-    # FileContainer/Routine/Assignment/IntrinsicCall
-    node = psyir.walk(IntrinsicCall)[1]
-    trans.apply(node)
-    result = fortran_writer(psyir)
-    assert expected in result, result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -474,15 +471,16 @@ def test_references(fortran_reader, fortran_writer, tmpdir):
         "zmax(1) = MAXVAL(ABS(sshn + ssh_ref * tmask), mask=tmask==1.0)\n"
         "end subroutine\n")
     expected = (
-        "  zmax(1) = -HUGE(zmax(1))\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 10, 1\n"
         "    do idx_1 = 1, 10, 1\n"
         "      if (tmask(idx_1,idx) == 1.0) then\n"
-        "        zmax(1) = MAX(zmax(1), ABS(sshn(idx_1,idx) + ssh_ref * "
-        "tmask(idx_1,idx)))\n"
+        "        reduction_var = MAX(reduction_var, ABS(sshn(idx_1,idx) + "
+        "ssh_ref * tmask(idx_1,idx)))\n"
         "      end if\n"
         "    enddo\n"
-        "  enddo\n")
+        "  enddo\n"
+        "  zmax(1) = reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
@@ -503,14 +501,15 @@ def test_nemo_example(fortran_reader, fortran_writer, tmpdir):
         "zmax(1) = MAXVAL(ABS(sshn(:,:) + ssh_ref * tmask(:,:,1)))\n"
         "end subroutine\n")
     expected = (
-        "  zmax(1) = -HUGE(zmax(1))\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(sshn, dim=2), UBOUND(sshn, dim=2), 1\n"
         "    do idx_1 = LBOUND(sshn, dim=1), "
         "UBOUND(sshn, dim=1), 1\n"
-        "      zmax(1) = MAX(zmax(1), ABS(sshn(idx_1,idx) + ssh_ref * "
-        "tmask(idx_1,idx,1)))\n"
+        "      reduction_var = MAX(reduction_var, ABS(sshn(idx_1,idx) + "
+        "ssh_ref * tmask(idx_1,idx,1)))\n"
         "    enddo\n"
-        "  enddo\n")
+        "  enddo\n"
+        "  zmax(1) = reduction_var")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
@@ -533,12 +532,13 @@ def test_constant_dims(fortran_reader, fortran_writer, tmpdir):
         "x = maxval(a(:,1)+b(10,:), mask=c(:)==1.0)\n"
         "end subroutine\n")
     expected = (
-        "  x = -HUGE(x)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
         "    if (c(idx) == 1.0) then\n"
-        "      x = MAX(x, a(idx,1) + b(10,idx))\n"
+        "      reduction_var = MAX(reduction_var, a(idx,1) + b(10,idx))\n"
         "    end if\n"
-        "  enddo\n")
+        "  enddo\n"
+        "  x = reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
@@ -565,11 +565,13 @@ def test_expression_1d(fortran_reader, fortran_writer, tmpdir):
         "  real, dimension(10) :: a\n"
         "  real, dimension(10) :: b\n"
         "  real :: x\n"
-        "  integer :: idx\n\n"
-        "  x = -HUGE(x)\n"
+        "  integer :: idx\n"
+        "  real :: reduction_var\n\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
-        "    x = MAX(x, a(idx) + b(idx))\n"
-        "  enddo\n\n"
+        "    reduction_var = MAX(reduction_var, a(idx) + b(idx))\n"
+        "  enddo\n"
+        "  x = reduction_var\n\n"
         "end subroutine test\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
@@ -598,16 +600,19 @@ def test_expression_3d(fortran_reader, fortran_writer, tmpdir):
         "  real :: x\n"
         "  integer :: idx\n"
         "  integer :: idx_1\n"
-        "  integer :: idx_2\n\n"
-        "  x = -HUGE(x)\n"
+        "  integer :: idx_2\n"
+        "  real :: reduction_var\n\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
         "    do idx_1 = LBOUND(a, dim=2), UBOUND(a, dim=2), 1\n"
         "      do idx_2 = LBOUND(a, dim=1), "
         "UBOUND(a, dim=1), 1\n"
-        "        x = MAX(x, -a(idx_2,idx_1,idx) + 10.0)\n"
+        "        reduction_var = MAX(reduction_var, -a(idx_2,idx_1,idx) "
+        "+ 10.0)\n"
         "      enddo\n"
         "    enddo\n"
-        "  enddo\n\n"
+        "  enddo\n"
+        "  x = reduction_var\n\n"
         "end subroutine test\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
@@ -631,11 +636,11 @@ def test_multi_intrinsics(fortran_reader, fortran_writer, tmpdir):
         "x = maxval(a(:)) + maxval(b(:))\n"
         "end subroutine\n")
     expected = (
-        "  x = -HUGE(x)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
-        "    x = MAX(x, a(idx))\n"
+        "    reduction_var = MAX(reduction_var, a(idx))\n"
         "  enddo\n"
-        "  x = x + MAXVAL(b(:))\n")
+        "  x = reduction_var + MAXVAL(b(:))\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/BinaryOp/IntrinsicCall
@@ -658,11 +663,11 @@ def test_increment(fortran_reader, fortran_writer, tmpdir):
         "x = x + maxval(a)\n"
         "end subroutine\n")
     expected = (
-        "  tmp_var = -HUGE(tmp_var)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 10, 1\n"
-        "    tmp_var = MAX(tmp_var, a(idx))\n"
+        "    reduction_var = MAX(reduction_var, a(idx))\n"
         "  enddo\n"
-        "  x = x + tmp_var\n")
+        "  x = x + reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     node = psyir.walk(IntrinsicCall)[0]
@@ -684,13 +689,13 @@ def test_increment_with_accessor(fortran_reader, fortran_writer, tmpdir):
         "real, dimension(1) :: x\n"
         "x(1) = x(1) + maxval(a)\n"
         "end subroutine\n")
-    expected_decl = "real :: tmp_var"
+    expected_decl = "real :: reduction_var"
     expected = (
-        "  tmp_var = -HUGE(tmp_var)\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 10, 1\n"
-        "    tmp_var = MAX(tmp_var, a(idx))\n"
+        "    reduction_var = MAX(reduction_var, a(idx))\n"
         "  enddo\n"
-        "  x(1) = x(1) + tmp_var\n")
+        "  x(1) = x(1) + reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     node = psyir.walk(IntrinsicCall)[0]
@@ -713,10 +718,11 @@ def test_reduce_to_struct_and_array_accessors(fortran_reader, fortran_writer):
         "mystruct%x(3) = maxval(a)\n"
         "end subroutine\n")
     expected = (
-        "  mystruct%x(3) = -HUGE(mystruct%x(3))\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 10, 1\n"
-        "    mystruct%x(3) = MAX(mystruct%x(3), a(idx))\n"
-        "  enddo\n")
+        "    reduction_var = MAX(reduction_var, a(idx))\n"
+        "  enddo\n"
+        "  mystruct%x(3) = reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
     node = psyir.walk(IntrinsicCall)[0]
@@ -743,9 +749,47 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
     code_before = fortran_writer(psyir)
     with pytest.raises(TransformationError) as info:
         trans.apply(node)
-    assert ("ArrayAssignment2LoopsTrans does not accept calls which "
-            "are not guaranteed to return a scalar or be elemental"
+    assert ("Error in Maxval2LoopTrans transformation. Cannot create a "
+            "temporary variable for 'MAXVAL(a(:) + b(3))' because it is"
+            " of 'UnresolvedType'."
             in str(info.value))
     # Check that the failed transformation does not modify the code
     code_after = fortran_writer(psyir)
     assert code_before == code_after
+
+
+def test_replace_reduction_with_type_changes(tmpdir, fortran_reader,
+                                             fortran_writer):
+    ''' Check that the temporary created to aggregate the partial results
+    is of the correct type even when the the reduction operation is inside an
+    expression that has implicit or explicit casts.
+    '''
+    code = (
+        "subroutine maxval_test(array,n,m)\n"
+        "  integer, parameter :: nk = 4, orig = 8\n"
+        "  integer :: n, m\n"
+        "  real(kind=orig) :: array(10,20)\n"
+        "  integer :: result1\n"
+        "  integer(kind=nk) :: result2\n"
+        "  logical :: result3\n"
+        "  result1 = INT(maxval(array))\n"
+        "  result2 = REAL(maxval(array), nk)\n"
+        "  result3 = maxval(array) > 4\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Maxval2LoopTrans()
+    for intr_node in psyir.walk(IntrinsicCall):
+        if intr_node.intrinsic == IntrinsicCall.Intrinsic.MAXVAL:
+            trans.apply(intr_node)
+    output = fortran_writer(psyir)
+
+    # The aggregation value will be of the same type as the array
+    assert "real(kind=orig) :: reduction_var\n" in output
+    assert "real(kind=orig) :: reduction_var_1\n" in output
+    assert "real(kind=orig) :: reduction_var_2\n" in output
+
+    # The final assignment will have the original cast operation
+    assert "result1 = INT(reduction_var)" in output
+    assert "result2 = REAL(reduction_var_1, kind=nk)" in output
+    assert "result3 = reduction_var_2 > 4" in output
+    assert Compile(tmpdir).string_compiles(output)

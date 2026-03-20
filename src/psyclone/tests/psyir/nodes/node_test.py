@@ -780,7 +780,7 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
     not graphviz is installed by monkeypatching sys.modules. '''
     def not_installed(_, **kwargs):
         raise graphviz.ExecutableNotFound("error")
-    monkeypatch.setattr(graphviz.graphs.Digraph, "render", not_installed)
+    monkeypatch.setattr(graphviz.Digraph, "render", not_installed)
     monkeypatch.setitem(sys.modules, 'graphviz', None)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
