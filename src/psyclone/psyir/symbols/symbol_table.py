@@ -850,7 +850,7 @@ class SymbolTable():
         :raises SymbolError: if the Symbol found in the current scope is
                              of a different type to the original dependency.
         '''
-        all_symbols: set[Symbol] = set(self.symbols)
+        all_symbols = set(self.symbols)
         while all_symbols:
             for sym in list(all_symbols)[:]:
                 found_new_sym = False
@@ -889,28 +889,28 @@ class SymbolTable():
                     # Symbols to update.
                     break
 
-    def localise_import_interface_of(self, isym: Symbol):
+    def localise_import_interface_of(self, symbol: Symbol):
         '''
         Update the import interface of the supplied Symbol so that it
         refers to a Container in this or an ancestor scope.
 
-        If no ContainerSymbol is found with the name of the one in the
-        ImportInterface of the Symbol, then the ContainerSymbol in the
-        ImportInterface is added to this table.
+        If no ContainerSymbol with the same name as the one in the
+        ImportInterface is found, the ImportInterface symbol is added to
+        this table.
 
-        :param isym: a Symbol with an import interface.
+        :param symbol: a Symbol with an import interface.
 
         :raises ValueError: if the supplied symbol is not an import.
         :raises SymbolError: if there is already a Symbol in scope with the
             name of the originating Container and it is not a ContainerSymbol.
 
         '''
-        if not isym.is_import:
+        if not symbol.is_import:
             raise ValueError(
-                f"Expected a Symbol with an ImportInterface but '{isym.name}' "
-                f"has a {isym.interface} interface.")
+                f"Expected a Symbol with an ImportInterface but "
+                f"'{symbol.name}' has a {symbol.interface} interface.")
 
-        csym = isym.interface.container_symbol
+        csym = symbol.interface.container_symbol
         if csym not in self.symbols:
             new_ctr = self.lookup(csym.name, otherwise=None)
             if not new_ctr:
@@ -920,13 +920,13 @@ class SymbolTable():
                 new_ctr = csym
             elif not isinstance(new_ctr, ContainerSymbol):
                 raise SymbolError(
-                    f"Cannot update the import interface of '{isym.name}' "
+                    f"Cannot update the import interface of '{symbol.name}' "
                     f"because the name of the Container from which it is "
                     f"imported ('{csym.name}') clashes with an existing "
                     f"{type(new_ctr).__name__} in this scope.")
 
-            isym.interface = ImportInterface(
-                new_ctr, orig_name=isym.interface.orig_name)
+            symbol.interface = ImportInterface(
+                new_ctr, orig_name=symbol.interface.orig_name)
 
     def _add_symbols_from_table(self, other_table, symbols_to_skip=()):
         '''
@@ -1580,10 +1580,9 @@ class SymbolTable():
         return tags_dict_reversed
 
     @property
-    def symbols(self):
+    def symbols(self) -> list[Symbol]:
         '''
-        :returns: list of symbols.
-        :rtype: List[:py:class:`psyclone.psyir.symbols.Symbol`]
+        :returns: the Symbols in this table.
         '''
         return list(self._symbols.values())
 
