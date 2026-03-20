@@ -103,22 +103,38 @@ def test_value_range_check_node_gocean(fortran_writer):
                 'internal%xstart", cv_fld % internal % xstart)',
                 'CALL value_range_check_psy_data % PreDeclareVariable('
                 '"ncycle", ncycle)',
+                'CALL value_range_check_psy_data % PreDeclareVariable('
+                '"p_fld", p_fld % data)',
+                'CALL value_range_check_psy_data % PreDeclareVariable('
+                '"cv_fld", cv_fld % data)',
                 'CALL value_range_check_psy_data % PreEndDeclaration',
                 'CALL value_range_check_psy_data % ProvideVariable("ncycle", '
                 'ncycle)',
                 'CALL value_range_check_psy_data % PreEnd',
                 'CALL value_range_check_psy_data % PostStart',
                 'CALL value_range_check_psy_data % ProvideVariable('
-                '"cv_fld%data", cv_fld % data)',
+                '"cv_fld", cv_fld % data)',
                 'CALL value_range_check_psy_data % ProvideVariable("i", i)',
                 'CALL value_range_check_psy_data % ProvideVariable("j", j)',
                 'CALL value_range_check_psy_data % ProvideVariable('
-                '"p_fld%data", p_fld % data)',
+                '"p_fld", p_fld % data)',
                 'CALL value_range_check_psy_data % PostEnd',
                 ]
 
     for line in expected:
         assert line in code, str(line) + "\n --- \n" + str(code)
+
+    # There should be no string ending in %data anymore:
+    assert code.count('"%data",') == 0
+
+    # In value range check, read-write variables will be declared and
+    # provided twice (once as read, once as write), with no suffix added
+    # to distinguish them (in extraction there would be field and field_post).
+    # In order to make sure that both read and write accesses do not
+    # have %data in the name anymore, also do a count: the string should occur
+    # 4 times: twice in the declaration (of read and write), and twice in
+    # the provide call (before and after the kernel)
+    assert code.count('"p_fld", p_fld % data') == 4
 
 
 # -----------------------------------------------------------------------------

@@ -32,9 +32,9 @@ A value range is specified using the environment variable PSY_VALUE_RANGE.
 It contains a list of `;` separated `key=range` pairs. starting with
 Valid key for a variable can be specified in three ways:
 
-    psy_time_step_alg_mod.invoke_compute_r0.neighbours%data=0:8
-    psy_time_step_alg_mod.neighbours%data=0:8
-    neighbours%data=0:8
+    psy_time_step_alg_mod.invoke_compute_r0.neighbours=0:8
+    psy_time_step_alg_mod.neighbours=0:8
+    neighbours=0:8
 
 The first one will check the variables `neighbours` in the module
 `psy_time_step_alg_mod` when calling the kernel `invoke_compute_r0`.
@@ -54,15 +54,15 @@ the module and region name:
 
 With the setting above, no messages will be printed, but you can
 see the effect of the value checking by setting e.g. an upper limit
-of 4: `neighbours%data=0:4`.
+of 4: `neighbours=0:4`.
 Running the example will then produce the following output (in each
 timestep):
 
-    export PSY_VALUE_RANGE="neighbours%data=0:4`"
+    export PSY_VALUE_RANGE="neighbours=0:4`"
 
-    PSyData: Variable 'neighbours%data' has the value 5.0000000000000000 at index/indices 7 8 in module 'psy_time_step_alg_mod' region 'invoke_compute-r0', which is not between '0.0000000000000000' and '4.0000000000000000'.
-    PSyData: Variable 'neighbours%data' has the value 5.0000000000000000 at index/indices 7 8 in module 'psy_time_step_alg_mod' region 'invoke_compute-r1', which is not between '0.0000000000000000' and '4.0000000000000000'.
-    PSyData: Variable 'neighbours%data' has the value 5.0000000000000000 at index/indices 7 8 in module 'psy_time_step_alg_mod' region 'invoke_compute-r2', which is not between '0.0000000000000000' and '4.0000000000000000'.
+    PSyData: Variable 'neighbours' has the value 5.0000000000000000 at index/indices 7 8 in module 'psy_time_step_alg_mod' region 'invoke_compute-r0', which is not between '0.0000000000000000' and '4.0000000000000000'.
+    PSyData: Variable 'neighbours' has the value 5.0000000000000000 at index/indices 7 8 in module 'psy_time_step_alg_mod' region 'invoke_compute-r1', which is not between '0.0000000000000000' and '4.0000000000000000'.
+    PSyData: Variable 'neighbours' has the value 5.0000000000000000 at index/indices 7 8 in module 'psy_time_step_alg_mod' region 'invoke_compute-r2', which is not between '0.0000000000000000' and '4.0000000000000000'.
 
 In order to use the NAN testing that is part of the value range check, you need
 to modify the source code to produce an infinity or NAN result. This directory
@@ -74,8 +74,8 @@ This will trigger a division by 0 for all elements on the diagonal.
 
 Running this version will now produce the following errors at runtime:
 
-    PSyData: Variable 'current%data' has the invalid value 'Inf' at index/indices 4 4 in module 'psy_time_step_alg_mod' region 'invoke_compute-r0'.
-    PSyData: Variable 'neighbours%data' has the invalid value 'Inf' at index/indices 3 3 in module 'psy_time_step_alg_mod' region 'invoke_compute-r0'.
+    PSyData: Variable 'current' has the invalid value 'Inf' at index/indices 4 4 in module 'psy_time_step_alg_mod' region 'invoke_compute-r0'.
+    PSyData: Variable 'neighbours' has the invalid value 'Inf' at index/indices 3 3 in module 'psy_time_step_alg_mod' region 'invoke_compute-r0'.
 
 
 It indicates which invoke and kernel caused the error, what the
