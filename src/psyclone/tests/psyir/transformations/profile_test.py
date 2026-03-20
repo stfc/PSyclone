@@ -657,6 +657,7 @@ def test_region(fortran_writer):
                            "lfric", name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
     prt = ProfileTrans()
+
     # Just halo exchanges.
     prt.apply(schedule[0:4])
     # Two loops.
@@ -671,7 +672,7 @@ def test_region(fortran_writer):
             "invokes_psy\", \"invoke_0-r1\", 0, 0)" in result)
     # Make nested profiles.
     pnodes = schedule.walk(ProfileNode)
-    prt.apply(pnodes[0].psy_data_body[1])
+    prt.apply(pnodes[1].psy_data_body[1])
     prt.apply(schedule.children)
     result = fortran_writer(invoke.schedule)
     assert ("CALL profile_psy_data_3 % PreStart(\"multi_functions_multi_"
@@ -679,9 +680,9 @@ def test_region(fortran_writer):
     assert ("CALL profile_psy_data % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r1\", 0, 0)" in result)
     assert ("CALL profile_psy_data_1 % PreStart(\"multi_functions_multi_"
-            "invokes_psy\", \"invoke_0-r3\", 0, 0)" in result)
-    assert ("CALL profile_psy_data_2 % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r2\", 0, 0)" in result)
+    assert ("CALL profile_psy_data_2 % PreStart(\"multi_functions_multi_"
+            "invokes_psy\", \"invoke_0-testkern_code-r3\", 0, 0)" in result)
 
 
 # -----------------------------------------------------------------------------

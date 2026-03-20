@@ -70,7 +70,7 @@ from psyclone.psyir.nodes import (
     StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall,
     Assignment, ArrayReference, Loop, Container, DataNode, Schedule, Node)
 from psyclone.psyir.symbols import (
-    AutomaticInterface, INTEGER_TYPE, DataSymbol, DataType, DataTypeSymbol,
+    INTEGER_TYPE, DataSymbol, DataType, DataTypeSymbol,
     ScalarType, UnresolvedType, ContainerSymbol, ImportInterface,
     StructureType, ArrayType, UnsupportedFortranType, ArgumentInterface)
 
@@ -1355,8 +1355,7 @@ class LFRicProxies(LFRicCollection):
             self.symtab.new_symbol(name,
                                    symbol_type=DataSymbol,
                                    datatype=dtype,
-                                   tag=tag,
-                                   interface=AutomaticInterface())
+                                   tag=tag)
         except KeyError:
             # The tag already exists and therefore we don't need to do
             # anything. This can happen if the Symbol Table has already
@@ -1417,8 +1416,7 @@ class LFRicProxies(LFRicCollection):
                     decl_type = fld_type_sym
                 table.new_symbol(arg.proxy_name,
                                  symbol_type=DataSymbol,
-                                 datatype=decl_type,
-                                 interface=AutomaticInterface())
+                                 datatype=decl_type)
 
         # Declarations of LMA operator proxies
         op_args = self._invoke.unique_declarations(
@@ -1446,8 +1444,7 @@ class LFRicProxies(LFRicCollection):
             for op in operators_list:
                 table.new_symbol(op.proxy_declaration_name,
                                  symbol_type=DataSymbol,
-                                 datatype=op_datatype_symbol,
-                                 interface=AutomaticInterface())
+                                 datatype=op_datatype_symbol)
 
         # Declarations of CMA operator proxies
         cma_op_args = self._invoke.unique_declarations(
@@ -1465,8 +1462,7 @@ class LFRicProxies(LFRicCollection):
             for arg in cma_op_args:
                 table.new_symbol(arg.proxy_declaration_name,
                                  symbol_type=DataSymbol,
-                                 datatype=op_datatype_symbol,
-                                 interface=AutomaticInterface())
+                                 datatype=op_datatype_symbol)
 
     def initialise(self, cursor: int) -> int:
         '''

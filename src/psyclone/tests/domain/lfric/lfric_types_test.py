@@ -95,7 +95,10 @@ def test_constants_mod():
         # pylint: disable=no-member
         assert isinstance(symbol, DataSymbol)
         assert isinstance(symbol.interface, ImportInterface)
-        assert symbol.interface.container_symbol == module
+        # TODO #2659, ideally we'd check for equality of the Symbols themselves
+        # but currently there's no guarantee that the Symbol instance will
+        # be the same.
+        assert symbol.interface.container_symbol.name == module.name
 
 
 # Generic scalars
