@@ -198,8 +198,7 @@ class ReadWriteInfo:
         '''
         var_info = (container_name, signature)
         not_found_counter = 0
-        for i in self._read_list:
-            print(i[0:2], var_info, i[0:2] == var_info)
+
         read_list = [i for i in self._read_list if i[0:2] != var_info]
         if len(read_list) < len(self._read_list):
             self._read_list = read_list
