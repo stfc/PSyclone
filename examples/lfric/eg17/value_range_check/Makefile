@@ -41,9 +41,6 @@
 
 PSYROOT=../../../..
 
-# Set it to 'netcdf' or 'binary' to select a different output format
-TYPE?=ascii
-
 include ../../lfric_common.mk
 
 GENERATED_FILES += *.o *.mod $(EXEC) main_alg.f90 main_psy.f90
@@ -57,8 +54,6 @@ VALUE_RANGE_DIR ?= $(PSYROOT)/lib/value_range_check/lfric
 VALUE_RANGE_NAME = _value_range_check
 
 VALUE_RANGE_LIB=$(VALUE_RANGE_DIR)/lib$(VALUE_RANGE_NAME).a
-# Even standalone now needs NetCDF because of the LFRic infrastructure
-LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 
 EXEC = value_range_check
 
@@ -108,5 +103,5 @@ main_psy.f90:	main.x90
 allclean: clean
 	$(MAKE) -C $(LFRIC_PATH) allclean
 	$(MAKE) -C $(VALUE_RANGE_DIR) allclean
-	# Remove the read-kernel-data object files:
+	# Remove the value range check object files:
 	$(MAKE) -C $(VALUE_RANGE_DIR)/.. allclean
