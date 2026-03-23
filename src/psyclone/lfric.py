@@ -5902,7 +5902,7 @@ class LFRicKernelArgument(KernelArgument):
                     "supported in PSyclone.")
 
             self._precision = alg_precision
-            self._data_type = alg_datatype
+            self._data_type = const.DATA_TYPE_MAP["scalar"]["type"]
             self._proxy_data_type = None
             self._module_name = const.DATA_TYPE_MAP["scalar"]["module"]
         else:
