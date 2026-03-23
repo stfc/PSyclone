@@ -60,7 +60,7 @@ from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule, Container, Routine)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    GenericInterfaceSymbol, ImportInterface, ScalarType, SymbolTable,
+    GenericInterfaceSymbol, ImportInterface, SymbolTable,
     UnresolvedType, INTEGER_TYPE, UnsupportedFortranType)
 
 
