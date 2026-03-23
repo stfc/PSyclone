@@ -425,6 +425,14 @@ def test_scalartype_copy():
     assert rcopy.precision == stype2.precision
     assert rcopy.precision is not stype2.precision
 
+    # Repeat but with precision as an int.
+    # TODO #3135 - once precision is always stored as a DataNode this separate
+    # test won't be necessary.
+    itype = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
+    icopy = itype.copy()
+    assert icopy.precision == 4
+
+    # Test a character type with a length.
     chartype = ScalarType(ScalarType.Intrinsic.CHARACTER,
                           ScalarType.Precision.UNDEFINED,
                           Reference(rdef))

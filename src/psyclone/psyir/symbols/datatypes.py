@@ -634,7 +634,12 @@ class ScalarType(DataType):
         '''
         :returns: a copy of self.
         '''
-        precision = self.precision.copy()
+        if isinstance(self.precision, int):
+            # TODO #3135 - ideally precision will always be stored as a
+            # DataNode and this branch of the `if` won't be necessary.
+            precision = self.precision
+        else:
+            precision = self.precision.copy()
         if self._length:
             return ScalarType(self.intrinsic, precision, self._length.copy())
         return ScalarType(self.intrinsic, precision)
