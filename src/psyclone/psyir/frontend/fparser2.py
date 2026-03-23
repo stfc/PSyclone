@@ -1974,10 +1974,7 @@ class Fparser2Reader():
                 # handled earlier.
                 clen = self._process_char_length(char_len, scope)
                 if clen:
-                    # copy() does a deep copy but we need to preserve any
-                    # symbols referred to within the type.
                     this_type = base_type.copy()
-                    this_type.replace_symbols_using(scope.symbol_table)
                     this_type.length = clen
 
             sym_name = str(name).lower()
