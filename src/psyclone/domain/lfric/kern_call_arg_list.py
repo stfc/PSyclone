@@ -137,8 +137,6 @@ class KernCallArgList(ArgOrdering):
             module = self._symtab.new_symbol(module_name,
                                              symbol_type=ContainerSymbol)
             mod_sym_tab = self._symtab
-        else:
-            mod_sym_tab = module.find_symbol_table(self._symtab.node)
 
         # The user-defined type must be declared in the same symbol
         # table as the container.
