@@ -50,8 +50,8 @@ from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import (
     BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
-    Literal, Node, OMPDependClause, OMPReductionClause, Operation, Range,
-    Routine, Schedule, UnaryOperation)
+    Literal, Member, Node, OMPDependClause, OMPReductionClause, Operation,
+    Range, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataType,
     DataTypeSymbol, GenericInterfaceSymbol, IntrinsicSymbol,
@@ -340,7 +340,7 @@ class FortranWriter(LanguageWriter):
             elif scalar_type.length == ScalarType.CharLengthParameter.COLON:
                 len_str = ":"
             else:
-                len_str = self._visit(scalar_type.length)
+                len_str = self._visit(scalar_type.length).strip()
 
         if isinstance(precision, ScalarType.Precision):
             # The precision information is not absolute so is either
@@ -364,7 +364,8 @@ class FortranWriter(LanguageWriter):
                 len_txt = f", len={len_str}"
             # The precision information is provided by a parameter,
             # so use KIND.
-            return f"{fortrantype}(kind={self._visit(precision)}{len_txt})"
+            return (f"{fortrantype}(kind={self._visit(precision).strip()}"
+                    f"{len_txt})")
 
         raise VisitorError(
             f"Unsupported precision type '{type(precision).__name__}' found "
@@ -512,18 +513,17 @@ class FortranWriter(LanguageWriter):
                     f"{renames}\n")
         return f"{self._nindent}use{intrinsic_str}{symbol.name}\n"
 
-    def gen_vardecl(self, symbol, include_visibility=False):
+    def gen_vardecl(self,
+                    symbol: Union[DataSymbol, Member],
+                    include_visibility: bool = False) -> str:
         '''Create and return the Fortran variable declaration for this Symbol
         or derived-type member.
 
         :param symbol: the symbol or member instance.
-        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol` or
-            :py:class:`psyclone.psyir.nodes.MemberReference`
-        :param bool include_visibility: whether to include the visibility of
+        :param include_visibility: whether to include the visibility of
             the symbol in the generated declaration (default False).
 
         :returns: the Fortran variable declaration as a string.
-        :rtype: str
 
         :raises VisitorError: if the symbol is not typed.
         :raises VisitorError: if the symbol is of UnresolvedType.

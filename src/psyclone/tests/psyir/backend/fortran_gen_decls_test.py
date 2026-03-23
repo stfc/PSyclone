@@ -281,11 +281,21 @@ def test_gen_decls_char(fortran_writer):
                                  Reference(char_kind),
                                  ScalarType.CharLengthParameter.ASTERISK))
     table.add(sym4)
+    # When both len and kind are given by expressions.
+    sym5 = DataSymbol(
+        "philemon",
+        ScalarType(ScalarType.Intrinsic.CHARACTER,
+                   IntrinsicCall.create(IntrinsicCall.Intrinsic.KIND,
+                                        [Reference(sym4)]),
+                   IntrinsicCall.create(IntrinsicCall.Intrinsic.LEN,
+                                        [Reference(sym4)])))
+    table.add(sym5)
     result = fortran_writer.gen_decls(table)
     assert "character(len=4) :: amo" in result
     assert "character(len=:) :: amos" in result
     assert "character(len=*) :: amat" in result
     assert "character(kind=ckind, len=*) :: amore" in result
+    assert "character(kind=KIND(amore), len=LEN(amore)) :: philemon" in result
 
 
 def test_gen_decls_array(fortran_writer):
