@@ -47,6 +47,7 @@
 # pylint: disable=too-many-lines
 
 from typing import Any, Dict, Optional
+import warnings
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -2002,6 +2003,7 @@ class ACCEnterDataTrans(Transformation):
         self.check_child_async(sched, async_queue)
 
 
+@transformation_documentation_wrapper
 class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
     '''
     Transform a kernel or routine by adding a "!$acc routine" directive
@@ -2025,7 +2027,9 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
     >>> rtrans.apply(kern)
 
     '''
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, force: bool = False,
+              parallelism: str = "seq", device_string: str = "",
+              **kwargs):
         '''
         Add the '!$acc routine' OpenACC directive into the code of the
         supplied Kernel (in a PSyKAl API such as GOcean or LFRic) or directly
@@ -2036,17 +2040,23 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether to allow routines with
+        :param force: whether to allow routines with
             CodeBlocks to run on the GPU.
-        :param str options["parallelism"]: the level of parallelism that the
+        :param parallelism: the level of parallelism that the
             target routine (or a callee) exposes. One of "seq" (the default),
             "vector", "worker" or "gang".
-        :param str options["device_string"]: provide a compiler-platform
-            identifier.
+        :param device_string: provide a compiler-platform identifier.
 
         '''
         # Check that we can safely apply this transformation
-        self.validate(node, options)
+        self.validate(node, options, force=force,
+                      parallelism=parallelism,
+                      device_string=device_string,
+                      **kwargs)
+
+        # TODO 2668: options are now deprecated:
+        if options is not None:
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
         if isinstance(node, Kern):
             # Flag that the kernel has been modified
@@ -2057,7 +2067,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         else:
             routines = [node]
 
-        para = options.get("parallelism", "seq") if options else "seq"
+        para = options.get("parallelism", "seq") if options else parallelism
         for routine in routines:
             # Insert the directive to the routine if it doesn't already exist
             for child in routine.children:
@@ -2067,7 +2077,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             routine.children.insert(
                 0, ACCRoutineDirective(parallelism=para))
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Perform checks that the supplied kernel or routine can be transformed.
 
@@ -2094,17 +2104,22 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             but is not a recognised level of parallelism.
 
         '''
-        super().validate(node, options)
+        self.validate_options(**kwargs)
+        super().validate(node, options, **kwargs)
 
-        self.validate_it_can_run_on_gpu(node, options)
+        self.validate_it_can_run_on_gpu(node, options, **kwargs)
 
-        if options and "parallelism" in options:
-            para = options["parallelism"]
-            if para not in ACCRoutineDirective.SUPPORTED_PARALLELISM:
-                raise TransformationError(
-                    f"{self.name}: '{para}' is not a supported level of "
-                    f"parallelism. Should be one of "
-                    f"{ACCRoutineDirective.SUPPORTED_PARALLELISM}")
+        if options:
+            # TODO #2668: Deprecate options dictionary
+            parallelism = options.get("parallelism", "seq")
+        else:
+            parallelism = self.get_option("parallelism", **kwargs)
+
+        if parallelism not in ACCRoutineDirective.SUPPORTED_PARALLELISM:
+            raise TransformationError(
+                f"{self.name}: '{parallelism}' is not a supported level of "
+                f"parallelism. Should be one of "
+                f"{ACCRoutineDirective.SUPPORTED_PARALLELISM}")
 
 
 class ACCDataTrans(RegionTrans):

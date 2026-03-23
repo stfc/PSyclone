@@ -120,8 +120,20 @@ class KernCallArgList(ArgOrdering):
 
         # The symbol does not exist already. So we potentially need to
         # create the ContainerSymbol for the import for the type:
+        # Check if the module is already declared:
         module = self._symtab.lookup(module_name, otherwise=None)
-        if not module:
+        if module:
+            # Get the symbol table in which the module is declared. We must
+            # allow for the case where we have a detached table
+            # (self._symtab.node is None) - in this case it must be the table
+            # we want. TODO #2874 - this situation occurs because of
+            # limitations in KernCallArgList which forces
+            # LFRicKern.reference_accesses() to make a temporary, detached
+            # SymbolTable which does *not* contain Symbols declared in the
+            # Container scope.
+            mod_sym_tab = (module.find_symbol_table(self._symtab.node)
+                           if self._symtab.node else self._symtab)
+        else:
             module = self._symtab.new_symbol(module_name,
                                              symbol_type=ContainerSymbol)
             mod_sym_tab = self._symtab

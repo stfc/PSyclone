@@ -52,7 +52,7 @@ def test_accrt_validate_invalid_parallelism():
     artrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         artrans.validate(Routine.create("fake"),
-                         options={"parallelism": "wrong"})
+                         parallelism="wrong")
     assert ("'wrong' is not a supported level of parallelism. Should be one "
             "of [" in str(err.value))
 
@@ -60,7 +60,7 @@ def test_accrt_validate_invalid_parallelism():
 def test_accrt_apply_calls_validate(monkeypatch):
     '''Check that the apply() method calls the validate() method.'''
 
-    def fake_validate(_1, _2):
+    def fake_validate(_1, _2, **kwargs):
         raise NotImplementedError("this one")
     artrans = ACCRoutineTrans()
     monkeypatch.setattr(artrans, "validate", fake_validate)
@@ -97,6 +97,7 @@ end module my_mod''')
     assert directives2[0] is directives[0]
     assert directives2[0].parent is routine
     # Check that we can specify the parallelism clause.
+    # TODO #2668 deprecate options dict. Kept for coverage.
     artrans.apply(routine_copy, options={"parallelism": "vector"})
     directives3 = routine_copy.walk(ACCRoutineDirective)
     assert directives3[0].begin_string() == "acc routine vector"

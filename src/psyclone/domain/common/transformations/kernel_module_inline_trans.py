@@ -302,8 +302,8 @@ class KernelModuleInlineTrans(Transformation):
                         # We must update its import interface (to ensure it
                         # references a ContainerSymbol in the correct scope)
                         # before it can be added to the table.
-                        code_to_inline.symbol_table.update_import_interface(
-                            symbol)
+                        code_to_inline.symbol_table.\
+                            localise_import_interface_of(symbol)
                     code_to_inline.symbol_table.add(symbol)
                 # And when necessary the modules where they come from
                 if symbol.is_unresolved:
@@ -374,10 +374,8 @@ class KernelModuleInlineTrans(Transformation):
                         symbol.name not in table else table)
         # Find the table containing the ContainerSymbol from which
         # the symbol is imported.
-        # TODO #1734 - this *should* always be the same as `actual_table` but
-        # this is not currently guaranteed.
         ctable = (csym.find_symbol_table(table.node) if
-                  csym.name not in table else table)
+                  table.node else table)
         remove_csym = (ctable.symbols_imported_from(csym) == [symbol] and
                        not csym.wildcard_import)
         if csym.wildcard_import:

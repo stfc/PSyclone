@@ -52,14 +52,14 @@ from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
-if TYPE_CHECKING:  # pragma: no cover
-    from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes.scoping_node import ScopingNode
 
 # Used to provide a unique default value for methods within the
 # SymbolTable class. This enables us to determine when the user has
@@ -262,7 +262,7 @@ class SymbolTable():
         new_st._default_visibility = self.default_visibility
         return new_st
 
-    def deep_copy(self, new_node: "ScopingNode" = None) -> SymbolTable:
+    def deep_copy(self, attached_to: "ScopingNode" = None) -> SymbolTable:
         '''Create a copy of the symbol table with new instances of the
         top-level data structures and also new instances of the symbols
         contained in these data structures. Modifying a symbol attribute
@@ -270,31 +270,51 @@ class SymbolTable():
         table.
 
         The only attribute not copied is the _node reference to the scope,
-        since that scope can only have one symbol table associated to it.
+        since that scope can only have one symbol table associated to it. If
+        a dangling reference to a ContainerSymbol is encountered during the
+        copy (e.g. one of the symbols in the table is imported from an
+        unknown ContainerSymbol) then a new ContainerSymbol is created and
+        added to the copy of the table. TODO #2874 - once KernCallArgList
+        is guaranteed to create only the correct Symbols, this feature
+        can be removed.
 
-        :param new_node: the PSyIR Node to be associated with the copied
-            table (if different from self.node).
+        :param attached_to: the PSyIR Node that the copied table is to be
+                            attached to (if different from self.node).
 
         :returns: a deep copy of this symbol table.
+
+        :raises TypeError: if `attached_to` is not a (subclass) of ScopingNode.
 
         '''
         # pylint: disable=protected-access
         new_st = type(self)()
-        if new_node:
-            new_st._node = new_node
+        if attached_to:
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.psyir.nodes import ScopingNode
+            if not isinstance(attached_to, ScopingNode):
+                raise TypeError(
+                    f"A SymbolTable may only be attached to a subclass of "
+                    f"ScopingNode but got an instance of "
+                    f"'{type(attached_to).__name__}'")
+            new_st._node = attached_to
 
         # Make a copy of each symbol in the symbol table ensuring we do any
         # ContainerSymbols first as there may be imports from them.
         for symbol in self.containersymbols:
             new_st.add(symbol.copy())
         for symbol in self.symbols:
-            if not isinstance(symbol, ContainerSymbol):
-                new_sym = symbol.copy()
-                if new_sym.is_import:
-                    name = new_sym.interface.container_symbol.name
-                    new_sym.interface.container_symbol = new_st.find_or_create(
-                        name, symbol_type=ContainerSymbol)
-                new_st.add(new_sym)
+            if isinstance(symbol, ContainerSymbol):
+                continue
+            new_sym = symbol.copy()
+            if new_sym.is_import:
+                name = new_sym.interface.container_symbol.name
+                # TODO #2874 this 'find_or_create' *should* be just 'lookup'
+                # but, when we create a temporary copy of a symbol table
+                # within LFRicKern, we lose container symbols from the
+                # outer scope.
+                new_sym.interface.container_symbol = new_st.find_or_create(
+                    name, symbol_type=ContainerSymbol)
+            new_st.add(new_sym)
 
         # Prepare the new argument list
         new_arguments = []
@@ -818,9 +838,9 @@ class SymbolTable():
                         other_sym,
                         self.next_available_name(
                             other_sym.name, other_table=other_table))
-            self.update_import_interface(isym)
+            self.localise_import_interface_of(isym)
 
-    def update_symbol_dependencies(self):
+    def localise_all_symbol_dependencies(self):
         '''
         For each Symbol in this table, examines the Symbols upon which it
         depends and updates them to be the Symbols in scope in this table.
@@ -830,7 +850,7 @@ class SymbolTable():
         :raises SymbolError: if the Symbol found in the current scope is
                              of a different type to the original dependency.
         '''
-        all_symbols: set[Symbol] = set(self.symbols)
+        all_symbols = set(self.symbols)
         while all_symbols:
             for sym in list(all_symbols)[:]:
                 found_new_sym = False
@@ -847,18 +867,16 @@ class SymbolTable():
                         # references, we add it to the set of all symbols to
                         # examine and start again.
                         if dep_sym.is_import:
-                            self.update_import_interface(dep_sym)
+                            self.localise_import_interface_of(dep_sym)
                         self.add(dep_sym)
                         all_symbols.add(dep_sym)
                         found_new_sym = True
                         break
-                    else:
-                        if type(new_sym) is not type(dep_sym):
-                            raise SymbolError(
-                                f"Attempting to update dependencies of '{sym}'"
-                                f" but found '{new_sym}' which is not of the "
-                                f"same type as the original dependency "
-                                f"'{dep_sym}'.")
+                    if type(new_sym) is not type(dep_sym):
+                        raise SymbolError(
+                            f"Attempting to update dependencies of '{sym}' but"
+                            f" found '{new_sym}' which is not of the same type"
+                            f" as the original dependency '{dep_sym}'.")
                     # Update the definition of this symbol using the
                     # new one we have found.
                     sym.replace_symbols_using(new_sym)
@@ -871,28 +889,28 @@ class SymbolTable():
                     # Symbols to update.
                     break
 
-    def update_import_interface(self, isym: Symbol):
+    def localise_import_interface_of(self, symbol: Symbol):
         '''
         Update the import interface of the supplied Symbol so that it
         refers to a Container in this or an ancestor scope.
 
-        If no ContainerSymbol is found with the name of the one in the
-        ImportInterface of the Symbol, then the ContainerSymboll in the
-        ImportInterface is added to this table.
+        If no ContainerSymbol with the same name as the one in the
+        ImportInterface is found, the ImportInterface symbol is added to
+        this table.
 
-        :param isym: a Symbol with an import interface.
+        :param symbol: a Symbol with an import interface.
 
         :raises ValueError: if the supplied symbol is not an import.
         :raises SymbolError: if there is already a Symbol in scope with the
             name of the originating Container and it is not a ContainerSymbol.
 
         '''
-        if not isym.is_import:
+        if not symbol.is_import:
             raise ValueError(
-                f"Expected a Symbol with an ImportInterface but '{isym.name}' "
-                f"has a {isym.interface} interface.")
+                f"Expected a Symbol with an ImportInterface but "
+                f"'{symbol.name}' has a {symbol.interface} interface.")
 
-        csym = isym.interface.container_symbol
+        csym = symbol.interface.container_symbol
         if csym not in self.symbols:
             new_ctr = self.lookup(csym.name, otherwise=None)
             if not new_ctr:
@@ -902,13 +920,13 @@ class SymbolTable():
                 new_ctr = csym
             elif not isinstance(new_ctr, ContainerSymbol):
                 raise SymbolError(
-                    f"Cannot update the import interface of '{isym.name}' "
+                    f"Cannot update the import interface of '{symbol.name}' "
                     f"because the name of the Container from which it is "
                     f"imported ('{csym.name}') clashes with an existing "
                     f"{type(new_ctr).__name__} in this scope.")
 
-            isym.interface = ImportInterface(
-                new_ctr, orig_name=isym.interface.orig_name)
+            symbol.interface = ImportInterface(
+                new_ctr, orig_name=symbol.interface.orig_name)
 
     def _add_symbols_from_table(self, other_table, symbols_to_skip=()):
         '''
@@ -1562,10 +1580,9 @@ class SymbolTable():
         return tags_dict_reversed
 
     @property
-    def symbols(self):
+    def symbols(self) -> list[Symbol]:
         '''
-        :returns: list of symbols.
-        :rtype: List[:py:class:`psyclone.psyir.symbols.Symbol`]
+        :returns: the Symbols in this table.
         '''
         return list(self._symbols.values())
 

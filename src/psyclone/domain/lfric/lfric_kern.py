@@ -60,8 +60,8 @@ from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule, Container, Routine)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    GenericInterfaceSymbol, ImportInterface, SymbolTable, UnresolvedType,
-    INTEGER_TYPE, UnsupportedFortranType)
+    GenericInterfaceSymbol, ImportInterface, ScalarType, SymbolTable,
+    UnresolvedType, INTEGER_TYPE, UnsupportedFortranType)
 
 
 class LFRicKern(CodedKern):
@@ -144,8 +144,10 @@ class LFRicKern(CodedKern):
         create_arg_list = KernCallArgList(self)
         # KernCallArgList creates symbols (sometimes with wrong type), we don't
         # want those to be kept in the SymbolTable, so we copy the symbol table
-        # TODO #2874: The design could be improved so that only the right
-        # symbols are created
+        # TODO #2874 - the design could be improved so that only the right
+        # symbols are created. See also the TODO in SymbolTable.deep_copy().
+        # Note that this copy misses any Symbols declared in the outer
+        # Container which complicates KernCallArgList.get_user_type().
         tmp_symtab = self.ancestor(InvokeSchedule).symbol_table.deep_copy()
         create_arg_list._forced_symtab = tmp_symtab
         create_arg_list.generate(var_accesses)
@@ -890,16 +892,15 @@ class LFRicKern(CodedKern):
 
         return self._schedules
 
-    def validate_kernel_code_args(self, table):
+    def validate_kernel_code_args(self, table: SymbolTable):
         '''Check that the arguments in the kernel code match the expected
         arguments as defined by the kernel metadata and the LFRic
         API.
 
         :param table: the symbol table to validate against the metadata.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :raises GenerationError: if the number of arguments indicated by the \
-            kernel metadata doesn't match the actual number of arguments in \
+        :raises GenerationError: if the number of arguments indicated by the
+            kernel metadata doesn't match the actual number of arguments in
             the symbol table.
 
         '''

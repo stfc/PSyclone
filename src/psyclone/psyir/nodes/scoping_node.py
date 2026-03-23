@@ -130,7 +130,7 @@ class ScopingNode(Node):
         '''
         # Reorganise the symbol table construction to occur before we add
         # the children.
-        self._symbol_table = other.symbol_table.deep_copy(new_node=self)
+        self._symbol_table = other.symbol_table.deep_copy(attached_to=self)
 
         # Remove symbols corresponding to Routines that are contained in this
         # ScopingNode. These symbols will be added automatically by the Routine
@@ -204,10 +204,6 @@ class ScopingNode(Node):
         Therefore, if the supplied table is the one for the scope containing
         this node (if any), the one passed to the child nodes is updated to be
         the one associated with this node.
-
-        The symbols within the associated symbol table are also updated to
-        ensure that any symbols upon which they depend are replaced with the
-        new copies.
 
         :param table_or_symbol: the symbol table from which to get replacement
             symbols or a single, replacement Symbol.

@@ -470,8 +470,8 @@ class ExtractNode(PSyDataNode):
                 continue
             container = symbol_table.find_or_create(
                 module_name, symbol_type=ContainerSymbol)
-            # Take care in case we've found an existing ContainerSymbol and
-            # it's in an outer scope.
+            # Any symbols imported from this ContainerSymbol must be added
+            # to the same scope (table) in which it resides.
             actual_table = container.find_symbol_table(symbol_table.node)
             # Now look up the original symbol. While the variable could
             # be declared Unresolved here (i.e. just imported), we need the
