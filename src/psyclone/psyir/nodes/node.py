@@ -1674,6 +1674,16 @@ class Node():
                                       self._children_valid_format)
         # And make a recursive copy of each child instead
         self.children.extend([child.copy() for child in other.children])
+
+        # Now that the copied children are connected into the tree, ensure any
+        # dangling symbols are re-connected. We can't do this in ScopingNode
+        # because the re-attachment happens in self.children.extend() and that
+        # happens *after* the copy operations have completed in the list
+        # comprehension used to construct the argument to extend().
+        for child in self.children:
+            if hasattr(child, "symbol_table"):
+                child.symbol_table.localise_all_symbol_dependencies()
+
         self._disable_tree_update = False
         self._cached_abs_position = None
 
