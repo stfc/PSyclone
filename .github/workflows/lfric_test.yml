@@ -42,7 +42,7 @@ on:
   push
 
 env:
-  LFRIC_APPS_HASH: a1dd92beec2d627a107accc3fc6c8426566f089a
+  LFRIC_APPS_HASH: 948b9ec1a7ae6ef110b97ed45ced8d4b71079f34
   PYTHON_VERSION: "3.14"
   GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_TOOLCHAIN: nvhpc25_11_openmpi
