@@ -43,11 +43,11 @@ MPI?=no
 
 ifeq ($(MPI), yes)
 	# -P suppresses linemarkers
-	FPP?=cpp -P -D_MPI
+	FPP=cpp -P -D_MPI
 	# We need to compile with mpif90 if MPI is enabled
 	F90?=mpif90
 else
-	FPP?=cpp -P
+	FPP=cpp -P
 endif
 
 PSYROOT=../../../..
