@@ -52,14 +52,14 @@ from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
-if TYPE_CHECKING:
-    from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes.scoping_node import ScopingNode
 
 # Used to provide a unique default value for methods within the
 # SymbolTable class. This enables us to determine when the user has
