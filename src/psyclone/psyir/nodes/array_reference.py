@@ -181,6 +181,8 @@ class ArrayReference(ArrayMixin, Reference):
                 if isinstance(self.symbol.datatype, ArrayType):
                     base_type = self.symbol.datatype.elemental_type.copy()
                 else:
+                    # TODO #3240 - sometimes we have an ArrayReference that is
+                    # actually a character sub-string.
                     base_type = self.symbol.datatype.copy()
             return ArrayType(base_type, shape)
         # Otherwise, we're accessing a single element of the array.
