@@ -153,6 +153,17 @@ def test_scalartype_enum_precision(intrinsic, precision):
     assert scalar_type.is_allocatable is False
 
 
+@pytest.mark.parametrize("attribute", [ScalarType.Precision.DOUBLE,
+                                       ScalarType.Intrinsic.BOOLEAN,
+                                       ScalarType.CharLengthParameter.COLON])
+def test_scalartypeattribute(attribute):
+    '''
+    Test the debug_string() and copy() methods provided by ScalarTypeAttribute.
+    '''
+    assert attribute.copy() == attribute
+    assert attribute.debug_string() == attribute.name
+
+
 @pytest.mark.parametrize("precision", [1, 8, 16])
 @pytest.mark.parametrize("intrinsic", [ScalarType.Intrinsic.INTEGER,
                                        ScalarType.Intrinsic.REAL,
@@ -208,6 +219,7 @@ def test_scalartype_character_length():
     assert data_type.length.symbol.name == "MAX_LEN"
     data_type.length = ScalarType.CharLengthParameter.COLON
     assert data_type.length == ScalarType.CharLengthParameter.COLON
+    assert data_type.length.debug_string() == "COLON"
 
     with pytest.raises(ValueError) as err:
         data_type.length = -1
@@ -367,6 +379,12 @@ def test_scalartype_replace_symbols():
     stype2.replace_symbols_using(table)
     # Precision symbol should have been updated.
     assert stype2.precision.symbol is rdef2
+    # Repeat but for a Symbol used to define the length of a character string
+    chartype = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED,
+                          Reference(rdef))
+    chartype.replace_symbols_using(table)
+    assert chartype.length.symbol is rdef2
 
 
 def test_scalartype_get_all_accessed_symbols():
@@ -376,6 +394,11 @@ def test_scalartype_get_all_accessed_symbols():
                         Reference(rdef))
     dependent_symbols = stype2.get_all_accessed_symbols()
     assert rdef in dependent_symbols
+    chartype = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED,
+                          Reference(rdef))
+    dependent_symbols2 = chartype.get_all_accessed_symbols()
+    assert rdef in dependent_symbols2
 
 
 def test_scalartype_copy():
@@ -401,6 +424,15 @@ def test_scalartype_copy():
     assert rcopy.intrinsic == stype2.intrinsic
     assert rcopy.precision == stype2.precision
     assert rcopy.precision is not stype2.precision
+
+    chartype = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED,
+                          Reference(rdef))
+    ccopy = chartype.copy()
+    # Length expression has been copied.
+    assert ccopy.length is not chartype.length
+    # Referenced Symbol is unchanged.
+    assert ccopy.length.symbol is rdef
 
 
 # ArrayType class
