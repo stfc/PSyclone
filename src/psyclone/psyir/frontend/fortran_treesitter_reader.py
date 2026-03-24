@@ -172,7 +172,7 @@ class FortranTreeSitterReader():
                 # TODO #3038: Add support expression codeblocks and aggregating
                 # contiguous codeblocks into a single one.
                 structure = CodeBlock.Structure.STATEMENT
-                code_block = TreeSitterCodeBlock([tsnode], structure)
+                code_block = TreeSitterCodeBlock(tsnode, structure)
                 code_block.append_preceding_comment(
                     f"PSyclone CodeBlock (unsupported code) reason:\n"
                     f"- {err}"

@@ -166,7 +166,7 @@ def test_validate_no_inline_global_var(parser):
         alpha = alpha + 1
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
-    block = Fparser2CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
+    block = Fparser2CodeBlock(stmt, CodeBlock.Structure.STATEMENT)
     kschedules = kernels[0].get_callees()
     ksched = kschedules[0]
     ksched.pop_all_children()
@@ -183,7 +183,7 @@ def test_validate_no_inline_global_var(parser):
         unknown = unknown + 1
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
-    block = Fparser2CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
+    block = Fparser2CodeBlock(stmt, CodeBlock.Structure.STATEMENT)
     kschedules = kernels[0].get_callees()
     ksched = kschedules[0]
     ksched.pop_all_children()

@@ -359,7 +359,7 @@ def test_datasymbol_initial_value_codeblock():
     # We want the first child of the Initialization node in the parse tree as
     # the basis for our CodeBlock
     inits = Fortran2003.walk(fparser2spec, Fortran2003.Initialization)
-    cblock = Fparser2CodeBlock([inits[0].children[1]],
+    cblock = Fparser2CodeBlock(inits[0].children[1],
                                CodeBlock.Structure.EXPRESSION)
     assert sym.initial_value is None
     sym.initial_value = cblock

@@ -56,7 +56,7 @@ from psyclone.errors import GenerationError
 
 def test_codeblock_node_str():
     ''' Check the node_str method of the Code Block class.'''
-    cblock = CodeBlock([], "dummy")
+    cblock = CodeBlock([], CodeBlock.Structure.EXPRESSION)
     coloredtext = colored("CodeBlock", CodeBlock._colour)
     output = cblock.node_str()
     assert coloredtext+"[" in output
@@ -71,7 +71,7 @@ def test_codeblock_can_be_printed():
     assert "]" in str(cblock)
 
 
-def test_codeblock_getastnodes():
+def test_codeblock_constructor_and_getastnodes():
     '''Test that the get_ast_nodes method of a CodeBlock instance returns
     a copy of the list of nodes from the original AST that are associated with
     this code block.
@@ -85,6 +85,11 @@ def test_codeblock_getastnodes():
     assert result == original
     # Check that the list is a copy not a reference.
     assert result is not original
+
+    # If only one element is provided, this is added to a list
+    original = 3
+    cblock = CodeBlock(original, CodeBlock.Structure.EXPRESSION)
+    assert cblock.get_ast_nodes() == [3]
 
 
 @pytest.mark.parametrize("structure", [CodeBlock.Structure.STATEMENT,
@@ -149,7 +154,7 @@ def test_codeblock_get_fortran_lines():
     assert "end subroutine" in block.get_fortran_lines()
 
     tree = FortranTreeSitterReader().generate_parse_tree(code)
-    block = TreeSitterCodeBlock([tree], CodeBlock.Structure.STATEMENT)
+    block = TreeSitterCodeBlock(tree, CodeBlock.Structure.STATEMENT)
     assert isinstance(block.get_fortran_lines(), list)
     assert "subroutine mytest" in block.get_fortran_lines()
     assert "end subroutine" in block.get_fortran_lines()

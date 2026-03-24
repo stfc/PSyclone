@@ -346,7 +346,7 @@ class AdjointVisitor(PSyIRVisitor):
             # TODO: use language independent PSyIR, see issue #1345
             ptree = Fortran2003.Intrinsic_Function_Reference(
                 f"mod({hi_str}-{lo_str},{step_str})")
-            offset = Fparser2CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
+            offset = Fparser2CodeBlock(ptree, CodeBlock.Structure.EXPRESSION)
 
         # We only need to copy this node and its bounds. Issue #1440
         # will address this.

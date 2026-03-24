@@ -371,7 +371,7 @@ class GOOpenCLTrans(Transformation):
         # Set up cmd_queues pointer
         ptree = Fortran2003.Pointer_Assignment_Stmt(
             f"{qlist.name} => {get_cmd_queues.name}()")
-        cblock = Fparser2CodeBlock([ptree], CodeBlock.Structure.STATEMENT)
+        cblock = Fparser2CodeBlock(ptree, CodeBlock.Structure.STATEMENT)
         setup_block.if_body.addchild(cblock)
 
         # Declare and assign kernel pointers

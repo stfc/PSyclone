@@ -40,11 +40,12 @@
 
 import re
 from enum import Enum
-from typing import List
+from typing import Optional, Any, Union
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.node import Node
 
 
 class CodeBlock(Statement, DataNode):
@@ -57,7 +58,6 @@ class CodeBlock(Statement, DataNode):
 
     :param parse_tree: the fparser2 parse-tree nodes representing the
         Fortran code constituting the code block.
-    :type parse_tree: list[:py:class:`fparser.two.utils.Base`]
     :param structure: argument indicating whether this code block is a
         statement or an expression.
     :type structure: :py:class:`psyclone.psyir.nodes.CodeBlock.Structure`
@@ -84,19 +84,28 @@ class CodeBlock(Statement, DataNode):
         may be required when processing.
 
         '''
-        # The Code Block comprises one or more Fortran statements
-        # (which themselves may contain expressions).
+        #: The Code Block comprises one or more Fortran statements
+        #: (which themselves may contain expressions).
         STATEMENT = 1
-        # The Code Block comprises one or more Fortran expressions.
+        #: The Code Block comprises one or more Fortran expressions.
         EXPRESSION = 2
 
-    def __init__(self, parse_tree, structure, parent=None, annotations=None):
+    def __init__(
+        self,
+        parse_tree: Union[Any, list[Any]],
+        structure: "CodeBlock.Structure",
+        parent: Optional[Node] = None,
+        annotations: Optional[list[str]] = None
+    ):
         super().__init__(parent=parent, annotations=annotations)
         # Store a list of the parser objects holding the code associated
         # with this block. We make a copy of the list container because
         # the list itself is often a temporary product of the process of
         # converting from the the parse tree to the PSyIR.
-        self._parse_tree = parse_tree[:]
+        if isinstance(parse_tree, list):
+            self._parse_tree = parse_tree[:]
+        else:
+            self._parse_tree = [parse_tree]
         # Store the structure of the code block.
         self._structure = structure
 
@@ -177,7 +186,7 @@ class CodeBlock(Statement, DataNode):
     def __str__(self):
         return f"CodeBlock[{len(self._parse_tree)} nodes]"
 
-    def get_symbol_names(self) -> List[str]:
+    def get_symbol_names(self) -> list[str]:
         '''
         :returns: the name of all symbols accessed in the CodeBlock.
         '''
@@ -205,7 +214,7 @@ class CodeBlock(Statement, DataNode):
 class Fparser2CodeBlock(CodeBlock):
     ''' The fparser2 implementation of CodeBlock. '''
 
-    def get_symbol_names(self) -> List[str]:
+    def get_symbol_names(self) -> list[str]:
         '''
         Analyses the fparser2 parse tree associated with this CodeBlock and
         returns the names of all symbols accessed within it. Since, by
