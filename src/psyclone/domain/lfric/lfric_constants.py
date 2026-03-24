@@ -573,7 +573,15 @@ class LFRicConstants():
         :raises InternalError: if an unknown data_type is specified.
 
         '''
-        for module_info in self.DATA_TYPE_MAP.values():
+        if data_type == "scalar_type":
+            raise ValueError("Cannot infer the precision of a scalar.")
+
+        # Create self.DATA_TYPE_MAP without the scalar entry
+        invalid_types = ["scalar_type"]
+        data_type_map = [module_info for module_info in
+                         self.DATA_TYPE_MAP.values() if module_info["type"]
+                         not in invalid_types]
+        for module_info in data_type_map:
             if module_info["type"] == data_type:
                 # TODO #2659 - this method should probably just return a name
                 #              rather than create a symbol itself.
@@ -581,8 +589,7 @@ class LFRicConstants():
                 from psyclone.domain.lfric.lfric_types import LFRicTypes
                 return LFRicTypes(module_info["kind"].upper())
 
-        valid = [module_info["type"]
-                 for module_info in self.DATA_TYPE_MAP.values()]
+        valid = [module_info["type"] for module_info in data_type_map]
         raise InternalError(f"Unknown data type '{data_type}', expected one "
                             f"of {valid}.")
 
