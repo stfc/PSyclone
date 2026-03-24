@@ -49,7 +49,8 @@ from psyclone.psyir.nodes import (
     ACCEnterDataDirective, ACCKernelsDirective, Assignment,
     Call, CodeBlock, Literal, Loop, Node,
     PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
-from psyclone.psyir.symbols import DataTypeSymbol, INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import (
+    DataTypeSymbol, INTEGER_TYPE, ScalarType, UnsupportedFortranType)
 from psyclone.psyir.transformations.arrayassignment2loops_trans import (
     ArrayAssignment2LoopsTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
@@ -271,8 +272,10 @@ class ACCKernelsTrans(RegionTrans):
                     continue
                 if sym.datatype.intrinsic != ScalarType.Intrinsic.CHARACTER:
                     continue
-                if isinstance(sym.datatype.length,
-                              ScalarType.CharLengthParameter):
+                dtype = sym.datatype
+                if isinstance(sym.datatype, UnsupportedFortranType):
+                    dtype = sym.datatype.partial_datatype
+                if isinstance(dtype.length, ScalarType.CharLengthParameter):
                     char_syms.append(sym)
 
         for node in node_list:
