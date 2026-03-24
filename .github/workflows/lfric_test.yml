@@ -276,8 +276,8 @@ jobs:
         # And compare the results
         python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
         export VAR_TIME=$((${SECONDS}-${START_TIME}))
-        echo "time=${VAR_TIME}"
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
+        echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
 
   upload_if_on_mirror:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
