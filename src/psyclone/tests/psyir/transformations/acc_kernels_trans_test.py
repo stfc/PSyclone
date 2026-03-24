@@ -444,13 +444,14 @@ def test_no_assumed_size_char_in_kernels(fortran_reader):
 
     '''
     code = '''\
-subroutine ice(assumed_size_char, assumed2, assumed3)
+subroutine ice(assumed_size_char, assumed2, assumed3, assumed4)
   implicit none
   character(len = *), intent(in) :: assumed_size_char
   character*(*) :: assumed2
   character(len=*), optional :: assumed3
   character(len=10) :: explicit_size_char
   real, dimension(10,10) :: my_var
+  character(len=*), dimension(:) :: assumed4
 
   if (assumed_size_char == 'literal') then
     my_var(:UBOUND(my_var)) = 0.0
@@ -470,6 +471,9 @@ subroutine ice(assumed_size_char, assumed2, assumed3)
   explicit_size_char = assumed2
 
   assumed3(:) = ''
+
+  assumed4 = ''
+
 end subroutine ice
 '''
     psyir = fortran_reader.psyir_from_source(code)
@@ -524,6 +528,11 @@ end subroutine ice
         acc_trans.validate(sub.children[6])
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
             " region but found 'assumed3(:) = ''" in str(err.value))
+    # Array of character strings
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[7])
+    assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
+            " region but found 'assumed4 = ''" in str(err.value))
 
 
 def test_check_async_queue_with_enter_data(fortran_reader):
