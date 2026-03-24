@@ -80,7 +80,7 @@ def test_generate_parse_tree(tmpdir_factory):
         program test
         end program test
     """
-    ptree = processor.generate_parse_tree(valid_code)
+    ptree = processor.generate_parse_tree_from_source(valid_code)
     assert isinstance(ptree, TSNode)
 
     # Invalid code raises a Value error with a relevant error message
@@ -90,17 +90,15 @@ def test_generate_parse_tree(tmpdir_factory):
         end program test
     """
     with pytest.raises(ValueError) as err:
-        _ = processor.generate_parse_tree(invalid_code)
+        _ = processor.generate_parse_tree_from_source(invalid_code)
     assert "Syntax Error found at line 2" in str(err.value)
 
     # Test providing a source file
     filename = str(tmpdir_factory.mktemp('ts_test').join("testfile.f90"))
     with open(filename, "w", encoding='utf-8') as wfile:
         wfile.write(valid_code)
-    ptree = processor.generate_parse_tree(file_path=filename)
+    ptree = processor.generate_parse_tree_from_file(filename)
     assert isinstance(ptree, TSNode)
-
-    # TODO #3038 All arguments are currently ignored
 
 
 def test_generate_psyir():
@@ -119,7 +117,7 @@ def test_generate_psyir():
         end subroutine
     end module test
     """
-    ptree = processor.generate_parse_tree(valid_code)
+    ptree = processor.generate_parse_tree_from_source(valid_code)
     psyir = processor.generate_psyir(ptree)
 
     assert isinstance(psyir, FileContainer)
@@ -141,7 +139,7 @@ def test_codeblock_generation_and_messages():
         end subroutine
     end module test
     """
-    ptree = processor.generate_parse_tree(unsupported_code)
+    ptree = processor.generate_parse_tree_from_source(unsupported_code)
     psyir = processor.generate_psyir(ptree)
 
     assert isinstance(psyir, FileContainer)
@@ -161,7 +159,7 @@ def test_codeblock_generation_and_messages():
         end subroutine
     end module test
     """
-    ptree = processor.generate_parse_tree(unsupported_code)
+    ptree = processor.generate_parse_tree_from_source(unsupported_code)
     psyir = processor.generate_psyir(ptree)
 
     assert isinstance(psyir, FileContainer)

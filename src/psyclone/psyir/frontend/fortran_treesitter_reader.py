@@ -35,7 +35,7 @@
 
 ''' PSyIR TreeSitter Fortran reader '''
 
-from typing import Optional, TYPE_CHECKING, Iterable, Union
+from typing import TYPE_CHECKING, Iterable, Union, Callable
 
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes.codeblock import TreeSitterCodeBlock, CodeBlock
@@ -75,19 +75,32 @@ class FortranTreeSitterReader():
     :param resolve_modules: Whether to resolve modules while parsing a file,
         for more precise control it also accepts a list of module names.
         Defaults to False. Currently ignored.
+    :param ignore_comments: whether to let the parser ignore comments.
+    :param free_form: whether to parse using Fortran free_form syntax.
+    :param ignore_directives: whether to ignore directives while parsing.
+    :param conditional_openmp: whether to parse conditional OpenMP statements.
 
     :raises TypeError: if the constructor argument is not of the expected type.
     '''
 
-    def __init__(self, ignore_directives: bool = True,
-                 last_comments_as_codeblocks: bool = False,
-                 resolve_modules: bool = False):
+    def __init__(
+        self,
+        ignore_directives: bool = True,
+        last_comments_as_codeblocks: bool = False,
+        resolve_modules: bool = False,
+        ignore_comments: bool = True,
+        free_form: bool = True,
+        conditional_openmp: bool = True,
+    ):
         # TODO #3038 Arguments are currently not used nor typechecked, but if
         # we decide this is the common reader interface, this can be done in a
         # super class instead of duplicate it here.
         self._ignore_directives = ignore_directives
         self._resolve_modules = resolve_modules
         self._last_comments_as_codeblocks = last_comments_as_codeblocks
+        self._ignore_comments = ignore_comments
+        self._free_form = free_form
+        self._conditional_openmp = conditional_openmp
         # TODO #3038: Currently this reader uses a cursor pointer instead of
         # passing around a parent argument all the time (like fparser's), but
         # this can be re-evaluated if necessary.
@@ -97,27 +110,29 @@ class FortranTreeSitterReader():
             'module': self._module_handler,
         }
 
-    def generate_parse_tree(
-        self,
-        source_code: Optional[str] = None,
-        file_path: Optional[str] = None,
-        ignore_comments: bool = True,
-        free_form: bool = True,
-        conditional_openmp: bool = True,
-        partial_code: str = ""
-    ):
-        ''' Use the provided source code and frontend options to generate
-        a treesitter parsetree.
+    def generate_parse_tree_from_file(self, file_path) -> 'TSNode':
+        '''
+        Use the provided file to generate a treesitter parsetree.
+
+        :param file_path: a given file.
+
+        :returns: the treesitter parsetree of the given file.
+        '''
+        with open(file_path, encoding="utf-8") as fortran_file:
+            source_code = fortran_file.read()
+        return self.generate_parse_tree_from_source(source_code)
+
+    def generate_parse_tree_from_source(
+        self, source_code: str, partial_code: str = ""
+    ) -> 'TSNode':
+        ''' Use the provided source code to generate a treesitter parsetree.
 
         :param source_code: the given source code.
-        :param ignore_comments: whether to let the parser ignore comments.
-        :param free_form: whether to parse using Fortran free_form syntax.
-        :param ignore_directives: whether to ignore directives while parsing.
-        :param conditional_openmp:
         :param partial_code: if the provided source_code is not a full unit
             this indicates the starting parsing point. It currently supports
             "expression" or "statement".
 
+        :returns: the treesitter parsetree of the given source code.
         '''
         # pylint: disable=unused-argument
         # Purposely inlined to lazily load this modules only when needed
@@ -125,18 +140,19 @@ class FortranTreeSitterReader():
         import tree_sitter_fortran
         from tree_sitter import Language, Parser
 
-        def report_errors(node):
-            ''' Recursively find and report errors '''
+        def report_errors(node: 'TSNode'):
+            ''' Recursively find and report errors.
+
+            :param node: the given treesitter node
+
+            :raises ValueError: if the given node has a parsing error.
+            '''
             if node.type == 'ERROR':
                 raise ValueError(
                     f"Syntax Error found at line {node.start_point[0] + 1}: "
                     f"{to_str(node)}")
             for child in node.children:
                 report_errors(child)
-
-        if file_path:
-            with open(file_path, encoding="utf-8") as fortran_file:
-                source_code = fortran_file.read()
 
         language = Language(tree_sitter_fortran.language())
         parser = Parser(language)
@@ -145,22 +161,20 @@ class FortranTreeSitterReader():
         return parse_tree.root_node
 
     def generate_psyir(self, parse_tree: 'TSNode') -> nodes.Node:
-        '''Translate the supplied treesitter node to PSyIR.
+        '''Translate the supplied treesitter node into PSyIR.
 
         :param parse_tree: the supplied treesitter parse tree.
-
-        :returns: PSyIR of the supplied treesitter parse_tree.
+        :returns: the equivalent PSyIR Node.
         '''
-        result = self.get_handler(parse_tree)(parse_tree)
-        return result
+        return self.process_nodes(parse_tree)[0]
 
     def process_nodes(self, tsnodes: Union["TSNode", Iterable["TSNode"]]):
         '''
-        Create the PSyIR of the supplied list of treesitter nodes.
+        Create the PSyIR that represents the supplied treesitter nodes.
 
-        :param nodes: the list of nodes to process, for conveninece it also
-            accepts a single node without a list.
-
+        :param nodes: the list of nodes to process, for conveninece it accepts
+            a single node or a list of them.
+        :returns: the equivalent PSyIR Node.
         '''
         list_of_nodes = tsnodes if isinstance(tsnodes, Iterable) else [tsnodes]
         children = []
@@ -180,10 +194,9 @@ class FortranTreeSitterReader():
                 children.append(code_block)
         return children
 
-    def get_handler(self, tsnode):
+    def get_handler(self, tsnode: 'TSNode') -> Callable:
         '''
         :param tsnode: a given treesitter node.
-
         :returns: the method that handles the given node type.
         '''
         handler = self.handlers.get(tsnode.type)
@@ -192,22 +205,22 @@ class FortranTreeSitterReader():
                 f"Unsupported '{tsnode.type}' tree-sitter node.")
         return handler
 
-    def _translation_unit(self, tsnode) -> nodes.Node:
-        ''' Handle translation_unit treesitter node.
+    def _translation_unit(self, tsnode: 'TSNode') -> nodes.Node:
+        ''' Handle treesitter 'translation_unit' node.
 
-        :param tsnode: the node the process.
-        :returns: the equivatent PSyIR Node.
+        :param tsnode: the treesitter node the process.
+        :returns: the equivalent PSyIR Node.
         '''
         file_container = nodes.FileContainer("")
         self._psyir_cursor = file_container
         file_container.children.extend(self.process_nodes(tsnode.children))
         return file_container
 
-    def _module_handler(self, tsnode) -> nodes.Node:
-        ''' Handle module treesitter node.
+    def _module_handler(self, tsnode: 'TSNode') -> nodes.Node:
+        ''' Handle a treesitter 'module' node.
 
-        :param tsnode: the node the process.
-        :returns: the equivatent PSyIR Node.
+        :param tsnode: the treesitter node the process.
+        :returns: the equivalent PSyIR Node.
         '''
         module_name = None
         internal_proc = None

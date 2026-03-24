@@ -47,7 +47,8 @@ import os
 import sys
 from typing import Iterable, Optional, Union
 
-from fparser.common.readfortran import FortranStringReader, FortranFileReader
+from fparser.common.readfortran import (
+    FortranStringReader, FortranFileReader, FortranReaderBase)
 from fparser.two import C99Preprocessor, Fortran2003, utils
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, BlockBase, StmtBase, Base
@@ -871,6 +872,10 @@ class Fparser2Reader():
     :param resolve_modules: Whether to resolve modules while parsing a file,
         for more precise control it also accepts a list of module names.
         Defaults to False.
+    :param ignore_comments: whether to let the parser ignore comments.
+    :param free_form: whether to parse using Fortran free_form syntax.
+    :param ignore_directives: whether to ignore directives while parsing.
+    :param conditional_openmp: whether to parse conditional OpenMP statements.
 
     :raises TypeError: if the constructor argument is not of the expected type.
 
@@ -960,8 +965,14 @@ class Fparser2Reader():
         self,
         ignore_directives: bool = True,
         last_comments_as_codeblocks: bool = False,
-        resolve_modules: Union[bool, list[str]] = False
+        resolve_modules: Union[bool, list[str]] = False,
+        ignore_comments: bool = False,
+        free_form: bool = False,
+        conditional_openmp: bool = False,
     ):
+        self._ignore_comments = ignore_comments
+        self._free_form = free_form
+        self._conditional_openmp = conditional_openmp
         if isinstance(resolve_modules, bool):
             self._resolve_all_modules = resolve_modules
             self._modules_to_resolve = []
@@ -1026,46 +1037,67 @@ class Fparser2Reader():
         # Whether to keep the last comments in a given block as CodeBlocks
         self._last_comments_as_codeblocks = last_comments_as_codeblocks
 
-    def generate_parse_tree(
+    def generate_parse_tree_from_file(self, file_path: str = ""):
+        '''
+        Use the provided file to generate a fparser2 parsetree.
+
+        :param file_path: a given file.
+
+        :returns: the fparser2 parsetree of the given file.
+        '''
+        reader = FortranFileReader(
+            file_path,
+            include_dirs=Config.get().include_paths,
+            ignore_comments=self._ignore_comments,
+            process_directives=not self._ignore_directives,
+            include_omp_conditional_lines=self._conditional_openmp,
+        )
+        return self._fparser2_tree_from_fparser2_reader(reader)
+
+    def generate_parse_tree_from_source(
         self,
         source_code: str = "",
-        file_path: str = "",
-        ignore_comments: bool = False,
-        free_form: bool = False,
-        conditional_openmp: bool = False,
         partial_code: str = ""
     ):
-        ''' Use the provided source code and frontend options to generate
-        a fparser2 parsetree.
+        ''' Use the provided source code to generate a fparser2 parsetree.
 
         :param source_code: the given source code.
-        :param ignore_comments: whether to let the parser ignore comments.
-        :param free_form: whether to parse using Fortran free_form syntax.
-        :param ignore_directives: whether to ignore directives while parsing.
-        :param conditional_openmp:
         :param partial_code: if the provided source_code is not a full unit
             this indicates the starting parsing point. It currently supports
             "expression" or "statement".
 
+        :returns: the fparser2 parsetree of the given source code.
         '''
-        if file_path:
-            reader = FortranFileReader(
-                file_path,
-                include_dirs=Config.get().include_paths,
-                ignore_comments=ignore_comments,
-                process_directives=not self._ignore_directives,
-                include_omp_conditional_lines=conditional_openmp,
-            )
-        else:
-            reader = FortranStringReader(
-                source_code,
-                include_dirs=Config.get().include_paths,
-                ignore_comments=ignore_comments,
-                process_directives=not self._ignore_directives,
-                include_omp_conditional_lines=conditional_openmp,
-            )
+        reader = FortranStringReader(
+            source_code,
+            include_dirs=Config.get().include_paths,
+            ignore_comments=self._ignore_comments,
+            process_directives=not self._ignore_directives,
+            include_omp_conditional_lines=self._conditional_openmp,
+        )
+        return self._fparser2_tree_from_fparser2_reader(reader, source_code,
+                                                        partial_code)
+
+    def _fparser2_tree_from_fparser2_reader(
+        self, reader: FortranReaderBase, source_code: str = "",
+        partial_code: str = ""
+    ):
+        ''' Common functionality to use the readers generated by
+        'generate_parse_tree_from_*' methods.
+
+        :param reader: the generated fparser2 reader.
+        :param source_code: the source code is sometimes needed in
+            addition to the reader the partial expressions are provided.
+        :param partial_code: if the provided source_code is not a full unit
+            this indicates the starting parsing point. It currently supports
+            "expression" or "statement".
+
+        :returns: the fparser2 parsetree of the given source code.
+
+        :raises ValueError: if the given Fortran had a syntax error.
+        '''
         # Set reader to free format.
-        reader.set_format(FortranFormat(free_form, False))
+        reader.set_format(FortranFormat(self._free_form, False))
 
         SYMBOL_TABLES.clear()
         if partial_code == "expression":

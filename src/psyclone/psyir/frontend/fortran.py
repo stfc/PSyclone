@@ -83,10 +83,6 @@ class FortranReader():
                 "will only have an effect if ignore_comments is also set "
                 "to False."
             )
-        self._ignore_comments = ignore_comments
-        self._ignore_directives = ignore_directives
-        self._conditional_openmp_statements = conditional_openmp_statements
-        self._free_form = free_form
 
         # The frontend reader imports are intentionally inside this condition
         # to lazily import them only when they are needed
@@ -94,12 +90,16 @@ class FortranReader():
         if Config.get().frontend == 'treesitter':
             from psyclone.psyir.frontend.fortran_treesitter_reader import (
                 FortranTreeSitterReader)
-            self._processor = FortranTreeSitterReader()
+            factory = FortranTreeSitterReader
         else:
             from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-            self._processor = Fparser2Reader(ignore_directives,
-                                             last_comments_as_codeblocks,
-                                             resolve_modules)
+            factory = Fparser2Reader
+
+        # Instantiate processor
+        self._processor = factory(
+            ignore_directives, last_comments_as_codeblocks, resolve_modules,
+            ignore_comments, free_form, conditional_openmp_statements
+        )
 
     @staticmethod
     def validate_name(name: str):
@@ -131,9 +131,7 @@ class FortranReader():
         :raises ValueError: if the supplied Fortran cannot be parsed.
 
         '''
-        tree = self._processor.generate_parse_tree(
-                source_code, None, self._ignore_comments, self._free_form,
-                self._conditional_openmp_statements)
+        tree = self._processor.generate_parse_tree_from_source(source_code)
         psyir = self._processor.generate_psyir(tree)
         return psyir
 
@@ -161,10 +159,8 @@ class FortranReader():
             raise TypeError(f"Must be supplied with a valid SymbolTable but "
                             f"got '{type(symbol_table).__name__}'")
 
-        tree = self._processor.generate_parse_tree(
-                source_code, None, self._ignore_comments, self._free_form,
-                self._conditional_openmp_statements,
-                partial_code="expression")
+        tree = self._processor.generate_parse_tree_from_source(
+                source_code, partial_code="expression")
 
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the expression and lookup any symbols that it
@@ -203,10 +199,8 @@ class FortranReader():
             raise TypeError(f"Must be supplied with a valid SymbolTable but "
                             f"got '{type(symbol_table).__name__}'")
 
-        tree = self._processor.generate_parse_tree(
-                source_code, None, self._ignore_comments, self._free_form,
-                self._conditional_openmp_statements,
-                partial_code="statement")
+        tree = self._processor.generate_parse_tree_from_source(
+                source_code, partial_code="statement")
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the statement and lookup any symbols that it
         # references.
@@ -233,13 +227,7 @@ class FortranReader():
         :raises ValueError: if the parser fails to parse the contents of
                             the supplied file.
         '''
-        tree = self._processor.generate_parse_tree(
-                None,
-                file_path,
-                self._ignore_comments,
-                self._free_form,
-                self._conditional_openmp_statements
-        )
+        tree = self._processor.generate_parse_tree_from_file(file_path)
         psyir = self._processor.generate_psyir(tree)
         psyir.name = str(file_path).rsplit('/', maxsplit=1)[-1]
         return psyir

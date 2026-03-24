@@ -147,13 +147,13 @@ def test_codeblock_get_fortran_lines():
     frontends)
     '''
     code = "\nsubroutine mytest\nend subroutine"
-    tree = Fparser2Reader().generate_parse_tree(code)
+    tree = Fparser2Reader().generate_parse_tree_from_source(code)
     block = Fparser2CodeBlock(tree.children, CodeBlock.Structure.STATEMENT)
     assert isinstance(block.get_fortran_lines(), list)
     assert "subroutine mytest" in block.get_fortran_lines()
     assert "end subroutine" in block.get_fortran_lines()
 
-    tree = FortranTreeSitterReader().generate_parse_tree(code)
+    tree = FortranTreeSitterReader().generate_parse_tree_from_source(code)
     block = TreeSitterCodeBlock(tree, CodeBlock.Structure.STATEMENT)
     assert isinstance(block.get_fortran_lines(), list)
     assert "subroutine mytest" in block.get_fortran_lines()
@@ -164,7 +164,7 @@ def test_codeblock_get_symbol_names():
     '''Test that the get_symbol_names methods returns the names of the symbols
     used inside the CodeBlock. This is slightly subtle as we have to avoid
     any labels on loop and branching statements.'''
-    prog = Fparser2Reader().generate_parse_tree('''
+    prog = Fparser2Reader().generate_parse_tree_from_source('''
     subroutine mytest
       myloop: DO i = 1, 10
         a = b + sqrt(c)
