@@ -124,7 +124,7 @@ def test_precision_for_type_error():
     '''
     with pytest.raises(ValueError) as err:
         LFRicConstants().precision_for_type("scalar_type")
-    assert "Cannot infer the precision of a scalar." in str(err.value)
+    assert "Cannot infer the precision of a 'scalar_type'." in str(err.value)
     with pytest.raises(InternalError) as err:
         LFRicConstants().precision_for_type("invalid")
     assert "Unknown data type 'invalid', expected one of" in str(err.value)

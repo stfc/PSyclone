@@ -573,11 +573,11 @@ class LFRicConstants():
         :raises InternalError: if an unknown data_type is specified.
 
         '''
-        if data_type == "scalar_type":
-            raise ValueError("Cannot infer the precision of a scalar.")
-
-        # Create self.DATA_TYPE_MAP without the scalar entry
         invalid_types = ["scalar_type"]
+        if data_type in invalid_types:
+            raise ValueError(f"Cannot infer the precision of a '{data_type}'.")
+
+        # Create self.DATA_TYPE_MAP without the invalid types
         data_type_map = [module_info for module_info in
                          self.DATA_TYPE_MAP.values() if module_info["type"]
                          not in invalid_types]
