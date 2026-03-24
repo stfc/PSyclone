@@ -33,6 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
 # Modified by J. Henrichs, Bureau of Meteorology
+#             A. Pirrie, Met Office
+
 
 '''
 Module containing tests for the LFRic constants class.
