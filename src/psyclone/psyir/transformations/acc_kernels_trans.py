@@ -50,7 +50,8 @@ from psyclone.psyir.nodes import (
     Call, CodeBlock, Literal, Loop, Node,
     PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
 from psyclone.psyir.symbols import (
-    ArrayType, DataTypeSymbol, INTEGER_TYPE, ScalarType, UnsupportedFortranType)
+    ArrayType, DataTypeSymbol, INTEGER_TYPE, ScalarType,
+    UnsupportedFortranType)
 from psyclone.psyir.transformations.arrayassignment2loops_trans import (
     ArrayAssignment2LoopsTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
