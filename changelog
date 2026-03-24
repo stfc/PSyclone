@@ -1,4 +1,13 @@
-   67 PR #3380 for #3379. Fixes import for graphviz.Digraph.
+   70) PR #3358 for #1734, #2975 and #2949. Improve symbol table consistency
+   with better copies, validation checks and symbol localisation operations.
+
+   69) PR #3384 for #3383. Adds a pytest fixture to set the logging level
+   in fparser to CRITICAL. This simplifies the error messages produced
+   when a test fails.
+ 
+   68) PR #3378 towards #3252. Add a value_range_check example for LFRic.
+
+   67) PR #3380 for #3379. Fixes import for graphviz.Digraph.
  
    66) PR #3359 for #3022. Uses the improved datatype functionality to
    correctly transform reduction intrinsics into native code.
