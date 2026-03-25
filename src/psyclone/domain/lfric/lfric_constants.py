@@ -577,11 +577,7 @@ class LFRicConstants():
         if data_type in invalid_types:
             raise ValueError(f"Cannot infer the precision of a '{data_type}'.")
 
-        # Create self.DATA_TYPE_MAP without the invalid types
-        data_type_map = [module_info for module_info in
-                         self.DATA_TYPE_MAP.values() if module_info["type"]
-                         not in invalid_types]
-        for module_info in data_type_map:
+        for module_info in self.DATA_TYPE_MAP.values():
             if module_info["type"] == data_type:
                 # TODO #2659 - this method should probably just return a name
                 #              rather than create a symbol itself.
@@ -589,7 +585,8 @@ class LFRicConstants():
                 from psyclone.domain.lfric.lfric_types import LFRicTypes
                 return LFRicTypes(module_info["kind"].upper())
 
-        valid = [module_info["type"] for module_info in data_type_map]
+        valid = [module_info["type"] for module_info in
+                 self.DATA_TYPE_MAP.values()]
         raise InternalError(f"Unknown data type '{data_type}', expected one "
                             f"of {valid}.")
 
