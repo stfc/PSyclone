@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module contians the LFRicRunTimeChecks class which handles
+''' This module contains the LFRicRunTimeChecks class which handles
 declarations and code generation for run-time checks. The methods
 check fields' function spaces and read-only fields against kernel
 function-space metadata on initialisation. The class inherits from
@@ -66,22 +66,30 @@ class LFRicRunTimeChecks(LFRicCollection):
 
         '''
         super().invoke_declarations()
-        if Config.get().api_conf("lfric").run_time_checks:
-            # Only add if run-time checks are requested
-            const = LFRicConstants()
-            csym = self.symtab.find_or_create(
-                const.UTILITIES_MOD_MAP["logging"]["module"],
-                symbol_type=ContainerSymbol
-            )
-            self.symtab.find_or_create(
-                "log_event", symbol_type=RoutineSymbol,
-                interface=ImportInterface(csym)
-            )
-            self.symtab.find_or_create(
-                "LOG_LEVEL_ERROR", symbol_type=DataSymbol,
-                datatype=UnresolvedType(),
-                interface=ImportInterface(csym)
-            )
+        api_conf = Config.get().api_conf("lfric")
+
+        # Only add if run-time checks are requested
+        if api_conf.run_time_checks == "none":
+            return
+
+        const = LFRicConstants()
+        csym = self.symtab.find_or_create(
+            const.UTILITIES_MOD_MAP["logging"]["module"],
+            symbol_type=ContainerSymbol
+        )
+        self.symtab.find_or_create(
+            "log_event", symbol_type=RoutineSymbol,
+            interface=ImportInterface(csym)
+        )
+        if api_conf.run_time_checks == "error":
+            log_level = "LOG_LEVEL_ERROR"
+        else:
+            log_level = "LOG_LEVEL_WARNING"
+        self.symtab.find_or_create(
+            log_level, symbol_type=DataSymbol,
+            datatype=UnresolvedType(),
+            interface=ImportInterface(csym)
+        )
 
     def _check_field_fs(self, cursor: int) -> int:
         '''
@@ -140,7 +148,7 @@ class LFRicRunTimeChecks(LFRicCollection):
 
                 if_condition = None
                 for name in function_space_names:
-                    if arg._vector_size > 1:
+                    if arg.vector_size > 1:
                         call = Call.create(ArrayOfStructuresReference.create(
                             field_symbol, [Literal('1', INTEGER_TYPE)],
                             ["which_function_space"]))
@@ -163,6 +171,11 @@ class LFRicRunTimeChecks(LFRicCollection):
                             BinaryOperation.Operator.AND, if_condition, cmp
                         )
 
+                if Config.get().api_conf("lfric").run_time_checks == "error":
+                    log_level = "LOG_LEVEL_ERROR"
+                else:
+                    log_level = "LOG_LEVEL_WARNING"
+
                 if_body = Call.create(
                     symtab.lookup("log_event"),
                     [Literal(f"In alg '{self._invoke.invokes.psy.orig_name}' "
@@ -172,7 +185,7 @@ class LFRicRunTimeChecks(LFRicCollection):
                              f"not compatible with the function space "
                              f"specified in the kernel metadata '{fs_name}'.",
                              CHARACTER_TYPE),
-                     Reference(symtab.lookup("LOG_LEVEL_ERROR"))])
+                     Reference(symtab.lookup(log_level))])
 
                 ifblock = IfBlock.create(if_condition, [if_body])
                 self._invoke.schedule.addchild(ifblock, cursor)
@@ -198,7 +211,7 @@ class LFRicRunTimeChecks(LFRicCollection):
 
         Whilst the LFRic infrastructure halo exchange would also
         indirectly pick up a readonly field being modified, it would
-        not be picked up where the error occured. Therefore adding
+        not be picked up where the error occurred. Therefore adding
         checks here is still useful.
 
         :param cursor: position where to add the next initialisation
@@ -225,13 +238,17 @@ class LFRicRunTimeChecks(LFRicCollection):
         first = True
         for field, call in modified_fields:
             if_condition = field.generate_method_call("is_readonly")
+            if Config.get().api_conf("lfric").run_time_checks == "error":
+                log_level = "LOG_LEVEL_ERROR"
+            else:
+                log_level = "LOG_LEVEL_WARNING"
             if_body = Call.create(
                 symtab.lookup("log_event"),
                 [Literal(f"In alg '{self._invoke.invokes.psy.orig_name}' "
                          f"invoke '{self._invoke.name}', field '{field.name}' "
                          f"is on a read-only function space but is modified "
                          f"by kernel '{call.name}'.", CHARACTER_TYPE),
-                 Reference(symtab.lookup("LOG_LEVEL_ERROR"))])
+                 Reference(symtab.lookup(log_level))])
 
             ifblock = IfBlock.create(if_condition, [if_body])
             self._invoke.schedule.addchild(ifblock, cursor)
@@ -254,7 +271,7 @@ class LFRicRunTimeChecks(LFRicCollection):
         :returns: Updated cursor value.
 
         '''
-        if not Config.get().api_conf("lfric").run_time_checks:
+        if Config.get().api_conf("lfric").run_time_checks == "none":
             # Run-time checks are not requested.
             return cursor
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -191,7 +191,7 @@ class ReplaceInductionVariablesTrans(Transformation):
         # Check if there is another write to this variable
         # after the first one:
         if any(access.access_type != AccessType.READ
-               for access in var_accesses.all_accesses[1:]):
+               for access in var_accesses[1:]):
             return False
 
         return True

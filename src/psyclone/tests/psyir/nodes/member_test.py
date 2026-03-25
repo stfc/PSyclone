@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -72,12 +72,6 @@ def test_member_can_be_copied():
     member1._component_name = "name2"
     assert member1.name == "name2"
     assert member.name == "name1"
-
-
-def test_member_is_array():
-    ''' Test that we can check if a member is an array. '''
-    mem = nodes.Member("fred")
-    assert mem.is_array is False
 
 
 def test_member_get_signature():

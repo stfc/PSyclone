@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,9 @@
 
 import pytest
 
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 
 
@@ -73,9 +75,27 @@ def test_sympy_reader_constructor():
                                          ("b(:5:2)", "b(:5:2)"),
                                          ("b(2:5:1)", "b(2:5)"),
                                          ("b(2:5:2)", "b(2:5:2)"),
+                                         ("i .and. j", "i .AND. j"),
+                                         ("i .and. j .and. k",
+                                          "i .AND. j .AND. k"),
+                                         ("i .or. j", "i .OR. j"),
+                                         # Precedence requires the ()
+                                         ("i .and. (i .or. j)",
+                                          "i .AND. (i .OR. j)"),
+                                         # Precedence rules discard the ()
+                                         ("i .or. (i .and. j)",
+                                          "i .OR. i .AND. j"),
+                                         ("i .eqv. j", "i .EQV. j"),
+                                         ("i .neqv. j", "i .NEQV. j"),
+                                         (".TRUE. .and. .true.", ".true."),
+                                         (".TRUE. .AND. .FALSE.",
+                                          ".false."),
+                                         ("b(i) == 3 .and. c(i,i) == 5",
+                                          "b(i) == 3 .AND. c(i,i) == 5"),
                                          ])
-def test_sympy_psyir_from_expression(fortran_reader, fortran_writer,
-                                     expressions):
+def test_sympy_psyir_from_expression(fortran_reader: FortranReader,
+                                     fortran_writer: FortranWriter,
+                                     expressions: tuple[str, str]):
     '''Test conversion from a SymPy expression back to PSyIR. We use the
     SymPyWriter to convert the Fortran string to a SymPy expression (we need
     a symbol table to convert from SymPy to PSyIR, which we get this way
@@ -87,7 +107,7 @@ def test_sympy_psyir_from_expression(fortran_reader, fortran_writer,
     '''
     source = f'''program test_prog
                 use my_mod
-                integer :: i, j
+                integer :: i, j, k
                 integer :: a, b(10), c(10, 10)
                 type(my_mod_type) :: d, e(10)
                 x = {expressions[0]}

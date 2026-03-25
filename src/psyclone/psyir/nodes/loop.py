@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,12 +39,14 @@
 
 ''' This module contains the Loop node implementation.'''
 
+from typing import Union
+
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
+from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol, SymbolTable
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
 
@@ -102,10 +104,6 @@ class Loop(Statement):
         self._variable = None
         if variable is not None:
             self.variable = variable
-        # Hold the set of symbols that will be private/local to the iteration
-        # if this loop is run concurrently. Alternatively this could be
-        # implemented by moving the symbols to the loop_body symbol table.
-        self._explicitly_private_symbols = set()
 
     def __eq__(self, other):
         '''
@@ -125,15 +123,6 @@ class Loop(Statement):
         is_eq = is_eq and self.variable.name == other.variable.name
 
         return is_eq
-
-    @property
-    def explicitly_private_symbols(self):
-        '''
-        :returns: the set of symbols inside the loop which are private to each
-            iteration of the loop if it is executed concurrently.
-        :rtype: Set[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-        '''
-        return self._explicitly_private_symbols
 
     @property
     def loop_type(self):
@@ -294,8 +283,8 @@ class Loop(Statement):
         if len(self.children) < 4:
             raise InternalError(
                 f"Loop is incomplete. It should have exactly 4 "
-                f"children, but found loop with "
-                f"'{', '.join([str(child) for child in self.children])}'.")
+                f"children, but found loop with {len(self.children)} children:"
+                f" '{', '.join([str(child) for child in self.children])}'.")
 
     @property
     def start_expr(self):
@@ -427,18 +416,18 @@ class Loop(Statement):
         self._check_variable(var)
         self._variable = var
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(
+        self,
+        table_or_symbol: Union[SymbolTable, Symbol]
+    ):
         '''
-        Replace the Symbol referred to by this object's `variable` and
-        `explicit_local_symbols` properties with those in the supplied
-        SymbolTable (or just the supplied Symbol instance) if they
-        have matching names. If there is no match for a given Symbol then it
-        is left unchanged.
+        Replace the Symbol referred to by this object's `variable` with those
+        in the supplied SymbolTable (or just the supplied Symbol instance) if
+        they have matching names. If there is no match for a given Symbol then
+        it is left unchanged.
 
         :param table_or_symbol: the symbol table from which to get replacement
             symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if self._variable:
@@ -452,18 +441,6 @@ class Loop(Statement):
                 except KeyError:
                     pass
 
-        for symbol in list(self._explicitly_private_symbols):
-            if isinstance(table_or_symbol, Symbol):
-                if table_or_symbol.name.lower() == symbol.name.lower():
-                    self._explicitly_private_symbols.remove(symbol)
-                    self._explicitly_private_symbols.add(table_or_symbol)
-            else:
-                try:
-                    new_sym = table_or_symbol.lookup(symbol.name)
-                    self._explicitly_private_symbols.remove(symbol)
-                    self._explicitly_private_symbols.add(new_sym)
-                except KeyError:
-                    pass
         super().replace_symbols_using(table_or_symbol)
 
     def __str__(self):
@@ -482,11 +459,22 @@ class Loop(Statement):
         result += "End " + name
         return result
 
+    def get_all_accessed_symbols(self) -> set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this Loop.
+        '''
+        symbols = super().get_all_accessed_symbols()
+        if self.variable:
+            # TODO #3124: This is needed because the loop variable reference
+            # is not part of the tree
+            symbols.add(self.variable)
+        return symbols
+
     def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -509,11 +497,9 @@ class Loop(Statement):
             var_accesses.update(self.start_expr.reference_accesses())
             var_accesses.update(self.stop_expr.reference_accesses())
             var_accesses.update(self.step_expr.reference_accesses())
-            var_accesses.next_location()
 
         for child in self.loop_body.children:
             var_accesses.update(child.reference_accesses())
-            var_accesses.next_location()
         return var_accesses
 
     def independent_iterations(self,
@@ -549,3 +535,22 @@ class Loop(Statement):
         return dtools.can_loop_be_parallelised(
             self, test_all_variables=test_all_variables,
             signatures_to_ignore=signatures_to_ignore)
+
+    def enters_scope(self, scope, visited_nodes=None) -> bool:
+        '''
+        This is a Reference method, but sometimes it will reach this point
+        because self.reference_accesses returns a Loop as the Node associated
+        with the loop variable.
+        In this case we can always return False as we know that this variable
+        gets the iteration value.
+
+        #TODO #3124: Alternatively move the loop variable to a child Reference.
+
+        :param scope: the given scope that we evaluate.
+        :param visited_nodes: a set of nodes already visited, this is necessary
+            because the dependency chains may contain cycles. Defaults to an
+            empty set.
+        :returns: whether the symbol lifetime starts before the given scope.
+        '''
+        # pylint: disable=unused-argument
+        return False

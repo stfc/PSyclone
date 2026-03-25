@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,8 +49,8 @@ from psyclone.generator import GenerationError
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Routine, FileContainer, IntrinsicCall, Call
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.psyir.transformations import TransformationError, \
-    OMPDeclareTargetTrans
+from psyclone.psyir.transformations import (
+    TransformationError, OMPDeclareTargetTrans)
 from psyclone.transformations import ACCRoutineTrans, LFRicKernelConstTrans
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -59,7 +59,7 @@ from psyclone.tests.utilities import get_invoke
 
 def setup_module():
     '''
-    This setup routine ensures that any pre-exisiting Config object is
+    This setup routine ensures that any pre-existing Config object is
     wiped when this module is first entered and the teardown function below
     guarantees it for subsequent tests.  (Necessary when running tests in
     parallel.)
@@ -355,7 +355,7 @@ def test_gpumixin_validate_no_import(fortran_reader):
     be a compile-time constant.
 
     '''
-    code = '''\
+    code = '''
 module my_mod
   use other_mod, only: some_data
 contains
@@ -378,6 +378,20 @@ end module my_mod'''
     sym = psyir.children[0].symbol_table.lookup("some_data")
     sym.specialise(DataSymbol, datatype=INTEGER_TYPE, is_constant=True)
     # Validation should now pass.
+    rtrans.validate(routine)
+
+    # CONSTANT imports should be ok
+    code = '''module my_mod
+    use other_mod, only: wp
+contains
+    subroutine my_sub(arg)
+        integer :: arg
+        arg = arg + 1_wp
+    end subroutine my_sub
+end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    rtrans = ACCRoutineTrans()
     rtrans.validate(routine)
 
 

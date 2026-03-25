@@ -1,0 +1,360 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author J. Henrichs, Bureau of Meteorology
+# Modified by: S. Siso, STFC Daresbury Laboratory
+#              A. R. Porter, STFC Daresbury Laboratory
+#              A. B. G. Chalk, STFC Daresbury Laboratory
+# -----------------------------------------------------------------------------
+
+'''This module provides management of variable access information.'''
+
+
+from __future__ import annotations
+from typing import TYPE_CHECKING, Optional, Union
+
+from psyclone.core.access_type import AccessType
+from psyclone.core.signature import Signature
+
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes import Node
+    from psyclone.psyir.symbols import Symbol
+
+
+class AccessInfo():
+    ''' This class stores information about an access to a variable (the node
+    where it happens and the type of access, and the index accessed if
+    available).
+
+    :param access: the access type.
+    :param node: Node in PSyIR in which the access happens, can also
+        be a DataSymbol.
+
+    '''
+    def __init__(
+        self, access_type: AccessType,
+        node: Union['Node', Symbol]
+    ) -> None:
+
+        self._access_type = access_type
+        self._node = node
+
+    def __str__(self) -> str:
+        return f"{self._access_type}"
+
+    def component_indices(self):
+        '''
+        :returns: a tuple of tuples of index expressions; one for every
+            component in the accessor. For example, for a scalar it
+            returns `(())`, for `a%b` it returns ((),()) - two components
+            with 0 indices in each, and for `a(i)%b(j,k+1)` it
+            returns `((i,),(j,k+1))`.
+        '''
+        # Only Reference has component_indices, for everything else we assume
+        # it is a scalar
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Reference
+        if not isinstance(self._node, Reference):
+            return tuple(tuple())
+        return self._node.component_indices()
+
+    def has_indices(self) -> bool:
+        '''
+        Check if the expression is a reference that has indices in any
+        of its components.
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.array_mixin import ArrayMixin
+        from psyclone.psyir.nodes import Reference
+        if not isinstance(self._node, Reference):
+            return False
+        return self._node.has_descendant(ArrayMixin)
+
+    @property
+    def access_type(self) -> AccessType:
+        '''
+        :returns: the access type.
+        '''
+        return self._access_type
+
+    @access_type.setter
+    def access_type(self, value: AccessType) -> None:
+        '''
+        :param value: the new access type.
+        '''
+        if not isinstance(value, AccessType):
+            raise TypeError(
+                f"Expected AccessType but got '{type(value).__name__}'."
+            )
+        self._access_type = value
+
+    def is_any_write(self) -> bool:
+        '''
+        :returns: whether this access represents a write of any kind.
+        '''
+        return self._access_type in AccessType.all_write_accesses()
+
+    def is_any_read(self) -> bool:
+        '''
+        :returns: whether this access represents a write of any kind.
+        '''
+        return self._access_type in AccessType.all_read_accesses()
+
+    @property
+    def is_data_access(self) -> bool:
+        '''
+        :returns: whether or not this access is to the data associated with
+                  a signature (i.e. is not just an inquiry-type access).
+        '''
+        return self._access_type not in AccessType.non_data_accesses()
+
+    @property
+    def node(self) -> Union[Node, Symbol]:
+        ''':returns: the PSyIR node at which this access happens.
+        '''
+        return self._node
+
+    @property
+    def description(self) -> str:
+        '''
+        :returns: a textual description of this access for use in error
+                  messages.
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Assignment
+        from psyclone.psyir.symbols import Symbol
+        if isinstance(self.node, Symbol):
+            text = f"the definition of Symbol '{self.node}'"
+        else:
+            from psyclone.psyGen import CodedKern
+            kernel = self.node.ancestor(CodedKern, include_self=True)
+            stmt = self.node.ancestor(Assignment, include_self=True)
+            if kernel:
+                text = f"'{self.node.debug_string()}' (inside '{kernel.name})'"
+            elif stmt:
+                text = (f"'{self.node.debug_string()}' "
+                        f"in '{stmt.debug_string().strip()}'")
+            else:
+                text = f"'{self.node.debug_string()}'"
+        return text
+
+
+# =============================================================================
+class AccessSequence(list):
+    ''' This class stores a list with all accesses to one variable.
+
+    :param signature: signature of the variable.
+    :type signature: :py:class:`psyclone.core.Signature`
+
+    '''
+    def __init__(self, signature: Signature) -> None:
+        super().__init__()
+        self._signature = signature
+
+    def __str__(self) -> str:
+        '''
+        :returns: a string representation of this object with the format:
+            var_name:[WRITE,WRITE,READ]
+        '''
+        all_accesses = ",".join([str(access) for access in self])
+
+        return f"{self._signature}:[{all_accesses}]"
+
+    def str_access_summary(self) -> str:
+        '''
+        :returns: a string of the accesstypes but removing duplicates.
+        '''
+        # Use a dict comprehension to get non-duplicated ordered results
+        access_set = "+".join({str(access): None for access in self}.keys())
+        return f"{access_set}"
+
+    @property
+    def signature(self) -> Signature:
+        '''
+        :returns: the signature for which the accesses are stored.
+        '''
+        return self._signature
+
+    @property
+    def var_name(self) -> str:
+        '''
+        :returns: the name of the variable whose access info is managed.
+        '''
+        return str(self._signature)
+
+    def is_called(self) -> bool:
+        '''
+        :returns: whether or not any accesses of this variable
+                  represent a call.
+        '''
+        return any(access.access_type == AccessType.CALL for access in self)
+
+    def is_written(self) -> bool:
+        '''
+        :returns: True if this variable is written (at least once).
+        '''
+        return any(access_info.access_type in
+                   AccessType.all_write_accesses()
+                   for access_info in self)
+
+    def is_written_first(self) -> bool:
+        '''
+        :returns: True if this variable is written in the first data access
+            (which indicates that this variable is not an input variable
+            for a kernel).
+        '''
+        for acc in self:
+            if acc.access_type in AccessType.non_data_accesses():
+                continue
+            if acc.access_type != AccessType.WRITE:
+                return False
+            return True
+        return False
+
+    def is_read_only(self) -> bool:
+        '''Checks if this variable is always read, and never written.
+
+        :returns: True if this variable is read only.
+        '''
+        access_types = AccessType.non_data_accesses() + [AccessType.READ]
+        return all(access_info.access_type in access_types
+                   for access_info in self)
+
+    def is_read(self) -> bool:
+        '''
+        :returns: True if this variable is read (at least once).
+        '''
+        read_accesses = AccessType.all_read_accesses()
+        return any(access_info.access_type in read_accesses
+                   for access_info in self)
+
+    def has_read_write(self) -> bool:
+        '''Checks if this variable has at least one READWRITE access.
+
+        :returns: True if this variable is read (at least once).
+        :rtype: bool
+        '''
+        return any(access_info.access_type == AccessType.READWRITE
+                   for access_info in self)
+
+    def has_data_access(self) -> bool:
+        '''
+        :returns: True if there is an access of the data associated with this
+            signature (as opposed to a call or an inquiry), False otherwise.
+        '''
+        for info in self:
+            if info.access_type not in AccessType.non_data_accesses():
+                return True
+        return False
+
+    @property
+    def all_read_accesses(self) -> list[AccessInfo]:
+        '''
+        :returns: a list with all AccessInfo data for this variable
+            that involve reading this variable.
+        '''
+        return [access for access in self
+                if access.access_type in AccessType.all_read_accesses()]
+
+    @property
+    def all_write_accesses(self) -> list[AccessInfo]:
+        '''
+        :returns: a list with all AccessInfo data for this variable
+            that involve writing this variable.
+        '''
+        return [access for access in self
+                if access.access_type in AccessType.all_write_accesses()]
+
+    def add_access(self, access_type: AccessType, node: 'Node') -> None:
+        '''Adds access information to this variable.
+
+        :param access_type: the type of access (READ, WRITE, ....)
+        :param node: Node in PSyIR in which the access happens.
+        '''
+        self.append(AccessInfo(access_type, node))
+
+    def update(self, access_seq: AccessSequence) -> None:
+        '''
+        This function adds all accesses from the given access sequence
+        to this access sequence.
+
+        :param access_seq: the accesses to add to this object.
+
+        :raises ValueError: if the given access sequence is for
+            a different signature.
+        '''
+        if self._signature != access_seq.signature:
+            raise ValueError(f"Cannot update the AccessSequence for "
+                             f"'{self.signature}' using data for a different "
+                             f"access ('{access_seq.signature}').")
+        for access_info in access_seq:
+            self.add_access(access_info.access_type, access_info.node)
+
+    def has_indices(self, index_variable: Optional[str] = None) -> bool:
+        ''' Checks whether this variable accesses has any index. If the
+        optional `index_variable` is provided, only indices involving the given
+        variable are considered.
+
+        :param index_variable: only consider index expressions that involve
+            this variable.
+
+        :returns: true if any of the accesses has an index.
+
+        '''
+        has_indices = any(access.has_indices() for access in self)
+
+        # If there is no access information using an index, or there is no
+        # index variable specified, return the current result:
+        if not has_indices or index_variable is None:
+            return has_indices
+
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Reference
+
+        lowered_name = index_variable.lower()
+        for access_info in self:
+            if any(ref.symbol.name.lower() == lowered_name
+                   for ref in access_info.node.walk(Reference)):
+                return True
+
+        # The index variable is not used in any index in any access:
+        return False
+
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for.
+__all__ = ["AccessInfo",
+           "AccessSequence"
+           ]

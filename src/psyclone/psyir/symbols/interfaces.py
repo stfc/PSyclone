@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,6 +51,13 @@ class SymbolInterface():
         :rtype: :py:class:`psyclone.psyir.symbol.SymbolInterface`
         '''
         return self.__class__()
+
+    def __eq__(self, other) -> bool:
+        '''
+        Unless overridden in a subclass, two interfaces are the same if they
+        are of the same type.
+        '''
+        return type(other) is type(self)
 
 
 class AutomaticInterface(SymbolInterface):
@@ -178,7 +185,7 @@ class ImportInterface(SymbolInterface):
                 f"'{orig_name_str})")
 
     def __eq__(self, other):
-        if type(other) is not type(self):
+        if not super().__eq__(other):
             return False
         if (self.container_symbol.name.lower() !=
                 other.container_symbol.name.lower()):
@@ -265,7 +272,7 @@ class ArgumentInterface(SymbolInterface):
         return self.__class__(access=self.access)
 
     def __eq__(self, other):
-        if type(other) is not type(self):
+        if not super().__eq__(other):
             return False
         return self.access == other.access
 

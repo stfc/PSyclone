@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,9 @@
 ''' Tests for the OMPTargetTrans transformation. '''
 
 import pytest
-from psyclone.psyir.nodes import Loop, Schedule, OMPTargetDirective, Routine
+from psyclone.psyir.nodes import (
+        Loop, Schedule, OMPTargetDirective, OMPTaskwaitDirective, Routine,
+)
 from psyclone.psyir.transformations import OMPTargetTrans, TransformationError
 
 
@@ -119,6 +121,7 @@ def test_omptargettrans_validate(fortran_reader):
         integer, dimension(10, 10) :: A
         integer :: i
         integer :: j
+        character :: c = "b"
         do i = 1, 10
             do j = 1, 10
                 A(i, j) = myfunc(3)
@@ -134,6 +137,13 @@ def test_omptargettrans_validate(fortran_reader):
                 A(i, j) = LOG10(3)
             end do
         end do
+        do i = 1, 10
+            do j = 1, 10
+                if (c .eq. "a") then
+                    A(i, j) = LOG10(3)
+                endif
+            end do
+        end do
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
@@ -146,11 +156,16 @@ def test_omptargettrans_validate(fortran_reader):
             in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[1])
+        # TODO #2668: Deprecate options dict. Kept for coverage.
+        omptargettrans.validate(loops[1], {'verbose': True})
     assert ("'myfunc' is not available on the 'default' accelerator device, "
             "and therefore it cannot be called from within an OMP Target "
             "region. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
+    assert ("'myfunc' is not available on the 'default' accelerator device, "
+            "and therefore it cannot be called from within an OMP Target "
+            "region. Use the 'device_string' option to specify a different "
+            "device." in loops[1].preceding_comment)
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[2])
@@ -161,18 +176,25 @@ def test_omptargettrans_validate(fortran_reader):
     omptargettrans.validate(loops[3])
     # But not if we are targeting "nvidia-repr" or an invalid device
     with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[3], options={'device_string':
-                                                   'nvfortran-uniform'})
+        omptargettrans.validate(loops[3], device_string="nvfortran-uniform")
     assert ("'LOG10' is not available on the 'nvfortran-uniform' accelerator "
             "device, and therefore it cannot be called from within an OMP "
             "Target region. Use the 'device_string' option to specify a "
             "different device." in str(err.value))
     with pytest.raises(ValueError) as err:
-        omptargettrans.validate(loops[3], options={'device_string':
-                                                   'unknown-device'})
+        omptargettrans.validate(loops[3], device_string="unknown-device")
     assert ("Unsupported device_string value 'unknown-device', the supported "
             "values are '' (default), 'nvfortran-all', 'nvfortran-uniform'"
             in str(err.value))
+
+    # Check the characters are prevented, unless explicitly allowed
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[4], verbose=True)
+    assert ("OpenMP Target cannot enclose a region that uses characters, "
+            "but found: c" in str(err.value))
+    assert ("OpenMP Target cannot enclose a region that uses characters, "
+            "but found: c" in loops[4].preceding_comment)
+    omptargettrans.validate(loops[4], allow_strings=True)
 
 
 def test_omptargetrans_apply_nowait(fortran_reader, fortran_writer):
@@ -192,8 +214,8 @@ def test_omptargetrans_apply_nowait(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     targettrans = OMPTargetTrans()
-    targettrans.apply(loops[0], options={"nowait": True})
-    targettrans.apply(loops[1], options={"nowait": True})
+    targettrans.apply(loops[0], nowait=True)
+    targettrans.apply(loops[1], nowait=True)
     out = fortran_writer(psyir)
     correct = """subroutine x()
   integer :: i
@@ -232,8 +254,8 @@ end subroutine x
     psyir = fortran_reader.psyir_from_source(code)
     targettrans = OMPTargetTrans()
     loops = psyir.walk(Loop)
-    targettrans.apply(loops[0], options={"nowait": True})
-    targettrans.apply(loops[1], options={"nowait": True})
+    targettrans.apply(loops[0], nowait=True)
+    targettrans.apply(loops[1], nowait=True)
     out = fortran_writer(psyir)
     correct = """subroutine x()
   integer :: i
@@ -273,7 +295,7 @@ end subroutine x
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     targettrans = OMPTargetTrans()
-    targettrans.apply(loops[1], options={"nowait": True})
+    targettrans.apply(loops[1], nowait=True)
     out = fortran_writer(psyir)
     assert "nowait" not in out
 
@@ -295,7 +317,7 @@ end subroutine x
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     targettrans = OMPTargetTrans()
-    targettrans.apply(loops[0], options={"nowait": True})
+    targettrans.apply(loops[0], nowait=True)
     out = fortran_writer(psyir)
 
     correct = """subroutine X()
@@ -335,7 +357,8 @@ end subroutine X
     loops = psyir.walk(Loop)
     targettrans = OMPTargetTrans()
     assign = psyir.children[0].children[0]
-    targettrans.apply(assign, options={"nowait": True})
+    targettrans.apply(assign, nowait=True)
+    # TODO #2668 Deprecate options dict. Kept for coverage.
     targettrans.apply(loops[0], options={"nowait": True})
     out = fortran_writer(psyir)
     correct = """subroutine x()
@@ -358,3 +381,95 @@ end subroutine X
 end subroutine x
 """
     assert out == correct
+
+
+def test_omptarget_nowait_multiple_dependencies(fortran_reader,
+                                                fortran_writer):
+    '''Test that we get the expected barriers when there is a dependency
+    both before (in a parent loop) and after (outside the parent loop)'''
+    code = """subroutine x
+    integer :: i,j
+    integer, dimension(100,100) :: arr
+do i = 1, 100
+   do j = 1, 100
+     arr(i,j) = 3
+    end do
+    do j = 1, 100
+       arr(i,j) = arr(i,j) * i
+    end do
+end do
+
+do i = 1, 100
+  do j = 1, 100
+    arr(i,j) = 1
+  enddo
+enddo
+end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    targettrans = OMPTargetTrans()
+    targettrans.apply(loops[1])
+    # All of the dependencies come from loops[2], the second loop
+    # in the outer i loop
+    targettrans.apply(loops[2], nowait=True)
+    targettrans.apply(loops[3])
+    barriers = psyir.walk(OMPTaskwaitDirective)
+    assert len(barriers) == 3
+    out = fortran_writer(psyir)
+    correct = """do i = 1, 100, 1
+    !$omp taskwait
+    !$omp target
+    do j = 1, 100, 1
+      arr(i,j) = 3
+    enddo
+    !$omp end target
+    !$omp target nowait
+    do j = 1, 100, 1
+      arr(i,j) = arr(i,j) * i
+    enddo
+    !$omp end target
+  enddo
+  !$omp taskwait
+  !$omp target
+  do i = 1, 100, 1
+    do j = 1, 100, 1
+      arr(i,j) = 1
+    enddo
+  enddo
+  !$omp end target
+  !$omp taskwait
+
+end subroutine x
+"""
+    assert correct in out
+
+
+def test_kind_parameters_ignored(fortran_reader):
+    '''Test that CONSTANT variables used in locations that would also
+    be attributed as reads don't result in dependencies.'''
+    code = """
+    subroutine x()
+      use some_mod, only: wp
+      real, dimension(100) :: a
+      real, dimension(100) :: b
+      real, dimension(100) :: c
+      integer :: i, j
+
+      do i = 1, 100
+        a(i) = real(i, wp)
+        a(i) = a(i) + c(wp) + 1.0_wp
+      end do
+
+      do j = 1, 100
+        b(j) = real(j, wp)
+        b(j) = b(j) + c(wp) + 2.0_wp
+      end do
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    targettrans = OMPTargetTrans()
+    targettrans.apply(loops[1])
+    targettrans.apply(loops[0], nowait=True)
+    barriers = psyir.walk(OMPTaskwaitDirective)
+    assert len(barriers) == 1

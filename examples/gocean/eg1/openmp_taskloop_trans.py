@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,12 @@ PSyclone.
 '''
 
 from psyclone.psyir.nodes import Loop
-from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
-from psyclone.psyir.transformations import OMPTaskloopTrans
-from psyclone.psyir.transformations import OMPTaskwaitTrans
+from psyclone.transformations import OMPSingleTrans
+from psyclone.psyir.transformations import (
+    OMPTaskloopTrans,
+    OMPTaskwaitTrans,
+    OMPParallelTrans
+)
 
 
 def trans(psyir):

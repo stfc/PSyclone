@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,18 +43,23 @@ from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
-from psyclone.psyGen import Transformation, args_filter, InvokeSchedule, \
-    HaloExchange
+from psyclone.psyGen import (
+        Transformation, args_filter, InvokeSchedule,
+        HaloExchange
+)
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
-    Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation, \
-    StructureReference, FileContainer, CodeBlock, IntrinsicCall, Container
+from psyclone.psyir.nodes import (
+        Routine, Call, Reference, Literal,
+        Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation,
+        StructureReference, FileContainer, CodeBlock, IntrinsicCall,
+        Container, DataNode)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, RoutineSymbol, ContainerSymbol,
     UnsupportedFortranType, ArgumentInterface, ImportInterface,
     INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, ScalarType)
-from psyclone.transformations import TransformationError
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 
 
 class GOOpenCLTrans(Transformation):
@@ -771,7 +776,7 @@ class GOOpenCLTrans(Transformation):
             # Not all types have the 'precision' attribute (e.g.
             # UnresolvedType)
             if (hasattr(sym.datatype, "precision") and
-                    isinstance(sym.datatype.precision, DataSymbol)):
+                    isinstance(sym.datatype.precision, DataNode)):
                 sym.datatype._precision = ScalarType.Precision.DOUBLE
 
         if 'go_wp' in symtab:

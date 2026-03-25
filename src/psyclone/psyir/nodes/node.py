@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,12 +43,16 @@ This module contains the abstract Node implementation as well as
 ChildrenList - a custom implementation of list.
 
 '''
+from __future__ import annotations
+from typing import Union, TYPE_CHECKING
 import copy
 import graphviz
 
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.symbols import SymbolError
+
+if TYPE_CHECKING:
+    from psyclone.psyir.symbols import Symbol
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -123,7 +127,6 @@ class ChildrenList(list):
             else:
                 errmsg = (f"{errmsg} The valid format is: "
                           f"'{self._validation_text}'.")
-
             raise GenerationError(errmsg)
 
     def _check_is_orphan(self, item):
@@ -188,7 +191,7 @@ class ChildrenList(list):
     def append(self, item):
         ''' Extends list append method with children node validation.
 
-        :param item: item to be appened to the list.
+        :param item: item to be appended to the list.
         :type item: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -234,7 +237,7 @@ class ChildrenList(list):
     def extend(self, items):
         ''' Extends list extend method with children node validation.
 
-        :param items: list of items to be appened to the list.
+        :param items: list of items to be appended to the list.
         :type items: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -526,7 +529,7 @@ class Node():
     def annotations(self):
         ''' Return the list of annotations attached to this Node.
 
-        :returns: List of anotations
+        :returns: List of annotations
         :rtype: list of str
         '''
         return self._annotations
@@ -841,7 +844,7 @@ class Node():
 
     def view(self, depth=0, colour=True, indent="    ", _index=None):
         '''Output a human readable description of the current node and all of
-        its descendents as a string.
+        its descendants as a string.
 
         :param int depth: depth of the tree hierarchy for output \
             text. Defaults to 0.
@@ -852,7 +855,7 @@ class Node():
         :param int _index: the position of this node wrt its siblings \
             or None. Defaults to None.
 
-        :returns: a representation of this node and its descendents.
+        :returns: a representation of this node and its descendants.
         :rtype: str
 
         :raises TypeError: if one of the arguments is the wrong type.
@@ -1074,11 +1077,12 @@ class Node():
         # Starting with 'self.parent' instead of 'node = self' avoids many
         # false positive pylint issues that assume self.root type would be
         # the same as self type.
-        if self.parent is None:
+        if self._parent is None:
             return self
-        node = self.parent
-        while node.parent is not None:
-            node = node.parent
+        # pylint: disable=protected-access
+        node = self._parent
+        while node._parent is not None:
+            node = node._parent
         return node
 
     def sameParent(self, node_2):
@@ -1115,8 +1119,9 @@ class Node():
 
         '''
         local_list = []
-        if isinstance(self, my_type) and depth in [None, self.depth]:
-            local_list.append(self)
+        if isinstance(self, my_type):
+            if depth is None or depth == self.depth:
+                local_list.append(self)
 
         # Stop recursion further into the tree if an instance of a class
         # listed in stop_type is found.
@@ -1128,9 +1133,26 @@ class Node():
         if depth is not None and self.depth >= depth:
             return local_list
 
-        for child in self.children:
+        for child in self._children:
             local_list += child.walk(my_type, stop_type, depth=depth)
         return local_list
+
+    def has_descendant(
+            self, descendant_type: Union[type, tuple[type]]
+    ) -> bool:
+        '''
+        :param descendant_type: type(s) to look for.
+
+        :returns: whether the node or any of its descendants is of the
+            given type(s).
+
+        '''
+        if isinstance(self, descendant_type):
+            return True
+        for child in self._children:
+            if child.has_descendant(descendant_type):
+                return True
+        return False
 
     def get_sibling_lists(self, my_type, stop_type=None):
         '''
@@ -1176,22 +1198,23 @@ class Node():
                 global_list.append(block)
         return global_list
 
-    def ancestor(self, my_type, excluding=None, include_self=False,
+    def ancestor(self, ancestor_type, excluding=None, include_self=False,
                  limit=None, shared_with=None):
         '''
         Search back up the tree and check whether this node has an ancestor
-        that is an instance of the supplied type. If it does then we return
-        it otherwise we return None. An individual (or tuple of) (sub-)
-        class(es) to ignore may be provided via the `excluding` argument. If
-        `include_self` is True then the current node is included in the search.
+        that is an instance of the supplied type (or tuple of types). If it
+        does then we return it otherwise we return None.
+        An individual (or tuple of) (sub-) class(es) to ignore may be provided
+        via the `excluding` argument. If `include_self` is True then the
+        current node is included in the search.
         If `limit` is provided then the search ceases if/when the supplied
         node is encountered.
         If `shared_with` is provided, then the ancestor search will find an
         ancestor of both this node and the node provided as `shared_with` if
         such an ancestor exists.
 
-        :param my_type: class(es) to search for.
-        :type my_type: type | Tuple[type, ...]
+        :param ancestor_type: class(es) to search for.
+        :type ancestor_type: type | Tuple[type, ...]
         :param excluding: (sub-)class(es) to ignore or None.
         :type excluding: Optional[type | Tuple[type, ...]]
         :param bool include_self: whether or not to include this node in the \
@@ -1236,11 +1259,11 @@ class Node():
         shared_ancestor = None
         if shared_with is not None:
             shared_ancestor = shared_with.ancestor(
-                    my_type, excluding=excluding,
+                    ancestor_type, excluding=excluding,
                     include_self=include_self, limit=limit)
 
         while myparent is not None:
-            if isinstance(myparent, my_type):
+            if isinstance(myparent, ancestor_type):
                 if not (excluding and isinstance(myparent, excludes)):
                     # If this is a valid instance but not the same as for
                     # the shared_with node, we do logic afterwards to continue
@@ -1266,14 +1289,14 @@ class Node():
                 # potential shared ancestor, search upwards to find
                 # the next valid ancestor of this node.
                 myparent = myparent.ancestor(
-                        my_type, excluding=excluding,
+                        ancestor_type, excluding=excluding,
                         include_self=False, limit=limit)
             else:
                 # shared_ancestor is equal or deeper in the tree than
                 # myparent, so search upwards for the next valid ancestor
                 # of shared_ancestor.
                 shared_ancestor = shared_ancestor.ancestor(
-                        my_type, excluding=excluding, include_self=False,
+                        ancestor_type, excluding=excluding, include_self=False,
                         limit=limit)
         # If myparent is shared ancestor then return myparent.
         if myparent is shared_ancestor:
@@ -1294,10 +1317,10 @@ class Node():
     def following_node(self, same_routine_scope=True):
         '''
         :param bool same_routine_scope: an optional (default `True`) argument
-            that enables returing only nodes from the same ancestor routine.
+            that enables returning only nodes from the same ancestor routine.
 
-        :returns: the next node (the next sibiling, or if it doesn't have one
-            the first next sibiling of its ancestors).
+        :returns: the next node (the next sibling, or if it doesn't have one
+            the first next sibling of its ancestors).
         :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         '''
@@ -1320,14 +1343,14 @@ class Node():
         `same_routine_scope` argument is set to `True` (default) then only
         nodes inside the same ancestor routine are returned.
         If `include_children` is set to `True` (default) children of itself
-        are also returned, otherwise it starts at the next sibiling.
+        are also returned, otherwise it starts at the next sibling.
 
         :param bool same_routine_scope: an optional (default `True`) argument
             that restricts the returned nodes to those belonging to the same
             ancestor routine.
         :param bool include_children: an optional (default `True`) argument
             that enables including own children, instead of starting from
-            the next sibiling.
+            the next sibling.
 
         :returns: the list of nodes that follow this one.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
@@ -1451,7 +1474,7 @@ class Node():
 
     def reductions(self, reprod=None):
         '''
-        Return all kernels that have reductions and are decendents of this
+        Return all kernels that have reductions and are descendants of this
         node. If reprod is not provided, all reductions are
         returned. If reprod is False, all builtin reductions that are
         not set to reproducible are returned. If reprod is True, all
@@ -1514,11 +1537,20 @@ class Node():
             child.lower_to_language_level()
         return self
 
+    def get_all_accessed_symbols(self) -> set["Symbol"]:
+        '''
+        :returns: a set of all the symbols accessed inside this Node.
+        '''
+        symbols = set()
+        for child in self._children:
+            symbols.update(child.get_all_accessed_symbols())
+        return symbols
+
     def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -1543,6 +1575,7 @@ class Node():
         # dependencies.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.scoping_node import ScopingNode
+        from psyclone.psyir.symbols import SymbolError
         node = self.ancestor(ScopingNode, include_self=True)
         if node:
             return node
@@ -1641,6 +1674,16 @@ class Node():
                                       self._children_valid_format)
         # And make a recursive copy of each child instead
         self.children.extend([child.copy() for child in other.children])
+
+        # Now that the copied children are connected into the tree, ensure any
+        # dangling symbols are re-connected. We can't do this in ScopingNode
+        # because the re-attachment happens in self.children.extend() and that
+        # happens *after* the copy operations have completed in the list
+        # comprehension used to construct the argument to extend().
+        for child in self.children:
+            if hasattr(child, "symbol_table"):
+                child.symbol_table.localise_all_symbol_dependencies()
+
         self._disable_tree_update = False
         self._cached_abs_position = None
 
@@ -1695,7 +1738,7 @@ class Node():
         this node has been created. It currently only works with Fortran
         Statements or subchildren of them.
 
-        :returns: a string specifing the origin of this node.
+        :returns: a string specifying the origin of this node.
         :rtype: str
         '''
         name = self.coloured_name(False)
@@ -1705,13 +1748,13 @@ class Node():
         # Try to populate the line/src/filename using the ancestor Statement
         from psyclone.psyir.nodes.statement import Statement
         node = self.ancestor(Statement, include_self=True)
-        # TODO #2062: The part below is tighly coupled to fparser tree
+        # TODO #2062: The part below is tightly coupled to fparser tree
         # structure and ideally should be moved the appropriate frontend,
         # but we don't necessarely want to do all this string manipulation
         # ahead of time as it is rarely needed. One option is for the frontend
         # to provide a callable that this method will invoke to generate the
-        # string. Other frontends or PSyIR not comming from code could provide
-        # a completely different implementation in the Callable oject.
+        # string. Other frontends or PSyIR not coming from code could provide
+        # a completely different implementation in the Callable object.
         if node and node._ast:
             if hasattr(node._ast, 'item') and node._ast.item:
                 if hasattr(node._ast.item, 'reader'):
@@ -1823,7 +1866,7 @@ class Node():
 
         '''
 
-    def is_descendent_of(self, potential_ancestor) -> bool:
+    def is_descendant_of(self, potential_ancestor) -> bool:
         '''
         Checks if this node is a descendant of the `potential_ancestor` node.
 

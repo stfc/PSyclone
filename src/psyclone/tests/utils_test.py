@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@ def test_within_virtual_env(monkeypatch):
     monkeypatch.setattr(sys, 'prefix', "prefix")
     assert within_virtual_env()
     # There is no 'real_prefix' attribute. There is a 'base_prefix'
-    # atribute with the same name to the 'prefix' attribute.
+    # attribute with the same name to the 'prefix' attribute.
     monkeypatch.setattr(sys, 'base_prefix', "prefix")
     assert not within_virtual_env()
     # There are no 'real_prefix' or 'base_prefix' attributes.
@@ -96,7 +96,7 @@ def test_transformation_doc_wrapper_non_transformation():
             "but got 'int'" in str(excinfo.value))
 
 
-def test_transformation_doc_wrapper_single_inheritence():
+def test_transformation_doc_wrapper_single_inheritance():
     '''Test the transformation_doc_wrapper.'''
 
     # Create a base transformation class
@@ -158,7 +158,7 @@ def test_transformation_doc_wrapper_single_inheritence():
     assert "Super apply docstring" not in InheritingTrans.apply.__doc__
 
 
-def test_transformation_doc_wrapper_multi_inheritence():
+def test_transformation_doc_wrapper_multi_inheritance():
     '''Test the transformation_doc_wrapper.'''
 
     # Create a base transformation class
@@ -257,6 +257,91 @@ def test_transformation_doc_wrapper_no_docstring():
     instance.apply(None)
 
 
+def test_transformation_doc_wrapper_uninheritable():
+    '''Test the transformation doc wrapper doesn't inherit parameters'
+    docstrings that are defined in the _uninheritable_args list.'''
+
+    # Create a base transformation class
+    class BaseTrans(Transformation):
+
+        def validate(self, node, opt1, opt2, **kwargs):
+            '''
+            Super validate docstring
+            '''
+
+        def apply(self, node, opt1: bool = False, opt2=None,
+                  options=None, **kwargs):
+            '''
+            Super apply docstring
+
+            :param opt1: opt1 docstring.
+            :param opt2: opt2 docstring.
+            :type opt2: opt2 type.
+            :param options: options dictionary.
+            :type options: dict
+            '''
+
+    # Create a second base transformation class to test multiple
+    # inheritance.
+    class BaseTrans2(Transformation):
+
+        def validate(self, node, opt2, **kwargs):
+            '''
+            Super validate docstring
+            '''
+
+        def apply(self, node, opt2: bool = False, options=None, **kwargs):
+            '''
+            Super apply docstring
+
+            :param bool opt2: opt2 docstring.
+            :param options: options dictionary.
+            :type options: dict
+            '''
+
+    class InheritingTrans1(BaseTrans):
+
+        def validate(self, node, opt3, **kwargs):
+            '''
+            Sub validate docstring
+            '''
+
+        def apply(self, node, opt3: int = 1, **kwargs):
+            '''
+            Sub apply docstring
+
+            :param opt3: opt3 docstring.
+            '''
+
+    # Test that the options parameter docstring is not inherited from the
+    # superclass.
+    transformation_documentation_wrapper(InheritingTrans1, inherit=True)
+    assert ":param options:" not in InheritingTrans1.apply.__doc__
+
+    # Class to test multiple inheritance behaviour.
+    class InheritingTrans2(BaseTrans, BaseTrans2):
+
+        def validate(self, node, opt3, **kwargs):
+            '''
+            Sub validate docstring
+            '''
+
+        def apply(self, node, opt3: int = 1, **kwargs):
+            '''
+            Sub apply docstring
+
+            :param opt3: opt3 docstring.
+            '''
+
+    # Test that the options parameter docstring is not inherited from either
+    # of the superclasses.
+    transformation_documentation_wrapper(
+        InheritingTrans2,
+        inherit=[BaseTrans, BaseTrans2]
+    )
+    assert ":param options:" not in InheritingTrans2.apply.__doc__
+
+
 def test_stringify_annotation():
     '''Test the stringify_annotation method does as expected.'''
     def func(temp: bool, temp2: Union[bool, int]):
@@ -272,4 +357,5 @@ def test_stringify_annotation():
         # For second parameter temp2
         if "temp2" == k:
             anno = stringify_annotation(v.annotation)
-            assert "typing.Union[bool, int]" == anno
+            # Python >= 3.14 uses the second format
+            assert "typing.Union[bool, int]" == anno or "bool | int" == anno

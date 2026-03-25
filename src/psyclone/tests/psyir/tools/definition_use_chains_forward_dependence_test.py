@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024-2025, Science and Technology Facilities Council.
+# Copyright (c) 2024-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@ forward_accesses routine.'''
 
 import pytest
 from psyclone.psyir.nodes import (
+    ArrayReference,
     Assignment,
     Call,
     CodeBlock,
@@ -49,7 +50,7 @@ from psyclone.psyir.nodes import (
     OMPParallelDirective,
     WhileLoop,
 )
-from psyclone.transformations import OMPParallelTrans
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.psyir.symbols import (
     DataSymbol,
     INTEGER_TYPE,
@@ -400,6 +401,58 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
     assert blocks[1][0] is routine.walk(OMPParallelDirective)[0].dir_body
 
 
+def test_definition_use_chain_find_basic_blocks_inside_loops(fortran_reader):
+    """ Test the _find_basic_blocks functionality for blocks inside an
+    outer-level loop"""
+    code = """
+    subroutine my_sub()
+      integer :: ji
+      integer :: jj
+      integer :: i
+      real, dimension(10,10) :: var1
+      real, dimension(10) :: ztmp
+      real, dimension(10) :: ztmp2
+
+      do i = 1, 2, 1
+        var1 = 1.0
+        ztmp2 = 1.0
+        if (i == 1) then
+          do ji = 1, 10, 1
+            do jj = 1, 10, 1
+              ztmp(jj) = 3
+            enddo
+            do jj = 1, 10, 1
+              var1(ji,jj) = ztmp(jj) * 2
+            enddo
+          enddo
+        else
+          do ji = 1, 10, 1
+            do jj = 1, 10, 1
+              var1(ji,jj) = ztmp(jj) * 2
+            enddo
+          enddo
+        end if
+      enddo
+
+    end subroutine my_sub
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    # Get the DUC for the first ArrayRef, ztmp
+    aref = psyir.walk(ArrayReference)[0]
+    assert aref.symbol.name == "ztmp"
+    duc = DefinitionUseChain(
+        aref, control_flow_region=[routine]
+    )
+    cfn, blocks = duc._find_basic_blocks(routine.walk(Loop)[0].children[:])
+    # The ifblock has to be in cfn twice, once with the contents of the if
+    # and once with the contents of the else, as it may loop back to them
+    ifblock = routine.walk(IfBlock)[0]
+    assert cfn.count(ifblock) == 2
+    assert blocks.count(ifblock.if_body.children[:]) == 1
+    assert blocks.count(ifblock.else_body.children[:]) == 1
+
+
 def test_definition_use_chain_find_forward_accesses_basic_example(
     fortran_reader,
 ):
@@ -621,7 +674,7 @@ def test_definition_use_chain_find_forward_accesses_while_loop_example(
     assert reaches[2] is routine.walk(Assignment)[2].lhs
 
 
-def test_definition_use_chain_foward_accesses_nested_loop_example(
+def test_definition_use_chain_forward_accesses_nested_loop_example(
     fortran_reader,
 ):
     """Functionality test for the find_forward_accesses routine. This
@@ -1106,3 +1159,25 @@ def test_definition_use_chain_find_forward_accesses_pure_call(
     # result is first argument of the pure subroutine call
     argument = routine.walk(Call)[0].children[1]
     assert reaches[0] is argument
+
+
+def test_forward_accesses_nested_loop(fortran_reader):
+    """Test that if we have many nested loops we don't repeat the same
+    reference in the result."""
+    code = """subroutine x
+    integer :: i, j, k, l
+
+    do i = 1, 100
+      do j = 1, 100
+        do k = 1, 100
+          l = 1
+        end do
+      end do
+    end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    lhs = routine.walk(Assignment)[0].lhs
+    chains = DefinitionUseChain(lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 1

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,23 +35,30 @@
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
+#          M. Naylor, University of Cambridge, UK
 
 ''' This module provides the ParallelLoopTrans transformation.'''
 
 import abc
 from collections.abc import Iterable
-from typing import Union, List
+from typing import Union, List, Optional
 import warnings
+import logging
 
 from psyclone import psyGen
 from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import (
-        Call, Loop, Reference, Routine
+        Call, Loop, Reference, Routine, Assignment, IfBlock,
+        BinaryOperation, IntrinsicCall
 )
-from psyclone.psyir.symbols import AutomaticInterface
-from psyclone.psyir.tools import DependencyTools, DTCode
+from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
+    DataSharingAttributeMixin)
+from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.tools import (
+        DependencyTools, DTCode, ReductionInferenceTool
+)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
@@ -80,7 +87,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
     '''
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
-    excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock)
+    excluded_node_types = (nodes.Return, psyGen.HaloExchange, nodes.CodeBlock,
+                           nodes.UnknownDirective)
 
     @abc.abstractmethod
     def _directive(self, children, collapse=None):
@@ -98,69 +106,91 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         '''
 
     @staticmethod
-    def _attempt_privatisation(node, symbol_name, dry_run=False):
+    def _attempt_privatisation(
+        loop: Loop,
+        symbol_name: str,
+        force_private: Iterable[str] = (),
+        output_set: Optional[set[Symbol]] = None
+    ):
         ''' Check and (if dry_run is False) perform symbol privatisation
         for the given symbol_name in the given node.
 
-        :param node: the loop that will be parallelised.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param str symbol_name: the symbol that we want to privatise.
-        :param bool dry_run: whether to perform the actual privatisation.
+        :param loop: the loop that will be parallelised.
+        :param symbol_name: the symbol that we want to privatise.
+        :param force_private: list of symbols explicitly requested to
+            be private.
+        :param output_set: Optional set of symbols on which to add each symbol
+            identified as needed to be private.
 
         :returns: whether the symbol_name can be privatised.
         :rtype: bool
         '''
         try:
-            sym = node.scope.symbol_table.lookup(symbol_name)
+            sym = loop.scope.symbol_table.lookup(symbol_name)
         except KeyError:
             # Structures are reported with the full expression:
             # "mystruct%myfield" by the DA var_name, we purposely avoid
             # privatising these
             return False
 
-        # If it's not a local symbol, we cannot safely analyse its lifetime
-        if not isinstance(sym.interface, AutomaticInterface):
+        # This symbol was explicitly requested to be private
+        if symbol_name.lower() in [name.lower() for name in force_private]:
+            if output_set is not None:
+                output_set.add(sym)
+            return True
+
+        loop.compute_cached_abs_positions()
+
+        # Get the last access
+        refs_in_loop = filter(lambda x: x.symbol is sym, loop.walk(Reference))
+        refs_in_loop = list(refs_in_loop)
+        last_access = refs_in_loop[-1]
+        # If it's an assignment the last access is the one in the lhs
+        if last_access.ancestor(Assignment):
+            lhs = last_access.ancestor(Assignment).lhs
+            if isinstance(lhs, Reference) and lhs.symbol is sym:
+                last_access = lhs
+        # If the value of the symbol is used after the loop, it cannot be
+        # private
+        if last_access.escapes_scope(loop):
             return False
 
-        # Check that the symbol is not referenced after this loop (before
-        # the loop is fine because we can use OpenMP/OpenACC first-private or
-        # Fortran do concurrent local_init())
-        if any(ref.symbol is sym
-               for ref in node.following(include_children=False)
-               if isinstance(ref, Reference)):
-            return False
+        # Also prevent cases when the first access in the loop is a read that
+        # could come from the previous iteration
+        while True:
+            first_access = refs_in_loop[0]
+            # If it's an assignment the first access is the one in the rhs
+            if first_access.ancestor(Assignment):
+                rhs = first_access.ancestor(Assignment).rhs
+                refs = filter(lambda x: x.symbol is sym, rhs.walk(Reference))
+                refs = list(refs)
+                if refs:
+                    first_access = refs[0]
+            if first_access.is_read:
+                return False
+            # If it is inside a conditional, there may be more entry points for
+            # this symbol, so we look for the next 'first_access'
+            inside_conditional = first_access.ancestor(IfBlock, limit=loop)
+            if inside_conditional:
+                following = inside_conditional.following_node()
+                if not following:
+                    break
+                # Skip al references in the condition that we already checked
+                refs_in_loop = list(filter(
+                    lambda x: x.abs_position > following.abs_position,
+                    refs_in_loop
+                ))
+            if not inside_conditional or not refs_in_loop:
+                break
 
-        if not dry_run:
-            node.explicitly_private_symbols.add(sym)
+        if output_set is not None:
+            output_set.add(sym)
 
         return True
 
     def validate(self, node, options=None, **kwargs):
         '''
         Perform validation checks before applying the transformation
-
-        :param node: the node we are checking.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool|int collapse: if it's a bool and is False
-            (default), it won't collapse. If it's a bool and is True, it will
-            collapse as much as possible. If it's an integer, it will attempt
-            to collapse until the specified number of loops (if they exist and
-            are safe to collapse them). The options 'ignore_dependencies_for'
-            and 'force' also affect the collapse applicability analysis.
-        :param bool force: whether to force parallelisation of the
-            target loop (i.e. ignore any dependence analysis).
-        :param list[str] ignore_dependencies_for: whether to ignore
-            some symbol names from the dependence analysis checks.
-        :param bool sequential: whether this is a sequential loop.
-        :param bool verbose: whether to report the reasons the
-            validate and collapse steps have failed.
-        :param bool nowait: whether to add a nowait clause and a
-            corresponding barrier (or equivalent) to enable asynchronous
-            execution.
-        :param bool privatise_arrays: whether to declare as private any
-            write after write dependency symbols.
 
         :raises TypeError: if 'collapse' is not an int or a bool.
         :raises TypeError: if 'ignore_dependencies_for' is not a list of str.
@@ -185,6 +215,7 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             verbose = self.get_option("verbose", **kwargs)
             collapse = self.get_option("collapse", **kwargs)
             force = self.get_option("force", **kwargs)
+            force_private = self.get_option("force_private", **kwargs)
             ignore_dependencies_for = self.get_option(
                     "ignore_dependencies_for", **kwargs
             )
@@ -192,15 +223,37 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 ignore_dependencies_for = []
             sequential = self.get_option("sequential", **kwargs)
             privatise_arrays = self.get_option("privatise_arrays", **kwargs)
+            reduction_ops = self.get_option("reduction_ops", **kwargs)
+            if reduction_ops is None:
+                reduction_ops = []
         else:
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
             force = options.get("force", False)
+            force_private = options.get("force_private", ())
             ignore_dependencies_for = options.get(
                     "ignore_dependencies_for", []
             )
             sequential = options.get("sequential", False)
             privatise_arrays = options.get("privatise_arrays", False)
+            reduction_ops = options.get("reduction_ops", [])
+
+        # Check type of reduction_ops (not handled by validate_options)
+        if not isinstance(reduction_ops, list):
+            raise TypeError(
+                    f"reduction_ops for ParallelLoopTrans.apply() should be "
+                    f"a list but found type {type(reduction_ops).__name__}")
+        for op in reduction_ops:
+            if not isinstance(op, (BinaryOperation.Operator,
+                                   IntrinsicCall.Intrinsic)):
+                raise TypeError(
+                        f"Elements of reduction_ops for "
+                        f"ParallelLoopTrans.apply() should have type "
+                        f"BinaryOperation.Operator or IntrinsicCall.Intrinsic "
+                        f"but found {type(op).__name__}")
+
+        # This method produces a list of inferred reduction clauses
+        self.inferred_reduction_clauses = []
 
         # Check we are not a sequential loop
         if (not sequential and isinstance(node, PSyLoop) and
@@ -243,9 +296,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     if not call.is_pure]
         if not_pure:
             message = (
-                f"Loop cannot be parallelised because it cannot "
-                f"guarantee that the following calls are pure: "
-                f"{sorted(set(not_pure))}")
+                f"Loop cannot be parallelised because psyclone cannot "
+                f"guarantee that the accesses to {sorted(set(not_pure))} are "
+                f"arrays or pure calls. If they are but the symbol is "
+                f"imported, try adding the module name to RESOLVE_IMPORTS.")
             if verbose:
                 node.append_preceding_comment(message)
             raise TransformationError(message)
@@ -277,14 +331,32 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                         message.code == DTCode.ERROR_WRITE_WRITE_RACE):
                     for var_name in message.var_names:
                         if not self._attempt_privatisation(node, var_name,
-                                                           dry_run=True):
+                                                           force_private):
                             errors.append(
                                 f"The write-write dependency in '{var_name}'"
-                                f" cannot be solved by array privatisation "
-                                f"because it is not a plain local array or "
-                                f"it is used after the loop.")
+                                f" cannot be solved by automatic array "
+                                f"privatisation. Use 'force_private' option"
+                                f" if *YOU* can guarantee that it is private.")
                     continue
+                # See if the scalar in question allows parallelisation of
+                # the loop using reduction clauses.
+                red_msg = ""
+                if (reduction_ops and
+                        message.code == DTCode.WARN_SCALAR_REDUCTION):
+                    if len(message.var_infos) == 1:
+                        (sig, access_info) = message.var_infos[0]
+                        red_tool = ReductionInferenceTool(reduction_ops)
+                        clause = red_tool.attempt_reduction(sig, access_info)
+                        if clause:
+                            self.inferred_reduction_clauses.append(clause)
+                            continue
+                        red_msg = (
+                            f"Failed to automatically generate reduction "
+                            f"clause for '{sig}' - unsupported form of "
+                            f"reduction")
                 errors.append(str(message))
+                if red_msg:
+                    errors.append(red_msg)
 
             if errors:
                 error_lines = "\n".join(errors)
@@ -311,7 +383,11 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
               collapse: Union[int, bool] = False, force: bool = False,
               ignore_dependencies_for: Union[None, List[str]] = None,
               privatise_arrays: bool = False, sequential: bool = False,
-              nowait: bool = False, **kwargs):
+              nowait: bool = False,
+              reduction_ops: List[Union[BinaryOperation.Operator,
+                                        IntrinsicCall.Intrinsic]] = None,
+              force_private: Iterable[str] = (),
+              **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
@@ -342,8 +418,10 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             and 'force' also affect the collapse applicability analysis.
         :param bool force: whether to force parallelisation of the
             target loop (i.e. ignore any dependence analysis).
-        :param list[str] ignore_dependencies_for: whether to ignore
-            some symbol names from the dependence analysis checks.
+        :param Iterable[str] force_private: specify a list of symbol names
+            explicitly requested to be private.
+        :param Iterable[str] ignore_dependencies_for: specify a list of symbol
+            names to ignore for the dependence analysis checks.
         :param bool sequential: whether this is a sequential loop.
         :param bool verbose: whether to report the reasons the
             validate and collapse steps have failed.
@@ -352,14 +430,19 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             execution.
         :param bool privatise_arrays: whether to make the write after write
             dependency symbols declared as private.
+        :param reduction_ops: if non-empty, attempt parallelisation
+            of loops by inferring reduction clauses involving any of
+            the reduction operators in the list.
 
         '''
         if not options:
             self.validate_options(
-                    verbose=verbose, collapse=collapse,
+                    verbose=verbose, collapse=collapse, force=force,
                     ignore_dependencies_for=ignore_dependencies_for,
                     privatise_arrays=privatise_arrays,
-                    sequential=sequential, nowait=nowait, **kwargs
+                    sequential=sequential, nowait=nowait,
+                    reduction_ops=reduction_ops, force_private=force_private,
+                    **kwargs
             )
             # Rename the input options that are renamed in this apply method.
             # TODO 2668, rename options to be consistent.
@@ -368,6 +451,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                 list_of_names = []
             else:
                 list_of_names = ignore_dependencies_for
+            if reduction_ops is None:
+                reduction_ops = []
         else:
             # TODO 2668 - options dict is deprecated.
             warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
@@ -377,15 +462,39 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             list_of_names = options.get("ignore_dependencies_for", [])
             privatise_arrays = options.get("privatise_arrays", False)
             nowait = options.get("nowait", False)
+            reduction_ops = options.get("reduction_ops", [])
+            force_private = options.get("force_private", ())
 
         self.validate(node, options=options, verbose=verbose,
-                      collapse=collapse,
+                      collapse=collapse, force=force,
+                      force_private=force_private,
                       ignore_dependencies_for=ignore_dependencies_for,
                       privatise_arrays=privatise_arrays,
-                      sequential=sequential, nowait=nowait, **kwargs)
+                      sequential=sequential, nowait=nowait,
+                      reduction_ops=reduction_ops, **kwargs)
+
+        logger = logging.getLogger(__name__)
+        explicitly_private_symbols = set()
+        for symbol_name in force_private:
+            try:
+                sym = node.scope.symbol_table.lookup(symbol_name)
+            except KeyError:
+                # This is not an error, but we will log the missed string
+                logger.warning(
+                    "%s has been provided with the '%s' symbol name in "
+                    "the 'force_private' option, but there is no such "
+                    "symbol in this scope.", self.name, symbol_name)
+            explicitly_private_symbols.add(sym)
 
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()
+
+        # Add all reduction variables inferred by 'validate' to the list
+        # of signatures to ignore
+        if self.inferred_reduction_clauses:
+            for (_, ref) in self.inferred_reduction_clauses:
+                sig = ref.get_signature_and_indices()[0]
+                list_of_signatures.append(sig)
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -401,20 +510,22 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
             for message in dtools.get_all_messages():
                 if message.code == DTCode.ERROR_WRITE_WRITE_RACE:
                     for var_name in message.var_names:
-                        self._attempt_privatisation(node, var_name)
+                        self._attempt_privatisation(
+                            node, var_name, force_private,
+                            explicitly_private_symbols)
 
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
         if collapse:
             # Count the number of perfectly nested loops that can be collapsed
-            num_collapsable_loops = 0
+            num_collapsible_loops = 0
             next_loop = node
             previous_iteration_variables = []
             while isinstance(next_loop, Loop):
                 previous_iteration_variables.append(next_loop.variable)
-                num_collapsable_loops += 1
+                num_collapsible_loops += 1
                 if not isinstance(collapse, bool):
-                    if num_collapsable_loops >= collapse:
+                    if num_collapsible_loops >= collapse:
                         break
 
                 # If it has more than one child, the next loop will not be
@@ -453,21 +564,30 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                     if not next_loop.independent_iterations(
                                dep_tools=dtools,
                                signatures_to_ignore=list_of_signatures):
+                        msgs = dtools.get_all_messages()
+                        # This warning message is not a problem
+                        if all(msg.code == DTCode.WARN_SCALAR_WRITTEN_ONCE
+                               for msg in msgs):
+                            continue
+                        # Otherwise mention the cause to stop collapsing at
+                        # this level
                         if verbose:
-                            msgs = dtools.get_all_messages()
                             next_loop.preceding_comment = (
                                 "\n".join([str(m) for m in msgs]) +
-                                " Consider using the \"ignore_dependencies_"
-                                "for\" transformation option if this is a "
-                                "false dependency.")
+                                " Consider using the \"ignore_dependencies"
+                                "_for\" transformation option if this is a"
+                                " false dependency.")
                         break
         else:
-            num_collapsable_loops = None
+            num_collapsible_loops = None
 
         # Add our orphan loop directive setting its parent to the node's
         # parent and its children to the node. This calls down to the sub-class
         # to get the type of directive we require.
-        directive = self._directive([node.detach()], num_collapsable_loops)
+        directive = self._directive([node.detach()], num_collapsible_loops)
+        if isinstance(directive, DataSharingAttributeMixin):
+            directive.explicitly_private_symbols.update(
+                explicitly_private_symbols)
 
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)

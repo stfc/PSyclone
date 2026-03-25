@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,22 +35,15 @@
 # Modifications: A. R. Porter, STFC Daresbury Laboratory,
 #                I. Kavcic, Met Office
 
-include ../../common.mk
+include ../lfric_common.mk
 
 GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 test_alg_mod.[fx]90
-
-LFRIC_PATH = ${PSYCLONE_DIR}/src/psyclone/tests/test_files/lfric/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 run: compile
 
 compile: transform ${LFRIC_LIB}
 	@echo "#1770 Compilation is not supported: the generated code must be "
 	@echo "inserted into an LFRic mini-app."
-
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
 %.F90:

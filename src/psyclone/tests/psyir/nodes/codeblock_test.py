@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import CodeBlock
 from psyclone.psyir.nodes.node import colored
 from psyclone.errors import GenerationError
@@ -131,6 +132,41 @@ def test_codeblock_get_symbol_names(parser):
     assert "myifblock" not in sym_names
     assert "this_is_true" in sym_names
     assert "that_is_true" in sym_names
+
+
+def test_codeblock_get_symbol_names_comments_and_directives():
+    '''
+    Test that Codeblock.get_symbol_names returns any symbols in directives.
+    '''
+    code = """
+    subroutine mytest
+    integer :: i, j, is
+
+    !$ompx dir private(i)
+    i = i + 1
+    !dir$ omp private(j)
+    i = j + 1
+    ! Here is a comment
+    end subroutine"""
+
+    reader = FortranReader(ignore_comments=False,
+                           ignore_directives=False,
+                           last_comments_as_codeblocks=True)
+    psyir = reader.psyir_from_source(code)
+    block = psyir.walk(CodeBlock)
+    sym_names = set(block[0].get_symbol_names()).union(
+                    set(block[1].get_symbol_names()))
+    assert "i" in sym_names
+    assert "j" in sym_names
+    assert "omp" not in sym_names
+    assert "dir" not in sym_names
+    assert "private" not in sym_names
+    block = psyir.walk(CodeBlock)[1]
+    sym_names = block.get_symbol_names()
+    assert "Here" not in sym_names
+    assert "is" not in sym_names
+    assert "a" not in sym_names
+    assert "comment" not in sym_names
 
 
 def test_codeblock_ref_accesses(parser):

@@ -1,7 +1,7 @@
 # PSyclone Wrapper Library for ``dl_timer``
 
 This is a wrapper library that maps the [PSyclone profiling API](
-https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) to the
+https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling) to the
 dl_timer API. This library is **thread-safe**.
 
 ## Dependencies
@@ -10,7 +10,7 @@ The library dl_timer must be installed, which can be downloaded from
 https://bitbucket.org/apeg/dl_timer.
 
 This profiling library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
 the application. The library is based on the [PSyData base class](
 https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#psydata-base-class),
 which is included in PSyclone as a Jinja template, ``psy_data_base.jinja``.
@@ -108,7 +108,7 @@ psy_time_step_mod:swlat_update_c    11  0.19000E+01   0.17272E+00  0.24E-02
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2025, Science and Technology Facilities Council.
+Copyright (c) 2019-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

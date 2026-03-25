@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -456,7 +456,7 @@ def test_validate_checks_for_side_effects(fortran_reader):
     assert loop not in psyir.children[0]
 
 
-def test_apply_remove_emtpy_loops(fortran_reader, fortran_writer):
+def test_apply_remove_empty_loops(fortran_reader, fortran_writer):
     ''' Test that if a loop is left empty after hoisting the assignments
     it gets removed.
     '''
@@ -513,8 +513,8 @@ def test_validate_array_of_struct(fortran_reader):
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as err:
         hoist_trans.validate(loop.loop_body[0])
-    assert ("The statement 'ipi = SIZE(ptab(jf)%pt4d, 1)' can't be hoisted as "
-            "it reads variable 'jf'" in str(err.value))
+    assert ("The statement 'ipi = SIZE(ptab(jf)%pt4d, dim=1)' can't be "
+            "hoisted as it reads variable 'jf'" in str(err.value))
 
 
 def test_str():

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.psyir.nodes import CodeBlock
 from psyclone.psyir.nodes import (Literal, Loop)
-from psyclone.transformations import OMPParallelTrans
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE)
 
 

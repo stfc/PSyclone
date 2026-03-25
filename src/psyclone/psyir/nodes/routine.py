@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -327,7 +327,7 @@ class Routine(Schedule, CommentableMixin):
                         f"that already contains a resolved symbol with "
                         f"the same name.")
 
-                # Check that the scope doens't contain a Routine or
+                # Check that the scope doesn't contain a Routine or
                 # CodeBlock representing a Routine with this name.
                 routines = new_parent.walk(Routine)
                 for routine in routines:
@@ -513,9 +513,9 @@ class Routine(Schedule, CommentableMixin):
                     other.return_symbol.name)
 
     def replace_with(self, node, keep_name_in_context=True):
-        '''Removes self and its descendents from the PSyIR tree to which it
+        '''Removes self and its descendants from the PSyIR tree to which it
         is connected and replaces it with the supplied node (and its
-        descendents).
+        descendants).
 
         The node must be a Routine (or subclass) and has the same Symbol as
         self.

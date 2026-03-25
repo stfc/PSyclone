@@ -16,7 +16,7 @@ module kernel_scalar_float
   type, extends(kernel_type) :: bc_ssh
      type(go_arg), dimension(4) :: meta_args =                 &
           (/ go_arg(GO_READ,      GO_R_SCALAR, GO_POINTWISE),  &
-             go_arg(GO_READWRITE, GO_CT,       GO_POINTWISE),  &
+             go_arg(GO_WRITE,     GO_CT,       GO_POINTWISE),  &
              go_arg(GO_READ,      GO_GRID_X_MAX_INDEX),        &
              go_arg(GO_READ,      GO_GRID_MASK_T)              &
            /)
@@ -44,7 +44,7 @@ module kernel_scalar_float
      type(go_arg), dimension(4) :: meta_args =        &
           (/ go_arg(GO_READ,      GO_R_SCALAR, GO_POINTWISE),  &
              go_arg(GO_READ,      GO_I_SCALAR, GO_POINTWISE),  &
-             go_arg(GO_READWRITE, GO_CT,       GO_POINTWISE),  &
+             go_arg(GO_WRITE,     GO_CT,       GO_POINTWISE),  &
              go_arg(GO_READ,      GO_GRID_MASK_T)           &
            /)
 

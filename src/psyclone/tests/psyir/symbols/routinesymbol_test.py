@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,17 +39,18 @@
 
 import pytest
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface, INTEGER_TYPE,
-    NoType, RoutineSymbol, ScalarType, Symbol, SymbolTable,
-    UnresolvedInterface, UnresolvedType)
+    AutomaticInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    ImportInterface, INTEGER_TYPE, RoutineSymbol, ScalarType, Symbol,
+    SymbolTable, UnresolvedInterface, UnresolvedType)
+from psyclone.psyir.nodes import Reference
 
 
 def test_routinesymbol_init():
     '''Test that a RoutineSymbol instance can be created.'''
-    # A RoutineSymbol should be of type NoType by default.
+    # A RoutineSymbol should be of type UnresolvedType by default.
     jo_sym = RoutineSymbol('jo')
     assert isinstance(jo_sym, RoutineSymbol)
-    assert isinstance(jo_sym.datatype, NoType)
+    assert isinstance(jo_sym.datatype, UnresolvedType)
     # By default we don't know whether a symbol is pure or elemental.
     assert jo_sym.is_pure is None
     assert jo_sym.is_elemental is None
@@ -106,7 +107,7 @@ def test_routinesymbol_specialise_and_process_arguments():
     sym1.specialise(RoutineSymbol)
     # pylint gets confused because it doesn't know about specialise()
     # pylint: disable=no-member
-    assert isinstance(sym1.datatype, NoType)
+    assert isinstance(sym1.datatype, UnresolvedType)
 
     # Include a datatype
     sym2 = Symbol("symbol2")
@@ -127,7 +128,7 @@ def test_routinesymbol_specialise_and_process_arguments():
 def test_routinesymbol_str():
     '''Test that the __str__ method in routinesymbol behaves as expected.'''
     routine_symbol = RoutineSymbol("roo")
-    assert (str(routine_symbol) == "roo: RoutineSymbol<NoType, "
+    assert (str(routine_symbol) == "roo: RoutineSymbol<UnresolvedType, "
             "pure=unknown, elemental=unknown>")
     routine_symbol = RoutineSymbol("roo", INTEGER_TYPE)
     assert (str(routine_symbol) ==
@@ -172,10 +173,11 @@ def test_routinesymbol_copy():
 
     # Test when the routine has a datatype.
     wp = DataSymbol("wp", INTEGER_TYPE)
-    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL, wp))
+    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL,
+                                             Reference(wp)))
     new_sym3 = sym3.copy()
     assert new_sym3.datatype is not sym3.datatype
-    assert new_sym3.datatype.precision is wp
+    assert new_sym3.datatype.precision.symbol is wp
 
     # Test when the routine has an interface.
     csym = ContainerSymbol("test_mod")
@@ -187,6 +189,30 @@ def test_routinesymbol_copy():
     assert new_sym4.interface.container_symbol is csym
 
 
+def test_routinesymbol_copy_properties():
+    '''
+    Test the copy_properties() method.
+
+    '''
+    csym = ContainerSymbol("a_mod")
+    sym1 = RoutineSymbol('a', datatype=INTEGER_TYPE,
+                         interface=ImportInterface(csym))
+    # Type checking of argument
+    with pytest.raises(TypeError) as err:
+        sym1.copy_properties("aha")
+    assert ("Argument should be of type 'RoutineSymbol' but found 'str'"
+            in str(err.value))
+    sym2 = RoutineSymbol('b')
+    assert isinstance(sym2.datatype, UnresolvedType)
+    # Copy properties but exclude updating the Interface
+    sym2.copy_properties(sym1, exclude_interface=True)
+    assert sym2.datatype == INTEGER_TYPE
+    assert isinstance(sym2.interface, AutomaticInterface)
+    # Repeat but include the Interface
+    sym2.copy_properties(sym1)
+    assert isinstance(sym2.interface, ImportInterface)
+
+
 def test_routinesymbol_replace_symbols_using():
     '''Test that the replace_symbols_using() method updates any symbols in
     the datatype of a RoutineSymbol.
@@ -195,14 +221,15 @@ def test_routinesymbol_replace_symbols_using():
     sym1 = RoutineSymbol('a')
     table = SymbolTable()
     sym1.replace_symbols_using(table)
-    assert isinstance(sym1.datatype, NoType)
+    assert isinstance(sym1.datatype, UnresolvedType)
     # Test when the routine has a datatype.
     wp = DataSymbol("wp", INTEGER_TYPE)
-    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL, wp))
+    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL,
+                                             Reference(wp)))
     # No symbol in table.
     sym3.replace_symbols_using(table)
-    assert sym3.datatype.precision is wp
+    assert sym3.datatype.precision.symbol is wp
     wp_new = wp.copy()
     table.add(wp_new)
     sym3.replace_symbols_using(table)
-    assert sym3.datatype.precision is wp_new
+    assert sym3.datatype.precision.symbol is wp_new

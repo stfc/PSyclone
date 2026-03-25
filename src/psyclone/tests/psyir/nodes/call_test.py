@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,12 +43,12 @@ from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, BinaryOperation, Call, Literal,
-    Node, Reference, Routine, Schedule)
-from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
+    Node, Reference, Routine, Schedule, CallMatchingArgumentsNotFound)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
-    ArrayType, INTEGER_TYPE, ContainerSymbol, DataSymbol, NoType,
-    RoutineSymbol, REAL_TYPE, SymbolError, UnresolvedInterface)
+    ArrayType, INTEGER_TYPE, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    NoType, RoutineSymbol, REAL_TYPE, SymbolError, UnresolvedInterface,
+    UnresolvedType, ScalarType)
 
 
 class SpecialCall(Call):
@@ -68,6 +68,7 @@ def test_call_init():
     assert len(call.arguments) == 0
     assert call.is_elemental is None
     assert call.is_pure is None
+    assert call.symbol is None
 
     # Initialise with parent and add routine and argument children
     parent = Schedule()
@@ -76,6 +77,7 @@ def test_call_init():
     call.addchild(Reference(routine))
     call.addchild(Literal('3', INTEGER_TYPE))
     assert call.routine.symbol is routine
+    assert call.symbol is routine
     assert call.parent is parent
     assert call.arguments == (Literal('3', INTEGER_TYPE),)
 
@@ -356,16 +358,29 @@ def test_call_replacenamedarg():
     assert ("The value of the existing_name argument (new_name) in "
             "'replace_named_arg' in the 'Call' node was not found in the "
             "existing arguments." in str(info.value))
-    # ok
+    # ok - including change in case
     assert call.arguments == (op1, op2)
     assert call.argument_names == ["name1", "name2"]
     assert call._argument_names[0][0] == id(op1)
     assert call._argument_names[1][0] == id(op2)
-    call.replace_named_arg("name1", op3)
+    call.replace_named_arg("nAMe1", op3)
     assert call.arguments == (op3, op2)
-    assert call.argument_names == ["name1", "name2"]
+    assert call.argument_names == ["nAMe1", "name2"]
     assert call._argument_names[0][0] == id(op3)
     assert call._argument_names[1][0] == id(op2)
+
+
+def test_call_argument_by_name():
+    '''Test the argument_by_name method.'''
+    op1 = Literal("1", INTEGER_TYPE)
+    op2 = Literal("2", INTEGER_TYPE)
+    op3 = Literal("3", INTEGER_TYPE)
+    call = Call.create(RoutineSymbol("hello"), [op1, ("A", op2), ("b", op3)])
+    assert call.argument_by_name("z") is None
+    assert call.argument_by_name("a") is op2
+    assert call.argument_by_name("A") is op2
+    assert call.argument_by_name("b") is op3
+    assert call.argument_by_name("B") is op3
 
 
 def test_call_reference_accesses():
@@ -374,8 +389,6 @@ def test_call_reference_accesses():
     # A call with an argument passed by value.
     call1 = Call.create(rsym, [Literal("1", INTEGER_TYPE)])
     var_info = call1.reference_accesses()
-    # Check that the current location number is increased after the call:
-    assert var_info._location == 1
     # The Routine symbol is not considered 'read'.
     assert not var_info.is_read(Signature("trillian"))
     assert var_info.is_called(Signature("trillian"))
@@ -408,12 +421,40 @@ def test_call_reference_accesses():
     var_info = call5.reference_accesses()
     assert var_info.has_read_write(Signature("gamma"))
     assert var_info.is_read(Signature("ji"))
-    # Call to a PURE routine - arguments should be READ only.
+    # Call to a routine - if the definition is not found, they will be RW
     puresym = RoutineSymbol("dirk", is_pure=True)
     call6 = Call.create(puresym, [Reference(dsym)])
     var_info = call6.reference_accesses()
     assert var_info.is_read(Signature("beta"))
-    assert not var_info.is_written(Signature("beta"))
+    assert var_info.is_written(Signature("beta"))
+
+
+def test_call_reference_accesses_findable_routine(fortran_reader):
+    '''Test the reference_accesses() when the psyir call find the declaration
+    of a routine'''
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine return_scalar(x, y, z)
+        integer, intent(in) :: x
+        integer, intent(out) :: y
+        integer, intent(inout) :: z
+        y = x + 1
+    end subroutine return_scalar
+
+    subroutine test()
+        integer :: x, y, z
+        call return_scalar(x, y, z)
+    end subroutine test
+    """)
+    test_routine = psyir.walk(Routine)[1]
+    assert test_routine.name == "test"
+    call = test_routine.walk(Call)[0]
+    vam = call.reference_accesses()
+    assert vam.is_read(Signature("x"))
+    assert not vam.is_written(Signature("x"))
+    assert not vam.is_read(Signature("y"))
+    assert vam.is_written(Signature("y"))
+    assert vam.is_read(Signature("z"))
+    assert vam.is_written(Signature("z"))
 
 
 def test_type_bound_call_reference_accesses(fortran_reader):
@@ -591,7 +632,7 @@ def test_call_node_reconcile_reorder():
     # Swap position of arguments
     call.children.extend([op2.detach(), op1.detach()])
 
-    # Now the private _argument_names are inconsistent with thir node ids
+    # Now the private _argument_names are inconsistent with this node ids
     assert len(call._argument_names) == 2
     assert call._argument_names[0] != (id(call.arguments[0]), "name1")
     assert call._argument_names[1] != (id(call.arguments[1]), "name2")
@@ -622,7 +663,7 @@ def test_copy():
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("2", INTEGER_TYPE)
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
-    # Call copy with consitent internal state of _arguments_name
+    # Call copy with consistent internal state of _arguments_name
     call2 = call.copy()
     assert call._argument_names[0] == (id(call.arguments[0]), "name1")
     assert call._argument_names[1] == (id(call.arguments[1]), "name2")
@@ -712,6 +753,7 @@ end module some_mod'''
     result = call.get_callees()
     assert len(result) == 2
     assert result == psyir.walk(Routine)[1:]
+    assert isinstance(call.routine.symbol.datatype, NoType)
 
 
 def test_call_get_callees_local_file_container(fortran_reader):
@@ -763,7 +805,7 @@ contains
   end subroutine
 
   ! Matching routine
-  subroutine foo(a, b, c)
+  pure subroutine foo(a, b, c)
     integer :: a, b, c
   end subroutine
 
@@ -775,6 +817,7 @@ end module some_mod'''
     assert routine_main.name == "main"
 
     call_foo: Call = routine_main.walk(Call)[0]
+    assert call_foo.routine.symbol.is_pure is True
 
     (result, _) = call_foo.get_callee()
 
@@ -864,8 +907,9 @@ end module some_mod'''
 def test_call_get_callee_3c_trigger_error(fortran_reader):
     '''
     Test which is supposed to trigger an error when no matching routine
-    is found, but we use the special option check_matching_arguments=False
+    is found, but we use the special option `use_first_callee_and_no_arg_check`
     to find one.
+
     '''
     code = '''
 module some_mod
@@ -892,7 +936,10 @@ end module some_mod'''
     call_foo: Call = routine_main.walk(Call)[0]
     assert call_foo.routine.name == "foo"
 
-    call_foo.get_callee(check_matching_arguments=False)
+    result = call_foo.get_callee(use_first_callee_and_no_arg_check=True)
+    assert isinstance(result[0], Routine)
+    assert result[0].name == "foo"
+    assert result[1] == [0, 1]
 
 
 def test_call_get_callee_4_named_arguments(fortran_reader):
@@ -1489,12 +1536,12 @@ contains
     call bottom(luggage)
   end subroutine top
 
-  subroutine ibottom(luggage)
+  pure subroutine ibottom(luggage)
     integer :: luggage
     luggage = luggage + 1
   end subroutine ibottom
 
-  subroutine rbottom(luggage)
+  pure subroutine rbottom(luggage)
     real :: luggage
     luggage = luggage + 1.0
   end subroutine rbottom
@@ -1502,6 +1549,7 @@ end module my_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
+    assert call.routine.symbol.is_pure is True
     callees = call.get_callees()
     assert len(callees) == 2
     assert isinstance(callees[0], Routine)
@@ -1593,6 +1641,34 @@ module other_mod
 contains
   subroutine run_it()
     call just_do_it()
+  end subroutine run_it
+end module other_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    routines = call.get_callees()
+    assert len(routines) == 1
+    assert isinstance(routines[0], Routine)
+    assert routines[0].name == "just_do_it"
+
+
+def test_call_get_callees_import_renamed(fortran_reader):
+    '''
+    Check that get_callees() works successfully for a routine that is
+    renamed on import.
+    '''
+    code = '''
+module some_mod
+contains
+  subroutine just_do_it()
+    write(*,*) "hello"
+  end subroutine just_do_it
+end module some_mod
+module other_mod
+  use some_mod, only: did_it=>just_do_it
+contains
+  subroutine run_it()
+    call did_it()
   end subroutine run_it
 end module other_mod
 '''
@@ -1751,3 +1827,191 @@ end module some_mod'''
             "but that Container defines a private Symbol of the same name. "
             "Searching for the Container that defines a public Routine with "
             "that name is not yet supported - TODO #924" in str(err.value))
+
+
+def test_call_get_callee_matching_arguments_not_found(fortran_reader):
+    """
+    Trigger error that matching arguments were not found.
+    In this test, this is caused by omitting the required third non-optional
+    argument.
+    """
+    code = """
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f
+    ! Omit the 3rd required argument
+    call foo(e, f)
+  end subroutine
+
+  ! Routine matching by 'name', but not by argument matching
+  subroutine foo(a, b, c)
+    integer :: a, b, c
+  end subroutine
+
+end module some_mod"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = psyir.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call_foo.get_callee()
+
+    assert (
+        "No matching routine found for 'call foo(e, f)':" in str(err.value)
+    )
+
+    assert (
+        "Argument 'c' in subroutine 'foo' does not match any in the call"
+        " 'call foo(e, f)' and is not OPTIONAL." in str(err.value)
+    )
+
+
+def test_check_argument_type_matches(fortran_reader):
+    '''
+    Tests for the _check_argument_type_matches() method of Call.
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+    use some_mod, only: array_arg, dtype_arg, dtype_array_arg, my_type
+    contains
+    subroutine amazing()
+      real :: var
+      real, dimension(20) :: var2
+      type(my_type), dimension(5) :: athing
+      call astounding(var)
+      call array_arg(var2)
+      call dtype_arg(athing(1))
+      call dtype_array_arg(athing)
+    end subroutine amazing
+    subroutine astounding(dummy1)
+      real :: dummy1
+    end subroutine astounding
+    end module my_mod
+    ''')
+    calls = psyir.walk(Call)
+    call = calls[0]
+    call._check_argument_type_matches(call.arguments[0],
+                                      DataSymbol("dummy1", REAL_TYPE))
+    # Integer instead of real.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call._check_argument_type_matches(call.arguments[0],
+                                          DataSymbol("dummy1", INTEGER_TYPE))
+    assert "Argument type mismatch of call argument 'var'" in str(err.value)
+    # For an array argument.
+    call2 = calls[1]
+    call2._check_argument_type_matches(
+        call2.arguments[0],
+        DataSymbol("dummy1", ArrayType(REAL_TYPE, shape=[10])))
+    # Array of wrong rank.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call2._check_argument_type_matches(
+            call2.arguments[0],
+            DataSymbol("dummy1", ArrayType(REAL_TYPE, shape=[10, 10])))
+    assert ("Rank mismatch of call argument 'var2' (rank 1) and routine "
+            "argument 'dummy1' (rank 2)" in str(err.value))
+    # Array of wrong intrinsic type.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call2._check_argument_type_matches(
+            call2.arguments[0],
+            DataSymbol("dummy1", ArrayType(INTEGER_TYPE, shape=[10])))
+    assert ("Array argument type mismatch of call argument 'var2' "
+            "(Intrinsic.REAL) and routine argument 'dummy1' "
+            "(Intrinsic.INTEGER)" in str(err.value))
+    # Scalar instead of array.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call2._check_argument_type_matches(call2.arguments[0],
+                                           DataSymbol("dummy1", REAL_TYPE))
+    assert "Argument type mismatch of call argument 'var2'" in str(err.value)
+    # Derived type.
+    call3 = calls[2]
+    # A type symbol of the same name (case insensitive) is assumed to match.
+    call3._check_argument_type_matches(
+        call3.arguments[0],
+        DataSymbol("dummy1", DataTypeSymbol("MY_type", UnresolvedType())))
+    # An intrinsic scalar should not match with it.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call3._check_argument_type_matches(
+            call3.arguments[0], DataSymbol("dummy1", REAL_TYPE))
+    assert ("Argument type mismatch of call argument 'athing(1)' (my_type: "
+            "DataTypeSymbol) and routine argument 'dummy1' (Scalar<REAL"
+            in str(err.value))
+    # Array of derived type.
+    call4 = calls[3]
+    # Doesn't match with single object of derived type.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call4._check_argument_type_matches(
+            call4.arguments[0],
+            DataSymbol("dummy1", DataTypeSymbol("MY_type", UnresolvedType())))
+    assert ("Argument type mismatch of call argument 'athing' (Array<my_type: "
+            "DataTypeSymbol, shape=[5]>) and routine argument 'dummy1' "
+            "(MY_type: DataTypeSymbol)" in str(err.value))
+    # Doesn't match with array of derived type with wrong rank.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call4._check_argument_type_matches(
+            call4.arguments[0],
+            DataSymbol("dummy1",
+                       ArrayType(DataTypeSymbol("MY_type", UnresolvedType()),
+                                 shape=[3, 4])))
+    assert ("Rank mismatch of call argument 'athing' (rank 1) and routine "
+            "argument 'dummy1' (rank 2)" in str(err.value))
+    # Doesn't match with array of a different derived type.
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call4._check_argument_type_matches(
+            call4.arguments[0],
+            DataSymbol("dummy1",
+                       ArrayType(DataTypeSymbol("wrongun", UnresolvedType()),
+                                 shape=[6])))
+    assert ("Array argument type mismatch of call argument 'athing' (my_type: "
+            "DataTypeSymbol) and routine argument 'dummy1' "
+            "(wrongun: DataTypeSymbol)" in str(err.value))
+    # Rank-1 array matches.
+    call4._check_argument_type_matches(
+            call4.arguments[0],
+            DataSymbol("dummy1",
+                       ArrayType(DataTypeSymbol("MY_type", UnresolvedType()),
+                                 shape=[5])))
+
+
+def test_call_datatype(fortran_reader):
+    ''' Check that when the routine definition can be found, its datatype
+    can be provided. '''
+
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine not_a_function(x, y, z)
+        integer, intent(in) :: x
+        integer, intent(out) :: y
+        integer, intent(inout) :: z
+        y = x + 1
+    end subroutine not_a_function
+
+    integer function scalar_function(a)
+        integer, intent(in) :: a
+        scalar_function = a
+    end function
+    function array_function(a)
+        integer, dimension(3) :: array_function
+        integer, intent(in) :: a
+        array_function = (/1,2,3/)
+    end function
+
+    subroutine test()
+        integer :: x, y, z
+        call return_scalar(x, y, z)
+        x = scalar_function(x) + unknown(array_function(x))
+
+    end subroutine test
+    """)
+    calls = psyir.walk(Call)
+    assert isinstance(calls[0].datatype, NoType)
+    assert isinstance(calls[1].datatype, ScalarType)
+    assert isinstance(calls[2].datatype, UnresolvedType)
+    # TODO #1799: Improve datatype inference, the following one
+    # has a definition that says is an ArrayType
+    assert isinstance(calls[3].datatype, UnresolvedType)

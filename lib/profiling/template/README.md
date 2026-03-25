@@ -1,11 +1,10 @@
 # PSyclone Wrapper Library Template
 
 This is a simple example to help writing your own PSyclone [PSyData-API-based](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) profile library (see
-the ["Profiling"](
-https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) section
-in the PSyclone [User Guide](https://psyclone.readthedocs.io/en/stable/) for
-more information). It only prints out the function called at runtime and does
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) profile library (see
+the [User Guide Profiling](
+https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling) section
+for more information). It only prints out the function called at runtime and does
 not do any actual measurements.
 
 ## Dependencies
@@ -75,7 +74,7 @@ PostEnd called for module 'psy_test' region 'invoke_1_update_field:update_field_
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2025, Science and Technology Facilities Council.
+Copyright (c) 2019-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024-2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@ from psyclone.psyir.nodes import (
     WhileLoop,
 )
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
+from psyclone.psyir.transformations import ProfileTrans
 
 
 def test_definition_use_chain_compute_backward_uses(fortran_reader):
@@ -226,6 +227,41 @@ def test_definition_use_chain_find_backward_accesses_ifelse_example(
     assert len(reaches) == 2
     assert reaches[0] is not a_3
     assert reaches[1] is not a_3
+
+
+def test_definition_use_chain_find_backward_accesses_psy_data_node_example(
+    fortran_reader,
+):
+    """Functionality test for the find_backward_accesses routine. This
+    tests the behaviour is as expected when the analysed code is inside
+    a PSyDataNode (e.g. a ProfileNode), which is that it has to ignore
+    this ancestor enclosing node."""
+
+    # Just repeat the previous test but adding a ProfileNode on top
+    code = """
+    subroutine x()
+    integer :: a, b, c, d, e, f
+    a = 1
+    b = a + c
+    if ( d > e) then
+        a = 3
+    else
+        a = 4
+    end if
+    b = a + d
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    p_trans = ProfileTrans()
+    # Skipping the first assignment is needed to improve the test coverage
+    # because it needs to deal with the current_block
+    p_trans.apply(routine[1:])
+    # Start the chain from b = A + d.
+    chains = DefinitionUseChain(routine.walk(Assignment)[4].rhs.children[0])
+    reaches = chains.find_backward_accesses()
+    # Inside the ProfileRegion the DUC has to work as before, the 'a' has
+    # 4 backwards accesses as shown in the previous test.
+    assert len(reaches) == 4
 
 
 def test_definition_use_chain_find_backward_accesses_loop_example(
@@ -784,3 +820,55 @@ def test_definition_use_chain_find_backward_accesses_pure_call(
     assert len(reaches) == 1
     # We should find the argument in the pure subroutine call
     assert reaches[0] is routine.walk(Call)[0].children[1]
+
+
+def test_definition_use_chain_find_backward_accesses_ancestor_call(
+    fortran_reader,
+):
+    """Test that we don't find an ancestor call for a Reference when
+    looking for its backward accesses."""
+    code = """
+    subroutine foo(a, b)
+    real, intent(inout) :: a
+    real, intent(inout) :: b
+    real :: c, d, e, f
+
+    c = d * a
+    b = c + d
+    call bar(c, b)
+    b = b + c
+    end subroutine foo
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.find_routine_psyir("foo")
+    call = psyir.walk(Call)[0]
+    arg = call.arguments[1]
+    chain = DefinitionUseChain(arg)
+    all_prev = chain.find_backward_accesses()
+    # Check that the ancestor call of b isn't a backward access.
+    assert not isinstance(all_prev[0], Call)
+    # The correct previous access should be the Reference to b in
+    # b = c + d.
+    assert all_prev[0] is routine.children[1].lhs
+
+
+def test_backward_accesses_nested_loop(fortran_reader):
+    """Test that if we have many nested loops we don't repeat the same
+    reference in the result."""
+    code = """subroutine x
+    integer :: i, j, k, l
+
+    do i = 1, 100
+      do j = 1, 100
+        do k = 1, 100
+          l = 1
+        end do
+      end do
+    end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    lhs = routine.walk(Assignment)[0].lhs
+    chains = DefinitionUseChain(lhs)
+    reaches = chains.find_backward_accesses()
+    assert len(reaches) == 1

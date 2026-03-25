@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,8 @@
 
 ''' This module contains the IntrinsicSymbol.'''
 
+from __future__ import annotations
+
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 
 
@@ -50,7 +52,7 @@ class IntrinsicSymbol(RoutineSymbol):
     :type kwargs: unwrapped dict.
 
     # TODO #2541: Currently name and the intrinsic should match, we really
-    # just need the name, and make all the Intrinsic singature information
+    # just need the name, and make all the Intrinsic signature information
     # live inside the IntrinsicSymbol class.
 
     '''
@@ -65,6 +67,24 @@ class IntrinsicSymbol(RoutineSymbol):
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`
         '''
         return self._intrinsic
+
+    def copy(self) -> IntrinsicSymbol:
+        '''Create and return a copy of this object. Any references to the
+        original will not be affected so the copy will not be referred
+        to by any other object.
+
+        :returns: A symbol object with the same properties as this
+                  symbol object.
+
+        '''
+        # The constructors for all Symbol-based classes have 'name' as the
+        # first positional argument.
+        return type(self)(self.name, self.intrinsic,
+                          datatype=self.datatype.copy(),
+                          visibility=self.visibility,
+                          interface=self.interface.copy(),
+                          is_pure=self.is_pure,
+                          is_elemental=self.is_elemental)
 
 
 # For Sphinx AutoAPI documentation generation

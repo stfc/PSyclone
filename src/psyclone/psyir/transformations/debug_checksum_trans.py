@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,13 @@ from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, PreprocessorInterface, ScalarType
 )
 from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError
+)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class DebugChecksumTrans(RegionTrans):
     '''
     Creates a set of checksums (written via print) for all written arrays
@@ -101,17 +106,27 @@ PSYCLONE_INTERNAL_line_ + 1
     <BLANKLINE>
 
     '''
-    def apply(self, node: Union[Node, List[Node]], options=None) -> None:
+    def apply(self, node: Union[Node, List[Node]],
+              **kwargs) -> None:
         '''
         Applies the checksum transformation to the provided node(s).
 
         :param node: The node or list of nodes to apply the
                       transformation to.
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
+        :raises TransformationError: if node_type_check is provided as a
+                                     keyword argument.
         '''
-        self.validate(node, options={"node-type-check": False})
+        if "node_type_check" in kwargs:
+            raise TransformationError(
+                f"node_type_check was passed as an argument to {self.name}. "
+                f"This transformation sets this option internally so it "
+                f"cannot be supplied."
+            )
+        # This transformation doesn't need the node_type_check so
+        # it forces it to False
+        self.validate(node, node_type_check=False,
+                      **kwargs)
 
         node_list = self.get_node_list(node)
         routine = node_list[0].ancestor(Routine)
@@ -147,15 +162,16 @@ PSYCLONE_INTERNAL_line_ + 1
                     member = member.member
                 datatype = assign.lhs.datatype
                 while not isinstance(datatype, ScalarType):
-                    datatype = datatype.datatype
+                    datatype = datatype.elemental_type
                 # If the final member is the only array, and its a supported
                 # datatype then we add it to the writes.
-                if (member.is_array and datatype.intrinsic in
+                if (isinstance(member, ArrayMixin) and datatype.intrinsic in
                         [ScalarType.Intrinsic.REAL,
                          ScalarType.Intrinsic.INTEGER] and
                         not multiple_arrays):
                     writes.append(assign.lhs)
-            elif (assign.lhs.is_array and assign.lhs.datatype.intrinsic in
+            elif (isinstance(assign.lhs, ArrayMixin)
+                  and assign.lhs.datatype.intrinsic in
                   [ScalarType.Intrinsic.REAL, ScalarType.Intrinsic.INTEGER]):
                 writes.append(assign.lhs)
 
@@ -176,7 +192,7 @@ PSYCLONE_INTERNAL_line_ + 1
             else:
                 array_bit = copy
             # Need to convert the lhs to a full range variant.
-            for i in range(len(array_bit.indices)):
+            for i, _ in enumerate(array_bit.indices):
                 new_index = array_bit.get_full_range(i)
                 array_bit.indices[i].replace_with(new_index)
             array = fwriter(copy)

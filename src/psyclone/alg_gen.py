@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2014-2025, Science and Technology Facilities Council.
+# Copyright (c) 2014-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,7 +70,7 @@ class Alg:
     output from the function :func:`psyclone.parse.algorithm.parse`
     and an instance of the :class:`psyGen.PSy` class as input. The
     latter allows consistent names to be generated between the
-    algorithm (callng) and psy (callee) layers.
+    algorithm (calling) and psy (callee) layers.
 
     For example:
 

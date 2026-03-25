@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,11 @@
 
 import re
 
-from psyclone.core import AccessType, Signature, VariablesAccessMap
+from typing import Union
+
+from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import ScalarType, Symbol, ArrayType
+from psyclone.psyir.symbols import ScalarType, ArrayType, Symbol
 
 
 class Literal(DataNode):
@@ -171,18 +173,29 @@ class Literal(DataNode):
         return (f"{self.coloured_name(colour)}"
                 f"[value:'{self._value}', {self.datatype}]")
 
+    def get_all_accessed_symbols(self) -> set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this Literal.
+        '''
+        symbols = super().get_all_accessed_symbols()
+        if isinstance(self.datatype.precision, DataNode):
+            symbols.update(self.datatype.get_all_accessed_symbols())
+        return symbols
+
     def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
         access_info = VariablesAccessMap()
-        if isinstance(self.datatype.precision, Symbol):
-            access_info.add_access(Signature(self.datatype.precision.name),
-                                   AccessType.TYPE_INFO, self)
+        if isinstance(self.datatype.precision, DataNode):
+            precision_symbols = self.datatype.get_all_accessed_symbols()
+            for symbol in precision_symbols:
+                access_info.add_access(
+                    Signature(symbol.name), AccessType.CONSTANT, self)
         return access_info
 
     def replace_symbols_using(self, table_or_symbol):
@@ -200,6 +213,25 @@ class Literal(DataNode):
         '''
         self.datatype.replace_symbols_using(table_or_symbol)
         super().replace_symbols_using(table_or_symbol)
+
+    @property
+    def value_as_python(self) -> Union[str, bool, int, float]:
+        '''
+        .. warning::
+            value_as_python doesn't attempt to preserve the precision
+            of the Literal, merely gives a python representation of
+            the value of the Literal object.
+
+        :returns: the python representation of this Literal.
+        '''
+        if self.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+            return int(self.value)
+        if self.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            return float(self.value)
+        if self.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+            return self.value == "true"
+        if self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            return self.value
 
 
 # For AutoAPI documentation generation

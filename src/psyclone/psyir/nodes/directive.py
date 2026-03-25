@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -100,7 +100,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
 
         for sig in var_info.all_signatures:
             vinfo = var_info[sig]
-            node = vinfo.all_accesses[0].node
+            node = vinfo[0].node
             sym = table.lookup(sig.var_name)
 
             if not vinfo.has_data_access():
@@ -151,7 +151,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
             # Then work our way down the various members.
             for depth in range(1, len(sig)):
                 if sig[:depth+1] not in access_dict:
-                    if node.is_array:
+                    if node.symbol.is_array:
                         base_cls = ArrayOfStructuresReference
                         # Copy the indices so as not to modify the original
                         # node.

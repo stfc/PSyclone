@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
+# Copyright (c) 2022-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import EvaluatorTargetsMetadata
 
 
@@ -145,7 +146,7 @@ def test_setter_errors():
 
     with pytest.raises(ValueError) as info:
         metadata.evaluator_targets = ["invalid"]
-    assert ("The 'evaluator_targets' metadata should be a recognised value "
-            "(one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', "
-            "'w1', 'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi']) "
-            "but found 'invalid'." in str(info.value))
+    const = LFRicConstants()
+    assert (f"The 'evaluator_targets' metadata should be a recognised value "
+            f"(one of {const.VALID_FUNCTION_SPACES}) but found "
+            f"'invalid'." in str(info.value))

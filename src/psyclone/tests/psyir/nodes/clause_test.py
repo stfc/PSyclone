@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,17 +36,17 @@
 
 ''' Performs py.test tests on the PSyIR Clause nodes. '''
 
-from psyclone.psyir.nodes.clause import OperandClause
+from psyclone.psyir.nodes.clause import OperatorClause
 
 
-def test_operand_clause(fortran_writer):
+def test_operator_clause(fortran_writer):
     '''
-    Test the operand method of the operand clause.
+    Test the operator method of the operator clause.
     '''
     # Create a instanstiable class
-    class OpTest(OperandClause):
+    class OpTest(OperatorClause):
         ''' Temporary class for testing'''
 
     opt = OpTest()
-    assert opt.operand is None
+    assert opt.operator is None
     assert fortran_writer(opt) == ""

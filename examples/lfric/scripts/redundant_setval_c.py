@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council
+# Copyright (c) 2018-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,8 @@ of loops that iterate over dofs and contain the setval_c builtin.
 '''
 from psyclone.transformations import LFRicRedundantComputationTrans
 
+# We don't include "owned_dofs" here as we only want loops that
+# are permitted to perform redundant computation.
 ITERATION_SPACES = ["dofs"]
 KERNEL_NAMES = ["setval_c"]
 DEPTH = 1

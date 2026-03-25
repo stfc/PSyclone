@@ -1,17 +1,16 @@
 # Simple Stand-alone Timer Library
 
-This library is a simple stand-alone timer library (see the ["Profiling"](
-https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) section
-in the PSyclone [User Guide](https://psyclone.readthedocs.io/en/stable/) for
-more details). It counts the number of calls for each region, and reports
-minumum, maximum and average times. This library is **not thread-safe**, and
+This library is a simple stand-alone timer library (see the [User Guide Profiling](
+https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling) section
+for more details). It counts the number of calls for each region, and reports
+minimum, maximum and average times. This library is **not thread-safe**, and
 **not MPI-aware** (e.g. maximum reported is per process, not across all
 processes).
 
 ## Dependencies
 
 This stand-alone profiling library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
 the application. The library is based on the [PSyData base class](
 https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#psydata-base-class),
 which is included in PSyclone as a Jinja template, ``psy_data_base.jinja``.
@@ -84,7 +83,7 @@ psy_time_step_mod::swlat_update_code                      11      1.87500000    
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2025, Science and Technology Facilities Council.
+Copyright (c) 2019-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,9 +42,9 @@ from psyclone.psyir.nodes import (
     Schedule, Assignment, Reference, Container, Loop, Literal,
     Routine, ArrayReference)
 from psyclone.psyir.symbols import (
-    ArrayType, ArgumentInterface, DataSymbol, DataTypeSymbol,
-    INTEGER_TYPE, REAL_TYPE, ScalarType, StructureType, Symbol,
-    SymbolTable, UnsupportedFortranType)
+    ArrayType, ArgumentInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    ImportInterface, INTEGER_TYPE, REAL_TYPE, ScalarType, StructureType,
+    Symbol, SymbolTable, UnsupportedFortranType)
 from psyclone.tests.utilities import Compile
 
 
@@ -77,7 +77,14 @@ def test_scoping_node_copy():
     schedule = Schedule()
     symbol_a = schedule.symbol_table.new_symbol("a")
     symbol_b = schedule.symbol_table.new_symbol("b")
-
+    csym = schedule.symbol_table.new_symbol(
+        "kinds", symbol_type=ContainerSymbol)
+    precn_sym = schedule.symbol_table.new_symbol(
+        "wp", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+        interface=ImportInterface(csym))
+    schedule.symbol_table.new_symbol(
+        "c", symbol_type=DataSymbol,
+        datatype=ScalarType(ScalarType.Intrinsic.REAL, Reference(precn_sym)))
     schedule.addchild(
         Assignment.create(Reference(symbol_a), Reference(symbol_b)))
 
@@ -92,11 +99,13 @@ def test_scoping_node_copy():
     assert new_schedule[0].rhs is not schedule[0].rhs
 
     # Check that the symbol_table has been deep copied
-    assert new_schedule.symbol_table is not schedule.symbol_table
-    assert new_schedule.symbol_table.lookup("a") is not \
-        schedule.symbol_table.lookup("a")
-    assert new_schedule.symbol_table.lookup("b") is not \
-        schedule.symbol_table.lookup("b")
+    new_table = new_schedule.symbol_table
+    assert new_table is not schedule.symbol_table
+    assert new_table.lookup("a") is not schedule.symbol_table.lookup("a")
+    assert new_table.lookup("b") is not schedule.symbol_table.lookup("b")
+    new_wp = new_table.lookup("wp")
+    assert new_wp is not schedule.symbol_table.lookup("wp")
+    new_table.lookup("c").datatype.precision.symbol is new_wp
 
     # Check that the children references of the copied schedule point to
     # symbols in the new schedule's symbol table
@@ -140,12 +149,19 @@ def test_scoping_node_copy_hierarchy(fortran_writer):
     appropriately.
     '''
     parent_node = Container("module")
+    csym = parent_node.symbol_table.new_symbol(
+        "kinds", symbol_type=ContainerSymbol)
+    wp = parent_node.symbol_table.new_symbol(
+        "wp", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+        interface=ImportInterface(csym))
     symbol_b = parent_node.symbol_table.new_symbol(
-        "b", symbol_type=DataSymbol, datatype=ArrayType(INTEGER_TYPE, [5]))
+        "b", symbol_type=DataSymbol,
+        datatype=ArrayType(INTEGER_TYPE, [5]))
     schedule = Routine.create("routine")
     parent_node.addchild(schedule)
     symbol_a = schedule.symbol_table.new_symbol(
-        "a", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+        "a", symbol_type=DataSymbol,
+        datatype=ScalarType(ScalarType.Intrinsic.INTEGER, Reference(wp)),
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
     schedule.symbol_table.specify_argument_list([symbol_a])
     symbol_i = schedule.symbol_table.new_symbol(
@@ -156,6 +172,18 @@ def test_scoping_node_copy_hierarchy(fortran_writer):
                           ArrayReference.create(symbol_b,
                                                 [Reference(symbol_i)])))
 
+    # Check that references to Symbols within other Symbols are updated
+    # if the whole hierarchy is copied.
+    parent_copy = parent_node.copy()
+    new_routine = parent_copy.walk(Routine)[0]
+    new_a = new_routine.symbol_table.lookup("a")
+    new_wp = parent_copy.symbol_table.lookup("wp")
+    assert new_a.datatype.precision.symbol is new_wp
+
+    new_kinds = parent_copy.symbol_table.lookup("kinds")
+    assert new_wp.interface.container_symbol is new_kinds
+
+    # Now just copy the Routine.
     new_schedule = schedule.copy()
     # Need to modify the name of the new schedule
     new_schedule.name = "routine2"
@@ -193,20 +221,21 @@ def test_scoping_node_copy_hierarchy(fortran_writer):
     # TODO #1200: the new 'routine' RoutineSymbol also needs to change.
     expected = '''\
 module module
+  use kinds, only : wp
   implicit none
   integer, dimension(5), public :: b_global
   public
 
   contains
   subroutine routine(a)
-    integer, intent(inout) :: a
+    integer(kind=wp), intent(inout) :: a
     integer :: i
 
     a = b_global(i)
 
   end subroutine routine
   subroutine routine2(a)
-    integer, intent(inout) :: a
+    integer(kind=wp), intent(inout) :: a
     integer :: i_new
 
     a = b_global(i_new)
@@ -294,7 +323,7 @@ def test_scoping_node_reference_accesses():
     vam = sched.reference_accesses()
     assert not vam.all_signatures
     # Add another Symbol that references the first one in its precision.
-    new_type = ScalarType(ScalarType.Intrinsic.REAL, prsym)
+    new_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(prsym))
     _ = table.new_symbol("var1", symbol_type=DataSymbol, datatype=new_type)
     vam = sched.reference_accesses()
     assert vam.all_signatures == [Signature("r_def")]
@@ -302,7 +331,7 @@ def test_scoping_node_reference_accesses():
     # Add a Symbol with initialisation.
     idef = table.new_symbol("i_def", symbol_type=DataSymbol,
                             datatype=INTEGER_TYPE)
-    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
     _ = table.new_symbol("var2", symbol_type=DataSymbol,
                          datatype=INTEGER_TYPE,
                          is_constant=True,
@@ -324,8 +353,8 @@ def test_reference_accesses_struct():
                             datatype=INTEGER_TYPE)
     rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
                             datatype=INTEGER_TYPE)
-    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
-    real_type = ScalarType(ScalarType.Intrinsic.INTEGER, rdef)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
+    real_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(rdef))
     stype = StructureType.create([
         ("iflag", int_type, Symbol.Visibility.PRIVATE, None),
         ("rmask", real_type, Symbol.Visibility.PUBLIC,
@@ -349,8 +378,8 @@ def test_reference_accesses_array():
                             datatype=INTEGER_TYPE)
     rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
                             datatype=INTEGER_TYPE)
-    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
-    real_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
+    real_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef))
     var2 = table.new_symbol("var2", symbol_type=DataSymbol,
                             datatype=INTEGER_TYPE, is_constant=True,
                             initial_value=Literal("100", int_type))
@@ -375,7 +404,7 @@ def test_reference_accesses_unknown_type():
                             datatype=INTEGER_TYPE)
     big_sym = table.new_symbol("big", symbol_type=DataSymbol,
                                datatype=INTEGER_TYPE)
-    real_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
+    real_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef))
     ptype = ArrayType(real_type, [Reference(big_sym)])
     utype = UnsupportedFortranType(
         "real(r_def), dimension(big), target :: array",

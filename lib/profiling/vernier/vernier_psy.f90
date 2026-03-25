@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2024-2025, Science and Technology Facilities Council.
+! Copyright (c) 2024-2026, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 ! Author J. Henrichs, Bureau of Meteorology
 
 
-!> An implemention of the PSyData API for profiling which wraps the use of Vernier.
+!> An implementation of the PSyData API for profiling which wraps the use of Vernier.
 
 module profile_psy_data_mod
 

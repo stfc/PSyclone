@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -486,7 +486,7 @@ subroutine test_sub()
   integer :: a
   integer :: i
   ! Comment on loop 'do i = 1, 10'
-  !$omp parallel do
+  !dir$ somedir
   do i = 1, 10
     a = 1
   end do
@@ -509,10 +509,10 @@ def test_directives():
     psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE)
 
     loop = psyir.walk(Loop)[0]
-    assert (
-        loop.preceding_comment
-        == "Comment on loop 'do i = 1, 10'\n$omp parallel do"
-    )
+    directive = loop.preceding(reverse=True)[0]
+    assert isinstance(directive, CodeBlock)
+    assert (directive.debug_string() ==
+            "! Comment on loop 'do i = 1, 10'\n!dir$ somedir\n")
 
 
 EXPECTED_WITH_DIRECTIVES = """subroutine test_sub()
@@ -520,7 +520,7 @@ EXPECTED_WITH_DIRECTIVES = """subroutine test_sub()
   integer :: i
 
   ! Comment on loop 'do i = 1, 10'
-  !$omp parallel do
+  !dir$ somedir
   do i = 1, 10, 1
     a = 1
   enddo
@@ -529,10 +529,6 @@ end subroutine test_sub
 """
 
 
-@pytest.mark.xfail(
-    reason="Directive is written back as '! $omp parallel do'"
-    "instead of '!$omp parallel do'"
-)
 def test_write_directives():
     """Test that the directives are written back to the code"""
     reader = FortranReader(ignore_comments=False, ignore_directives=False)
@@ -591,3 +587,49 @@ def test_inline_comment():
     assert "a = i + 1" in assignment.debug_string()
     assert assignment.preceding_comment == ""
     assert assignment.inline_comment == "Third line of inline comment"
+
+
+def test_lost_program_comments():
+    """Test that the FortranReader doesn't lose comments after the
+    declarations when reading a Program."""
+    reader = FortranReader(ignore_comments=False)
+    code = """program a
+    integer :: i ! inline here
+
+    ! Comment here
+    i = 1
+    end program"""
+    psyir = reader.psyir_from_source(code)
+    assert (psyir.children[0].symbol_table.lookup("i").inline_comment ==
+            "inline here")
+    assignment = psyir.walk(Assignment)[0]
+    assert assignment.preceding_comment == "Comment here"
+
+
+@pytest.mark.parametrize("directive", ["$omp target",
+                                       "$acc kernels",
+                                       "dir$ vector",
+                                       "DIR$ VECTOR",
+                                       "$pos dir"])
+def test_directives_not_comments(directive):
+    """Test that the FortranReader doesn't keep directives when only
+    comments are requested."""
+    code = f"""module A
+  implicit none
+  integer, public :: a
+  public
+
+  contains
+  subroutine test()
+
+    !$ a = 0 +     &
+    !$&  0
+    !{directive}
+    a = 1
+
+  end subroutine test
+
+end module A"""
+    reader = FortranReader(ignore_comments=False)
+    psyir = reader.psyir_from_source(code)
+    assert directive not in psyir.debug_string()

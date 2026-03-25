@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, L. Turner and O. Brunt, Met Office
+# Modified: I. Kavcic, L. Turner, O. Brunt and A. Pirrie, Met Office
 #           R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module for the LFRic domain.
@@ -53,8 +53,8 @@ from psyclone.domain.lfric.kern_call_invoke_arg_list import \
     KernCallInvokeArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
 from psyclone.domain.lfric.lfric_cell_iterators import LFRicCellIterators
-from psyclone.domain.lfric.lfric_extract_driver_creator import \
-    LFRicExtractDriverCreator
+from psyclone.domain.lfric.lfric_driver_creator import \
+    LFRicDriverCreator
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
@@ -68,42 +68,15 @@ from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_fields import LFRicFields
+from psyclone.domain.lfric.lfric_global_reductions import (
+    LFRicGlobalMax, LFRicGlobalMin, LFRicGlobalSum)
 from psyclone.domain.lfric.lfric_run_time_checks import LFRicRunTimeChecks
 from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
+from psyclone.domain.lfric.lfric_scalar_array_args import LFRicScalarArrayArgs
 from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
 from psyclone.domain.lfric.lfric_kern_metadata import LFRicKernMetadata
 from psyclone.domain.lfric.lfric_psy import LFRicPSy
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.domain.lfric.lfric_dofmaps import LFRicDofmaps
 from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-
-
-__all__ = [
-    'ArgOrdering',
-    'FunctionSpace',
-    'KernCallAccArgList',
-    'KernCallArgList',
-    'KernelInterface',
-    'KernStubArgList',
-    'LFRicArgDescriptor',
-    'LFRicCellIterators',
-    'LFRicCollection',
-    'LFRicConstants',
-    'LFRicDofmaps',
-    'LFRicExtractDriverCreator',
-    'LFRicFields',
-    'LFRicHaloDepths',
-    'LFRicInvoke',
-    'LFRicInvokes',
-    'LFRicInvokeSchedule',
-    'LFRicKern',
-    'LFRicKernCallFactory',
-    'LFRicKernMetadata',
-    'LFRicLoop',
-    'LFRicLoopBounds',
-    'LFRicPSy',
-    'LFRicRunTimeChecks',
-    'LFRicScalarArgs',
-    'LFRicStencils',
-    'LFRicSymbolTable']

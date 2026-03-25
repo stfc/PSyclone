@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,23 +32,31 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. B. G. Chalk, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 ''' This module provides the OMPTaskTrans transformation.'''
 
 from psyclone.errors import GenerationError
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import Kern
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
         import FoldConditionalReturnExpressionsTrans
 from psyclone.psyir.transformations.parallel_loop_trans import\
     ParallelLoopTrans
-from psyclone.psyir.nodes import CodeBlock, Call, IntrinsicCall
-from psyclone.psyir.nodes import DynamicOMPTaskDirective
+from psyclone.psyir.nodes import (
+    CodeBlock,
+    Call,
+    DynamicOMPTaskDirective,
+    IntrinsicCall,
+    Loop,
+    Node,
+)
 from psyclone.psyir.transformations.inline_trans import InlineTrans
 from psyclone.psyir.transformations.transformation_error import \
         TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class OMPTaskTrans(ParallelLoopTrans):
     ''' Apply an OpenMP Task Transformation to a Loop. The Loop must
     be within an OpenMP Serial region (Single or Master) at codegen time.
@@ -69,7 +77,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         '''
         return "OMPTaskTrans"
 
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node: Loop, options=None, **kwargs):
         '''
         Validity checks for input arguments.
 
@@ -81,17 +89,16 @@ class OMPTaskTrans(ParallelLoopTrans):
         require that those transformations have been applied first.
 
         :param node: the Loop node to validate.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: dict of string:values or None
         '''
+        self.validate_options(**kwargs)
         # Disallow CodeBlocks inside the region
         if any(node.walk(CodeBlock)):
             raise GenerationError(
                 "OMPTaskTransformation cannot be applied to a region "
                 "containing a code block")
 
-        super().validate(node, options)
         # Check we can apply all the required transformations on any sub
         # nodes
         root_ancestor = node.root
@@ -106,20 +113,23 @@ class OMPTaskTrans(ParallelLoopTrans):
             node_copy = node_copy.children[index]
 
         kerns = node_copy.walk(Kern)
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.transformations import \
+            KernelModuleInlineTrans
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
 
         for kern in kerns:
-            kintrans.validate(kern)
+            kintrans.validate(kern, options)
             routines = kern.get_callees()
             for routine in routines:
-                cond_trans.validate(routine)
+                cond_trans.validate(routine, options)
             # We need to apply these transformations to ensure we can
             # validate the InlineTrans
             kintrans.apply(kern)
             for routine in routines:
-                cond_trans.apply(routine)
+                cond_trans.apply(routine, options)
             kern.lower_to_language_level()
 
         calls = node_copy.walk(Call)
@@ -128,16 +138,18 @@ class OMPTaskTrans(ParallelLoopTrans):
             if isinstance(call, IntrinsicCall):
                 continue
             kintrans.apply(call)
-            intrans.validate(call)
+            intrans.apply(call)
 
-    def _directive(self, children, collapse=None):
+        # Check if the resulting code would be valid
+        super().validate(node_copy, options)
+
+    def _directive(self, children: list[Node], collapse=None):
         '''
         Creates the type of directive needed for this sub-class of
         transformation.
 
-        :param children: list of Nodes that will be the children of \
+        :param children: list of Nodes that will be the children of
                          the created directive.
-        :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param collapse: A required parameter from parent class. Must
                          never be set for TaskTrans (is None).
         :type collapse: None.
@@ -155,7 +167,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         _directive = DynamicOMPTaskDirective(children=children)
         return _directive
 
-    def _inline_kernels(self, node):
+    def _inline_kernels(self, node: Loop):
         '''
         Searches the PsyIR tree inside the directive and inlines any kern
         objects found.
@@ -166,10 +178,12 @@ class OMPTaskTrans(ParallelLoopTrans):
         4. Inline all the Call operations found.
 
         :param node: The node this transformation is operating on.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        '''
 
+        '''
         kerns = node.walk(Kern)
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.transformations import (
+            KernelModuleInlineTrans)
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
@@ -187,7 +201,7 @@ class OMPTaskTrans(ParallelLoopTrans):
                 continue
             intrans.apply(call)
 
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node: Loop, options=None, **kwargs):
         '''Apply the OMPTaskTrans to the specified node in a Schedule.
 
         Can only be applied to a Loop.
@@ -208,18 +222,17 @@ class OMPTaskTrans(ParallelLoopTrans):
         Any kernels or Calls will be inlined into the region before the task
         transformation is applied.
 
-        :param node: the supplied node to which we will apply the \
+        :param node: the supplied node to which we will apply the
                      OMPTaskTrans transformation
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations\
+        :param options: a dictionary with options for transformations
                         and validation.
         :type options: dictionary of string:values or None
         '''
-        self.validate(node, options=options)
+        self.validate(node, options=options, **kwargs)
         if not options:
             options = {}
         self._inline_kernels(node)
-        super().apply(node, options)
+        super().apply(node, options, **kwargs)
 
 
 # For AutoAPI documentation generation.

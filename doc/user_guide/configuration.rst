@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2025, Science and Technology Facilities Council
+.. Copyright (c) 2018-2026, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -102,8 +102,6 @@ and an optional API specific section, for example for the
 ::
 
    [lfric]
-   access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
-                    gh_inc: inc, gh_readinc: readinc, gh_sum: sum
    COMPUTE_ANNEXED_DOFS = false
    supported_fortran_datatypes = real, integer, logical
    default_kind = real: r_def, integer: i_def, logical: l_def
@@ -118,9 +116,8 @@ and an optional API specific section, for example for the
                    r_solver: 4,
                    r_tran: 8,
                    r_bl: 8,
-                   r_phys: 8,
                    r_um: 8
-   RUN_TIME_CHECKS = false
+   RUN_TIME_CHECKS = none
    NUM_ANY_SPACE = 10
    NUM_ANY_DISCONTINUOUS_SPACE = 10
 
@@ -128,7 +125,6 @@ or for ``gocean``:
 ::
 
    [gocean]
-   access_mapping = go_read:read, go_write:write, go_readwrite:readwrite
    grid-properties = go_grid_xstop: {0}%%grid%%subdomain%%internal%%xstop: scalar,
                   go_grid_ystop: {0}%%grid%%subdomain%%internal%%ystop: scalar,
                   go_grid_data: {0}%%data: array,
@@ -151,61 +147,38 @@ supported by PSyclone.
 
 .. tabularcolumns:: |l|L|l|
 
-======================= ======================================================= ===========
-Entry                   Description                                             Type
-======================= ======================================================= ===========
-DISTRIBUTED_MEMORY      Whether or not to generate code for distributed-memory  bool
-                        parallelism by default.  Note that this is currently
-                        only supported for the LFRic API.
-REPRODUCIBLE_REDUCTIONS Whether or not to generate code for reproducible OpenMP bool
-                        reductions (see :ref:`openmp-reductions`) by default.
-REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,  int
-                        this setting controls the amount of padding used
-                        between elements of the array in which each thread
-                        accumulates its local reduction. (This prevents false
-                        sharing of cache lines by different threads.)
-PSYIR_ROOT_NAME         The root for generated PSyIR symbol names if one is not str
-                        supplied when creating a symbol. Defaults to
-                        "psyir_tmp".
-VALID_PSY_DATA_PREFIXES Which class prefixes are permitted in any               list of str
-                        PSyData-related transformations. See :ref:`psy_data`
-                        for details.
-BACKEND_CHECKS_ENABLED  Optional (defaults to True). Whether or not the PSyIR   bool
-                        backend should validate the tree that it is passed.
-                        Can be overridden by the ``--backend`` command-line
-                        flag (see :ref:`backend-options`).
-FORTRAN_STANDARD        Optional (defaults to f2008). The Fortran standard      str
-                        that should be used by fparser. Valid values are
-                        f2003 and f2008.
-======================= ======================================================= ===========
-
-Common Sections
-^^^^^^^^^^^^^^^
-
-The following entries must be defined for each API in order for PSyclone to
-work as expected:
-
-.. tabularcolumns:: |l|L|
-
-======================= =======================================================
-Entry                   Description
-======================= =======================================================
-access_mapping          This field defines the strings that are used by a
-                        particular API to indicate write, read, ... access. Its
-                        value is a comma separated list of access-string:access
-                        pairs, e.g.:
-
-                        ``gh_read: read, gh_write: write, gh_readwrite: readwrite,
-                        gh_inc: inc, gh_readinc: gh_sum: sum``
-
-                        At this stage these 6 types are defined for
-                        read, write, read+write, increment,
-                        read+increment and summation access by
-                        PSyclone. Sum is a form of reduction. The
-                        GOcean API does not support increment or sum,
-                        so it only defines three mappings for read,
-                        write, and readwrite.
-======================= =======================================================
+============================ ======================================================= ===========
+Entry                        Description                                             Type
+============================ ======================================================= ===========
+DISTRIBUTED_MEMORY           Whether or not to generate code for distributed-memory  bool
+                             parallelism by default.  Note that this is currently
+                             only supported for the LFRic API.
+REPRODUCIBLE_REDUCTIONS      Whether or not to generate code for reproducible OpenMP bool
+                             reductions (see :ref:`openmp-reductions`) by default.
+REPROD_PAD_SIZE              If generating code for reproducible OpenMP reductions,  int
+                             this setting controls the amount of padding used
+                             between elements of the array in which each thread
+                             accumulates its local reduction. (This prevents false
+                             sharing of cache lines by different threads.)
+PSYIR_ROOT_NAME              The root for generated PSyIR symbol names if one is not str
+                             supplied when creating a symbol. Defaults to
+                             "psyir_tmp".
+VALID_PSY_DATA_PREFIXES      Which class prefixes are permitted in any               list of str
+                             PSyData-related transformations. See :ref:`psy_data`
+                             for details.
+BACKEND_CHECKS_ENABLED       Optional (defaults to True). Whether or not the PSyIR   bool
+                             backend should validate the tree that it is passed.
+                             Can be overridden by the ``--backend`` command-line
+                             flag (see :ref:`backend-options`).
+BACKEND_INDENTATION_DISABLED Optional (defaults to False). Whether or not the        bool
+                             PSyIR backend should output nested code structures
+                             using indentation. Can be overridden by the
+                             ``--backend`` command-line flag (see
+                             :ref:`backend-options`).
+FORTRAN_STANDARD             Optional (defaults to f2008). The Fortran standard      str
+                             that should be used by fparser. Valid values are
+                             f2003 and f2008.
+============================ ======================================================= ===========
 
 
 ``lfric`` Section
@@ -234,7 +207,8 @@ precision_map               Captures the value of the actual precisions in
                             bytes, see :ref:`lfric-precision-map`
                             
 RUN_TIME_CHECKS             Specifies whether to generate run-time validation
-                            checks, see :ref:`lfric-run-time-checks`.
+                            checks, see :ref:`lfric-run-time-checks`. Must be
+                            one of `none`, `warn` or `error`.
 
 NUM_ANY_SPACE               Sets the number of ``ANY_SPACE`` function spaces
                             in LFRic, see :ref:`lfric-num-any-spaces`.
@@ -264,3 +238,23 @@ grid-properties         This key contains definitions to access various grid
                         in the :ref:`gocean-configuration-grid-properties`
                         section of the GOcean1.0 chapter.
 ======================= =======================================================
+
+
+Overwriting Config Settings on the Command Line
+-----------------------------------------------
+
+PSyclone provides the command line option ``--config-opts`` to overwrite
+settings in the configuration file. This can be convenient to test different
+scenarios without having to maintain a config files for each of them.
+
+The option takes a space-separated list of ``key=value`` pairs, for
+example:
+::
+
+    psyclone --config-opts="run_time_checks=warn reprod_pad_size=27" ...
+
+This will overwrite the settings for ``run_time_checks`` and ``reprod_pad_size``
+in the configuration file. You can overwrite any setting in any section (without
+having to specify the section). Capitalisation of the keys is ignored.
+If an invalid key is specified, an exception will be raised and
+execution will be aborted.

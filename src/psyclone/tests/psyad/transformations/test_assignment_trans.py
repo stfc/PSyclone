@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -310,7 +310,7 @@ def test_single_assign_fail(tmpdir):
 
 def test_single_valued_assign(tmpdir):
     '''Test the transformation works when there is one active variable on
-    the rhs (B) that is multipled by a factor (x) and with the active
+    the rhs (B) that is multiplied by a factor (x) and with the active
     variable on the lhs (A) only being written to, i.e. not also read
     on the rhs. Also test mixed-case active variables list and actual
     variables.
@@ -333,7 +333,7 @@ def test_single_valued_assign(tmpdir):
 
 def test_multi_add(tmpdir):
     '''Test the transformation works when there are many active variables
-    on the rhs (B,C,D) with some of them being multipled by a factor
+    on the rhs (B,C,D) with some of them being multiplied by a factor
     and with the active variable on the lhs (A) only being written to,
     i.e. is not also read on the rhs. Also test mixed-case
     declarations.
@@ -952,7 +952,7 @@ def test_validate_rhs_zero():
     # 0 with a kind value
     real_kind = DataSymbol("r_def", INTEGER_TYPE, is_constant=True,
                            initial_value=8)
-    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, real_kind)
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(real_kind))
     rhs_literal = Literal("0.0", scalar_type)
     assignment = Assignment.create(Reference(lhs_symbol), rhs_literal)
     trans.validate(assignment)
@@ -1282,9 +1282,9 @@ def test_validate_unaryop():
         lhs_symbol, rhs_symbol])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each term on the RHS of the assignment 'a = SQRT(b)\n' must be "
-            "linear with respect to the active variable, but found 'SQRT(b)'."
-            in str(info.value))
+    assert ("Each term on the RHS of the assignment 'a = SQRT(b)\n' must "
+            "be linear with respect to the active variable, but found "
+            "'SQRT(b)'." in str(info.value))
 
 
 def test_validate_mismatched_array_ranges():

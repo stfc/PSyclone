@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -141,12 +141,12 @@ def test_ad_field_invalid_data_type():
             "gh_read, w3)'." in str(excinfo.value))
 
 
-def test_field_gh_sum_invalid():
+def test_field_gh_reduction_invalid():
     ''' Tests that an error is raised when a field is specified with
-    access type 'gh_sum'. '''
+    access type 'gh_reduction'. '''
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_real,    gh_read,    w2)",
-        "arg_type(gh_field,  gh_real,    gh_sum,     w2)", 1)
+        "arg_type(gh_field,  gh_real,    gh_reduction,     w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
@@ -154,7 +154,7 @@ def test_field_gh_sum_invalid():
     assert ("In the LFRic API, allowed accesses for fields on continuous "
             "function spaces that are arguments to kernels that operate on "
             "cell-columns are ['gh_read', 'gh_write', 'gh_inc', 'gh_readinc'],"
-            " but found 'gh_sum' for 'w2'" in str(excinfo.value))
+            " but found 'gh_reduction' for 'w2'" in str(excinfo.value))
 
 
 def test_ad_fld_type_too_few_args():
@@ -279,9 +279,9 @@ def test_ad_field_init_wrong_iteration_space():
             field_arg, metadata.iterates_over, 0)._init_field(
                 field_arg, "ncolours")
     assert ("Invalid operates_on 'ncolours' in the kernel metadata (expected "
-            "one of ['cell_column', 'domain', 'dof', 'halo_cell_column', "
-            "'owned_and_halo_cell_column'])." in
-            str(excinfo.value))
+            "one of ['domain', 'dof', 'owned_dof', 'cell_column', "
+            "'owned_cell_column', 'halo_cell_column', "
+            "'owned_and_halo_cell_column'])." in str(excinfo.value))
 
 
 def test_fs_discontinuous_inc_error():

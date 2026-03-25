@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,13 @@ default:
 PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/value_range_check/lfric
 PSYDATA_LIB_NAME?=_value_range_check
 
-# Target for testing the tutorials with compilation (use only one PSyData wrapper)
 compile:
-	make -f solutions/Makefile.value_range_check
+	echo "Compilation for building_code/4_psydata not yet working."
+
+# Target for testing the tutorials with compilation (use only one PSyData wrapper)
+# TODO #3114
+#compile:
+#	make -f solutions/Makefile.value_range_check
 
 run: compile
 	./time_evolution

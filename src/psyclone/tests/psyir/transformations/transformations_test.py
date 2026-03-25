@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,11 +35,13 @@
 #         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified M. Naylor, University of Cambridge, UK
 
 '''
 API-agnostic tests for various transformation classes.
 '''
 
+import sys
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
@@ -47,18 +49,19 @@ from psyclone.psyir.nodes import (
     CodeBlock, Literal, Loop, Node, Reference, Schedule, Statement,
     ACCLoopDirective, OMPMasterDirective,
     OMPDoDirective, OMPLoopDirective, Routine)
-from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE,
-                                    ImportInterface, ContainerSymbol)
 from psyclone.psyir.transformations import (
     ProfileTrans, RegionTrans, TransformationError, OMPTaskloopTrans,
-    OMPDeclareTargetTrans, ACCLoopTrans)
+    OMPDeclareTargetTrans, ACCLoopTrans, OMPParallelTrans)
 from psyclone.tests.utilities import get_invoke, Compile
 from psyclone.transformations import (
     ACCEnterDataTrans, ACCParallelTrans, OMPLoopTrans,
-    OMPParallelLoopTrans, OMPParallelTrans, OMPSingleTrans,
+    OMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.symbols import (
+    ContainerSymbol, INTEGER_TYPE,
+    DataSymbol, ImportInterface)
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -130,6 +133,7 @@ def test_accparalleltrans_validate(fortran_reader):
         integer, dimension(10, 10) :: A
         integer :: i
         integer :: j
+        character :: command
         do i = 1, 10
             do j = 1, 10
                 A(i, j) = myfunc(3)
@@ -142,7 +146,7 @@ def test_accparalleltrans_validate(fortran_reader):
         end do
         do i = 1, 10
             do j = 1, 10
-                A(i,j) = GET_COMMAND(2)
+                A(i, j) = ADJUSTR(command)
             end do
         end do
     end subroutine
@@ -163,14 +167,14 @@ def test_accparalleltrans_validate(fortran_reader):
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[2])
-    assert ("'GET_COMMAND' is not available on the default accelerator "
+    assert ("'ADJUSTR' is not available on the default accelerator "
             "device. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[2], options={'device_string':
                                                    'nvfortran-all'})
-    assert ("'GET_COMMAND' is not available on the 'nvfortran-all' accelerator"
+    assert ("'ADJUSTR' is not available on the 'nvfortran-all' accelerator"
             " device. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
 
@@ -561,7 +565,7 @@ def test_omplooptrans_apply(sample_psyir, fortran_writer):
 
 
 def test_omploop_trans_new_options(sample_psyir):
-    ''' Thest the new options and validation methods work correctly using
+    ''' Test the new options and validation methods work correctly using
     OMPLoopTrans apply'''
     omplooptrans = OMPLoopTrans()
     tree = sample_psyir.copy()
@@ -570,12 +574,12 @@ def test_omploop_trans_new_options(sample_psyir):
     # options.
     with pytest.raises(ValueError) as excinfo:
         omplooptrans.apply(tree.walk(Loop)[0], fakeoption1=1, fakeoption2=2)
-    print(excinfo.value)
     assert ("'OMPLoopTrans' received invalid options ['fakeoption1', "
             "'fakeoption2']. Valid options are '['node_type_check', "
             "'verbose', 'collapse', 'force', 'ignore_dependencies_for', "
-            "'privatise_arrays', 'sequential', 'nowait', 'reprod']."
-            in str(excinfo.value))
+            "'privatise_arrays', 'sequential', 'nowait', 'reduction_ops', "
+            "'force_private', 'options', 'reprod', 'enable_reductions']."
+            == str(excinfo.value))
 
     # Check we get the relevant error message when submitting multiple
     # options with the wrong type
@@ -587,15 +591,20 @@ def test_omploop_trans_new_options(sample_psyir):
             "'force' option expects type 'bool' but received 'a' "
             "of type 'str'.\n"
             "Please see the documentation and check the provided types."
-            in str(excinfo.value))
+            == str(excinfo.value))
 
     with pytest.raises(TypeError) as excinfo:
         omplooptrans.apply(tree.walk(Loop)[0], collapse="x")
-    assert ("'OMPLoopTrans' received options with the wrong types:\n"
-            "'collapse' option expects type 'int | bool' but "
-            "received 'x' of type 'str'.\n"
-            "Please see the documentation and check the provided types."
-            in str(excinfo.value))
+    if sys.version_info >= (3, 10):
+        assert ("'OMPLoopTrans' received options with the wrong types:\n"
+                "'collapse' option expects type 'int | bool' but "
+                "received 'x' of type 'str'.\n"
+                "Please see the documentation and check the provided types."
+                in str(excinfo.value))
+    else:
+        assert ("The 'collapse' argument must be an integer or a bool but got"
+                " an object of type <class 'str'>"
+                in str(excinfo.value))
 
 
 def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):

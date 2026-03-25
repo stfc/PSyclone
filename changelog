@@ -1,4 +1,408 @@
-   44) PR #2972 for 2971. Move the ParallelRegionTrans from transformations.py
+   70) PR #3358 for #1734, #2975 and #2949. Improve symbol table consistency
+   with better copies, validation checks and symbol localisation operations.
+
+   69) PR #3384 for #3383. Adds a pytest fixture to set the logging level
+   in fparser to CRITICAL. This simplifies the error messages produced
+   when a test fails.
+ 
+   68) PR #3378 towards #3252. Add a value_range_check example for LFRic.
+
+   67) PR #3380 for #3379. Fixes import for graphviz.Digraph.
+ 
+   66) PR #3359 for #3022. Uses the improved datatype functionality to
+   correctly transform reduction intrinsics into native code.
+ 
+   65) PR #3365 towards #2668. Updates more transformations to accept
+   keyword arguments instead of options.
+ 
+   64) PR #3376. Update CI to use character module versions to avoid fp
+   conversions.
+
+   63) PR #3372 for #3369. Extends NEMOv5 integration tests to do output
+   and compares the resulting files with KGOs.   
+
+   62) PR #3363 towards #2971. Move MoveTrans into psyir.transformations.
+ 
+   61) PR #3336 for #3325. Improve datatype method to prevent returning
+   array Extents and select better operand type when possible.
+
+   60) PR #3357 for #1857. Re-names ArrayType.datatype to
+   ArrayType.elemental_type and precision and intrinsic properties.
+
+   59) PR #3353 for #3328. Fix a case of duplicated nodes returned by DUC.
+
+   58) PR #3354 for #2429. Extends the fparser2 frontend such that all
+   structure constructors and functions with unknown delcarations are
+   represented by Call nodes.
+
+   57) PR #3355 towards #3252. Improves PSY_VALUE_RANGE format, introduces a
+   generic value_range_check library and runs examples during the tests.
+ 
+   56) PR #3343 towards #1960 and #1799. Improves ArrayAssignment2Loop
+   by using call/RoutineSymbol datatype information.
+ 
+   55) PR #3333 for #2381 - Restructures global reduction nodes to support
+   LFRicGlobalMax/Min/Sum operations.
+
+   54) PR #3349 for #3347 - bug fix to prevent comments and directives
+   from being lost when on/in SELECT CASE blocks.
+ 
+   53) PR #3317 - adds a profiling wrapper libary for ROCTx (AMD) as
+   well as a new nemo example to show profiling with OMP offload.
+ 
+   52) PR #3342 for #3339 - adds a value_as_python property to Literal.
+ 
+   51) PR #3205 for #3306 and towards #3157. Initial implementation of
+   a generic MaximalRegionTrans and specialisations to create spanning
+   OMPParallel regions and NEMO Profiling regions.
+
+   50) PR #3338 for #1651. Fixes Reference2ArrayRange issues with
+   capitalisation and test nested WHEREs.
+
+   49) PR #3331 for #3291. Update docs for LFRic BUILTIN_MAP.
+
+   48) PR #3296 for #2951. Improves ArrayAssignment2LoopTrans to allow
+   for dependencies between LHS and RHS.
+
+   47) PR #3332 for #3143 - fixes bug in DependenceUseChain so that
+   previous access of a call argument does not return the call.
+
+   46) PR #3319 for #3318. Alters the logging set-up performed by PSyclone
+   so that it does not affect the root Python logger.
+
+   45) PR #3125 towards #3060. IntrinsicCall reference_accesses now returns
+   appropriate access_types (instead of a generic READWRITE).
+
+   44) PR #3301 towards #1646. Adds new DataNodeToTempTrans() that allows
+   an expression to be replaced with a temporary variable.
+
+   43) PR #3326 for #3323. Bug fix for comments before directives on
+   loops or if statements.
+
+   42) PR #3324 updates Intel OneAPI configuration in Integration Tests.
+
+   41) PR #3321 for #3320. Removes null integer arithmetic operations in the
+   frontend when no changes to the resultant code will occur.
+
+   40) PR #3316 for 3314. Fixes a bug where inline comments could break
+   the line length limit.
+
+   39) PR #3309 for #3281. Improves check in IncreaseRankLoopArraysTrans to
+   allow for inquiry intrinsics on a specified dim.
+
+   38) PR #3311 for #3310. Small optimisation to the dependence-analysis
+   functionality for array indices consisting of simple References.
+
+   37) PR #3295 for #3292. Add command-line flag to permit config-file
+   settings to be overridden and extend possible settings for the
+   runtime warnings option.
+ 
+   36) PR #3308. Update Spack environment to use updated compiler versions.
+ 
+   35) PR #3202. Update nvidia compiler module version.
+
+   34) PR #3307 for #3305. Fix default value instantiation that was loading
+   the configuration file at import-time.
+
+   33) PR #3145 for #1623. Adds extensive training material using both the
+   GOcean and LFRic APIs.
+ 
+   32) PR #3299 for #3297. Fix intermittent test failures by more consistent
+   use of str and Path in the ModuleManager.
+ 
+   31) PR #3101 for #1312. Implements support for ScalarArray arguments to
+   LFRic kernels.
+ 
+   30) PR #3280 towards #2971. Move OMPParallelTrans to psyir.transformations. 
+
+   29) PR #3275 for #3216. Allows the specification of private variables
+   for parallel regions in user scripts and removes the option from Loops.
+
+   28) PR #3263 towards #2381 and #2674. Generalise GH_SUM to GH_REDUCTION
+   and begin support for new reduction LFRic Builtins.
+
+   27) PR #3293. Fixes various typos throughout the PSyclone codebase.
+
+   26) PR #3267 for #3265 and #1418. Improves the parsing of Fortran
+   derived types with unsupported components.
+ 
+   25) PR #3289 for #3288. Pin Sphinx to 8.3 to prevent doc build issues.
+
+   24) PR #3284 for #3283. Bug fix for case where same file found via
+   multiple search paths.
+
+   23) PR #3255 for #3251. Identify uncategorised directives as
+   UnknownDirective (instead of CodeBlock) when possible.
+
+   22) PR #3286 for #3207. Update the LFRic integration tests to use the git
+   repos.
+
+   21) PR #3264 for #3259. Shorten function_space names if they are above a
+   certain threshold. The Fortran backend checks for names that are too long.
+
+   20) PR #3119 towards #3060. Adds support for deducing the return types
+   of intrinsic calls.
+
+   19) PR #3278 for #3274. Move access_mapping from config file to constants.
+
+   18) PR #3266 for #1858. Adds support for derived-type accessors in
+   the Reference2ArrayRangeTrans transformation.
+
+   17) PR #3277 for #3276. Update copyright statements for 2026.
+
+   16) PR #3258 for #279. Removes Arguments.dofs and generally improves
+   testing coverage.
+
+   15) PR #3260 for #2884. Allow WHERE with imported symbols by changing
+   Ref2ArrayRangeTrans behaviour to do the validations.
+
+   14) PR #3254 for #3253. Fix openmp parallel lowering with kernels and
+   improve dependency messages
+
+   13) PR #3239 for #3199. Add OMPCritical Directive and Transformation.
+
+   12) PR #3226 for #514. Refactor LFRic reductions to use OMPReductionClause.
+
+   11) PR #3249 for #3246. Add the ArrayBounds.copy method.
+
+   10) PR #3221 towards #2884. Cleans-up Reference2ArrayRangeTrans.
+ 
+   9) PR #3235 for #3234 and #3232. Add support for OpenMP conditional
+   compilation statements.
+
+   8) PR #3152 for #3111. Ensure loop variables are excluded when
+   performing kernel extraction.
+
+   7) PR #3041 for #2823.  Changes the frontend for existing code so
+   that unresolved symbols with parentheses are identified as calls
+   rather than array accesses.
+
+   6) PR #3223 for #3219.  Add a prototype of the kernel computation
+   pattern as its children
+
+   5) PR #3150 towards #2302. Adds functionality to map arguments to
+   Fortran intrinsics to the corresponding named arguments.   
+
+   4) PR #3178 for #3196. Improves fparser2 reader directive handling.
+
+   3) PR #3210 for #3203. Removes outstanding references to the old,
+   pared-down LFRic infrastructure.
+
+   2) PR #3164 for #1320. Refactors the AccessSequence.component_indices
+   property into a method to remove internal state.
+ 
+   1) PR #3218 for #2705. Adds explicit type information for the r2d_field
+   type in GOcean so that kernel inlining succeeds.
+
+Release 3.2.2 26th of November 2025
+
+   2) PR #3231 for #3230. Fixes a bug in upper_bound_psyir() for field vectors.
+
+   1) PR #3229 for #3227. Fixes a bug with PSyAD where the wrong operator
+   space was being generated.
+
+Release 3.2.1 12th of November 2025
+
+   17) PR #3214 for #3188. Improves the validation when doing automatic
+   array privatisation.
+
+   16) PR #3187 for #3184. Improve logging when chasing imports and test
+   inining with the same imported symbol in the caller and the callee.
+
+   15) PR #3211 towards #1540. Resolve indirect imports when requested
+   by name.
+
+   14) PR #3194 towards #3183. Adds a new get_all_accessed_symbols
+   method to Node to reduce the cost of certain transformations.
+
+   13) PR #3204 towards #3203. Fix make calls using netcdf target.
+
+   12) PR #3182 for #2772. Add support for creating StructureReferences
+   with symbols of array datatype (representing a whole array access).
+
+   11) PR #3201 for #3200. Fix for comparing datatypes with equivalent
+   interfaces.
+
+   10) PR #3191 for #3189. Ensures that Fortran '==' is converted into
+   Sympy Eq(...).
+
+   9) PR #2944 for #2909. Add OWNED_DOF and OWNED_CELL_COLUMN values in the
+   operates_on LFRic metadata.
+
+   8) PR #3190. Add python 3.14 in the CI and integration tests (except the
+   LFRic Extraction tests).
+ 
+   7) PR #3181 for #3173. Adds protections for CodeBlocks in the
+   DataSharingAttributeMixin.   
+
+   6) PR #3174 and #3176 towards #2668. Add kwargs to more transformations.
+
+   5) PR #3186 for #3185. Small fix to SymbolicMaths.expand for Boolean
+   expressions
+
+   4) PR #3170 for #3156 and #3167. Remove redundant barrier at the end
+   of parallel regions, and an unused DUC private attribute.
+
+   3) PR #3067 for #2525. Updates to InlineTrans to support optional
+   arguments
+
+   2) PR #3131 for #2049. Refactor and rename DriverCreator classes.
+
+   1) PR #3118 towards #3049. Adds the --fixed-form and --free-form flags
+   to the psyclone command. Also automatically determine Fortran format
+   from file extension if they are not supplied.
+
+Release 3.2.0 1st of October 2025
+
+   100) PR #3166 for #3120. Add GitHub release workflow and prepare for
+   release 3.2.
+
+   99) PR #3161 for #3155. Optimise InlineTrans to only to a copy of the
+   target routine instead of the whole Container.
+
+   98) PR #3110 for #3087. Add support for declaration kind expressions by
+   representing them with a PSyIR tree.
+
+   97) PR #3160 for #3159 and #3140. Fix declarations with self-references.
+
+   96) PR #3153 for #3151. Fix some case-related naming comparison issues.
+
+   95) PR #3108 for #2446. Adds the ability to automatically add reduction
+   clauses to some OpenMP loops.
+
+   94) PR #3095 for #2916. Dynamically propagate pure and elemental
+   attributes to GenericInterfaceSymbols.
+
+   93) PR #3147 for #3138. Fixes reference_accesses() for Calls.
+
+   92) PR #3133 for #3132. Give specific paths to pytest compilation (
+   to prevent using the unpredictable '.' path).
+
+   91) PR #3137 for #3096. Add command-flag and config option to disable
+   all backend indentations.
+
+   90) PR #3134 towards #2398. Create an AtomicDirective mixin and add
+   support for atomic types other than the default.
+
+   89) PR #3136 towards #3060. Names all arguments to all calls of the
+   IAttr constructor (which represents intrinsic calls).
+
+   88) PR #3094 for #2851 and #3082. Improves the DA so that PSyclone
+   does not generate unnecessary firstprivate clauses on parallel regions.
+
+   87) PR #3127 for #3126. Disable python module index in latex version
+   of docs.
+
+   86) PR #3129 for #2709. Ensures that the 'disable backends check'
+   configuration option is passed to the FortranWriter.
+
+   85) PR #3128 for #3123. Fixes Fortran file in lfric binary extraction
+   library so that it works with gfortran 15.
+
+   84) PR #3116 for #2623. Remove old LFRic infrastructure and bring in
+   new version.
+
+   83) PR #3104. Move integration tests to new runner.
+
+   82) PR #3107 towards #3074. Update dl_esm_inf submodule.
+
+   81) PR #3103 for #3091. Fix AsyncTransMixin with loops with if-else blocks.
+
+   80) PR #3100 for #3097. Disable inheriting the options keyword in
+   transformation docstrings when not appropriate.
+
+   79) PR #3099 for #3089. Remove is_array from Nodes and rename it to
+   has_indices() in Signature.
+
+   78) PR #3106 for #3105. Add print handlers for Sympy boolean literals.
+
+   77) PR #3089 for #2781. Refine halo-depth logic for LFRic "halo" kernels.
+
+   76) PR #2910 for #2896. Adds IncreaseRankLoopArraysTrans.
+
+   75) PR #3093 for #3092. Fixes Fortran backend declarations of (1:) arrays.
+
+   74) PR #3078 for #3068. Refactors single-variable access info (to
+   AccessSequence).
+
+   73) PR #3088 for #1812. Implements the OMPReductionClause.
+
+   72) PR #3086 for #3071. Improves TransInfo-related deprecation warnings.
+
+   71) PR #3062 for #2671. Improves the support for allowing arrays to be
+   declared thread private.
+
+   70) PR #2969 for #2902. Adds LFRic driver extraction integration tests.
+
+   69) PR #3042 for #2971. Moves OMPDeclareTargetTrans and
+   MarkRoutineForGPUMixin into psyir/transformations.
+
+   68) PR #2893 for #2561. Add support for allocatables in the
+   HoistLocalArraysTrans and check for kind/type dependent symbols.
+
+   67) PR #3073 for #3072 and #1930. Move domain code out of
+   PSyGen.Argument to fix test issues.
+
+   66) PR #3039. Generalised loop tiling with examples
+
+   65) PR #3077 for #3076. Small optimisation to avoid computing depth in
+   node.walk() unless it is required.
+
+   64) PR #3023 towards #3012. Initial version of psyclonefc command
+
+   63) PR #2907 for #2878. Improves Extraction library output stats.
+
+   62) PR #3058 for #3059. Update linkcheck parameters, fix links in docs
+   and READMEs, update mentions of nan_check with value_range_check.
+
+   61) PR #3040 for #3038. Improves the frontend error reporting of the
+   psyclone command.
+
+   60) PR #2967 towards #2551. Adds a barrier minimisation step on the Async
+   workflow to improve its performance and adds integration tests.
+
+   59) PR #2137 towards #1312. Adds metadata support for read-only ScalarArrays
+   in the LFRic DSL.
+
+   58) PR #3057 for 3056. Demote OpenMP lowering error to warning.
+
+   57) PR #3018 for #3017. Fix ArrayType with defined lower bounds, but no upper
+   bound.
+
+   56) PR #3055. Fixes duplicated async statements in OpenACC.
+
+   55) PR #2941 for #2925. Add support for ASCII extraction and rename standalone
+   extraction to binary extraction.
+
+   54) PR #3053 for #3052. Fix missing psylayer openmp symbols (for LFRic with
+   OpenMP and profiling).
+
+   53) #3065 for #3064 - adds a pytest.ini to ensure that pytest doesn't look
+   in the 'external' directory if run from the project root directory.
+
+   52) PR #3014 towards #2384. Adds flags to keep comments and have directives
+   turned into codeblocks.
+
+   51) PR #3046 for #3045. Replace eval call with getattr in visitor.
+
+   50) PR #3037 for #3036. Remove AccessType location and is_accessed_before method.
+
+   49) PR #3043. Bring back python 3.9 in the integration tests
+
+   48) PR #2977 for #2971. Move the OMPTaskLoopTrans from transformations.py
+   to psyir/transformations.
+
+   47) PR #2997 for #223. Add support for logical operators in the SymPy
+   comparisons.
+
+   46) PR #3033 for #3031 and #3032. Prevent inserting profiling callipers to
+   NEMO functions and any elemental function. Also remove pure attribute when
+   inserting psy_data wrappers.
+
+   45) PR #2948 for #2950. Update extraction transformation to perform
+   extraction and driver creation at lowering
+
+   44) PR #2972 for #2971. Move the ParallelRegionTrans from transformations.py
    into psyir/transformations.
 
    43) PR #2732 for #2716. Add support for module-inlining polymorphic kernels
@@ -47,7 +451,7 @@
 
    25) PR #3001 for #2929. Improve docs for OMPLoopTrans.
 
-   24) PR #2999 for #2988. Fixed the unneccessary failure when 3 arguments
+   24) PR #2999 for #2988. Fixed the unnecessary failure when 3 arguments
    provided to Structure…
 
    23) PR #2993. Add documentation for the options to kwargs ongoing conversion.
@@ -59,7 +463,7 @@
    20) PR #2931 (#closes 2244) adds support for LFRic colour-tiling. Needs
    to be selected in transformation script.
 
-   19) PR #2970 towards #2966. Add `--enble-cache` psyclone command flag.
+   19) PR #2970 towards #2966. Add `--enable-cache` psyclone command flag.
 
    18) PR #2989. Updates various software versions in the integration tests.
    Most significant is move from Gnu 14.2 to Gnu 15.1.
@@ -161,7 +565,7 @@ release 3.1.0 26th of February 2025
 	13) PR #2862 for #2858. Change to PSyIR frontend and backend to ensure
 	existing parentheses in expressions are preserved.
 
-	14) PR #2825 for #2278 and #2849. Signatures AccessType now indentifies
+	14) PR #2825 for #2278 and #2849. Signatures AccessType now identifies
 	INQUIRY and TYPE_INFO, for inquiry intrinsic accesses and precision symbols.
 
 	15) PR #2855 for #2853. Allows the Fortran standard used by fparser to
@@ -173,7 +577,7 @@ release 3.1.0 26th of February 2025
 	17) PR #2829 for #2826. Adds a --config command-line argument to the
 	PSyAD script (to replicate that for psyclone).
 
-	18) PR #2280 for #2723. Add support for depencency analysis involving
+	18) PR #2280 for #2723. Add support for dependency analysis involving
 	array ranges.
 
 	19) PR #2885. Update integration test dependencies.
@@ -378,7 +782,7 @@ release 3.0.0 6th of December 2024
 	the form `var =[>] this[%...]%procedure(...)`.
 
 	60) PR #2645 towards #2585. Add an optional "otherwise" argument to
-	the SymbolTalbe lookup method.
+	the SymbolTable lookup method.
 
 	61) PR #2633 for #2125. Introduces the "replace_symbols_using" method
 	to guarantee that PSyIR trees after a copy have references to the
@@ -535,7 +939,7 @@ release 3.0.0 6th of December 2024
 	typehints that we are starting to add to the code base.
 
 	123) PR #2809 for #2737. Updates documentation on OpenMP to point to
-	examples of tranformations for CPU and GPU.
+	examples of transformations for CPU and GPU.
 
 	124) PR #2815 for #2636. Get nlayers from first field or operator
 	argument to each kernel in LFRic.
@@ -551,7 +955,7 @@ release 2.5.0 14th of February 2024
 	2) PR #2269 for #2268. Rename DynInvokes to LFRicInvokes and move
 	to own module.
 
-	3) PR #2255 for #2237. The derived type intial values are not lost
+	3) PR #2255 for #2237. The derived type initial values are not lost
 	anymore, and the "extends" or "abstract" keywords cause a
 	UnknownFortranType.
 
@@ -592,7 +996,7 @@ release 2.5.0 14th of February 2024
 	16) PR #2357 for #2353. Adds the ACC-loops NEMO transformation script
 	and includes its use in the integration testing.
 
-	17) PR #2380 and #2378 for #2369. Add PSyIR node.sibilings property.
+	17) PR #2380 and #2378 for #2369. Add PSyIR node.siblings property.
 
 	18) PR #2375 for #2374. Bug fix for LFRic kernel-extraction driver
 	creation for netcdf.
@@ -966,7 +1370,7 @@ release 2.4.0 29th of September 2023
 	information.
 
 	87) PR #1970 for #1966. Add an overwrite_datatype option to
-	StructureReferences for when an API knows what type a DeferedType is.
+	StructureReferences for when an API knows what type a DeferredType is.
 
 	88) PR #2003. Pins the Sphinx version to < 6.1 to avoid a bug in
 	the link-checking functionality. Also corrects various links to
@@ -1260,7 +1664,7 @@ release 2.4.0 29th of September 2023
 	nvfortran examples and tutorials steps in the Integration tests.
 
 	184) PR #2250 for #2248 and #1575. Fixes bug in line-length limiter
-	to prevent it breaking a line before the first non-whitepsace
+	to prevent it breaking a line before the first non-whitespace
 	character.
 
 	185) PR #2262 towards #446. Implement reference_access for Call nodes.
@@ -1303,7 +1707,7 @@ release 2.4.0 29th of September 2023
 	197) PR #2281 for #2258. Adds a PSyData wrapper for the TAU profiler.
 
 	198) PR #2283 for #2282 and #2286. Adds a get_ubound_expression
-	method to ArrayMixin (analagous to get_lbound_expression).
+	method to ArrayMixin (analogous to get_lbound_expression).
 
 	199) PR #2293 for #2301. Add 'is_independent' property/query to Loop.
 
@@ -2006,7 +2410,7 @@ release 2.0.0 28th April 2021
 	N.B. dl_esm_inf does not yet have support for set_dirty/clean.
 
 	37) #875 for #774. Add support for new metadata format for scalar
-	arguments to LFRic kernels - sepecify the intrinsic type
+	arguments to LFRic kernels - specify the intrinsic type
 	separately.
 
 	38) #895 towards #871. Updates to HEAD of dl_esm_inf, introduces
@@ -2653,7 +3057,7 @@ release 1.8.1 29th November 2019
 release 1.8.0 8th November 2019
 
 	1) #245 and PR #247. Extend PSyIR to support common kernel
-	constructs (e.g. asignments) and generalise ASTProcessor and
+	constructs (e.g. assignments) and generalise ASTProcessor and
 	CodeBlocks.
 
 	2) #275 and PR #276. Update fparser submodule (to point to latest
@@ -3206,7 +3610,7 @@ release 1.5.0 3rd October 2017
 	which will be used for the multi-grid code.
 
 	13) #82 and PR #83 modified a test to work with different versions
-	of graphviz which output files with different ammounts of white
+	of graphviz which output files with different amounts of white
 	space
 
 	14) #52 and PR #60 added support for evaluators. An evaluator is

@@ -1,11 +1,11 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2026,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020-2025, Science and Technology Facilities Council.
+! Modifications copyright (c) 2020-2026, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
 module extrusion_uniform_config_mod
 
   use constants_mod, only: i_def, &
-                           i_native, &
                            r_def, &
                            str_def
   use log_mod,       only: log_event, log_scratch_space &
@@ -70,8 +69,8 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
+    integer(i_def), intent(in) :: file_unit
+    integer(i_def), intent(in) :: local_rank
 
     call read_namelist( file_unit, local_rank )
 
@@ -85,8 +84,8 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
+    integer(i_def), intent(in) :: file_unit
+    integer(i_def), intent(in) :: local_rank
 
     integer(i_def) :: buffer_integer_i_def(1)
     real(r_def) :: buffer_real_r_def(1)
@@ -94,7 +93,7 @@ contains
     namelist /extrusion_uniform/ domain_top, &
                                  number_of_layers
 
-    integer(i_native) :: condition
+    integer(i_def) :: condition
 
     domain_top = rmdi
     number_of_layers = imdi

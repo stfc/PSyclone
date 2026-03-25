@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
+# Copyright (c) 2022-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR DOT_PRODUCT operator
 to PSyIR code. This could be useful if the DOT_PRODUCT operator is not
@@ -45,64 +46,16 @@ better than the intrinsic.
 
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Loop, Literal, ArrayReference, Range, Routine, IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType, ScalarType
+from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE, REAL_TYPE,
+                                    ScalarType)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
     Intrinsic2CodeTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
-def _get_array_bound(vector1, vector2):
-    '''A utility function that returns the appropriate loop bounds (lower,
-    upper and step) for a vector.
-    If either of the vectors are declared with known bounds (an integer or a
-    symbol) then these bound values are used. If the size is unknown
-    (a deferred or attribute type) then the LBOUND and UBOUND PSyIR
-    nodes are used.
-
-    The validate() method in DotProduct2CodeTrans will ensure that the
-    arguments to _get_array_bound() are valid (as it is always called
-    beforehand). The validate() method also ensures that array slices
-    are for the first dimension of the array and that they are for the
-    full size of that dimension (they are limited to ":"). This
-    function makes use of these constraint, e.g. it always returns 1
-    for the stride.
-
-    :param array: the reference that we are interested in.
-    :type array: :py:class:`psyir.nodes.Reference`
-    :param int index: the (array) reference index that we are \
-        interested in.
-
-    :returns: the loop bounds for this array index.
-    :rtype: (Literal, Literal, Literal) or \
-        (BinaryOperation, BinaryOperation, Literal)
-
-    '''
-    # Look for explicit bounds in one of the array declarations
-    for vector in [vector1, vector2]:
-        symbol = vector.symbol
-        my_dim = symbol.shape[0]
-        if isinstance(my_dim, ArrayType.ArrayBounds):
-            lower_bound = my_dim.lower
-            upper_bound = my_dim.upper
-            step = Literal("1", INTEGER_TYPE)
-            return (lower_bound, upper_bound, step)
-
-    # No explicit array bound information could be found for either
-    # array so use the LBOUND and UBOUND intrinsics.
-    symbol = vector1.symbol
-    my_dim = symbol.shape[0]
-    lower_bound = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.LBOUND,
-        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
-    upper_bound = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.UBOUND,
-        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
-    step = Literal("1", INTEGER_TYPE)
-    return (lower_bound, upper_bound, step)
-
-
+@transformation_documentation_wrapper
 class DotProduct2CodeTrans(Intrinsic2CodeTrans):
     '''Provides a transformation from a PSyIR DOT_PRODUCT Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
@@ -160,7 +113,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.DOT_PRODUCT
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''Perform checks to ensure that it is valid to apply the
         DotProduct2CodeTran transformation to the supplied node.
 
@@ -185,7 +138,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
             notation but it is not for the full range of the dimension.
 
         '''
-        super().validate(node, options)
+        super().validate(node, options, **kwargs)
 
         # Both arguments should be references (or array references)
         for arg in node.children:
@@ -248,7 +201,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
                     f"type {arg.symbol.datatype.intrinsic.name} in "
                     f"{node.debug_string()}.")
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the DOT_PRODUCT intrinsic conversion transformation to the
         specified node. This node must be a DOT_PRODUCT
         BinaryOperation.  If the transformation is successful then an
@@ -261,7 +214,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
         :type options: dict of str:str or None
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         assignment = node.ancestor(Assignment)
         vector1 = node.arguments[0]
@@ -311,14 +264,27 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
             BinaryOperation.Operator.ADD, result_ref.copy(), multiply)
         # Create "result = result + vector1(i) * vector2(i)"
         assign = Assignment.create(result_ref.copy(), rhs)
-        # Work out the loop bounds
-        lower_bound, upper_bound, step = _get_array_bound(vector1, vector2)
+        # Work out the loop bounds. We use the declaration that has the most
+        # information (i.e. explicit bounds).
+        bounds1 = vector1.symbol.get_bounds(0)
+        bounds2 = vector2.symbol.get_bounds(0)
+        score1 = sum(1 for bnd in bounds1 if isinstance(bnd, IntrinsicCall))
+        score2 = sum(1 for bnd in bounds2 if isinstance(bnd, IntrinsicCall))
+        if score1 <= score2:
+            lower_bound, upper_bound = bounds1[0], bounds1[1]
+        else:
+            lower_bound, upper_bound = bounds2[0], bounds2[1]
         # Create i loop and add the above code as a child
-        iloop = Loop.create(i_loop_symbol, lower_bound.copy(),
-                            upper_bound.copy(), step.copy(), [assign])
+        iloop = Loop.create(i_loop_symbol, lower_bound,
+                            upper_bound, Literal("1", INTEGER_TYPE),
+                            [assign])
         # Create "result = 0.0"
         assign = Assignment.create(result_ref.copy(),
                                    Literal("0.0", REAL_TYPE))
         # Add the initialisation and loop nodes into the PSyIR tree
         assignment.parent.children.insert(assignment.position, assign)
         assignment.parent.children.insert(assignment.position, iloop)
+
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["DotProduct2CodeTrans"]

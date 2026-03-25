@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -247,7 +247,7 @@ def test_parser_invokeinfo_datatypes_mixed():
     args1 = info.calls[0].kcalls[1].args
     args2 = info.calls[0].kcalls[2].args
     args3 = info.calls[0].kcalls[3].args
-    args4 = info.calls[0].kcalls[4].args
+    assert len(info.calls[0].kcalls) == 4
     assert args0[0]._datatype == ("real", "r_def")
     assert args0[1]._datatype == ("field_type", None)
     assert args0[2]._datatype == ("operator_type", None)
@@ -259,8 +259,6 @@ def test_parser_invokeinfo_datatypes_mixed():
     assert args2[2]._datatype == ("r_tran_operator_type", None)
     assert args3[0]._datatype == ("real", "r_bl")
     assert args3[1]._datatype == ("r_bl_field_type", None)
-    assert args4[0]._datatype == ("real", "r_phys")
-    assert args4[1]._datatype == ("r_phys_field_type", None)
 
 
 def test_parser_invokeinfo_datatypes_self():
@@ -348,7 +346,7 @@ def test_parser_invokeinfo_datatypes_clash():
     exception if a symbol has the same name but a different type. This
     is simply a limitation of the current implementation as we do not
     capture the context of a symbol so do not deal with variable
-    scope. This limitation will disapear when the PSyIR is used to
+    scope. This limitation will disappear when the PSyIR is used to
     determine datatypes, see issue #753.
 
     '''
@@ -440,7 +438,7 @@ def test_parser_updateargtomodulemap_invalid():
 
 
 def test_parser_caseinsensitive1():
-    '''Check that the test for the existance of a builtin call in a use
+    '''Check that the test for the existence of a builtin call in a use
     statement is case insensitive.
 
     '''
@@ -454,7 +452,7 @@ def test_parser_caseinsensitive1():
 
 
 def test_parser_caseinsensitive2(monkeypatch):
-    '''Check that the test for the existance of a kernel call in a use
+    '''Check that the test for the existence of a kernel call in a use
     statement is case insensitive.
 
     '''
@@ -926,5 +924,5 @@ def test_arg_datatype():
     '''
     tmp = Arg("literal", "0.0")
     assert tmp._datatype is None
-    tmp = Arg("variable", "var", varname="var", datatype=("info"))
+    tmp = Arg("variable", "var", varname="var", datatype="info")
     assert tmp._datatype == ("info")

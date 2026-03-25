@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ class LocalTransformation():
 
     @abc.abstractmethod
     def name(self):
-        return
+        ...
 
 
 class TestTrans(LocalTransformation):
@@ -55,7 +55,7 @@ class TestTrans(LocalTransformation):
         pass
 
     def __str__(self):
-        return "A test transformation"
+        ...
 
     @property
     def name(self):

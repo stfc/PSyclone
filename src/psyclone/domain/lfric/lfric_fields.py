@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -151,9 +151,11 @@ class LFRicFields(LFRicCollection):
                 interface=ImportInterface(
                     self.symtab.lookup("constants_mod")))
             if fld.intrinsic_type == "real":
-                intr = ScalarType(ScalarType.Intrinsic.REAL, kind_sym)
+                intr = ScalarType(ScalarType.Intrinsic.REAL,
+                                  Reference(kind_sym))
             elif fld.intrinsic_type == "integer":
-                intr = ScalarType(ScalarType.Intrinsic.INTEGER, kind_sym)
+                intr = ScalarType(ScalarType.Intrinsic.INTEGER,
+                                  Reference(kind_sym))
 
             undf_sym = self.symtab.find_or_create(undf_name)
             datatype = ArrayType(intr, [Reference(undf_sym)])

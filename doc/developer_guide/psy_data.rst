@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2025, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2026, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
     from psyclone.parse import ModuleManager
 
     # Define SOURCE_FILE to point to an existing gocean 1.0 file.
-    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+    SOURCE_FILE = ("../src/psyclone/tests/test_files/"
         "gocean1p0/test11_different_iterates_over_one_invoke.f90")
 
 .. _devguide_psy_data:
@@ -291,7 +291,8 @@ called ``PREFIX_PSyDataType``. It is up to the application how this variable is
 used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
 the PSyDataType can be found in the example extraction code
-(see ``lib/extract/standalone/dl_esm_inf``,
+(see ``lib/extract/binary/dl_esm_inf``,
+``lib/extract/ascii/dl_esm_inf``,
 ``lib/extract/netcdf/dl_esm_inf``, or
 :ref:`extraction_libraries` for
 a detailed description), any of the profiling wrapper libraries
@@ -1065,8 +1066,9 @@ the wrapper depends on (e.g. NetCDF).
     and link time for now, since the kernel contains metadata. Issue
     #2049 tracks a solution for this.
 
-The following changes are applied by the ``ExtractionDriverCreator``
-in order to generate stand-alone code for GOcean:
+The following changes are applied by the ``GOceanDriverCreator`` and
+the base class ``DriverCreator`` in order to generate stand-alone
+code for GOcean:
 
 1. The `dl_esm_inf` field type is replaced with 2d Fortran arrays.
    The structure name used is 'flattened', i.e. each ``%`` is replaced
@@ -1174,7 +1176,7 @@ the wrapper depends on (e.g. NetCDF).
 
 The driver creation process is explained in the Python sources:
 
-.. autoclass:: psyclone.domain.lfric.LFRicExtractDriverCreator
+.. autoclass:: psyclone.domain.lfric.LFRicDriverCreator
     :no-index:
     :members:
 

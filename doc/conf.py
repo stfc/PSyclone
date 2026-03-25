@@ -79,7 +79,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'PSyclone'
-project_copyright = '2017-2025, STFC Daresbury Laboratory'
+project_copyright = '2017-2026, STFC Daresbury Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -271,9 +271,9 @@ latex_elements = {
 #  documentclass [howto/manual]).
 latex_documents = [
     ('index', 'psyclone.tex', 'PSyclone User Guide',
-     'Oakley Brunt, Andrew Coughtrie, Joshua Dendy, \\\\ '
-     'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, \\\\ '
-     'Sergi Siso and Joseph Wallwork', 'manual'),
+     'Oakley Brunt, Aidan Chalk, Andrew Coughtrie, \\\\ '
+     'Joshua Dendy, Rupert Ford, Joerg Henrichs, Iva Kavcic, \\\\ '
+     'Andrew Porter, Sergi Siso and Joseph Wallwork', 'manual'),
 ]
 
 # Set maximum depth for the nested lists to prevent LaTeX
@@ -292,7 +292,7 @@ latex_elements = {
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
-# latex_logo = None
+latex_logo = 'logo/psyclone_logo_light_theme.png'
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.
@@ -307,8 +307,9 @@ latex_elements = {
 # Documents to append as an appendix to all manuals.
 # latex_appendices = []
 
-# If false, no module index is generated.
-# latex_domain_indices = True
+# If false, no module index is generated. (We don't want one because, for the
+# latex version, we don't create a Reference Guide.)
+latex_domain_indices = False
 
 
 # -- Options for manual page output ------------------------------------------
@@ -412,8 +413,10 @@ linkcheck_ignore = [
     # the links to anchors to the main README.
     r'^https://github.com/stfc/PSyclone#',
     # Requires authentication.
-    r'code.metoffice.gov.uk/trac/lfric/attachment/wiki/'
-    r'LFRicDocumentationPapers/lfric_documentation.pdf'
+    r'^https://code.metoffice.gov.uk/trac',
+    # This often fails, but the link exists
+    r'^https://www.khronos.org',
+    r'^https://gtr.ukri.org'
 ]
 
 # -- Autodoc configuration ---------------------------------------------------

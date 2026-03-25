@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
-    ImportInterface, ScalarType, ArrayType, UnsupportedFortranType,
+    ImportInterface, ScalarType, ArrayType, Symbol, UnsupportedFortranType,
     ArgumentInterface)
 
 # psyir has classes created at runtime
@@ -93,20 +93,20 @@ class KernCallArgList(ArgOrdering):
         self._nqp_positions = []
         self._ndf_positions = []
 
-    def get_user_type(self, module_name, user_type, name, tag=None):
+    def get_user_type(self, module_name: str,
+                      user_type: str, name: str,
+                      tag: Optional[str] = None) -> Symbol:
         # pylint: disable=too-many-arguments
         '''Returns the symbol for a user-defined type. If required, the
-        required import statements will all be generated.
+        source ContainerSymbols will be created too.
 
-        :param str module_name: the name of the module from which the \
+        :param module_name: the name of the module from which the
             user-defined type must be imported.
-        :param str user_type: the name of the user-defined type.
-        :param str name: the name of the variable to be used in the Reference.
-        :param Optional[str] tag: tag to use for the variable, defaults to \
-            the name
+        :param user_type: the name of the user-defined type.
+        :param name: the name of the variable to be used in the Reference.
+        :param tag: tag to use for the variable, defaults to the name
 
         :return: the symbol that is used in the reference
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if not tag:
@@ -119,13 +119,21 @@ class KernCallArgList(ArgOrdering):
             pass
 
         # The symbol does not exist already. So we potentially need to
-        # create the import statement for the type:
-        try:
-            # Check if the module is already declared:
-            module = self._symtab.lookup(module_name)
-            # Get the symbol table in which the module is declared:
-            mod_sym_tab = module.find_symbol_table(self._kern)
-        except KeyError:
+        # create the ContainerSymbol for the import for the type:
+        # Check if the module is already declared:
+        module = self._symtab.lookup(module_name, otherwise=None)
+        if module:
+            # Get the symbol table in which the module is declared. We must
+            # allow for the case where we have a detached table
+            # (self._symtab.node is None) - in this case it must be the table
+            # we want. TODO #2874 - this situation occurs because of
+            # limitations in KernCallArgList which forces
+            # LFRicKern.reference_accesses() to make a temporary, detached
+            # SymbolTable which does *not* contain Symbols declared in the
+            # Container scope.
+            mod_sym_tab = (module.find_symbol_table(self._symtab.node)
+                           if self._symtab.node else self._symtab)
+        else:
             module = self._symtab.new_symbol(module_name,
                                              symbol_type=ContainerSymbol)
             mod_sym_tab = self._symtab
@@ -175,29 +183,25 @@ class KernCallArgList(ArgOrdering):
                                  overwrite_datatype=overwrite_datatype))
         return sym
 
-    def cell_position(self, var_accesses=None):
+    def cell_position(self, var_accesses: Optional[VariablesAccessMap] = None):
         '''Adds a cell argument to the argument list and if supplied stores
         this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         cell_ref_name, ref = self.cell_ref_name(var_accesses)
         self.psyir_append(ref)
         self.append(cell_ref_name)
 
-    def cell_map(self, var_accesses=None):
+    def cell_map(self, var_accesses: Optional[VariablesAccessMap] = None):
         '''Add cell-map and related cell counts (for inter-grid kernels)
         to the argument list. If supplied it also stores these accesses to the
         var_access object.
 
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         cargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_coarse"])
@@ -225,13 +229,12 @@ class KernCallArgList(ArgOrdering):
         sym = self.append_integer_reference(base_name)
         self.append(sym.name, var_accesses)
 
-    def mesh_height(self, var_accesses=None):
+    def mesh_height(self, var_accesses: Optional[VariablesAccessMap] = None):
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
 
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         if self._kern.iterates_over == "dof":
@@ -241,23 +244,28 @@ class KernCallArgList(ArgOrdering):
         self.append(nlayers_symbol.name, var_accesses)
         self._nlayers_positions.append(self.num_args)
 
-    def scalar(self, scalar_arg, var_accesses=None):
+    def scalar(self, scalar_arg,
+               var_accesses: Optional[VariablesAccessMap] = None):
         '''
         Add the necessary argument for a scalar quantity as well as an
         appropriate Symbol to the SymbolTable.
 
         :param scalar_arg: the scalar kernel argument.
         :type scalar_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance that \
+        :param var_accesses: optional VariablesAccessMap instance that
             stores information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         super().scalar(scalar_arg, var_accesses)
         if scalar_arg.is_literal:
             self.psyir_append(scalar_arg.psyir_expression())
         else:
+            if scalar_arg.is_scalar_array:
+                # If it's a ScalarArray we need to add the dimensions
+                # array to the call
+                dims_sym = self._symtab.lookup_with_tag(
+                    "dims_" + scalar_arg.name)
+                self.psyir_append(Reference(dims_sym))
             sym = self._symtab.lookup(scalar_arg.name)
             self.psyir_append(Reference(sym))
 
@@ -270,44 +278,40 @@ class KernCallArgList(ArgOrdering):
     #         root_name="ncell_3d", context="PSyVars", label="ncell3d")
     #     self.append(ncell3d_name)
 
-    def _mesh_ncell2d(self, var_accesses=None):
+    def _mesh_ncell2d(self, var_accesses: Optional[VariablesAccessMap] = None):
         '''Add the number of columns in the mesh to the argument list and if
         supplied stores this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         sym = self.append_integer_reference("ncell_2d")
         self.append(sym.name, var_accesses)
 
-    def _mesh_ncell2d_no_halos(self, var_accesses=None):
+    def _mesh_ncell2d_no_halos(
+            self, var_accesses: Optional[VariablesAccessMap] = None):
         '''Add the number of columns in the mesh (excluding those in the halo)
         to the argument list and store this access in var_accesses (if
         supplied).
 
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         ncell_symbol = self.append_integer_reference("ncell_2d_no_halos")
         self.append(ncell_symbol.name, var_accesses)
 
-    def cma_operator(self, arg, var_accesses=None):
+    def cma_operator(self, arg,
+                     var_accesses: Optional[VariablesAccessMap] = None):
         '''Add the CMA operator and associated scalars to the argument
         list and optionally add them to the variable access
         information.
 
         :param arg: the CMA operator argument.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         components = ["matrix"]
@@ -351,7 +355,8 @@ class KernCallArgList(ArgOrdering):
             self.append(sym.name, var_accesses, mode=mode,
                         metadata_posn=arg.metadata_index)
 
-    def field_vector(self, argvect, var_accesses=None):
+    def field_vector(self, argvect,
+                     var_accesses: Optional[VariablesAccessMap] = None):
         '''Add the field vector associated with the argument 'argvect' to the
         argument list. If supplied it also stores these accesses to the
         var_access object.
@@ -360,7 +365,6 @@ class KernCallArgList(ArgOrdering):
         :type argvect: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         suffix = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING[
@@ -396,7 +400,7 @@ class KernCallArgList(ArgOrdering):
             var_accesses.add_access(Signature(argvect.name), argvect.access,
                                     self._kern)
 
-    def field(self, arg, var_accesses=None):
+    def field(self, arg, var_accesses: Optional[VariablesAccessMap] = None):
         '''Add the field array associated with the argument 'arg' to the
         argument list. If supplied it also stores this access in var_accesses.
 
@@ -404,7 +408,6 @@ class KernCallArgList(ArgOrdering):
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         const = LFRicConstants()
@@ -431,17 +434,16 @@ class KernCallArgList(ArgOrdering):
                         mode=arg.access, metadata_posn=arg.metadata_index)
             self.psyir_append(Reference(sym))
 
-    def stencil_unknown_extent(self, arg, var_accesses=None):
+    def stencil_unknown_extent(
+            self, arg, var_accesses: Optional[VariablesAccessMap] = None):
         '''Add stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown. If supplied it also stores
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # The extent is not specified in the metadata so pass the value in
@@ -455,17 +457,16 @@ class KernCallArgList(ArgOrdering):
         self.append(f"{var_sym.name}({cell_name})", var_accesses,
                     var_access_name=var_sym.name)
 
-    def stencil_2d_unknown_extent(self, arg, var_accesses=None):
+    def stencil_2d_unknown_extent(
+            self, arg, var_accesses: Optional[VariablesAccessMap] = None):
         '''Add 2D stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown. If supplied it also stores
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # The extent is not specified in the metadata so pass the value in
@@ -479,17 +480,16 @@ class KernCallArgList(ArgOrdering):
         name = f"{var_sym.name}(:,{cell_name})"
         self.append(name, var_accesses, var_access_name=var_sym.name)
 
-    def stencil_2d_max_extent(self, arg, var_accesses=None):
+    def stencil_2d_max_extent(
+            self, arg, var_accesses: Optional[VariablesAccessMap] = None):
         '''Add the maximum branch extent for a 2D stencil associated with the
         argument 'arg' to the argument list. If supplied it also stores this
         in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional SingleVariableAccessInfo instance \
-            to store the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.SingleVariableAccessInfo`
+        :param var_accesses: optional VariableAccessMap instance to store the
+            information about variable accesses.
 
         '''
         # The maximum branch extent is not specified in the metadata so pass
@@ -505,7 +505,8 @@ class KernCallArgList(ArgOrdering):
         sym = self.append_integer_reference(root_name, tag=unique_tag)
         self.append(sym.name, var_accesses)
 
-    def stencil_unknown_direction(self, arg, var_accesses=None):
+    def stencil_unknown_direction(
+            self, arg, var_accesses: Optional[VariablesAccessMap] = None):
         '''Add stencil information to the argument list associated with the
         argument 'arg' if the direction is unknown (i.e. it's being supplied
         in a variable). If supplied it also stores this access in
@@ -513,10 +514,8 @@ class KernCallArgList(ArgOrdering):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # the direction of the stencil is not known so pass the value in
@@ -525,18 +524,16 @@ class KernCallArgList(ArgOrdering):
         self.append_integer_reference(name, f"AlgArgs_{tag}")
         self.append(name, var_accesses)
 
-    def stencil(self, arg, var_accesses=None):
+    def stencil(self, arg, var_accesses: Optional[VariablesAccessMap] = None):
         '''Add general stencil information associated with the argument 'arg'
         to the argument list. If supplied it also stores this access in
         var_accesses.
 
-        :param arg: the meta-data description of the kernel \
+        :param arg: the meta-data description of the kernel
             argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # add in stencil dofmap
@@ -550,18 +547,17 @@ class KernCallArgList(ArgOrdering):
         self.append(f"{var_sym.name}(:,:,{cell_name})", var_accesses,
                     var_access_name=var_sym.name)
 
-    def stencil_2d(self, arg, var_accesses=None):
+    def stencil_2d(
+            self, arg, var_accesses: Optional[VariablesAccessMap] = None):
         '''Add general 2D stencil information associated with the argument
         'arg' to the argument list. If supplied it also stores this access in
         var_accesses.
 
-        :param arg: the meta-data description of the kernel \
+        :param arg: the meta-data description of the kernel
             argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # The stencil_2D differs from the stencil in that the direction
@@ -582,16 +578,14 @@ class KernCallArgList(ArgOrdering):
         name = f"{var_sym.name}(:,:,:,{cell_name})"
         self.append(name, var_accesses, var_access_name=var_sym.name)
 
-    def operator(self, arg, var_accesses=None):
+    def operator(self, arg, var_accesses: Optional[VariablesAccessMap] = None):
         '''Add the operator arguments to the argument list. If supplied it
         also stores this access in var_accesses.
 
         :param arg: the meta-data description of the operator.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # TODO we should only be including ncell_3d once in the argument
@@ -619,17 +613,16 @@ class KernCallArgList(ArgOrdering):
         self.append(sym.name, var_accesses,
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
-    def fs_common(self, function_space, var_accesses=None):
+    def fs_common(self, function_space,
+                  var_accesses: Optional[VariablesAccessMap] = None):
         '''Add function-space related arguments common to LMA operators and
         fields. If supplied it also stores this access in var_accesses.
 
-        :param function_space: the function space for which the related \
+        :param function_space: the function space for which the related
             arguments common to LMA operators and fields are added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses:
-            Optional[:py:class:`psyclone.core.VariablesAccessMap`]
 
         '''
         if self._kern.iterates_over == "dof":
@@ -639,7 +632,9 @@ class KernCallArgList(ArgOrdering):
             KernCallArgList.NdfInfo(position=self.num_args,
                                     function_space=function_space.orig_name))
 
-    def fs_compulsory_field(self, function_space, var_accesses=None):
+    def fs_compulsory_field(
+            self, function_space,
+            var_accesses: Optional[VariablesAccessMap] = None):
         '''Add compulsory arguments associated with this function space to
         the list. If supplied it also stores this access in var_accesses.
 
@@ -648,8 +643,6 @@ class KernCallArgList(ArgOrdering):
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses:
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         if self._kern.iterates_over == "dof":
@@ -683,16 +676,15 @@ class KernCallArgList(ArgOrdering):
             self.append(f"{sym.name}(:,{cell_name})",
                         var_accesses, var_access_name=sym.name)
 
-    def fs_intergrid(self, function_space, var_accesses=None):
+    def fs_intergrid(self, function_space,
+                     var_accesses: Optional[VariablesAccessMap] = None):
         '''Add function-space related arguments for an intergrid kernel.
         If supplied it also stores this access in var_accesses.
 
         :param function_space: the function space for which to add arguments
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # Is this FS associated with the coarse or fine mesh? (All fields
@@ -713,17 +705,16 @@ class KernCallArgList(ArgOrdering):
             self.fs_compulsory_field(function_space,
                                      var_accesses=var_accesses)
 
-    def basis(self, function_space, var_accesses=None):
+    def basis(self, function_space,
+              var_accesses: Optional[VariablesAccessMap] = None):
         '''Add basis function information for this function space to the
         argument list and optionally to the variable access information.
 
-        :param function_space: the function space for which the basis \
+        :param function_space: the function space for which the basis
                                function is required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         for rule in self._kern.qr_rules.values():
@@ -746,18 +737,17 @@ class KernCallArgList(ArgOrdering):
                 sym = self.append_array_reference(basis_name, [":", ":", ":"])
                 self.append(sym.name, var_accesses)
 
-    def diff_basis(self, function_space, var_accesses=None):
+    def diff_basis(self, function_space,
+                   var_accesses: Optional[VariablesAccessMap] = None):
         '''Add differential basis information for the function space to the
         argument list. If supplied it also stores this access in
         var_accesses.
 
-        :param function_space: the function space for which the differential \
+        :param function_space: the function space for which the differential
             basis functions are required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         for rule in self._kern.qr_rules.values():
@@ -786,19 +776,18 @@ class KernCallArgList(ArgOrdering):
                                   LFRicTypes("LFRicRealScalarDataType")())
                 self.append(sym.name, var_accesses)
 
-    def field_bcs_kernel(self, function_space, var_accesses=None):
+    def field_bcs_kernel(self, function_space,
+                         var_accesses: Optional[VariablesAccessMap] = None):
         '''Implement the boundary_dofs array fix for a field. If supplied it
         also stores this access in var_accesses.
 
-        :param function_space: the function space for which boundary dofs \
+        :param function_space: the function space for which boundary dofs
             are required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
-        :raises GenerationError: if the bcs kernel does not contain \
+        :raises GenerationError: if the bcs kernel does not contain
             a field as argument (but e.g. an operator).
 
         '''
@@ -820,17 +809,16 @@ class KernCallArgList(ArgOrdering):
         sym = self.append_array_reference(base_name, [":", ":"])
         self.append(sym.name, var_accesses)
 
-    def operator_bcs_kernel(self, function_space, var_accesses=None):
+    def operator_bcs_kernel(self, function_space,
+                            var_accesses: Optional[VariablesAccessMap] = None):
         '''Supply necessary additional arguments for the kernel that
         applies boundary conditions to a LMA operator. If supplied it
         also stores this access in var_accesses.
 
         :param function_space: unused, only for consistency with base class.
         :type function_space: :py:class:`psyclone.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # This kernel has only a single LMA operator as argument.
@@ -840,15 +828,14 @@ class KernCallArgList(ArgOrdering):
         sym = self.append_array_reference(base_name, [":", ":"])
         self.append(sym.name, var_accesses)
 
-    def mesh_properties(self, var_accesses=None):
+    def mesh_properties(self,
+                        var_accesses: Optional[VariablesAccessMap] = None):
         '''Provide the kernel arguments required for the mesh properties
         specified in the kernel metadata. If supplied it also stores this
         access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         if self._kern.mesh.properties:
@@ -859,15 +846,13 @@ class KernCallArgList(ArgOrdering):
                         kern_args(stub=False, var_accesses=var_accesses,
                                   kern_call_arg_list=self))
 
-    def quad_rule(self, var_accesses=None):
+    def quad_rule(self, var_accesses: Optional[VariablesAccessMap] = None):
         '''Add quadrature-related information to the kernel argument list.
         Adds the necessary arguments to the argument list, and optionally
         adds variable access information to the var_accesses object.
 
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # The QR shapes that this routine supports
@@ -1012,25 +997,19 @@ class KernCallArgList(ArgOrdering):
             if loop_type == "cells_in_tile":
                 tile_sym = self._symtab.find_or_create_integer_symbol(
                     "tile", tag="tile_loop_idx")
-                array_ref = self.get_array_reference(
-                    self._kern.tilecolourmap,
-                    [Reference(colour_sym), Reference(tile_sym),
-                     Reference(cell_sym)],
-                    tag="tmap" if self._kern.is_intergrid else None)
-                if var_accesses is not None:
-                    var_accesses.add_access(Signature(array_ref.name),
-                                            AccessType.READ,
-                                            self._kern,
-                                            ["colour", "tile", "cell"])
+                map_sym = self._symtab.lookup(self._kern.tilecolourmap)
+                array_ref = ArrayReference.create(
+                    map_sym, [Reference(colour_sym), Reference(tile_sym),
+                              Reference(cell_sym)])
             else:
                 symbol = self._kern.colourmap
                 array_ref = ArrayReference.create(
-                        symbol,
-                        [Reference(colour_sym), Reference(cell_sym)])
-                if var_accesses is not None:
-                    var_accesses.add_access(Signature(array_ref.name),
-                                            AccessType.READ,
-                                            self._kern, ["colour", "cell"])
+                        symbol, [Reference(colour_sym), Reference(cell_sym)])
+
+            if var_accesses is not None:
+                var_accesses.add_access(Signature(array_ref.name),
+                                        AccessType.READ,
+                                        self._kern)
 
             return (array_ref.debug_string(), array_ref)
 

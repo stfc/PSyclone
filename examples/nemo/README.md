@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2018-2025, Science and Technology Facilities Council.
+Copyright (c) 2018-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@ Contains:
 ## Scripts
 
 Contains the scripts used to process the NEMO code base and to add profiling
-instrumentation (https://psyclone.readthedocs.io/en/stable/profiling.html)
+instrumentation (https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html)
 and OpenACC or OpenMP directives:
 
 1. `process_nemo.py` is a driver script that allows the user to specify
@@ -138,11 +138,30 @@ benchmark.
 
 ## Example 5
 
-Extraction of kernel data. Using the tra_adv benchmark, this example
-shows the extraction of kernel input- and output-data.
+A simple stand-alone example that shows how data can be extracted for
+each loop nest using PSyclone's kernel extraction feature PSyKE. Note
+that creation of a driver program (which reads the data files,
+execute the original loop and then compares the results) is not yet
+supported for generic transformations.
 
 ## Example 6
 
 A simple stand-alone example that shows verification that read-only data
 is not modified, e.g. by out-of-bounds accesses to other variables.
 This uses the PSyData interface to instrument generic Fortran code.
+
+## Example 7
+
+OpenMP parallelisation (for CPU and GPU) of `tra_adv` over levels, using
+`nowait` and minimisation of introduced barriers.
+
+## Example 8
+
+A simple profiling example that shows OpenMP offloading transformations
+with profiling hooks enabled.
+
+## Example 9
+
+A simple stand-alone example that shows PSyclone's value range transformation.
+A user can specify valid ranges for variables, which will be verified at
+runtime.

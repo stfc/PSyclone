@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -232,7 +232,7 @@ def test_symbolic_math_never_equal(fortran_reader, exp1, exp2, result):
     source = f'''program test_prog
                 use some_mod
                 integer :: i, j, k, x
-                type(my_mod_type) :: a, b
+                real, dimension(10) :: a, b
                 x = {exp1}
                 x = {exp2}
                 end program test_prog
@@ -474,13 +474,20 @@ def test_symbolic_math_use_range(fortran_reader, expressions):
     ("(a*b)+c", "a * b + c"),
     ("a*(b+c)", "a * b + a * c"),
     ("a*((b+c)/d)", "a * b / d + a * c / d"),
-    ("a(i)*((b(i,j)+c(j))/d)",
-     "a(i) * b(i,j) / d + a(i) * c(j) / d"),
+    ("a(i)*((b(i, j)+c(j))/d)",
+     "a(i) * b(i, j) / d + a(i) * c(j) / d"),
     # 'a' is unresolved so we don't know from the first occurrence whether or
     # not it is a scalar.
     ("a / a(i)", "a / a(i)"),
     ("norm_u(idx+iw2) * u_e(idx + (LBOUND(u_e,dim=1)-iw2v), df2)",
-     "norm_u(idx + iw2) * u_e(idx - iw2v + LBOUND(u_e, 1),df2)")])
+     "norm_u(idx + iw2) * u_e(idx - iw2v + LBOUND(u_e, dim=1),df2)"),
+    (".true. .and. .false.", ".false."),
+    ("zh_cum1(jk1) <= zh_cum0(jk0) .AND. zh_cum1(jk1) > zh_cum0(jk0 - 1)",
+     "zh_cum0(jk0) >= zh_cum1(jk1) .AND. zh_cum1(jk1) > zh_cum0(jk0 - 1)"),
+    ("zh_cum1(jk1) == zh_cum0(jk0) .AND. zh_cum1(jk1) == zh_cum0(jk0 - 1)",
+     "zh_cum0(jk0) == zh_cum1(jk1) .AND. zh_cum1(jk1) == zh_cum0(jk0 - 1)"),
+    ("i == i .and. c(i,i) == 5", "c(i, i) == 5"),
+    ])
 def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     '''Test the expand method works as expected.'''
     # A dummy program to easily create the PSyIR for the
@@ -526,7 +533,7 @@ def test_expand_with_intrinsic(fortran_reader, fortran_writer):
     sym_maths.expand(rhs)
     result = fortran_writer(psyir).lower()
     # Check that the 'u_e' argument remains unchanged.
-    assert "lbound(u_e, 1),df2)" in result
+    assert "lbound(u_e, dim=1),df2)" in result
 
 
 def test_symbolic_maths_expand_function(fortran_reader, fortran_writer):
@@ -554,7 +561,7 @@ def test_symbolic_maths_expand_function(fortran_reader, fortran_writer):
     assigns = psyir.walk(Assignment)
     sym_maths.expand(assigns[0].rhs)
     result = fortran_writer(psyir).lower()
-    assert "a(i) * b(i,j) / d +" in result
+    assert "a(i) * b(i, j) / d +" in result
 
 
 def test_symbolic_maths_expand_function_no_arg(fortran_reader, fortran_writer):
@@ -581,7 +588,7 @@ def test_symbolic_maths_expand_function_no_arg(fortran_reader, fortran_writer):
     assigns = psyir.walk(Assignment)
     sym_maths.expand(assigns[0].rhs)
     result = fortran_writer(psyir).lower()
-    assert "x = a() * b(i,j) / d + a() *" in result
+    assert "x = a() * b(i, j) / d + a() *" in result
 
 
 def test_symbolic_maths_array_and_array_index(fortran_reader):
@@ -602,3 +609,73 @@ def test_symbolic_maths_array_and_array_index(fortran_reader):
     assert sym_maths.equal(assigns[0].rhs, assigns[0].rhs)
 
     assert sym_maths.equal(assigns[1].rhs, assigns[1].rhs)
+
+
+@pytest.mark.parametrize(
+    "expressions",
+    [(".false. .and. .false.", "False"),
+     (".false. .and. .true.", "False"),
+     (".true. .and. .false.", "False"),
+     (".true. .and. .true.", "True"),
+     (".false. .or. .false.", "False"),
+     (".false. .or. .true.", "True"),
+     (".true. .or. .false.", "True"),
+     (".true. .or. .true.", "True"),
+     (".false. .eqv. .false.", "True"),
+     (".false. .eqv. .true.", "False"),
+     (".true. .eqv. .false.", "False"),
+     (".true. .eqv. .true.", "True"),
+     (".false. .neqv. .false.", "False"),
+     (".false. .neqv. .true.", "True"),
+     (".true. .neqv. .false.", "True"),
+     (".true. .neqv. .true.", "False"),
+     (" .false. .and. ((3 -2 + 4 - 5) .eq. 0 .and. .false.)", False),
+     ])
+def test_sym_writer_boolean_expr(fortran_reader, expressions):
+    '''Test that booleans are written in the way that SymPy accepts.
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                logical :: bool_expr
+                bool_expr = {expressions[0]}
+                bool_expr = {expressions[1]}
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    lit0 = psyir.children[0].children[0].rhs
+    lit1 = psyir.children[0].children[1].rhs
+    sympy_writer = SymPyWriter()
+
+    sympy_expr = sympy_writer(lit0)
+    assert sympy_expr == sympy_writer(lit1)
+
+
+@pytest.mark.parametrize(
+    "expressions",
+    [(".true. .and. .false.", False),
+     (".true. .and. .true.", True),
+     (".false. .or. .true.", True),
+     ("3 .eq. 3", True),
+     (" ((3 -2 + 4 - 5) .eq. 0 .and. .false.) .or. .true.", True),
+     (" ((3 -2 + 4 - 5) .eq. 0 .and. .true.)", True),
+     (" (3 -2 + 4 - 5) .eq. 0 .and. .false. .and. .true.", False),
+     (" ((3 -2 + 4 - 5) .eq. 0 .and. .false.) .and. .true.", False),
+     (" .false. .and. ((3 -2 + 4 - 5) .eq. 0 .and. .false.)", False),
+     ("  (((3 -2 + 4 - 5) .eq. 0) .and. .false.)", False),
+     ])
+def test_sym_writer_boolean_expr_add_test(fortran_reader, expressions):
+    '''Test that booleans are written in the way that SymPy accepts.
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+    logical :: bool_expr
+    bool_expr = {expressions[0]}
+    end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    lit = psyir.children[0].children[0].rhs
+    sympy_writer = SymPyWriter()
+    sympy_expr = sympy_writer(lit)
+    assert sympy_expr == expressions[1]

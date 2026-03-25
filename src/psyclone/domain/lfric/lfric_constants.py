@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L, Turner, Met Office
 #           A. R. Porter, STFC Daresbury Laboratory
 #           R. W. Ford, STFC Daresbury Laboratory
 
@@ -43,6 +43,7 @@ This module provides a class with all LFRic related constants.
 from collections import OrderedDict
 
 from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 
 
@@ -56,7 +57,11 @@ class LFRicConstants():
     '''
     HAS_BEEN_INITIALISED = False
 
-    def __init__(self):
+    #: Dictionary allowing us to look-up the name of the Fortran modules
+    #: that store various utilities in LFRic.
+    UTILITIES_MOD_MAP: dict[str, dict[str, str]]
+
+    def __init__(self) -> None:
         # pylint: disable=too-many-statements
         if LFRicConstants.HAS_BEEN_INITIALISED:
             return
@@ -78,12 +83,14 @@ class LFRicConstants():
 
         # Supported LFRic API argument types (scalars, fields, operators)
         LFRicConstants.VALID_SCALAR_NAMES = ["gh_scalar"]
+        LFRicConstants.VALID_ARRAY_NAMES = ["gh_scalar_array"]
         LFRicConstants.VALID_FIELD_NAMES = ["gh_field"]
         LFRicConstants.VALID_OPERATOR_NAMES = ["gh_operator",
                                                "gh_columnwise_operator"]
         LFRicConstants.VALID_ARG_TYPE_NAMES = \
             LFRicConstants.VALID_FIELD_NAMES + \
             LFRicConstants.VALID_OPERATOR_NAMES + \
+            LFRicConstants.VALID_ARRAY_NAMES + \
             LFRicConstants.VALID_SCALAR_NAMES
 
         # Mapping from argument type to the suffix used when creating
@@ -100,14 +107,17 @@ class LFRicConstants():
             ["gh_real", "gh_integer", "gh_logical"]
         LFRicConstants.VALID_SCALAR_DATA_TYPES = \
             LFRicConstants.VALID_ARG_DATA_TYPES
+        LFRicConstants.VALID_ARRAY_DATA_TYPES = \
+            LFRicConstants.VALID_ARG_DATA_TYPES
         LFRicConstants.VALID_FIELD_DATA_TYPES = ["gh_real", "gh_integer"]
         LFRicConstants.VALID_OPERATOR_DATA_TYPES = ["gh_real"]
 
         # pylint: disable=too-many-instance-attributes
 
         # Supported access types
-        # gh_sum for scalars is restricted to iterates_over == 'dof'
-        LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read", "gh_sum"]
+        # Reduction for scalars is restricted to iterates_over == 'dof'
+        LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read", "gh_reduction"]
+        LFRicConstants.VALID_ARRAY_ACCESS_TYPES = ["gh_read"]
         LFRicConstants.VALID_FIELD_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
         LFRicConstants.VALID_OPERATOR_ACCESS_TYPES = [
@@ -115,8 +125,20 @@ class LFRicConstants():
         LFRicConstants.VALID_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
 
+        # Mapping from metadata access patterns to internal access type.
+        LFRicConstants.ACCESS_MAPPING = {"gh_read": AccessType.READ,
+                                         "gh_write": AccessType.WRITE,
+                                         "gh_readwrite": AccessType.READWRITE,
+                                         "gh_inc": AccessType.INC,
+                                         "gh_readinc": AccessType.READINC,
+                                         "gh_reduction": AccessType.REDUCTION}
+
+        LFRicConstants.REVERSE_ACCESS_MAPPING = {}
+        for key, value in LFRicConstants.ACCESS_MAPPING.items():
+            LFRicConstants.REVERSE_ACCESS_MAPPING[value] = key
+
         LFRicConstants.WRITE_ACCESSES = [
-            "gh_write", "gh_readwrite", "gh_inc", "gh_readinc", "gh_sum"]
+            "gh_write", "gh_readwrite", "gh_inc", "gh_readinc", "gh_reduction"]
 
         # Supported LFRic API stencil types and directions
         LFRicConstants.VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross",
@@ -151,6 +173,9 @@ class LFRicConstants():
         # Valid intrinsic types for field kernel argument data
         # ('real', 'integer', and 'logical').
         LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer",
+                                                      "logical"]
+
+        LFRicConstants.VALID_ARRAY_INTRINSIC_TYPES = ["real", "integer",
                                                       "logical"]
 
         # ---------- Mapping from metadata data_type to Fortran intrinsic type
@@ -228,8 +253,8 @@ class LFRicConstants():
             # Iterate over the cells of a given colour and tile
             "cells_in_tile"]
 
-        # Valid LFRic iteration spaces for built-in kernels
-        LFRicConstants.BUILTIN_ITERATION_SPACES = ["dof"]
+        # Valid LFRic iteration spaces for kernels that operate on dofs
+        LFRicConstants.DOF_ITERATION_SPACES = ["dof", "owned_dof"]
 
         # The types of argument that are valid for built-in kernels in the
         # LFRic API
@@ -241,18 +266,32 @@ class LFRicConstants():
         # in the LFRic API ('real' and 'integer')
         LFRicConstants.VALID_BUILTIN_DATA_TYPES = ["gh_real", "gh_integer"]
 
-        # Valid LFRic iteration spaces for user-supplied kernels and
-        # built-in kernels
-        LFRicConstants.USER_KERNEL_ITERATION_SPACES = [
-            "cell_column", "domain",
-            "dof",
+        # Iteration spaces for user-supplied kernels that must include halo
+        # regions for correctness.
+        LFRicConstants.HALO_KERNEL_ITERATION_SPACES = [
             "halo_cell_column",
             "owned_and_halo_cell_column"]
 
+        LFRicConstants.CELL_COLUMN_ITERATION_SPACES = (
+            ["cell_column", "owned_cell_column"] +
+            LFRicConstants.HALO_KERNEL_ITERATION_SPACES)
+
+        # Valid LFRic iteration spaces for user-supplied kernels and
+        # built-in kernels
+        LFRicConstants.USER_KERNEL_ITERATION_SPACES = (
+            ["domain"] + LFRicConstants.DOF_ITERATION_SPACES +
+            LFRicConstants.CELL_COLUMN_ITERATION_SPACES)
+
+        # Now that user-supplied kernels can operate on dofs,
+        # VALID_ITERATION_SPACES is actually the same as
+        # USER_KERNEL_ITERATION_SPACES but we retain it for clarity.
         LFRicConstants.VALID_ITERATION_SPACES = \
-            list(OrderedDict.fromkeys(
-                LFRicConstants.USER_KERNEL_ITERATION_SPACES +
-                LFRicConstants.BUILTIN_ITERATION_SPACES))
+            LFRicConstants.USER_KERNEL_ITERATION_SPACES
+
+        # Those iteration spaces for which redundant computation is forbidden.
+        LFRicConstants.NO_RC_ITERATION_SPACES = [
+            "owned_cell_column",
+            "owned_dof"]
 
         # ---------- Function spaces (FS) -------------------------------------
         # Discontinuous FS
@@ -381,12 +420,6 @@ class LFRicConstants():
                            "proxy_type": "r_bl_field_proxy_type",
                            "intrinsic": "real",
                            "kind": "r_bl"},
-            # 'real'-valued field with data of kind 'r_phys'
-            "r_phys_field": {"module": "r_phys_field_mod",
-                             "type": "r_phys_field_type",
-                             "proxy_type": "r_phys_field_proxy_type",
-                             "intrinsic": "real",
-                             "kind": "r_phys"},
             # 'integer'-valued field with data of kind 'i_def'
             "integer_field": {"module": "integer_field_mod",
                               "type": "integer_field_type",
@@ -427,8 +460,7 @@ class LFRicConstants():
             "field_vector_type": "field_type",
             "r_solver_field_vector_type": "r_solver_field_type",
             "r_tran_field_vector_type": "r_tran_field_type",
-            "r_bl_field_vector_type": "r_bl_field_type",
-            "r_phys_field_vector_type": "r_phys_field_type"}
+            "r_bl_field_vector_type": "r_bl_field_type"}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council
+# Copyright (c) 2019-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -73,7 +73,7 @@ ALG_PATH = "../code"
 ALG_NAME = "gw_mixed_schur_preconditioner_alg_mod.x90"
 # Specify the Kernel base name without the "_mod" and
 # file extension
-KERNEL_BASENAME = "matrix_vector_kernel"
+KERNEL_BASENAME = "matrix_vector"
 # Specify whether to apply transformations before looking for the Kernel call
 # position
 TRANSFORM = False

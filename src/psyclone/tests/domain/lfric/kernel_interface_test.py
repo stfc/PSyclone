@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -141,12 +141,12 @@ def test_generate(var_accesses):
         # Test all read-only variables
         for var in ["nlayers", "undf_w0", "f2", "ndf_w0", "dofmap_w0"]:
             accesses = var_accesses[Signature(var)]
-            assert len(accesses.all_accesses) == 1
+            assert len(accesses) == 1
             assert accesses[0].access_type == AccessType.READ
 
         # Test the read-write variable
         accesses = var_accesses[Signature("f1")]
-        assert len(accesses.all_accesses) == 1
+        assert len(accesses) == 1
         assert accesses[0].access_type == AccessType.READWRITE
 
 

@@ -28,10 +28,10 @@
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import (Call, CodeBlock, Routine,
                                   IntrinsicCall)
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
-from psyclone.psyir.symbols import (DataSymbol, Symbol, SymbolError,
-                                    DataType)
+from psyclone.psyir.symbols import DataSymbol, SymbolError
 from psyclone.psyGen import BuiltIn
 
 
@@ -43,7 +43,7 @@ class MarkRoutineForGPUMixin:
     the same logic.
 
     '''
-    def validate_it_can_run_on_gpu(self, node, options):
+    def validate_it_can_run_on_gpu(self, node, options, **kwargs):
         '''
         Check that the supplied node can be marked as available to be
         called on GPU.
@@ -58,7 +58,7 @@ class MarkRoutineForGPUMixin:
         :param str options["device_string"]: provide a compiler-platform
             identifier.
 
- :raises TransformationError: if the node is not a kernel or a routine.
+        :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
         :raises TransformationError: if it is a kernel but without an
                                      associated PSyIR.
@@ -69,8 +69,13 @@ class MarkRoutineForGPUMixin:
         :raises TransformationError: if the kernel contains any calls to other
                                      routines.
         '''
-        force = options.get("force", False) if options else False
-        device_string = options.get("device_string", "") if options else ""
+        # TODO #2668: Deprecate options dict.
+        if options:
+            force = options.get("force", False)
+            device_string = options.get("device_string", "")
+        else:
+            force = self.get_option("force", **kwargs)
+            device_string = self.get_option("device_string", **kwargs)
 
         if not isinstance(node, (Kern, Routine)):
             raise TransformationError(
@@ -102,15 +107,15 @@ class MarkRoutineForGPUMixin:
             kernel_schedules = [node]
             k_or_r = "routine"
 
-        # Check that the routine(s) do(oes) not access any data that is
+        # Check that the routine(s) do(es) not access any data that is
         # imported via a 'use' statement.
         for sched in kernel_schedules:
             vam = sched.reference_accesses()
             ktable = sched.symbol_table
             for sig in vam.all_signatures:
                 name = sig.var_name
-                first = vam[sig].all_accesses[0].node
-                if isinstance(first, (Symbol, DataType)):
+                first = vam[sig][0].node
+                if isinstance(first, Reference):
                     table = ktable
                 else:
                     try:

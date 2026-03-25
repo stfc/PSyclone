@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Assignment, CodeBlock, IfBlock, Loop
+from psyclone.psyir.nodes import Assignment, IfBlock, Loop
 from psyclone.tests.utilities import get_invoke, get_ast
 
 # Constants
@@ -85,8 +85,12 @@ def test_assignment(fortran_reader):
     array_assignment = schedule.children[1]
     assert isinstance(array_assignment, Assignment)
     var_accesses = array_assignment.reference_accesses()
-    assert (str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "
-                                 "i: READ, j: READ, x: READ, y: READ")
+    # We don't know if 'f' is a function or an array (CALLED or READ), so
+    # it is catergorised as UNKNOWN. Its arguments take the worst case
+    # scenario of being READWRITE (in case it was a function).
+    assert (str(var_accesses) ==
+            "c: WRITE, d: READ, e: READ, f: UNKNOWN, i: READ, j: READ, "
+            "x: READWRITE, y: READWRITE")
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)
@@ -117,18 +121,17 @@ def test_indirect_addressing(fortran_reader):
 
 
 def test_double_variable_lhs(fortran_reader):
-    ''' A variable on the LHS of an assignment must only occur once,
-    which is a restriction of PSyclone.
-
+    ''' A variable can appear more than once on the LHS of an assignment.
     '''
     psyir = fortran_reader.psyir_from_source(
         '''program test_prog
              integer :: g(10)
              g(g(1)) = 1
            end program test_prog''')
-    assert isinstance(psyir, CodeBlock)
-    assert ("The variable 'g' appears more than once on the left-hand side "
-            "of an assignment." in psyir.preceding_comment)
+    lhs = psyir.walk(Assignment)[0].lhs
+    assert lhs.symbol.name == "g"
+    assert lhs.children[0].symbol.name == "g"
+    assert lhs.symbol is lhs.children[0].symbol
 
 
 def test_if_statement(fortran_reader):
@@ -152,11 +155,10 @@ def test_if_statement(fortran_reader):
     assert (str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "
                                  "q: READ+WRITE, r: READ")
     # Test that the two accesses to 'q' indeed show up as
-    q_accesses = var_accesses[Signature("q")].all_accesses
+    q_accesses = var_accesses[Signature("q")]
     assert len(q_accesses) == 2
     assert q_accesses[0].access_type == AccessType.READ
     assert q_accesses[1].access_type == AccessType.WRITE
-    assert q_accesses[0].location < q_accesses[1].location
 
 
 def test_do_loop(fortran_reader):
@@ -177,8 +179,8 @@ def test_do_loop(fortran_reader):
     do_loop = schedule.children[0]
     assert isinstance(do_loop, Loop)
     var_accesses = do_loop.reference_accesses()
-    assert (str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "
-                                 "s: WRITE, t: READ")
+    assert (str(var_accesses) ==
+            "ji: WRITE+READ, jj: WRITE+READ, n: READ, s: WRITE, t: READ")
 
 
 def test_nemo_array_range(fortran_reader):
@@ -199,8 +201,9 @@ def test_nemo_array_range(fortran_reader):
     do_loop = schedule.children[0]
     assert isinstance(do_loop, Loop)
     var_accesses = do_loop.reference_accesses()
-    assert (str(var_accesses) == "a: READ, jj: READ+WRITE, n: READ, "
-            "s: WRITE, t: READ")
+    assert (str(var_accesses) ==
+            "a: READ, jj: WRITE+READ, n: READ, s: INQUIRY+WRITE, "
+            "t: INQUIRY+READ")
 
 
 @pytest.mark.xfail(reason="Gocean loops boundaries are strings #440")
@@ -241,9 +244,11 @@ def test_goloop_partially():
     assert not do_loop.args[3].is_scalar
 
     var_accesses = do_loop.reference_accesses()
-    assert ("a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "
-            "ssh_fld: READWRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "
-            "ssh_fld%grid%tmask: READ" in str(var_accesses))
+    assert ("a_scalar: READ, i: WRITE+READ, j: WRITE+READ, ssh_fld%data: "
+            "WRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "
+            "ssh_fld%grid%tmask: READ, ssh_fld%whole%xstart: READ, "
+            "ssh_fld%whole%xstop: READ, ssh_fld%whole%ystart: READ, "
+            "ssh_fld%whole%ystop: READ" == str(var_accesses))
 
 
 def test_lfric():
@@ -263,12 +268,11 @@ def test_lfric():
     schedule = invoke.schedule
     var_accesses = schedule.reference_accesses()
     assert str(var_accesses) == (
-        "a: READ, cell: READ+WRITE, f1_data: READ+WRITE, f2_data: READ, "
-        "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, m1_data: READ, "
-        "m2_data: READ, map_w1: READ, "
-        "map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ,"
-        " nlayers_f1: READ, r_def: NO_DATA_ACCESS, undf_w1: READ, undf_w2: "
-        "READ, undf_w3: READ, uninitialised_loop0_start: READ, "
+        "a: READ, cell: WRITE+READ, f1_data: INC, f2_data: READ, field_type: "
+        "CONSTANT, i_def: CONSTANT, m1_data: READ, m2_data: READ, map_w1: "
+        "READ, map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, "
+        "ndf_w3: READ, nlayers_f1: READ, r_def: CONSTANT, undf_w1: READ, "
+        "undf_w2: READ, undf_w3: READ, uninitialised_loop0_start: READ, "
         "uninitialised_loop0_stop: READ")
 
 
@@ -309,72 +313,6 @@ def test_lfric_kern_cma_args():
                 == AccessType.READ)
 
 
-def test_location(fortran_reader):
-    '''Test if the location assignment is working, esp. if each new statement
-    gets a new location, but accesses in the same statement have the same
-    location.
-    '''
-
-    psyir = fortran_reader.psyir_from_source(
-        '''program test_prog
-             integer :: a, b, i, ji, jj, n, x
-             real :: p(5), q(5), r(5), s(5,5), t(5,5)
-             a = b
-             if (a .eq. b) then
-                p(i) = q(i)
-             else
-               q(i) = r(i)
-             endif
-             a = b
-             do jj=1, n
-                do ji=1, 10
-                   s(ji, jj)=t(ji, jj)+1
-                enddo
-             enddo
-             a = b
-             x = x + 1
-          end program test_prog''')
-    schedule = psyir.children[0]
-
-    var_accesses = schedule.reference_accesses()
-    # Test accesses for a:
-    a_accesses = var_accesses[Signature("a")].all_accesses
-    assert a_accesses[0].location == 0
-    assert a_accesses[1].location == 1
-    assert a_accesses[2].location == 6
-    assert a_accesses[3].location == 12
-
-    # b should have the same locations as a:
-    b_accesses = var_accesses[Signature("b")].all_accesses
-    assert len(a_accesses) == len(b_accesses)
-    for (index, access) in enumerate(a_accesses):
-        assert b_accesses[index].location == access.location
-
-    q_accesses = var_accesses[Signature("q")].all_accesses
-    assert q_accesses[0].location == 2
-    assert q_accesses[1].location == 4
-
-    # Test jj for the loop statement. Note that 'jj' has one read and
-    # one write access for the DO statement
-    jj_accesses = var_accesses[Signature("jj")].all_accesses
-    assert jj_accesses[0].location == 7
-    assert jj_accesses[1].location == 7
-    assert jj_accesses[2].location == 9
-    assert jj_accesses[3].location == 9
-
-    ji_accesses = var_accesses[Signature("ji")].all_accesses
-    assert ji_accesses[0].location == 8
-    assert ji_accesses[1].location == 8
-    assert ji_accesses[2].location == 9
-    assert ji_accesses[3].location == 9
-
-    # Verify that x=x+1 shows the READ access before the write access
-    x_accesses = var_accesses[Signature("x")].all_accesses    # x=x+1
-    assert x_accesses[0].access_type == AccessType.READ
-    assert x_accesses[1].access_type == AccessType.WRITE
-    assert x_accesses[0].location == x_accesses[1].location
-
-
 def test_user_defined_variables(fortran_reader):
     ''' Test reading and writing to user defined variables.
     '''
@@ -399,9 +337,9 @@ def test_lfric_ref_element():
     psy, invoke_info = get_invoke("23.4_ref_elem_all_faces_invoke.f90",
                                   "lfric", idx=0)
     var_info = str(invoke_info.schedule.reference_accesses())
-    assert "normals_to_faces: READ" in var_info
-    assert "out_normals_to_faces: READ" in var_info
-    assert "nfaces_re: READ" in var_info
+    assert "normals_to_faces: READ," in var_info
+    assert "out_normals_to_faces: READ," in var_info
+    assert "nfaces_re: READ," in var_info
 
 
 def test_lfric_operator():
@@ -411,10 +349,10 @@ def test_lfric_operator():
     '''
     psy, invoke_info = get_invoke("6.1_eval_invoke.f90", "lfric", idx=0)
     var_info = str(invoke_info.schedule.reference_accesses())
-    assert "f0_data: READ+WRITE" in var_info
-    assert "cmap_data: READ" in var_info
-    assert "basis_w0_on_w0: READ" in var_info
-    assert "diff_basis_w1_on_w0: READ" in var_info
+    assert "f0_data: INC," in var_info
+    assert "cmap_data: READ," in var_info
+    assert "basis_w0_on_w0: READ," in var_info
+    assert "diff_basis_w1_on_w0: READ," in var_info
 
 
 def test_lfric_cma(fortran_writer):
@@ -425,19 +363,19 @@ def test_lfric_cma(fortran_writer):
     _, invoke_info = get_invoke("20.0_cma_assembly.f90", "lfric", idx=0)
     invoke_info.setup_psy_layer_symbols()
     var_info = str(invoke_info.schedule.reference_accesses())
-    assert "ncell_2d: READ" in var_info
-    assert "cma_op1_alpha: READ" in var_info
-    assert "cma_op1_bandwidth: READ" in var_info
-    assert "cma_op1_beta: READ" in var_info
-    assert "cma_op1_gamma_m: READ" in var_info
-    assert "cma_op1_gamma_p: READ" in var_info
-    assert "cma_op1_cma_matrix: WRITE" in var_info
-    assert "cma_op1_ncol: READ" in var_info
-    assert "cma_op1_nrow: READ" in var_info
-    assert "cbanded_map_adspc1_lma_op1: READ" in var_info
-    assert "cbanded_map_adspc2_lma_op1: READ" in var_info
-    assert "lma_op1_local_stencil: READ" in var_info
-    assert "lma_op1_proxy%ncell_3d: READ" in var_info
+    assert "ncell_2d: WRITE+READ," in var_info
+    assert "cma_op1_alpha: WRITE+READ," in var_info
+    assert "cma_op1_bandwidth: WRITE+READ," in var_info
+    assert "cma_op1_beta: WRITE+READ," in var_info
+    assert "cma_op1_gamma_m: WRITE+READ," in var_info
+    assert "cma_op1_gamma_p: WRITE+READ," in var_info
+    assert "cma_op1_cma_matrix: WRITE," in var_info
+    assert "cma_op1_ncol: WRITE+READ," in var_info
+    assert "cma_op1_nrow: WRITE+READ," in var_info
+    assert "cbanded_map_ads1_lma_op1: WRITE+READ," in var_info
+    assert "cbanded_map_ads2_lma_op1: WRITE+READ," in var_info
+    assert "lma_op1_local_stencil: WRITE+READ," in var_info
+    assert "lma_op1_proxy%ncell_3d: READ," in var_info
 
 
 def test_lfric_cma2():
@@ -447,8 +385,8 @@ def test_lfric_cma2():
     '''
     psy, invoke_info = get_invoke("20.1_cma_apply.f90", "lfric", idx=0)
     var_info = str(invoke_info.schedule.reference_accesses())
-    assert "cma_indirection_map_aspc1_field_a: READ" in var_info
-    assert "cma_indirection_map_aspc2_field_b: READ" in var_info
+    assert "cma_indirection_map_as1_field_a: READ," in var_info
+    assert "cma_indirection_map_as2_field_b: READ," in var_info
 
 
 def test_lfric_stencils():
@@ -457,8 +395,8 @@ def test_lfric_stencils():
     '''
     psy, invoke_info = get_invoke("14.4_halo_vector.f90", "lfric", idx=0)
     var_info = str(invoke_info.schedule.reference_accesses())
-    assert "f2_stencil_size: READ" in var_info
-    assert "f2_stencil_dofmap: READ" in var_info
+    assert "f2_stencil_size: READ," in var_info
+    assert "f2_stencil_dofmap: READ," in var_info
 
 
 def test_lfric_various_basis():
@@ -469,12 +407,12 @@ def test_lfric_various_basis():
     psy, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
                                   "lfric", idx=0)
     var_info = str(invoke_info.schedule.reference_accesses())
-    assert "basis_w3_qr: READ" in var_info
-    assert "diff_basis_w0_qr: READ" in var_info
-    assert "diff_basis_w2_qr: READ" in var_info
-    assert "np_xy_qr: READ" in var_info
-    assert "np_z_qr: READ" in var_info
-    assert "weights_xy_qr: READ" in var_info
+    assert "basis_w3_qr: READ," in var_info
+    assert "diff_basis_w0_qr: READ," in var_info
+    assert "diff_basis_w2_qr: READ," in var_info
+    assert "np_xy_qr: READ," in var_info
+    assert "np_z_qr: READ," in var_info
+    assert "weights_xy_qr: READ," in var_info
     assert "weights_z_qr: READ" in var_info
 
 
@@ -486,7 +424,7 @@ def test_lfric_field_bc_kernel():
     psy, invoke_info = get_invoke("12.2_enforce_bc_kernel.f90",
                                   "lfric", idx=0)
     var_info = str(invoke_info.schedule.reference_accesses())
-    assert "boundary_dofs_a: READ" in var_info
+    assert "boundary_dofs_a: READ," in var_info
 
 
 def test_lfric_stencil_xory_vector():
@@ -497,18 +435,18 @@ def test_lfric_stencil_xory_vector():
     psy, invoke_info = get_invoke("14.4.2_halo_vector_xory.f90",
                                   "lfric", idx=0)
     var_info = str(invoke_info.schedule.reference_accesses())
-    assert "f2_direction: READ" in var_info
+    assert "f2_direction: READ," in var_info
 
 
 def test_lfric_operator_bc_kernel():
     '''Tests that a kernel that applies boundary conditions to operators
-    detects the right implicit paramaters.
+    detects the right implicit parameters.
 
     '''
     psy, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
                                   "lfric", idx=0)
     var_info = str(invoke_info.schedule.reference_accesses())
-    assert "boundary_dofs_op_a: READ" in var_info
+    assert "boundary_dofs_op_a: READ," in var_info
 
 
 def test_lfric_stub_args():
@@ -524,26 +462,26 @@ def test_lfric_stub_args():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "field_1_w1: READ+WRITE" in var_info
-    assert "field_2_stencil_dofmap: READ" in var_info
-    assert "field_2_stencil_size: READ" in var_info
-    assert "field_2_w2: READ" in var_info
-    assert "field_3_direction: READ" in var_info
-    assert "field_3_stencil_dofmap: READ" in var_info
-    assert "field_3_stencil_size: READ" in var_info
-    assert "field_3_w2: READ" in var_info
-    assert "field_4_stencil_dofmap: READ" in var_info
-    assert "field_4_stencil_size: READ" in var_info
-    assert "field_4_w3: READ" in var_info
-    assert "map_w1: READ" in var_info
-    assert "map_w2: READ" in var_info
+    assert "field_1_w1: INC," in var_info
+    assert "field_2_stencil_dofmap: READ," in var_info
+    assert "field_2_stencil_size: READ," in var_info
+    assert "field_2_w2: READ," in var_info
+    assert "field_3_direction: READ," in var_info
+    assert "field_3_stencil_dofmap: READ," in var_info
+    assert "field_3_stencil_size: READ," in var_info
+    assert "field_3_w2: READ," in var_info
+    assert "field_4_stencil_dofmap: READ," in var_info
+    assert "field_4_stencil_size: READ," in var_info
+    assert "field_4_w3: READ," in var_info
+    assert "map_w1: READ," in var_info
+    assert "map_w2: READ," in var_info
     assert "map_w3: READ" in var_info
-    assert "ndf_w1: READ" in var_info
-    assert "ndf_w2: READ" in var_info
-    assert "ndf_w3: READ" in var_info
-    assert "nlayers: READ" in var_info
-    assert "undf_w1: READ" in var_info
-    assert "undf_w2: READ" in var_info
+    assert "ndf_w1: READ," in var_info
+    assert "ndf_w2: READ," in var_info
+    assert "ndf_w3: READ," in var_info
+    assert "nlayers: READ," in var_info
+    assert "undf_w1: READ," in var_info
+    assert "undf_w2: READ," in var_info
     assert "undf_w3: READ" in var_info
 
 
@@ -560,10 +498,10 @@ def test_lfric_stub_args2():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "rscalar_1: READ" in var_info
-    assert "basis_w1_qr_face: READ" in var_info
-    assert "nfaces_qr_face: READ" in var_info
-    assert "np_xyz_qr_face: READ" in var_info
+    assert "rscalar_1: READ," in var_info
+    assert "basis_w1_qr_face: READ," in var_info
+    assert "nfaces_qr_face: READ," in var_info
+    assert "np_xyz_qr_face: READ," in var_info
     assert "weights_xyz_qr_face: READ" in var_info
 
 
@@ -580,11 +518,11 @@ def test_lfric_stub_args3():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "cell: READ" in var_info
-    assert "op_3: READ" in var_info
-    assert "op_3_ncell_3d: READ" in var_info
-    assert "op_4: READ" in var_info
-    assert "op_4_ncell_3d: READ" in var_info
+    assert "cell: READ," in var_info
+    assert "op_3: READ," in var_info
+    assert "op_3_ncell_3d: READ," in var_info
+    assert "op_4: READ," in var_info
+    assert "op_4_ncell_3d: READ," in var_info
 
 
 def test_lfric_stub_boundary_dofs():
@@ -613,13 +551,13 @@ def test_lfric_stub_field_vector():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "field_1_w0_v1: READ" in var_info
-    assert "field_1_w0_v2: READ" in var_info
-    assert "field_1_w0_v3: READ" in var_info
-    assert "field_2_w3_v1: READ" in var_info
-    assert "field_2_w3_v2: READ" in var_info
-    assert "field_2_w3_v3: READ" in var_info
-    assert "field_2_w3_v4: READ" in var_info
+    assert "field_1_w0_v1: READ," in var_info
+    assert "field_1_w0_v2: READ," in var_info
+    assert "field_1_w0_v3: READ," in var_info
+    assert "field_2_w3_v1: READ," in var_info
+    assert "field_2_w3_v2: READ," in var_info
+    assert "field_2_w3_v3: READ," in var_info
+    assert "field_2_w3_v4: READ," in var_info
 
 
 def test_lfric_stub_basis():
@@ -634,12 +572,12 @@ def test_lfric_stub_basis():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "basis_w1_on_w1: READ" in var_info
-    assert "diff_basis_w2_qr_face: READ" in var_info
-    assert "diff_basis_w2_on_w1: READ" in var_info
-    assert "basis_w3_on_w1: READ" in var_info
-    assert "diff_basis_w3_qr_face: READ" in var_info
-    assert "diff_basis_w3_on_w1: READ" in var_info
+    assert "basis_w1_on_w1: READ," in var_info
+    assert "diff_basis_w2_qr_face: READ," in var_info
+    assert "diff_basis_w2_on_w1: READ," in var_info
+    assert "basis_w3_on_w1: READ," in var_info
+    assert "diff_basis_w3_qr_face: READ," in var_info
+    assert "diff_basis_w3_on_w1: READ," in var_info
 
 
 def test_lfric_stub_cma_operators():
@@ -656,14 +594,14 @@ def test_lfric_stub_cma_operators():
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     for num in ["1", "3", "5"]:
-        assert "ncell_2d: READ" in var_info
-        assert "cma_op_"+num+": READ" in var_info
-        assert "cma_op_"+num+"_nrow: READ" in var_info
-        assert "cma_op_"+num+"_ncol: READ" in var_info
-        assert "cma_op_"+num+"_bandwidth: READ" in var_info
-        assert "cma_op_"+num+"_alpha: READ" in var_info
-        assert "cma_op_"+num+"_beta: READ" in var_info
-        assert "cma_op_"+num+"_gamma_m: READ" in var_info
+        assert "ncell_2d: READ," in var_info
+        assert "cma_op_"+num+": READ," in var_info
+        assert "cma_op_"+num+"_nrow: READ," in var_info
+        assert "cma_op_"+num+"_ncol: READ," in var_info
+        assert "cma_op_"+num+"_bandwidth: READ," in var_info
+        assert "cma_op_"+num+"_alpha: READ," in var_info
+        assert "cma_op_"+num+"_beta: READ," in var_info
+        assert "cma_op_"+num+"_gamma_m: READ," in var_info
         assert "cma_op_"+num+"_gamma_p: READ" in var_info
 
 
@@ -679,8 +617,8 @@ def test_lfric_stub_banded_dofmap():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "cbanded_map_adspc1_op_1: READ" in var_info
-    assert "cbanded_map_adspc2_op_1: READ" in var_info
+    assert "cbanded_map_ads1_op_1: READ," in var_info
+    assert "cbanded_map_ads2_op_1: READ" in var_info
 
 
 def test_lfric_stub_indirection_dofmap():
@@ -694,8 +632,8 @@ def test_lfric_stub_indirection_dofmap():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "cma_indirection_map_aspc1_field_1: READ" in var_info
-    assert "cma_indirection_map_aspc2_field_2: READ" in var_info
+    assert "cma_indirection_map_as1_field_1: READ," in var_info
+    assert "cma_indirection_map_as2_field_2: READ" in var_info
 
 
 def test_lfric_stub_boundary_dofmap():

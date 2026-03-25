@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -95,7 +95,10 @@ def test_constants_mod():
         # pylint: disable=no-member
         assert isinstance(symbol, DataSymbol)
         assert isinstance(symbol.interface, ImportInterface)
-        assert symbol.interface.container_symbol is module
+        # TODO #2659, ideally we'd check for equality of the Symbols themselves
+        # but currently there's no guarantee that the Symbol instance will
+        # be the same.
+        assert symbol.interface.container_symbol.name == module.name
 
 
 # Generic scalars
@@ -117,8 +120,10 @@ def test_generic_scalars(type_name, symbol_name, intrinsic,
     precision = LFRicTypes(precision_name)
     # datatype
     lfric_datatype = data_type()
+    if isinstance(lfric_datatype.precision, Reference):
+        precision = Reference(precision)
     assert lfric_datatype.intrinsic == intrinsic
-    assert lfric_datatype.precision is precision
+    assert lfric_datatype.precision == precision
     # precision can be set explicitly
     lfric_datatype = data_type(precision=4)
     assert lfric_datatype.precision == 4
@@ -313,7 +318,7 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
         if isinstance(i, int):
             dims.append(i)
         else:
-            # Tage the additional constructor arguments
+            # Tag the additional constructor arguments
             args = i[1:]
             interface = ArgumentInterface(ArgumentInterface.Access.READ)
             ref = Reference(LFRicTypes(i[0])(*args,
@@ -325,7 +330,7 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
     scalar_type = LFRicTypes(scalar_type_name)
     lfric_datatype = data_type(dims)
     assert isinstance(lfric_datatype, ArrayType)
-    assert isinstance(lfric_datatype._datatype, scalar_type)
+    assert isinstance(lfric_datatype._elemental_type, scalar_type)
     for idx, dim in enumerate(lfric_datatype.shape):
         if isinstance(dim.upper, Literal):
             assert dim.upper.value == str(dims[idx])

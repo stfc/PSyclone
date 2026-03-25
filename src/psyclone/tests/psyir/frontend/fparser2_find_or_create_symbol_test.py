@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import (
     BinaryOperation)
 from psyclone.psyir.symbols import (
     Symbol, DataSymbol, SymbolTable, REAL_TYPE, ScalarType,
-    UnresolvedInterface, RoutineSymbol, NoType)
+    UnresolvedInterface, RoutineSymbol, UnresolvedType)
 from psyclone.tests.utilities import get_invoke
 
 
@@ -178,7 +178,7 @@ def test_find_or_create_unresolved_scope_limit():
     assert "x" not in kernel.symbol_table
 
     # Add "x" ("x_1") to the kernel symbol table as we limit the scope to
-    # kernel. However, to avoid conficts with the pre-existing
+    # kernel. However, to avoid conflicts with the pre-existing
     # variables "x_1" in created.
     xsymbol = _find_or_create_unresolved_symbol(
         assign, "x", scope_limit=kernel)
@@ -235,7 +235,7 @@ def test_find_or_create_change_symbol_type():
                                              symbol_type=RoutineSymbol)
     assert sym2 is sub_sym
     assert type(sym2) is RoutineSymbol
-    assert isinstance(sym2.datatype, NoType)
+    assert isinstance(sym2.datatype, UnresolvedType)
 
 
 @pytest.mark.parametrize("visibility", [

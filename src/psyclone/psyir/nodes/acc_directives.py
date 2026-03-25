@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,20 +53,17 @@ from psyclone.psyir.nodes.acc_clauses import (
     ACCAsyncQueueClause, ACCCopyClause, ACCCopyInClause,
     ACCCopyOutClause)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
-from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.atomic_mixin import AtomicDirectiveMixin
 from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.directive import (StandaloneDirective,
                                             RegionDirective)
-from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.operation import BinaryOperation
-from psyclone.psyir.symbols import ScalarType
 
 
 class ACCDirective(metaclass=abc.ABCMeta):
@@ -390,7 +387,7 @@ class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
             # on the device. If we've made a mistake and it isn't present
             # then we'll get a run-time error.
             options = " default(present)"
-        options += self._build_async_string()
+
         return f"acc parallel{options}"
 
     def end_string(self) -> str:
@@ -740,9 +737,6 @@ class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
         if self._default_present:
             result += " default(present)"
 
-        # async
-        result += self._build_async_string()
-
         return result
 
     def end_string(self) -> str:
@@ -983,11 +977,7 @@ class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
         condition = "if_present " if self._if_present else ""
         sym_list = _sig_set_to_string(self._sig_set)
 
-        # async
-        asyncvalue = self._build_async_string()
-
-        return \
-            f"acc update {condition}{self._direction}({sym_list}){asyncvalue}"
+        return f"acc update {condition}{self._direction}({sym_list})"
 
 
 def _sig_set_to_string(sig_set: Set[Signature]) -> str:
@@ -1000,7 +990,7 @@ def _sig_set_to_string(sig_set: Set[Signature]) -> str:
     :returns: a lexically sorted string of comma-separated (sub)signatures.
 
     '''
-    names = {s[:i+1].to_language() for s in sig_set for i in range(len(s))}
+    names = {str(s[:i+1]) for s in sig_set for i in range(len(s))}
     return ",".join(sorted(names))
 
 
@@ -1047,7 +1037,7 @@ class ACCWaitDirective(ACCStandaloneDirective):
         # check
         if (wait_queue is not None
            and not isinstance(wait_queue, (int, Reference))):
-            raise TypeError("Invalid value type as wait_group, shoule be"
+            raise TypeError("Invalid value type as wait_group, should be"
                             "in (None, int, Signature) !")
 
         # set
@@ -1075,7 +1065,7 @@ class ACCWaitDirective(ACCStandaloneDirective):
         return result
 
 
-class ACCAtomicDirective(ACCRegionDirective):
+class ACCAtomicDirective(ACCRegionDirective, AtomicDirectiveMixin):
     '''
     OpenACC directive to represent that the memory accesses in the associated
     assignment must be performed atomically.
@@ -1096,50 +1086,6 @@ class ACCAtomicDirective(ACCRegionDirective):
 
         '''
         return "acc end atomic"
-
-    @staticmethod
-    def is_valid_atomic_statement(stmt: Node) -> bool:
-        ''' Check if a given statement is a valid OpenACC atomic expression.
-
-        :param stmt: a node to be validated.
-
-        :returns: whether a given statement is compliant with the OpenACC
-            atomic expression.
-
-        '''
-        if not isinstance(stmt, Assignment):
-            return False
-
-        # Not all rules are checked, just that:
-        # - operands are of a scalar intrinsic type
-        if not isinstance(stmt.lhs.datatype, ScalarType):
-            return False
-
-        # - the top-level operator is one of: +, *, -, /, AND, OR, EQV, NEQV
-        if isinstance(stmt.rhs, BinaryOperation):
-            if stmt.rhs.operator not in (BinaryOperation.Operator.ADD,
-                                         BinaryOperation.Operator.SUB,
-                                         BinaryOperation.Operator.MUL,
-                                         BinaryOperation.Operator.DIV,
-                                         BinaryOperation.Operator.AND,
-                                         BinaryOperation.Operator.OR,
-                                         BinaryOperation.Operator.EQV,
-                                         BinaryOperation.Operator.NEQV):
-                return False
-        # - or intrinsics: MAX, MIN, IAND, IOR, or IEOR
-        if isinstance(stmt.rhs, IntrinsicCall):
-            if stmt.rhs.intrinsic not in (IntrinsicCall.Intrinsic.MAX,
-                                          IntrinsicCall.Intrinsic.MIN,
-                                          IntrinsicCall.Intrinsic.IAND,
-                                          IntrinsicCall.Intrinsic.IOR,
-                                          IntrinsicCall.Intrinsic.IEOR):
-                return False
-
-        # - one of the operands should be the same as the lhs
-        if stmt.lhs not in stmt.rhs.children:
-            return False
-
-        return True
 
     def validate_global_constraints(self):
         ''' Perform validation of those global constraints that can only be

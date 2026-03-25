@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
+# Copyright (c) 2022-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,8 @@ def test_create_from_fparser2():
 
 
 @pytest.mark.parametrize("value", ["domain", "cell_column", "DOMAIN",
-                                   "halo_cell_column",
+                                   "halo_cell_column", "dof",
+                                   "owned_dof", "owned_cell_column",
                                    "owned_and_halo_cell_column"])
 def test_setter_getter(value):
     '''Test that the setters and getters work as expected.'''
@@ -107,6 +108,7 @@ def test_setter_errors():
     with pytest.raises(ValueError) as info:
         operates_on_metadata.operates_on = "invalid"
     assert ("The 'OPERATES_ON' metadata should be a recognised value (one of "
-            "['cell_column', 'domain', 'dof', 'halo_cell_column', "
-            "'owned_and_halo_cell_column']) but found "
-            "'invalid'." in str(info.value))
+            "['domain', 'dof', 'owned_dof', 'cell_column', "
+            "'owned_cell_column', 'halo_cell_column', "
+            "'owned_and_halo_cell_column']) "
+            "but found 'invalid'." in str(info.value))

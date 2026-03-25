@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,14 +51,15 @@ on:
   push
 
 env:
-  CUDA_VERSION: 12.9.0
-  GFORTRAN_VERSION: 15.1.0
-  HDF5_VERSION: 1.14.5
-  NETCDF_C_VERSION: 4.9.2
-  NETCDF_FORTRAN_VERSION: 4.6.1
-  NVFORTRAN_VERSION: 25.5
-  OPENMPI_VERSION: 5.0.7
-  PYTHON_VERSION: 3.13.3
+  CUDA_VERSION: "13"
+  GFORTRAN_VERSION: "15"
+  HDF5_VERSION: "2.1"
+  NETCDF_C_VERSION: "4.10"
+  NETCDF_FORTRAN_VERSION: "4.6"
+  NVFORTRAN_VERSION: "26.1"
+  OPENMPI_VERSION: "5.0"
+  PYTHON_VERSION: "3.14"
+  NUM_PARALLEL: 16
 
 jobs:
   run_if_on_mirror:
@@ -86,51 +87,86 @@ jobs:
         python -m pip install --upgrade pip
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
-        # pip install external/fparser
+        pip install external/fparser
         pip install .[test,psydata,doc]
     - name: Unit tests with compilation - gfortran
       run: |
         . .runner_venv/bin/activate
         module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
-        pytest -n 4 --f90=gfortran --f90flags="-ffree-line-length-none" --compile --compileopencl src/psyclone/tests
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        pytest -n ${NUM_PARALLEL} --f90=gfortran --f90flags="-ffree-line-length-none" --compile --compileopencl src/psyclone/tests
     - name: Unit tests with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
-        pytest -n 4 --f90=nvfortran --compile --compileopencl src/psyclone/tests
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        pytest -n ${NUM_PARALLEL} --f90=nvfortran --compile --compileopencl src/psyclone/tests
+    - name: Libraries compilation - gfortran
+      run: |
+        . .runner_venv/bin/activate
+        module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        make -C lib allclean
+        make -C lib all
+        # There is an additional test:
+        make -C lib/extract test
+    - name: Libraries compilation - nvfortran
+      run: |
+        . .runner_venv/bin/activate
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        make -C lib allclean
+        # We need to overwrite F90FLAGS, since otherwise some gfortran
+        # default flags will be used
+        F90=nvfortran F90FLAGS="-g" make -C lib all
+        # There is an additional test:
+        F90=nvfortran make -C lib/extract test
     - name: Examples with compilation - gfortran
       run: |
         . .runner_venv/bin/activate
         make -C examples allclean
         # Although we're using gfortran, we link with CUDA's OpenCL library
         module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         module load cuda/${CUDA_VERSION}
-        F90=gfortran make -C examples compile
+        # TODO #3074: Examples compilation cannot be run in parallel
+        F90=gfortran make -C examples run
     - name: Tutorials with compilation - gfortran
       run: |
         . .runner_venv/bin/activate
         make -C tutorial/practicals allclean
         module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         make -C tutorial/practicals compile
+        # Set F90 to mpif90 so the MPI example works, and it also avoids
+        # that the openacc example defaults to nvfoetran. Also, the implicitly
+        # defined F90FLAGS (in a module?) does not include -fopenmp, which
+        # then causes some examples to fail, so explicitly define this
+        USE_GPU=no F90=mpif90 F90FLAGS="-g -Wall -O0 -fopenmp" make -C tutorial/training/ test_run
     - name: Examples with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
         make -C examples allclean
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
-        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C examples compile
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        # TODO #3074: Examples compilation cannot be run in parallel
+        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C examples run
     - name: Tutorials with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
         make -C tutorial/practicals allclean
+        make -C tutorial/training allclean
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/LFRic compile
         F90=nvfortran F90FLAGS="-acc -Minfo=all -Mnofma -O2" make -C tutorial/practicals/generic run
+        # We cannot run non-GPU examples with the openacc flag, since output_field
+        # needs a openacc directive, which fails if the rest of the code is not on GPU
+        # Enable OpenMP on CPU (for some run tests)
+        USE_GPU=no F90=mpif90 F90FLAGS="-mp -Minfo=all" make -C tutorial/training test_run
+        # Delete any previous files, and compile the openacc example with openacc:
+        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training/gocean/2.14-GameOfLife-openacc/solution allclean
+        USE_GPU=yes F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/training/gocean/2.14-GameOfLife-openacc/solution test_run
         make -C tutorial/practicals/generic/4_openacc acc_test
     - name: Test logfile creation.
       run: |
@@ -138,3 +174,8 @@ jobs:
         cd examples/nemo/eg1
         psyclone -s ./openmp_cpu_levels_trans.py --log-level DEBUG --log-file log.out ../code/tra_adv.F90
         test -f log.out
+    - name: Test reasonable psycloning times for complex files
+      run: |
+        . .runner_venv/bin/activate
+        # Fail if it takes more than 15s
+        timeout -s INT 15s psyclone /archive/psyclone-tests/latest-run/slow_files/ukca_aero_ctl.F90

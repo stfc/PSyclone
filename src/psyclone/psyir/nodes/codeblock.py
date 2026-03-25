@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,11 @@
 
 ''' This module contains the CodeBlock node implementation.'''
 
+import re
 from enum import Enum
 from typing import List
 
-from fparser.two import Fortran2003
+from fparser.two import Fortran2003, pattern_tools
 from fparser.two.utils import walk
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.psyir.nodes.statement import Statement
@@ -207,6 +208,20 @@ class CodeBlock(Statement, DataNode):
             for part in node.items:
                 if part.items[1]:
                     result.append(part.items[1])
+        # For directives, we need to analyse all alphanumeric* parts of the
+        # comment string and return any names that match a symbol in the
+        # symbol table.
+        for node in walk(parse_tree, Fortran2003.Directive):
+            string_rep = node.tostr()
+            string_rep = string_rep[string_rep.index("$"):]
+            pattern = pattern_tools.name.get_compiled()
+            matches = re.findall(pattern, string_rep)
+            scope = self.scope
+            for match in matches:
+                sym = scope.symbol_table.lookup(match, otherwise=None)
+                if sym:
+                    result.append(sym.name)
+
         return result
 
     def reference_accesses(self) -> VariablesAccessMap:
@@ -226,7 +241,7 @@ class CodeBlock(Statement, DataNode):
 
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''

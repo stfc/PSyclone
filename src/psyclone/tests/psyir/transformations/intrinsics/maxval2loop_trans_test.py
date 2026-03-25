@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,9 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the maxval2loop transformation.'''
 
+import warnings
 import pytest
 
 from psyclone.psyir.nodes import Reference, Literal
@@ -122,13 +125,15 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
         "  real, dimension(10,20) :: array\n"
         "  real :: result\n"
         "  integer :: idx\n"
-        "  integer :: idx_1\n\n"
-        "  result = -HUGE(result)\n"
+        "  integer :: idx_1\n"
+        "  real :: reduction_var\n\n"
+        "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 20, 1\n"
         "    do idx_1 = 1, 10, 1\n"
-        "      result = MAX(result, array(idx_1,idx))\n"
+        "      reduction_var = MAX(reduction_var, array(idx_1,idx))\n"
         "    enddo\n"
-        "  enddo\n\n"
+        "  enddo\n"
+        "  result = reduction_var\n\n"
         "end subroutine maxval_test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
@@ -138,3 +143,22 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(psyir)
     assert result == expected
     assert Compile(tmpdir).string_compiles(result)
+
+    # TODO #2668 Remove this section of the test.
+    # Test that we correctly see a deprecation warning from parent class
+    # when passing an options dict.
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/IntrinsicCall
+    intrinsic_node = psyir.children[0].children[0].children[1]
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to be triggered.
+        warnings.simplefilter("always")
+        trans.apply(intrinsic_node, options={"test": "a"})
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in str(w[0].message))

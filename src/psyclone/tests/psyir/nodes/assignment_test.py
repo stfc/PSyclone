@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@
 ''' Performs py.test tests on the Assignment PSyIR node. '''
 
 import pytest
+from psyclone.core import Signature, AccessType
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
@@ -355,3 +356,26 @@ def test_pointer_assignment():
             in str(err.value))
     assignment1.is_pointer = False
     assert "Assignment[]" in str(assignment1)
+
+
+def test_reference_accesses(fortran_reader):
+    ''' Test the assignment.reference_accesses implementation
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''program test_prog
+             integer :: g(10)
+             g(1) = g + 1
+             g(g(1)) = 1
+             g(:) = 1
+           end program test_prog''')
+    assigns = psyir.walk(Assignment)
+    # Check that the lhs has been converted to a write
+    assigns[0].reference_accesses()[Signature('g')].is_written()
+
+    # Test nested references to the same symbol (first there is the inner
+    # READ to g, followed by the WRITE to the outer g)
+    accesses = assigns[1].reference_accesses()
+    assert accesses[Signature('g')][0].node == assigns[1].lhs.indices[0]
+    assert accesses[Signature('g')][0].access_type == AccessType.READ
+    assert accesses[Signature('g')][1].node == assigns[1].lhs
+    assert accesses[Signature('g')][1].access_type == AccessType.WRITE

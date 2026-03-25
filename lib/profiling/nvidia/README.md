@@ -1,7 +1,7 @@
 # NVTX Wrapper
 
 This is a wrapper library that maps the [PSyclone profiling API](
-https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) to the
+https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling) to the
 NVIDIA Tools Extension library (NVTX). Unlike some of the other
 profiling tools, the use of this library does *not* require that calls
 to ``profile_PSyDataInit()`` and ``profile_PSyDataShutdown()`` be inserted
@@ -75,7 +75,7 @@ back to the first entry in the list.
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2025, Science and Technology Facilities Council.
+Copyright (c) 2019-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

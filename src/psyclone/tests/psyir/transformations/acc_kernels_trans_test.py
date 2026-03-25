@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,9 @@
 import pytest
 
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import Assignment, ACCKernelsDirective, Loop, Routine
+from psyclone.psyir.nodes import (
+    Assignment, ACCKernelsDirective, Loop, Routine
+)
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, TransformationError, ProfileTrans, ACCLoopTrans)
 from psyclone.transformations import ACCEnterDataTrans
@@ -66,7 +68,7 @@ def test_kernels_single_node(fortran_reader):
     psyir = fortran_reader.psyir_from_source(EXPLICIT_LOOP)
     schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
-    acc_trans.apply(schedule[0], {"default_present": True})
+    acc_trans.apply(schedule[0], default_present=True)
     assert isinstance(schedule[0], ACCKernelsDirective)
 
 
@@ -78,14 +80,16 @@ def test_trigger_async_error(fortran_reader):
 
     loop = psyir.walk(Loop)[0]
     acc_trans.apply(loop,
-                    {"default_present": True,
-                     "async_queue": 2})
+                    default_present=True,
+                    async_queue=2
+                    )
 
     loop = psyir.walk(Loop)[0]
 
     with pytest.raises(TransformationError) as einfo:
-        acc_trans.apply(loop, {"default_present": True,
-                        "async_queue": 3})
+        acc_trans.apply(loop, default_present=True,
+                        async_queue=3
+                        )
 
     correct = ("Cannot apply ACCKernelsTrans with asynchronous"
                " queue '3' because a parent directive specifies"
@@ -112,7 +116,8 @@ def test_no_kernels_error(fortran_reader):
     schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
-        acc_trans.apply(schedule.children[0:2], {"default_present": True})
+        acc_trans.apply(schedule.children[0:2],
+                        default_present=True)
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
             "ACCKernelsTrans transformation" in str(err.value))
 
@@ -145,7 +150,8 @@ def test_no_loops(fortran_reader):
     assert ("must enclose at least one loop or array range but none were "
             "found" in str(err.value))
     # But we can disable this check.
-    acc_trans.validate(schedule[0:1], options={"disable_loop_check": True})
+    acc_trans.validate(schedule[0:1],
+                       disable_loop_check=True)
 
 
 def test_implicit_loop(fortran_reader, fortran_writer):
@@ -159,6 +165,8 @@ def test_implicit_loop(fortran_reader, fortran_writer):
                 "end program implicit_loop\n")
     schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
+    # TODO #2668 deprecate options coverage. This test is left for options
+    # coverage
     acc_trans.apply(schedule.children[0:1], {"default_present": True})
     code = fortran_writer(psyir)
     assert ("  !$acc kernels default(present)\n"
@@ -187,7 +195,8 @@ def test_multikern_if(fortran_reader, fortran_writer):
                 "end program implicit_loop\n")
     schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
-    acc_trans.apply(schedule.children[0:1], {"default_present": True})
+    acc_trans.apply(schedule.children[0:1],
+                    default_present=True)
     code = fortran_writer(psyir)
     assert ("  !$acc kernels default(present)\n"
             "  if (do_this) then\n"
@@ -217,8 +226,8 @@ def test_kernels_within_if(fortran_reader, fortran_writer):
     schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
 
-    acc_trans.apply(schedule.children[0].if_body, {"default_present": True})
-    acc_trans.apply(schedule.children[0].else_body, {"default_present": True})
+    acc_trans.apply(schedule.children[0].if_body, default_present=True)
+    acc_trans.apply(schedule.children[0].else_body, default_present=True)
     new_code = fortran_writer(psyir)
     assert ("  if (do_this) then\n"
             "    !$acc kernels default(present)\n"
@@ -258,7 +267,7 @@ def test_no_default_present(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(EXPLICIT_LOOP)
     schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
-    acc_trans.apply(schedule.children, {"default_present": False})
+    acc_trans.apply(schedule.children, default_present=False)
     assert "!$acc kernels\n" in fortran_writer(psyir)
 
 
@@ -278,8 +287,8 @@ def test_kernels_around_where_construct(fortran_reader, fortran_writer):
     assert isinstance(schedule[0], ACCKernelsDirective)
     assert isinstance(schedule[0].dir_body[0], Loop)
     assert ("  !$acc kernels\n"
-            "  do widx2 = 1, SIZE(a(:,:), dim=2), 1\n"
-            "    do widx1 = 1, SIZE(a(:,:), dim=1), 1\n"
+            "  do widx2 = 1, SIZE(a, dim=2), 1\n"
+            "    do widx1 = 1, SIZE(a, dim=1), 1\n"
             "      if (a(LBOUND(a, dim=1) + widx1 - 1,"
             "LBOUND(a, dim=2) + widx2 - 1) < flag) then\n"
             "        b(LBOUND(b, dim=1) + widx1 - 1,"
@@ -305,8 +314,8 @@ def test_kernels_around_where_stmt(fortran_reader, fortran_writer):
     acc_trans.apply([schedule[1]])
     assert ("  a(:,:) = 1.0\n"
             "  !$acc kernels\n"
-            "  do widx2 = 1, SIZE(a(:,:), dim=2), 1\n"
-            "    do widx1 = 1, SIZE(a(:,:), dim=1), 1\n"
+            "  do widx2 = 1, SIZE(a, dim=2), 1\n"
+            "    do widx1 = 1, SIZE(a, dim=1), 1\n"
             "      if (a(LBOUND(a, dim=1) + widx1 - 1,"
             "LBOUND(a, dim=2) + widx2 - 1) < flag) then\n"
             "        b(LBOUND(b, dim=1) + widx1 - 1,"
@@ -469,38 +478,39 @@ end
             "OpenACC region but found 'if (assumed_size_char == 'literal')"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[1], options={"allow_string": True})
+        acc_trans.validate(sub.children[1], allow_strings=True)
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
-            " region but found 'assumed_size_char(:LEN(explicit_size_char)) = "
+            " region but found 'assumed_size_char(:LEN("
+            "explicit_size_char)) = "
             in str(err.value))
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[2], options={"allow_string": True})
+        acc_trans.validate(sub.children[2], allow_strings=True)
     assert ("Cannot include 'ACHAR(9)' in an OpenACC region because "
             "it is not available on GPU" in str(err.value))
     # Check that the character assignment is excluded by default.
     with pytest.raises(TransformationError) as err:
         acc_trans.validate(sub.children[2])
     assert ("ACCKernelsTrans does not permit assignments involving character "
-            "variables by default (use the 'allow_string' option to include "
+            "variables by default (use the 'allow_strings' option to include "
             "them), but found:" in str(err.value))
     # Check the verbose option.
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[2], options={"verbose": True})
+        acc_trans.validate(sub.children[2], verbose=True)
     assert (sub.children[2].preceding_comment ==
             "ACCKernelsTrans does not permit assignments involving character "
-            "variables by default (use the 'allow_string' option to include "
+            "variables by default (use the 'allow_strings' option to include "
             "them)")
 
     # String with explicit length is fine.
-    acc_trans.validate(sub.children[3], options={})
+    acc_trans.validate(sub.children[3])
     # CHARACTER*(*) notation is also rejected.
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[4], options={})
+        acc_trans.validate(sub.children[4])
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
             " region but found 'assumed2(:) = ''" in str(err.value))
     # We don't need there to be a character literal in order to spot a problem.
     with pytest.raises(TransformationError) as err:
-        acc_trans.validate(sub.children[5], options={})
+        acc_trans.validate(sub.children[5])
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
             " region but found 'explicit_size_char = assumed2" in
             str(err.value))
@@ -523,7 +533,9 @@ def test_check_async_queue_with_enter_data(fortran_reader):
                 "  end do\n"
                 "end program two_loops\n")
     prog = psyir.walk(Routine)[0]
-    acc_edata_trans.apply(prog, {"async_queue": 1})
+    # TODO #2668 deprecate options coverage. This test is left for options
+    # coverage
+    acc_edata_trans.apply(prog, options={"async_queue": 1})
     with pytest.raises(TransformationError) as err:
         acc_trans.check_async_queue(prog.walk(Loop), 2)
     assert ("Cannot apply ACCKernelsTrans with asynchronous queue '2' because "

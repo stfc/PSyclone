@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,11 +50,13 @@ from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Routine,
                                   Node, IntrinsicCall, ACCUpdateDirective)
 from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 from psyclone.psyir.transformations import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 # We distinguish between two access modes, IN (read) and OUT (write).
 IN, OUT = 0, 1
 
 
+@transformation_documentation_wrapper
 class ACCUpdateTrans(Transformation):
     '''
     Examines the supplied Schedule and adds OpenACC "update" directives
@@ -98,7 +100,7 @@ class ACCUpdateTrans(Transformation):
     # Tuple of OpenACC compute directives delimiting possible device execution.
     _ACC_COMPUTE = (ACCParallelDirective, ACCKernelsDirective)
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Checks that it is valid to apply this transformation to the supplied
         schedule.
@@ -112,6 +114,8 @@ class ACCUpdateTrans(Transformation):
         :raises TransformationError: if the supplied node is within \
             an OpenACC region.
         '''
+        if not options:
+            self.validate_options(**kwargs)
         if not isinstance(node, Schedule):
             raise TransformationError(f"Expected a Schedule but got a node of "
                                       f"type '{type(node).__name__}'")
@@ -121,9 +125,9 @@ class ACCUpdateTrans(Transformation):
                 "Cannot apply the ACCUpdateTrans to nodes that are within "
                 "an OpenACC compute region.")
 
-        super().validate(node, options)
+        super().validate(node, options, **kwargs)
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''
         Applies this transformation to the supplied Schedule. Identifies any
         regions of code outside of OpenACC regions and adds the necessary
@@ -136,7 +140,7 @@ class ACCUpdateTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         # Call the routine that recursively adds updates to all Schedules
         # within the supplied Schedule.

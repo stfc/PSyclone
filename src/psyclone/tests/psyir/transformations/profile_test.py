@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,15 +48,17 @@ from psyclone.domain.lfric import LFRicKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.profiler import Profiler
-from psyclone.psyir.nodes import (colored, ProfileNode, Loop, Literal,
-                                  Assignment, Return, Reference,
-                                  KernelSchedule, Routine, Schedule)
-from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
-from psyclone.psyir.transformations import (ACCKernelsTrans, ProfileTrans,
-                                            TransformationError)
+from psyclone.psyir.nodes import (
+    colored, ProfileNode, Loop, Literal, Assignment, Return, Reference,
+    OMPDoDirective, KernelSchedule, Routine, Schedule)
+from psyclone.psyir.symbols import (
+    SymbolTable, REAL_TYPE, DataSymbol, INTEGER_TYPE)
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans, ProfileTrans, TransformationError,
+    OMPParallelTrans)
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (GOceanOMPLoopTrans,
-                                      OMPParallelTrans)
+from psyclone.transformations import (
+    GOceanOMPLoopTrans, LFRicOMPLoopTrans)
 
 
 # -----------------------------------------------------------------------------
@@ -313,6 +315,9 @@ def test_profile_invokes_lfric(fortran_writer):
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
+
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = fortran_writer(invoke.schedule).replace("\n", "")
@@ -332,6 +337,8 @@ def test_profile_invokes_lfric(fortran_writer):
     # Next test two kernels in one invoke:
     _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = fortran_writer(invoke.schedule).replace("\n", "")
@@ -356,6 +363,8 @@ def test_profile_invokes_lfric(fortran_writer):
     # Lastly, test an invoke whose first kernel is a builtin
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
     code = fortran_writer(invoke.schedule)
     assert "use profile_psy_data_mod, only : profile_PSyDataType" in code
     assert "type(profile_PSyDataType), save, target :: profile_psy_data" \
@@ -367,6 +376,35 @@ def test_profile_invokes_lfric(fortran_writer):
     Profiler._options = []
 
 
+def test_profile_with_symbols_declared_in_the_profiler_scope(tmpdir):
+    ''' Test that Symbols that are declared in the Profiler schedule node end
+    up in the output code. For example, LFRic OpenMP with reprod reductions
+    declares symbols in there. '''
+    file_name = "15.19.1_three_builtins_two_reductions.f90"
+    psy, invoke = get_invoke(file_name, "lfric", idx=0)
+    schedule = invoke.schedule
+    rtrans = OMPParallelTrans()
+    otrans = LFRicOMPLoopTrans()
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            otrans.apply(child, {"reprod": True})
+    for child in schedule.children:
+        if isinstance(child, OMPDoDirective):
+            rtrans.apply(child)
+    profile_trans = ProfileTrans()
+    options = {"region_name": (psy.name, invoke.name)}
+    profile_trans.apply(schedule.children, options=options)
+    # In addition to the OpenMP symbols, manually add one in that scope
+    schedule.children[0].psy_data_body.symbol_table.new_symbol(
+        "profiler_scoped_symbol", symbol_type=DataSymbol,
+        datatype=INTEGER_TYPE)
+    code = str(psy.gen)
+
+    assert "omp_lib, only : omp_get_max_threads, omp_get_thread_num" in code
+    assert "integer :: th_idx" in code
+    assert "integer :: profiler_scoped_symbol" in code
+
+
 # -----------------------------------------------------------------------------
 def test_profile_kernels_lfric(fortran_writer):
     '''Check that all kernels are instrumented correctly in a
@@ -375,6 +413,9 @@ def test_profile_kernels_lfric(fortran_writer):
     Profiler.set_options([Profiler.KERNELS], "lfric")
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
+
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -394,6 +435,9 @@ def test_profile_kernels_lfric(fortran_writer):
 
     _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
+
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
 
     # Convert the invoke to code
     code = fortran_writer(invoke.schedule)
@@ -496,6 +540,8 @@ def test_profile_named_lfric(fortran_writer):
     profile_trans = ProfileTrans()
     options = {"region_name": (psy.name, invoke.name)}
     profile_trans.apply(schedule.children, options=options)
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
     result = fortran_writer(invoke.schedule)
     assert ("CALL profile_psy_data % PreStart(\"single_invoke_psy\", "
             "\"invoke_0_testkern_type\", 0, 0)") in result
@@ -611,18 +657,23 @@ def test_region(fortran_writer):
                            "lfric", name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
     prt = ProfileTrans()
+
     # Just halo exchanges.
     prt.apply(schedule[0:4])
     # Two loops.
     prt.apply(schedule[1:3])
+
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
     result = fortran_writer(invoke.schedule)
     assert ("CALL profile_psy_data % PreStart(\"multi_functions_multi_invokes_"
             "psy\", \"invoke_0-r0\", 0, 0)" in result)
     assert ("CALL profile_psy_data_1 % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r1\", 0, 0)" in result)
     # Make nested profiles.
-    prt.apply(schedule[1].psy_data_body[1])
-    prt.apply(schedule)
+    pnodes = schedule.walk(ProfileNode)
+    prt.apply(pnodes[1].psy_data_body[1])
+    prt.apply(schedule.children)
     result = fortran_writer(invoke.schedule)
     assert ("CALL profile_psy_data_3 % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r0\", 0, 0)" in result)

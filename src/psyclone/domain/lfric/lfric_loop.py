@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,17 +43,17 @@
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import (
-    InvokeSchedule, HaloExchange, zero_reduction_variables)
+from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, StructureReference,
     Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode,
     Node, Routine)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface)
+    AutomaticInterface, DataSymbol, INTEGER_TYPE, UnresolvedType)
 
 
 class LFRicLoop(PSyLoop):
@@ -159,11 +159,6 @@ class LFRicLoop(PSyLoop):
             self.detach()
             return None
 
-        # Get the list of calls (to kernels) that need reduction variables
-        if not self.is_openmp_parallel():
-            calls = self.reductions()
-            zero_reduction_variables(calls)
-
         # Set halo clean/dirty for all fields that are modified
         if Config.get().distributed_memory:
             if self._loop_type != "cells_in_colour":
@@ -268,11 +263,14 @@ class LFRicLoop(PSyLoop):
         # Loop bounds
         self.set_lower_bound("start")
         const = LFRicConstants()
-        if kern.iterates_over == "dof":
+        if kern.iterates_over in const.DOF_ITERATION_SPACES:
             # This loop must be over DoFs
-            if Config.get().api_conf("lfric").compute_annexed_dofs \
-               and Config.get().distributed_memory \
-               and not kern.is_reduction:
+            if (Config.get().api_conf("lfric").compute_annexed_dofs
+                    and Config.get().distributed_memory
+                    and not kern.is_reduction
+                    and kern.iterates_over != "owned_dof"):
+                # If we're generating DM code and the compute-annexed dofs
+                # option is set then we include annexed dofs in the loop.
                 self.set_upper_bound("nannexed")
             else:
                 self.set_upper_bound("ndofs")
@@ -563,18 +561,11 @@ class LFRicLoop(PSyLoop):
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
-                    method = "get_last_dof_owned"
-                else:
-                    method = "get_last_dof_annexed"
-                result = Call.create(
-                    StructureReference.create(
-                        sym_tab.lookup(self.field.proxy_name_indexed),
-                        [self.field.ref_name(), method]
-                    )
-                )
-            else:
-                result = Reference(sym_tab.lookup(self._kern.undf_name))
-            return result
+                    return self.field.generate_method_call(
+                        "get_last_dof_owned")
+                return self.field.generate_method_call("get_last_dof_annexed")
+            return Reference(sym_tab.lookup(self._kern.undf_name))
+
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:
                 result = Call.create(
@@ -602,12 +593,7 @@ class LFRicLoop(PSyLoop):
                 "sequential/shared-memory code")
         if self._upper_bound_name == "dof_halo":
             if Config.get().distributed_memory:
-                result = Call.create(
-                    StructureReference.create(
-                        sym_tab.lookup(self.field.proxy_name_indexed),
-                        [self.field.ref_name(), "get_last_dof_halo"]
-                    )
-                )
+                result = self.field.generate_method_call("get_last_dof_halo")
                 if halo_index:
                     result.addchild(halo_index.copy())
                 return result
@@ -711,7 +697,7 @@ class LFRicLoop(PSyLoop):
 
         '''
         const = LFRicConstants()
-        if arg.is_scalar or arg.is_operator:
+        if arg.is_scalar or arg.is_operator or arg.is_scalar_array:
             # Scalars and operators do not have halos
             return False
         if arg.is_field:
@@ -965,7 +951,7 @@ class LFRicLoop(PSyLoop):
                                 field.proxy_name,
                                 symbol_type=DataSymbol,
                                 datatype=UnresolvedType(),
-                                interface=UnresolvedInterface())
+                                interface=AutomaticInterface())
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
             from psyclone.lfric import HaloWriteAccess

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,18 +32,20 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
+#           M. Naylor, University of Cambridge, UK
 
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import (
-    Directive, Schedule,
-    Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
+from psyclone.psyir.nodes import Directive, Schedule, Routine
+from psyclone.psyir.nodes.omp_directives import (
+    OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPTeamsLoopDirective,
     OMPScheduleClause, OMPBarrierDirective, OMPParallelDirective,
-)
-from psyclone.psyir.transformations.parallel_loop_trans import \
-    ParallelLoopTrans
+    OMPReductionClause, MAP_REDUCTION_OP_TO_OMP)
+from psyclone.psyir.transformations.parallel_loop_trans import (
+    ParallelLoopTrans)
 from psyclone.utils import transformation_documentation_wrapper
 
 #: Mapping from simple string to actual directive class.
@@ -90,7 +92,8 @@ class OMPLoopTrans(ParallelLoopTrans):
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.nodes import Loop
-    >>> from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
+    >>> from psyclone.psyir.transformations import OMPLoopTrans
+    >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>>
     >>> psyir = FortranReader().psyir_from_source("""
     ...     subroutine my_subroutine()
@@ -183,24 +186,18 @@ class OMPLoopTrans(ParallelLoopTrans):
                 containing_schedule.addchild(barrier_type())
             return
 
-        # Otherwise we have the next dependency and we need to find where the
-        # correct place for the preceding barrier is. Need to find a
+        # Otherwise we have the next dependencies and we need to find where
+        # the correct place for the preceding barrier is. Need to find a
         # guaranteed control flow path to place it.
-
-        # Find the deepest schedule in the tree containing both.
-        sched = next_depend.ancestor(Schedule, shared_with=node)
-        routine = node.ancestor(Routine)
-        if sched and sched.is_descendent_of(routine):
-            # Get the path from sched to next_depend
-            path = next_depend.path_from(sched)
+        for depend in next_depend:
+            # Find the deepest schedule in the tree containing both.
+            sched = depend.ancestor(Schedule, shared_with=node)
+            # Get the path from sched to depend
+            path = depend.path_from(sched)
             # The first element of path is the position of the ancestor
             # of next_depend that is in sched, so we add the barrier there.
             sched.addchild(barrier_type(), path[0])
-            instance.nowait = True
-
-        # If we didn't find anywhere to put the barrier then we just don't
-        # add the nowait.
-        # TODO #11: If we fail to have nowait added then log it.
+        instance.nowait = True
 
     @property
     def omp_directive(self):
@@ -301,6 +298,7 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     def apply(self, node, options=None,
               reprod: bool = None,
+              enable_reductions: bool = False,
               **kwargs):
         '''Apply the OMPLoopTrans transformation to the specified PSyIR Loop.
 
@@ -312,18 +310,42 @@ class OMPLoopTrans(ParallelLoopTrans):
         :param options: a dictionary with options for transformations
                         and validation.
         :type options: Optional[Dict[str, Any]]
-
+        :param enable_reductions: whether to attempt to infer reduction
+            clauses or not.
         '''
+        if enable_reductions:
+            red_ops = list(MAP_REDUCTION_OP_TO_OMP.keys())
+        else:
+            red_ops = []
+
         # TODO 2668 - options dict is deprecated.
+        local_options = options.copy() if options is not None else None
         if not options:
             if reprod is None:
                 reprod = Config.get().reproducible_reductions
             self.validate_options(
-                    reprod=reprod, **kwargs
+                    reprod=reprod,
+                    enable_reductions=enable_reductions,
+                    reduction_ops=red_ops,
+                    **kwargs
             )
             self._reprod = reprod
         else:
             self._reprod = options.get("reprod",
                                        Config.get().reproducible_reductions)
+            if options.get("enable_reductions", False):
+                local_options["reduction_ops"] = list(
+                    MAP_REDUCTION_OP_TO_OMP.keys())
+            else:
+                local_options["reduction_ops"] = []
 
-        super().apply(node, options, **kwargs)
+        parent = node.parent
+        position = node.position
+        super().apply(node, local_options, reduction_ops=red_ops, **kwargs)
+
+        # Add reduction clauses to the newly introduced directive
+        directive = parent.children[position]
+        for (op, ref) in self.inferred_reduction_clauses:
+            clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
+            clause.addchild(ref)
+            directive.addchild(clause)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 from a PSyIR tree. '''
 
 # pylint: disable=too-many-lines
-from psyclone.core import Signature
+from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -48,7 +48,8 @@ from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import (
     BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
-    Literal, Operation, Range, Routine, Schedule, UnaryOperation)
+    Literal, Node, OMPDependClause, OMPReductionClause, Operation, Range,
+    Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
@@ -92,102 +93,6 @@ def gen_intent(symbol):
     return None  # non-Arguments do not have intent
 
 
-def gen_datatype(datatype, name):
-    '''Given a DataType instance as input, return the Fortran datatype
-    of the symbol including any specific precision properties.
-
-    :param datatype: the DataType or DataTypeSymbol describing the type of \
-                     the declaration.
-    :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or \
-                    :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-    :param str name: the name of the symbol being declared (only used for \
-                     error messages).
-
-    :returns: the Fortran representation of the symbol's datatype \
-              including any precision properties.
-    :rtype: str
-
-    :raises NotImplementedError: if the symbol has an unsupported \
-        datatype.
-    :raises VisitorError: if the symbol specifies explicit precision \
-        and this is not supported for the datatype.
-    :raises VisitorError: if the size of the explicit precision is not \
-        supported for the datatype.
-    :raises VisitorError: if the size of the symbol is specified by \
-        another variable and the datatype is not one that supports the \
-        Fortran KIND option.
-    :raises NotImplementedError: if the type of the precision object \
-        is an unsupported type.
-
-    '''
-    if isinstance(datatype, DataTypeSymbol):
-        # Symbol is of derived type
-        return f"type({datatype.name})"
-
-    if (isinstance(datatype, ArrayType) and
-            isinstance(datatype.intrinsic, DataTypeSymbol)):
-        # Symbol is an array of derived types
-        return f"type({datatype.intrinsic.name})"
-
-    try:
-        fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
-    except KeyError as error:
-        raise NotImplementedError(
-            f"Unsupported datatype '{datatype.intrinsic}' for symbol '{name}' "
-            f"found in gen_datatype().") from error
-
-    precision = datatype.precision
-
-    if isinstance(precision, int):
-        if fortrantype not in ['real', 'integer', 'logical']:
-            raise VisitorError(f"Explicit precision not supported for datatype"
-                               f" '{fortrantype}' in symbol '{name}' in "
-                               f"Fortran backend.")
-        if fortrantype == 'real' and precision not in [4, 8, 16]:
-            raise VisitorError(
-                f"Datatype 'real' in symbol '{name}' supports fixed precision "
-                f"of [4, 8, 16] but found '{precision}'.")
-        if fortrantype in ['integer', 'logical'] and precision not in \
-           [1, 2, 4, 8, 16]:
-            raise VisitorError(
-                f"Datatype '{fortrantype}' in symbol '{name}' supports fixed "
-                f"precision of [1, 2, 4, 8, 16] but found '{precision}'.")
-        # Precision has an an explicit size. Use the "type*size" Fortran
-        # extension for simplicity. We could have used
-        # type(kind=selected_int|real_kind(size)) or, for Fortran 2008,
-        # ISO_FORTRAN_ENV; type(type64) :: MyType.
-        return f"{fortrantype}*{precision}"
-
-    if isinstance(precision, ScalarType.Precision):
-        # The precision information is not absolute so is either
-        # machine specific or is specified via the compiler. Fortran
-        # only distinguishes relative precision for single and double
-        # precision reals.
-        if fortrantype.lower() == "real" and \
-           precision == ScalarType.Precision.DOUBLE:
-            return "double precision"
-        # This logging warning can be added when issue #11 is
-        # addressed.
-        # import logging
-        # logging.warning(
-        #      "Fortran does not support relative precision for the '%s' "
-        #      "datatype but '%s' was specified for variable '%s'.",
-        #      datatype, str(symbol.precision), symbol.name)
-        return fortrantype
-
-    if isinstance(precision, DataSymbol):
-        if fortrantype not in ["real", "integer", "logical"]:
-            raise VisitorError(
-                f"kind not supported for datatype '{fortrantype}' in symbol "
-                f"'{name}' in Fortran backend.")
-        # The precision information is provided by a parameter, so use KIND.
-        return f"{fortrantype}(kind={precision.name})"
-
-    raise VisitorError(
-        f"Unsupported precision type '{type(precision).__name__}' found for "
-        f"symbol '{name}' in Fortran backend.")
-
-
 def precedence(fortran_operator):
     '''Determine the relative precedence of the supplied Fortran operator.
     Relative Operator precedence is taken from the Fortran 2008
@@ -229,7 +134,7 @@ def precedence(fortran_operator):
     raise KeyError()
 
 
-def add_accessibility_to_unsupported_declaration(symbol):
+def add_accessibility_to_unsupported_declaration(symbol: Symbol) -> str:
     '''
     Utility that manipulates the UnsupportedFortranType declaration for the
     supplied Symbol so as to ensure that it has the correct accessibility
@@ -238,25 +143,25 @@ def add_accessibility_to_unsupported_declaration(symbol):
     as is and this may or may not include accessibility information.)
 
     :param symbol: the symbol for which the declaration is required.
-    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
-    :returns: Fortran declaration of the supplied symbol with accessibility \
+    :returns: Fortran declaration of the supplied symbol with accessibility
         information included (public/private).
     :rtype: str
 
-    :raises TypeError: if the supplied argument is not a Symbol of \
-        UnsupportedFortranType.
-    :raises InternalError: if the declaration associated with the Symbol is \
+    :raises TypeError: if the supplied argument is not a Symbol or DerivedType
+        component of UnsupportedFortranType.
+    :raises InternalError: if the declaration associated with the Symbol is
         empty.
-    :raises NotImplementedError: if the original declaration does not use \
+    :raises NotImplementedError: if the original declaration does not use
         '::' to separate the entity name from its type.
-    :raises InternalError: if the declaration stored for the supplied symbol \
-        contains accessibility information which does not match the \
+    :raises InternalError: if the declaration stored for the supplied symbol
+        contains accessibility information which does not match the
         visibility of the supplied symbol.
 
     '''
-    if not isinstance(symbol, Symbol):
-        raise TypeError(f"Expected a Symbol but got '{type(symbol).__name__}'")
+    if not isinstance(symbol, (Symbol, StructureType.ComponentType)):
+        raise TypeError(f"Expected a Symbol or DerivedType component but got "
+                        f"'{type(symbol).__name__}'")
 
     if not isinstance(symbol.datatype, UnsupportedFortranType):
         raise TypeError(f"Expected a Symbol of UnsupportedFortranType but "
@@ -310,6 +215,8 @@ class FortranWriter(LanguageWriter):
 
     '''
     _COMMENT_PREFIX = "! "
+    #: The maximum length of a 'name' in Fortran 2008 is 63 characters.
+    MAX_VARIABLE_NAME_LENGTH = 63
 
     def __init__(self, **kwargs):
         # Construct the base class using () as array parenthesis, and
@@ -356,6 +263,100 @@ class FortranWriter(LanguageWriter):
             if mapping_key not in reverse_dict:
                 reverse_dict[mapping_key] = mapping_value.upper()
 
+    def gen_datatype(self, datatype, name):
+        '''Given a DataType instance as input, return the Fortran datatype
+        of the symbol including any specific precision properties.
+
+        :param datatype: the DataType or DataTypeSymbol describing the type of
+                         the declaration.
+        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or
+                        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        :param str name: the name of the symbol being declared (only used for
+                         error messages).
+
+        :returns: the Fortran representation of the symbol's datatype
+                  including any precision properties.
+        :rtype: str
+
+        :raises NotImplementedError: if the symbol has an unsupported
+            datatype.
+        :raises VisitorError: if the symbol specifies explicit precision
+            and this is not supported for the datatype.
+        :raises VisitorError: if the size of the explicit precision is not
+            supported for the datatype.
+        :raises VisitorError: if the size of the symbol is specified by
+            another variable and the datatype is not one that supports the
+            Fortran KIND option.
+        :raises NotImplementedError: if the type of the precision object
+            is an unsupported type.
+
+        '''
+        if isinstance(datatype, DataTypeSymbol):
+            # Symbol is of derived type
+            return f"type({datatype.name})"
+
+        if (isinstance(datatype, ArrayType) and
+                isinstance(datatype.intrinsic, DataTypeSymbol)):
+            # Symbol is an array of derived types
+            return f"type({datatype.intrinsic.name})"
+
+        try:
+            fortrantype = TYPE_MAP_TO_FORTRAN[datatype.intrinsic]
+        except KeyError as error:
+            raise NotImplementedError(
+                f"Unsupported datatype '{datatype.intrinsic}' for symbol "
+                f"'{name}' found in gen_datatype().") from error
+
+        precision = datatype.precision
+
+        if isinstance(precision, int):
+            if fortrantype not in ['real', 'integer', 'logical']:
+                raise VisitorError(f"Explicit precision not supported for "
+                                   f"datatype '{fortrantype}' in symbol "
+                                   f"'{name}' in Fortran backend.")
+            if fortrantype == 'real' and precision not in [4, 8, 16]:
+                raise VisitorError(
+                    f"Datatype 'real' in symbol '{name}' supports fixed "
+                    f"precision of [4, 8, 16] but found '{precision}'.")
+            if fortrantype in ['integer', 'logical'] and precision not in \
+               [1, 2, 4, 8, 16]:
+                raise VisitorError(
+                    f"Datatype '{fortrantype}' in symbol '{name}' supports "
+                    f"fixed precision of [1, 2, 4, 8, 16] but found "
+                    f"'{precision}'.")
+            # Precision has an an explicit size. Use the "type*size" Fortran
+            # extension for simplicity. We could have used
+            # type(kind=selected_int|real_kind(size)) or, for Fortran 2008,
+            # ISO_FORTRAN_ENV; type(type64) :: MyType.
+            return f"{fortrantype}*{precision}"
+
+        if isinstance(precision, ScalarType.Precision):
+            # The precision information is not absolute so is either
+            # machine specific or is specified via the compiler. Fortran
+            # only distinguishes relative precision for single and double
+            # precision reals.
+            if precision == ScalarType.Precision.DOUBLE:
+                if fortrantype.lower() == "real":
+                    return "double precision"
+                raise VisitorError(
+                    f"ScalarType.Precision.DOUBLE is not supported for "
+                    f"datatypes other than floating point numbers in "
+                    f"Fortran, found '{fortrantype}'")
+            return fortrantype
+
+        if isinstance(precision, DataNode):
+            if fortrantype not in ["real", "integer", "logical"]:
+                raise VisitorError(
+                    f"kind not supported for datatype '{fortrantype}' in "
+                    f"symbol '{name}' in Fortran backend.")
+            # The precision information is provided by a parameter,
+            # so use KIND.
+            return f"{fortrantype}(kind={self._visit(precision)})"
+
+        raise VisitorError(
+            f"Unsupported precision type '{type(precision).__name__}' found "
+            f"for symbol '{name}' in Fortran backend.")
+
     def get_operator(self, operator):
         '''Determine the Fortran operator that is equivalent to the provided
         PSyIR operator. This is achieved by reversing the Fparser2Reader
@@ -373,21 +374,21 @@ class FortranWriter(LanguageWriter):
         '''
         return self._operator_2_str[operator]
 
-    def gen_indices(self, indices, var_name=None):
+    def gen_indices(self,
+                    indices: list[Node],
+                    var_name: str = None) -> list[str]:
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
         This is used both for array references and array declarations. Note
         that 'indices' can also be a shape in case of Fortran.
 
         :param indices: list of PSyIR nodes.
-        :type indices: list of :py:class:`psyclone.psyir.symbols.Node`
-        :param str var_name: name of the variable for which the dimensions \
+        :param var_name: name of the variable for which the dimensions
             are created. Not used in the Fortran implementation.
 
         :returns: the Fortran representation of the dimensions.
-        :rtype: list of str
 
-        :raises NotImplementedError: if the format of the dimension is not \
+        :raises NotImplementedError: if the format of the dimension is not
             supported.
 
         '''
@@ -410,7 +411,10 @@ class FortranWriter(LanguageWriter):
                     upper_expression = self._visit(index.upper)
                 if lower_expression == "1":
                     # Lower bound of 1 is the default in Fortran
-                    dims.append(upper_expression)
+                    if upper_expression:
+                        dims.append(upper_expression)
+                    else:
+                        dims.append(":")
                 else:
                     dims.append(lower_expression+":"+upper_expression)
             elif isinstance(index, ArrayType.Extent):
@@ -585,7 +589,7 @@ class FortranWriter(LanguageWriter):
                 f"'{type(symbol.datatype).__name__}' type. This is not "
                 f"supported by the Fortran backend.")
 
-        datatype = gen_datatype(symbol.datatype, symbol.name)
+        datatype = self.gen_datatype(symbol.datatype, symbol.name)
         result += f"{self._nindent}{datatype}"
 
         if array_shape and symbol.datatype.is_allocatable:
@@ -852,18 +856,20 @@ class FortranWriter(LanguageWriter):
 
         :param symbol_table: the SymbolTable instance.
         :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool is_module_scope: whether or not the declarations are in \
+        :param bool is_module_scope: whether or not the declarations are in
                                      a module scoping unit. Default is False.
 
         :returns: Fortran code declaring all parameters.
         :rtype: str
 
-        :raises VisitorError: if there is no way of resolving \
+        :raises VisitorError: if there is no way of resolving
                               interdependencies between parameter declarations.
 
         '''
         declarations = ""
         local_constants = []
+
+        # First add the local constants
         for sym in symbol_table.datasymbols:
             if sym.is_import or sym.is_unresolved:
                 continue  # Skip, these don't need declarations
@@ -871,42 +877,31 @@ class FortranWriter(LanguageWriter):
                 local_constants.append(sym)
 
         # There may be dependencies between these constants so setup a dict
-        # listing the required inputs for each one.
+        # holding a set of all their dependencies. The checks have to be done
+        # with case-insensitive name comparisons because the dependent symbols
+        # are not always created in the same scope.
+        local_lowered_names = [sym.name.lower() for sym in local_constants]
         decln_inputs = {}
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.read_write_info import ReadWriteInfo
         for symbol in local_constants:
-            decln_inputs[symbol.name] = set()
-            read_write_info = ReadWriteInfo()
-            self._call_tree_utils.get_input_parameters(read_write_info,
-                                                       [symbol.initial_value])
-            # The dependence analysis tools do not include symbols used to
-            # define precision so check for those here.
-            for lit in symbol.initial_value.walk(Literal):
-                if isinstance(lit.datatype.precision, DataSymbol):
-                    read_write_info.add_read(
-                        Signature(lit.datatype.precision.name))
-            # If the precision of the Symbol being declared is itself defined
-            # by a Symbol then include that as an 'input'.
-            if isinstance(symbol.datatype.precision, DataSymbol):
-                read_write_info.add_read(
-                    Signature(symbol.datatype.precision.name))
-            # Remove any 'inputs' that are not local since these do not affect
-            # the ordering of local declarations.
-            for sig in read_write_info.signatures_read:
-                if symbol_table.lookup(sig.var_name) in local_constants:
-                    decln_inputs[symbol.name].add(sig)
+            dependencies = symbol.get_all_accessed_symbols()
+            dependencies = {sym for sym in dependencies
+                            # Discard self-dependencies: e.g. "a :: HUGE(a)"
+                            if sym.name.lower() != symbol.name.lower() and
+                            # Discard dependencies that are not local
+                            sym.name.lower() in local_lowered_names}
+            decln_inputs[symbol] = dependencies
+
         # We now iterate over the declarations, declaring those that have their
         # inputs satisfied. Creating a declaration for a given symbol removes
-        # that symbol as a dependence from any outstanding declarations.
-        declared = set()
+        # that symbol as a dependence from any outstanding declarations and
+        # adds it to the 'declared' set.
+        declared: set[Symbol] = set()
         while local_constants:
             for symbol in local_constants[:]:
-                inputs = decln_inputs[symbol.name]
+                inputs = decln_inputs[symbol]
                 if inputs.issubset(declared):
                     # All inputs are satisfied so this declaration can be added
-                    declared.add(Signature(symbol.name))
+                    declared.add(symbol)
                     local_constants.remove(symbol)
                     declarations += self.gen_vardecl(
                         symbol, include_visibility=is_module_scope)
@@ -919,18 +914,20 @@ class FortranWriter(LanguageWriter):
                     f"{[sym.name for sym in local_constants]}")
         return declarations
 
-    def gen_decls(self, symbol_table, is_module_scope=False):
+    def gen_decls(self,
+                  symbol_table: SymbolTable,
+                  is_module_scope: bool = False) -> str:
         '''Create and return the Fortran declarations for the supplied
         SymbolTable.
 
         :param symbol_table: the SymbolTable instance.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool is_module_scope: whether or not the declarations are in
+        :param is_module_scope: whether or not the declarations are in
             a module scoping unit. Default is False.
 
         :returns: the Fortran declarations for the table.
-        :rtype: str
 
+        :raises VisitorError: if a symbol is found that has a name longer than
+            the permitted maximum.
         :raises VisitorError: if one of the symbols is a RoutineSymbol which
             does not have an ImportInterface or UnresolvedInterface (
             representing named and unqualified imports respectively) or
@@ -996,6 +993,15 @@ class FortranWriter(LanguageWriter):
                 f"imported from a module and there are no wildcard "
                 f"imports which could be bringing them into scope: "
                 f"{symbols_txt}")
+
+        # Check that the names of all symbols are less than the limit
+        # imposed by the Fortran standard.
+        for sym in all_symbols:
+            if len(sym.name) > self.MAX_VARIABLE_NAME_LENGTH:
+                raise VisitorError(
+                    f"Found a symbol '{sym.name}' with a name greater than "
+                    f"{self.MAX_VARIABLE_NAME_LENGTH} characters in length. "
+                    "This is not standards-compliant Fortran.")
 
         # As a convention, we will declare the variables in the following
         # order:
@@ -1405,12 +1411,12 @@ class FortranWriter(LanguageWriter):
         else:
             result = node.value
 
-        if isinstance(precision, DataSymbol):
+        if isinstance(precision, DataNode):
             # A KIND variable has been specified
             if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-                result = f"{precision.name}_{result}"
+                result = f"{self._visit(precision)}_{result}"
             else:
-                result = f"{result}_{precision.name}"
+                result = f"{result}_{self._visit(precision)}"
         if isinstance(precision, int):
             # A KIND value has been specified
             if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
@@ -1602,24 +1608,42 @@ class FortranWriter(LanguageWriter):
                 f"Unsupported CodeBlock Structure '{node.structure}' found.")
         return result
 
-    def operandclause_node(self, node):
-        '''This method is called when a OperandClause is
+    def operatorclause_node(self, node):
+        '''This method is called when a OperatorClause is
         found in the PSyIR tree. It returns the clause and its children
         as a string.
 
-        :param node: an OperandClause PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.OperandClause`
+        :param node: an OperatorClause PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.OperatorClause`
 
         :returns: the Fortran code for this node.
         :rtype: str
 
         '''
+        # Map to convert operators to Fortran representations.
+        _operator_to_f_str = {
+            OMPDependClause.DependClauseTypes.IN: "in",
+            OMPDependClause.DependClauseTypes.OUT: "out",
+            OMPDependClause.DependClauseTypes.INOUT: "inout",
+            OMPReductionClause.ReductionClauseTypes.ADD: "+",
+            OMPReductionClause.ReductionClauseTypes.SUB: "-",
+            OMPReductionClause.ReductionClauseTypes.MUL: "*",
+            OMPReductionClause.ReductionClauseTypes.AND: ".AND.",
+            OMPReductionClause.ReductionClauseTypes.OR: ".OR.",
+            OMPReductionClause.ReductionClauseTypes.EQV: ".EQV.",
+            OMPReductionClause.ReductionClauseTypes.NEQV: ".NEQV.",
+            OMPReductionClause.ReductionClauseTypes.MAX: "MAX",
+            OMPReductionClause.ReductionClauseTypes.MIN: "MIN",
+            OMPReductionClause.ReductionClauseTypes.IAND: "IAND",
+            OMPReductionClause.ReductionClauseTypes.IOR: "IOR",
+            OMPReductionClause.ReductionClauseTypes.IEOR: "IEOR",
+        }
         if len(node.children) == 0:
             return ""
 
         result = node.clause_string
 
-        result = result + "(" + node.operand + ": "
+        result = result + f"({_operator_to_f_str[node.operator]}: "
 
         child_list = []
         for child in node.children:
@@ -1669,7 +1693,7 @@ class FortranWriter(LanguageWriter):
         in the PSyIR tree. It returns the directive as a string.
 
         :param node: a StandaloneDirective PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.StandloneDirective`
+        :type node: :py:class:`psyclone.psyir.nodes.StandaloneDirective`
 
         :returns: the Fortran code for this node.
         :rtype: str
@@ -1729,7 +1753,67 @@ class FortranWriter(LanguageWriter):
                 result_list.append(self._visit(child))
         return ", ".join(result_list)
 
-    def call_node(self, node) -> str:
+    def intrinsiccall_node(self, node: IntrinsicCall) -> str:
+        '''Translate the PSyIR IntrinsicCall node to Fortran.
+
+        :param node: an IntrinsicCall PSyIR node.
+
+        :returns: the equivalent Fortran code.
+
+        '''
+        # Check the config to determine if we're outputting all argument
+        # names.
+        if not Config.get().backend_intrinsic_named_kwargs:
+            # Config says to avoid outputting argument names where
+            # possible.
+            try:
+                # Argument name computation handles any error checking we
+                # might otherwise want to try. Most IntrinsicCalls should
+                # already have argument names added, but we do it here to
+                # ensure that argument name computation is possible.
+                node.compute_argument_names()
+                intrinsic_interface = node._find_matching_interface()
+                args = []
+                correct_names = True
+                for idx, arg_name in enumerate(node.argument_names):
+                    if idx < len(intrinsic_interface) and correct_names:
+                        # This is a potential required argument.
+                        if arg_name == intrinsic_interface[idx]:
+                            args.append(self._visit(node.arguments[idx]))
+                            continue
+                        # Otherwise it didn't match, so we can't remove any
+                        # more argument names, and fall back to the default
+                        # behaviour from here.
+                        correct_names = False
+                    # Otherwise, use the default behaviour.
+                    if node.argument_names[idx]:
+                        args.append(
+                             f"{node.argument_names[idx]}="
+                             f"{self._visit(node.arguments[idx])}"
+                        )
+                    else:
+                        args.append(f"{self._visit(node.arguments[idx])}")
+                args = ", ".join(args)
+            except NotImplementedError:
+                # If the Intrinsic fails to have argument names added, or to
+                # match to an interface, then use the default behaviour.
+                args = self._gen_arguments(node)
+        else:
+            args = self._gen_arguments(node)
+
+        if node.routine.name not in [
+                "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS", "RANDOM_NUMBER",
+                "RANDOM_SEED"]:
+            # Most intrinsics are functions and so don't have 'call'.
+            if not node.parent or isinstance(node.parent, Schedule):
+                return f"{self._nindent}{node.routine.name}({args})\n"
+            return f"{node.routine.name}({args})"
+
+        # Otherwise we have one of the intrinsics that requires "Call X"
+        # syntax.
+        return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
+
+    def call_node(self, node: Call) -> str:
         '''Translate the PSyIR call node to Fortran.
 
         :param node: a Call PSyIR node.
@@ -1739,13 +1823,6 @@ class FortranWriter(LanguageWriter):
 
         '''
         args = self._gen_arguments(node)
-        if isinstance(node, IntrinsicCall) and node.routine.name not in [
-                "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS", "RANDOM_NUMBER",
-                "RANDOM_SEED"]:
-            # Most intrinsics are functions and so don't have 'call'.
-            if not node.parent or isinstance(node.parent, Schedule):
-                return f"{self._nindent}{node.routine.name}({args})\n"
-            return f"{node.routine.name}({args})"
 
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {self._visit(node.routine)}({args})\n"

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,12 +41,14 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
+
+from __future__ import annotations
 from dataclasses import dataclass
 import inspect
 import os
 from collections import OrderedDict
 import abc
-from typing import Any, Dict
+from typing import Any, Dict, List, Union
 import warnings
 
 try:
@@ -56,25 +58,23 @@ except ImportError:
     from psyclone.utils import stringify_annotation
 
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
-from psyclone.core import AccessType, VariablesAccessMap
+from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Container, Literal, Loop, Node, OMPDoDirective,
     Reference, Directive, Routine, Schedule, Statement, Assignment,
-    IntrinsicCall, BinaryOperation, OMPParallelDirective, FileContainer)
+    IntrinsicCall, BinaryOperation, FileContainer)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
     UnresolvedType, ImportInterface, INTEGER_TYPE, RoutineSymbol)
 from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
+from psyclone.psyir.symbols.symbol_table import SymbolTable
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
-
-# Mapping of access type to operator.
-REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
 
 def object_index(alist, item):
@@ -99,19 +99,6 @@ def object_index(alist, item):
         if entry is item:
             return idx
     raise ValueError(f"Item '{item}' not found in list: {alist}")
-
-
-def zero_reduction_variables(red_call_list):
-    '''zero all reduction variables associated with the calls in the call
-    list'''
-    if red_call_list:
-        first = True
-        for call in red_call_list:
-            node = call.zero_reduction_variable()
-            if first:
-                node.append_preceding_comment(
-                    "Zero summation variables")
-                first = False
 
 
 def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
@@ -244,9 +231,6 @@ class PSy():
         '''
         return self._container
 
-    def __str__(self):
-        return "PSy"
-
     @property
     def invokes(self):
         ''':returns: the list of invokes.
@@ -287,9 +271,8 @@ class PSy():
 
         # Use the PSyIR Fortran backend to generate Fortran code of the
         # supplied PSyIR tree.
-        config = Config.get()
         fortran_writer = FortranWriter(
-            check_global_constraints=config.backend_checks_enabled,
+            check_global_constraints=Config.get().backend_checks_enabled,
             disable_copy=True)  # We already made the copy manually above
         result = fortran_writer(new_container)
 
@@ -322,9 +305,6 @@ class Invokes():
             my_invoke = invoke_cls(alg_invocation, idx, self)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
-
-    def __str__(self):
-        return "Invokes object containing "+str(self.names)
 
     @property
     def psy(self):
@@ -443,17 +423,6 @@ class Invoke():
                 else:
                     # literals have no name
                     pass
-
-        # work out the unique dofs required in this subroutine
-        self._dofs = {}
-        for kern_call in self._schedule.coded_kernels():
-            dofs = kern_call.arguments.dofs
-            for dof in dofs:
-                if dof not in self._dofs:
-                    # Only keep the first occurrence for the moment. We will
-                    # need to change this logic at some point as we need to
-                    # cope with writes determining the dofs that are used.
-                    self._dofs[dof] = [kern_call, dofs[dof][0]]
 
     def __str__(self):
         return self._name+"("+", ".join([str(arg) for arg in
@@ -618,7 +587,7 @@ class Invoke():
         for arg in self.unique_declarations(argument_types,
                                             intrinsic_type=intrinsic_type):
             first_arg = self.first_access(arg.declaration_name)
-            if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
+            if first_arg.access in [AccessType.WRITE, AccessType.REDUCTION]:
                 # If the first access is a write then the intent is
                 # out irrespective of any other accesses. Note,
                 # sum_args behave as if they are write_args from the
@@ -726,65 +695,6 @@ class InvokeSchedule(Routine):
         return result
 
 
-class GlobalSum(Statement):
-    '''
-    Generic Global Sum class which can be added to and manipulated
-    in, a schedule.
-
-    :param scalar: the scalar that the global sum is stored into
-    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
-    :param parent: optional parent (default None) of this object
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    # Textual description of the node.
-    _children_valid_format = "<LeafNode>"
-    _text_name = "GlobalSum"
-    _colour = "cyan"
-
-    def __init__(self, scalar, parent=None):
-        Node.__init__(self, children=[], parent=parent)
-        import copy
-        self._scalar = copy.copy(scalar)
-        if scalar:
-            # Update scalar values appropriately
-            # Here "readwrite" denotes how the class GlobalSum
-            # accesses/updates a scalar
-            self._scalar.access = AccessType.READWRITE
-            self._scalar.call = self
-
-    @property
-    def scalar(self):
-        ''' Return the scalar field that this global sum acts on '''
-        return self._scalar
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        return f"globalsum({self._scalar.name})_{self.position}"
-
-    @property
-    def args(self):
-        ''' Return the list of arguments associated with this node. Override
-        the base method and simply return our argument.'''
-        return [self._scalar]
-
-    def node_str(self, colour=True):
-        '''
-        Returns a text description of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return f"{self.coloured_name(colour)}[scalar='{self._scalar.name}']"
-
-
 class HaloExchange(Statement):
     '''
     Generic Halo Exchange class which can be added to and
@@ -859,68 +769,9 @@ class HaloExchange(Statement):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
+        '''Return the list of arguments associated with this node. Override the
         base method and simply return our argument. '''
         return [self._field]
-
-    def check_vector_halos_differ(self, node):
-        '''Helper method which checks that two halo exchange nodes (one being
-        self and the other being passed by argument) operating on the
-        same field, both have vector fields of the same size and use
-        different vector indices. If this is the case then the halo
-        exchange nodes do not depend on each other. If this is not the
-        case then an internal error will have occured and we raise an
-        appropriate exception.
-
-        :param node: a halo exchange which should exchange the same field as \
-                     self.
-        :type node: :py:class:`psyclone.psyGen.HaloExchange`
-        :raises GenerationError: if the argument passed is not a halo exchange.
-        :raises GenerationError: if the field name in the halo exchange \
-                                 passed in has a different name to the field \
-                                 in this halo exchange.
-        :raises GenerationError: if the field in this halo exchange is not a \
-                                 vector field
-        :raises GenerationError: if the vector size of the field in this halo \
-                                 exchange is different to vector size of the \
-                                 field in the halo exchange passed by argument.
-        :raises GenerationError: if the vector index of the field in this \
-                                 halo exchange is the same as the vector \
-                                 index of the field in the halo exchange \
-                                 passed by argument.
-
-        '''
-
-        if not isinstance(node, HaloExchange):
-            raise GenerationError(
-                "Internal error, the argument passed to "
-                "HaloExchange.check_vector_halos_differ() is not "
-                "a halo exchange object")
-
-        if self.field.name != node.field.name:
-            raise GenerationError(
-                f"Internal error, the halo exchange object passed to "
-                f"HaloExchange.check_vector_halos_differ() has a different "
-                f"field name '{node.field.name}' to self '{self.field.name}'")
-
-        if self.field.vector_size <= 1:
-            raise GenerationError(
-                "Internal error, HaloExchange.check_vector_halos_differ() "
-                "a halo exchange depends on another halo exchange but the "
-                f"vector size of field '{self.field.name}' is 1")
-
-        if self.field.vector_size != node.field.vector_size:
-            raise GenerationError(
-                f"Internal error, HaloExchange.check_vector_halos_differ() "
-                f"a halo exchange depends on another halo exchange but the "
-                f"vector sizes for field '{self.field.name}' differ")
-
-        if self.vector_index == node.vector_index:
-            raise GenerationError(
-                f"Internal error, HaloExchange.check_vector_halos_differ() "
-                f"a halo exchange depends on another halo exchange but both "
-                f"vector id's ('{self.vector_index}') of field "
-                f"'{self.field.name}' are the same")
 
     def node_str(self, colour=True):
         '''
@@ -985,11 +836,10 @@ class Kern(Statement):
         self._arg_descriptors = None
 
         # Initialise any reduction information
-        reduction_modes = AccessType.get_valid_reduction_modes()
         const = Config.get().api_conf().get_constants()
         args = args_filter(self._arguments.args,
                            arg_types=const.VALID_SCALAR_NAMES,
-                           arg_accesses=reduction_modes)
+                           arg_accesses=[AccessType.REDUCTION])
         if args:
             self._reduction = True
             if len(args) != 1:
@@ -1003,7 +853,7 @@ class Kern(Statement):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
+        '''Return the list of arguments associated with this node. Override the
         base method and simply return our arguments. '''
         return self.arguments.args
 
@@ -1018,18 +868,6 @@ class Kern(Statement):
         '''
         return (self.coloured_name(colour) + " " + self.name +
                 "(" + self.arguments.names + ")")
-
-    def reference_accesses(self) -> VariablesAccessMap:
-        '''
-        :returns: a map of all the symbol accessed inside this node, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
-            (a sequence of AccessTypes).
-
-        '''
-        var_accesses = super().reference_accesses()
-        var_accesses.next_location()
-        return var_accesses
 
     @property
     def is_reduction(self):
@@ -1065,147 +903,95 @@ class Kern(Statement):
             return ancestor.reprod
         return False
 
-    @property
-    def local_reduction_name(self):
+    def initialise_reduction_variable(self) -> None:
         '''
-        :returns: a local reduction variable name that is unique for the
-                  current reduction argument name. This is used for
-                  thread-local reductions with reproducible reductions.
-        :rtype: str
-
-        '''
-        # TODO #2381: Revisit symbol creation, now moved to the
-        # Kern._reduction_reference() method, and try to associate it
-        # with the PSy-layer generation or relevant transformation.
-        return "l_" + self.reduction_arg.name
-
-    def zero_reduction_variable(self):
-        '''
-        Generate code to zero the reduction variable and to zero the local
+        Generate PSyIR to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
         reductions, if specified.
 
-        TODO #514: This is only used by LFRic, but should be generalised,
-        ideally in psyir.nodes.omp/acc_directives
-
-        :raises GenerationError: if the variable to zero is not a scalar.
+        :raises GenerationError: if the variable to initialise is not a scalar.
         :raises GenerationError: if the reprod_pad_size (read from the
             configuration file) is less than 1.
         :raises GenerationError: for a reduction into a scalar that is
             neither 'real' nor 'integer'.
 
         '''
-        # pylint: disable-next=import-outside-toplevel
-        from psyclone.domain.common.psylayer import PSyLoop
-
-        variable_name = self._reduction_arg.name
-        local_var_name = self.local_reduction_name
         var_arg = self._reduction_arg
         # Check for a non-scalar argument
         if not var_arg.is_scalar:
             raise GenerationError(
-                f"Kern.zero_reduction_variable() should be a scalar but "
+                f"Kern.initialise_reduction_variable() should be a scalar but "
                 f"found '{var_arg.argument_type}'.")
-        # Generate the reduction variable
-        var_data_type = var_arg.intrinsic_type
-        if var_data_type == "real":
-            data_type = ScalarType(ScalarType.Intrinsic.REAL,
-                                   DataSymbol(var_arg.precision,
-                                              UnresolvedType()))
-        elif var_data_type == "integer":
-            data_type = ScalarType(ScalarType.Intrinsic.INTEGER,
-                                   DataSymbol(var_arg.precision,
-                                              UnresolvedType()))
-        else:
+        # Lookup the reduction variable
+        variable = self.scope.symbol_table.lookup_with_tag(
+            f"AlgArgs_{var_arg.text}")
+        if not (isinstance(variable.datatype, ScalarType) and
+                variable.datatype.intrinsic in [ScalarType.Intrinsic.INTEGER,
+                                                ScalarType.Intrinsic.REAL]):
             raise GenerationError(
-                f"Kern.zero_reduction_variable() should be either a 'real' or "
-                f"an 'integer' scalar but found scalar of type "
+                f"Kern.initialise_reduction_variable() should be either a "
+                f"'real' or an 'integer' scalar but found scalar of type "
                 f"'{var_arg.intrinsic_type}'.")
 
-        # Retrieve the variable and precision information
-        kind_str = f"(kind={var_arg.precision})" if var_arg.precision else ""
-        variable = self.scope.symbol_table.lookup(variable_name)
-        insert_loc = self.ancestor(PSyLoop)
-        # If it has ancestor directive keep going up
-        while isinstance(insert_loc.parent.parent, Directive):
-            insert_loc = insert_loc.parent.parent
+        # Find a safe location to initialise it.
+        insert_loc = self.ancestor((Loop, Directive))
+        while insert_loc:
+            loc = insert_loc.ancestor((Loop, Directive))
+            if not loc:
+                break
+            insert_loc = loc
         cursor = insert_loc.position
         insert_loc = insert_loc.parent
         new_node = Assignment.create(
                         lhs=Reference(variable),
-                        rhs=Literal("0", data_type))
+                        rhs=Literal("0", variable.datatype.copy()))
+        new_node.append_preceding_comment("Initialise reduction variable")
         insert_loc.addchild(new_node, cursor)
         cursor += 1
 
         if self.reprod_reduction:
-            local_var = self.scope.symbol_table.find_or_create_tag(
-                local_var_name, symbol_type=DataSymbol,
-                datatype=UnsupportedFortranType(
-                    f"{var_data_type}{kind_str}, allocatable, "
-                    f"dimension(:,:) :: {local_var_name}"
-                ))
-            nthreads = \
-                self.scope.symbol_table.lookup_with_tag("omp_num_threads")
-            if Config.get().reprod_pad_size < 1:
-                raise GenerationError(
-                    f"REPROD_PAD_SIZE in {Config.get().filename} should be a "
-                    f"positive integer, but it is set to "
-                    f"'{Config.get().reprod_pad_size}'.")
-            pad_size = Literal(str(Config.get().reprod_pad_size), INTEGER_TYPE)
-            alloc = IntrinsicCall.create(
-                IntrinsicCall.Intrinsic.ALLOCATE,
-                [ArrayReference.create(local_var,
-                                       [pad_size, Reference(nthreads)])])
-            insert_loc.addchild(alloc, cursor)
-            cursor += 1
-
+            local_var = self.scope.symbol_table.lookup_with_tag(
+                f"{self.name}:{self._reduction_arg.name}:local")
             assign = Assignment.create(
                 lhs=Reference(local_var),
-                rhs=Literal("0", data_type)
+                rhs=Literal("0", variable.datatype.copy())
             )
             insert_loc.addchild(assign, cursor)
         return new_node
 
-    def reduction_sum_loop(self):
+    def reduction_sum_loop(self,
+                           parent: Node,
+                           position: int,
+                           table: SymbolTable) -> None:
         '''
         Generate the appropriate code to place after the end parallel
         region.
 
-        :raises GenerationError: for an unsupported reduction access in \
+        This method is designed to be used *after* a Kern has been lowered
+        (and thus detached) and therefore does not use `self.scope`.
+
+        :param parent: the node to which to add the Loop as a child.
+        :param position: where in the parent's list of children to add
+                        the new Loop.
+        :param table: the SymbolTable to use.
+
+        :raises GenerationError: for an unsupported reduction access in
                                  LFRicBuiltIn.
         '''
-        var_name = self._reduction_arg.name
-        local_var_name = self.local_reduction_name
-        reduction_access = self._reduction_arg.access
-        if reduction_access not in REDUCTION_OPERATOR_MAPPING:
-            api_strings = [access.api_specific_name()
-                           for access in REDUCTION_OPERATOR_MAPPING]
-            raise GenerationError(
-                f"Unsupported reduction access "
-                f"'{reduction_access.api_specific_name()}' found in "
-                f"LFRicBuiltIn:reduction_sum_loop(). Expected one of "
-                f"{api_strings}.")
-        symtab = self.scope.symbol_table
-        thread_idx = symtab.find_or_create_tag(
-                                "omp_thread_index",
-                                root_name="th_idx",
-                                symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE)
-        nthreads = symtab.find_or_create_tag(
-                                "omp_num_threads",
-                                root_name="nthreads",
-                                symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE)
+        tag = f"{self.name}:{self._reduction_arg.name}:local"
+        local_symbol = table.lookup_with_tag(tag)
+        symtab = table
+        thread_idx = symtab.lookup_with_tag("omp_thread_index")
+        nthreads = symtab.lookup_with_tag("omp_num_threads")
         do_loop = Loop.create(
                     thread_idx,
                     start=Literal("1", INTEGER_TYPE),
                     stop=Reference(nthreads),
                     step=Literal("1", INTEGER_TYPE),
                     children=[])
-        directive = self.ancestor(OMPParallelDirective)
-        directive.parent.addchild(do_loop, directive.position+1)
-        var_symbol = self.scope.symbol_table.lookup(var_name)
-        local_symbol = self.scope.symbol_table.lookup(local_var_name)
+        parent.addchild(do_loop, position+1)
+        var_symbol = table.lookup_with_tag(
+            f"AlgArgs_{self._reduction_arg.text}")
         do_loop.loop_body.addchild(Assignment.create(
            lhs=Reference(var_symbol),
            rhs=BinaryOperation.create(
@@ -1234,27 +1020,19 @@ class Kern(Statement):
                 :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         '''
-        # TODO #2381: Revisit symbol creation, moved from the
-        # Kern.local_reduction_name property, and try to associate it
-        # with the PSy-layer generation or relevant transformation.
-        symtab = self.scope.symbol_table
-        reduction_name = self.reduction_arg.name
-        # Return a multi-valued ArrayReference for a reproducible reduction
+        symtab = self.ancestor(InvokeSchedule).symbol_table
         if self.reprod_reduction:
+            local_var = symtab.lookup_with_tag(
+                f"{self.name}:{self._reduction_arg.name}:local")
+            # Return a multi-valued ArrayReference for a reproducible reduction
             array_dim = [
                 Literal("1", INTEGER_TYPE),
                 Reference(symtab.lookup_with_tag("omp_thread_index"))]
-            reduction_array = ArrayType(
-                symtab.lookup(reduction_name).datatype, array_dim)
-            local_reduction = DataSymbol(
-                self.local_reduction_name, datatype=reduction_array)
-            symtab.find_or_create_tag(
-                tag=self.local_reduction_name,
-                symbol_type=DataSymbol, datatype=reduction_array)
-            return ArrayReference.create(
-                local_reduction, array_dim)
+            return ArrayReference.create(local_var, array_dim)
         # Return a single-valued Reference for a non-reproducible reduction
-        return Reference(symtab.lookup(reduction_name))
+        local_var = symtab.lookup_with_tag(
+            f"AlgArgs_{self._reduction_arg.text}")
+        return Reference(local_var)
 
     @property
     def arg_descriptors(self):
@@ -1301,6 +1079,57 @@ class Kern(Statement):
     @property
     def iterates_over(self):
         return self._iterates_over
+
+    def lower_to_language_level(self):
+        '''
+        Replace this Kern with the equivalent, language-level PSyIR.
+
+        '''
+        if not self.is_reduction:
+            # If this kernel does not perform a reduction then there's
+            # no special action to take.
+            return super().lower_to_language_level()
+
+        table = self.ancestor(InvokeSchedule).symbol_table
+        arg_sym = table.lookup_with_tag("AlgArgs_"+self.reduction_arg.text)
+
+        if self.reprod_reduction:
+            # For reproducible reductions, we need a rank-2 array to store
+            # the thread-local results.
+            nthreads = table.lookup_with_tag("omp_num_threads")
+            if Config.get().reprod_pad_size < 1:
+                raise GenerationError(
+                    f"REPROD_PAD_SIZE in {Config.get().filename} should be a "
+                    f"positive integer, but it is set to "
+                    f"'{Config.get().reprod_pad_size}'.")
+            pad_size = Literal(str(Config.get().reprod_pad_size), INTEGER_TYPE)
+
+            array_type = ArrayType(arg_sym.datatype,
+                                   2*[ArrayType.Extent.DEFERRED])
+            local_var = table.find_or_create_tag(
+                root_name="local_"+self._reduction_arg.name,
+                tag=f"{self.name}:{self._reduction_arg.name}:local",
+                symbol_type=DataSymbol, datatype=array_type)
+            alloc = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.ALLOCATE,
+                [ArrayReference.create(local_var,
+                                       [pad_size, Reference(nthreads)])])
+            # Find a safe location to allocate it.
+            insert_loc = self.ancestor((Loop, Directive))
+            while insert_loc:
+                loc = insert_loc.ancestor((Loop, Directive))
+                if not loc:
+                    break
+                insert_loc = loc
+            cursor = insert_loc.position
+            insert_loc = insert_loc.parent
+            insert_loc.addchild(alloc, cursor)
+
+        # This Kernel performs a reduction.
+        # Initialise the variable that will hold the result.
+        self.initialise_reduction_variable()
+
+        return super().lower_to_language_level()
 
 
 class CodedKern(Kern):
@@ -1894,20 +1723,20 @@ class Arguments():
     def args(self):
         return self._args
 
-    def iteration_space_arg(self):
+    def iteration_space_arg(self) -> str:
         '''
         Returns an argument that can be iterated over, i.e. modified
         (has WRITE, READWRITE or INC access), but not the result of
         a reduction operation.
 
         :returns: a Fortran argument name
-        :rtype: string
+
         :raises GenerationError: if none such argument is found.
 
         '''
         for arg in self._args:
             if arg.access in AccessType.all_write_accesses() and \
-                    arg.access not in AccessType.get_valid_reduction_modes():
+                    arg.access != AccessType.REDUCTION:
                 return arg
         raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
                               "we assume there is at least one writer, "
@@ -1952,12 +1781,12 @@ class DataAccess():
 
     def __init__(self, arg):
         '''Store the argument associated with the instance of this class and
-        the Call, HaloExchange or GlobalSum (or a subclass thereof)
+        the Call, HaloExchange or GlobalReduction (or a subclass thereof)
         instance with which the argument is associated.
 
-        :param arg: the argument that we are concerned with. An \
-        argument can be found in a `Kern` a `HaloExchange` or a \
-        `GlobalSum` (or a subclass thereof)
+        :param arg: the argument that we are concerned with. An
+            argument can be found in a `Kern` a `HaloExchange` or a
+            `GlobalReduction` (or a subclass thereof)
         :type arg: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -2142,7 +1971,7 @@ class Argument():
         called (in order to determine the values of precision,
         data_type and module_name).
 
-        :param arg_info: Information about this argument collected by \
+        :param arg_info: Information about this argument collected by
             the parser.
         :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
 
@@ -2163,29 +1992,17 @@ class Argument():
                 previous_arguments = symtab.argument_list
 
                 # Find the tag to use
-                tag = "AlgArgs_" + self._text
+                tag = f"AlgArgs_{self._text}"
 
                 # Prepare the Argument Interface Access value
                 argument_access = ArgumentInterface.Access.READWRITE
 
                 # Find the tag or create a new symbol with expected attributes
                 data_type = self.infer_datatype()
-                # In case of LFRic field vector, declare it as array.
-                # This is a fix for #1930, but we might want a better
-                # solution to avoid LFRic-specific code here.
-                # pylint: disable=no-member
-                if hasattr(self, 'vector_size') and self.vector_size > 1:
-                    data_type = ArrayType(data_type, [self.vector_size])
 
-                # Symbol imports for STENCILS are not yet in the symbol
-                # table (until lowering time), so make sure the argument
-                # names do not overlap with them
-                # pylint: disable=import-outside-toplevel
-                from psyclone.domain.lfric.lfric_constants import \
-                    LFRicConstants
-                const = LFRicConstants()
-                if self._orig_name.upper() in const.STENCIL_MAPPING.values():
-                    self._orig_name = self._orig_name + "_arg"
+                # Ensure that the symbol will have a unique name in the final
+                # PSy routine.
+                self._orig_name = self._ensure_unique_name(self._orig_name)
 
                 new_argument = symtab.find_or_create_tag(
                     tag, root_name=self._orig_name, symbol_type=DataSymbol,
@@ -2199,6 +2016,21 @@ class Argument():
                         new_argument not in previous_arguments):
                     symtab.specify_argument_list(previous_arguments +
                                                  [new_argument])
+
+    @classmethod
+    def _ensure_unique_name(cls, name: str) -> str:
+        '''
+        Given the proposed argument name, returns a new name that will be
+        unique in the final PSy routine.
+
+        This base implementation just returns the supplied name unchanged.
+
+        :param name: the proposed name of a kernel argument.
+
+        :returns: a new name for the kernel argument.
+
+        '''
+        return name
 
     @abc.abstractmethod
     def psyir_expression(self):
@@ -2325,82 +2157,74 @@ class Argument():
         ''' set the node that this argument is associated with '''
         self._call = value
 
-    def backward_dependence(self):
+    def backward_dependence(self) -> Union[Argument, None]:
         '''Returns the preceding argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum.
+        exist in a Call, a HaloExchange, or a GlobalReduction.
 
-        :returns: the first preceding argument that has a dependence \
-            on this argument.
-        :rtype: :py:class:`psyclone.psyGen.Argument`
-
+        :returns: the first preceding argument that has a dependence
+                  on this argument.
         '''
         nodes = self._call.preceding(reverse=True)
         return self._find_argument(nodes)
 
-    def forward_write_dependencies(self, ignore_halos=False):
+    def forward_write_dependencies(
+            self,
+            ignore_halos: bool = False) -> list[Argument]:
         '''Returns a list of following write arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
-        none are found then return an empty list. If self is not a
+        dependencies with. The arguments may exist in a Call, a
+        HaloExchange (unless `ignore_halos` is `True`), or a GlobalReduction.
+        If none are found then return an empty list. If self is not a
         reader then return an empty list.
 
-        :param bool ignore_halos: if `True` then any write dependencies \
+        :param ignore_halos: if `True` then any write dependencies
             involving a halo exchange are ignored. Defaults to `False`.
 
-        :returns: a list of arguments that have a following write \
-            dependence on this argument.
-        :rtype: list of :py:class:`psyclone.psyGen.Argument`
-
+        :returns: the arguments that have a following write
+                  dependence on this argument.
         '''
         nodes = self._call.following()
         results = self._find_write_arguments(nodes, ignore_halos=ignore_halos)
         return results
 
-    def backward_write_dependencies(self, ignore_halos=False):
+    def backward_write_dependencies(
+            self, ignore_halos: bool = False) -> list[Argument]:
         '''Returns a list of previous write arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
-        none are found then return an empty list. If self is not a
+        dependencies with. The arguments may exist in a Call, a
+        HaloExchange (unless `ignore_halos` is `True`), or a GlobalReduction.
+        If none are found then return an empty list. If self is not a
         reader then return an empty list.
 
-        :param ignore_halos: if `True` then any write dependencies \
+        :param ignore_halos: if `True` then any write dependencies
             involving a halo exchange are ignored. Defaults to `False`.
-        :type ignore_halos: bool
 
-        :returns: a list of arguments that have a preceding write \
-            dependence on this argument.
-        :rtype: list of :py:class:`psyclone.psyGen.Argument`
-
+        :returns: a list of arguments that have a preceding write
+                  dependence on this argument.
         '''
         nodes = self._call.preceding(reverse=True)
         results = self._find_write_arguments(nodes, ignore_halos=ignore_halos)
         return results
 
-    def forward_dependence(self):
+    def forward_dependence(self) -> Union[Argument, None]:
         '''Returns the following argument that this argument has a direct
         dependence on, or `None` if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum.
+        exist in a Call, a HaloExchange or a GlobalReduction.
 
-        :returns: the first following argument that has a dependence \
-            on this argument.
-        :rtype: :py:class:`psyclone.psyGen.Argument`
-
+        :returns: the first following argument that has a dependence
+                  on this argument.
         '''
         nodes = self._call.following()
         return self._find_argument(nodes)
 
-    def forward_read_dependencies(self):
+    def forward_read_dependencies(self) -> list[Argument]:
         '''Returns a list of following read arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange, or a globalsum. If none are found then
+        dependencies with. The arguments may exist in a Call, a
+        HaloExchange or a GlobalReduction. If none are found then
         return an empty list. If self is not a writer then return an
         empty list.
 
-        :returns: a list of following arguments that have a read \
-            dependence on this argument.
-        :rtype: list of :py:class:`psyclone.psyGen.Argument`
-
+        :returns: a list of following arguments that have a read
+                  dependence on this argument.
         '''
         nodes = self._call.following()
         return self._find_read_arguments(nodes)
@@ -2416,8 +2240,11 @@ class Argument():
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.psylayer import GlobalReduction
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
+                           isinstance(x, (Kern, HaloExchange,
+                                          GlobalReduction))]
         for node in nodes_with_args:
             for argument in node.args:
                 if self._depends_on(argument):
@@ -2441,9 +2268,13 @@ class Argument():
             # I am not a writer so there will be no read dependencies
             return []
 
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.psylayer import GlobalReduction
+
         # We only need consider nodes that have arguments
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
+                           isinstance(x, (Kern, HaloExchange,
+                                          GlobalReduction))]
         access = DataAccess(self)
         arguments = []
         for node in nodes_with_args:
@@ -2482,9 +2313,12 @@ class Argument():
             # I am not a reader so there will be no write dependencies
             return []
 
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.psylayer import GlobalReduction
+
         # We only need consider nodes that have arguments
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, GlobalSum)) or
+                           isinstance(x, (Kern, GlobalReduction)) or
                            (isinstance(x, HaloExchange) and not ignore_halos)]
         access = DataAccess(self)
         arguments = []
@@ -2612,10 +2446,14 @@ class KernelArgument(Argument):
 
 class TransInfo():
     '''
-    This class provides information about, and access, to the available
+    This class provides information about, and access to, the available
     transformations in this implementation of PSyclone. New transformations
     will be picked up automatically as long as they subclass the abstract
     Transformation class.
+
+    .. warning::
+        This utility will not find Transformations under the new file
+        structure (TODO #620) and is deprecated.
 
     For example:
 
@@ -2640,6 +2478,10 @@ class TransInfo():
         # layout, where transformations are in different directories and files.
         # Leaving local imports so they will be removed once TransInfo is
         # replaced.
+        warnings.warn("PSyclone Deprecation Warning: the TransInfo class is "
+                      "deprecated. User transformation scripts should import "
+                      "the required Transformation classes directly.",
+                      DeprecationWarning, 2)
         # pylint: disable=import-outside-toplevel
         from psyclone import transformations
         if module is None:
@@ -2674,7 +2516,6 @@ class TransInfo():
     def list(self):
         ''' return a string with a human readable list of the available
             transformations '''
-        import os
         if len(self._objects) == 1:
             result = "There is 1 transformation available:"
         else:
@@ -2708,13 +2549,24 @@ class TransInfo():
                                   f"but expected one of "
                                   f"{self._obj_map.keys()}")
 
-    def _find_subclasses(self, module, base_class):
-        ''' return a list of classes defined within the specified module that
-            are a subclass of the specified baseclass. '''
-        import inspect
+    def _find_subclasses(self, module: type, base_class: type) -> List[type]:
+        '''
+        Return a list of classes defined within the specified module that
+        are a subclass of the specified baseclass.
+
+        Takes care to exclude the 'Dynamo0p3' wrapper classes that are only
+        there for backwards compatibility.
+
+        :param module: the module in which to look for classes.
+        :param base_class: the base class which classes must subclass.
+
+        :returns: the classes in the supplied module that subclass the
+                  supplied class.
+        '''
         return [cls for name, cls in inspect.getmembers(module)
                 if inspect.isclass(cls) and not inspect.isabstract(cls) and
-                issubclass(cls, base_class) and cls is not base_class]
+                issubclass(cls, base_class) and cls is not base_class
+                and name[:9] != "Dynamo0p3"]
 
 
 @dataclass
@@ -2848,7 +2700,10 @@ class Transformation(metaclass=abc.ABCMeta):
             signature = inspect.signature(base_cls_apply)
             # Loop over the arguments to the apply call.
             for k, v in signature.parameters.items():
-                if k == "options":
+                # Since the 'options' argument is deprecated, its not
+                # inherited from superclasses as newer Transformations
+                # may not implement it.
+                if k == "options" and base_cls is not cls:
                     continue
                 # If the argument is a keyword argument, i.e. it has a default
                 # value then we add it to the list of options.
@@ -2886,8 +2741,6 @@ class Transformation(metaclass=abc.ABCMeta):
         invalid_options = []
         wrong_types = {}
         for option in kwargs:
-            if option == "options":
-                continue
             if option not in valid_options:
                 invalid_options.append(option)
                 continue
@@ -2927,6 +2780,6 @@ class Transformation(metaclass=abc.ABCMeta):
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ['PSyFactory', 'PSy', 'Invokes', 'Invoke', 'InvokeSchedule',
-           'GlobalSum', 'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
+           'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
            'BuiltIn', 'Arguments', 'DataAccess', 'Argument', 'KernelArgument',
            'TransInfo', 'Transformation']

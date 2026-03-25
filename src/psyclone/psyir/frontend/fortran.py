@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,10 +45,10 @@ from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003, pattern_tools
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
-from fparser.two.utils import NoMatchError
+from fparser.two.utils import FortranSyntaxError, NoMatchError
 from psyclone.configuration import Config
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Schedule, Assignment, Routine
+from psyclone.psyir.nodes import Assignment, Node, Routine, Schedule
 from psyclone.psyir.symbols import SymbolTable
 
 
@@ -62,6 +62,9 @@ class FortranReader():
     :param ignore_directives: If directives should be ignored or not
                             (default True). Only has an effect
                             if ignore_comments is False.
+    :param conditional_openmp_statements: whether to keep statements with the
+                                          OpenMP conditional compilation
+                                          prefix.
     :param last_comments_as_codeblocks: If the last comments in the
                                         a given block (e.g. subroutine,
                                         do, if-then body, etc.) should
@@ -82,6 +85,7 @@ class FortranReader():
 
     def __init__(self, free_form: bool = True, ignore_comments: bool = True,
                  ignore_directives: bool = True,
+                 conditional_openmp_statements: bool = False,
                  last_comments_as_codeblocks: bool = False,
                  resolve_modules: Union[bool, List[str]] = False):
         if not self._parser:
@@ -94,6 +98,8 @@ class FortranReader():
                 " only have an effect if ignore_comments is also set to False."
             )
         self._ignore_comments = ignore_comments
+        self._ignore_directives = ignore_directives
+        self._conditional_openmp_statements = conditional_openmp_statements
         self._processor = Fparser2Reader(ignore_directives,
                                          last_comments_as_codeblocks,
                                          resolve_modules)
@@ -119,22 +125,31 @@ class FortranReader():
             raise ValueError(
                 f"Invalid Fortran name '{name}' found.")
 
-    def psyir_from_source(self, source_code: str):
-        ''' Generate the PSyIR tree representing the given Fortran source code.
+    def psyir_from_source(self, source_code: str) -> Node:
+        ''' Generate the PSyIR tree for the given Fortran source code.
 
-        :param str source_code: text representation of the code to be parsed.
+        :param source_code: text representation of the code to be parsed.
 
-        :returns: PSyIR representing the provided Fortran source code.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        :returns: the PSyIR of the provided Fortran source code.
+
+        :raises ValueError: if the supplied Fortran cannot be parsed.
 
         '''
         SYMBOL_TABLES.clear()
         string_reader = FortranStringReader(
             source_code, include_dirs=Config.get().include_paths,
-            ignore_comments=self._ignore_comments)
+            ignore_comments=self._ignore_comments,
+            process_directives=not self._ignore_directives)
         # Set reader to free format.
         string_reader.set_format(FortranFormat(self._free_form, False))
-        parse_tree = self._parser(string_reader)
+
+        try:
+            parse_tree = self._parser(string_reader)
+        except (FortranSyntaxError, NoMatchError) as err:
+            raise ValueError(
+                f"Failed to parse the provided source code:\n{source_code}\n"
+                f"Error was: {err}\nIs the input valid Fortran (note that CPP "
+                f"directives must be handled by a pre-processor)?") from err
 
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
@@ -186,7 +201,7 @@ class FortranReader():
     def psyir_from_statement(self, source_code: str,
                              symbol_table: Optional[SymbolTable] = None):
         '''Generate the PSyIR tree for the supplied Fortran statement. The
-        symbolt table is expected to provide all symbols found in the
+        symbol table is expected to provide all symbols found in the
         statement.
 
         :param source_code: text of the statement to be parsed.
@@ -238,6 +253,8 @@ class FortranReader():
         :returns: PSyIR representing the provided Fortran file.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises ValueError: if the parser fails to parse the contents of
+                            the supplied file.
         '''
         SYMBOL_TABLES.clear()
 
@@ -248,11 +265,21 @@ class FortranReader():
 
         # Using the FortranFileReader instead of manually open the file allows
         # fparser to keep the filename information in the tree
-        reader = FortranFileReader(file_path,
-                                   include_dirs=Config.get().include_paths,
-                                   ignore_comments=self._ignore_comments)
+        reader = FortranFileReader(
+            file_path,
+            include_dirs=Config.get().include_paths,
+            ignore_comments=self._ignore_comments,
+            process_directives=not self._ignore_directives,
+            include_omp_conditional_lines=self._conditional_openmp_statements
+        )
         reader.set_format(FortranFormat(self._free_form, False))
-        parse_tree = self._parser(reader)
+        try:
+            parse_tree = self._parser(reader)
+        except (FortranSyntaxError, NoMatchError) as err:
+            raise ValueError(
+                f"Failed to parse source in file '{file_path}'.\n"
+                f"Error was: {err}\nIs the input valid Fortran (note that CPP "
+                f"directives must be handled by a pre-processor)?") from err
         _, filename = os.path.split(file_path)
 
         psyir = self._processor.generate_psyir(parse_tree, filename)

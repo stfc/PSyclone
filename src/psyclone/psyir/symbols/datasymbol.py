@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,11 @@
 
 ''' This module contains the DataSymbol and its interfaces.'''
 
+from __future__ import annotations
+
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.psyir.symbols.interfaces import StaticInterface
+from psyclone.psyir.symbols.symbol import Symbol
 
 
 class DataSymbol(TypedSymbol):
@@ -137,7 +140,7 @@ class DataSymbol(TypedSymbol):
         if new_initial_value is not None:
             self.initial_value = new_initial_value
 
-        # Now that we know whether or not we have an intial_value and an
+        # Now that we know whether or not we have an initial_value and an
         # interface, we can call the is_constant setter.
         if new_is_constant_value is not None:
             self.is_constant = new_is_constant_value
@@ -328,12 +331,16 @@ class DataSymbol(TypedSymbol):
         copy.inline_comment = self.inline_comment
         return copy
 
-    def copy_properties(self, symbol_in):
+    def copy_properties(self,
+                        symbol_in: DataSymbol,
+                        exclude_interface: bool = False):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name (which is immutable) and visibility.
+        If `exclude_interface` is True, the interface is also not updated.
 
         :param symbol_in: the symbol from which the properties are copied.
-        :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param exclude_interface: whether to copy the interface from the
+                                  provided symbol.
 
         :raises TypeError: if the argument is not the expected type.
 
@@ -341,7 +348,7 @@ class DataSymbol(TypedSymbol):
         if not isinstance(symbol_in, DataSymbol):
             raise TypeError(f"Argument should be of type 'DataSymbol' but "
                             f"found '{type(symbol_in).__name__}'.")
-        super().copy_properties(symbol_in)
+        super().copy_properties(symbol_in, exclude_interface=exclude_interface)
         self._is_constant = symbol_in.is_constant
         self._initial_value = symbol_in.initial_value
         self.preceding_comment = symbol_in.preceding_comment
@@ -378,17 +385,57 @@ class DataSymbol(TypedSymbol):
                     continue
                 bnd.replace_symbols_using(table_or_symbol)
 
-    def reference_accesses(self):
+    def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
-        :returns: a map of all the symbol accessed inside this Symbol, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
-            (a sequence of AccessTypes).
-        :rtype: :py:class:`psyclone.core.VariablesAccessMap`
-
+        :returns: a set of all the symbols accessed inside this Symbol.
         '''
-        access_info = super().reference_accesses()
-
+        symbols = super().get_all_accessed_symbols()
         if self.initial_value:
-            access_info.update(self.initial_value.reference_accesses())
-        return access_info
+            symbols.update(self.initial_value.get_all_accessed_symbols())
+        return symbols
+
+    def get_bounds(self, idx: int):
+        '''
+        :returns: the lower and upper bounds of the specified (0-indexed)
+                  array dimension.
+        :rtype: Tuple[:py:class:`psyclone.psyir.nodes.DataNode`,
+                      :py:class:`psyclone.psyir.nodes.DataNode`]
+
+        :raises IndexError: if the requested array dimension is invalid.
+
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import IntrinsicCall, Literal, Reference
+        from psyclone.psyir.symbols.datatypes import (ArrayType, INTEGER_TYPE,
+                                                      UnsupportedFortranType)
+        shape = None
+        if isinstance(self.datatype, ArrayType):
+            shape = self.datatype.shape
+        elif (isinstance(self.datatype, UnsupportedFortranType) and
+              self.datatype.partial_datatype):
+            shape = self.datatype.partial_datatype.shape
+
+        if shape and idx >= len(shape):
+            raise IndexError(
+                f"DataSymbol '{self.name}' has {len(shape)} dimensions but "
+                f"bounds for (0-indexed) dimension {idx} requested.")
+
+        if not shape or shape[idx] in [ArrayType.Extent.DEFERRED,
+                                       ArrayType.Extent.ATTRIBUTE]:
+            # We have no information on the bounds of this dimension.
+            bounds = []
+            for intrinsic in [IntrinsicCall.Intrinsic.LBOUND,
+                              IntrinsicCall.Intrinsic.UBOUND]:
+                bounds.append(IntrinsicCall.create(
+                    intrinsic, [Reference(self),
+                                ("dim", Literal(str(idx+1), INTEGER_TYPE))]))
+            return tuple(bounds)
+
+        lower = self.shape[idx].lower.copy()
+        if not isinstance(self.shape[idx].upper, ArrayType.Extent):
+            return lower, self.shape[idx].upper.copy()
+
+        upper = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(self), ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+        return lower, upper
