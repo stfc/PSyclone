@@ -76,7 +76,7 @@ def main(args):
     # with --. The usage message is therefore manually updated to
     # reflect this workaround.
     def msg():
-        '''Function to overide the argpass usage message'''
+        '''Function to override the argpass usage message'''
         return ("psyad [-h] [-oad OAD] [-v] [-t] [-api API] "
                 "[-coord-arg COORD_ARG] [-panel-id-arg PANEL_ID_ARG] "
                 "[-otest TEST_FILENAME] [-c CONFIG] "

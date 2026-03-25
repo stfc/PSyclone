@@ -43,7 +43,8 @@
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, HaloExchange
@@ -52,7 +53,7 @@ from psyclone.psyir.nodes import (
     Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode,
     Node, Routine)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface)
+    AutomaticInterface, DataSymbol, INTEGER_TYPE, UnresolvedType)
 
 
 class LFRicLoop(PSyLoop):
@@ -696,7 +697,7 @@ class LFRicLoop(PSyLoop):
 
         '''
         const = LFRicConstants()
-        if arg.is_scalar or arg.is_operator:
+        if arg.is_scalar or arg.is_operator or arg.is_scalar_array:
             # Scalars and operators do not have halos
             return False
         if arg.is_field:
@@ -950,7 +951,7 @@ class LFRicLoop(PSyLoop):
                                 field.proxy_name,
                                 symbol_type=DataSymbol,
                                 datatype=UnresolvedType(),
-                                interface=UnresolvedInterface())
+                                interface=AutomaticInterface())
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
             from psyclone.lfric import HaloWriteAccess

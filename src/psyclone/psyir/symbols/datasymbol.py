@@ -140,7 +140,7 @@ class DataSymbol(TypedSymbol):
         if new_initial_value is not None:
             self.initial_value = new_initial_value
 
-        # Now that we know whether or not we have an intial_value and an
+        # Now that we know whether or not we have an initial_value and an
         # interface, we can call the is_constant setter.
         if new_is_constant_value is not None:
             self.is_constant = new_is_constant_value

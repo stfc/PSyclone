@@ -52,7 +52,7 @@ class ContainerSymbol(Symbol):
     :param str name: name of the symbol.
     :param bool wildcard_import: if all public Symbols of the Container are
         imported into the current scope. Defaults to False.
-    :param bool is_intrinsic: if the module is an intrinsic import. Defauts
+    :param bool is_intrinsic: if the module is an intrinsic import. Defaults
         to False.
     :param kwargs: additional keyword arguments provided by
         :py:class:`psyclone.psyir.symbols.Symbol`.

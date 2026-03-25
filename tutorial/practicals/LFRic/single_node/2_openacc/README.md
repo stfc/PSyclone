@@ -201,7 +201,7 @@ directives are designed to work with less structured data, such as
 objects. `ENTER DATA` can be used to move data to the GPU if it is
 not already there. Therefore we can specify all the required GPU data
 in an invoke within an `ENTER DATA` directive and it will only copy
-accross data that is not already on the GPU.
+across data that is not already on the GPU.
 
 Let's add one of these directives. As it is required for the whole
 invoke we provide it with the (top level) subroutine node.

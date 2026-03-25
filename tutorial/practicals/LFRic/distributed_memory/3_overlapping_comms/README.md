@@ -41,7 +41,7 @@ in this file assume that you are in the same directory as this
 ```
 
 The schedule containing the halo exchanges is stored as a tree in the
-PSyIR. The indendation in the visualisation of the PSyiR indicates the
+PSyIR. The indentation in the visualisation of the PSyiR indicates the
 depth of the tree. Also notice the numbers in the output. These help
 you determine the position of the particular nodes in the tree.
 
@@ -246,7 +246,7 @@ Therefore let's try the next haloexchangestart (at position 3 in our case).
 First import the `MoveTrans` transformation:
 
 ```python
-from psyclone.transformations import MoveTrans
+from psyclone.psyir.transformations import MoveTrans
 ```
 
 Next create an instance of the transformation:

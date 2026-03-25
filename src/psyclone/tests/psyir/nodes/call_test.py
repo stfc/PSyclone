@@ -48,7 +48,7 @@ from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, ContainerSymbol, DataSymbol, DataTypeSymbol,
     NoType, RoutineSymbol, REAL_TYPE, SymbolError, UnresolvedInterface,
-    UnresolvedType)
+    UnresolvedType, ScalarType)
 
 
 class SpecialCall(Call):
@@ -632,7 +632,7 @@ def test_call_node_reconcile_reorder():
     # Swap position of arguments
     call.children.extend([op2.detach(), op1.detach()])
 
-    # Now the private _argument_names are inconsistent with thir node ids
+    # Now the private _argument_names are inconsistent with this node ids
     assert len(call._argument_names) == 2
     assert call._argument_names[0] != (id(call.arguments[0]), "name1")
     assert call._argument_names[1] != (id(call.arguments[1]), "name2")
@@ -663,7 +663,7 @@ def test_copy():
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("2", INTEGER_TYPE)
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
-    # Call copy with consitent internal state of _arguments_name
+    # Call copy with consistent internal state of _arguments_name
     call2 = call.copy()
     assert call._argument_names[0] == (id(call.arguments[0]), "name1")
     assert call._argument_names[1] == (id(call.arguments[1]), "name2")
@@ -1977,3 +1977,41 @@ def test_check_argument_type_matches(fortran_reader):
             DataSymbol("dummy1",
                        ArrayType(DataTypeSymbol("MY_type", UnresolvedType()),
                                  shape=[5])))
+
+
+def test_call_datatype(fortran_reader):
+    ''' Check that when the routine definition can be found, its datatype
+    can be provided. '''
+
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine not_a_function(x, y, z)
+        integer, intent(in) :: x
+        integer, intent(out) :: y
+        integer, intent(inout) :: z
+        y = x + 1
+    end subroutine not_a_function
+
+    integer function scalar_function(a)
+        integer, intent(in) :: a
+        scalar_function = a
+    end function
+    function array_function(a)
+        integer, dimension(3) :: array_function
+        integer, intent(in) :: a
+        array_function = (/1,2,3/)
+    end function
+
+    subroutine test()
+        integer :: x, y, z
+        call return_scalar(x, y, z)
+        x = scalar_function(x) + unknown(array_function(x))
+
+    end subroutine test
+    """)
+    calls = psyir.walk(Call)
+    assert isinstance(calls[0].datatype, NoType)
+    assert isinstance(calls[1].datatype, ScalarType)
+    assert isinstance(calls[2].datatype, UnresolvedType)
+    # TODO #1799: Improve datatype inference, the following one
+    # has a definition that says is an ArrayType
+    assert isinstance(calls[3].datatype, UnresolvedType)

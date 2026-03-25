@@ -333,7 +333,7 @@ class xDSLWriter(LanguageWriter):
                         local_name = \
                           schedule.symbol_table.next_available_name(new_name)
                         if local_name == new_name:
-                            # new_name is availble in the current symbol table
+                            # new_name is available in the current symbol table
                             # so we're done.
                             break
                         # new_name clashed with an entry in the current symbol

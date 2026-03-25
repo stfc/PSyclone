@@ -56,7 +56,7 @@ def test_create():
     # Python >= 3.9 spots that 'method' should be singular. Prior to this it
     # was plural. Python >= 3.12 tweaks the error message yet again to mention
     # the lack of an implementation and to quote the method name.
-    # We split the check to accomodate for this.
+    # We split the check to accommodate for this.
     assert ("Can't instantiate abstract class Intrinsic2CodeTrans with" in msg)
     assert ("abstract method" in msg)
     assert ("apply" in msg)

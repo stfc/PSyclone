@@ -44,9 +44,10 @@ from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelTrans, OMPLoopTrans
+from psyclone.transformations import OMPLoopTrans
 from psyclone.psyir.nodes import OMPTaskwaitDirective
 from psyclone.psyir.transformations.omp_taskloop_trans import OMPTaskloopTrans
+from psyclone.psyir.transformations import OMPParallelTrans
 
 
 # ----------------------------------------------------------------------------

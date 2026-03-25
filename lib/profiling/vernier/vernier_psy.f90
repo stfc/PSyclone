@@ -32,7 +32,7 @@
 ! Author J. Henrichs, Bureau of Meteorology
 
 
-!> An implemention of the PSyData API for profiling which wraps the use of Vernier.
+!> An implementation of the PSyData API for profiling which wraps the use of Vernier.
 
 module profile_psy_data_mod
 

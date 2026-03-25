@@ -37,7 +37,6 @@
 '''Performs pytest tests on the support for declarations of UnsupportedType in
    the psyclone.psyir.backend.fortran module.'''
 
-import os
 import pytest
 
 from psyclone.errors import InternalError
@@ -74,7 +73,7 @@ def test_fw_unsupported_decln(fortran_writer):
     assert "integer, value :: b" in fortran_writer.gen_vardecl(sym)
 
 
-def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
+def test_fw_unsupported_interface_decln(tmp_path, fortran_writer):
     ''' Check that the backend recreates an interface declaration stored as
     an unsupported type and adds an appropriate access statement. '''
     container = Container("my_mod")
@@ -105,13 +104,13 @@ def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
     # Routines add their own symbols into the Container's symbol table
     container.addchild(Routine.create("eos1d", eos1d_table, []))
     container.addchild(Routine.create("eos2d", SymbolTable(), []))
-    assert Compile(tmpdir).string_compiles(fortran_writer(container))
+    assert Compile(tmp_path).string_compiles(fortran_writer(container))
 
 
 def test_fw_unsupportedtype_routine_symbols_error(fortran_writer):
     ''' Check that the backend raises the expected error if a RoutineSymbol
     which is not imported or a Fortran interface (currently an
-    UnsupportedFortanType) is found by the gen_decls. This symbols are
+    UnsupportedFortranType) is found by the gen_decls. This symbols are
     implicitly declared by the routine definition.
 
     '''
@@ -242,14 +241,14 @@ def test_fw_preceding_and_inline_comment(fortran_writer):
 
 
 def test_generating_unsupportedtype_routine_imports(
-        fortran_reader, tmpdir, monkeypatch, fortran_writer):
+        fortran_reader, tmp_path, monkeypatch, fortran_writer):
     ''' Tests that generating UnsupportedType imported RoutineSymbols (if their
     UnresolvedType is resolved) are not misinterpreted as interfaces.'''
 
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
 
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
           module a_mod

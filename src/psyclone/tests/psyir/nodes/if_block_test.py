@@ -248,7 +248,7 @@ def test_ifblock_create_invalid():
 
 def test_ifblock_children_validation():
     '''Test that children added to IfBlock are validated. IfBlock accepts
-    DataNodes for the children 0 to 2 and a Shcedule for child 3.
+    DataNodes for the children 0 to 2 and a Schedule for child 3.
 
     '''
     ifblock = IfBlock()

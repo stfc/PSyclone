@@ -49,7 +49,7 @@ from psyclone.psyir.symbols import ContainerSymbol
 
 
 def test_symbolinterface():
-    '''Test we can create a SymbolInterface instance, make copies and comapre
+    '''Test we can create a SymbolInterface instance, make copies and compare
     them.
 
     '''

@@ -114,5 +114,8 @@ def trans(psyir):
 
         kern = fortran_writer(subroutine)
         print(kern)
-        kern = sir_writer(subroutine)
-        print(kern)
+        try:
+            kern = sir_writer(subroutine)
+            print(kern)
+        except Exception as e:
+            print(f"Failed to transform {subroutine.name}: {e}")

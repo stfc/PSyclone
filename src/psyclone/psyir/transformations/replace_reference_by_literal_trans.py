@@ -236,7 +236,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         (parameter) symbol from node.parent symbol_table, and from
         node.symbol_table.
         * Second, use this updated param_table to replace reference in node
-        psyir_tree with the corresponsing Literal.
+        psyir_tree with the corresponding Literal.
         * Third, use this updated param_table to replace reference in node
         symbol_table DataSymbol array's dimensions with the corresponding
         Literal.
@@ -275,7 +275,8 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                     new_shape: List[Union[Literal, Reference]] = (
                         self._replace_bounds(sym.shape, self._param_table)
                     )
-                    sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
+                    sym.datatype = ArrayType(sym.datatype.elemental_type,
+                                             new_shape)
 
     # ------------------------------------------------------------------------
     def validate(self, node, options=None):

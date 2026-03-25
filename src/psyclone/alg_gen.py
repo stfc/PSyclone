@@ -70,7 +70,7 @@ class Alg:
     output from the function :func:`psyclone.parse.algorithm.parse`
     and an instance of the :class:`psyGen.PSy` class as input. The
     latter allows consistent names to be generated between the
-    algorithm (callng) and psy (callee) layers.
+    algorithm (calling) and psy (callee) layers.
 
     For example:
 

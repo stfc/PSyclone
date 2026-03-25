@@ -37,7 +37,7 @@
 program multikernel_invokes_6
 
   ! Two calls to the same kernel within an invoke where the arguments are
-  ! specfied as any_space
+  ! specified as any_space
 
   use constants_mod,            only : i_def
   use field_mod,                only : field_type

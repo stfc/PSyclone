@@ -60,6 +60,7 @@ from psyclone.psyir.symbols import (
     Symbol,
     SymbolError,
     UnsupportedFortranType,
+    UnresolvedType
 )
 from psyclone.psyir.symbols.datatypes import ArrayType
 
@@ -310,7 +311,7 @@ class Call(Statement, DataNode):
 
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -379,24 +380,37 @@ class Call(Statement, DataNode):
         '''
         if self.routine and self.routine.symbol:
             return self.routine.symbol
-        # In case of incomplete Calls (wihtout mandatory children), return None
+        # In case of incomplete Calls (without mandatory children), return None
         return None
 
     @property
-    def routine(self):
+    def routine(self) -> Optional[Reference]:
         '''
         :returns: the routine reference that this call calls.
-        :rtype: Optional[py:class:`psyclone.psyir.nodes.Reference`]
         '''
         if len(self._children) >= 1:
             return self.children[0]
         return None
 
     @property
-    def arguments(self) -> Tuple[DataNode]:
+    def datatype(self) -> DataType:
+        '''
+        :returns: the return value type of this call.
+        '''
+        if self.routine:
+            if isinstance(self.routine.symbol, RoutineSymbol):
+                dt = self.routine.symbol.datatype
+                # We only return the type if it has been resolved, otherwise
+                # we give a chance to the super() method as it can use location
+                # based knowledge to infer its type
+                if not isinstance(dt, UnresolvedType):
+                    return dt
+        return super().datatype
+
+    @property
+    def arguments(self) -> Tuple[DataNode, ...]:
         '''
         :returns: the children of this node that represent its arguments.
-        :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
         '''
         if len(self._children) >= 2:
             return tuple(self.children[1:])
@@ -426,7 +440,7 @@ class Call(Statement, DataNode):
         '''
         if self.symbol and isinstance(self.symbol, RoutineSymbol):
             return self.symbol.is_elemental
-        # In case of incomplete Calls (wihtout mandatory children), return None
+        # In case of incomplete Calls (without mandatory children), return None
         return None
 
     @property
@@ -438,7 +452,7 @@ class Call(Statement, DataNode):
         '''
         if self.symbol and isinstance(self.symbol, RoutineSymbol):
             return self.symbol.is_pure
-        # In case of incomplete Calls (wihtout mandatory children), return None
+        # In case of incomplete Calls (without mandatory children), return None
         return None
 
     def is_available_on_device(self, device_string: str = "") -> bool:
@@ -532,7 +546,7 @@ class Call(Statement, DataNode):
         rsym = self.routine.symbol
         if rsym.is_unresolved:
             # Search for the Routine in the current file. This search is
-            # stopped if we encouter a wildcard import that could be
+            # stopped if we encounter a wildcard import that could be
             # responsible for shadowing the routine name with an external
             # implementation.
             table = rsym.find_symbol_table(self)

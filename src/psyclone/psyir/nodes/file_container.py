@@ -75,7 +75,7 @@ class FileContainer(Container):
             def trans(psy):
                 psy.invokes.get_invoke('name').schedule
 
-        still work as expected. However, it exposes the PSy hierachy to
+        still work as expected. However, it exposes the PSy hierarchy to
         users scripts, so this will eventually be deprecated.
 
         :return: the associated Invokes object.

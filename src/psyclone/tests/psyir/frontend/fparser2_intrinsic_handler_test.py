@@ -239,7 +239,7 @@ def test_handling_unsupported_intrinsics(symbol_table):
     code = "x = sin(a)"
     reader = FortranStringReader(code)
     fp2node = Execution_Part.match(reader)[0][0]
-    # Change the instrinsic string name in order to create a new
+    # Change the intrinsic string name in order to create a new
     # intrinsic which is not recognised by the PSyIR parser
     fp2node.children[2].items[0].string = "Unsupported"
     processor.process_nodes(fake_parent, [fp2node])

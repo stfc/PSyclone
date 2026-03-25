@@ -184,7 +184,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                     closest = access
                     closest_position = abs_position
                     continue
-        # If this directive is contained inside a loop the closest foward
+        # If this directive is contained inside a loop the closest forward
         # dependency might be itself. So if closest is not within the ancestor
         # loop of node then we can't do nowait, so return False.
         node_ancestor = directive.ancestor((Loop, WhileLoop))

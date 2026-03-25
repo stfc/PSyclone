@@ -55,7 +55,7 @@ module time_evolution_alg_mod
 
 contains
 
-  !> @brief Initalise a perturbation field using mesh and coordinate data
+  !> @brief Initialise a perturbation field using mesh and coordinate data
   !> @param[in, out] perturbation Perturbation field to initialise
   !> @param[in] mesh Partitioned 3D mesh object
   !> @param[in] chi Coordinate fields

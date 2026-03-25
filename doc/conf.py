@@ -415,7 +415,8 @@ linkcheck_ignore = [
     # Requires authentication.
     r'^https://code.metoffice.gov.uk/trac',
     # This often fails, but the link exists
-    r'^https://www.khronos.org'
+    r'^https://www.khronos.org',
+    r'^https://gtr.ukri.org'
 ]
 
 # -- Autodoc configuration ---------------------------------------------------

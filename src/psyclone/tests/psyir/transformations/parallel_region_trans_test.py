@@ -49,7 +49,7 @@ from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.psyir.nodes import CodeBlock
 from psyclone.psyir.nodes import (Literal, Loop)
-from psyclone.transformations import OMPParallelTrans
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE)
 
 

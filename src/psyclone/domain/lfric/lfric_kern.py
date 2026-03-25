@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner, O. Brunt
+# and A. Pirrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -59,9 +60,9 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule, Container, Routine)
 from psyclone.psyir.symbols import (
-    DataSymbol, GenericInterfaceSymbol, ScalarType, ArrayType, DataTypeSymbol,
-    UnresolvedType, ContainerSymbol, INTEGER_TYPE, UnresolvedInterface,
-    UnsupportedFortranType)
+    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    GenericInterfaceSymbol, ImportInterface, ScalarType, SymbolTable,
+    UnresolvedType, INTEGER_TYPE, UnsupportedFortranType)
 
 
 class LFRicKern(CodedKern):
@@ -134,7 +135,7 @@ class LFRicKern(CodedKern):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -144,8 +145,10 @@ class LFRicKern(CodedKern):
         create_arg_list = KernCallArgList(self)
         # KernCallArgList creates symbols (sometimes with wrong type), we don't
         # want those to be kept in the SymbolTable, so we copy the symbol table
-        # TODO #2874: The design could be improved so that only the right
-        # symbols are created
+        # TODO #2874 - the design could be improved so that only the right
+        # symbols are created. See also the TODO in SymbolTable.deep_copy().
+        # Note that this copy misses any Symbols declared in the outer
+        # Container which complicates KernCallArgList.get_user_type().
         tmp_symtab = self.ancestor(InvokeSchedule).symbol_table.deep_copy()
         create_arg_list._forced_symtab = tmp_symtab
         create_arg_list.generate(var_accesses)
@@ -196,7 +199,8 @@ class LFRicKern(CodedKern):
             elif descriptor.argument_type.lower() == "gh_field":
                 pre = "field_"
             elif (descriptor.argument_type.lower() in
-                  const.VALID_SCALAR_NAMES):
+                  (const.VALID_SCALAR_NAMES +
+                   const.VALID_ARRAY_NAMES)):
                 if descriptor.data_type.lower() == "gh_real":
                     pre = "rscalar_"
                 elif descriptor.data_type.lower() == "gh_integer":
@@ -208,6 +212,9 @@ class LFRicKern(CodedKern):
                         f"Expected one of {const.VALID_SCALAR_DATA_TYPES} "
                         f"data types for a scalar argument but found "
                         f"'{descriptor.data_type}'.")
+                if (descriptor.argument_type.lower() in
+                        const.VALID_ARRAY_NAMES):
+                    pre += "array_"
             else:
                 raise GenerationError(
                     f"LFRicKern.load_meta() expected one of "
@@ -329,13 +336,14 @@ class LFRicKern(CodedKern):
                 f"Evaluator shape(s) {list(invalid_shapes)} is/are not "
                 f"recognised. Must be one of {const.VALID_EVALUATOR_SHAPES}.")
 
-        # If this kernel operates into the halo then it must be passed a
+        # If this kernel operates into the halo and distributed-memory is
+        # enabled then it must be passed a
         # halo depth. This is currently restricted to being either a simple
         # variable name or a literal value.
         freader = FortranReader()
         invoke_schedule = self.ancestor(InvokeSchedule)
         symtab = invoke_schedule.symbol_table if invoke_schedule else None
-        if "halo" in ktype.iterates_over:
+        if "halo" in ktype.iterates_over and Config.get().distributed_memory:
             self._halo_depth = freader.psyir_from_expression(
                 args[-1].text.lower(), symbol_table=symtab)
             if isinstance(self._halo_depth, Reference):
@@ -345,8 +353,10 @@ class LFRicKern(CodedKern):
                 if not hasattr(sym, "datatype"):
                     self._halo_depth.symbol.specialise(
                         DataSymbol,
-                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")(),
+                        interface=ArgumentInterface())
+                    if symtab:
+                        symtab.append_argument(self._halo_depth.symbol)
         # Check that compute-annexed-dofs is False if the kernel must operate
         # only on owned entities.
         api_conf = Config.get().api_conf()
@@ -396,19 +406,21 @@ class LFRicKern(CodedKern):
 
             qr_arg = args[idx]
             quad_map = const.QUADRATURE_TYPE_MAP[shape]
-
             # Use the InvokeSchedule or Stub symbol_table that we obtained
             # earlier to create a unique symbol name
             if qr_arg.varname:
                 # If we have a name for the qr argument, we are dealing with
                 # an Invoke
+                mod_name = quad_map["module"]
+                mod_sym = symtab.find_or_create(
+                    mod_name, symbol_type=ContainerSymbol)
                 tag = "AlgArgs_" + qr_arg.text
                 qr_sym = symtab.find_or_create(
                     qr_arg.varname, tag=tag, symbol_type=DataSymbol,
                     datatype=symtab.find_or_create(
                         quad_map["type"], symbol_type=DataTypeSymbol,
                         datatype=UnresolvedType(),
-                        interface=UnresolvedInterface())
+                        interface=ImportInterface(mod_sym))
                 )
                 qr_name = qr_sym.name
             else:
@@ -753,13 +765,14 @@ class LFRicKern(CodedKern):
         stub_module = Container(self._base_name+"_mod")
 
         # Create the subroutine
-        stub_routine = Routine.create(self._base_name+"_code")
+        stub_routine = Routine.create(self._base_name+"_code",
+                                      symbol_table=LFRicSymbolTable())
         stub_module.addchild(stub_routine)
         self._stub_symbol_table = stub_routine.symbol_table
 
         # Add wildcard "use" statement for all supported argument
         # kinds (precisions)
-        # TODO #2905: LFRic coding standards don't allow wilcard imports
+        # TODO #2905: LFRic coding standards don't allow wildcard imports
         # so maybe this can be improved when we change the stage where
         # symbols are declared.
         stub_routine.symbol_table.add(
@@ -773,15 +786,16 @@ class LFRicKern(CodedKern):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import (
-            LFRicCellIterators, LFRicScalarArgs, LFRicFields,
-            LFRicDofmaps, LFRicStencils)
+            LFRicCellIterators, LFRicScalarArgs, LFRicScalarArrayArgs,
+            LFRicFields, LFRicDofmaps, LFRicStencils)
         from psyclone.lfric import (
             LFRicFunctionSpaces, LFRicCMAOperators, LFRicBoundaryConditions,
             LFRicLMAOperators, LFRicMeshProperties, LFRicBasisFunctions,
             LFRicReferenceElement)
         for entities in [LFRicCellIterators, LFRicDofmaps, LFRicFunctionSpaces,
-                         LFRicCMAOperators, LFRicScalarArgs, LFRicFields,
-                         LFRicLMAOperators, LFRicStencils, LFRicBasisFunctions,
+                         LFRicCMAOperators, LFRicScalarArgs,
+                         LFRicScalarArrayArgs, LFRicFields, LFRicLMAOperators,
+                         LFRicStencils, LFRicBasisFunctions,
                          LFRicBoundaryConditions, LFRicReferenceElement,
                          LFRicMeshProperties]:
             entities(self).stub_declarations()
@@ -838,7 +852,8 @@ class LFRicKern(CodedKern):
             for name in names:
                 rt_psyir = container.find_routine_psyir(name,
                                                         allow_private=True)
-                routines.append(rt_psyir)
+                if rt_psyir:
+                    routines.append(rt_psyir)
 
         # Otherwise, get the PSyIR Kernel Schedule(s) from the original
         # parse tree.
@@ -877,16 +892,15 @@ class LFRicKern(CodedKern):
 
         return self._schedules
 
-    def validate_kernel_code_args(self, table):
+    def validate_kernel_code_args(self, table: SymbolTable):
         '''Check that the arguments in the kernel code match the expected
         arguments as defined by the kernel metadata and the LFRic
         API.
 
         :param table: the symbol table to validate against the metadata.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :raises GenerationError: if the number of arguments indicated by the \
-            kernel metadata doesn't match the actual number of arguments in \
+        :raises GenerationError: if the number of arguments indicated by the
+            kernel metadata doesn't match the actual number of arguments in
             the symbol table.
 
         '''

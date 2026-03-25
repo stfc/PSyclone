@@ -138,7 +138,7 @@ class ShapesMetadata(CommonDeclarationMetadata):
     @shapes.setter
     def shapes(self, values):
         '''
-        :param values: set the shapes metdata to the supplied list of \
+        :param values: set the shapes metadata to the supplied list of \
             values.
         :type values: List[str]
         '''

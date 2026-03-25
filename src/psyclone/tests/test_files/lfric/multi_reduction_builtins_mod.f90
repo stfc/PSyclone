@@ -44,10 +44,10 @@ module lfric_builtins_mod
   !> Fake built-in that purports to do two reductions
   type, public, extends(kernel_type) :: X_innerproduct_Y
      private
-     type(arg_type) :: meta_args(3) = (/                              &
-          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
-          arg_type(GH_SCALAR, GH_REAL, GH_SUM               ),        &
-          arg_type(GH_SCALAR, GH_REAL, GH_SUM               )         &
+     type(arg_type) :: meta_args(3) = (/                                 &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE,    ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION            ),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_REDUCTION            )         &
           /)
      integer :: operates_on = DOF
    contains

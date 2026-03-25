@@ -258,7 +258,7 @@ subroutine sample_poly_adv_code( nlayers,              &
     end do
     ! Polynomial tracer contains the directional derivative
     ! ( dP/dx for u > 0, -dP/dx for u < 0) so need to cancel
-    ! out sign of wind - hence presense of abs(u)
+    ! out sign of wind - hence presence of abs(u)
     advection_update = abs(u(1,k+dft))*polynomial_tracer
 
     ! Compute metric term using advection scheme
@@ -289,7 +289,7 @@ subroutine sample_poly_adv_code( nlayers,              &
     end do
     ! Polynomial tracer contains the directional derivative
     ! ( dP/dy for v > 0, -dP/dy for v < 0) so need to cancel
-    ! out sign of wind - hence presense of abs(v)
+    ! out sign of wind - hence presence of abs(v)
     advection_update = advection_update + abs(u(2,k+dft))*polynomial_tracer
 
     ! Compute metric term using advection scheme
@@ -353,7 +353,7 @@ subroutine sample_poly_adv_code( nlayers,              &
     end do
     ! Polynomial tracer contains the directional derivative
     ! ( dP/dz for w > 0, -dP/dz for w < 0) so need to cancel
-    ! out sign of wind - hence presense of abs(w)
+    ! out sign of wind - hence presence of abs(w)
 
     advection_update = advection_update + abs(etadot)*polynomial_tracer
 
@@ -444,7 +444,7 @@ subroutine sample_poly_adv_init(order, nlayers)
     i = i + 1
   end do
 
-  ! Build Coefficient matrix of arbritray order
+  ! Build Coefficient matrix of arbitrary order
   allocate(coeff_matrix(np,np), inv_coeff_matrix(np,np))
   do i = 1,np
     do j = 1,np

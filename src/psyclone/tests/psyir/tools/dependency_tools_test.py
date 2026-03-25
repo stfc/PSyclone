@@ -769,7 +769,7 @@ def test_gocean_parallel():
 
 def test_dependency_on_scalar_non_exhaustive_write_write(fortran_reader):
     '''Tests can_loop_be_parallelised finds the loop-carried use of a scalar
-    when a write happends on only some iterations of a loop.'''
+    when a write happens on only some iterations of a loop.'''
     source = '''program test
                 integer :: i, my_val
                 real, dimension(10) :: array
@@ -796,7 +796,7 @@ def test_dependency_on_scalar_non_exhaustive_write_write(fortran_reader):
 
 def test_dependency_on_array_non_exhaustive_write_write(fortran_reader):
     '''Tests can_loop_be_parallelised finds the loop-carried use of an array
-    element when a write happends on only some iterations of a loop.'''
+    element when a write happens on only some iterations of a loop.'''
     source = '''program test
                 integer :: i
                 integer, dimension(10) :: my_val
@@ -823,7 +823,7 @@ def test_dependency_on_array_non_exhaustive_write_write(fortran_reader):
     if "my_val(1)' causes a write-write race condition." in str(msg):
         pytest.xfail(reason="TODO #2727: DA message should be improved")
     # For arrays, the dependency is properly detected, but the reason is
-    # a write-write, it would be convinient to differenciate it from a
+    # a write-write, it would be convenient to differentiate it from a
     # exhaustive write-write as those can be solved by "privatisation" while
     # non-exhaustive can not.
     assert "my_val(1)' causes a write-write race condition." not in str(msg)

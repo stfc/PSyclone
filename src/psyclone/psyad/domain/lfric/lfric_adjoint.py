@@ -235,7 +235,7 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
             # TODO #2333 - in LFRic only Builtin kernels are currently allowed
             # to write to a scalar argument (since this implies a reduction).
             # We therefore need to flag this case.
-            access = "gh_sum"
+            access = "gh_reduction"
         elif type(meta_arg) in [
                 OperatorArgMetadata, ColumnwiseOperatorArgMetadata]:
             access = "gh_readwrite"

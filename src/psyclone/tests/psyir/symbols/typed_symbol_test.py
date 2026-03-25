@@ -239,16 +239,16 @@ def test_typed_symbol_resolve_type(monkeypatch):
     assert isinstance(new_sym.interface, ImportInterface)
     # Repeat for an imported RoutineSymbol with NoType (implying that it is
     # the target of a call).
-    symbolc = RoutineSymbol('c', datatype=NoType(),
-                            interface=ImportInterface(module))
+    symbolic = RoutineSymbol('c', datatype=NoType(),
+                             interface=ImportInterface(module))
     # Monkeypatch the get_external_symbol() method so that it just returns
     # a new RoutineSymbol that is pure.
-    monkeypatch.setattr(symbolc, "get_external_symbol",
+    monkeypatch.setattr(symbolic, "get_external_symbol",
                         lambda: RoutineSymbol("b", datatype=NoType(),
                                               is_pure=True))
-    new_sym = symbolc.resolve_type()
-    assert new_sym is symbolc
-    assert symbolc.is_pure
+    new_sym = symbolic.resolve_type()
+    assert new_sym is symbolic
+    assert symbolic.is_pure
 
 
 def test_typed_symbol_shape():
@@ -311,10 +311,10 @@ def test_typed_symbol_get_all_accessed_symbols():
 
     # When the type is specified by a DataTypeSymbol.
     type_sym = DataTypeSymbol("some_type", UnresolvedType())
-    struc_sym = TSymbol("b", type_sym)
-    dependent_symbols = struc_sym.get_all_accessed_symbols()
+    struct_sym = TSymbol("b", type_sym)
+    dependent_symbols = struct_sym.get_all_accessed_symbols()
     assert type_sym in dependent_symbols
 
     # Dependencies are ignored for imported symbols.
-    struc_sym.interface = ImportInterface(ContainerSymbol("somewhere"))
-    assert not struc_sym.get_all_accessed_symbols()
+    struct_sym.interface = ImportInterface(ContainerSymbol("somewhere"))
+    assert not struct_sym.get_all_accessed_symbols()

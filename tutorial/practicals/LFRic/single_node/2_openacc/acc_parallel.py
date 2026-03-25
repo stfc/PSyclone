@@ -48,7 +48,7 @@ from psyclone.domain.lfric.function_space import FunctionSpace
 def trans(psyir):
     '''PSyclone transformation script for the LFRic api to apply
     OpenACC Kernels directives to all loops generically. It also
-    outputs a textual representation of the transformated PSyIR.
+    outputs a textual representation of the transformed PSyIR.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

@@ -1025,7 +1025,7 @@ class GOKern(CodedKern):
         write_accesses = []
         read_accesses = []
         for arg in self.arguments.args:
-            # Literals can be ignores as they don't change the acces pattern
+            # Literals can be ignores as they don't change the access pattern
             if arg.is_literal:
                 continue
             # For grid properties we need StructureReferences to the property
@@ -1837,7 +1837,7 @@ class GO1p0Descriptor(Descriptor):
                             that contains this metadata.
     :param kernel_arg: the relevant part of the parser's AST.
     :type kernel_arg: :py:class:`psyclone.expression.FunctionVar`
-    :param int metadata_index: the postion of this argument in the list of \
+    :param int metadata_index: the position of this argument in the list of \
                                arguments specified in the metadata.
 
     :raises ParseError: if a kernel argument has an invalid grid-point type.

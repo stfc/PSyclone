@@ -99,7 +99,7 @@ def test_find_symbol(fortran_reader):
 
 def test_kerntrans_init():
     '''Test that an instance of RaisePSyIR2GOceanKernTrans can be
-    succesfully created and raises the expected exception if the
+    successfully created and raises the expected exception if the
     supplied argument is invalid.
 
     '''
@@ -135,7 +135,7 @@ def test_validate_nosymbol(fortran_reader):
 
 def test_validate_container1(fortran_reader):
     '''Test that the validate method raises the expected exceptions if the
-    metadata symol does not reside within a Container node or resides
+    metadata symbol does not reside within a Container node or resides
     within a FileContainer node.
 
     '''

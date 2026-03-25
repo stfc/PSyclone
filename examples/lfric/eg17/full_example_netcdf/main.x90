@@ -100,7 +100,7 @@ program main
                                1,       &    ! max stencil size
                                .false., &    ! generate_inner_haloes
                                0,       &    ! local rank
-                               1)            ! number of proceses
+                               1)            ! number of processes
 
     ! Creating a vertical mesh of height 100 m with 5 layers
     ! It is important to use 0.0_r_def, otherwise:

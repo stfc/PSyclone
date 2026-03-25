@@ -125,7 +125,7 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         expected value. If they do not then re-raise the exception
         from the class constructor, adding in positional information
         and the metadata arguments to make it clearer where the
-        exception occured.
+        exception occurred.
 
         :param fparser2_tree: the metadata encoded in an fparser2_tree.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` or \

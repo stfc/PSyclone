@@ -271,7 +271,7 @@ class FunctionSpace():
                        operator is required.
         :param on_space: the function space at which the operator is required.
 
-        :returns: name for the Fortran arry holding the named operator
+        :returns: name for the Fortran array holding the named operator
                   for the specified function space.
 
         '''

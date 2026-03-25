@@ -390,7 +390,7 @@ class LFRicStencils(LFRicCollection):
 
     def stub_declarations(self):
         '''
-        Declares all stencil-related quanitites for a Kernel stub.
+        Declares all stencil-related quantities for a Kernel stub.
 
         '''
         super().stub_declarations()

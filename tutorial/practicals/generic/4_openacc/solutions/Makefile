@@ -33,7 +33,7 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 
-# Makefile to test the example transfromation scripts contained in
+# Makefile to test the example transformation scripts contained in
 # this directory.
 
 .PHONY: clean transform

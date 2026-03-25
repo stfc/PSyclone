@@ -34,7 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Laboratory
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified S. Siso, STFC Daresbury Laboratory
-# Mofified A. B. G. Chalk, STFC Daresbury Laboratory
+# Modified A. B. G. Chalk, STFC Daresbury Laboratory
 
 include ../../common.mk
 

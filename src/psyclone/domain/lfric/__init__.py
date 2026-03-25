@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, L. Turner and O. Brunt, Met Office
+# Modified: I. Kavcic, L. Turner, O. Brunt and A. Pirrie, Met Office
 #           R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module for the LFRic domain.
@@ -68,42 +68,15 @@ from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_fields import LFRicFields
+from psyclone.domain.lfric.lfric_global_reductions import (
+    LFRicGlobalMax, LFRicGlobalMin, LFRicGlobalSum)
 from psyclone.domain.lfric.lfric_run_time_checks import LFRicRunTimeChecks
 from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
+from psyclone.domain.lfric.lfric_scalar_array_args import LFRicScalarArrayArgs
 from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
 from psyclone.domain.lfric.lfric_kern_metadata import LFRicKernMetadata
 from psyclone.domain.lfric.lfric_psy import LFRicPSy
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.domain.lfric.lfric_dofmaps import LFRicDofmaps
 from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-
-
-__all__ = [
-    'ArgOrdering',
-    'FunctionSpace',
-    'KernCallAccArgList',
-    'KernCallArgList',
-    'KernelInterface',
-    'KernStubArgList',
-    'LFRicArgDescriptor',
-    'LFRicCellIterators',
-    'LFRicCollection',
-    'LFRicConstants',
-    'LFRicDofmaps',
-    'LFRicDriverCreator',
-    'LFRicFields',
-    'LFRicHaloDepths',
-    'LFRicInvoke',
-    'LFRicInvokes',
-    'LFRicInvokeSchedule',
-    'LFRicKern',
-    'LFRicKernCallFactory',
-    'LFRicKernMetadata',
-    'LFRicLoop',
-    'LFRicLoopBounds',
-    'LFRicPSy',
-    'LFRicRunTimeChecks',
-    'LFRicScalarArgs',
-    'LFRicStencils',
-    'LFRicSymbolTable']

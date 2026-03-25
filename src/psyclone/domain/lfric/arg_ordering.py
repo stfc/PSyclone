@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner, and A. Pirrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements the base class for managing arguments to
@@ -93,7 +93,7 @@ class ArgOrdering:
         path unless a _forced_symtab has been provided.
 
         If no symbol table is available it creates a temporary symbol table
-        for the operation to suceed but it will not be preserved.
+        for the operation to succeed but it will not be preserved.
 
         Note: This could be improved by TODO #2503
 
@@ -459,7 +459,7 @@ class ArgOrdering:
                 self.operator(arg, var_accesses=var_accesses)
             elif arg.argument_type == "gh_columnwise_operator":
                 self.cma_operator(arg, var_accesses=var_accesses)
-            elif arg.is_scalar:
+            elif arg.is_scalar or arg.is_scalar_array:
                 self.scalar(arg, var_accesses=var_accesses)
             else:
                 raise GenerationError(
@@ -770,11 +770,11 @@ class ArgOrdering:
 
         '''
         const = LFRicConstants()
-        if not scalar_arg.is_scalar:
+        if not (scalar_arg.is_scalar or scalar_arg.is_scalar_array):
             raise InternalError(
                 f"Expected argument type to be one of "
-                f"{const.VALID_SCALAR_NAMES} but got "
-                f"'{scalar_arg.argument_type}'")
+                f"{const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES}"
+                f" but got '{scalar_arg.argument_type}'")
 
         if scalar_arg.is_literal:
             # If we have a literal, do not add it to the variable access
@@ -785,7 +785,8 @@ class ArgOrdering:
                 var_accesses.add_access(Signature(scalar_arg.precision),
                                         AccessType.CONSTANT, self._kern)
         else:
-            self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
+            self.append(scalar_arg.name, var_accesses,
+                        mode=scalar_arg.access,
                         metadata_posn=scalar_arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):

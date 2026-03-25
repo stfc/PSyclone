@@ -40,7 +40,6 @@
 ''' Perform py.test tests on the psyclone.psyir.symbols.symbol_table file '''
 
 import re
-import os
 import logging
 from collections import OrderedDict
 import pytest
@@ -402,7 +401,7 @@ def test_add_with_tags_1():
             in str(error.value))
 
 
-def test_add_with_tags_hierachical():
+def test_add_with_tags_hierarchical():
     '''Check that add(tag=xxx) in a symbol_table hierarchy works as
     expected.
 
@@ -429,6 +428,31 @@ def test_add_with_tags_hierachical():
             "associated to symbol 'symbol3'." in str(info.value))
     # A clash of tags with a child symbol table is not checked for now.
     container_symbol_table.add(symbol1, tag="symbol1_tag")
+
+
+def test_add_imported_symbol():
+    '''
+    Test that the add() method refuses to add a Symbol with an
+    ImportInterface if the ContainerSymbol it references is not in scope.
+
+    '''
+    table = symbols.SymbolTable()
+    csym = symbols.ContainerSymbol("my_mod")
+    isym = symbols.DataSymbol("avar", datatype=symbols.INTEGER_TYPE,
+                              interface=symbols.ImportInterface(csym))
+    with pytest.raises(symbols.SymbolError) as err:
+        table.add(isym)
+    assert ("Cannot add DataSymbol 'avar' because it is imported from "
+            "'my_mod' but that ContainerSymbol is not in scope"
+            in str(err.value))
+    table.add(csym)
+    isym2 = symbols.RoutineSymbol(
+        "my_sub", interface=symbols.ImportInterface(csym.copy()))
+    with pytest.raises(symbols.SymbolError) as err:
+        table.add(isym2)
+    assert ("Cannot add RoutineSymbol 'my_sub' because it is imported from "
+            "'my_mod' and the ContainerSymbol of that name in scope in this "
+            "table" in str(err.value))
 
 
 def test_symbols_imported_from():
@@ -1079,6 +1103,138 @@ def test_add_container_symbols_from_table():
     assert bclash_in_1.name != "bclash"
 
 
+def test_localise_all_symbol_dependencies():
+    '''Test the localise_all_symbol_dependencies() method.'''
+    table = symbols.SymbolTable()
+    # Empty table should be fine.
+    table.localise_all_symbol_dependencies()
+    # Entry without dependencies should be unaffected.
+    a_local = table.new_symbol("a_local", symbol_type=symbols.DataSymbol,
+                               datatype=symbols.INTEGER_TYPE)
+    table.localise_all_symbol_dependencies()
+    assert table.lookup("a_local") is a_local
+
+    # We can't add a symbol to the table if it is imported from a Container
+    # that's not already in scope so just check that nothing changes.
+    csym = symbols.ContainerSymbol("a_module")
+    table.add(csym)
+    table.new_symbol("an_import", symbol_type=symbols.Symbol,
+                     interface=symbols.ImportInterface(csym))
+    table.localise_all_symbol_dependencies()
+    assert csym in table.symbols
+    assert table.lookup("an_import").interface.container_symbol is csym
+
+    # Imported entry should have originating ContainerSymbol added if it
+    # isn't present.
+    csym2 = symbols.ContainerSymbol("b_module")
+    solver = symbols.DataSymbol("solver", symbols.UnresolvedType(),
+                                interface=symbols.ImportInterface(csym2))
+    table.new_symbol(
+        "v_solver", symbol_type=symbols.DataSymbol,
+        datatype=symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL,
+                                    Reference(solver)))
+    table.localise_all_symbol_dependencies()
+    assert csym2 in table.symbols
+    assert solver in table.symbols
+
+    solver2 = solver.copy()
+    csym3 = csym2.copy()
+    # Create a Symbol that depends on another Symbol in its shape
+    # definition. In turn, that Symbol is imported from a different instance
+    # of the same Container that is already in scope.
+    stype = symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL,
+                               Reference(solver2))
+    count = symbols.DataSymbol("count", symbols.INTEGER_TYPE,
+                               interface=symbols.ImportInterface(csym3))
+    artype = symbols.ArrayType(stype, [Reference(count)])
+    table.new_symbol("my_array", symbol_type=symbols.DataSymbol,
+                     datatype=artype)
+    table.localise_all_symbol_dependencies()
+    array = table.lookup("my_array")
+    # Symbol in shape definition should have been added to the table and its
+    # import interface updated to point to the instance of "b_module" already
+    # in the table.
+    sym = array.datatype.shape[0].upper.symbol
+    assert sym in table.symbols
+    assert sym.interface.container_symbol is csym2
+
+    # Repeat but have the array sized by a variable with the same name as
+    # an existing (Container)Symbol.
+    clash = symbols.DataSymbol("b_module", symbols.INTEGER_TYPE)
+    artype2 = symbols.ArrayType(stype, [Reference(clash)])
+    table.new_symbol("my_array2", symbol_type=symbols.DataSymbol,
+                     datatype=artype2)
+    with pytest.raises(symbols.SymbolError) as err:
+        table.localise_all_symbol_dependencies()
+    assert ("which is not of the same type as the original dependency"
+            in str(err.value))
+
+
+def test_localise_all_symbol_dependencies_shadowed():
+    '''
+    Check that localise_all_symbol_dependencies respects shadowing.
+    '''
+    cntr = Container("my_mod")
+    ctable = cntr.symbol_table
+    # Add a symbol that will be shadowed in an inner scope.
+    ctable.add(symbols.DataSymbol("rdef", symbols.REAL_TYPE))
+
+    cntr.addchild(Routine.create("my_sub"))
+    rtable = cntr.children[0].symbol_table
+    csym = symbols.ContainerSymbol("other_mod")
+    rtable.add(csym)
+    # Create an imported precision symbol that shadows the symbol we
+    # added to the outer scope.
+    rdef = symbols.DataSymbol("rdef", symbols.INTEGER_TYPE,
+                              interface=symbols.ImportInterface(csym))
+    rtable.add(rdef)
+    rtable.add(symbols.DataSymbol("var", symbols.ScalarType(
+        symbols.ScalarType.Intrinsic.REAL,
+        Reference(rdef))))
+    # Calling localise_all_symbol_dependencies() shouldn't alter the import
+    # interface.
+    rtable.localise_all_symbol_dependencies()
+    assert rtable.lookup("var").datatype.precision.symbol is rdef
+
+
+def test_localise_import_interface_of():
+    '''Test the localise_import_interface_of() method.'''
+    table1 = symbols.SymbolTable()
+    local_sym = table1.new_symbol("local", symbol_type=symbols.DataSymbol,
+                                  datatype=symbols.INTEGER_TYPE)
+    with pytest.raises(ValueError) as err:
+        table1.localise_import_interface_of(local_sym)
+    assert ("Expected a Symbol with an ImportInterface but 'local' has a "
+            "Automatic interface" in str(err.value))
+
+    # When the symbol is imported from a ContainerSymbol not present in the
+    # current scope then that ContainerSymbol is added.
+    orig_csym = symbols.ContainerSymbol("kinds_mod")
+    isym = symbols.DataSymbol("wp", symbols.INTEGER_TYPE,
+                              interface=symbols.ImportInterface(orig_csym))
+    table1.localise_import_interface_of(isym)
+    assert isym.interface.container_symbol in table1.symbols
+    # When the symbol is imported from a ContainerSymbol with a name
+    # corresponding to a different ContainerSymbol instance in the current
+    # scope the the interface is updated to use that ContainerSymbol.
+    new_csym = symbols.ContainerSymbol("kinds_mod")
+    dp = symbols.DataSymbol("dp", symbols.INTEGER_TYPE,
+                            interface=symbols.ImportInterface(new_csym))
+    table1.localise_import_interface_of(dp)
+    assert dp.interface.container_symbol is orig_csym
+    # When the symbol is imported from a ContainerSymbol that has a clash with
+    # a different type of symbol in the current scope.
+    table1.new_symbol("the_clash")
+    clash_csym = symbols.ContainerSymbol("the_clash")
+    qp = symbols.DataSymbol("qp", symbols.INTEGER_TYPE,
+                            interface=symbols.ImportInterface(clash_csym))
+    with pytest.raises(symbols.SymbolError) as err:
+        table1.localise_import_interface_of(qp)
+    assert ("Cannot update the import interface of 'qp' because the name of "
+            "the Container from which it is imported ('the_clash') clashes "
+            "with an existing Symbol in this scope." in str(err.value))
+
+
 def test_add_symbols_from_table_wildcard_import():
     '''Test that _add_symbols_from_table() handles the case where the same
     symbol is brought into scope via a wildcard import in both tables.
@@ -1141,31 +1297,31 @@ def test_handle_symbol_clash_imported_symbols():
     # Same ContainerSymbol object - no action needed.
     csym = symbols.ContainerSymbol("mustrum")
     table1.add(csym)
-    table1.add(symbols.DataSymbol("wizzard", datatype=symbols.UnresolvedType(),
+    table1.add(symbols.DataSymbol("wizard", datatype=symbols.UnresolvedType(),
                                   interface=symbols.ImportInterface(csym)))
     table2.add(csym)
-    table2.add(symbols.DataSymbol("wizzard", datatype=symbols.UnresolvedType(),
+    table2.add(symbols.DataSymbol("wizard", datatype=symbols.UnresolvedType(),
                                   interface=symbols.ImportInterface(csym)))
-    table1._handle_symbol_clash(table2.lookup("wizzard"), table2)
+    table1._handle_symbol_clash(table2.lookup("wizard"), table2)
     # Different ContainerSymbols but with the same name.
     table3 = symbols.SymbolTable()
     csym2 = symbols.ContainerSymbol("mustrUm")
     table3.add(csym2)
-    table3.add(symbols.DataSymbol("wizzard", datatype=symbols.UnresolvedType(),
+    table3.add(symbols.DataSymbol("wizard", datatype=symbols.UnresolvedType(),
                                   interface=symbols.ImportInterface(csym2)))
-    table1._handle_symbol_clash(table3.lookup("wizzard"), table3)
+    table1._handle_symbol_clash(table3.lookup("wizard"), table3)
     # The target ContainerSymbol should have been updated.
-    assert table3.lookup("wizzard").interface.container_symbol is csym
+    assert table3.lookup("wizard").interface.container_symbol is csym
     # Symbol of the same name imported from different Containers. This should
     # raise an InternalError as it cannot be resolved.
     table4 = symbols.SymbolTable()
     csym3 = symbols.ContainerSymbol("Ridcully")
     table4.add(csym3)
-    table4.add(symbols.DataSymbol("wizzard", datatype=symbols.UnresolvedType(),
+    table4.add(symbols.DataSymbol("wizard", datatype=symbols.UnresolvedType(),
                                   interface=symbols.ImportInterface(csym3)))
     with pytest.raises(InternalError) as err:
-        table1._handle_symbol_clash(table4.lookup("wizzard"), table4)
-    assert ("Symbol 'wizzard' imported from 'mustrum' clashes with a Symbol "
+        table1._handle_symbol_clash(table4.lookup("wizard"), table4)
+    assert ("Symbol 'wizard' imported from 'mustrum' clashes with a Symbol "
             "of the same name imported from 'Ridcully'" in str(err.value))
 
 
@@ -1537,7 +1693,7 @@ def test_view():
                       "  var2: DataSymbol<Scalar<INTEGER, UNDEFINED>, "
                       "Automatic>\n"
                       "RoutineSymbol:\n"
-                      "  func: RoutineSymbol<NoType, pure=unknown, "
+                      "  func: RoutineSymbol<UnresolvedType, pure=unknown, "
                       "elemental=unknown>\n")
 
 
@@ -2160,6 +2316,7 @@ def test_deep_copy():
                               interface=symbols.ArgumentInterface(
                                   symbols.ArgumentInterface.Access.READ))
     symtab.add(sym1)
+
     sym2 = symbols.Symbol(
         "symbol2",
         interface=symbols.ImportInterface(mod, orig_name="altsym2"))
@@ -2224,6 +2381,12 @@ def test_deep_copy():
     symtab._tags["broken"] = symbols.DataSymbol(
         "not_in_the_st", symbols.REAL_DOUBLE_TYPE)
 
+    # Check we raise the expected error if 'attached_to' is not a ScopingNode
+    with pytest.raises(TypeError) as err:
+        _ = symtab.deep_copy(attached_to=maxcall)
+    assert ("A SymbolTable may only be attached to a subclass of ScopingNode "
+            "but got an instance of 'IntrinsicCall'" in str(err.value))
+
     # Create a copy and check the contents are the same
     symtab2 = symtab.deep_copy()
     assert "symbol1" in symtab2
@@ -2234,7 +2397,7 @@ def test_deep_copy():
     assert symtab2.lookup("symbol1") in symtab2.argument_list
     assert symtab2._node is None
     assert symtab2.default_visibility == symbols.Symbol.Visibility.PRIVATE
-    # The broken tag has dissapeared
+    # The broken tag has disappeared
     assert "broken" not in symtab2._tags
     assert "not_in_the_st" not in symtab2
 
@@ -2466,7 +2629,7 @@ def test_new_symbol():
     assert sym2.visibility is symbols.Symbol.Visibility.PUBLIC
     assert isinstance(sym1.interface, symbols.AutomaticInterface)
     assert isinstance(sym2.interface, symbols.AutomaticInterface)
-    assert isinstance(sym1.datatype, symbols.NoType)
+    assert isinstance(sym1.datatype, symbols.UnresolvedType)
     assert sym2.datatype is symbols.INTEGER_TYPE
     assert sym2.initial_value is None
 
@@ -2850,15 +3013,15 @@ def test_import_symbol_from_specific(fortran_reader):
 # resolve_imports
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
+def test_resolve_imports(fortran_reader, tmp_path, monkeypatch, caplog):
     ''' Tests that the SymbolTable resolve_imports method works as expected
     when importing symbol information from external containers and respects
     the method optional keywords. '''
 
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
 
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -2867,7 +3030,7 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
             integer :: b_1  ! Name clash but it is not imported
         end module a_mod
         ''')
-    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    filename = tmp_path / "b_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module b_mod
@@ -2946,7 +3109,8 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
     assert not isinstance(b_1, symbols.DataSymbol)
 
     # Resolve only 'not_used3' from wildcard imports
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO,
+                         logger="psyclone.psyir.symbols.symbol_table"):
         subroutine.symbol_table.resolve_imports(
             symbol_target=symbols.Symbol('not_used3'))
     not_used3 = subroutine.symbol_table.lookup('not_used3')
@@ -3002,7 +3166,8 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch, caplog):
 
     # Now resolve all found containers (this will not fail for the
     # unavailable c_mod, but it will be logged)
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.symbols.symbol_table"):
         subroutine.symbol_table.resolve_imports()
     assert "Module 'c_mod' not found" in caplog.text
 
@@ -3043,21 +3208,22 @@ def test_resolve_imports_missing_container(monkeypatch, caplog):
     monkeypatch.setattr(csym, "find_container_psyir", lambda local_node: None)
     table.add(csym)
     # Resolving imports should run without problems, but log a Warning.
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.symbols.symbol_table"):
         table.resolve_imports()
     assert "Module 'a_mod' not found" in caplog.text
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_different_capitalization(
-        fortran_reader, tmpdir, monkeypatch):
+        fortran_reader, tmp_path, monkeypatch):
     ''' Tests that the SymbolTable resolve_imports method works as expected
     when importing symbols with different name capitalizations '''
 
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
 
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3083,11 +3249,11 @@ def test_resolve_imports_different_capitalization(
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
+def test_resolve_imports_name_clashes(fortran_reader, tmp_path, monkeypatch):
     ''' Tests the SymbolTable resolve_imports method raises the appropriate
     errors when it finds name clashes. '''
 
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3112,7 +3278,7 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
     symtab = subroutine.symbol_table
 
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
 
     with pytest.raises(symbols.SymbolError) as err:
         symtab.resolve_imports([symtab.lookup('a_mod')])
@@ -3293,20 +3459,20 @@ def test_resolve_imports_with_datatypes(fortran_reader, monkeypatch):
 @pytest.mark.usefixtures("clear_module_manager_instance")
 @pytest.mark.parametrize('dependency_order', [['a_mod', 'b_mod'],
                                               ['b_mod', 'a_mod']])
-def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
+def test_resolve_imports_common_symbol(fortran_reader, tmp_path, monkeypatch,
                                        dependency_order):
     ''' Tests the SymbolTable resolve_imports accepts symbols with the same
     name coming from different dependency paths and keeps the most specific
     information regardless of the import order. '''
 
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
             integer :: common_import
         end module a_mod
         ''')
-    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    filename = tmp_path / "b_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module b_mod
@@ -3325,20 +3491,20 @@ def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
     symtab = subroutine.symbol_table
 
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
     for dependency in dependency_order:
         symtab.resolve_imports([symtab.lookup(dependency)])
     assert symtab.lookup("common_import").datatype.intrinsic.name == "INTEGER"
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
+def test_resolve_imports_parent_scope(fortran_reader, tmp_path, monkeypatch):
     '''Test that resolve_imports() works as expected if a Symbol is brought
     into scope from a parent table (which does not itself contain the Symbol
     in question).'''
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3371,15 +3537,15 @@ def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtab(
-        fortran_reader, tmpdir, monkeypatch):
+        fortran_reader, tmp_path, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine,
     resolve imports can resolve it from a parent module as long as
     there are no wildcard imports in the subroutine.
 
     '''
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3414,7 +3580,7 @@ def test_resolve_imports_from_child_symtab(
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtab_uft(
-        fortran_reader, tmpdir, monkeypatch):
+        fortran_reader, tmp_path, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine,
     resolve imports can resolve it from a parent module as an
     UnsupportedFortranType as long as there are no wildcard imports in the
@@ -3422,8 +3588,8 @@ def test_resolve_imports_from_child_symtab_uft(
 
     '''
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3459,7 +3625,7 @@ def test_resolve_imports_from_child_symtab_uft(
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtabs(
-        fortran_reader, tmpdir, monkeypatch):
+        fortran_reader, tmp_path, monkeypatch):
     '''Check that when an unresolved symbol is declared in more than one
     subroutine, resolve imports can resolve it from a parent module as
     long as there are no wildcard imports in the subroutine. We also
@@ -3468,8 +3634,8 @@ def test_resolve_imports_from_child_symtabs(
 
     '''
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3517,7 +3683,7 @@ def test_resolve_imports_from_child_symtabs(
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtabs_utf(
-        fortran_reader, tmpdir, monkeypatch):
+        fortran_reader, tmp_path, monkeypatch):
     '''Check that when an unresolved symbol is declared in more than one
     subroutine, resolve imports can resolve it from a parent module
     where it is declared as an UnsupportedFortranType, as long as there
@@ -3527,8 +3693,8 @@ def test_resolve_imports_from_child_symtabs_utf(
 
     '''
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3577,7 +3743,7 @@ def test_resolve_imports_from_child_symtabs_utf(
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtab_with_import(
-        fortran_reader, tmpdir, monkeypatch):
+        fortran_reader, tmp_path, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine
     with at least one wildcard use statement resolve imports can't
     resolve it from a parent. This shows one of the current
@@ -3589,8 +3755,8 @@ def test_resolve_imports_from_child_symtab_with_import(
 
     '''
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module a_mod
@@ -3598,7 +3764,7 @@ def test_resolve_imports_from_child_symtab_with_import(
             integer :: rau0 = 1
         end module a_mod
         ''')
-    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    filename = tmp_path / "b_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
         module b_mod

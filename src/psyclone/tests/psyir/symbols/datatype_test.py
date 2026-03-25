@@ -61,7 +61,7 @@ def test_datatype():
     # Python >= 3.9 spots that 'method' should be singular. Prior to this it
     # was plural. Python >= 3.12 tweaks the error message yet again to mention
     # the lack of an implementation and to quote the method name.
-    # We split the check to accomodate for this.
+    # We split the check to accommodate for this.
     assert "Can't instantiate abstract class DataType with" in msg
     assert "abstract method" in msg
     assert "__str__" in msg
@@ -426,8 +426,7 @@ def test_arraytype():
     assert shape0.upper.value == "10"
     assert shape0.upper.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert shape0.upper.datatype.precision == ScalarType.Precision.UNDEFINED
-    # TODO #1857: the datatype property might be affected.
-    assert array_type.datatype == scalar_type
+    assert array_type.elemental_type == scalar_type
     # Provided and stored as a Literal (DataNode)
     assert array_type.shape[1].upper == literal
     # Provided and stored as an Operator (DataNode)
@@ -467,8 +466,9 @@ def test_arraytype_invalid_datatype():
     '''
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(None, None)
-    assert ("ArrayType expected 'datatype' argument to be of type DataType "
-            "or DataTypeSymbol but found 'NoneType'." in str(excinfo.value))
+    assert ("ArrayType expected 'elemental_type' argument to be of type "
+            "DataType or DataTypeSymbol but found 'NoneType'."
+            in str(excinfo.value))
 
 
 def test_arraytype_datatypesymbol_only():
@@ -489,7 +489,7 @@ def test_arraytype_datatypesymbol():
     tsym = DataTypeSymbol("my_type", UnresolvedType())
     atype = ArrayType(tsym, [5])
     assert isinstance(atype, ArrayType)
-    assert atype.datatype == tsym
+    assert atype.elemental_type == tsym
     assert len(atype.shape) == 1
     assert atype.intrinsic is tsym
     assert atype.precision is None
@@ -501,7 +501,7 @@ def test_arraytype_unsupportedtype():
     utype = UnsupportedFortranType("integer, pointer :: var")
     atype = ArrayType(utype, [8])
     assert isinstance(atype, ArrayType)
-    assert atype.datatype is utype
+    assert atype.elemental_type is utype
     assert atype.precision is None
     assert utype.declaration == "integer, pointer :: var"
     # Since no partial datatype is provided, these return None
@@ -1141,7 +1141,7 @@ def test_structure_type():
 def test_create_structuretype():
     ''' Test the create() method of StructureType. '''
     # One member will have its type defined by a DataTypeSymbol
-    # One memeber will have its initial value defined by the
+    # One member will have its initial value defined by the
     # default.
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     stype = StructureType.create([
@@ -1198,7 +1198,7 @@ def test_structuretype_eq():
         ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
         ("peggy", REAL_TYPE, Symbol.Visibility.PUBLIC,
          Literal("1.0", REAL_TYPE))])
-    # Component wth a different initialisation
+    # Component with a different initialisation
     assert stype != StructureType.create([
         ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
         ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE, None)])

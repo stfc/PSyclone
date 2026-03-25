@@ -50,7 +50,7 @@ GENERATED_FILES += opencl_kernels_*.cl psy_gen.f90 alg_gen.f90 ${KERNELS} \
 	${KERNELS:.o=.mod} alg_opencl.exe allkernels.cl alg_gen_dm.f90 \
 	psy_gen_dm.f90 *.exe *.o
 
-# Location of the infrastucture code (which is a submodule of the
+# Location of the infrastructure code (which is a submodule of the
 # PSyclone git repo).
 SHARED_DIR ?= ../../../external
 INF_DIR ?= ${SHARED_DIR}/dl_esm_inf/finite_difference

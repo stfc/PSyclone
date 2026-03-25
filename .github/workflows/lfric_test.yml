@@ -42,10 +42,10 @@ on:
   push
 
 env:
-  LFRIC_APPS_HASH: 152804e4ba768cf54801f034a20131812ecff0f2
-  PYTHON_VERSION: 3.14
+  LFRIC_APPS_HASH: 948b9ec1a7ae6ef110b97ed45ced8d4b71079f34
+  PYTHON_VERSION: "3.14"
   GNU_TOOLCHAIN: gnu14_openmpi
-  NVHPC_VERSION: 25.1
+  NVHPC_TOOLCHAIN: nvhpc25_11_openmpi
   NUM_PARALLEL: 16
 
 jobs:
@@ -100,7 +100,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment %${GNU_TOOLCHAIN}
+        spack unload && spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         # TODO #3206: The no-annex-dof configuration fails in LFRic because some kernels lie in
@@ -123,10 +123,10 @@ jobs:
         # Number of OMP threads have to be set even when psyclone does not inject OpenMP
         # because some psykal-lite routines have it.
         export OMP_NUM_THREADS=1
+        export START_TIME=$SECONDS
         mpirun -n 12 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
@@ -134,9 +134,8 @@ jobs:
       id: lfric_omp_offload
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%nvhpc@${NVHPC_VERSION}
-        spack load nvhpc
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load lfric-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -156,10 +155,10 @@ jobs:
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=12
         export CUDA_VISIBLE_DEVICES=1
+        export START_TIME=$SECONDS
         mpirun -n 1 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
         echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
 
@@ -168,9 +167,8 @@ jobs:
       id: lfric_acc_offload
       run: |
         # Set up environment
-        source /archive/psyclone-spack/psyclone-spack-Jun25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%nvhpc@${NVHPC_VERSION}
-        spack load nvhpc
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load lfric-build-environment %${NVHPC_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -188,10 +186,10 @@ jobs:
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=12
         export CUDA_VISIBLE_DEVICES=1
+        export START_TIME=$SECONDS
         mpirun -n 1 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 mpi ranks each with 2 OpenMP threads
@@ -200,7 +198,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment %${GNU_TOOLCHAIN}
+        spack unload && spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -217,10 +215,10 @@ jobs:
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=2
+        export START_TIME=$SECONDS
         mpirun -n 6 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 mpi ranks each with 2 OpenMP threads
@@ -229,7 +227,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment %${GNU_TOOLCHAIN}
+        spack unload && spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -246,10 +244,10 @@ jobs:
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=2
+        export START_TIME=$SECONDS
         mpirun -n 6 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     - name: LFRic Atm PSyclone transmutation
@@ -257,7 +255,7 @@ jobs:
       run: |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment %${GNU_TOOLCHAIN}
+        spack unload && spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
@@ -272,12 +270,12 @@ jobs:
         # Run the app with 8 threads and no MPI
         # (with MPI it currently fails to initialise the mesh - even with no psyclone)
         cd applications/lfric_atm/example/
+        export START_TIME=$SECONDS
         OMP_NUM_THREADS=8 mpirun -n 1 ../bin/lfric_atm configuration.nml
 
         # And compare the results
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "lfric_atm" timer.txt | cut -d'|' -f5)
+        python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
+        export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
         echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
 
@@ -311,19 +309,19 @@ jobs:
               },
               {
                 ci_test: "LFRic OpenMP offloading",
-                compiler:"nvhpc@'"$NVHPC_VERSION"'",
+                compiler:"'"${NVHPC_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_omp_offload}}"',
                 '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic OpenMP offloading build time",
-                compiler:"nvhpc@'"$NVHPC_VERSION"'",
+                compiler:"'"${NVHPC_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_omp_offload_build}}"',
                 '"${COMMON_FIELDS}"'
               },
               {
                 ci_test: "LFRic OpenACC",
-                compiler:"nvhpc@'"$NVHPC_VERSION"'",
+                compiler:"'"${NVHPC_TOOLCHAIN}"'",
                 elapsed_time: '"${{needs.run_if_on_mirror.outputs.lfric_acc_offload}}"',
                 '"${COMMON_FIELDS}"'
               },

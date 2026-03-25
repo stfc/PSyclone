@@ -407,7 +407,7 @@ def test_routine_update_parent_symbol_table():
         routine.symbol_table.lookup("test", scope_limit=routine)
     assert container.symbol_table.lookup("test") is routine.symbol
 
-    # Test the update_parent_symbol_table mimicing using replace_with.
+    # Test the update_parent_symbol_table mimicking using replace_with.
     routine2 = Routine(routine.symbol)
     routine.detach()
     container.symbol_table.add(routine.symbol)

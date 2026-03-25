@@ -88,7 +88,7 @@ def test_command_line(capsys, caplog):
     GOLoop._bounds_lookup = {}
     # Check that --config with a parameter is accepted but logs a warning
     # about the deprecated access_mapping entry.
-    with caplog.at_level(logging.WARN):
+    with caplog.at_level(logging.WARN, logger="psyclone.configuration"):
         main(options+["--config", config_file, f90_file])
     assert ("Configuration file contains an ACCESS_MAPPING entry. This is "
             "deprecated" in caplog.text)
@@ -248,7 +248,7 @@ def test_invalid_config_files(tmpdir):
 
 
 def test_debug_mode(tmpdir):
-    '''Test creation of GOcean debug_mode congifuration.
+    '''Test creation of GOcean debug_mode configuration.
     '''
     _CONFIG_CONTENT = '''\
     [DEFAULT]

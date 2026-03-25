@@ -46,7 +46,7 @@ from psyclone.psyir import symbols, nodes
 from psyclone.tests.utilities import check_links
 
 
-def test_struc_ref_init():
+def test_struct_ref_init():
     '''Tests the constructor.'''
 
     sym = symbols.symbol.Symbol("test")
@@ -60,7 +60,7 @@ def test_struc_ref_init():
             "object but found 'str'." in str(excinfo.value))
 
 
-def test_struc_ref_create():
+def test_struct_ref_create():
     ''' Tests for the create method. '''
     region_type = symbols.StructureType.create([
         ("startx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC,
@@ -119,7 +119,7 @@ def test_struc_ref_create():
     assert isinstance(listref, nodes.StructureReference)
 
 
-def test_struc_ref_create_errors():
+def test_struct_ref_create_errors():
     ''' Tests for the validation checks in the create method. '''
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(None, [])
@@ -174,7 +174,7 @@ def test_struc_ref_create_errors():
             str(err.value))
 
 
-def test_struc_ref_validate_child():
+def test_struct_ref_validate_child():
     ''' Tests for the _validate_child method. '''
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC,
@@ -195,7 +195,7 @@ def test_struc_ref_validate_child():
             str(err.value))
 
 
-def test_struc_ref_str():
+def test_struct_ref_str():
     ''' Test the __str__ method of StructureReference. '''
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None)])
@@ -222,7 +222,7 @@ def test_reference_accesses():
     assert str(var_access_info) == "grid%data: READ"
 
 
-def test_struc_ref_semantic_nav():
+def test_struct_ref_semantic_nav():
     ''' Test the 'member' property of the StructureReference. '''
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None)])
@@ -240,7 +240,7 @@ def test_struc_ref_semantic_nav():
             "found: ['broken']" in str(err.value))
 
 
-def test_struc_ref_datatype():
+def test_struct_ref_datatype():
     '''Test the datatype() method of StructureReference.'''
     atype = symbols.ArrayType(symbols.REAL_TYPE, [10, 8])
     rtype = symbols.StructureType.create([

@@ -618,24 +618,22 @@ class LFRicArgDescriptor(Descriptor):
                 f"scalar data type but got '{self._data_type}'.")
 
         # Test allowed accesses for scalars (read_only or reduction)
-        scalar_accesses = [AccessType.READ] + \
-            AccessType.get_valid_reduction_modes()
+        scalar_accesses = [AccessType.READ, AccessType.REDUCTION]
         # Convert generic access types to GH_* names for error messages
         if self._access_type not in scalar_accesses:
             api_specific_name = self._access_type.api_specific_name()
-            valid_reductions = AccessType.get_valid_reduction_names()
             raise ParseError(
                 f"In the LFRic API scalar arguments must have read-only "
-                f"('gh_read') or a reduction {valid_reductions} access but "
+                f"('gh_read') or a reduction ('gh_reduction') access but "
                 f"found '{api_specific_name}' in '{arg_type}'.")
         # Reduction access is currently only valid for real scalar arguments
-        if self._data_type != "gh_real" and self._access_type in \
-           AccessType.get_valid_reduction_modes():
+        if (self._data_type != "gh_real" and
+                self._access_type == AccessType.REDUCTION):
             raise ParseError(
-                f"In the LFRic API a reduction access "
-                f"'{self._access_type.api_specific_name()}' is only valid "
-                f"with a real scalar argument, but a scalar argument with "
-                f"'{self._data_type}' data type was found in '{arg_type}'.")
+                f"In the LFRic API a reduction access 'gh_reduction' is only"
+                f" valid with a real scalar argument, but a scalar argument "
+                f"with '{self._data_type}' data type was found in "
+                f"'{arg_type}'.")
 
         # Scalars don't have vector size or array size
         self._vector_size = 0

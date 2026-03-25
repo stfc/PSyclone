@@ -292,6 +292,27 @@ def test_binaryop_array_datatype():
         _ = binop6.datatype
     assert ("Binary operation 'tmp1 + tmp2d' has operands of different shape: "
             "'tmp1' has rank 1 and 'tmp2d' has rank 2" in str(err.value))
+    # Create two operands where one has a defined integer shape and the other
+    # uses a full range.
+    ref6 = ArrayReference.create(sym2, [Range.create(
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("5", INTEGER_SINGLE_TYPE))])
+    ref7 = ArrayReference.create(sym1, [Range.create(
+        Literal("1", INTEGER_SINGLE_TYPE),
+        IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.SIZE,
+            [Reference(sym2)])
+        )])
+    # Test that we choose the option that has a defined shape and not a size
+    # intrinsic regardless of argument order.
+    binop7 = BinaryOperation.create(oper, ref7.copy(), ref6.copy())
+    dtype6 = binop7.datatype
+    assert dtype6.shape[0].lower.value == "1"
+    assert dtype6.shape[0].upper.debug_string() == "5"
+    binop8 = BinaryOperation.create(oper, ref6.copy(), ref7.copy())
+    dtype7 = binop8.datatype
+    assert dtype7.shape[0].lower.value == "1"
+    assert dtype7.shape[0].upper.debug_string() == "5"
 
 
 def test_binaryop_array_section_datatype():
@@ -616,7 +637,7 @@ def test_unaryop_datatype():
 
 def test_unaryop_operand():
     '''
-    Test the operand peroperty of UnaryOperation.
+    Test the operand property of UnaryOperation.
     '''
     oper = UnaryOperation.Operator.MINUS
     node = Literal("1", INTEGER_SINGLE_TYPE)

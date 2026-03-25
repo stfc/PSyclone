@@ -260,7 +260,7 @@ def test_broken_access_spec(parser):
 
 def test_unsupported_implicit_part(parser):
     '''
-    Test that an unsupported implicit statment results in the expected error.
+    Test that an unsupported implicit statement results in the expected error.
     '''
     fake_parent = FileContainer("dummy")
     processor = Fparser2Reader()

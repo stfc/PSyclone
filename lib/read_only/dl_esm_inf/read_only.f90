@@ -125,7 +125,7 @@ contains
     subroutine ProvideFieldDouble(this, name, value)
 
         use field_mod, only : r2d_field
-        use read_onlY_base_mod, only : ComputeChecksum
+        use read_only_base_mod, only : ComputeChecksum
 
         implicit none
 

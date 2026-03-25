@@ -784,7 +784,7 @@ def test_opencl_kernel_boundaries_validation():
 
 
 def test_opencl_options_validation():
-    ''' Check that OpenCL options which are not supported provide appropiate
+    ''' Check that OpenCL options which are not supported provide appropriate
     errors.
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)

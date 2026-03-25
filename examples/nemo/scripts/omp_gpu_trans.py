@@ -77,11 +77,13 @@ FILES_TO_SKIP = [
     "icefrm.f90",  # Has an unsupported implicit symbol declaration
 ]
 
-NEMOV5_EXCLUSIONS = []
+NEMOV5_EXCLUSIONS = [
+    # get_cssrcsurf produces signal SIGFPE, Arithmetic exception
+    "sbcclo.f90",
+]
 
 NEMOV4_EXCLUSIONS = [
     "dynspg_ts.f90",
-    "tranxt.f90",
 ]
 
 SKIP_FOR_PERFORMANCE = [
@@ -93,8 +95,6 @@ SKIP_FOR_PERFORMANCE = [
 ]
 
 OFFLOADING_ISSUES = [
-    # Produces different output results
-    "zdftke.f90",
     # The following issues only affect BENCH (because ice is enabled?)
     # Runtime Error: Illegal address during kernel execution
     "trcrad.f90",
@@ -116,7 +116,6 @@ ASYNC_ISSUES = [
     # TODO #3220: Explore the cause of the async issues
     # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
     # (often invalid pointer dereference) in get_cstrgsurf
-    "sbcclo.f90",
     "trcldf.f90",
     # Runtime Error: Illegal address during kernel execution with
     # asynchronicity.
@@ -124,6 +123,8 @@ ASYNC_ISSUES = [
     "zdfsh2.f90",
     # Diverging results with asynchronicity
     "traadv_fct.f90",
+    # Signal 11 in build
+    "zdfswm.f90",
 ]
 
 
@@ -137,13 +138,13 @@ def trans(psyir):
 
     '''
     # The two options below are useful for file-by-file exhaustive tests.
-    # If the environemnt has ONLY_FILE defined, only process that one file and
+    # If the environment has ONLY_FILE defined, only process that one file and
     # known-good files that need a "declare target" inside.
     only_do_file = os.environ.get('ONLY_FILE', False)
     only_do_files = (only_do_file, "lib_fortran.f90", "solfrac_mod.f90")
     if only_do_file and psyir.name not in only_do_files:
         return
-    # If the environemnt has ALL_BUT_FILE defined, process all files but
+    # If the environment has ALL_BUT_FILE defined, process all files but
     # the one named file.
     all_but_file = os.environ.get('ALL_BUT_FILE', False)
     if all_but_file and psyir.name == all_but_file:
@@ -175,8 +176,10 @@ def trans(psyir):
             continue
         if not NEMOV4 and psyir.name in NEMOV5_EXCLUSIONS:
             continue
-        # ICE routines do not perform well on GPU, so we skip them
+        # ICE and ICB routines do not perform well on GPU, so we skip them
         if psyir.name.startswith("ice"):
+            continue
+        if psyir.name.startswith("icb"):
             continue
         # Skip initialisation and diagnostic subroutines
         if (subroutine.name.endswith('_alloc') or
@@ -187,13 +190,20 @@ def trans(psyir):
                 subroutine.name == 'dom_zgr' or
                 subroutine.name == 'dom_ngb'):
             continue
+        if subroutine.name == "solfrac":
+            # Bring these solfrac parameters to the subroutine as nvidia
+            # does not permit offloaded kernels to access module parameters
+            symtab = subroutine.symbol_table
+            if "pp_wgt" not in symtab:
+                symtab.add(symtab.lookup("pp_wgt"))
+            if "pp_len" not in symtab:
+                symtab.add(symtab.lookup("pp_len"))
 
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,
                 convert_array_notation=True,
-                # See issue #3022
-                loopify_array_intrinsics=psyir.name != "getincom.f90",
+                loopify_array_intrinsics=True,
                 convert_range_loops=True,
                 increase_array_ranks=not NEMOV4,
                 hoist_expressions=True
@@ -227,7 +237,6 @@ def trans(psyir):
                     region_directive_trans=omp_target_trans,
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
-                    privatise_arrays=False,
                     asynchronous_parallelism=enable_async,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     enable_reductions=not REPRODUCIBLE
@@ -240,7 +249,6 @@ def trans(psyir):
                     loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
                     asynchronous_parallelism=enable_async,
-                    privatise_arrays=True,
                     uniform_intrinsics_only=REPRODUCIBLE,
                     enable_reductions=not REPRODUCIBLE
             )
@@ -256,7 +264,6 @@ def trans(psyir):
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
                     asynchronous_parallelism=enable_async,
-                    privatise_arrays=True,
             )
 
     # Iterate again and add profiling hooks when needed

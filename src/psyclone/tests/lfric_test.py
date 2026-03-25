@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office,
+# Modified I. Kavcic, A. Coughtrie, L. Turner, O. Brunt,
+#          and A. Pirrie Met Office,
 #          C. M. Maynard, Met Office/University of Reading,
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -52,7 +53,7 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicKernMetadata, LFRicLoop)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.lfric import (
-    LFRicACCEnterDataDirective, LFRicBoundaryConditions, LFRicGlobalSum,
+    LFRicACCEnterDataDirective, LFRicBoundaryConditions,
     LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloReadAccess,
     KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
@@ -611,100 +612,6 @@ def test_invoke_uniq_declns_valid_access():
                                 fields_readwritten_args]
     assert fields_readwritten == ["f1"]
     assert fields_proxy_readwritten == ["f1_proxy"]
-
-
-def test_lfricinvoke_first_access():
-    ''' Tests that we raise an error if LFRicInvoke.first_access(name) is
-    called for an argument name that doesn't exist '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        psy.invokes.invoke_list[0].first_access("not_an_arg")
-    assert ("Failed to find any kernel argument with name"
-            in str(excinfo.value))
-
-
-def test_lfricinvoke_uniq_declns_intent_inv_argtype():
-    ''' Tests that we raise an error when LFRicInvoke.unique_declns_by_intent()
-    is called with at least one invalid argument type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_invalid"])
-    const = LFRicConstants()
-    assert (f"Invoke.unique_declns_by_intent() called with at least one "
-            f"invalid argument type. Expected one of "
-            f"{const.VALID_ARG_TYPE_NAMES} but found ['gh_invalid']."
-            in str(excinfo.value))
-
-
-def test_lfricinvoke_uniq_declns_intent_invalid_intrinsic():
-    ''' Tests that we raise an error when Invoke.unique_declns_by_intent()
-    is called for an invalid intrinsic type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_declns_by_intent(
-            ["gh_scalar"], intrinsic_type="triple")
-    const = LFRicConstants()
-    assert (f"Invoke.unique_declns_by_intent() called with an invalid "
-            f"intrinsic argument data type. Expected one of "
-            f"{const.VALID_INTRINSIC_TYPES} but found 'triple'."
-            in str(excinfo.value))
-
-
-def test_lfricinvoke_uniq_declns_intent_ops(tmpdir):
-    ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for operator arguments. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4.4_multikernel_invokes.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    args = psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_operator"])
-    assert args['inout'] == []
-    args_out = [arg.declaration_name for arg in args['out']]
-    assert args_out == ['op']
-    assert args['in'] == []
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_lfricinvoke_uniq_declns_intent_cma_ops(tmpdir):
-    ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for columnwise operator arguments. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "20.5_multi_cma_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    args = psy.invokes.invoke_list[0]\
-        .unique_declns_by_intent(["gh_columnwise_operator"])
-    args_out = [arg.declaration_name for arg in args['out']]
-    assert args_out == ['cma_op1']
-    args_inout = [arg.declaration_name for arg in args['inout']]
-    assert args_inout == ['cma_opc']
-    args_in = [arg.declaration_name for arg in args['in']]
-    assert args_in == ['cma_opb']
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_lfricinvoke_arg_for_fs():
-    ''' Tests that we raise an error when LFRicInvoke.arg_for_funcspace() is
-    called for an unused space. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        psy.invokes.invoke_list[0].arg_for_funcspace(FunctionSpace("wtheta",
-                                                                   None))
-    assert "No argument found on 'wtheta' space" in str(excinfo.value)
 
 
 def test_kernel_specific(tmpdir):
@@ -1702,6 +1609,30 @@ def test_lfrickernelargument_idtp_scalar():
             "not." in str(info.value))
 
 
+def test_lfrickernelargument_idtp_scalar_array():
+    '''Test the _init_data_type_properties method in the LFRicKernelArgument
+    class for a ScalarArray.
+
+    '''
+    # Use one of the examples to create an instance of
+    # LFRicKernelArgument that describes a ScalarArray.
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "28.scalar_array_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    scalar_argument = psy.invokes.invoke_list[0].schedule.args[1]
+    assert not scalar_argument.is_scalar
+    assert scalar_argument.is_scalar_array
+
+    scalar_argument = psy.invokes.invoke_list[0].schedule.args[2]
+    assert not scalar_argument.is_scalar
+    assert scalar_argument.is_scalar_array
+
+    scalar_argument = psy.invokes.invoke_list[0].schedule.args[3]
+    assert not scalar_argument.is_scalar
+    assert scalar_argument.is_scalar_array
+
+
 def test_lfrickernelargument_idtp_reduction():
     '''Test the _init_data_type_properties method in the LFRicKernelArgument
     class for a scalar reduction.
@@ -2375,22 +2306,6 @@ def test_func_descriptor_str():
     assert output in func_str
 
 
-def test_lfrickern_arg_for_fs():
-    ''' Test that LFRicInvoke.arg_for_funcspace() raises an error if
-    passed an invalid function space.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    with pytest.raises(InternalError) as err:
-        _ = first_invoke.arg_for_funcspace(FunctionSpace("waah", "waah"))
-    const = LFRicConstants()
-    assert (f"Unrecognised function space 'waah'. The supported spaces are "
-            f"{const.VALID_FUNCTION_SPACE_NAMES}" in str(err.value))
-
-
 def test_dist_memory_true():
     ''' Test that the distributed memory flag is on by default. '''
     Config._instance = None
@@ -2790,14 +2705,14 @@ def test_operator_gh_sum_invalid():
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
-        "arg_type(gh_operator, gh_real,    gh_sum,  w2, w2)", 1)
+        "arg_type(gh_operator, gh_real,    gh_reduction, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert ("allowed accesses for operators are ['gh_read', 'gh_write', "
             "'gh_readwrite'] because they behave as discontinuous "
-            "quantities, but found 'gh_sum'" in str(excinfo.value))
+            "quantities, but found 'gh_reduction'" in str(excinfo.value))
 
 
 def test_derived_type_arg(dist_mem, tmpdir):
@@ -2927,71 +2842,6 @@ def test_haloexchange_correct_parent():
     schedule = psy.invokes.invoke_list[0].schedule
     for child in schedule.children:
         assert child.parent == schedule
-
-
-def test_lfricglobalsum_unsupported_argument():
-    ''' Check that an instance of the LFRicGlobalSum class raises an
-    exception for an unsupported argument type. '''
-    # Get an instance of a non-scalar argument
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.6.1_single_invoke_1_int_scalar.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[4]
-    kernel = loop.loop_body[0]
-    argument = kernel.arguments.args[0]
-    with pytest.raises(InternalError) as err:
-        _ = LFRicGlobalSum(argument)
-    assert ("LFRicGlobalSum.init(): A global sum argument should be a scalar "
-            "but found argument of type 'gh_field'." in str(err.value))
-
-
-def test_lfricglobalsum_unsupported_scalar():
-    ''' Check that an instance of the LFRicGlobalSum class raises an
-    exception if an unsupported scalar type is provided when distributed
-    memory is enabled (dm=True).
-
-    '''
-    # Get an instance of an integer scalar
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.6.1_single_invoke_1_int_scalar.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[4]
-    kernel = loop.loop_body[0]
-    argument = kernel.arguments.args[1]
-    with pytest.raises(GenerationError) as err:
-        _ = LFRicGlobalSum(argument)
-    assert ("LFRicGlobalSum currently only supports real scalars, but "
-            "argument 'iflag' in Kernel 'testkern_one_int_scalar_code' "
-            "has 'integer' intrinsic type." in str(err.value))
-
-
-def test_lfricglobalsum_nodm_error():
-    ''' Check that an instance of the LFRicGlobalSum class raises an
-    exception if it is instantiated with no distributed memory enabled
-    (dm=False).
-
-    '''
-    # Get an instance of a real scalar
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.9_single_invoke_2_real_scalars.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
-    kernel = loop.loop_body[0]
-    argument = kernel.arguments.args[0]
-    with pytest.raises(GenerationError) as err:
-        _ = LFRicGlobalSum(argument)
-    assert ("It makes no sense to create an LFRicGlobalSum object when "
-            "distributed memory is not enabled (dm=False)."
-            in str(err.value))
 
 
 def test_no_updated_args():
@@ -3425,7 +3275,7 @@ def test_HaloReadAccess_field_not_reader():
 def test_HaloRead_inv_loop_upper(monkeypatch):
     # pylint: disable=invalid-name
     '''The upper bound of a loop in the compute_halo_read_info method within
-    the HaloReadAccesss class should be recognised by the logic. If not an
+    the HaloReadAccess class should be recognised by the logic. If not an
     exception is raised and this test checks that this exception is
     raised correctly
     '''
@@ -3881,408 +3731,6 @@ def test_lfricaccenterdatadirective_dataondevice():
 # Class LFRicKernelArguments end
 
 
-def test_lfricinvoke_runtime(tmpdir, monkeypatch):
-    '''Test that run-time checks are added to the PSy-layer via LFRicInvoke
-    in the expected way (correct location and correct code).
-
-    '''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    generated_code = str(psy.gen)
-    assert "use testkern_mod, only : testkern_code" in generated_code
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use fs_continuity_mod" in generated_code
-    assert "use mesh_mod, only : mesh_type" in generated_code
-    expected = (
-        "    m2_proxy = m2%get_proxy()\n"
-        "    m2_data => m2_proxy%data\n"
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check field function space and kernel metadata function spac"
-        "es are compatible\n"
-        "    if (f1%which_function_space() /= W1) then\n"
-        "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', the field 'f1' is passed to kernel 'testkern_code' but "
-        "its function space is not compatible with the function space specifi"
-        "ed in the kernel metadata 'w1'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f2%which_function_space() /= W2) then\n"
-        "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', the field 'f2' is passed to kernel 'testkern_code' but "
-        "its function space is not compatible with the function space specifi"
-        "ed in the kernel metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (m1%which_function_space() /= W2) then\n"
-        "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', the field 'm1' is passed to kernel 'testkern_code' but "
-        "its function space is not compatible with the function space specifi"
-        "ed in the kernel metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (m2%which_function_space() /= W3) then\n"
-        "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', the field 'm2' is passed to kernel 'testkern_code' but "
-        "its function space is not compatible with the function space specifi"
-        "ed in the kernel metadata 'w3'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (f1_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0_tes"
-        "tkern_type', field 'f1' is on a read-only function space but is modi"
-        "fied by kernel 'testkern_code'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Initialise number of layers\n")
-    assert expected in generated_code
-
-
-def test_lfricruntimechecks_anyspace(tmpdir, monkeypatch):
-    '''Test that run-time checks are not added for fields where the kernel
-    metadata specifies anyspace.
-
-    '''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    generated_code = str(psy.gen)
-    assert "use function_space_mod, only : BASIS, DIFF_BASIS" in generated_code
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use fs_continuity_mod, only : W0\n" in generated_code
-    assert "use mesh_mod, only : mesh_type" in generated_code
-    expected2 = (
-        "    c_proxy(3) = c(3)%get_proxy()\n"
-        "    c_3_data => c_proxy(3)%data\n"
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check field function space and kernel metadata function spac"
-        "es are compatible\n"
-        "    if (c(1)%which_function_space() /= W0) then\n"
-        "      call log_event(\"In alg 'any_space_example' invoke 'invoke_0"
-        "_testkern_any_space_1_type', the field 'c' is passed to kernel 'test"
-        "kern_any_space_1_code' but its function space is not compatible with"
-        " the function space specified in the kernel metadata 'w0'.\", LOG_LE"
-        "VEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (a_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'any_space_example' invoke 'invoke_0"
-        "_testkern_any_space_1_type', field 'a' is on a read-only function sp"
-        "ace but is modified by kernel 'testkern_any_space_1_code'.\", LOG_LE"
-        "VEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Initialise number of layers\n")
-    assert expected2 in generated_code
-
-
-def test_lfricruntimechecks_vector(tmpdir, monkeypatch):
-    ''' Test that run-time checks work for vector fields. '''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    generated_code = str(psy.gen)
-    assert ("use testkern_coord_w0_2_mod, only : testkern_coord_w0_2_code"
-            in generated_code)
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use fs_continuity_mod, only : W0\n" in generated_code
-    assert "use mesh_mod, only : mesh_type" in generated_code
-    expected2 = (
-        "    f1_proxy = f1%get_proxy()\n"
-        "    f1_data => f1_proxy%data\n"
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check field function space and kernel metadata function spac"
-        "es are compatible\n"
-        "    if (chi(1)%which_function_space() /= W0) then\n"
-        "      call log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
-        "kern_coord_w0_2_type', the field 'chi' is passed to kernel 'testkern"
-        "_coord_w0_2_code' but its function space is not compatible with the "
-        "function space specified in the kernel metadata 'w0'.\", "
-        "LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f1%which_function_space() /= W0) then\n"
-        "      call log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
-        "kern_coord_w0_2_type', the field 'f1' is passed to kernel 'testkern_"
-        "coord_w0_2_code' but its function space is not compatible with the "
-        "function space specified in the kernel metadata 'w0'.\", "
-        "LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (chi_proxy(1)%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
-        "kern_coord_w0_2_type', field 'chi' is on a read-only function space "
-        "but is modified by kernel 'testkern_coord_w0_2_code'.\", "
-        "LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f1_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'vector_field' invoke 'invoke_0_test"
-        "kern_coord_w0_2_type', field 'f1' is on a read-only function space "
-        "but is modified by kernel 'testkern_coord_w0_2_code'.\", "
-        "LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Initialise number of layers\n")
-    assert expected2 in generated_code
-
-
-def test_lfricruntimechecks_multikern(tmpdir, monkeypatch):
-    ''' Test that run-time checks work when there are multiple kernels and
-    at least one field is specified as being on a given function space
-    more than once. In this case we want to avoid checking the same
-    thing twice.
-
-    '''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    generated_code = str(psy.gen)
-    assert "use testkern_mod, only : testkern_code" in generated_code
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use mesh_mod, only : mesh_type" in generated_code
-    assert "use fs_continuity_mod, only" in generated_code
-    expected2 = (
-        "    f3_proxy = f3%get_proxy()\n"
-        "    f3_data => f3_proxy%data\n"
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check field function space and kernel metadata function spac"
-        "es are compatible\n"
-        "    if (f1%which_function_space() /= W1) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'f1' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w1'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f2%which_function_space() /= W2) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'f2' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (m1%which_function_space() /= W2) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'm1' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (m2%which_function_space() /= W3) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'm2' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w3'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f3%which_function_space() /= W2) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'f3' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (m2%which_function_space() /= W2) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'm2' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (m1%which_function_space() /= W3) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', th"
-        "e field 'm1' is passed to kernel 'testkern_code' but its function sp"
-        "ace is not compatible with the function space specified in the kerne"
-        "l metadata 'w3'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (f1_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'multi_invoke' invoke 'invoke_0', fi"
-        "eld 'f1' is on a read-only function space but is modified by kernel "
-        "'testkern_code'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Initialise number of layers\n")
-    assert expected2 in generated_code
-
-
-def test_lfricruntimechecks_builtins(tmpdir, monkeypatch):
-    '''Test that run-time checks work when there are builtins.'''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.1.1_X_plus_Y_builtin.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    generated_code = str(psy.gen)
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use mesh_mod, only : mesh_type" in generated_code
-    assert "type(field_type), intent(in) :: f3" in generated_code
-    expected_code2 = (
-        "    f2_proxy = f2%get_proxy()\n"
-        "    f2_data => f2_proxy%data\n"
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (f3_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'single_invoke' invoke 'invoke_0', f"
-        "ield 'f3' is on a read-only function space but is modified by kernel"
-        " 'x_plus_y'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Create a mesh object\n")
-    assert expected_code2 in generated_code
-
-
-def test_lfricruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
-    '''Test that run-time checks work when we have checks for a field
-    function space being consistent with an any_discontinuous_*
-    function space.
-
-    '''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "11.4_any_discontinuous_space.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    generated_code = str(psy.gen)
-    assert ("use testkern_any_discontinuous_space_op_1_mod, only : testkern_"
-            "any_discontinuous_space_op_1_code") in generated_code
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    assert "use mesh_mod, only : mesh_type" in generated_code
-    expected2 = (
-        "    op4_proxy = op4%get_proxy()\n"
-        "    op4_local_stencil => op4_proxy%local_stencil\n"
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check field function space and kernel metadata function spac"
-        "es are compatible\n"
-        "    if (f1(1)%which_function_space() /= W3 .AND. f1(1)%which_funct"
-        "ion_space() /= WTHETA .AND. f1(1)%which_function_space() /= W2V .AND"
-        ". f1(1)%which_function_space() /= W2VTRACE .AND. f1(1)%which_funct"
-        "ion_space() /= W2BROKEN) then\n"
-        "      call log_event(\"In alg 'any_discontinuous_space_op_example_"
-        "1' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', the"
-        " field 'f1' is passed to kernel 'testkern_any_discontinuous_space_op"
-        "_1_code' but its function space is not compatible with the function "
-        "space specified in the kernel metadata 'any_discontinuous_space_1'."
-        "\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f2%which_function_space() /= W3 .AND. f2%which_function_sp"
-        "ace() /= WTHETA .AND. f2%which_function_space() /= W2V .AND. f2%whic"
-        "h_function_space() /= W2VTRACE .AND. f2%which_function_space() /= "
-        "W2BROKEN) then\n"
-        "      call log_event(\"In alg 'any_discontinuous_space_op_example_"
-        "1' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', the"
-        " field 'f2' is passed to kernel 'testkern_any_discontinuous_space_op"
-        "_1_code' but its function space is not compatible with the function "
-        "space specified in the kernel metadata 'any_discontinuous_space_2'."
-        "\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (f2_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'any_discontinuous_space_op_example_"
-        "1' invoke 'invoke_0_testkern_any_discontinuous_space_op_1_type', fie"
-        "ld 'f2' is on a read-only function space but is modified by kernel '"
-        "testkern_any_discontinuous_space_op_1_code'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Initialise number of layers\n")
-    assert expected2 in generated_code
-
-
-def test_lfricruntimechecks_anyw2(tmpdir, monkeypatch):
-    '''Test that run-time checks work when we have checks for a field
-    function space being consistent with an anyw2 function
-    space.
-
-    '''
-    # run-time checks are off by default so switch them on
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_run_time_checks", True)
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "21.1_single_invoke_multi_anyw2.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-    generated_code = str(psy.gen)
-    assert ("use testkern_multi_anyw2_mod, only : testkern_multi_anyw2_code\n"
-            in generated_code)
-    assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    expected2 = (
-        "\n"
-        "    ! Perform run-time checks\n"
-        "    ! Check field function space and kernel metadata function spac"
-        "es are compatible\n"
-        "    if (f1%which_function_space() /= W2 .AND. f1%which_function_sp"
-        "ace() /= W2H .AND. f1%which_function_space() /= W2V .AND. f1%which_f"
-        "unction_space() /= W2BROKEN) then\n"
-        "      call log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
-        "invoke_0_testkern_multi_anyw2_type', the field 'f1' is passed to ker"
-        "nel 'testkern_multi_anyw2_code' but its function space is not compat"
-        "ible with the function space specified in the kernel metadata 'any_w"
-        "2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f2%which_function_space() /= W2 .AND. f2%which_function_sp"
-        "ace() /= W2H .AND. f2%which_function_space() /= W2V .AND. f2%which_f"
-        "unction_space() /= W2BROKEN) then\n"
-        "      call log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
-        "invoke_0_testkern_multi_anyw2_type', the field 'f2' is passed to ker"
-        "nel 'testkern_multi_anyw2_code' but its function space is not compat"
-        "ible with the function space specified in the kernel metadata 'any_w"
-        "2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "    if (f3%which_function_space() /= W2 .AND. f3%which_function_sp"
-        "ace() /= W2H .AND. f3%which_function_space() /= W2V .AND. f3%which_f"
-        "unction_space() /= W2BROKEN) then\n"
-        "      call log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
-        "invoke_0_testkern_multi_anyw2_type', the field 'f3' is passed to ker"
-        "nel 'testkern_multi_anyw2_code' but its function space is not compat"
-        "ible with the function space specified in the kernel metadata 'any_w"
-        "2'.\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Check that read-only fields are not modified\n"
-        "    if (f1_proxy%vspace%is_readonly()) then\n"
-        "      call log_event(\"In alg 'single_invoke_multi_anyw2' invoke '"
-        "invoke_0_testkern_multi_anyw2_type', field 'f1' is on a read-only fu"
-        "nction space but is modified by kernel 'testkern_multi_anyw2_code'."
-        "\", LOG_LEVEL_ERROR)\n"
-        "    end if\n"
-        "\n"
-        "    ! Initialise number of layers\n")
-    assert expected2 in generated_code
-
-
 def test_read_only_fields_hex(tmpdir):
     '''Test that halo exchange code is produced for read-only fields.'''
 
@@ -4305,7 +3753,7 @@ def test_read_only_fields_hex(tmpdir):
     assert expected in generated_code
 
 
-def test_mixed_precision_args(tmpdir):
+def test_mixed_precision_args(tmp_path):
     '''
     Test that correct code is generated for the PSy-layer when there
     are scalars, fields and operators with different precision
@@ -4318,7 +3766,8 @@ def test_mixed_precision_args(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert "use constants_mod\n" in generated_code
+    assert ("use constants_mod, only : r_bl, r_def, r_solver, r_tran\n"
+            in generated_code)
     assert """
   use field_mod, only : field_proxy_type, field_type
   use operator_mod, only : operator_proxy_type, operator_type
@@ -4338,6 +3787,7 @@ scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, \
 field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
     use mesh_mod, only : mesh_type
     use mixed_kernel_mod, only : mixed_code
+    use constants_mod, only : i_def
     real(kind=r_def), intent(in) :: scalar_r_def
     type(field_type), intent(in) :: field_r_def
     type(operator_type), intent(in) :: operator_r_def
@@ -4388,7 +3838,7 @@ operator_r_tran_local_stencil => null()
 """ in generated_code
 
     # Test compilation
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_lfricpsy_gen_container_routines(tmpdir):

@@ -103,9 +103,9 @@ def test_irla_validate(fortran_reader):
             "but 'a' is used outside the loop." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        trans.apply(routine.children[2], arrays=['non_existant'])
-    assert ("IncreaseRankLoopArraysTrans provided array 'non_existant' does "
-            "not existin this scope." in str(err.value))
+        trans.apply(routine.children[2], arrays=['non_existent'])
+    assert ("IncreaseRankLoopArraysTrans provided array 'non_existent' does "
+            "not exist in this scope." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
         trans.apply(routine.children[2].detach(), arrays=['a'])
@@ -151,7 +151,7 @@ def test_irla_validate_bounds(fortran_reader):
 
     # This is fine, it can safely add a new rank to keep each a(i) inside the
     # second loop independent (note that each a(i) in the first loop will still
-    # be overwritted as in the original code)
+    # be overwrite as in the original code)
     trans.validate(routine.walk(Loop)[2], arrays=['a'])
 
 
@@ -181,7 +181,7 @@ def test_irla_validate_multiple_loops_using_array(fortran_reader):
     """)
     routine = psyir.children[0]
     # None of the loops pass validation, because the other one also uses 'a'
-    # in somthing other than the lhs of an array assignment.
+    # in something other than the lhs of an array assignment.
     for loop in routine.walk(Loop, stop_type=Loop):
         with pytest.raises(TransformationError) as err:
             trans.apply(loop, arrays=['a'])
@@ -221,18 +221,21 @@ def test_irla_apply(fortran_reader, fortran_writer):
 
 def test_irla_apply_accesses_outside_loop(
         fortran_reader, fortran_writer, tmpdir):
-    ''' Check that the accesses outside the loop are also populate the whole
-    array, this will imply duplicated computations for each value '''
+    ''' Check that simple accesses outside the loop, such as array
+    assignments where we can populate the whole array, or uses within
+    an inquiry intrinsic with a 'dim' which will return information
+    about the same rank, are valid. '''
     psyir = fortran_reader.psyir_from_source("""
      program test
          integer, parameter :: N=10, M=10
          integer :: i, j
          real, dimension(N) :: ztmp
+         integer :: size_of_ztmp_dim
          ! Implicit loops
          ztmp = 1
          ! Range loop
          ztmp(3:4) = 2
-         ! Explit loop
+         ! Explicit loop
          do j = 1, 3
              ztmp(j) = 3
          enddo
@@ -243,6 +246,7 @@ def test_irla_apply_accesses_outside_loop(
              end do
              ztmp(:) = 5
          end do
+         size_of_ztmp_dim = SIZE(ztmp, dim=1)
      end program
     """)
     trans = IncreaseRankLoopArraysTrans()

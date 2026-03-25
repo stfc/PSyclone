@@ -310,7 +310,7 @@ def test_single_assign_fail(tmpdir):
 
 def test_single_valued_assign(tmpdir):
     '''Test the transformation works when there is one active variable on
-    the rhs (B) that is multipled by a factor (x) and with the active
+    the rhs (B) that is multiplied by a factor (x) and with the active
     variable on the lhs (A) only being written to, i.e. not also read
     on the rhs. Also test mixed-case active variables list and actual
     variables.
@@ -333,7 +333,7 @@ def test_single_valued_assign(tmpdir):
 
 def test_multi_add(tmpdir):
     '''Test the transformation works when there are many active variables
-    on the rhs (B,C,D) with some of them being multipled by a factor
+    on the rhs (B,C,D) with some of them being multiplied by a factor
     and with the active variable on the lhs (A) only being written to,
     i.e. is not also read on the rhs. Also test mixed-case
     declarations.

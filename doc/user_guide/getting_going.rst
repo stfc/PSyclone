@@ -293,7 +293,7 @@ with a `trans` function defined. For example:
             try:
                 omp_trans.apply(loop)
             except TransformationError as err:
-                print(f"Loop not paralellised because: {err.value}")
+                print(f"Loop not parallelised because: {err.value}")
 
 
 .. warning::

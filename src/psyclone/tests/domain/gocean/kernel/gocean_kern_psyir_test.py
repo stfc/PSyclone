@@ -484,7 +484,7 @@ def test_metadata_name():
 
 def test_gridarg_init():
     '''Test that an instance of the GridArg class can be created
-    succesfully.
+    successfully.
 
     '''
     reader = FortranStringReader(METADATA)
@@ -559,7 +559,7 @@ def test_gridarg_name():
 
 def test_fieldarg_init():
     '''Test that a instance of the FieldArg class can be created
-    succesfully.
+    successfully.
 
     '''
     reader = FortranStringReader(METADATA)
@@ -692,7 +692,7 @@ def test_fieldarg_stencil():
 
 def test_scalararg_init():
     '''Test that a instance of the ScalarArg class can be created
-    succesfully.
+    successfully.
 
     '''
     reader = FortranStringReader(METADATA)

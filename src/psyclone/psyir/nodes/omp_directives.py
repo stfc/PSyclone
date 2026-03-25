@@ -594,7 +594,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 stopval = int(stop.value)
                 stepval = int(step.value)
                 # We loop from startval to stopval + 1 as PSyIR loops will
-                # include stopval, wheras Python loops do not.
+                # include stopval, whereas Python loops do not.
                 for i in range(startval, stopval + 1, stepval):
                     new_x = i + binop_val
                     output_list.append(Literal(f"{new_x}", INTEGER_TYPE))
@@ -632,7 +632,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             stopval = int(stop.value)
             stepval = int(step.value)
             # We loop from startval to stopval + 1 as PSyIR loops will include
-            # stopval, wheras Python loops do not.
+            # stopval, whereas Python loops do not.
             for i in range(startval, stopval + 1, stepval):
                 output_list.append(Literal(f"{i}", INTEGER_TYPE))
             return output_list
@@ -668,7 +668,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # r1_min will contain the minimum computed value for (ref + value)
         # from the list. r1_max will contain the maximum computed value.
         # Loop through the values in sympy_ref1s, and compute the maximum
-        # and minumum values in that list. These correspond to the maximum and
+        # and minimum values in that list. These correspond to the maximum and
         # minimum values used for accessing the array relative to the
         # symbol used as a base access.
         values = [int(member) for member in sympy_ref1s]
@@ -1210,7 +1210,7 @@ class OMPMasterDirective(OMPSerialDirective):
         return "omp end master"
 
 
-class OMPParallelDirective(OMPRegionDirective, DataSharingAttributeMixin):
+class OMPParallelDirective(DataSharingAttributeMixin, OMPRegionDirective):
     ''' Class representing an OpenMP Parallel directive.
     '''
 
@@ -1638,7 +1638,7 @@ class OMPTaskloopDirective(OMPRegionDirective):
         return "omp end taskloop"
 
 
-class OMPDoDirective(OMPRegionDirective, DataSharingAttributeMixin):
+class OMPDoDirective(DataSharingAttributeMixin, OMPRegionDirective):
     '''
     Class representing an OpenMP DO directive in the PSyIR.
 
@@ -2085,7 +2085,7 @@ class OMPTeamsLoopDirective(OMPParallelDoDirective):
     _directive_string = "teams loop"
 
 
-class OMPTargetDirective(OMPRegionDirective, DataSharingAttributeMixin):
+class OMPTargetDirective(DataSharingAttributeMixin, OMPRegionDirective):
     ''' Class for the !$OMP TARGET directive that offloads the code contained
     in its region into an accelerator device.
 

@@ -3,7 +3,7 @@
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
-!> @brief This version is for use on discontinous spaces and increments the
+!> @brief This version is for use on discontinuous spaces and increments the
 !>        output field, hence can be used for WTheta spaces and incrementing
 !>        W3 fields
 
