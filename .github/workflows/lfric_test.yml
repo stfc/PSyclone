@@ -42,7 +42,7 @@ on:
   push
 
 env:
-  LFRIC_APPS_HASH: 0f10e77a0d59901396719f475b658a51fb595a10
+  LFRIC_APPS_HASH: 948b9ec1a7ae6ef110b97ed45ced8d4b71079f34
   PYTHON_VERSION: "3.14"
   GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_TOOLCHAIN: nvhpc25_11_openmpi
@@ -123,10 +123,10 @@ jobs:
         # Number of OMP threads have to be set even when psyclone does not inject OpenMP
         # because some psykal-lite routines have it.
         export OMP_NUM_THREADS=1
+        export START_TIME=$SECONDS
         mpirun -n 12 ../bin/gungho_model configuration.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
@@ -155,10 +155,10 @@ jobs:
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=12
         export CUDA_VISIBLE_DEVICES=1
+        export START_TIME=$SECONDS
         mpirun -n 1 ../bin/gungho_model configuration.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
         echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
 
@@ -186,10 +186,10 @@ jobs:
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=12
         export CUDA_VISIBLE_DEVICES=1
+        export START_TIME=$SECONDS
         mpirun -n 1 ../bin/gungho_model configuration.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 mpi ranks each with 2 OpenMP threads
@@ -215,10 +215,10 @@ jobs:
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=2
+        export START_TIME=$SECONDS
         mpirun -n 6 ../bin/gungho_model configuration.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 mpi ranks each with 2 OpenMP threads
@@ -244,10 +244,10 @@ jobs:
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=2
+        export START_TIME=$SECONDS
         mpirun -n 6 ../bin/gungho_model configuration.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
     - name: LFRic Atm PSyclone transmutation
@@ -270,12 +270,12 @@ jobs:
         # Run the app with 8 threads and no MPI
         # (with MPI it currently fails to initialise the mesh - even with no psyclone)
         cd applications/lfric_atm/example/
+        export START_TIME=$SECONDS
         OMP_NUM_THREADS=8 mpirun -n 1 ../bin/lfric_atm configuration.nml
 
         # And compare the results
         python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
-        cat timer.txt
-        export VAR_TIME=$(grep "lfric_atm" timer.txt | cut -d'|' -f5)
+        export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
         echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
 
