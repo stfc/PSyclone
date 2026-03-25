@@ -5905,23 +5905,22 @@ class LFRicKernelArgument(KernelArgument):
                     "Reductions for datatypes other than real are not yet "
                     "supported in PSyclone.")
 
-            self._precision = alg_precision
             self._data_type = const.DATA_TYPE_MAP["scalar"]["type"]
             self._proxy_data_type = None
             self._module_name = const.DATA_TYPE_MAP["scalar"]["module"]
-        else:
-            # This is a scalar that is not part of a reduction.
 
-            if check and alg_precision:
-                # Use the algorithm precision if it is available
-                # and not being ignored.
-                self._precision = alg_precision
-            else:
-                # Use default precision for this datatype if the
-                # algorithm precision is either not available or is
-                # being ignored.
-                self._precision = const.SCALAR_PRECISION_MAP[
-                    self.intrinsic_type]
+        # The precision of the symbol does not depend on whether
+        # it is a reduction
+        if check and alg_precision:
+            # Use the algorithm precision if it is available
+            # and not being ignored.
+            self._precision = alg_precision
+        else:
+            # Use default precision for this datatype if the
+            # algorithm precision is either not available or is
+            # being ignored.
+            self._precision = const.SCALAR_PRECISION_MAP[
+                self.intrinsic_type]
 
     def _init_field_properties(self, alg_datatype, check=True):
         '''Set up the properties of this field using algorithm datatype
