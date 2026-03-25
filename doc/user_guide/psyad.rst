@@ -76,33 +76,7 @@ command line, e.g.:
 The optional ``-h`` argument gives a description of the options provided
 by the command:
 
-.. parsed-literal::
-		
-  >>> psyad -h
-    usage: psyad [-h] [-oad OAD] [-c CONFIG] [-v] [-t] [-api API] [-coord-arg COORD_ARG] [-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] -a ACTIVE [ACTIVE ...] -- filename
-
-    Run the PSyclone adjoint code generator on a tangent-linear kernel file
-
-    positional arguments:
-      filename              tangent-linear kernel source
-
-    optional arguments:
-      -h, --help            show this help message and exit
-      -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]
-                            name of active variables
-      -c CONFIG, --config CONFIG
-                            config file with PSyclone specific options
-      -v, --verbose         increase the verbosity of the output
-      -t, --gen-test        generate a standalone unit test for the adjoint code
-      -api API              the PSyclone API that the TL kernel conforms to (if any)
-      -coord-arg COORD_ARG  the position of the coordinate (chi) field in the
-                            meta_args list of arguments in the kernel metadata
-                            (LFRic only)
-      -panel-id-arg PANEL_ID_ARG
-                            the position of the panel-ID field in the meta_args
-                            list of arguments in the kernel metadata (LFRic only)
-      -otest TEST_FILENAME  filename for the unit test (implies -t)
-      -oad OAD              filename for the transformed code
+.. program-output:: psyad -h
 
 Basic Use
 +++++++++
