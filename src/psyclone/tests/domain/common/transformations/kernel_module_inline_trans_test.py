@@ -297,8 +297,8 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kern_call)
     assert ("Kernel 'compute_cv_code' cannot be module-inlined because the "
-            "subroutine shadows the symbol name of the module container "
-            "'external_mod'." in str(err.value))
+            "subroutine contains a symbol 'external_mod' which shadows the "
+            "name of a module in the outer scope." in str(err.value))
 
     # But it is fine if it shadows itself
     psyir = fortran_reader.psyir_from_source('''
