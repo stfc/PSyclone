@@ -1652,7 +1652,7 @@ def test_lfrickernelargument_idtp_reduction():
 
     # No algorithm information - use default precision
     reduction._init_data_type_properties(None)
-    assert reduction._precision is None
+    assert reduction._precision == "r_def"
     assert reduction._data_type == "scalar_type"
     assert reduction._proxy_data_type is None
     assert reduction._module_name == "scalar_mod"
