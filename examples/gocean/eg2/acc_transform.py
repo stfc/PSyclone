@@ -41,9 +41,9 @@ to have them compiled for an OpenACC accelerator. '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.transformations import (
-    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans,
+    ACCParallelTrans, ACCEnterDataTrans, ACCRoutineTrans,
     TransformationError)
-
+from psyclone.psyir.transformations import ACCLoopTrans
 
 def trans(psyir):
     ''' Apply OpenACC transformations to the invoke_0 subroutine

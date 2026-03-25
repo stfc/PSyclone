@@ -40,10 +40,10 @@ to have them compiled for an OpenACC accelerator. '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.transformations import (
-    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans,
+    ACCParallelTrans, ACCEnterDataTrans, ACCRoutineTrans,
     KernelImportsToArguments)
 from psyclone.psyir.nodes import Loop
-
+from psyclone.psyir.transformations import ACCLoopTrans
 
 def trans(psyir):
     ''' Take the supplied psy-layer, apply OpenACC transformations
