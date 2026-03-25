@@ -36,6 +36,7 @@
 
 ''' Performs tests on the treesitter PSyIR front-end '''
 
+import logging
 import pytest
 
 from tree_sitter import Node as TSNode
@@ -68,7 +69,7 @@ def test_constructor():
     # TODO #3038 Typecheck arguments
 
 
-def test_generate_parse_tree(tmpdir_factory):
+def test_generate_parse_tree(tmpdir_factory, caplog):
     '''
     Test that generate_parse_tree returns treesitter trees or appropriate
     error messages.
@@ -98,6 +99,19 @@ def test_generate_parse_tree(tmpdir_factory):
     with open(filename, "w", encoding='utf-8') as wfile:
         wfile.write(valid_code)
     ptree = processor.generate_parse_tree_from_file(filename)
+    assert isinstance(ptree, TSNode)
+
+    # Test providing a source file with a non utf-8 encoding
+    valid_code = valid_code + "\n! Comment with character \xfc"
+    filename = str(tmpdir_factory.mktemp('ts_test').join("testfile2.f90"))
+    with open(filename, "w", encoding='cp1252') as wfile:
+        wfile.write(valid_code)
+
+    with caplog.at_level(logging.WARNING,
+                         "psyclone.psyir.frontend.fortran_treesitter_reader"):
+        ptree = processor.generate_parse_tree_from_file(filename)
+    assert ("Skipped bad character in input file, 'utf-8' codec can't "
+            "decode byte 0xfc in position 77" in caplog.text)
     assert isinstance(ptree, TSNode)
 
 

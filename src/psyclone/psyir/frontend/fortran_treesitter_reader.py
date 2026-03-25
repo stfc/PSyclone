@@ -35,6 +35,8 @@
 
 ''' PSyIR TreeSitter Fortran reader '''
 
+import codecs
+import logging
 from typing import TYPE_CHECKING, Iterable, Union, Callable
 
 from psyclone.psyir import nodes
@@ -44,6 +46,25 @@ if TYPE_CHECKING:
     # Purposely inside typechecking because at runtime we want to lazily
     # import the parser (only if it is actually used)
     from tree_sitter import Node as TSNode
+
+
+def log_decode_error_handler(err) -> tuple[str, int]:
+    '''
+    A custom error handler for use when reading files. Removes any
+    characters that cause decoding errors and logs the error.
+
+    :param err: the given error.
+
+    :returns: 2-tuple containing replacement for bad chars (an empty string
+        and the position from where encoding should continue.
+    '''
+    # Log the fact that this character will be removed from the input file
+    logging.getLogger(__name__).warning(
+        "Skipped bad character in input file, %s", str(err))
+    return ("", err.end)
+
+
+codecs.register_error("treesitter-encoding", log_decode_error_handler)
 
 
 def to_str(node: 'TSNode') -> str:
@@ -80,7 +101,7 @@ class FortranTreeSitterReader():
     :param ignore_directives: whether to ignore directives while parsing.
     :param conditional_openmp: whether to parse conditional OpenMP statements.
 
-    :raises TypeError: if the constructor argument is not of the expected type.
+    :raises TypeError: if any constructor argument is not of the expected type.
     '''
 
     def __init__(
@@ -105,6 +126,7 @@ class FortranTreeSitterReader():
         # passing around a parent argument all the time (like fparser's), but
         # this can be re-evaluated if necessary.
         self._psyir_cursor = None
+        # Map from treesitter node types to their handler routine
         self.handlers = {
             'translation_unit': self._translation_unit,
             'module': self._module_handler,
@@ -118,7 +140,9 @@ class FortranTreeSitterReader():
 
         :returns: the treesitter parsetree of the given file.
         '''
-        with open(file_path, encoding="utf-8") as fortran_file:
+        with open(
+            file_path, encoding="utf-8", errors="treesitter-encoding"
+        ) as fortran_file:
             source_code = fortran_file.read()
         return self.generate_parse_tree_from_source(source_code)
 
@@ -164,6 +188,7 @@ class FortranTreeSitterReader():
         '''Translate the supplied treesitter node into PSyIR.
 
         :param parse_tree: the supplied treesitter parse tree.
+
         :returns: the equivalent PSyIR Node.
         '''
         return self.process_nodes(parse_tree)[0]
@@ -172,8 +197,9 @@ class FortranTreeSitterReader():
         '''
         Create the PSyIR that represents the supplied treesitter nodes.
 
-        :param nodes: the list of nodes to process, for conveninece it accepts
+        :param nodes: the list of nodes to process, for convenience it accepts
             a single node or a list of them.
+
         :returns: the equivalent PSyIR Node.
         '''
         list_of_nodes = tsnodes if isinstance(tsnodes, Iterable) else [tsnodes]
@@ -183,8 +209,8 @@ class FortranTreeSitterReader():
                 handler = self.get_handler(tsnode)
                 children.append(handler(tsnode))
             except NotImplementedError as err:
-                # TODO #3038: Add support expression codeblocks and aggregating
-                # contiguous codeblocks into a single one.
+                # TODO #3038: Add support for expression codeblocks and
+                # aggregating contiguous codeblocks into a single one.
                 structure = CodeBlock.Structure.STATEMENT
                 code_block = TreeSitterCodeBlock(tsnode, structure)
                 code_block.append_preceding_comment(
@@ -197,7 +223,11 @@ class FortranTreeSitterReader():
     def get_handler(self, tsnode: 'TSNode') -> Callable:
         '''
         :param tsnode: a given treesitter node.
+
         :returns: the method that handles the given node type.
+
+        :raises NotImplementedError: if the given node type does not have a
+            handler for it.
         '''
         handler = self.handlers.get(tsnode.type)
         if not handler:
@@ -209,6 +239,7 @@ class FortranTreeSitterReader():
         ''' Handle treesitter 'translation_unit' node.
 
         :param tsnode: the treesitter node the process.
+
         :returns: the equivalent PSyIR Node.
         '''
         file_container = nodes.FileContainer("")
@@ -220,7 +251,11 @@ class FortranTreeSitterReader():
         ''' Handle a treesitter 'module' node.
 
         :param tsnode: the treesitter node the process.
+
         :returns: the equivalent PSyIR Node.
+
+        :raises NotImplementedError: if the module has an unsupported child.
+        :raises NotImplementedError: if the module permits implicit variables.
         '''
         module_name = None
         internal_proc = None
