@@ -1,3 +1,5 @@
+   71) PR #3381. Update integration tests to LFRic_apps 3.1.1
+
    70) PR #3358 for #1734, #2975 and #2949. Improve symbol table consistency
    with better copies, validation checks and symbol localisation operations.
 
