@@ -77,7 +77,8 @@ from psyclone.domain.lfric.lfric_psy import LFRicPSy
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.domain.lfric.lfric_dofmaps import LFRicDofmaps
 from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-
+from psyclone.domain.lfric.lfric_omp_parallel_loop_trans import \
+    LFRicOMPParallelLoopTrans
 
 __all__ = [
     'ArgOrdering',

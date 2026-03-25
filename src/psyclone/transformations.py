@@ -53,7 +53,6 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessMap
 from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
                                    LFRicInvokeSchedule, LFRicKern, LFRicLoop)
-from psyclone.lfric import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
