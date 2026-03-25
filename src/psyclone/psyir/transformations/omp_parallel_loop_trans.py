@@ -45,6 +45,7 @@ from psyclone.psyir.nodes import (
     OMPParallelDoDirective, OMPReductionClause)
 from psyclone.psyir.nodes.omp_directives import MAP_REDUCTION_OP_TO_OMP
 
+
 class OMPParallelLoopTrans(OMPLoopTrans):
 
     ''' Adds an OpenMP PARALLEL DO directive to a loop.
@@ -69,7 +70,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an 'OpenMP PARALLEL DO' directive"
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
         (which must be a Loop). In the generated code this corresponds to
         wrapping the Loop with directives:
@@ -88,8 +89,13 @@ class OMPParallelLoopTrans(OMPLoopTrans):
             and validation.
         :type options: Optional[Dict[str, Any]]
         '''
-        self.validate(node, options=options)
+        local_options = options.copy() if options is not None else None
+        if options and options.get("enable_reductions", False):
+            local_options["reduction_ops"] = \
+                list(MAP_REDUCTION_OP_TO_OMP.keys())
 
+        self.validate(node, options=local_options, **kwargs)
+        
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
         node_parent = node.parent
@@ -99,9 +105,6 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         # parent and its children to the node
         directive = OMPParallelDoDirective(children=[node.detach()],
                                            omp_schedule=self.omp_schedule)
-
-        # add the OpenMP loop directive as a child of the node's parent
-        node_parent.addchild(directive, index=node_position)
 
         # Add any inferred reduction clauses to the newly introduced directive
         for (op, ref) in self.inferred_reduction_clauses:
