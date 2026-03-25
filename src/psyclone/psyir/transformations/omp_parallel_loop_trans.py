@@ -95,7 +95,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
                 list(MAP_REDUCTION_OP_TO_OMP.keys())
 
         self.validate(node, options=local_options, **kwargs)
-        
+
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
         node_parent = node.parent
