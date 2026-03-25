@@ -41,8 +41,9 @@
 
 
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
-from psyclone.psyir.nodes import OMPParallelDoDirective
-
+from psyclone.psyir.nodes import (
+    OMPParallelDoDirective, OMPReductionClause)
+from psyclone.psyir.nodes.omp_directives import MAP_REDUCTION_OP_TO_OMP
 
 class OMPParallelLoopTrans(OMPLoopTrans):
 
@@ -98,6 +99,15 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         # parent and its children to the node
         directive = OMPParallelDoDirective(children=[node.detach()],
                                            omp_schedule=self.omp_schedule)
+
+        # add the OpenMP loop directive as a child of the node's parent
+        node_parent.addchild(directive, index=node_position)
+
+        # Add any inferred reduction clauses to the newly introduced directive
+        for (op, ref) in self.inferred_reduction_clauses:
+            clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
+            clause.addchild(ref)
+            directive.addchild(clause)
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
