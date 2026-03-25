@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -340,6 +340,20 @@ def test_gen_decls_routine_unresolved(fortran_writer):
                                    interface=UnresolvedInterface()))
     result = fortran_writer.gen_decls(symbol_table)
     assert result == ""
+
+
+def test_gen_decls_name_too_long(fortran_writer):
+    '''Test that the expected error is raised when the supplied table
+    contains a Symbol with a name longer than the internal limit.
+    '''
+    table = SymbolTable()
+    bad_name = 100*"a"
+    table.add(DataSymbol(bad_name, INTEGER_TYPE))
+    with pytest.raises(VisitorError) as err:
+        fortran_writer.gen_decls(table)
+    assert (f"Found a symbol '{bad_name}' with a name greater than "
+            f"{fortran_writer.MAX_VARIABLE_NAME_LENGTH} characters in length"
+            in str(err.value))
 
 
 def test_gen_decls_routine_wrong_interface(fortran_writer):

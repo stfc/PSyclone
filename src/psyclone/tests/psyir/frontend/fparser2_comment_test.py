@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -486,7 +486,7 @@ subroutine test_sub()
   integer :: a
   integer :: i
   ! Comment on loop 'do i = 1, 10'
-  !$omp parallel do
+  !dir$ somedir
   do i = 1, 10
     a = 1
   end do
@@ -512,7 +512,7 @@ def test_directives():
     directive = loop.preceding(reverse=True)[0]
     assert isinstance(directive, CodeBlock)
     assert (directive.debug_string() ==
-            "! Comment on loop 'do i = 1, 10'\n!$omp parallel do\n")
+            "! Comment on loop 'do i = 1, 10'\n!dir$ somedir\n")
 
 
 EXPECTED_WITH_DIRECTIVES = """subroutine test_sub()
@@ -520,7 +520,7 @@ EXPECTED_WITH_DIRECTIVES = """subroutine test_sub()
   integer :: i
 
   ! Comment on loop 'do i = 1, 10'
-  !$omp parallel do
+  !dir$ somedir
   do i = 1, 10, 1
     a = 1
   enddo

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,14 @@ sub-classes.'''
 
 from abc import ABCMeta
 from enum import Enum
-from typing import Tuple
+from typing import Tuple, TYPE_CHECKING
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+
+if TYPE_CHECKING:
+    from psyclone.psyir.symbols.datatypes import DataType
 
 
 class Operation(DataNode, metaclass=ABCMeta):
@@ -320,69 +324,16 @@ class BinaryOperation(Operation):
                             f"boolean, but found '{type(value).__name__}'.")
         self._has_explicit_grouping = value
 
-    def _get_result_precision(self, precisions):
-        '''
-        Compares the two precisions to determine the precision of the result
-        of the operation.
-
-        If the two precisions are the same, then that value is returned.
-        Otherwise, Section 7.1.9.3 of the Fortran2008 standard says that in
-        this case, the precision of the result is the greater of the two.
-        If the precision cannot be determined then
-        `ScalarType.Precision.UNDEFINED` is returned.
-
-        :param precisions: the precision of the two operands.
-        :type precisions: list[int |
-            :py:class:`psyclone.psyir.symbols.ScalarType.Precision |
-            :py:class:`psyclone.psyir.nodes.Reference`]
-
-        :returns: the precision of the result of the operation.
-        :rtype: int | :py:class:`psyclone.psyir.symbols.ScalarType.Precision
-
-        :raises InternalError: if an unsupported Precision value is encountered
-            (this is to defend against any future extension of
-            ScalarType.Precision).
-
-        '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import ScalarType
-        if precisions[0] == precisions[1]:
-            return precisions[0]
-
-        # Operands have different precisions.
-        if all(isinstance(prec, int) for prec in precisions):
-            # Both precisions are integer.
-            return max(precisions)
-
-        if all(isinstance(prec, ScalarType.Precision) for
-               prec in precisions):
-            # Both precisions are of ScalarType.Precision type.
-            if ScalarType.Precision.UNDEFINED in precisions:
-                return ScalarType.Precision.UNDEFINED
-            if ScalarType.Precision.DOUBLE in precisions:
-                return ScalarType.Precision.DOUBLE
-            raise InternalError(
-                f"Operation._get_result_precision: got unsupported Precision "
-                f"value(s) '{precisions[0]}' and '{precisions[1]}' for "
-                f"operands '{self.children[0].debug_string()}' and "
-                f"'{self.children[1].debug_string()}'")
-
-        # We can't reason about the precision of the result.
-        return ScalarType.Precision.UNDEFINED
-
-    def _get_result_scalar_type(self, argtypes):
+    def get_result_scalar_type(self, optypes: list["DataType"]) -> "DataType":
         '''
         Examines the two operand types to determine the base type of the
         operation using the rules in Section 7.2 of the Fortran2008 standard.
         If the type cannot be determined then an instance of `UnresolvedType`
         is returned.
 
-        :param argtypes: the types of the two operands.
-        :type argtypes: list[:py:class:`psyclone.psyir.symbols.DataType`,
-                             :py:class:`psyclone.psyir.symbols.DataType`]
+        :param optypes: the types of the two operands.
 
         :returns: the base type of the result of the operation.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
         :raises TypeError: if an unexpected intrinsic type is found for
                            either of the operands to a numeric operation.
@@ -390,49 +341,29 @@ class BinaryOperation(Operation):
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols.datatypes import (
-                BOOLEAN_TYPE, ScalarType, UnresolvedType)
+                BOOLEAN_TYPE, ScalarType)
+        from psyclone.psyir.tools.type_info_computation import (
+                compute_scalar_type
+        )
 
         if self.operator not in self._numeric_ops:
             # Must be a relational or logical operator. Intrinsic type of
             # result will be boolean.
             return BOOLEAN_TYPE
 
-        # We have a numerical operation.
-        if any(isinstance(atype.intrinsic, UnresolvedType)
-               for atype in argtypes):
-            # datatype of a numerical operation on a UnresolvedType is a
-            # UnresolvedType.
-            return UnresolvedType()
-
-        base_type = None
-
-        # If either of the operands has REAL intrinsic type then the result
-        # must also be REAL.
-        if argtypes[0].intrinsic == argtypes[1].intrinsic:
-            # Operands are of the same intrinsic type.
-            precision = self._get_result_precision([argtypes[0].precision,
-                                                    argtypes[1].precision])
-            base_type = ScalarType(argtypes[0].intrinsic, precision)
-        elif argtypes[0].intrinsic == ScalarType.Intrinsic.REAL:
-            base_type = argtypes[0]
-        elif argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
-            base_type = argtypes[1]
-
-        # Check that the type of the result is consistent with a numerical
-        # operation.
-        if not base_type or base_type.intrinsic not in (
-                ScalarType.Intrinsic.INTEGER,
-                ScalarType.Intrinsic.REAL):
-            for atype in argtypes:
-                if atype.intrinsic not in (ScalarType.Intrinsic.INTEGER,
-                                           ScalarType.Intrinsic.REAL):
-                    raise TypeError(
-                        f"Invalid argument of type '{atype.intrinsic}' to "
-                        f"numerical operation '{self.operator}' in "
-                        f"'{self.debug_string()}'. Currently only "
-                        f"ScalarType.Intrinsic.REAL/INTEGER are "
-                        f"supported (TODO #1590)")
-        return base_type
+        try:
+            return compute_scalar_type(optypes)
+        except TypeError as err:
+            actual_types = set(atype.intrinsic for atype in optypes)
+            actual_types -= set([ScalarType.Intrinsic.INTEGER,
+                                ScalarType.Intrinsic.REAL])
+            actual_types = [str(x) for x in actual_types]
+            raise TypeError(
+                f"Invalid argument(s) of type(s) '{actual_types}' to "
+                f"numerical operation '{self.operator}' in "
+                f"'{self.debug_string()}'. Currently only "
+                f"ScalarType.Intrinsic.REAL/INTEGER are supported "
+                f"(TODO #1590)") from err
 
     @property
     def datatype(self):
@@ -451,7 +382,7 @@ class BinaryOperation(Operation):
             ArrayType, UnresolvedType, ScalarType,
             UnsupportedFortranType, UnsupportedType)
         # Get the types of the operands.
-        argtypes = []
+        optypes = []
         for child in self.children:
             # If the operand is itself an operation this will recurse.
             dtype = child.datatype
@@ -479,28 +410,54 @@ class BinaryOperation(Operation):
                     else:
                         dtype = ArrayType(UnresolvedType(), shape=dtype.shape)
 
-            argtypes.append(dtype)
-
+            optypes.append(dtype)
         # Determine the base (scalar) type of the result.
-        base_type = self._get_result_scalar_type(argtypes)
+        base_type = self.get_result_scalar_type(optypes)
         if (isinstance(base_type, UnresolvedType) or
-                all(isinstance(atype, ScalarType) for atype in argtypes)):
+                all(isinstance(atype, ScalarType) for atype in optypes)):
             # Both operands are of scalar type.
             return base_type
 
-        if all(isinstance(atype, ArrayType) for atype in argtypes):
+        if all(isinstance(atype, ArrayType) for atype in optypes):
             # Both operands are of array type.
-            if len(argtypes[0].shape) != len(argtypes[1].shape):
+            if len(optypes[0].shape) != len(optypes[1].shape):
                 raise InternalError(
                     f"Binary operation '{self.debug_string()}' has operands "
                     f"of different shape: '{self.children[0].debug_string()}' "
-                    f"has rank {len(argtypes[0].shape)} and "
+                    f"has rank {len(optypes[0].shape)} and "
                     f"'{self.children[1].debug_string()}' has rank "
-                    f"{len(argtypes[1].shape)}")
+                    f"{len(optypes[1].shape)}")
             # In general there is no way we can check that the extents of each
             # dimension match so we have to assume that they do.
-        shape = (argtypes[0].shape if isinstance(argtypes[0], ArrayType) else
-                 argtypes[1].shape)
+
+        # If only one of the operand types is an ArrayType then we return that
+        if not all(isinstance(optype, ArrayType) for optype in optypes):
+            shape = (optypes[0].shape if isinstance(optypes[0], ArrayType)
+                     else optypes[1].shape)
+        else:
+            # Otherwise we try to work out the best. Find out how many
+            # non-intrinsic DataNodes shape definitions each
+            # has.
+            dnodes_0 = len([x for x in optypes[0].shape if
+                            isinstance(x, ArrayType.ArrayBounds) and
+                            isinstance(x.lower, DataNode) and
+                            not isinstance(x.lower, IntrinsicCall) and
+                            isinstance(x.upper, DataNode) and
+                            (not isinstance(x.upper, IntrinsicCall)
+                             and len(x.upper.walk(IntrinsicCall)) == 0)])
+            dnodes_1 = len([x for x in optypes[1].shape if
+                            isinstance(x, ArrayType.ArrayBounds) and
+                            isinstance(x.lower, DataNode) and
+                            not isinstance(x.lower, IntrinsicCall) and
+                            isinstance(x.upper, DataNode) and
+                            (not isinstance(x.upper, IntrinsicCall)
+                             and len(x.upper.walk(IntrinsicCall)) == 0)])
+            # If the second shape has more defined elements then
+            # return the shape of that.
+            if dnodes_1 > dnodes_0:
+                return ArrayType(base_type, shape=optypes[1].shape)
+            # Otherwise use the shape of the first operand.
+            shape = optypes[0].shape
         return ArrayType(base_type, shape=shape)
 
     @property

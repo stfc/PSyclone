@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2025, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2026, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -122,7 +122,7 @@ which prints the filenames of all modules used in ``tl_testkern_mod``:
 
     mod_manager = ModuleManager.get()
     # Add the path to the PSyclone LFRic example codes:
-    mod_manager.add_search_path("../../src/psyclone/tests/test_files/"
+    mod_manager.add_search_path("../src/psyclone/tests/test_files/"
                                 "lfric")
 
     testkern_info = mod_manager.get_module_info("tl_testkern_mod")

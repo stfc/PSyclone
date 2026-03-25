@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -784,7 +784,7 @@ def test_opencl_kernel_boundaries_validation():
 
 
 def test_opencl_options_validation():
-    ''' Check that OpenCL options which are not supported provide appropiate
+    ''' Check that OpenCL options which are not supported provide appropriate
     errors.
     '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)

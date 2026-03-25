@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council
+# Copyright (c) 2020-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,9 @@ applied via the -s option in the psyclone command, it is not designed
 to be directly run from python.
 
 '''
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import LFRicOMPParallelLoopTrans, \
-    TransformationError, LFRicColourTrans, OMPParallelTrans, \
+    TransformationError, LFRicColourTrans, \
     LFRicOMPLoopTrans
 from psyclone.psyGen import Loop
 from psyclone.domain.lfric.function_space import FunctionSpace
@@ -49,7 +50,7 @@ from psyclone.domain.lfric.function_space import FunctionSpace
 def trans(psyir):
     '''PSyclone transformation script for the LFRic API that applies
     OpenMP parallel loop parallelisation. It also outputs a textual
-    representation of the transformated PSyIR.
+    representation of the transformed PSyIR.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

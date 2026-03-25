@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,11 +43,11 @@ MPI?=no
 
 ifeq ($(MPI), yes)
 	# -P suppresses linemarkers
-	FPP?=cpp -P -D_MPI
+	FPP=cpp -P -D_MPI
 	# We need to compile with mpif90 if MPI is enabled
 	F90?=mpif90
 else
-	FPP?=cpp -P
+	FPP=cpp -P
 endif
 
 PSYROOT=../../../..
@@ -83,9 +83,6 @@ else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/binary/lfric
 endif
 
-# Even standalone now needs NetCDF because of the LFRic infrastructure
-LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
-
 EXEC = extract.$(TYPE)
 EXTRACT_NAME ?= _extract
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
@@ -106,9 +103,10 @@ run: compile
 	./driver-main-init
 	./driver-main-update
 
+# Note that LDFLAGS contains NetCDF and the LFRic infrastructure library
 $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \
-	      -L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS)
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) \
+	-L$(EXTRACT_DIR) -l$(EXTRACT_NAME) $(LDFLAGS)
 
 $(EXTRACT_LIB): $(LFRIC_LIB)
 	$(MAKE) -C $(EXTRACT_DIR)
@@ -122,11 +120,11 @@ main_alg.o:	main_psy.o
 testkern_w0_kernel_mod.o: dummy_mod.o $(LFRIC_LIB)
 
 driver-main-update:	driver-main-update.o
-	$(F90) $(F90FLAGS)  driver-main-update.o $(LDFLAGS) -o driver-main-update
+	$(F90) $(F90FLAGS)  driver-main-update.o $$(nf-config --flibs) -o driver-main-update
 
 driver-main-init:	LFRIC_INCLUDE_FLAGS += -I $(EXTRACT_DIR)/..
 driver-main-init:	driver-main-init.o
-	$(F90) $(F90FLAGS)  driver-main-init.o $(LDFLAGS) -o driver-main-init
+	$(F90) $(F90FLAGS)  driver-main-init.o $$(nf-config --flibs) -o driver-main-init
 
 %.o: %.F90
 	$(F90) $(F90FLAGS) -c $<

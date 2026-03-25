@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ class IntrinsicSymbol(RoutineSymbol):
     :type kwargs: unwrapped dict.
 
     # TODO #2541: Currently name and the intrinsic should match, we really
-    # just need the name, and make all the Intrinsic singature information
+    # just need the name, and make all the Intrinsic signature information
     # live inside the IntrinsicSymbol class.
 
     '''

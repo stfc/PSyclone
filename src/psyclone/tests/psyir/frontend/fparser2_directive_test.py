@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    CodeBlock,
+    CodeBlock, IfBlock, UnknownDirective
 )
 
 
@@ -50,7 +50,7 @@ def test_directive_after_decls():
 
     code = """subroutine x()
     integer :: i
-    !$omp barrier
+    !$ompx barrier
     i = 3
     end subroutine"""
     reader = FortranReader(ignore_comments=False, ignore_directives=False)
@@ -58,7 +58,7 @@ def test_directive_after_decls():
     routine = psyir.children[0]
     # The directive is a codeblock
     assert isinstance(routine.children[0], CodeBlock)
-    assert routine.children[0].debug_string() == "!$omp barrier\n"
+    assert routine.children[0].debug_string() == "!$ompx barrier\n"
 
 
 def test_directive_in_decls():
@@ -77,7 +77,7 @@ def test_directive_in_decls():
   integer, dimension(100) :: i ! dir$ aligned""" in out
 
     pytest.xfail(reason="TODO #3178 PSyclone can't store directives in "
-                        "declrations as directives.")
+                        "declarations as directives.")
 
 
 def test_directive_at_end():
@@ -87,14 +87,14 @@ def test_directive_at_end():
     code = """subroutine x
     integer :: i
     i = i + 1
-    !$omp barrier
+    !$ompx barrier
     end subroutine"""
     reader = FortranReader(ignore_comments=False, ignore_directives=False)
     psyir = reader.psyir_from_source(code)
     routine = psyir.children[0]
     # The directive is a codeblock
     assert isinstance(routine.children[-1], CodeBlock)
-    assert routine.children[-1].debug_string() == "!$omp barrier\n"
+    assert routine.children[-1].debug_string() == "!$ompx barrier\n"
 
 
 def test_directive_before_loop():
@@ -103,7 +103,7 @@ def test_directive_before_loop():
     code = """subroutine x
     integer :: i, j
     i = 1
-    !$omp target
+    !dir$ target
     do i = 1, 100
         j = i
     end do
@@ -113,7 +113,7 @@ def test_directive_before_loop():
     routine = psyir.children[0]
     # The directive is a codeblock
     assert isinstance(routine.children[1], CodeBlock)
-    assert routine.children[1].debug_string() == "!$omp target\n"
+    assert routine.children[1].debug_string() == "!dir$ target\n"
 
 
 def test_directive_before_if():
@@ -122,7 +122,7 @@ def test_directive_before_if():
     code = """subroutine x
     integer :: i, j
     i = 1
-    !$omp target
+    !dir$ target
     if(i == 1 )then
       j = i
     end if
@@ -132,7 +132,7 @@ def test_directive_before_if():
     routine = psyir.children[0]
     # The directive is a codeblock
     assert isinstance(routine.children[1], CodeBlock)
-    assert routine.children[1].debug_string() == "!$omp target\n"
+    assert routine.children[1].debug_string() == "!dir$ target\n"
 
 
 def test_directive_before_else():
@@ -143,7 +143,7 @@ def test_directive_before_else():
     i = 1
     if( i == 1 )then
       j = i
-      !$omp barrier
+      !dir$ barrier
     else
       j = 2
     end if
@@ -154,7 +154,7 @@ def test_directive_before_else():
     ifblock = routine.children[1]
     # The directive is a codeblock
     assert isinstance(ifblock.if_body.children[1], CodeBlock)
-    assert ifblock.if_body.children[1].debug_string() == "!$omp barrier\n"
+    assert ifblock.if_body.children[1].debug_string() == "!dir$ barrier\n"
 
 
 def test_directive_before_module():
@@ -177,7 +177,7 @@ def test_directive_before_while():
     CodeBlock."""
     code = """subroutine x
     integer :: i
-    !$omp barrier
+    !dir$ barrier
     do while(i < 1)
         i = i + 1
     end do
@@ -187,7 +187,7 @@ def test_directive_before_while():
     routine = psyir.children[0]
     # The directive is a codeblock
     assert isinstance(routine.children[0], CodeBlock)
-    assert routine.children[0].debug_string() == "!$omp barrier\n"
+    assert routine.children[0].debug_string() == "!dir$ barrier\n"
 
 
 def test_directive_before_allocate():
@@ -213,9 +213,9 @@ def test_multiple_directives():
     directive regions (including their end directives)."""
     code = """subroutine x
     integer :: i
-    !$omp parallel
+    !$ompx parallel
     i = 1
-    !$omp end parallel
+    !$ompx end parallel
     end subroutine x
     """
     reader = FortranReader(ignore_comments=False, ignore_directives=False)
@@ -223,16 +223,16 @@ def test_multiple_directives():
     routine = psyir.children[0]
     cbs = routine.walk(CodeBlock)
     assert len(cbs) == 2
-    assert cbs[0].debug_string() == "!$omp parallel\n"
-    assert cbs[1].debug_string() == "!$omp end parallel\n"
+    assert cbs[0].debug_string() == "!$ompx parallel\n"
+    assert cbs[1].debug_string() == "!$ompx end parallel\n"
     code = """subroutine x
     integer :: i
-    !$omp parallel
+    !$ompx parallel
     i = 1
-    !$omp end parallel
-    !$omp parallel
+    !$ompx end parallel
+    !$ompx parallel
     i = 2
-    !$omp end parallel
+    !$ompx end parallel
     end subroutine x
     """
     reader = FortranReader(ignore_comments=False, ignore_directives=False)
@@ -240,10 +240,10 @@ def test_multiple_directives():
     routine = psyir.children[0]
     cbs = routine.walk(CodeBlock)
     assert len(cbs) == 4
-    assert cbs[0].debug_string() == "!$omp parallel\n"
-    assert cbs[1].debug_string() == "!$omp end parallel\n"
-    assert cbs[2].debug_string() == "!$omp parallel\n"
-    assert cbs[3].debug_string() == "!$omp end parallel\n"
+    assert cbs[0].debug_string() == "!$ompx parallel\n"
+    assert cbs[1].debug_string() == "!$ompx end parallel\n"
+    assert cbs[2].debug_string() == "!$ompx parallel\n"
+    assert cbs[3].debug_string() == "!$ompx end parallel\n"
 
 
 def test_inline_comment(fortran_writer):
@@ -260,3 +260,202 @@ def test_inline_comment(fortran_writer):
     assert len(routine.walk(CodeBlock)) == 0
     # The comment should still be inline
     assert "j = 4  ! $omp atomic" in fortran_writer(psyir)
+
+
+def test_unknowndirective(fortran_writer):
+    """Test the the FortranReader creates a UnknownDirective when expected."""
+    code = """subroutine x
+    integer :: j
+    !$psy lowercase
+    !$PSY Uppercase
+    !$PsY mixedCASE
+    j = 1
+    end subroutine x
+    """
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    pdirs = routine.walk(UnknownDirective)
+
+    assert len(pdirs) == 3
+    assert pdirs[0].directive_string == "psy lowercase"
+    assert pdirs[1].directive_string == "psy uppercase"
+    assert pdirs[2].directive_string == "psy mixedcase"
+
+    # Check the output is also correct
+    output = fortran_writer(psyir)
+
+    assert "!$psy lowercase" in output
+    assert "!$psy uppercase" in output
+    assert "!$psy mixedcase" in output
+
+
+def test_comments_on_directive_before_loop(fortran_writer):
+    """Test that comments before directives that occur on a loop are
+    correctly placed onto the directive's preceding_comments."""
+    code = """
+    subroutine x
+    integer :: i, j, n
+    integer, dimension(100) :: f, a
+
+    i = 1
+    !comment1
+    !comment2
+    !$acc comment2
+    !$dir kernel(fusable)
+    !$dir loop(target)
+    do i = 1, n, 1
+        do j = 1, n, 1
+            f(i) = a(i) / 2.0
+        enddo
+    enddo
+    end subroutine x
+"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    dirs = routine.walk(UnknownDirective)
+    assert dirs[0].directive_string == "acc comment2"
+    assert ("""comment1
+comment2""" == dirs[0].preceding_comment)
+
+
+def test_comments_on_directive_before_ifblock(fortran_writer):
+    """Test that comments before directives that occur on an IfBlock are
+    correctly placed onto the directive's preceding_comments."""
+    code = """
+    subroutine x
+    integer :: i, j, n
+    integer, dimension(100) :: f, a
+
+    i = 1
+    !comment1
+    !comment2
+    !$acc comment2
+    !$dir kernel(fusable)
+    !$dir loop(target)
+    if(i == 1) then
+        do j = 1, n, 1
+            f(j) = a(j) / 2.0
+        enddo
+    end if
+    end subroutine x
+"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    dirs = routine.walk(UnknownDirective)
+    assert dirs[0].directive_string == "acc comment2"
+    assert ("""comment1
+comment2""" == dirs[0].preceding_comment)
+
+
+def test_comments_on_directive_before_case(fortran_writer):
+    '''Tests that comments and directives are placed correctly when a
+    Select case statement is converted to ifblocks.'''
+    code = """
+subroutine foo()
+
+    integer :: jk, jpkm1
+    integer :: nn_e3f_typ
+    integer :: i
+
+    !$pos operation(kernel_fusion)
+    !comment a
+
+    DO jk = 1, jpkm1
+        !comment2
+        !$pos operation(kernel_fusion)
+        !comment b
+        SELECT CASE( nn_e3f_typ ) !inline comment
+        !Hey there!
+        CASE ( 0 ) !case 0 inline comment
+            !$pos dummy
+            i = 1
+            ! a comment
+        !$pos dumm2
+        CASE ( 1 ) !case 1 inline comment
+           i = 2
+        END SELECT
+
+        !comment c
+    END DO
+end subroutine foo"""
+
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    dirs = routine.walk(UnknownDirective)
+    assert len(dirs) == 4
+    assert routine.children[0] is dirs[0]
+    loop = routine.children[1]
+    assert loop.loop_body[0] is dirs[1]
+    assert "comment2" == dirs[1].preceding_comment
+    case_if = loop.loop_body[1]
+    assert isinstance(case_if, IfBlock)
+    assert (case_if.preceding_comment ==
+            """comment b
+inline comment
+Hey there!""")
+    assert case_if.if_body[0] is dirs[2]
+    assert case_if.if_body[-1] is dirs[3]
+    assert dirs[3].preceding_comment == "a comment"
+
+    output = fortran_writer(psyir)
+    correct = """!$pos operation(kernel_fusion)
+
+  ! comment a
+  do jk = 1, jpkm1, 1
+    ! comment2
+    !$pos operation(kernel_fusion)
+
+    ! comment b
+    ! inline comment
+    ! Hey there!
+    if (nn_e3f_typ == 0) then
+      ! case 0 inline comment
+      !$pos dummy
+      i = 1
+
+      ! a comment
+      !$pos dumm2
+    else
+      if (nn_e3f_typ == 1) then
+        ! case 1 inline comment
+        i = 2
+      end if
+    end if
+  enddo"""
+    assert correct in output
+
+
+def test_comments_on_directive_before_where(fortran_writer):
+    '''Tests that comments and directives are placed correctly when a
+    WHERE statement is converted to loop + ifblock.'''
+    code = """ subroutine x
+    real, dimension(100) :: a, b
+    !$psy where
+    ! here is a comment
+    where(dot_product(a,a(:)) + abs(a) < 2) !inline comment
+        !inside comment
+        b = a
+    end where
+    end subroutine x
+    """
+
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    assert isinstance(routine.children[0], UnknownDirective)
+    assert routine.children[1].preceding_comment == "here is a comment"
+    correct = """!$psy where
+
+  ! here is a comment
+  do widx1 = 1, 100, 1
+    if (DOT_PRODUCT(a, a(:)) + ABS(a(widx1)) < 2) then
+      ! inline comment
+      ! inside comment
+      b(widx1) = a(widx1)
+    end if
+  enddo"""
+    assert correct in fortran_writer(psyir)

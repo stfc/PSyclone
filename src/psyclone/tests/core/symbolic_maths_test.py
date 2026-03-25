@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -232,7 +232,7 @@ def test_symbolic_math_never_equal(fortran_reader, exp1, exp2, result):
     source = f'''program test_prog
                 use some_mod
                 integer :: i, j, k, x
-                type(my_mod_type) :: a, b
+                real, dimension(10) :: a, b
                 x = {exp1}
                 x = {exp2}
                 end program test_prog

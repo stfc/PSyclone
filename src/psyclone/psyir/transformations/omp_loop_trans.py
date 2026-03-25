@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -93,7 +93,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.nodes import Loop
     >>> from psyclone.psyir.transformations import OMPLoopTrans
-    >>> from psyclone.transformations import OMPParallelTrans
+    >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>>
     >>> psyir = FortranReader().psyir_from_source("""
     ...     subroutine my_subroutine()

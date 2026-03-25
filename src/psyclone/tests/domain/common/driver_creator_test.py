@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,6 +51,21 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, RoutineSymbol
 from psyclone.tests.utilities import Compile, get_invoke
 
 
+# ----------------------------------------------------------------------------
+def test_lfric_driver_valid_unit_name():
+    '''Tests that we create valid unit names, i.e. less than 64 characters,
+    and no ":" in name.'''
+
+    long_name = "A"*100
+    new_name = DriverCreator._make_valid_unit_name(long_name)
+    assert new_name == "A"*63
+
+    special_characters = "aaa-bbb"
+    new_name = DriverCreator._make_valid_unit_name(special_characters)
+    assert new_name == "aaabbb"
+
+
+# ----------------------------------------------------------------------------
 def test_basic_driver_add_call(fortran_writer):
     '''Tests that adding a call detects errors and adds calls
     with and without parameters as expected.

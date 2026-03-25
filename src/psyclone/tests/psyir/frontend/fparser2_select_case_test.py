@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -564,7 +564,7 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
     # Check the generated code matches the expected code
     has_cmp_interface(fortran_writer(container))
 
-    # If called again, the same symbol is retrived and no extra code is added
+    # If called again, the same symbol is retrieved and no extra code is added
     another_symbol = _find_or_create_psyclone_internal_cmp(node_in_subroutine)
     assert symbol is another_symbol
     assert len(container.children) == 4
@@ -655,7 +655,7 @@ def test_unresolved_types_case(fortran_reader, fortran_writer):
 
 def test_unresolved_types_case_without_module(fortran_reader):
     '''Test that a select case statement comparing two unresolved types in a
-    situation wihtout an ancestor module, it will generate a CodeBlock'''
+    situation without an ancestor module, it will generate a CodeBlock'''
     code = '''
     subroutine test_subroutine()
         use my_mod, only : a, b, c

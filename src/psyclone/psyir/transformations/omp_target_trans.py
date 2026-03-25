@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,16 +38,20 @@
 
 ''' This module provides the OMPTargetTrans PSyIR transformation '''
 
+import warnings
+
 from psyclone.psyir.nodes import (
     CodeBlock, OMPTargetDirective, Call, Routine, Reference, Literal,
-    OMPTaskwaitDirective, Directive, Schedule)
+    OMPTaskwaitDirective, Directive, Schedule, Node)
 from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
 from psyclone.psyir.transformations import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class OMPTargetTrans(RegionTrans, AsyncTransMixin):
     '''
     Adds an OpenMP target directive to a region of code.
@@ -134,7 +138,7 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
             sched.addchild(OMPTaskwaitDirective(), path[0])
         instance.nowait = True
 
-    def validate(self, node, options=None):
+    def validate(self, node: list[Node], options=None, **kwargs):
         # pylint: disable=signature-differs
         '''
         Check that we can safely enclose the supplied node or list of nodes
@@ -142,15 +146,8 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
 
         :param node: the PSyIR node or nodes to enclose in the OpenMP
                       target region.
-        :type node: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param str options["device_string"]: provide a compiler-platform
-            identifier.
-        :param str options["allow_strings"]: permit OMP target regions
-            enclosing string operations.
-        :param str options["verbose"]: insert preceding comments with the
-            reason that made this validation fail.
 
         :raises TransformationError: if it contains calls to routines that
             are not available in the accelerator device.
@@ -159,11 +156,20 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         :raises TransformationError: if the target region attempts to enclose
             string operations and the 'allow_strings' option is not set.
         '''
-        device_string = options.get("device_string", "") if options else ""
-        strings = options.get("allow_strings", False) if options else False
-        verbose = options.get("verbose", False) if options else False
+        if options:
+            # TODO #2668: Deprecate options.
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+            device_string = options.get("device_string", "")
+            strings = options.get("allow_strings", False)
+            verbose = options.get("verbose", False)
+        else:
+            self.validate_options(**kwargs)
+            device_string = self.get_option("device_string", **kwargs)
+            strings = self.get_option("allow_strings", **kwargs)
+            verbose = self.get_option("verbose", **kwargs)
+
         node_list = self.get_node_list(node)
-        super().validate(node, options)
+        super().validate(node, options, **kwargs)
         for node in node_list:
             for call in node.walk(Call):
                 if not call.is_available_on_device(device_string):
@@ -206,29 +212,38 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
                             raise TransformationError(message)
                     # TODO #3054: Deal with UnresolvedType
 
-    def apply(self, node, options=None):
+    def apply(self, node: list[Node], options=None, nowait: bool = False,
+              device_string: str = "",
+              allow_strings: bool = False, verbose: bool = False,
+              **kwargs):
         ''' Insert an OMPTargetDirective before the provided node or list
         of nodes.
 
         :param node: the PSyIR node or nodes to enclose in the OpenMP
                      target region.
-        :type node: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str,Any]]
-        :param bool options["nowait"]: whether to add a nowait clause and a
+        :param nowait: whether to add a nowait clause and a
             corresponding barrier to enable asynchronous execution.
-        :param str options["device_string"]: provide a compiler-platform
+        :param device_string: provide a compiler-platform
             identifier.
+        :param allow_strings: permit OMP target regions
+            enclosing string operations.
+        :param verbose: insert preceding comments with the
+            reason that made this validation fail.
 
         '''
-        if not options:
-            options = {}
-        nowait = options.get("nowait", False)
+        node_list = self.get_node_list(node)
+        self.validate(node_list, options, nowait=nowait,
+                      device_string=device_string,
+                      allow_strings=allow_strings,
+                      verbose=verbose, **kwargs)
+        if options:
+            # TODO #2668 Deprecate options.
+            nowait = options.get("nowait", False)
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
-        node_list = self.get_node_list(node)
-        self.validate(node_list, options)
 
         # Create a directive containing the nodes in node_list and insert it.
         parent = node_list[0].parent

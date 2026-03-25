@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council
+# Copyright (c) 2025-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -99,7 +99,7 @@ def compiler_wrapper(arguments):
     while "" in psyclone_options:
         psyclone_options.remove("")
 
-    # Capture the dirctory where the .mod files are written because this is
+    # Capture the directory where the .mod files are written because this is
     # also where we want to place the output psyclone file (so following
     # -I search_path finds them).
     # output_dir = Path.cwd()

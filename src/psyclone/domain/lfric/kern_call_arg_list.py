@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
-    ImportInterface, ScalarType, ArrayType, UnsupportedFortranType,
+    ImportInterface, ScalarType, ArrayType, Symbol, UnsupportedFortranType,
     ArgumentInterface)
 
 # psyir has classes created at runtime
@@ -93,20 +93,20 @@ class KernCallArgList(ArgOrdering):
         self._nqp_positions = []
         self._ndf_positions = []
 
-    def get_user_type(self, module_name, user_type, name, tag=None):
+    def get_user_type(self, module_name: str,
+                      user_type: str, name: str,
+                      tag: Optional[str] = None) -> Symbol:
         # pylint: disable=too-many-arguments
         '''Returns the symbol for a user-defined type. If required, the
-        required import statements will all be generated.
+        source ContainerSymbols will be created too.
 
-        :param str module_name: the name of the module from which the \
+        :param module_name: the name of the module from which the
             user-defined type must be imported.
-        :param str user_type: the name of the user-defined type.
-        :param str name: the name of the variable to be used in the Reference.
-        :param Optional[str] tag: tag to use for the variable, defaults to \
-            the name
+        :param user_type: the name of the user-defined type.
+        :param name: the name of the variable to be used in the Reference.
+        :param tag: tag to use for the variable, defaults to the name
 
         :return: the symbol that is used in the reference
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if not tag:
@@ -119,13 +119,21 @@ class KernCallArgList(ArgOrdering):
             pass
 
         # The symbol does not exist already. So we potentially need to
-        # create the import statement for the type:
-        try:
-            # Check if the module is already declared:
-            module = self._symtab.lookup(module_name)
-            # Get the symbol table in which the module is declared:
-            mod_sym_tab = module.find_symbol_table(self._kern)
-        except KeyError:
+        # create the ContainerSymbol for the import for the type:
+        # Check if the module is already declared:
+        module = self._symtab.lookup(module_name, otherwise=None)
+        if module:
+            # Get the symbol table in which the module is declared. We must
+            # allow for the case where we have a detached table
+            # (self._symtab.node is None) - in this case it must be the table
+            # we want. TODO #2874 - this situation occurs because of
+            # limitations in KernCallArgList which forces
+            # LFRicKern.reference_accesses() to make a temporary, detached
+            # SymbolTable which does *not* contain Symbols declared in the
+            # Container scope.
+            mod_sym_tab = (module.find_symbol_table(self._symtab.node)
+                           if self._symtab.node else self._symtab)
+        else:
             module = self._symtab.new_symbol(module_name,
                                              symbol_type=ContainerSymbol)
             mod_sym_tab = self._symtab
@@ -252,6 +260,12 @@ class KernCallArgList(ArgOrdering):
         if scalar_arg.is_literal:
             self.psyir_append(scalar_arg.psyir_expression())
         else:
+            if scalar_arg.is_scalar_array:
+                # If it's a ScalarArray we need to add the dimensions
+                # array to the call
+                dims_sym = self._symtab.lookup_with_tag(
+                    "dims_" + scalar_arg.name)
+                self.psyir_append(Reference(dims_sym))
             sym = self._symtab.lookup(scalar_arg.name)
             self.psyir_append(Reference(sym))
 
@@ -983,24 +997,19 @@ class KernCallArgList(ArgOrdering):
             if loop_type == "cells_in_tile":
                 tile_sym = self._symtab.find_or_create_integer_symbol(
                     "tile", tag="tile_loop_idx")
-                array_ref = self.get_array_reference(
-                    self._kern.tilecolourmap,
-                    [Reference(colour_sym), Reference(tile_sym),
-                     Reference(cell_sym)],
-                    tag="tmap" if self._kern.is_intergrid else None)
-                if var_accesses is not None:
-                    var_accesses.add_access(Signature(array_ref.name),
-                                            AccessType.READ,
-                                            self._kern)
+                map_sym = self._symtab.lookup(self._kern.tilecolourmap)
+                array_ref = ArrayReference.create(
+                    map_sym, [Reference(colour_sym), Reference(tile_sym),
+                              Reference(cell_sym)])
             else:
                 symbol = self._kern.colourmap
                 array_ref = ArrayReference.create(
-                        symbol,
-                        [Reference(colour_sym), Reference(cell_sym)])
-                if var_accesses is not None:
-                    var_accesses.add_access(Signature(array_ref.name),
-                                            AccessType.READ,
-                                            self._kern)
+                        symbol, [Reference(colour_sym), Reference(cell_sym)])
+
+            if var_accesses is not None:
+                var_accesses.add_access(Signature(array_ref.name),
+                                        AccessType.READ,
+                                        self._kern)
 
             return (array_ref.debug_string(), array_ref)
 

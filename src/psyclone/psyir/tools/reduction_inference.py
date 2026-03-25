@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, University of Cambridge, UK.
+# Copyright (c) 2025-2026, University of Cambridge, UK.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,17 +62,18 @@ class ReductionInferenceTool():
             Union[BinaryOperation.Operator, IntrinsicCall.Intrinsic]:
         '''
         :param node: the node to match against.
+
         :returns: the reduction operator at the root of the given
-        DataNode or None if there isn't one.
+                  DataNode or None if there isn't one.
         '''
         if isinstance(node, BinaryOperation):
-            for op in self.red_ops:
-                if node.operator == op:
-                    return node.operator
+            if node.operator in self.red_ops:
+                return node.operator
+
         if isinstance(node, IntrinsicCall):
-            for op in self.red_ops:
-                if node.intrinsic == op:
-                    return node.intrinsic
+            if node.intrinsic in self.red_ops:
+                return node.intrinsic
+
         return None
 
     @staticmethod
@@ -170,7 +171,7 @@ class ReductionInferenceTool():
                 op = self._get_reduction_operator(node.parent)
                 if op:
                     # Also check that the parent of the reduction operator
-                    # is an assigment of the candidate reduction variable.
+                    # is an assignment of the candidate reduction variable.
                     if isinstance(node.parent.parent, Assignment):
                         lhs = node.parent.parent.lhs
                         if isinstance(lhs, Reference):

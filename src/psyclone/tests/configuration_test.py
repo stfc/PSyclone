@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,9 +42,12 @@
 Module containing tests relating to PSyclone configuration handling.
 '''
 
+import logging
 import os
+from pathlib import Path
 import re
 import sys
+from typing import Optional
 
 import pytest
 
@@ -52,9 +55,9 @@ import psyclone
 
 from psyclone.configuration import (BaseConfig, ConfigurationError,
                                     Config, VALID_KERNEL_NAMING_SCHEMES)
-from psyclone.core.access_type import AccessType
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 
 
@@ -77,8 +80,6 @@ BACKEND_CHECKS_ENABLED = false
 BACKEND_INDENTATION_DISABLED = false
 FORTRAN_STANDARD = f2003
 [lfric]
-access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
-                 gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
 supported_fortran_datatypes = real, integer, logical
 default_kind = real: r_def, integer: i_def, logical: l_def
@@ -94,7 +95,7 @@ precision_map = i_def: 4,
                 r_tran: 8,
                 r_bl: 8,
                 r_um: 8
-RUN_TIME_CHECKS = false
+RUN_TIME_CHECKS = none
 NUM_ANY_SPACE = 10
 NUM_ANY_DISCONTINUOUS_SPACE = 10
 '''
@@ -124,7 +125,6 @@ def clear_config_instance():
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS",
                         "COMPUTE_ANNEXED_DOFS",
-                        "RUN_TIME_CHECKS",
                         "BACKEND_CHECKS_ENABLED",
                         "BACKEND_INDENTATION_DISABLED"])
 def bool_entry_fixture(request):
@@ -155,16 +155,19 @@ def int_entry_fixture(request):
     return request.param
 
 
-def get_config(config_file, content):
-    ''' A utility function that creates and populates a temporary
+def get_config(config_file: Path,
+               content: str,
+               overwrite: Optional[str] = None) -> Config:
+    '''
+    A utility function that creates and populates a temporary
     PSyclone configuration file for testing purposes.
 
     :param config_file: local path to the temporary configuration file.
-    :type config: :py:class:`py._path.local.LocalPath`
-    :param str content: the entry for the temporary configuration file.
+    :param content: the entry for the temporary configuration file.
+    :param overwrite: Optional string of key-value pairs that will
+        overwrite settings in the config file.
 
     :returns: a test Config instance.
-    :rtype: :py:class:`psyclone.configuration.Config`
 
     '''
     # Create and populate a temporary config file
@@ -173,7 +176,7 @@ def get_config(config_file, content):
         new_cfg.close()
     # Create and populate a test Config object
     config_obj = Config()
-    config_obj.load(config_file=str(config_file))
+    config_obj.load(config_file=str(config_file), overwrite=overwrite)
     return config_obj
 
 
@@ -478,7 +481,7 @@ def test_wrong_api(tmpdir):
     API-specific configuration options '''
     config_file = tmpdir.join("config")
     cfg = get_config(config_file, _CONFIG_CONTENT)
-    with pytest.raises(ConfigurationError) as err:
+    with pytest.raises(ValueError) as err:
         _ = cfg.api_conf("blah")
     assert "API 'blah' is not in the list" in str(err.value)
     with pytest.raises(ConfigurationError) as err:
@@ -616,56 +619,24 @@ def test_mappings():
     assert "Invalid format for mapping: k2=v2" in str(err.value)
 
 
-def test_invalid_access_mapping(tmpdir):
-    '''Test that providing an invalid access type (i.e. not
-    'read', 'write', ...) raises an exception.
-
-    '''
-    # Test for an invalid key
-    config_file = tmpdir.join("config")
-    content = re.sub(r"gh_read: read", "gh_read: invalid", _CONFIG_CONTENT)
-
-    with pytest.raises(ConfigurationError) as cerr:
-        get_config(config_file, content)
-    assert "Unknown access type 'invalid' found for key 'gh_read'" \
-        in str(cerr.value)
-
-    # Test that all values of the mapping are access types:
-    api_config = Config.get().api_conf("lfric")
-    for access_mode in api_config.get_access_mapping().values():
-        assert isinstance(access_mode, AccessType)
-
-
-def test_default_access_mapping(tmpdir):
-    ''' Test that the default access mapping is correctly converted
-    to AccessTypes.
+def test_deprecated_access_mapping(tmpdir, caplog):
+    ''' Test that the the presence of an access mapping section correctly
+    results in a deprecation warning.
 
     '''
     config_file = tmpdir.join("config")
 
-    test_config = get_config(config_file, _CONFIG_CONTENT)
+    content = _CONFIG_CONTENT
+    # Put in the deprecated entry.
+    content = content.replace(
+        "[lfric]\n",
+        ("[lfric]\naccess_mapping = gh_read: read, gh_write: write, "
+         "gh_readwrite: readwrite,\n                 gh_inc: inc, "
+         "gh_sum: sum\n"))
+    with caplog.at_level(logging.WARN, logger="psyclone.configuration"):
+        _ = get_config(config_file, content)
 
-    api_config = test_config.api_conf("lfric")
-    for access_mode in api_config.get_access_mapping().values():
-        assert isinstance(access_mode, AccessType)
-
-
-def test_access_mapping_order(tmpdir):
-    ''' Test that the order of the access mappings in the config file
-    does not affect the correct access type-mode conversion.
-
-    '''
-    config_file = tmpdir.join("config")
-    content = re.sub(r"gh_write: write, gh_readwrite: readwrite",
-                     "gh_readwrite: readwrite, gh_write: write",
-                     _CONFIG_CONTENT)
-    content = re.sub(r"gh_inc: inc, gh_sum: sum",
-                     "gh_sum: sum, gh_inc: inc", content)
-
-    api_config = get_config(config_file, content).get().api_conf("lfric")
-
-    for access_mode in api_config.get_access_mapping().values():
-        assert isinstance(access_mode, AccessType)
+    assert "Configuration file contains an ACCESS_MAPPING entry" in caplog.text
 
 
 def test_psy_data_prefix(tmpdir):
@@ -833,3 +804,86 @@ def test_intrinsic_settings():
 
     assert ("backend_intrinsic_named_kwargs must be a bool but found "
             "'int'." in str(err.value))
+
+
+def test_cmd_line_flag_override(tmp_path, monkeypatch):
+    '''Test that any specification of a configuration file on the command
+    line overrides all others.'''
+
+    # Ensure that PSYCLONE_CONFIG is not set
+    monkeypatch.delitem(os.environ, "PSYCLONE_CONFIG", raising=False)
+    # Unload all psyclone modules
+    for key in list(sys.modules.keys()):
+        if key.startswith("psyclone"):
+            monkeypatch.delitem(sys.modules, key)
+
+    # We want to monkeypatch Config so that we catch any attempt to load
+    # a new one.
+    # pylint: disable=import-outside-toplevel, redefined-outer-name, reimported
+    from psyclone.configuration import Config
+
+    def fake_load(_, config_file=None, overwrite=None):
+        raise InternalError(f"config being loaded: '{config_file}'")
+    monkeypatch.setattr(Config, "load", fake_load)
+
+    # Importing this module should not trigger Config.load()
+    from psyclone.generator import main
+
+    cfg_file = tmp_path / "psyclone_test.cfg"
+    content = _CONFIG_CONTENT
+    content = re.sub(r"^FORTRAN_STANDARD = f2003",
+                     "FORTRAN_STANDARD = invalid",
+                     content, flags=re.MULTILINE)
+    with open(cfg_file, mode="w", encoding="utf-8") as ffile:
+        ffile.write(content)
+    f90_file = tmp_path / "a_test.f90"
+    my_prog = """
+    program a_test
+      write(*,*) 'hello'
+    end program a_test"""
+    with open(f90_file, mode="w", encoding="utf-8") as ffile:
+        ffile.write(my_prog)
+
+    # Check that the load() is triggered with the correct file name.
+    with pytest.raises(InternalError) as err:
+        main(["--config", str(cfg_file), str(f90_file)])
+    assert re.search(r"loaded: '[a-z\/\\\-_q0-9]*psyclone_test.cfg'",
+                     str(err.value), re.I)
+
+
+def test_config_overwrite(tmp_path: Path, monkeypatch) -> None:
+    """
+    Test that configuration settings can be overwritten.
+    """
+
+    config_file = tmp_path / "config"
+
+    # Reset the ignore modules of the module manager
+    mod_manager = ModuleManager.get()
+    monkeypatch.setattr(mod_manager, "_ignore_modules", set())
+
+    # First verify unmodified values to be as expected:
+    config = get_config(config_file, _CONFIG_CONTENT)
+    assert config._config["DEFAULT"]["backend_checks_enabled"] == "false"
+    assert config._config["DEFAULT"]["ignore_modules"] == "netcdf, mpi"
+    assert config.backend_checks_enabled is False
+    assert mod_manager.ignores() == set(["netcdf", "mpi"])
+
+    # Now overwrite some values. Reset the module manager (since it stores
+    # the values from the config file / overwrite)
+    monkeypatch.setattr(mod_manager, "_ignore_modules", set())
+
+    config = get_config(config_file, _CONFIG_CONTENT,
+                        overwrite="backend_checks_enabled=True "
+                                  "ignore_modules=a,b")
+    assert config._config["DEFAULT"]["backend_checks_enabled"] == "True"
+    assert config.backend_checks_enabled is True
+    assert config._config["DEFAULT"]["ignore_modules"] == "a,b"
+    assert mod_manager.ignores() == set(["a", "b"])
+
+    # Now test invalid values:
+    with pytest.raises(ConfigurationError) as err:
+        config = get_config(config_file, _CONFIG_CONTENT,
+                            overwrite="DOES_NOT_EXIST=1")
+    assert ("Attempt to overwrite unknown configuration option: "
+            "'DOES_NOT_EXIST=1" in str(err.value))

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,9 +42,11 @@ from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import Kern, PSyFactory
 from psyclone.psyir.nodes import Call, CodeBlock, Loop
-from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import OMPParallelTrans, \
-    OMPSingleTrans
+from psyclone.psyir.transformations import (
+    TransformationError,
+    OMPParallelTrans,
+)
+from psyclone.transformations import OMPSingleTrans
 from psyclone.psyir.transformations import OMPTaskTrans
 from psyclone.tests.utilities import get_invoke
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,8 +44,10 @@ from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.nodes import Schedule, Loop, Assignment
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class LoopTrans(Transformation, metaclass=abc.ABCMeta):
     # Avoid pylint warning about abstract method (apply) not overwritten:
     # pylint: disable=abstract-method

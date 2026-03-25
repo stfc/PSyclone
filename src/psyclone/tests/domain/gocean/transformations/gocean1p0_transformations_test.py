@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,9 +50,10 @@ from psyclone.parse import ModuleManager
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import (
-    LoopFuseTrans, LoopTrans, TransformationError)
+    LoopFuseTrans, LoopTrans, TransformationError,
+    OMPParallelTrans)
 from psyclone.transformations import ACCRoutineTrans, \
-    OMPParallelTrans, GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
+    GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
     OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.gocean_build import GOceanBuild
@@ -798,6 +799,9 @@ def test_omp_parallel_region_inside_parallel_do():
 
     ompl = GOceanOMPParallelLoopTrans()
     ompr = OMPParallelTrans()
+
+    # Also test the str method of OMPParallelTrans
+    assert str(ompr) == "Insert an OpenMP Parallel region"
 
     # Put an OpenMP parallel do directive around one of the loops
     ompl.apply(schedule.children[1])

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024-2025, Science and Technology Facilities Council.
+# Copyright (c) 2024-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -276,7 +276,7 @@ class DriverCreator:
         :param psy_data: the PSyData symbol to be used.
         :param original_symtab: this is needed because read_write_info has
             signatures instead of symbols, and the signature still have to
-            be looked up to retrive the symbol and then the type.
+            be looked up to retrieve the symbol and then the type.
         :param read_write_info: information about all input and output
             parameters.
         :param postfix: a postfix that is added to a variable name to
@@ -603,7 +603,7 @@ class DriverCreator:
                                                    symbol_type=DataSymbol,
                                                    datatype=psy_data_type)
 
-        # Add cmd line hander, read in, and result comparison for the code
+        # Add cmd line handler, read in, and result comparison for the code
         self._add_command_line_handler(program, psy_data, region_name[0],
                                        region_name[1])
 
@@ -646,12 +646,12 @@ class DriverCreator:
                              postfix: str,
                              region_name: tuple[str, str],
                              vars_to_ignore: list[tuple[str, Signature]],
-                             writer: LanguageWriter = FortranWriter()) -> str:
+                             writer: LanguageWriter) -> str:
         # pylint: disable=too-many-arguments, too-many-locals
         '''This function uses the `create()` function to get the PSyIR of a
         stand-alone driver, and then uses the provided language writer
-        to create a string representation in the selected language
-        (defaults to Fortran).
+        to create a string representation in the selected language.
+
         All required modules will be inlined in the correct order, i.e. each
         module will only depend on modules inlined earlier, which will allow
         compilation of the driver. No other dependencies (except system
@@ -677,8 +677,7 @@ class DriverCreator:
             kernel data file (and as such should not be read in, though
             they still need to be declared).
         :param language_writer: a backend visitor to convert PSyIR
-            representation to the selected language. It defaults to
-            the FortranWriter.
+            representation to the selected language.
 
         :returns: the driver in the selected language.
 
@@ -716,7 +715,7 @@ class DriverCreator:
                      postfix: str,
                      region_name: tuple[str, str],
                      vars_to_ignore: list[tuple[str, Signature]],
-                     writer: LanguageWriter = FortranWriter()) -> None:
+                     writer: Optional[LanguageWriter] = None) -> None:
         # pylint: disable=too-many-arguments
         '''This function uses the `get_driver_as_string()` function to get a
         a stand-alone driver, and then writes this source code to a file. The
@@ -750,9 +749,11 @@ class DriverCreator:
         '''
         if self._region_name is not None:
             region_name = self._region_name
+        if writer is None:
+            writer = FortranWriter()
         code = self.get_driver_as_string(nodes, read_write_info, prefix,
                                          postfix, region_name,
-                                         vars_to_ignore, writer=writer)
+                                         vars_to_ignore, writer)
         fll = FortLineLength()
         code = fll.process(code)
         module_name, local_name = region_name

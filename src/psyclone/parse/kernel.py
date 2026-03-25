@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -98,7 +98,7 @@ def get_kernel_filepath(module_name, kernel_paths, alg_filename):
     # searching for the kernel source (we perform a case insensitive
     # match).
     search_string = f"{module_name}.F90"
-    matches = []
+    matches = set()
 
     # If a search path has been specified then look there. Otherwise
     # look in the directory containing the algorithm definition file.
@@ -118,7 +118,7 @@ def get_kernel_filepath(module_name, kernel_paths, alg_filename):
             for filename in filenames:
                 # perform a case insensitive match
                 if filename.lower() == search_string.lower():
-                    matches.append(os.path.join(root, filename))
+                    matches.add(os.path.join(root, filename))
     if not kernel_paths:
         # Look *only* in the directory that contained the algorithm
         # file.
@@ -127,7 +127,7 @@ def get_kernel_filepath(module_name, kernel_paths, alg_filename):
         for filename in filenames:
             # perform a case insensitive match
             if filename.lower() == search_string.lower():
-                matches.append(os.path.join(cdir, filename))
+                matches.add(os.path.join(cdir, filename))
 
     if not matches:
         # There were no matches.
@@ -137,9 +137,9 @@ def get_kernel_filepath(module_name, kernel_paths, alg_filename):
         # There was more than one match
         raise ParseError(
             f"kernel.py:get_kernel_filepath: More than one match for kernel "
-            f"file '{module_name}.[fF]90' found!")
+            f"file '{module_name}.[fF]90' found! {matches}")
     # There is a single match
-    return matches[0]
+    return matches.pop()
 
 
 def get_kernel_parse_tree(filepath: str):
@@ -205,12 +205,12 @@ class KernelTypeFactory():
     '''Factory to create the required API-specific information about
     coded-kernel metadata and a reference to its code.
 
-    :param str api: The API for which this factory is to create Kernel \
-    information. If it is not supplied then the default API, as \
-    specified in the PSyclone config file, is used.
+    :param api: The API for which this factory is to create Kernel
+        information. If it is not supplied then the current API (as
+        specified on the psyclone command-line) is used.
 
     '''
-    def __init__(self, api=''):
+    def __init__(self, api: str = ""):
         check_api(api)
         self._type = api
 

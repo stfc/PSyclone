@@ -27,7 +27,7 @@ or ASCII extraction library by setting the environment variable
 
     $ TYPE=netcdf make compile
 
-The NetCDF version obvioulsy requires NetCDF to be available (including
+The NetCDF version obviously requires NetCDF to be available (including
 ``nf-config`` to detect
 installation-specific paths). The NetCDF-based extraction library in
 ``../../../../lib/extract/netcdf/generic``
@@ -61,7 +61,7 @@ Note that driver creation is not yet supported in NEMO, see issue #2058.
 
 BSD 3-Clause License
 
-Copyright (c) 2023-2025, Science and Technology Facilities Council.
+Copyright (c) 2023-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

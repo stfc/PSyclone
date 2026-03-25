@@ -55,7 +55,7 @@ $(F90)  ... -L$(PSYDATA_LIB_DIR)/read_only/generic -l_read_only
 
 BSD 3-Clause License
 
-Copyright (c) 2025, Science and Technology Facilities Council.
+Copyright (c) 2025-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

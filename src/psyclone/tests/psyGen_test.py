@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 
 
 # internal classes requiring tests
-# PSy, Invokes, Invoke, Kern, Argumen1ts, Argument, KernelArgument
+# PSy, Invokes, Invoke, Kern, Argument1ts, Argument, KernelArgument
 
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
@@ -59,10 +59,11 @@ from psyclone import transformations
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import (lfric_builtins, LFRicInvokeSchedule,
+from psyclone.domain.lfric import (lfric_builtins,
+                                   LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.lfric import LFRicGlobalSum, LFRicKernelArguments
+from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
@@ -70,7 +71,7 @@ from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.psyGen import (TransInfo, PSyFactory,
                              InlinedKern, object_index, HaloExchange, Invoke,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
-                             GlobalSum, InvokeSchedule)
+                             InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
                                   colored, Schedule)
@@ -85,8 +86,8 @@ from psyclone.transformations import (LFRicRedundantComputationTrans,
                                       LFRicKernelConstTrans,
                                       LFRicColourTrans,
                                       LFRicOMPLoopTrans,
-                                      OMPParallelTrans,
                                       Transformation)
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.psyir.backend.visitor import VisitorError
 
 
@@ -196,10 +197,10 @@ def test_transformation_get_options():
     ''' Test that the get_option method behaves in the
     expected way.'''
     class TestTrans(Transformation):
-        '''Utilty transformation to test methods of the abstract
+        '''Utility transformation to test methods of the abstract
         Transformation class.'''
         def apply(self, node, valid: bool = True):
-            pass  # pragma: no cover
+            ...
     trans = TestTrans()
     assert trans.get_option("valid", valid=True)
 
@@ -235,7 +236,7 @@ def test_transformation_get_valid_options():
     '''Test that the get_valid_options method behaves in the expected
     way.'''
     class TestTrans(Transformation):
-        '''Utilty transformation to test methods of the abstract
+        '''Utility transformation to test methods of the abstract
         Transformation class.'''
         def apply(self, node, valid: bool = True, untyped=False, options={}):
             '''Apply method of TestTrans.'''
@@ -281,7 +282,7 @@ def test_transformation_get_valid_options_no_sphinx():
         from psyclone.psyGen import Transformation
 
         class TestTrans(Transformation):
-            '''Utilty transformation to test methods of the abstract
+            '''Utility transformation to test methods of the abstract
             Transformation class.'''
             def apply(self, node, valid: bool = True, untyped=False):
                 '''Apply method of TestTrans.'''
@@ -301,7 +302,7 @@ def test_transformation_validate_options():
         '''Utility transformation to test methods of the abstract
         Transformation class.'''
         def apply(self, node, valid: bool = True, options=None):
-            pass  # pragma: no cover
+            ...
 
     instance = TestTrans()
     instance.validate_options(options={})
@@ -368,7 +369,20 @@ def test_list_valid_return_object():
 def test_list_return_data():
     ''' check the list method returns sensible information '''
     trans = TransInfo()
+    assert trans.list.find("are") != -1
     assert trans.list.find("available") != -1
+
+    # If there is only one, say 'is' instead of 'are'
+    class DummyObj:
+        ''' Dummy object '''
+        name = "name"
+
+        def __str__(self):
+            return "str"
+
+    trans._objects = [DummyObj()]
+    assert trans.list.find("are") == -1
+    assert trans.list.find("is") != -1
 
 
 def test_invalid_low_number():
@@ -537,11 +551,12 @@ def test_derived_type_deref_naming(tmpdir):
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
         "    use mesh_mod, only : mesh_type\n"
         "    use testkern_mod, only : testkern_code\n"
+        "    use constants_mod, only : i_def\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1_my_field\n"
         "    type(field_type), intent(in) :: f1_my_field_1\n"
         "    type(field_type), intent(in) :: m1\n"
-        "    type(field_type), intent(in) :: m2\n ")
+        "    type(field_type), intent(in) :: m2\n")
     assert output in generated_code
 
 
@@ -1005,48 +1020,6 @@ def test_haloexchange_unknown_halo_depth():
     assert halo_exchange._halo_depth is None
 
 
-def test_globalsum_node_str():
-    '''test the node_str method in the GlobalSum class. The simplest way
-    to do this is to use an LFRic builtin example which contains a
-    scalar and then call node_str() on that.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    gsum = None
-    for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, LFRicGlobalSum):
-            gsum = child
-            break
-    assert gsum
-    output = gsum.node_str()
-    expected_output = (colored("GlobalSum", GlobalSum._colour) +
-                       "[scalar='asum']")
-    assert expected_output in output
-
-
-def test_globalsum_children_validation():
-    '''Test that children added to GlobalSum are validated. A GlobalSum node
-    does not accept any children.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    gsum = None
-    for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, LFRicGlobalSum):
-            gsum = child
-            break
-    with pytest.raises(GenerationError) as excinfo:
-        gsum.addchild(Literal("2", INTEGER_TYPE))
-    assert ("Item 'Literal' can't be child 0 of 'GlobalSum'. GlobalSum is a"
-            " LeafNode and doesn't accept children.") in str(excinfo.value)
-
-
 def test_args_filter():
     '''the args_filter() method is in both Loop() and Arguments() classes
     with the former method calling the latter. This example tests the
@@ -1149,27 +1122,6 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     assert call.arguments.args[6].intrinsic_type == 'integer'
     call._reduction_arg = call.arguments.args[6]
     call.initialise_reduction_variable()
-
-
-def test_reduction_sum_error(dist_mem):
-    ''' Check that we raise an exception if the reduction_sum_loop()
-    method is provided with an incorrect type of argument. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=dist_mem).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    call = schedule.kernels()[0]
-    # args[1] is of type gh_field
-    call._reduction_arg = call.arguments.args[1]
-    # Ensure symbol is tagged appropriately.
-    sym = schedule.symbol_table.lookup(call._reduction_arg.name)
-    schedule.symbol_table._tags[f"{call.name}:{sym.name}:local"] = sym
-    with pytest.raises(GenerationError) as err:
-        call.reduction_sum_loop(call.parent, 1, schedule.symbol_table)
-    assert ("Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
-            "reduction_sum_loop(). Expected one of ['gh_sum']."
-            in str(err.value))
 
 
 def test_call_multi_reduction_error(monkeypatch, dist_mem):
@@ -1438,21 +1390,6 @@ def test_argument_find_read_arguments():
         assert result[idx] == loop.loop_body[0].arguments.args[3]
 
 
-def test_globalsum_arg():
-    ''' Check that the globalsum argument is defined as gh_readwrite and
-    points to the GlobalSum node '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    glob_sum = schedule.children[2]
-    glob_sum_arg = glob_sum.scalar
-    assert glob_sum_arg.access == AccessType.READWRITE
-    assert glob_sum_arg.call == glob_sum
-
-
 def test_haloexchange_arg():
     '''Check that the HaloExchange argument is defined as gh_readwrite and
     points to the HaloExchange node'''
@@ -1706,20 +1643,6 @@ def test_haloexchange_args():
     for haloexchange in schedule.children[:2]:
         assert len(haloexchange.args) == 1
         assert haloexchange.args[0] == haloexchange.field
-
-
-def test_globalsum_args():
-    '''Test that the globalsum class args method returns the appropriate
-    argument '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    global_sum = schedule.children[2]
-    assert len(global_sum.args) == 1
-    assert global_sum.args[0] == global_sum.scalar
 
 
 def test_call_forward_dependence():
@@ -2008,57 +1931,6 @@ def test_find_w_args_hes_vec_no_dep(monkeypatch, annexed):
     # be no write dependencies.
     node_list = field_e_v1.forward_write_dependencies()
     assert node_list == []
-
-
-def test_check_vect_hes_differ_wrong_argtype():
-    '''when the check_vector_halos_differ method is called from a halo
-    exchange object the argument being passed should be a halo
-    exchange. If this is not the case an exception should be
-    raised. This test checks that this exception is working correctly.
-    '''
-
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    halo_exchange = schedule.children[0]
-    with pytest.raises(GenerationError) as excinfo:
-        # pass an incorrect object to the method
-        halo_exchange.check_vector_halos_differ(psy)
-    assert (
-        "the argument passed to HaloExchange.check_vector_halos_differ() "
-        "is not a halo exchange object" in str(excinfo.value))
-
-
-def test_check_vec_hes_differ_diff_names():
-    ''' When the check_vector_halos_differ method is called from a halo
-    exchange object the argument being passed should be a halo
-    exchange with an argument having the same name as the local halo
-    exchange argument name. If this is not the case an exception
-    should be raised. This test checks that this exception is working
-    correctly.
-
-    '''
-
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    halo_exchange = schedule.children[0]
-    # Obtain another halo exchange object which has an argument with a
-    # different name
-    different_halo_exchange = schedule.children[1]
-    with pytest.raises(GenerationError) as excinfo:
-        # Pass halo exchange with different name to the method
-        halo_exchange.check_vector_halos_differ(different_halo_exchange)
-    assert (
-        "the halo exchange object passed to "
-        "HaloExchange.check_vector_halos_differ() has a "
-        "different field name 'f2' to self 'f1'" in str(excinfo.value))
 
 
 def test_find_w_args_multiple_deps_error(monkeypatch, annexed, tmpdir):

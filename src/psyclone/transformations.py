@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@
 # pylint: disable=too-many-lines
 
 from typing import Any, Dict, Optional
+import warnings
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -60,7 +61,7 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Directive, Literal, Loop,
     Return, Schedule, PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -250,7 +251,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an 'OpenMP PARALLEL DO' directive"
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
         (which must be a Loop). In the generated code this corresponds to
         wrapping the Loop with directives:
@@ -274,7 +275,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
             local_options["reduction_ops"] = \
                 list(MAP_REDUCTION_OP_TO_OMP.keys())
 
-        self.validate(node, options=local_options)
+        self.validate(node, options=local_options, **kwargs)
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -871,7 +872,8 @@ class OMPSingleTrans(ParallelRegionTrans):
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
+    >>> from psyclone.transformations import OMPSingleTrans
+    >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> singletrans = OMPSingleTrans()
     >>> paralleltrans = OMPParallelTrans()
     >>>
@@ -1001,7 +1003,8 @@ class OMPMasterTrans(ParallelRegionTrans):
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.transformations import OMPParallelTrans, OMPMasterTrans
+    >>> from psyclone.transformations import OMPMasterTrans
+    >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> mastertrans = OMPMasterTrans()
     >>> paralleltrans = OMPParallelTrans()
     >>>
@@ -1039,84 +1042,6 @@ class OMPMasterTrans(ParallelRegionTrans):
         :rtype: str
         '''
         return "OMPMasterTrans"
-
-
-class OMPParallelTrans(ParallelRegionTrans):
-    '''
-    Create an OpenMP PARALLEL region by inserting directives. For
-    example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory
-    >>> from psyclone.errors import GenerationError
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> ltrans = t.get_trans_name('GOceanOMPLoopTrans')
-    >>> rtrans = t.get_trans_name('OMPParallelTrans')
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> # Apply the OpenMP Loop transformation to *every* loop
-    >>> # in the schedule
-    >>> for child in schedule.children:
-    >>>     ltrans.apply(child)
-    >>>
-    >>> # Enclose all of these loops within a single OpenMP
-    >>> # PARALLEL region
-    >>> rtrans.apply(schedule.children)
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-
-    '''
-    # The types of node that this transformation cannot enclose
-    excluded_node_types = (CodeBlock, Return, ACCDirective,
-                           psyGen.HaloExchange)
-
-    def __init__(self):
-        super().__init__()
-        # Set the type of directive that the base class will use
-        self._directive_factory = OMPParallelDirective.create
-
-    def __str__(self):
-        return "Insert an OpenMP Parallel region"
-
-    @property
-    def name(self):
-        '''
-        :returns: the name of this transformation as a string.
-        :rtype: str
-        '''
-        return "OMPParallelTrans"
-
-    def validate(self, node_list, options=None):
-        '''
-        Perform OpenMP-specific validation checks.
-
-        :param node_list: list of Nodes to put within parallel region.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["node-type-check"]: this flag controls if the \
-                type of the nodes enclosed in the region should be tested \
-                to avoid using unsupported nodes inside a region.
-
-        :raises TransformationError: if the target Nodes are already within \
-                                     some OMP parallel region.
-        '''
-        if node_list[0].ancestor(OMPDirective):
-            raise TransformationError("Error in OMPParallel transformation:" +
-                                      " cannot create an OpenMP PARALLEL " +
-                                      "region within another OpenMP region.")
-
-        # Now call the general validation checks
-        super().validate(node_list, options)
 
 
 class ACCParallelTrans(ParallelRegionTrans):
@@ -1257,109 +1182,6 @@ class ACCParallelTrans(ParallelRegionTrans):
         # of the nodes being enclosed and at the original location
         # of the first of these nodes
         node_parent.addchild(directive, index=node_position)
-
-
-class MoveTrans(Transformation):
-    '''Provides a transformation to move a node in the tree. For
-    example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> ast,invokeInfo=parse("lfric.F90")
-    >>> psy=PSyFactory("lfric").create(invokeInfo)
-    >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> from psyclone.transformations import MoveTrans
-    >>> trans=MoveTrans()
-    >>> trans.apply(schedule.children[0], schedule.children[2],
-    ...             options = {"position":"after")
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-
-    Nodes may only be moved to a new location with the same parent
-    and must not break any dependencies otherwise an exception is
-    raised.'''
-
-    def __str__(self):
-        return "Move a node to a different location"
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "Move"
-
-    def validate(self, node, location, options=None):
-        # pylint: disable=arguments-differ
-        ''' validity checks for input arguments.
-
-        :param node: the node to be moved.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param location: node before or after which the given node\
-            should be moved.
-        :type location: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["position"]: either 'before' or 'after'.
-
-        :raises TransformationError: if the given node is not an instance \
-            of :py:class:`psyclone.psyir.nodes.Node`
-        :raises TransformationError: if the location is not valid.
-        '''
-
-        # Check that the first argument is a Node
-        if not isinstance(node, Node):
-            raise TransformationError(
-                "In the Move transformation apply method the first argument "
-                "is not a Node")
-
-        # Check new location conforms to any data dependencies
-        # This also checks the location and position arguments
-        if not options:
-            options = {}
-        position = options.get("position", "before")
-        if not node.is_valid_location(location, position=position):
-            raise TransformationError(
-                "In the Move transformation apply method, data dependencies "
-                "forbid the move to the new location")
-
-    def apply(self, node, location, options=None):
-        '''Move the node represented by :py:obj:`node` before location
-        :py:obj:`location` (which is also a node) by default and after
-        if the optional `position` argument is set to 'after'.
-
-        :param node: the node to be moved.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param location: node before or after which the given node\
-            should be moved.
-        :type location: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["position"]: either 'before' or 'after'.
-
-        :raises TransformationError: if the given node is not an instance \
-            of :py:class:`psyclone.psyir.nodes.Node`
-        :raises TransformationError: if the location is not valid.
-
-        '''
-        # pylint:disable=arguments-differ
-
-        self.validate(node, location, options)
-
-        if not options:
-            options = {}
-        position = options.get("position", "before")
-
-        parent = node.parent
-
-        my_node = parent.children.pop(node.position)
-
-        location_index = location.position
-        if position == "before":
-            location.parent.children.insert(location_index, my_node)
-        else:
-            location.parent.children.insert(location_index+1, my_node)
 
 
 class LFRicRedundantComputationTrans(LoopTrans):
@@ -1767,7 +1589,7 @@ class LFRicKernelConstTrans(Transformation):
         "number_of_layers" arguments are provided to mirror the namelist values
         that are input into an LFRic model when it is run.
 
-        Quadrature support is currently limited to XYoZ in ths
+        Quadrature support is currently limited to XYoZ in this
         transformation. In the case of XYoZ the number of quadrature
         points in the horizontal are set to element_order_h+3, and in the
         vertical to element_order_v+3. These values are set in the LFRic
@@ -2126,13 +1948,13 @@ class ACCEnterDataTrans(Transformation):
 
     def check_child_async(self, sched, async_queue):
         '''
-        Common function to check that all kernel/parallel childs have the
+        Common function to check that all kernel/parallel children have the
         same async queue.
 
         :param sched: schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
 
-        :param async_queue: The async queue to expect in childs.
+        :param async_queue: The async queue to expect in children.
         :type async_queue: \
             Optional[bool,int,:py:class:`psyclone.core.Reference`]
         '''
@@ -2174,10 +1996,11 @@ class ACCEnterDataTrans(Transformation):
 
         async_queue = options.get('async_queue', False)
 
-        # check consistency with childs about async_queue
+        # check consistency with children about async_queue
         self.check_child_async(sched, async_queue)
 
 
+@transformation_documentation_wrapper
 class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
     '''
     Transform a kernel or routine by adding a "!$acc routine" directive
@@ -2201,7 +2024,9 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
     >>> rtrans.apply(kern)
 
     '''
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, force: bool = False,
+              parallelism: str = "seq", device_string: str = "",
+              **kwargs):
         '''
         Add the '!$acc routine' OpenACC directive into the code of the
         supplied Kernel (in a PSyKAl API such as GOcean or LFRic) or directly
@@ -2212,17 +2037,23 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether to allow routines with
+        :param force: whether to allow routines with
             CodeBlocks to run on the GPU.
-        :param str options["parallelism"]: the level of parallelism that the
+        :param parallelism: the level of parallelism that the
             target routine (or a callee) exposes. One of "seq" (the default),
             "vector", "worker" or "gang".
-        :param str options["device_string"]: provide a compiler-platform
-            identifier.
+        :param device_string: provide a compiler-platform identifier.
 
         '''
         # Check that we can safely apply this transformation
-        self.validate(node, options)
+        self.validate(node, options, force=force,
+                      parallelism=parallelism,
+                      device_string=device_string,
+                      **kwargs)
+
+        # TODO 2668: options are now deprecated:
+        if options is not None:
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
         if isinstance(node, Kern):
             # Flag that the kernel has been modified
@@ -2233,7 +2064,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         else:
             routines = [node]
 
-        para = options.get("parallelism", "seq") if options else "seq"
+        para = options.get("parallelism", "seq") if options else parallelism
         for routine in routines:
             # Insert the directive to the routine if it doesn't already exist
             for child in routine.children:
@@ -2243,7 +2074,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             routine.children.insert(
                 0, ACCRoutineDirective(parallelism=para))
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Perform checks that the supplied kernel or routine can be transformed.
 
@@ -2270,17 +2101,22 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             but is not a recognised level of parallelism.
 
         '''
-        super().validate(node, options)
+        self.validate_options(**kwargs)
+        super().validate(node, options, **kwargs)
 
-        self.validate_it_can_run_on_gpu(node, options)
+        self.validate_it_can_run_on_gpu(node, options, **kwargs)
 
-        if options and "parallelism" in options:
-            para = options["parallelism"]
-            if para not in ACCRoutineDirective.SUPPORTED_PARALLELISM:
-                raise TransformationError(
-                    f"{self.name}: '{para}' is not a supported level of "
-                    f"parallelism. Should be one of "
-                    f"{ACCRoutineDirective.SUPPORTED_PARALLELISM}")
+        if options:
+            # TODO #2668: Deprecate options dictionary
+            parallelism = options.get("parallelism", "seq")
+        else:
+            parallelism = self.get_option("parallelism", **kwargs)
+
+        if parallelism not in ACCRoutineDirective.SUPPORTED_PARALLELISM:
+            raise TransformationError(
+                f"{self.name}: '{parallelism}' is not a supported level of "
+                f"parallelism. Should be one of "
+                f"{ACCRoutineDirective.SUPPORTED_PARALLELISM}")
 
 
 class ACCDataTrans(RegionTrans):
@@ -2475,7 +2311,7 @@ class KernelImportsToArguments(Transformation):
         # Check that there are no unqualified imports or undeclared symbols
         try:
             kernels = node.get_callees()
-        except SymbolError as err:
+        except (SymbolError, NotImplementedError) as err:
             raise TransformationError(
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err
@@ -2629,9 +2465,7 @@ __all__ = [
    "GOceanOMPLoopTrans",
    "GOceanOMPParallelLoopTrans",
    "KernelImportsToArguments",
-   "MoveTrans",
    "OMPMasterTrans",
    "OMPParallelLoopTrans",
-   "OMPParallelTrans",
    "OMPSingleTrans",
 ]

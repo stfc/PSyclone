@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council
+# Copyright (c) 2019-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -470,7 +470,9 @@ class ExtractNode(PSyDataNode):
                 continue
             container = symbol_table.find_or_create(
                 module_name, symbol_type=ContainerSymbol)
-
+            # Any symbols imported from this ContainerSymbol must be added
+            # to the same scope (table) in which it resides.
+            actual_table = container.find_symbol_table(symbol_table.node)
             # Now look up the original symbol. While the variable could
             # be declared Unresolved here (i.e. just imported), we need the
             # type information for the output variables (VAR_post), which
@@ -493,7 +495,7 @@ class ExtractNode(PSyDataNode):
             else:
                 interface = ImportInterface(container)
 
-            symbol_table.find_or_create_tag(
+            actual_table.find_or_create_tag(
                 tag=f"{signature[0]}@{module_name}", root_name=signature[0],
                 symbol_type=DataSymbol, interface=interface,
                 datatype=container_symbol.datatype)

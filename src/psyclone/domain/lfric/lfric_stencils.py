@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -390,7 +390,7 @@ class LFRicStencils(LFRicCollection):
 
     def stub_declarations(self):
         '''
-        Declares all stencil-related quanitites for a Kernel stub.
+        Declares all stencil-related quantities for a Kernel stub.
 
         '''
         super().stub_declarations()

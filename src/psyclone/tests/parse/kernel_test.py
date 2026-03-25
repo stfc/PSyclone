@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,8 +53,6 @@ from psyclone.parse.kernel import KernelType, get_kernel_metadata, \
     BuiltInKernelTypeFactory, get_kernel_filepath, get_kernel_ast
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError
-
-# pylint: disable=invalid-name
 
 LFRIC_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                os.path.pardir, "test_files", "lfric")
@@ -169,14 +167,13 @@ def test_getkernelfilepath_multifile(tmpdir):
 
     '''
     filename = str(tmpdir.join("test_mod.f90"))
-    ffile = open(filename, "w")
-    ffile.write("")
-    ffile.close()
+    with open(filename, "w", encoding="utf-8") as ffile:
+        ffile.write("")
+
     os.mkdir(str(tmpdir.join("tmp")))
     filename = str(tmpdir.join("tmp", "test_mod.f90"))
-    ffile = open(filename, "w")
-    ffile.write("")
-    ffile.close()
+    with open(filename, "w", encoding="utf-8") as ffile:
+        ffile.write("")
 
     with pytest.raises(ParseError) as excinfo:
         _ = get_kernel_filepath("test_mod", [str(tmpdir)], None)
@@ -221,6 +218,19 @@ def test_getkernelfilepath_multidir():
     assert "testkern_mod.F90" in result
 
 
+def test_getkernelfilepath_identical_paths():
+    '''Test that get_kernel_filepath works when the same search path
+    is specified more than once (i.e. that if the same kernel file is
+    found more than once with different search paths, no error is raised).
+
+    '''
+    kern_module_name = "testkern_mod"
+    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    result = get_kernel_filepath(
+        kern_module_name, [LFRIC_BASE_PATH, LFRIC_BASE_PATH], alg_file_name)
+    assert "testkern_mod.F90" in result
+
+
 def test_getkernelfilepath_caseinsensitive1(tmpdir):
     '''Test that a case insensitive match is performed when searching for
     kernels with a supplied kernel search path.
@@ -228,9 +238,9 @@ def test_getkernelfilepath_caseinsensitive1(tmpdir):
     '''
     os.mkdir(str(tmpdir.join("tmp")))
     filename = str(tmpdir.join("tmp", "test_mod.f90"))
-    ffile = open(filename, "w")
-    ffile.write("")
-    ffile.close()
+    with open(filename, "w", encoding="utf-8") as ffile:
+        ffile.write("")
+
     result = get_kernel_filepath("TEST_MOD", [str(tmpdir)], None)
     assert "tmp" in result
     assert "test_mod.f90" in result
@@ -243,13 +253,13 @@ def test_getkernelfilepath_caseinsensitive2(tmpdir):
     '''
     os.mkdir(str(tmpdir.join("tmp")))
     filename = str(tmpdir.join("tmp", "test_mod.f90"))
-    ffile = open(filename, "w")
-    ffile.write("")
-    ffile.close()
+    with open(filename, "w", encoding="utf-8") as ffile:
+        ffile.write("")
+
     filename = str(tmpdir.join("tmp", "alg.f90"))
-    ffile = open(filename, "w")
-    ffile.write("")
-    ffile.close()
+    with open(filename, "w", encoding="utf-8") as ffile:
+        ffile.write("")
+
     result = get_kernel_filepath("TEST_MOD", [], filename)
     assert "tmp" in result
     assert "test_mod.f90" in result

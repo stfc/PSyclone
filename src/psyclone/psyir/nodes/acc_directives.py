@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1037,7 +1037,7 @@ class ACCWaitDirective(ACCStandaloneDirective):
         # check
         if (wait_queue is not None
            and not isinstance(wait_queue, (int, Reference))):
-            raise TypeError("Invalid value type as wait_group, shoule be"
+            raise TypeError("Invalid value type as wait_group, should be"
                             "in (None, int, Signature) !")
 
         # set

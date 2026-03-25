@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -340,7 +340,7 @@ def test_sympy_writer_type_map_non_canonical(fortran_reader):
     integer :: i, j, k
     end program test_prog"""
     psyir = fortran_reader.psyir_from_source(source)
-    # Create an ambigious intrinsic.
+    # Create an ambiguous intrinsic.
     routine = psyir.children[0]
     ref_i = Reference(routine.symbol_table.lookup("i"))
     ref_j = Reference(routine.symbol_table.lookup("j"))
@@ -352,7 +352,7 @@ def test_sympy_writer_type_map_non_canonical(fortran_reader):
 
     writer = SymPyWriter()
     with pytest.raises(VisitorError) as err:
-        _ = writer([assign.rhs])
+        _ = writer.intrinsiccall_node(assign.rhs)
     assert ("Sympy handler can't handle an IntrinsicCall that can't have "
             "argument names automatically added. Use explicit argument names "
             "instead. Failing node was 'SUM(i, j)'."
@@ -618,17 +618,18 @@ def test_sym_writer_reserved_names(fortran_reader, expression):
     assert str(sympy_exp) == expression
 
 
-@pytest.mark.parametrize("expressions", [("a+b", "2*b"),
-                                         ("a-b", "0"),
-                                         ("a-a", "0"),
-                                         ("b-b", "0"),
-                                         ("b", "b"),
-                                         # We can't just use 'a', since then
-                                         # there would be no variable 'b'
-                                         # defined. So add 0*b:
-                                         ("a-0*b", "b"),
-                                         ("a+b+c", "2*b + c"),
-                                         ])
+@pytest.mark.parametrize("expressions",
+                         [("a+b", "2*b"),
+                          ("a-b", "0"),
+                          ("a-a", "0"),
+                          ("b-b", "0"),
+                          ("b", "b"),
+                          # We can't just use 'a', since then there would be no
+                          # variable 'b' defined. So add 0.0*b (has to be 0.0
+                          # as frontend optimises-out 0*):
+                          ("a-0.0*b", "b"),
+                          ("a+b+c", "2*b + c"),
+                          ])
 def test_sym_writer_identical_variables(fortran_reader, expressions):
     '''Test that we can indicate that certain variables are identical,
     in which case the sympy expression will replace one variable with

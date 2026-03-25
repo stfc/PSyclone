@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -77,9 +77,9 @@ BASE_PATH = os.path.join(
 API = "lfric"
 
 
-def builtin_from_file(filename):
+def builtin_from_file(filename: str):
     '''
-    :param str filename: the name of the file to check for the builtin.
+    :param filename: the name of the file to check for the builtin.
     :returns: the first builtin in the first invoke.
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, filename), api=API)
@@ -149,7 +149,7 @@ def test_lfric_builtin_abstract_method():
 
 
 def test_lfric_builtin_init():
-    '''Check initiaisation of the abstract 'LFRicBuiltIn' class.'''
+    '''Check initialisation of the abstract 'LFRicBuiltIn' class.'''
     instance = Dummy2()
     # Check '__init__'
     assert not instance.qr_rules
@@ -287,7 +287,7 @@ def test_builtin_write_and_readwrite():
 
 def test_builtin_sum_and_readwrite():
     '''Check that we raise an appropriate error if we encounter a built-in
-    that updates more than one argument where one is 'gh_sum' and one
+    that updates more than one argument where one is 'gh_reduction' and one
     is 'gh_readwrite'.
 
     '''
@@ -1853,7 +1853,7 @@ def test_sum_x(fortran_writer):
     assert isinstance(metadata, LFRicKernelMetadata)
     assert len(metadata.meta_args) == 2
     assert isinstance(metadata.meta_args[0], ScalarArgMetadata)
-    assert metadata.meta_args[0].access == "gh_sum"
+    assert metadata.meta_args[0].access == "gh_reduction"
     assert metadata.meta_args[1].access == "gh_read"
     assert metadata.meta_args[1].function_space == "any_space_1"
 
@@ -1872,7 +1872,7 @@ def test_x_innerproduct_x(fortran_writer):
     assert isinstance(metadata, LFRicKernelMetadata)
     assert len(metadata.meta_args) == 2
     assert isinstance(metadata.meta_args[0], ScalarArgMetadata)
-    assert metadata.meta_args[0].access == "gh_sum"
+    assert metadata.meta_args[0].access == "gh_reduction"
     assert metadata.meta_args[1].access == "gh_read"
     assert metadata.meta_args[1].function_space == "any_space_1"
 
@@ -1891,7 +1891,7 @@ def test_x_innerproduct_y(fortran_writer):
     assert isinstance(metadata, LFRicKernelMetadata)
     assert len(metadata.meta_args) == 3
     assert isinstance(metadata.meta_args[0], ScalarArgMetadata)
-    assert metadata.meta_args[0].access == "gh_sum"
+    assert metadata.meta_args[0].access == "gh_reduction"
     assert metadata.meta_args[1].access == "gh_read"
     assert metadata.meta_args[1].function_space == "any_space_1"
     assert metadata.meta_args[2].access == "gh_read"
@@ -1962,7 +1962,7 @@ def test_int_to_real_x_precision(tmpdir, kind_name):
     code = str(psy.gen)
 
     # Test code generation
-    assert "use constants_mod\n" in code
+    assert f"use constants_mod, only : i_def, {kind_name}\n" in code
     assert (f"use {kind_name}_field_mod, only : {kind_name}_field_proxy_type, "
             f"{kind_name}_field_type") in code
     assert f"type({kind_name}_field_type), intent(in) :: f2" in code
@@ -1973,6 +1973,49 @@ def test_int_to_real_x_precision(tmpdir, kind_name):
 
     # Test compilation of generated code
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_minmaxval_x(fortran_writer, tmp_path):
+    '''
+    Tests for the minval_x and maxval_x builtins.
+    '''
+    metadata = lfric_builtins.LFRicMinvalXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_reduction"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    metadata = lfric_builtins.LFRicMaxvalXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_reduction"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+
+    _, invoke = get_invoke("15.10.9_min_max_X_builtin.f90", api=API, idx=0,
+                           dist_mem=False)
+    kerns = invoke.schedule.kernels()
+    assert str(kerns[1]) == ("Built-in: minval_X (compute the global minimum "
+                             "value contained in a field)")
+    code = fortran_writer(kerns[1])
+    assert "amin = MIN(amin, f1_data(df))" in code, code
+
+    assert str(kerns[2]) == ("Built-in: maxval_X (compute the global maximum "
+                             "value contained in a field)")
+    code = fortran_writer(kerns[2])
+    assert "amax = MAX(amax, f1_data(df))" in code, code
+
+    psy, invoke = get_invoke("15.10.9_min_max_X_builtin.f90", api=API, idx=0,
+                             dist_mem=True)
+    invoke.setup_psy_layer_symbols()
+    output = fortran_writer(invoke.schedule)
+    assert "global_min%value = amin" in output
+    assert "amin = global_min%get_min()" in output
+    assert "global_max%value = amax" in output
+    assert "amax = global_max%get_max()" in output
+
+    # Test compilation of generated code
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_real_to_int_x(fortran_writer):
@@ -2024,7 +2067,7 @@ def test_real_to_int_x_precision(monkeypatch, tmpdir, kind_name):
 
     # Test limited code generation (no equivalent field type)
     code = str(psy.gen)
-    assert "use constants_mod\n" in code
+    assert f"use constants_mod, only : {kind_name}\n" in code
     assert ("integer(kind=i_def), pointer, dimension(:) :: f2_data => null()"
             in code)
     assert f"f2_data(df) = INT(f1_data(df), kind={kind_name})" in code
@@ -2096,7 +2139,7 @@ def test_real_to_real_x_lowering(monkeypatch, tmpdir, kind_name):
     code = str(psy.gen)
 
     # Check that the kind constants are imported
-    assert "use constants_mod\n" in code
+    assert f"use constants_mod, only : i_def, {kind_name}\n" in code
 
     # Assert correct type is set
     assert f"f2_data(df) = REAL(f1_data(df), kind={kind_name})" in code
@@ -2121,7 +2164,7 @@ def test_scalar_int_builtin_error(monkeypatch):
         _, _ = parse(os.path.join(BASE_PATH,
                                   "16.2_integer_scalar_sum.f90"),
                      api=API)
-    assert ("In the LFRic API a reduction access 'gh_sum' is only valid "
+    assert ("In the LFRic API a reduction access 'gh_reduction' is only valid "
             "with a real scalar argument, but a scalar argument with "
             "'gh_integer' data type was found" in str(excinfo.value))
 

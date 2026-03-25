@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -597,11 +597,11 @@ class GOceanKernelMetadata():
 
             '''
             const = GOceanConstants()
-            if value.lower() not in const.get_valid_access_types():
+            if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a grid property argument "
                     f"should be a valid access descriptor (one of "
-                    f"{const.get_valid_access_types()}), but found '{value}'.")
+                    f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
 
         @property
         def access(self):
@@ -729,11 +729,11 @@ class GOceanKernelMetadata():
 
             '''
             const = GOceanConstants()
-            if value.lower() not in const.get_valid_access_types():
+            if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a field argument should "
                     f"be a recognised access descriptor (one of "
-                    f"{const.get_valid_access_types()}), but found '{value}'.")
+                    f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
 
         @property
         def access(self):
@@ -964,11 +964,11 @@ class GOceanKernelMetadata():
 
             '''
             const = GOceanConstants()
-            if value.lower() not in const.get_valid_access_types():
+            if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a scalar argument should "
                     f"be a recognised access descriptor (one of "
-                    f"{const.get_valid_access_types()}), but found '{value}'.")
+                    f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
 
         @property
         def access(self):

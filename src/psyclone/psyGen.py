@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,12 +41,14 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
+
+from __future__ import annotations
 from dataclasses import dataclass
 import inspect
 import os
 from collections import OrderedDict
 import abc
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 import warnings
 
 try:
@@ -73,9 +75,6 @@ from psyclone.psyir.symbols.symbol_table import SymbolTable
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
-
-# Mapping of access type to operator.
-REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
 
 def object_index(alist, item):
@@ -232,9 +231,6 @@ class PSy():
         '''
         return self._container
 
-    def __str__(self):
-        return "PSy"
-
     @property
     def invokes(self):
         ''':returns: the list of invokes.
@@ -309,9 +305,6 @@ class Invokes():
             my_invoke = invoke_cls(alg_invocation, idx, self)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
-
-    def __str__(self):
-        return "Invokes object containing "+str(self.names)
 
     @property
     def psy(self):
@@ -430,17 +423,6 @@ class Invoke():
                 else:
                     # literals have no name
                     pass
-
-        # work out the unique dofs required in this subroutine
-        self._dofs = {}
-        for kern_call in self._schedule.coded_kernels():
-            dofs = kern_call.arguments.dofs
-            for dof in dofs:
-                if dof not in self._dofs:
-                    # Only keep the first occurrence for the moment. We will
-                    # need to change this logic at some point as we need to
-                    # cope with writes determining the dofs that are used.
-                    self._dofs[dof] = [kern_call, dofs[dof][0]]
 
     def __str__(self):
         return self._name+"("+", ".join([str(arg) for arg in
@@ -605,7 +587,7 @@ class Invoke():
         for arg in self.unique_declarations(argument_types,
                                             intrinsic_type=intrinsic_type):
             first_arg = self.first_access(arg.declaration_name)
-            if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
+            if first_arg.access in [AccessType.WRITE, AccessType.REDUCTION]:
                 # If the first access is a write then the intent is
                 # out irrespective of any other accesses. Note,
                 # sum_args behave as if they are write_args from the
@@ -713,65 +695,6 @@ class InvokeSchedule(Routine):
         return result
 
 
-class GlobalSum(Statement):
-    '''
-    Generic Global Sum class which can be added to and manipulated
-    in, a schedule.
-
-    :param scalar: the scalar that the global sum is stored into
-    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
-    :param parent: optional parent (default None) of this object
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    # Textual description of the node.
-    _children_valid_format = "<LeafNode>"
-    _text_name = "GlobalSum"
-    _colour = "cyan"
-
-    def __init__(self, scalar, parent=None):
-        Node.__init__(self, children=[], parent=parent)
-        import copy
-        self._scalar = copy.copy(scalar)
-        if scalar:
-            # Update scalar values appropriately
-            # Here "readwrite" denotes how the class GlobalSum
-            # accesses/updates a scalar
-            self._scalar.access = AccessType.READWRITE
-            self._scalar.call = self
-
-    @property
-    def scalar(self):
-        ''' Return the scalar field that this global sum acts on '''
-        return self._scalar
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        return f"globalsum({self._scalar.name})_{self.position}"
-
-    @property
-    def args(self):
-        ''' Return the list of arguments associated with this node. Override
-        the base method and simply return our argument.'''
-        return [self._scalar]
-
-    def node_str(self, colour=True):
-        '''
-        Returns a text description of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return f"{self.coloured_name(colour)}[scalar='{self._scalar.name}']"
-
-
 class HaloExchange(Statement):
     '''
     Generic Halo Exchange class which can be added to and
@@ -846,68 +769,9 @@ class HaloExchange(Statement):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
+        '''Return the list of arguments associated with this node. Override the
         base method and simply return our argument. '''
         return [self._field]
-
-    def check_vector_halos_differ(self, node):
-        '''Helper method which checks that two halo exchange nodes (one being
-        self and the other being passed by argument) operating on the
-        same field, both have vector fields of the same size and use
-        different vector indices. If this is the case then the halo
-        exchange nodes do not depend on each other. If this is not the
-        case then an internal error will have occured and we raise an
-        appropriate exception.
-
-        :param node: a halo exchange which should exchange the same field as \
-                     self.
-        :type node: :py:class:`psyclone.psyGen.HaloExchange`
-        :raises GenerationError: if the argument passed is not a halo exchange.
-        :raises GenerationError: if the field name in the halo exchange \
-                                 passed in has a different name to the field \
-                                 in this halo exchange.
-        :raises GenerationError: if the field in this halo exchange is not a \
-                                 vector field
-        :raises GenerationError: if the vector size of the field in this halo \
-                                 exchange is different to vector size of the \
-                                 field in the halo exchange passed by argument.
-        :raises GenerationError: if the vector index of the field in this \
-                                 halo exchange is the same as the vector \
-                                 index of the field in the halo exchange \
-                                 passed by argument.
-
-        '''
-
-        if not isinstance(node, HaloExchange):
-            raise GenerationError(
-                "Internal error, the argument passed to "
-                "HaloExchange.check_vector_halos_differ() is not "
-                "a halo exchange object")
-
-        if self.field.name != node.field.name:
-            raise GenerationError(
-                f"Internal error, the halo exchange object passed to "
-                f"HaloExchange.check_vector_halos_differ() has a different "
-                f"field name '{node.field.name}' to self '{self.field.name}'")
-
-        if self.field.vector_size <= 1:
-            raise GenerationError(
-                "Internal error, HaloExchange.check_vector_halos_differ() "
-                "a halo exchange depends on another halo exchange but the "
-                f"vector size of field '{self.field.name}' is 1")
-
-        if self.field.vector_size != node.field.vector_size:
-            raise GenerationError(
-                f"Internal error, HaloExchange.check_vector_halos_differ() "
-                f"a halo exchange depends on another halo exchange but the "
-                f"vector sizes for field '{self.field.name}' differ")
-
-        if self.vector_index == node.vector_index:
-            raise GenerationError(
-                f"Internal error, HaloExchange.check_vector_halos_differ() "
-                f"a halo exchange depends on another halo exchange but both "
-                f"vector id's ('{self.vector_index}') of field "
-                f"'{self.field.name}' are the same")
 
     def node_str(self, colour=True):
         '''
@@ -972,11 +836,10 @@ class Kern(Statement):
         self._arg_descriptors = None
 
         # Initialise any reduction information
-        reduction_modes = AccessType.get_valid_reduction_modes()
         const = Config.get().api_conf().get_constants()
         args = args_filter(self._arguments.args,
                            arg_types=const.VALID_SCALAR_NAMES,
-                           arg_accesses=reduction_modes)
+                           arg_accesses=[AccessType.REDUCTION])
         if args:
             self._reduction = True
             if len(args) != 1:
@@ -990,7 +853,7 @@ class Kern(Statement):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
+        '''Return the list of arguments associated with this node. Override the
         base method and simply return our arguments. '''
         return self.arguments.args
 
@@ -1117,15 +980,6 @@ class Kern(Statement):
         '''
         tag = f"{self.name}:{self._reduction_arg.name}:local"
         local_symbol = table.lookup_with_tag(tag)
-        reduction_access = self._reduction_arg.access
-        if reduction_access not in REDUCTION_OPERATOR_MAPPING:
-            api_strings = [access.api_specific_name()
-                           for access in REDUCTION_OPERATOR_MAPPING]
-            raise GenerationError(
-                f"Unsupported reduction access "
-                f"'{reduction_access.api_specific_name()}' found in "
-                f"LFRicBuiltIn:reduction_sum_loop(). Expected one of "
-                f"{api_strings}.")
         symtab = table
         thread_idx = symtab.lookup_with_tag("omp_thread_index")
         nthreads = symtab.lookup_with_tag("omp_num_threads")
@@ -1869,20 +1723,20 @@ class Arguments():
     def args(self):
         return self._args
 
-    def iteration_space_arg(self):
+    def iteration_space_arg(self) -> str:
         '''
         Returns an argument that can be iterated over, i.e. modified
         (has WRITE, READWRITE or INC access), but not the result of
         a reduction operation.
 
         :returns: a Fortran argument name
-        :rtype: string
+
         :raises GenerationError: if none such argument is found.
 
         '''
         for arg in self._args:
             if arg.access in AccessType.all_write_accesses() and \
-                    arg.access not in AccessType.get_valid_reduction_modes():
+                    arg.access != AccessType.REDUCTION:
                 return arg
         raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
                               "we assume there is at least one writer, "
@@ -1927,12 +1781,12 @@ class DataAccess():
 
     def __init__(self, arg):
         '''Store the argument associated with the instance of this class and
-        the Call, HaloExchange or GlobalSum (or a subclass thereof)
+        the Call, HaloExchange or GlobalReduction (or a subclass thereof)
         instance with which the argument is associated.
 
-        :param arg: the argument that we are concerned with. An \
-        argument can be found in a `Kern` a `HaloExchange` or a \
-        `GlobalSum` (or a subclass thereof)
+        :param arg: the argument that we are concerned with. An
+            argument can be found in a `Kern` a `HaloExchange` or a
+            `GlobalReduction` (or a subclass thereof)
         :type arg: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -2303,82 +2157,74 @@ class Argument():
         ''' set the node that this argument is associated with '''
         self._call = value
 
-    def backward_dependence(self):
+    def backward_dependence(self) -> Union[Argument, None]:
         '''Returns the preceding argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum.
+        exist in a Call, a HaloExchange, or a GlobalReduction.
 
-        :returns: the first preceding argument that has a dependence \
-            on this argument.
-        :rtype: :py:class:`psyclone.psyGen.Argument`
-
+        :returns: the first preceding argument that has a dependence
+                  on this argument.
         '''
         nodes = self._call.preceding(reverse=True)
         return self._find_argument(nodes)
 
-    def forward_write_dependencies(self, ignore_halos=False):
+    def forward_write_dependencies(
+            self,
+            ignore_halos: bool = False) -> list[Argument]:
         '''Returns a list of following write arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
-        none are found then return an empty list. If self is not a
+        dependencies with. The arguments may exist in a Call, a
+        HaloExchange (unless `ignore_halos` is `True`), or a GlobalReduction.
+        If none are found then return an empty list. If self is not a
         reader then return an empty list.
 
-        :param bool ignore_halos: if `True` then any write dependencies \
+        :param ignore_halos: if `True` then any write dependencies
             involving a halo exchange are ignored. Defaults to `False`.
 
-        :returns: a list of arguments that have a following write \
-            dependence on this argument.
-        :rtype: list of :py:class:`psyclone.psyGen.Argument`
-
+        :returns: the arguments that have a following write
+                  dependence on this argument.
         '''
         nodes = self._call.following()
         results = self._find_write_arguments(nodes, ignore_halos=ignore_halos)
         return results
 
-    def backward_write_dependencies(self, ignore_halos=False):
+    def backward_write_dependencies(
+            self, ignore_halos: bool = False) -> list[Argument]:
         '''Returns a list of previous write arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
-        none are found then return an empty list. If self is not a
+        dependencies with. The arguments may exist in a Call, a
+        HaloExchange (unless `ignore_halos` is `True`), or a GlobalReduction.
+        If none are found then return an empty list. If self is not a
         reader then return an empty list.
 
-        :param ignore_halos: if `True` then any write dependencies \
+        :param ignore_halos: if `True` then any write dependencies
             involving a halo exchange are ignored. Defaults to `False`.
-        :type ignore_halos: bool
 
-        :returns: a list of arguments that have a preceding write \
-            dependence on this argument.
-        :rtype: list of :py:class:`psyclone.psyGen.Argument`
-
+        :returns: a list of arguments that have a preceding write
+                  dependence on this argument.
         '''
         nodes = self._call.preceding(reverse=True)
         results = self._find_write_arguments(nodes, ignore_halos=ignore_halos)
         return results
 
-    def forward_dependence(self):
+    def forward_dependence(self) -> Union[Argument, None]:
         '''Returns the following argument that this argument has a direct
         dependence on, or `None` if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum.
+        exist in a Call, a HaloExchange or a GlobalReduction.
 
-        :returns: the first following argument that has a dependence \
-            on this argument.
-        :rtype: :py:class:`psyclone.psyGen.Argument`
-
+        :returns: the first following argument that has a dependence
+                  on this argument.
         '''
         nodes = self._call.following()
         return self._find_argument(nodes)
 
-    def forward_read_dependencies(self):
+    def forward_read_dependencies(self) -> list[Argument]:
         '''Returns a list of following read arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange, or a globalsum. If none are found then
+        dependencies with. The arguments may exist in a Call, a
+        HaloExchange or a GlobalReduction. If none are found then
         return an empty list. If self is not a writer then return an
         empty list.
 
-        :returns: a list of following arguments that have a read \
-            dependence on this argument.
-        :rtype: list of :py:class:`psyclone.psyGen.Argument`
-
+        :returns: a list of following arguments that have a read
+                  dependence on this argument.
         '''
         nodes = self._call.following()
         return self._find_read_arguments(nodes)
@@ -2394,8 +2240,11 @@ class Argument():
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.psylayer import GlobalReduction
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
+                           isinstance(x, (Kern, HaloExchange,
+                                          GlobalReduction))]
         for node in nodes_with_args:
             for argument in node.args:
                 if self._depends_on(argument):
@@ -2419,9 +2268,13 @@ class Argument():
             # I am not a writer so there will be no read dependencies
             return []
 
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.psylayer import GlobalReduction
+
         # We only need consider nodes that have arguments
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
+                           isinstance(x, (Kern, HaloExchange,
+                                          GlobalReduction))]
         access = DataAccess(self)
         arguments = []
         for node in nodes_with_args:
@@ -2460,9 +2313,12 @@ class Argument():
             # I am not a reader so there will be no write dependencies
             return []
 
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.psylayer import GlobalReduction
+
         # We only need consider nodes that have arguments
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, GlobalSum)) or
+                           isinstance(x, (Kern, GlobalReduction)) or
                            (isinstance(x, HaloExchange) and not ignore_halos)]
         access = DataAccess(self)
         arguments = []
@@ -2924,6 +2780,6 @@ class Transformation(metaclass=abc.ABCMeta):
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ['PSyFactory', 'PSy', 'Invokes', 'Invoke', 'InvokeSchedule',
-           'GlobalSum', 'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
+           'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
            'BuiltIn', 'Arguments', 'DataAccess', 'Argument', 'KernelArgument',
            'TransInfo', 'Transformation']

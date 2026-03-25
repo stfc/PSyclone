@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,13 @@
 
 ''' This module contains the tests for the DebugChecksumTrans.'''
 
+import pytest
+
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.transformations import DebugChecksumTrans
+from psyclone.psyir.transformations import (
+    DebugChecksumTrans,
+    TransformationError
+)
 from psyclone.tests.utilities import Compile
 
 
@@ -149,7 +154,7 @@ PSYCLONE_INTERNAL_line_ + 1
     PRINT *, "values%i checksum", SUM(values % i(1 : 100))"""
     assert correct in out
 
-    # Check Unknown types are exlcuded
+    # Check Unknown types are excluded
     code = """subroutine test()
     use my_mod
 
@@ -182,3 +187,13 @@ PSYCLONE_INTERNAL_line_ + 1
   PRINT *, "a checksum", SUM(a(:))
   b(:) = 0"""
     assert correct in out
+
+
+def test_node_type_check_kwarg_blocked():
+    '''Tests that we get the TransformationError if the node_type_check
+    kwarg is provided.'''
+    with pytest.raises(TransformationError) as err:
+        DebugChecksumTrans().apply(None, node_type_check=True)
+    assert ("node_type_check was passed as an argument to "
+            "DebugChecksumTrans. This transformation sets this option "
+            "internally so it cannot be supplied." in str(err.value))

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 
 ''' This module contains the Assignment node implementation.'''
 
-from psyclone.core import VariablesAccessMap
+from psyclone.core import VariablesAccessMap, AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.array_reference import ArrayReference
@@ -176,31 +176,19 @@ class Assignment(Statement):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
-        # It is important that a new instance is used to handle the LHS,
-        # since a check in 'change_read_to_write' makes sure that there
-        # is only one access to the variable!
         lhs_accesses = self.lhs.reference_accesses()
-        # Now change the (one) access to the assigned variable to be WRITE.
+        # Now change the top (last) access to be WRITE.
+        if isinstance(self.lhs, Reference):
+            sig, _ = self.lhs.get_signature_and_indices()
+            lhs_accesses[sig][-1].access_type = AccessType.WRITE
         # Note that if the LHS is a CodeBlock then reference_accesses() will
         # already have given all Signatures READWRITE access. This is not
         # strictly correct (they should probably be UNKNOWN) and is the
         # subject of #2863.
-        if isinstance(self.lhs, Reference):
-            sig, _ = self.lhs.get_signature_and_indices()
-            var_info = lhs_accesses[sig]
-            try:
-                var_info.change_read_to_write()
-            except InternalError as err:
-                # An internal error typically indicates that the same variable
-                # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
-                # supported in PSyclone.
-                raise NotImplementedError(
-                    f"The variable '{self.lhs.name}' appears more than once on"
-                    f" the left-hand side of an assignment.") from err
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function. It is important that first the
