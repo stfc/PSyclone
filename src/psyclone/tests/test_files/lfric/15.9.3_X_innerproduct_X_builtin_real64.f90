@@ -36,14 +36,14 @@
 program single_invoke
 
   ! Description: single point-wise operation (inner product of one field by
-  ! itself) specified in an invoke call.
+  ! itself) specified in an invoke call of double precision.
   use constants_mod, only: real64
   use field_mod,     only: field_type
 
   implicit none
 
   type(field_type) :: f1
-  real(real64)   :: asum
+  real(real64)     :: asum
 
   call invoke( X_innerproduct_X(asum, f1) )
 
