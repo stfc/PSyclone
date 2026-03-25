@@ -102,7 +102,7 @@ class FortranReader():
         )
 
     @staticmethod
-    def validate_name(name: str):
+    def validate_name(name: str) -> None:
         '''
         Utility method that checks that the supplied name is a valid
         Fortran name.
@@ -128,15 +128,16 @@ class FortranReader():
 
         :returns: the PSyIR of the provided Fortran source code.
 
-        :raises ValueError: if the supplied Fortran cannot be parsed.
-
         '''
         tree = self._processor.generate_parse_tree_from_source(source_code)
         psyir = self._processor.generate_psyir(tree)
         return psyir
 
-    def psyir_from_expression(self, source_code: str,
-                              symbol_table: Optional[SymbolTable] = None):
+    def psyir_from_expression(
+        self,
+        source_code: str,
+        symbol_table: Optional[SymbolTable] = None
+    ) -> Node:
         '''Generate the PSyIR tree for the supplied Fortran statement. The
         symbol table is expected to provide all symbols found in the
         expression.
@@ -146,11 +147,8 @@ class FortranReader():
             symbols that are encountered.
 
         :returns: PSyIR representing the provided Fortran expression.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises TypeError: if no valid SymbolTable is supplied.
-        :raises ValueError: if the supplied source does not represent a
-            Fortran expression.
 
         '''
         if symbol_table is None:
@@ -175,8 +173,11 @@ class FortranReader():
         self._processor.process_nodes(fake_parent[0], [tree])
         return fake_parent[0].children[0].detach()
 
-    def psyir_from_statement(self, source_code: str,
-                             symbol_table: Optional[SymbolTable] = None):
+    def psyir_from_statement(
+        self,
+        source_code: str,
+        symbol_table: Optional[SymbolTable] = None
+    ) -> Node:
         '''Generate the PSyIR tree for the supplied Fortran statement. The
         symbol table is expected to provide all symbols found in the
         statement.
@@ -186,11 +187,8 @@ class FortranReader():
             symbols that are encountered.
 
         :returns: PSyIR representing the provided Fortran statement.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises TypeError: if no valid SymbolTable is supplied.
-        :raises ValueError: if the supplied source does not represent a
-            Fortran statement.
 
         '''
         if symbol_table is None:
@@ -215,17 +213,14 @@ class FortranReader():
         self._processor.process_nodes(fake_parent, tree.children)
         return fake_parent[0].detach()
 
-    def psyir_from_file(self, file_path):
+    def psyir_from_file(self, file_path) -> Node:
         ''' Generate the PSyIR tree representing the given Fortran file.
 
         :param file_path: path of the file to be read and parsed.
         :type file_path: str or any Python Path format.
 
         :returns: PSyIR representing the provided Fortran file.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises ValueError: if the parser fails to parse the contents of
-                            the supplied file.
         '''
         tree = self._processor.generate_parse_tree_from_file(file_path)
         psyir = self._processor.generate_psyir(tree)

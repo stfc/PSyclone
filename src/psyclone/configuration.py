@@ -551,12 +551,12 @@ class Config:
         return self._frontend
 
     @frontend.setter
-    def frontend(self, value: str):
+    def frontend(self, value: str) -> None:
         '''
         :param value: which frontend to use to parse the input files.
 
         :raises ConfigurationError: the provided value is not a string.
-        :raises ConfigurationError: the provided values is not supported.
+        :raises ConfigurationError: the provided value is not supported.
         '''
         if not isinstance(value, str) or value not in SUPPORTED_FRONTENDS:
             raise ConfigurationError(

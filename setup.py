@@ -156,6 +156,7 @@ if __name__ == '__main__':
     VALID_SUFFIXES = ["90", "sh", "py", "md", "Makefile", ".mk",
                       ".jinja", "doxyfile"]
     LIBS = get_files(LIBS_DIR, INSTALL_PATH, VALID_SUFFIXES)
+    TS_EXTRAS = ["tree-sitter", "tree-sitter-fortran"]
 
     setup(
         name=NAME,
@@ -177,8 +178,10 @@ if __name__ == '__main__':
             'doc': ["sphinx<=8.3", "sphinxcontrib.bibtex", "sphinx_design",
                     "pydata-sphinx-theme", "sphinx-autodoc-typehints",
                     "autoapi"],
-            'test': ["flake8", "pylint", "pytest-cov", "pytest-xdist"],
-            'treesitter': ["tree-sitter", "tree-sitter-fortran"],
+            'test': [
+                    "flake8", "pylint", "pytest-cov", "pytest-xdist"
+                ] + TS_EXTRAS,
+            'treesitter': TS_EXTRAS,
         },
         include_package_data=True,
         scripts=[
