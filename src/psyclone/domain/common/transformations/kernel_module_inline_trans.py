@@ -50,8 +50,8 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, ImportInterface,
     GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError, SymbolTable)
 from psyclone.psyir.nodes import (
-    Call, Container, FileContainer, Routine, ScopingNode,
-    IntrinsicCall, )
+    Call, Container, FileContainer, Reference, Routine, ScopingNode,
+    IntrinsicCall)
 from psyclone.utils import transformation_documentation_wrapper
 
 
