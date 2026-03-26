@@ -45,6 +45,7 @@ from psyclone.transformations import (
     TransformationError)
 from psyclone.psyir.transformations import ACCLoopTrans
 
+
 def trans(psyir):
     ''' Apply OpenACC transformations to the invoke_0 subroutine
 

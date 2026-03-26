@@ -45,6 +45,7 @@ from psyclone.transformations import (
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import ACCLoopTrans
 
+
 def trans(psyir):
     ''' Take the supplied psy-layer, apply OpenACC transformations
     to the schedule of the first invoke.
