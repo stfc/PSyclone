@@ -1885,24 +1885,24 @@ def test_x_innerproduct_x(fortran_writer):
             "asum = asum + f1_data(df) * f1_data(df)\n") in code
 
 
-def test_x_innerproduct_x_real64(fortran_writer, tmp_path):
+def test_x_innerproduct_x_r_double(fortran_writer, tmp_path):
     ''' Test the lower_to_language_level builtin methods for real64 precision.
 
     '''
-    kern = builtin_from_file("15.9.3_X_innerproduct_X_builtin_real64.f90")
+    kern = builtin_from_file("15.9.3_X_innerproduct_X_builtin_r_double.f90")
     assert str(kern) == "Built-in: X_innerproduct_X (real-valued field)"
 
     # Test the 'lower_to_language_level()' method
     lowered = kern.lower_to_language_level()
     sum = lowered.scope.symbol_table.lookup("asum")
-    assert sum.datatype.precision.name == "real64"
+    assert sum.datatype.precision.name == "r_double"
 
     code = fortran_writer(lowered)
     assert ("! Built-in: X_innerproduct_X (real-valued field)\n"
             "asum = asum + f1_data(df) * f1_data(df)\n") in code
 
     # Test compilation of generated code
-    psy, _ = get_invoke("15.9.3_X_innerproduct_X_builtin_real64.f90",
+    psy, _ = get_invoke("15.9.3_X_innerproduct_X_builtin_r_double.f90",
                         api=API, idx=0, dist_mem=True)
     assert LFRicBuild(tmp_path).code_compiles(psy)
 
