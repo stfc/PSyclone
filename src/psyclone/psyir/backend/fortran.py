@@ -1598,7 +1598,7 @@ class FortranWriter(LanguageWriter):
             for line in node.get_fortran_lines():
                 result += f"{self._nindent}{line}\n"
         elif node.structure == CodeBlock.Structure.EXPRESSION:
-            for ast_node in node.get_ast_nodes():
+            for ast_node in node.parse_tree_nodes:
                 result += str(ast_node)
         else:
             raise VisitorError(

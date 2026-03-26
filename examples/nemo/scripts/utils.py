@@ -496,7 +496,7 @@ def add_profiling(children: Union[List[Node], Schedule]):
             '''
             if len(region) == 1:
                 if (isinstance(region[0], CodeBlock) and
-                        len(region[0].get_ast_nodes()) == 1):
+                        len(region[0].parse_tree_nodes) == 1):
                     # Don't create profiling regions for CodeBlocks consisting
                     # of a single statement.
                     return False

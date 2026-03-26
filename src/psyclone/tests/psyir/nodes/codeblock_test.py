@@ -72,7 +72,7 @@ def test_codeblock_can_be_printed():
 
 
 def test_codeblock_constructor_and_getastnodes():
-    '''Test that the get_ast_nodes method of a CodeBlock instance returns
+    '''Test that the parse_tree_nodes method of a CodeBlock instance returns
     a copy of the list of nodes from the original AST that are associated with
     this code block.
 
@@ -81,7 +81,7 @@ def test_codeblock_constructor_and_getastnodes():
     '''
     original = ["hello", "there"]
     cblock = CodeBlock(original, CodeBlock.Structure.EXPRESSION)
-    result = cblock.get_ast_nodes()
+    result = cblock.parse_tree_nodes
     assert result == original
     # Check that the list is a copy not a reference.
     assert result is not original
@@ -89,7 +89,7 @@ def test_codeblock_constructor_and_getastnodes():
     # If only one element is provided, this is added to a list
     original = 3
     cblock = CodeBlock(original, CodeBlock.Structure.EXPRESSION)
-    assert cblock.get_ast_nodes() == [3]
+    assert cblock.parse_tree_nodes == [3]
 
 
 @pytest.mark.parametrize("structure", [CodeBlock.Structure.STATEMENT,
@@ -127,7 +127,7 @@ def test_abstract_methods():
 
     # But if there is one, the node will need to be subclassed to properly
     # interpret the meaning of the ast
-    cblock._parse_tree = "something"
+    cblock._parse_tree_nodes = ["something"]
     with pytest.raises(NotImplementedError) as err:
         _ = cblock.get_symbol_names()
     assert "Use appropriate CodeBlock subclass" in str(err.value)

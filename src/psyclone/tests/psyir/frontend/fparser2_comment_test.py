@@ -172,9 +172,9 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     )
     if last_comments_as_codeblocks:
         assert isinstance(module.children[-1], CodeBlock)
-        assert isinstance(module.children[-1].get_ast_nodes()[0],
+        assert isinstance(module.children[-1].parse_tree_nodes[0],
                           Fortran2003.Comment)
-        assert (module.children[-1].get_ast_nodes()[0].tostr()
+        assert (module.children[-1].parse_tree_nodes[0].tostr()
                 == "! Comment at end of module => CodeBlock")
     else:
         assert not isinstance(module.children[-1], CodeBlock)
@@ -213,9 +213,9 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     last_child = routine.children[-1]
     if last_comments_as_codeblocks:
         assert isinstance(last_child, CodeBlock)
-        assert isinstance(last_child.get_ast_nodes()[0], Fortran2003.Comment)
+        assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.get_ast_nodes()[0].tostr()
+            last_child.parse_tree_nodes[0].tostr()
             == "! Comment at end of subroutine => CodeBlock"
         )
     else:
@@ -255,9 +255,9 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     last_child = ifblock.if_body.children[-1]
     if last_comments_as_codeblocks:
         assert isinstance(last_child, CodeBlock)
-        assert isinstance(last_child.get_ast_nodes()[0], Fortran2003.Comment)
+        assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.get_ast_nodes()[0].tostr()
+            last_child.parse_tree_nodes[0].tostr()
             == "! Comment on elseif block 'elseif (a == 2) then' => CodeBlock"
         )
     else:
@@ -266,9 +266,9 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     last_child = ifblock2.if_body.children[-1]
     if last_comments_as_codeblocks:
         assert isinstance(last_child, CodeBlock)
-        assert isinstance(last_child.get_ast_nodes()[0], Fortran2003.Comment)
+        assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.get_ast_nodes()[0].tostr()
+            last_child.parse_tree_nodes[0].tostr()
             == "! Comment on else block 'else' => CodeBlock"
         )
     else:
@@ -276,8 +276,8 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     last_child = ifblock2.else_body.children[-1]
     if last_comments_as_codeblocks:
         assert isinstance(last_child, CodeBlock)
-        assert isinstance(last_child.get_ast_nodes()[0], Fortran2003.Comment)
-        assert (last_child.get_ast_nodes()[0].tostr() ==
+        assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
+        assert (last_child.parse_tree_nodes[0].tostr() ==
                 "! Comment on 'end if' => CodeBlock")
     else:
         assert not isinstance(last_child, CodeBlock)
@@ -290,9 +290,9 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     last_child = loop_i.loop_body.children[-1]
     if last_comments_as_codeblocks:
         assert isinstance(last_child, CodeBlock)
-        assert isinstance(last_child.get_ast_nodes()[0], Fortran2003.Comment)
+        assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.get_ast_nodes()[0].tostr()
+            last_child.parse_tree_nodes[0].tostr()
             == "! Comment at end of loop on i => CodeBlock"
         )
     else:
@@ -305,9 +305,9 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     last_child = loop_j.loop_body.children[-1]
     if last_comments_as_codeblocks:
         assert isinstance(last_child, CodeBlock)
-        assert isinstance(last_child.get_ast_nodes()[0], Fortran2003.Comment)
+        assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.get_ast_nodes()[0].tostr()
+            last_child.parse_tree_nodes[0].tostr()
             == "! Comment at end of loop on j => CodeBlock"
         )
     else:

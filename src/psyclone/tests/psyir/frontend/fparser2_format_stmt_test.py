@@ -64,5 +64,5 @@ end program my_test'''
     assert isinstance(prog.children[0], CodeBlock)
     cbnode = prog.children[2]
     assert isinstance(cbnode, CodeBlock)
-    assert isinstance(cbnode.get_ast_nodes()[0], Fortran2003.Format_Stmt)
-    assert cbnode.get_ast_nodes()[0].item.label == 111
+    assert isinstance(cbnode.parse_tree_nodes[0], Fortran2003.Format_Stmt)
+    assert cbnode.parse_tree_nodes[0].item.label == 111

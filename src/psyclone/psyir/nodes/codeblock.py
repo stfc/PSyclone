@@ -38,6 +38,7 @@
 
 ''' This module contains the CodeBlock node implementation.'''
 
+from __future__ import annotations
 import re
 from enum import Enum
 from typing import Optional, Any, Union
@@ -51,12 +52,12 @@ from psyclone.psyir.nodes.node import Node
 class CodeBlock(Statement, DataNode):
     '''Node representing any generic Fortran code that PSyclone does not
     attempt to manipulate. As such it is a leaf in the PSyIR. A CodeBlock
-    can still answer answer limited questions about the enclosed code. For
+    can still answer limited questions about the enclosed code. For
     this reason it keeps reference to the underlying parse_tree, and each
     frontend parser needs to subclass CodeBlock with the concrete
     implementation.
 
-    :param parse_tree: the fparser2 parse-tree nodes representing the
+    :param parse_tree: the parse-tree nodes representing the
         Fortran code constituting the code block.
     :param structure: argument indicating whether this code block is a
         statement or an expression.
@@ -93,7 +94,7 @@ class CodeBlock(Statement, DataNode):
     def __init__(
         self,
         parse_tree: Union[Any, list[Any]],
-        structure: "CodeBlock.Structure",
+        structure: CodeBlock.Structure,
         parent: Optional[Node] = None,
         annotations: Optional[list[str]] = None
     ):
@@ -103,58 +104,54 @@ class CodeBlock(Statement, DataNode):
         # the list itself is often a temporary product of the process of
         # converting from the the parse tree to the PSyIR.
         if isinstance(parse_tree, list):
-            self._parse_tree = parse_tree[:]
+            self._parse_tree_nodes = parse_tree[:]
         else:
-            self._parse_tree = [parse_tree]
+            self._parse_tree_nodes = [parse_tree]
         # Store the structure of the code block.
         self._structure = structure
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         '''
         Checks whether two nodes are equal. Two CodeBlock nodes are equal
         if they are the same type, their ast_nodes lists are equal (which
         means the same instance) and have the same structure.
 
-        :param object other: the object to check equality to.
+        :param other: the object to check equality to.
 
         :returns: whether other is equal to self.
-        :rtype: bool
         '''
         is_eq = super().__eq__(other)
-        is_eq = is_eq and self.get_ast_nodes() == other.get_ast_nodes()
+        is_eq = is_eq and self.parse_tree_nodes == other.parse_tree_nodes
         is_eq = is_eq and self.structure == other.structure
 
         return is_eq
 
     @property
-    def structure(self):
+    def structure(self) -> CodeBlock.Structure:
         '''
         :returns: whether this code block is a statement or an expression.
-        :rtype: :py:class:`psyclone.psyir.nodes.CodeBlock.Structure`
-
         '''
         return self._structure
 
-    def get_ast_nodes(self):
+    @property
+    def parse_tree_nodes(self) -> list[Any]:
         '''
         :returns: the nodes associated with this code block in
-                  the original fparser2 parse tree.
-        :rtype: list[:py:class:`fparser.two.Fortran2003.Base`]
+            the original parse tree.
 
         '''
-        return self._parse_tree
+        return self._parse_tree_nodes
 
-    def node_str(self, colour=True):
+    def node_str(self, colour: bool = True) -> str:
         ''' Create a text description of this node in the schedule, optionally
         including control codes for colour.
 
-        :param bool colour: whether or not to include control codes for colour.
+        :param colour: whether or not to include control codes for colour.
 
         :return: text description of this node.
-        :rtype: str
         '''
         return (f"{self.coloured_name(colour)}["
-                f"{list(map(type, self._parse_tree))}]")
+                f"{list(map(type, self._parse_tree_nodes))}]")
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''
@@ -183,14 +180,14 @@ class CodeBlock(Statement, DataNode):
                                     self)
         return var_accesses
 
-    def __str__(self):
-        return f"CodeBlock[{len(self._parse_tree)} nodes]"
+    def __str__(self) -> str:
+        return f"CodeBlock[{len(self._parse_tree_nodes)} nodes]"
 
     def get_symbol_names(self) -> list[str]:
         '''
         :returns: the name of all symbols accessed in the CodeBlock.
         '''
-        if not self._parse_tree:
+        if not self._parse_tree_nodes:
             return []
         raise NotImplementedError("Use appropriate CodeBlock subclass")
 
@@ -198,7 +195,7 @@ class CodeBlock(Statement, DataNode):
         '''
         :returns: whether the Codeblock might have control flow jumps.
         '''
-        if not self._parse_tree:
+        if not self._parse_tree_nodes:
             return False
         raise NotImplementedError("Use appropriate CodeBlock subclass")
 
@@ -206,7 +203,7 @@ class CodeBlock(Statement, DataNode):
         '''
         :returns: a list of each line of fortran represented by this node.
         '''
-        if not self._parse_tree:
+        if not self._parse_tree_nodes:
             return []
         raise NotImplementedError("Use appropriate CodeBlock subclass")
 
@@ -238,7 +235,7 @@ class Fparser2CodeBlock(CodeBlock):
         # pylint: disable=import-outside-toplevel
         from fparser.two import Fortran2003, pattern_tools
         from fparser.two.utils import walk
-        parse_tree = self.get_ast_nodes()
+        parse_tree = self.parse_tree_nodes
         result = []
         for node in walk(parse_tree, Fortran2003.Name):
             if isinstance(node.parent, Fortran2003.Else_If_Stmt):
@@ -299,7 +296,7 @@ class Fparser2CodeBlock(CodeBlock):
         from fparser.two.utils import walk
         # Loop over the fp2_nodes and check if any are GOTO, EXIT or
         # labelled statements
-        for node in self._parse_tree:
+        for node in self._parse_tree_nodes:
             for child in walk(node, (Fortran2003.Goto_Stmt,
                                      Fortran2003.Exit_Stmt,
                                      Fortran2003.Cycle_Stmt,
@@ -320,7 +317,7 @@ class Fparser2CodeBlock(CodeBlock):
         :returns: a list of each line of fortran represented by this node.
         '''
         output = []
-        for node in self._parse_tree:
+        for node in self._parse_tree_nodes:
             output.extend(node.tofortran().split("\n"))
         return output
 
@@ -333,6 +330,6 @@ class TreeSitterCodeBlock(CodeBlock):
         :returns: a list of each line of fortran represented by this node.
         '''
         output = []
-        for node in self._parse_tree:
+        for node in self._parse_tree_nodes:
             output.extend(str(node.text, encoding="utf8").split("\n"))
         return output
