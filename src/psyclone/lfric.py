@@ -5905,38 +5905,22 @@ class LFRicKernelArgument(KernelArgument):
                     "Reductions for datatypes other than real are not yet "
                     "supported in PSyclone.")
 
-            expected_precision = const.DATA_TYPE_MAP["reduction"]["kind"]
-            # If the algorithm information is not being ignored
-            # then check that the expected precision and the
-            # precision defined in the algorithm layer are
-            # the same.
-            if check and alg_precision and \
-               alg_precision != expected_precision:
-                raise GenerationError(
-                    f"This scalar is a reduction which assumes precision "
-                    f"of type '{expected_precision}' but the algorithm "
-                    f"declares this scalar with precision "
-                    f"'{alg_precision}'.")
+            self._data_type = const.DATA_TYPE_MAP["scalar"]["type"]
+            self._proxy_data_type = None
+            self._module_name = const.DATA_TYPE_MAP["scalar"]["module"]
 
-            # Use the default 'real' scalar reduction properties.
-            self._precision = expected_precision
-            self._data_type = const.DATA_TYPE_MAP["reduction"]["type"]
-            self._proxy_data_type = const.DATA_TYPE_MAP[
-                "reduction"]["proxy_type"]
-            self._module_name = const.DATA_TYPE_MAP["reduction"]["module"]
+        # The precision of the symbol does not depend on whether
+        # it is a reduction
+        if check and alg_precision:
+            # Use the algorithm precision if it is available
+            # and not being ignored.
+            self._precision = alg_precision
         else:
-            # This is a scalar that is not part of a reduction.
-
-            if check and alg_precision:
-                # Use the algorithm precision if it is available
-                # and not being ignored.
-                self._precision = alg_precision
-            else:
-                # Use default precision for this datatype if the
-                # algorithm precision is either not available or is
-                # being ignored.
-                self._precision = const.SCALAR_PRECISION_MAP[
-                    self.intrinsic_type]
+            # Use default precision for this datatype if the
+            # algorithm precision is either not available or is
+            # being ignored.
+            self._precision = const.SCALAR_PRECISION_MAP[
+                self.intrinsic_type]
 
     def _init_field_properties(self, alg_datatype, check=True):
         '''Set up the properties of this field using algorithm datatype
