@@ -45,7 +45,8 @@ from typing import Union
 
 from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import ScalarType, ArrayType, Symbol
+from psyclone.psyir.symbols.symbol import Symbol
+from psyclone.psyir.symbols.datatypes import ScalarType, ArrayType
 
 
 class Literal(DataNode):

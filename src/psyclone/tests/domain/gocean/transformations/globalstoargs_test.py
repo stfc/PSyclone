@@ -270,7 +270,7 @@ def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
         trans.apply(kernel)
     assert ("The imported variable 'rdt' could not be promoted to an argument "
             "because the GOcean infrastructure does not have any scalar type "
-            "equivalent to the PSyIR Scalar<CHARACTER, UNDEFINED> type."
+            "equivalent to the PSyIR Scalar<CHARACTER"
             in str(err.value))
 
 

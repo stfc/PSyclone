@@ -178,7 +178,12 @@ class ArrayReference(ArrayMixin, Reference):
                 base_type = UnresolvedType()
             else:
                 # Create a copy of the base datatype.
-                base_type = self.symbol.datatype.elemental_type.copy()
+                if isinstance(self.symbol.datatype, ArrayType):
+                    base_type = self.symbol.datatype.elemental_type.copy()
+                else:
+                    # TODO #3240 - sometimes we have an ArrayReference that is
+                    # actually a character sub-string.
+                    base_type = self.symbol.datatype.copy()
             return ArrayType(base_type, shape)
         # Otherwise, we're accessing a single element of the array.
         if type(self.symbol) is Symbol:

@@ -255,6 +255,49 @@ def test_gen_decls(fortran_writer):
             "'unknown'" in str(excinfo.value))
 
 
+def test_gen_decls_char(fortran_writer):
+    '''
+    Test that various forms of character declaration are handled OK.
+    '''
+    table = SymbolTable()
+    sym1 = DataSymbol("amo", ScalarType(ScalarType.Intrinsic.CHARACTER,
+                                        ScalarType.Precision.UNDEFINED,
+                                        4))
+    table.add(sym1)
+    sym2 = DataSymbol("amos",
+                      ScalarType(ScalarType.Intrinsic.CHARACTER,
+                                 ScalarType.Precision.UNDEFINED,
+                                 ScalarType.CharLengthParameter.COLON))
+    table.add(sym2)
+    sym3 = DataSymbol("amat",
+                      ScalarType(ScalarType.Intrinsic.CHARACTER,
+                                 ScalarType.Precision.UNDEFINED,
+                                 ScalarType.CharLengthParameter.ASTERISK))
+    table.add(sym3)
+    char_kind = DataSymbol("ckind", INTEGER_TYPE)
+    table.add(char_kind)
+    sym4 = DataSymbol("amore",
+                      ScalarType(ScalarType.Intrinsic.CHARACTER,
+                                 Reference(char_kind),
+                                 ScalarType.CharLengthParameter.ASTERISK))
+    table.add(sym4)
+    # When both len and kind are given by expressions.
+    sym5 = DataSymbol(
+        "philemon",
+        ScalarType(ScalarType.Intrinsic.CHARACTER,
+                   IntrinsicCall.create(IntrinsicCall.Intrinsic.KIND,
+                                        [Reference(sym4)]),
+                   IntrinsicCall.create(IntrinsicCall.Intrinsic.LEN,
+                                        [Reference(sym4)])))
+    table.add(sym5)
+    result = fortran_writer.gen_decls(table)
+    assert "character(len=4) :: amo" in result
+    assert "character(len=:) :: amos" in result
+    assert "character(len=*) :: amat" in result
+    assert "character(kind=ckind, len=*) :: amore" in result
+    assert "character(kind=KIND(amore), len=LEN(amore)) :: philemon" in result
+
+
 def test_gen_decls_array(fortran_writer):
     '''
     Test that various forms of array declaration are created correctly.

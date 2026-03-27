@@ -45,7 +45,7 @@ import copy
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -53,6 +53,9 @@ from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes.datanode import DataNode
+    from psyclone.psyir.symbols import SymbolTable
 
 
 class DataType(metaclass=abc.ABCMeta):
@@ -357,17 +360,29 @@ class ScalarType(DataType):
     '''Describes a scalar datatype (and its precision).
 
     :param intrinsic: the intrinsic of this scalar type.
-    :type intrinsic: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
     :param precision: the precision of this scalar type.
-    :type precision: :py:class:`psyclone.psyir.symbols.ScalarType.Precision` |
-                     int | :py:class:`psyclone.psyir.nodes.DataNode`
+    :param length: optionally, the length of a character type.
 
     :raises TypeError: if any of the arguments are of the wrong type.
     :raises ValueError: if any of the argument have unexpected values.
 
     '''
 
-    class Intrinsic(Enum):
+    class ScalarTypeAttribute:
+        '''
+        Provides some common functionality to the various classes that
+        describe attributes of a ScalarType.
+
+        '''
+        def copy(self) -> ScalarType.ScalarTypeAttribute:
+            ''':returns: a copy of self.'''
+            return copy.copy(self)
+
+        def debug_string(self) -> str:
+            ''':returns: the name of the Enum item.'''
+            return self.name
+
+    class Intrinsic(ScalarTypeAttribute, Enum):
         '''Enumeration of the different intrinsic scalar datatypes that are
         supported by the PSyIR.
 
@@ -377,7 +392,7 @@ class ScalarType(DataType):
         BOOLEAN = 3
         CHARACTER = 4
 
-    class Precision(Enum):
+    class Precision(ScalarTypeAttribute, Enum):
         '''Enumeration of the different types of 'default' precision that may
         be specified for a scalar datatype.
 
@@ -386,12 +401,9 @@ class ScalarType(DataType):
         DOUBLE = 2
         UNDEFINED = 3
 
-        def copy(self):
-            '''
-            :returns: a copy of self.
-            :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`
-            '''
-            return copy.copy(self)
+    class CharLengthParameter(ScalarTypeAttribute, Enum):
+        ASTERISK = 1
+        COLON = 2
 
     #: Mapping from PSyIR scalar data types to intrinsic Python types
     #: ignoring precision.
@@ -401,7 +413,13 @@ class ScalarType(DataType):
         Intrinsic.BOOLEAN: bool,
         Intrinsic.REAL: float}
 
-    def __init__(self, intrinsic, precision):
+    def __init__(
+            self,
+            intrinsic: ScalarType.Intrinsic,
+            precision: Union[int, ScalarType.Precision, "DataNode"],
+            length: Optional[
+                Union[int, ScalarType.CharLengthParam, "DataNode"]] = None
+    ):
         if not isinstance(intrinsic, ScalarType.Intrinsic):
             raise TypeError(
                 f"ScalarType expected 'intrinsic' argument to be of type "
@@ -436,11 +454,81 @@ class ScalarType(DataType):
         # possible due to circular imports.
         self._precision = precision
 
+        # The 'length' setter includes validation checks.
+        self._length = None
+        self.length = length
+
     @property
-    def intrinsic(self):
+    def length(self) -> "DataNode":
+        '''
+        :returns: the length of a character type.
+
+        :raises TypeError: if this ScalarType instance is not of
+                           character type.
+        '''
+        if self._intrinsic != ScalarType.Intrinsic.CHARACTER:
+            raise TypeError(
+                f"A ScalarType of intrinsic type '{self._intrinsic}' does not "
+                f"have the 'length' property.")
+        return self._length
+
+    @length.setter
+    def length(self, value: Union[int, "DataNode", None]):
+        '''
+        Setter for the length of a character string. If the new value
+        is supplied as an int then this is converted into a Literal.
+
+        If this type is a character string and the `value` is None then
+        the length is set to the Fortran default of 1.
+
+        :value: the new length to assign.
+
+        :raises TypeError: if value is not None and this is not a
+                           character type.
+        :raises ValueError: if the supplied value is an int with value < 0.
+        :raises TypeError: if the supplied value is of the wrong type.
+
+        '''
+        if self._intrinsic != ScalarType.Intrinsic.CHARACTER:
+            if value is None:
+                self._length = None
+                return
+            raise TypeError(
+                f"Only ScalarTypes of character type support the length "
+                f"property but length '{value}' was supplied to an intrinsic"
+                f" type of '{self._intrinsic}'")
+
+        # This is a character type.
+        if value is None:
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes.literal import Literal
+            # Default length of a character string is 1.
+            self._length = Literal("1", INTEGER_TYPE)
+            return
+
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.datanode import DataNode
+        if isinstance(value, ScalarType.CharLengthParameter):
+            self._length = value
+        elif isinstance(value, int) and not isinstance(value, bool):
+            if value < 0:
+                raise ValueError(
+                    f"If the length of a character ScalarType is specified "
+                    f"using an int then it must be >= 0 but got: {value}")
+            from psyclone.psyir.nodes.literal import Literal
+            self._length = Literal(str(value), INTEGER_TYPE)
+        elif isinstance(value, DataNode):
+            self._length = value
+        else:
+            raise TypeError(
+                f"The length property of a character ScalarType must be an "
+                f"int, ScalarType.CharLengthParameter "
+                f"or DataNode but got '{type(value).__name__}'")
+
+    @property
+    def intrinsic(self) -> ScalarType.Intrinsic:
         '''
         :returns: the intrinsic used by this scalar type.
-        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
         '''
         return self._intrinsic
 
@@ -453,26 +541,34 @@ class ScalarType(DataType):
         '''
         return self._precision
 
-    def __str__(self):
+    def __str__(self) -> str:
         '''
         :returns: a description of this scalar datatype.
-        :rtype: str
 
         '''
         if isinstance(self.precision, ScalarType.Precision):
             precision_str = self.precision.name
         else:
             precision_str = str(self.precision)
-        return f"Scalar<{self.intrinsic.name}, {precision_str}>"
 
-    def __eq__(self, other):
+        if self._length:
+            len_str = f", len:{self._length}"
+        else:
+            len_str = ""
+
+        return f"Scalar<{self.intrinsic.name}, {precision_str}{len_str}>"
+
+    def __eq__(self, other: Any) -> bool:
         '''
-        :param Any other: the object to check equality to.
+        :param other: the object to check equality to.
 
         :returns: whether this type is equal to the 'other' type.
-        :rtype: bool
+
         '''
         if not super().__eq__(other):
+            return False
+
+        if self.intrinsic != other.intrinsic:
             return False
 
         # TODO #2659 - the following should be sufficient but isn't because
@@ -491,9 +587,18 @@ class ScalarType(DataType):
                 )
         else:
             precision_match = self.precision == other.precision
-        return precision_match and self.intrinsic == other.intrinsic
 
-    def replace_symbols_using(self, table_or_symbol):
+        if self.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            # We've already checked that the two are of the same intrinsic type
+            length_match = self._length == other.length
+        else:
+            length_match = True
+
+        return precision_match and length_match
+
+    def replace_symbols_using(
+            self,
+            table_or_symbol: Union[SymbolTable, Symbol]) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable (or just the supplied Symbol instance) if they
@@ -501,15 +606,14 @@ class ScalarType(DataType):
         left unchanged.
 
         :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
-
+                                symbols or a single, replacement Symbol.
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.datanode import DataNode
         if isinstance(self.precision, DataNode):
             self._precision.replace_symbols_using(table_or_symbol)
+        if isinstance(self._length, DataNode):
+            self._length.replace_symbols_using(table_or_symbol)
 
     def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
@@ -522,20 +626,23 @@ class ScalarType(DataType):
         from psyclone.psyir.nodes.datanode import DataNode
         if isinstance(self.precision, DataNode):
             symbols.update(self.precision.get_all_accessed_symbols())
-
+        if isinstance(self._length, DataNode):
+            symbols.update(self._length.get_all_accessed_symbols())
         return symbols
 
-    def copy(self):
+    def copy(self) -> ScalarType:
         '''
         :returns: a copy of self.
-        :rtype: :py:class:`psyclone.psyir.symbols.DatatTypes.ScalarType`
         '''
-        # TODO #3135 After the precision is always either a Precision or
-        # a DataNode this hasattr check can be removed.
-        if hasattr(self.precision, "copy"):
-            return ScalarType(self.intrinsic, self.precision.copy())
+        if isinstance(self.precision, int):
+            # TODO #3135 - ideally precision will always be stored as a
+            # DataNode and this branch of the `if` won't be necessary.
+            precision = self.precision
         else:
-            return ScalarType(self.intrinsic, self.precision)
+            precision = self.precision.copy()
+        if self._length:
+            return ScalarType(self.intrinsic, precision, self._length.copy())
+        return ScalarType(self.intrinsic, precision)
 
 
 class ArrayType(DataType):
@@ -1332,7 +1439,7 @@ INTEGER8_TYPE = ScalarType(ScalarType.Intrinsic.INTEGER, 8)
 BOOLEAN_TYPE = ScalarType(ScalarType.Intrinsic.BOOLEAN,
                           ScalarType.Precision.UNDEFINED)
 CHARACTER_TYPE = ScalarType(ScalarType.Intrinsic.CHARACTER,
-                            ScalarType.Precision.UNDEFINED)
+                            ScalarType.Precision.UNDEFINED, 1)
 
 
 # For automatic documentation generation

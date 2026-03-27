@@ -838,18 +838,6 @@ def test_process_unsupported_declarations(fortran_reader):
     assert isinstance(c2sym.datatype, UnsupportedFortranType)
     assert c2sym.datatype.declaration == "COMPLEX :: c2"
 
-    # Char lengths are not supported
-    psyir = fortran_reader.psyir_from_source("program dummy\n"
-                                             "character :: l*4\n"
-                                             "end program")
-    assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
-                      UnsupportedFortranType)
-    psyir = fortran_reader.psyir_from_source("program dummy\n"
-                                             "character(len=4) :: l\n"
-                                             "end program")
-    assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
-                      UnsupportedFortranType)
-
     # Test that CodeBlocks and references to variables initialised with a
     # CodeBlock are handled correctly
     reader = FortranStringReader(

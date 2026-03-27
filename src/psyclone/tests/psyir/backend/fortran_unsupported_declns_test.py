@@ -253,8 +253,8 @@ def test_generating_unsupportedtype_routine_imports(
         module.write('''
           module a_mod
               contains
-              character(len=3) function unsupported_type_symbol()
-                 unsupported_type_symbol = 'a'
+              complex function unsupported_type_symbol()
+                 unsupported_type_symbol = (1.0, 1.0)
               end function unsupported_type_symbol
           end module a_mod
         ''')
@@ -264,7 +264,7 @@ def test_generating_unsupportedtype_routine_imports(
               contains
               subroutine test()
                   integer :: a
-                  a = unsupported_type_symbol()
+                  a = INT(REAL(unsupported_type_symbol()))
               end subroutine test
           end module test_mod
       ''')

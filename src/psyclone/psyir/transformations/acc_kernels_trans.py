@@ -40,7 +40,6 @@
 
 ''' This module provides the ACCKernelsTrans transformation. '''
 
-import re
 from typing import Any, Dict, Union
 import warnings
 
@@ -50,7 +49,9 @@ from psyclone.psyir.nodes import (
     ACCEnterDataDirective, ACCKernelsDirective, Assignment,
     Call, CodeBlock, Literal, Loop, Node,
     PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
-from psyclone.psyir.symbols import INTEGER_TYPE, UnsupportedFortranType
+from psyclone.psyir.symbols import (
+    ArrayType, DataTypeSymbol, INTEGER_TYPE, ScalarType,
+    UnsupportedFortranType)
 from psyclone.psyir.transformations.arrayassignment2loops_trans import (
     ArrayAssignment2LoopsTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
@@ -261,12 +262,6 @@ class ACCKernelsTrans(RegionTrans):
                 "GOcean InvokeSchedules")
         super().validate(node_list, options, **kwargs)
 
-        # The regex we use to determine whether a character declaration is
-        # of assumed size ('LEN=*' or '*(*)').
-        # TODO #2612 - improve the fparser2 frontend support for character
-        # declarations.
-        assumed_size = re.compile(r"\(\s*len\s*=\s*\*\s*\)|\*\s*\(\s*\*\s*\)")
-
         # Construct a list of any symbols that correspond to assumed-size
         # character strings. These can only be routine arguments.
         char_syms = []
@@ -274,14 +269,17 @@ class ACCKernelsTrans(RegionTrans):
         if parent_routine:
             arg_syms = parent_routine.symbol_table.argument_datasymbols
             for sym in arg_syms:
-                # Currently the fparser2 frontend does not support any type
-                # of LEN= specification on a character variable so we resort
-                # to a regex to check whether it is assumed-size.
+                if isinstance(sym.datatype, DataTypeSymbol):
+                    continue
+                if sym.datatype.intrinsic != ScalarType.Intrinsic.CHARACTER:
+                    continue
+                dtype = sym.datatype
                 if isinstance(sym.datatype, UnsupportedFortranType):
-                    type_txt = sym.datatype.type_text.lower()
-                    if (type_txt.startswith("character") and
-                            assumed_size.search(type_txt)):
-                        char_syms.append(sym)
+                    dtype = sym.datatype.partial_datatype
+                if isinstance(sym.datatype, ArrayType):
+                    dtype = sym.datatype.elemental_type
+                if isinstance(dtype.length, ScalarType.CharLengthParameter):
+                    char_syms.append(sym)
 
         for node in node_list:
             # Check that there are no assumed-size character variables as these
