@@ -1097,14 +1097,15 @@ class Fparser2Reader():
 
         :raises ValueError: if the given Fortran had a syntax error.
         '''
+        if not self._parser:
+            std = Config.get().fortran_standard
+            self._parser = ParserFactory().create(std=std)
+
         # Set reader to free format.
         reader.set_format(FortranFormat(self._free_form, False))
 
         SYMBOL_TABLES.clear()
         if partial_code == "":
-            if not self._parser:
-                std = Config.get().fortran_standard
-                self._parser = ParserFactory().create(std=std)
             try:
                 return self._parser(reader)
             except (FortranSyntaxError, NoMatchError) as err:
@@ -1128,7 +1129,6 @@ class Fparser2Reader():
             # values will also be considered a NoMatch
             if not parse_tree:
                 raise NoMatchError("")
-            return parse_tree
         except NoMatchError as err:
             raise ValueError(
                 f"Supplied source does not represent a Fortran "

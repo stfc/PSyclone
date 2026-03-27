@@ -40,18 +40,47 @@
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
-
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran_treesitter_reader import \
     FortranTreeSitterReader
-
-
 from psyclone.psyir.nodes.codeblock import (
     CodeBlock, Fparser2CodeBlock, TreeSitterCodeBlock
 )
 from psyclone.psyir.nodes.node import colored
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
+
+
+def test_codeblock_create():
+    ''' Check the create method of the Code Block class.'''
+
+    # The generic create works like a factory that creates the appropriate
+    # CodeBlock subclass looking at the selected parser by default is fparser2
+    cb = CodeBlock.create("3 + 3", partial_code="expression")
+    assert isinstance(cb, Fparser2CodeBlock)
+    assert "3 + 3" in cb.get_fortran_lines()
+
+    cb = CodeBlock.create("a => b", partial_code="pointer_assignment")
+    assert isinstance(cb, Fparser2CodeBlock)
+    assert "a => b" in cb.get_fortran_lines()
+
+    # Use the treesitter frontend (the frontend doesn't support partial
+    # expressions yet, but we should get the appropriate error)
+    Config.get()._frontend = "treesitter"
+    with pytest.raises(ValueError) as err:
+        cb = CodeBlock.create("3 + 3", partial_code="expression")
+    assert "Syntax Error found at line 1: 3 + 3" in str(err.value)
+    with pytest.raises(ValueError) as err:
+        cb = CodeBlock.create("a => b", partial_code="pointer_assignment")
+    assert "Syntax Error found at line 1: a => b" in str(err.value)
+
+    # Use a different fronted value
+    Config.get()._frontend = "newfrontend"
+    with pytest.raises(InternalError) as err:
+        cb = CodeBlock.create("3 + 3", partial_code="expression")
+    assert ("The 'newfrontend' frontend does not have an associated CodeBlock "
+            "subclass" in str(err.value))
 
 
 def test_codeblock_node_str():
