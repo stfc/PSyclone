@@ -247,17 +247,17 @@ class Fparser2CodeBlock(CodeBlock):
         :raises ValueError: if the provided partial_code keyword is not
             recognised.
         '''
+        if partial_code == "expression":
+            structure = CodeBlock.Structure.EXPRESSION
+        else:
+            structure = CodeBlock.Structure.STATEMENT
+
         # Purposely inlined to lazily load this modules only when needed
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         reader = Fparser2Reader()
         tree = reader.generate_parse_tree_from_source(source_code,
                                                       partial_code)
-        if partial_code == "expression":
-            structure = CodeBlock.Structure.EXPRESSION
-        else:
-            structure = CodeBlock.Structure.STATEMENT
-
         return Fparser2CodeBlock(tree, structure, **kwargs)
 
     def get_symbol_names(self) -> list[str]:
@@ -387,6 +387,11 @@ class TreeSitterCodeBlock(CodeBlock):
         :returns: a CodeBlock node for the given source code using the
             appropriate CodeBlock subclass.
         '''
+        if partial_code == "expression":
+            structure = CodeBlock.Structure.EXPRESSION
+        else:
+            structure = CodeBlock.Structure.STATEMENT
+
         # Purposely inlined to lazily load this modules only when needed
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.frontend.fortran_treesitter_reader import \
@@ -394,10 +399,6 @@ class TreeSitterCodeBlock(CodeBlock):
         reader = FortranTreeSitterReader()
         tree = reader.generate_parse_tree_from_source(source_code)
 
-        if partial_code == "expression":
-            structure = CodeBlock.Structure.EXPRESSION
-        else:
-            structure = CodeBlock.Structure.STATEMENT
         return TreeSitterCodeBlock(tree, structure, **kwargs)
 
     def get_fortran_lines(self) -> list[str]:

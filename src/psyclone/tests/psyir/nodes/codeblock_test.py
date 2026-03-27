@@ -66,8 +66,10 @@ def test_codeblock_create():
     assert "a => b" in cb.get_fortran_lines()
 
     # Use the treesitter frontend (the frontend doesn't support partial
-    # expressions yet, but we should get the appropriate error)
+    # expressions yet, but it gets an appropriate error)
     Config.get()._frontend = "treesitter"
+    cb = CodeBlock.create("program test\nend program\n")
+    assert isinstance(cb, TreeSitterCodeBlock)
     with pytest.raises(ValueError) as err:
         cb = CodeBlock.create("3 + 3", partial_code="expression")
     assert "Syntax Error found at line 1: 3 + 3" in str(err.value)
