@@ -48,6 +48,7 @@ from psyclone.psyir.nodes import (
     Assignment, Container, IfBlock, Return)
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
+from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import get_invoke
 
 API = "gocean"
@@ -71,7 +72,8 @@ def test_validation(monkeypatch):
             "'GOKern' nodes, but found 'NoneType'." in str(info.value))
 
 
-def test_go_move_iteration_boundaries_inside_kernel_trans():
+def test_go_move_iteration_boundaries_inside_kernel_trans(tmp_path,
+                                                          fortran_writer):
     ''' Tests that the GOMoveIterationBoundariesInsideKernelTrans
     transformation for the GOcean API adds the 4 boundary values as kernel
     arguments and adds a masking statement at the beginning of the code.
@@ -150,13 +152,13 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     # - It has the boundary symbol as kernel arguments
     assert isinstance(kschedule.symbol_table.lookup("xstart").interface,
                       ArgumentInterface)
-    # TODO investigate why this is not "xstop"
     assert isinstance(kschedule.symbol_table.lookup("xstop_1").interface,
                       ArgumentInterface)
     assert isinstance(kschedule.symbol_table.lookup("ystart_1").interface,
                       ArgumentInterface)
     assert isinstance(kschedule.symbol_table.lookup("ystop").interface,
                       ArgumentInterface)
+    assert GOceanBuild(tmp_path).code_compiles(psy)
 
 
 def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice(
