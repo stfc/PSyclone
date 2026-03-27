@@ -211,7 +211,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ACCLoopTrans
+.. autoclass:: psyclone.psyir.transformations.ACCLoopTrans
     :members: apply
     :no-index:
 
@@ -423,7 +423,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPParallelLoopTrans
+.. autoclass:: psyclone.psyir.transformations.OMPParallelLoopTrans
     :members: apply
     :no-index:
 

@@ -2282,6 +2282,5 @@ __all__ = [
    "GOceanOMPParallelLoopTrans",
    "KernelImportsToArguments",
    "OMPMasterTrans",
-   "OMPParallelLoopTrans",
    "OMPSingleTrans",
 ]
