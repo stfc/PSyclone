@@ -160,8 +160,9 @@ def test_call_tree_generic_functions():
     rw_info = ReadWriteInfo()
     ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert (set(rw_info.read_list) ==
-            set([('module_call_tree_mod', Signature("module_var_real")),
-                 ('module_call_tree_mod', Signature("module_var_double"))]))
+            set([('module_call_tree_mod', Signature("module_var_real"), None),
+                 ('module_call_tree_mod', Signature("module_var_double"),
+                  None)]))
 
 
 # -----------------------------------------------------------------------------
@@ -315,15 +316,15 @@ def test_get_non_local_read_write_info(caplog):
 
     # We don't test the 14 local variables here, this was tested earlier.
     # Focus on the remote symbols that are read:
-    assert (('module_with_var_mod', Signature("module_var_b"))
+    assert (('module_with_var_mod', Signature("module_var_b"), None)
             in rw_info.read_list)
     # And check the remote symbols that are written:
-    assert (('module_with_var_mod', Signature("module_var_a"))
+    assert (('module_with_var_mod', Signature("module_var_a"), None)
             in rw_info.write_list)
-    assert (('module_with_var_mod', Signature("module_var_b"))
+    assert (('module_with_var_mod', Signature("module_var_b"), None)
             in rw_info.write_list)
-    assert (('testkern_import_symbols_mod', Signature("dummy_module_variable"))
-            in rw_info.write_list)
+    assert (('testkern_import_symbols_mod',
+             Signature("dummy_module_variable"), None) in rw_info.write_list)
 
     # Make sure that accessing a constant from a different module is
     # not included:
@@ -440,13 +441,13 @@ def test_call_tree_utils_resolve_calls_unknowns(caplog):
              Signature("module_subroutine"), None)]
     ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert set(rw_info.read_list) == {('module_with_var_mod',
-                                       Signature("module_var_b")),
+                                       Signature("module_var_b"), None),
                                       ("module_with_var_mod",
-                                       Signature("const_size_array"))}
+                                       Signature("const_size_array"), None)}
     assert set(rw_info.write_list) == {('module_with_var_mod',
-                                        Signature("module_var_b")),
+                                        Signature("module_var_b"), None),
                                        ("module_with_var_mod",
-                                        Signature("const_size_array"))}
+                                        Signature("const_size_array"), None)}
 
     # Get the associated PSyIR and break it by removing the Routine and
     # associated Symbol.
@@ -583,7 +584,7 @@ def test_call_tree_utils_inout_parameters_generic(fortran_reader):
     read_write_info = ReadWriteInfo()
     ctu.get_input_parameters(read_write_info, loops,
                              include_non_data_accesses=True)
-    input_set = set(sig for _, sig in read_write_info.all_used_vars_list)
+    input_set = set(sig for _, sig, _ in read_write_info.all_used_vars_list)
     assert input_set == set([Signature("b"), Signature("c"),
                              Signature("jpj"), Signature("dummy")])
 
@@ -635,15 +636,15 @@ def testcall_tree_utils_non_local_inout_parameters(caplog):
 
     # We don't test the 14 local variables here, this was tested earlier.
     # Focus on the remote symbols that are read:
-    assert (('module_with_var_mod', Signature("module_var_b"))
+    assert (('module_with_var_mod', Signature("module_var_b"), None)
             in rw_info.read_list)
     # And check the remote symbols that are written:
-    assert (('module_with_var_mod', Signature("module_var_a"))
+    assert (('module_with_var_mod', Signature("module_var_a"), None)
             in rw_info.write_list)
-    assert (('module_with_var_mod', Signature("module_var_b"))
+    assert (('module_with_var_mod', Signature("module_var_b"), None)
             in rw_info.write_list)
-    assert (('testkern_import_symbols_mod', Signature("dummy_module_variable"))
-            in rw_info.write_list)
+    assert (('testkern_import_symbols_mod',
+             Signature("dummy_module_variable"), None) in rw_info.write_list)
 
 
 # -----------------------------------------------------------------------------

@@ -64,7 +64,7 @@ transform: main_psy.f90 main_alg.f90
 compile: transform $(EXEC)
 
 run: compile
-	@# Run application and grep fro the expected value range message:
+	@# Run application and grep for the expected value range message:
 	PSY_VALUE_RANGE="field1_data=0:7" ./$(EXEC) 2>&1 | grep "at index/indices"
 
 $(EXEC): $(LFRIC_LIB) $(VALUE_RANGE_LIB) $(OBJ)

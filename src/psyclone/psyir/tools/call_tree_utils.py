@@ -196,7 +196,16 @@ class CallTreeUtils():
             # automatically.
             if (variables_info[signature].is_read_only() or
                     not variables_info[signature].is_written_first()):
-                read_write_info.add_read(signature)
+                # Check if we have a reference that gives us a DSL name:
+                for var_access in variables_info[signature]:
+                    ref = var_access.node
+                    if isinstance(ref, Reference) and ref.dsl_name:
+                        read_write_info.add_read(signature,
+                                                 dsl_name=ref.dsl_name)
+                        break
+                else:
+                    # Otherwise just use the signature
+                    read_write_info.add_read(signature)
 
     # -------------------------------------------------------------------------
     def get_output_parameters(self, read_write_info, node_list,
@@ -223,7 +232,16 @@ class CallTreeUtils():
 
         for signature in variables_info.all_signatures:
             if variables_info.is_written(signature):
-                read_write_info.add_write(signature)
+                # Check if we have a reference that gives us a DSL name:
+                for var_access in variables_info[signature]:
+                    ref = var_access.node
+                    if isinstance(ref, Reference) and ref.dsl_name:
+                        read_write_info.add_write(signature,
+                                                  dsl_name=ref.dsl_name)
+                        break
+                else:
+                    # Otherwise just use the signature
+                    read_write_info.add_write(signature)
 
     # -------------------------------------------------------------------------
     def get_in_out_parameters(self, node_list, collect_non_local_symbols=False,
