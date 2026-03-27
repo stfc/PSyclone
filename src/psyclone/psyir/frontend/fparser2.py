@@ -1101,39 +1101,38 @@ class Fparser2Reader():
         reader.set_format(FortranFormat(self._free_form, False))
 
         SYMBOL_TABLES.clear()
-        if partial_code == "expression":
-            try:
-                parse_tree = Fortran2003.Expr(source_code)
-            except NoMatchError as err:
-                raise ValueError(
-                    f"Supplied source does not represent a Fortran "
-                    f"expression: '{source_code}'") from err
-        elif partial_code == "call":
-            try:
-                parse_tree = Fortran2003.Call_Stmt(source_code)
-            except NoMatchError as err:
-                raise ValueError(
-                    f"Supplied source does not represent a Fortran "
-                    f"call: '{source_code}'") from err
-        elif partial_code == "statement":
-            try:
-                parse_tree = Fortran2003.Execution_Part(reader)
-            except NoMatchError as err:
-                raise ValueError(
-                    f"Supplied source does not represent a Fortran "
-                    f"statement: '{source_code}'") from err
-        else:
-            try:
+        if partial_code == "":
+            if not self._parser:
                 std = Config.get().fortran_standard
-                if not self._parser:
-                    self._parser = ParserFactory().create(std=std)
-                parse_tree = self._parser(reader)
+                self._parser = ParserFactory().create(std=std)
+            try:
+                return self._parser(reader)
             except (FortranSyntaxError, NoMatchError) as err:
                 raise ValueError(
                     f"Failed to parse the provided source code:\n{source_code}"
                     "\nError was: {err}\nIs the input valid Fortran (note that"
                     f" CPP directives must be handled by a pre-processor)?"
                 ) from err
+        try:
+            parse_tree = None
+            if partial_code == "expression":
+                parse_tree = Fortran2003.Expr(source_code)
+            elif partial_code == "call":
+                parse_tree = Fortran2003.Call_Stmt(source_code)
+            elif partial_code == "pointer_assignment":
+                parse_tree = Fortran2003.Pointer_Assignment_Stmt(source_code)
+            elif partial_code == "statement":
+                parse_tree = Fortran2003.Execution_Part(reader)
+            # When parsing intermediate expressione a None value
+            # is the same as a NoMatch, unrecognised 'partial_code'
+            # values will also be considered a NoMatch
+            if not parse_tree:
+                raise NoMatchError("")
+            return parse_tree
+        except NoMatchError as err:
+            raise ValueError(
+                f"Supplied source does not represent a Fortran "
+                f"{partial_code}: '{source_code}'") from err
         return parse_tree
 
     @staticmethod

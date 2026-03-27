@@ -40,15 +40,13 @@ transformations to tangent-linear PSyIR to return its PSyIR adjoint.
 
 import logging
 
-from fparser.two import Fortran2003
 from psyclone.psyad.transformations import AssignmentTrans
 from psyclone.psyad.utils import node_is_passive, node_is_active, negate_expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
-                                  Fparser2CodeBlock, BinaryOperation,
-                                  Assignment, CodeBlock,
-                                  IfBlock, IntrinsicCall, Call)
+from psyclone.psyir.nodes import (
+    Routine, Schedule, Reference, Node, Literal, BinaryOperation,
+    Assignment, CodeBlock, IfBlock, IntrinsicCall, Call)
 from psyclone.psyir.symbols import ArgumentInterface, GenericInterfaceSymbol
 from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 
@@ -339,14 +337,13 @@ class AdjointVisitor(PSyIRVisitor):
                 node.step_expr.value.strip() in ["1", "-1"]):
             # The loop step might not be unitary so compute an offset:
             # stop-start mod step
+            # TODO: use language independent PSyIR, see issue #1345
             fortran_writer = FortranWriter()
             hi_str = fortran_writer(node.stop_expr)
             lo_str = fortran_writer(node.start_expr)
             step_str = fortran_writer(node.step_expr)
-            # TODO: use language independent PSyIR, see issue #1345
-            ptree = Fortran2003.Intrinsic_Function_Reference(
-                f"mod({hi_str}-{lo_str},{step_str})")
-            offset = Fparser2CodeBlock(ptree, CodeBlock.Structure.EXPRESSION)
+            offset = CodeBlock.create(f"mod({hi_str}-{lo_str},{step_str})",
+                                      "expression")
 
         # We only need to copy this node and its bounds. Issue #1440
         # will address this.

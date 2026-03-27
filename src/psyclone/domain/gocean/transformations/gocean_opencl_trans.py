@@ -38,22 +38,18 @@
 
 import os
 
-from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import (
-        Transformation, args_filter, InvokeSchedule,
-        HaloExchange
-)
+    Transformation, args_filter, InvokeSchedule, HaloExchange)
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-        Routine, Call, Reference, Literal, Fparser2CodeBlock,
-        Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation,
-        StructureReference, FileContainer, CodeBlock, IntrinsicCall,
-        Container, DataNode)
+    Routine, Call, Reference, Literal, Assignment, IfBlock, ArrayReference,
+    Schedule, BinaryOperation, StructureReference, FileContainer, CodeBlock,
+    IntrinsicCall, Container, DataNode)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, RoutineSymbol, ContainerSymbol,
     UnsupportedFortranType, ArgumentInterface, ImportInterface,
@@ -369,9 +365,8 @@ class GOOpenCLTrans(Transformation):
         setup_block.if_body.addchild(Call.create(psy_init, []))
 
         # Set up cmd_queues pointer
-        ptree = Fortran2003.Pointer_Assignment_Stmt(
-            f"{qlist.name} => {get_cmd_queues.name}()")
-        cblock = Fparser2CodeBlock(ptree, CodeBlock.Structure.STATEMENT)
+        cblock = CodeBlock.create(f"{qlist.name} => {get_cmd_queues.name}()",
+                                  "pointer_assignment")
         setup_block.if_body.addchild(cblock)
 
         # Declare and assign kernel pointers

@@ -253,18 +253,10 @@ class Fparser2CodeBlock(CodeBlock):
         reader = Fparser2Reader()
         tree = reader.generate_parse_tree_from_source(source_code,
                                                       partial_code)
-        if partial_code == "call":
-            structure = CodeBlock.Structure.STATEMENT
-        elif partial_code == "statement":
-            structure = CodeBlock.Structure.STATEMENT
-        elif partial_code == "expression":
+        if partial_code == "expression":
             structure = CodeBlock.Structure.EXPRESSION
         else:
-            raise ValueError(
-                f"fparser2 codeblocks can only be created with the "
-                f"partial_code argument being 'call', 'statement' or "
-                f"'expression' but found '{partial_code}"
-            )
+            structure = CodeBlock.Structure.STATEMENT
 
         return Fparser2CodeBlock(tree, structure, **kwargs)
 
@@ -402,18 +394,10 @@ class TreeSitterCodeBlock(CodeBlock):
         reader = FortranTreeSitterReader()
         tree = reader.generate_parse_tree_from_source(source_code)
 
-        if partial_code == "call":
-            structure = CodeBlock.Structure.STATEMENT
-        elif partial_code == "statement":
-            structure = CodeBlock.Structure.STATEMENT
-        elif partial_code == "expression":
+        if partial_code == "expression":
             structure = CodeBlock.Structure.EXPRESSION
         else:
-            raise ValueError(
-                f"treesitter codeblocks can only be created with the "
-                f"partial_code argument being 'call', 'statement' or "
-                f"'expression' but found '{partial_code}"
-            )
+            structure = CodeBlock.Structure.STATEMENT
         return TreeSitterCodeBlock(tree, structure, **kwargs)
 
     def get_fortran_lines(self) -> list[str]:
