@@ -2983,3 +2983,33 @@ def test_structuretype_used_before_def(fortran_reader):
     mytype = sym_table.lookup("my_type")
     assert isinstance(mytype, DataTypeSymbol)
     assert mytype.is_import
+
+
+def test_generate_parse_tree_methods():
+    '''
+    Test that generate_parse_tree returns fparser2 parse tree nodes or
+    an appropriate error message
+    '''
+    processor = Fparser2Reader()
+
+    # Valid cases
+    code = """
+        program test
+        end program test
+    """
+    ptree = processor.generate_parse_tree_from_source(code)
+    assert isinstance(ptree, Fortran2003.Program)
+    code = "3 + 3"
+    ptree = processor.generate_parse_tree_from_source(
+        code, partial_code="expression")
+    assert isinstance(ptree, Fortran2003.Base)
+
+    # Invalid cases
+    with pytest.raises(ValueError) as err:
+        _ = processor.generate_parse_tree_from_source(code, "call")
+    assert ("Supplied source does not represent a Fortran call: '3 + 3'"
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        _ = processor.generate_parse_tree_from_source(code, "somethingelse")
+    assert ("Supplied source does not represent a Fortran somethingelse: "
+            "'3 + 3'" in str(err.value))

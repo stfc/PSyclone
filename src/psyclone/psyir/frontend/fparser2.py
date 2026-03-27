@@ -47,10 +47,14 @@ import os
 import sys
 from typing import Iterable, Optional, Union
 
-from fparser.common.readfortran import FortranStringReader
+from fparser.common.readfortran import (
+    FortranStringReader, FortranFileReader, FortranReaderBase)
 from fparser.two import C99Preprocessor, Fortran2003, utils
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk, BlockBase, StmtBase, Base
+from fparser.common.sourceinfo import FortranFormat
+from fparser.two.symbol_table import SYMBOL_TABLES
+from fparser.two.utils import FortranSyntaxError, NoMatchError
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
@@ -60,7 +64,7 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Call, CodeBlock, Container, DataNode, Directive,
     FileContainer, IfBlock, IntrinsicCall, Literal, Loop, Member, Node, Range,
     Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
-    WhileLoop, ScopingNode, UnknownDirective)
+    WhileLoop, Fparser2CodeBlock, ScopingNode, UnknownDirective)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, CHARACTER_TYPE,
@@ -868,10 +872,16 @@ class Fparser2Reader():
     :param resolve_modules: Whether to resolve modules while parsing a file,
         for more precise control it also accepts a list of module names.
         Defaults to False.
+    :param ignore_comments: whether to let the parser ignore comments.
+    :param free_form: whether to parse using Fortran free_form syntax.
+    :param ignore_directives: whether to ignore directives while parsing.
+    :param conditional_openmp: whether to parse conditional OpenMP statements.
 
     :raises TypeError: if the constructor argument is not of the expected type.
 
     '''
+    _parser = None
+
     unary_operators = OrderedDict([
         ('+', UnaryOperation.Operator.PLUS),
         ('-', UnaryOperation.Operator.MINUS),
@@ -951,9 +961,18 @@ class Fparser2Reader():
         num_clauses: int = -1
         default_idx: int = -1
 
-    def __init__(self, ignore_directives: bool = True,
-                 last_comments_as_codeblocks: bool = False,
-                 resolve_modules: bool = False):
+    def __init__(
+        self,
+        ignore_directives: bool = True,
+        last_comments_as_codeblocks: bool = False,
+        resolve_modules: Union[bool, list[str]] = False,
+        ignore_comments: bool = False,
+        free_form: bool = False,
+        conditional_openmp: bool = False,
+    ):
+        self._ignore_comments = ignore_comments
+        self._free_form = free_form
+        self._conditional_openmp = conditional_openmp
         if isinstance(resolve_modules, bool):
             self._resolve_all_modules = resolve_modules
             self._modules_to_resolve = []
@@ -1018,6 +1037,104 @@ class Fparser2Reader():
         # Whether to keep the last comments in a given block as CodeBlocks
         self._last_comments_as_codeblocks = last_comments_as_codeblocks
 
+    def generate_parse_tree_from_file(self, file_path: str = ""):
+        '''
+        Use the provided file to generate a fparser2 parsetree.
+
+        :param file_path: a given file.
+
+        :returns: the fparser2 parsetree of the given file.
+        '''
+        reader = FortranFileReader(
+            file_path,
+            include_dirs=Config.get().include_paths,
+            ignore_comments=self._ignore_comments,
+            process_directives=not self._ignore_directives,
+            include_omp_conditional_lines=self._conditional_openmp,
+        )
+        return self._fparser2_tree_from_fparser2_reader(reader)
+
+    def generate_parse_tree_from_source(
+        self,
+        source_code: str = "",
+        partial_code: str = ""
+    ):
+        ''' Use the provided source code to generate a fparser2 parsetree.
+
+        :param source_code: the given source code.
+        :param partial_code: if the provided source_code is not a full unit
+            this indicates the starting parsing point. It currently supports
+            "expression" or "statement".
+
+        :returns: the fparser2 parsetree of the given source code.
+        '''
+        reader = FortranStringReader(
+            source_code,
+            include_dirs=Config.get().include_paths,
+            ignore_comments=self._ignore_comments,
+            process_directives=not self._ignore_directives,
+            include_omp_conditional_lines=self._conditional_openmp,
+        )
+        reader.set_format(FortranFormat(True, True))
+        return self._fparser2_tree_from_fparser2_reader(reader, source_code,
+                                                        partial_code)
+
+    def _fparser2_tree_from_fparser2_reader(
+        self, reader: FortranReaderBase, source_code: str = "",
+        partial_code: str = ""
+    ):
+        ''' Common functionality to use the readers generated by
+        'generate_parse_tree_from_*' methods.
+
+        :param reader: the generated fparser2 reader.
+        :param source_code: the source code is sometimes needed in
+            addition to the reader the partial expressions are provided.
+        :param partial_code: if the provided source_code is not a full unit
+            this indicates the starting parsing point. It currently supports
+            "expression" or "statement".
+
+        :returns: the fparser2 parsetree of the given source code.
+
+        :raises ValueError: if the given Fortran had a syntax error.
+        '''
+        if not self._parser:
+            std = Config.get().fortran_standard
+            self._parser = ParserFactory().create(std=std)
+
+        # Set reader to free format.
+        reader.set_format(FortranFormat(self._free_form, False))
+
+        SYMBOL_TABLES.clear()
+        if partial_code == "":
+            try:
+                return self._parser(reader)
+            except (FortranSyntaxError, NoMatchError) as err:
+                raise ValueError(
+                    f"Failed to parse the provided source code:\n{source_code}"
+                    "\nError was: {err}\nIs the input valid Fortran (note that"
+                    f" CPP directives must be handled by a pre-processor)?"
+                ) from err
+        try:
+            parse_tree = None
+            if partial_code == "expression":
+                parse_tree = Fortran2003.Expr(source_code)
+            elif partial_code == "call":
+                parse_tree = Fortran2003.Call_Stmt(source_code)
+            elif partial_code == "pointer_assignment":
+                parse_tree = Fortran2003.Pointer_Assignment_Stmt(source_code)
+            elif partial_code == "statement":
+                parse_tree = Fortran2003.Execution_Part(reader)
+            # When parsing intermediate expressione a None value
+            # is the same as a NoMatch, unrecognised 'partial_code'
+            # values will also be considered a NoMatch
+            if not parse_tree:
+                raise NoMatchError("")
+        except NoMatchError as err:
+            raise ValueError(
+                f"Supplied source does not represent a Fortran "
+                f"{partial_code}: '{source_code}'") from err
+        return parse_tree
+
     @staticmethod
     def nodes_to_code_block(parent, fp2_nodes, message=None):
         '''Create a CodeBlock for the supplied list of fparser2 nodes and then
@@ -1055,19 +1172,18 @@ class Fparser2Reader():
         else:
             structure = CodeBlock.Structure.EXPRESSION
 
-        code_block = CodeBlock(fp2_nodes, structure, parent=parent)
+        code_block = Fparser2CodeBlock(fp2_nodes, structure, parent=parent)
         if message:
             code_block.preceding_comment = message
         parent.addchild(code_block)
         del fp2_nodes[:]
         return code_block
 
-    def generate_psyir(self, parse_tree, filename=""):
+    def generate_psyir(self, parse_tree):
         '''Translate the supplied fparser2 parse_tree into PSyIR.
 
         :param parse_tree: the supplied fparser2 parse tree.
         :type parse_tree: :py:class:`fparser.two.Fortran2003.Program`
-        :param Optional[str] filename: associated name for FileContainer.
 
         :returns: PSyIR of the supplied fparser2 parse_tree.
         :rtype: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -1085,7 +1201,6 @@ class Fparser2Reader():
         node = Container("dummy")
         self.process_nodes(node, [parse_tree])
         result = node.children[0]
-        result.name = filename
         return result.detach()
 
     def get_routine_schedules(self, name, module_ast):
@@ -3835,8 +3950,8 @@ class Fparser2Reader():
         fp2_program = parser(reader)
         # Ignore the program part of the fparser2 tree
         exec_part = walk(fp2_program, Fortran2003.Execution_Part)
-        code_block = CodeBlock(exec_part, CodeBlock.Structure.STATEMENT,
-                               parent=parent)
+        code_block = Fparser2CodeBlock(
+            exec_part, CodeBlock.Structure.STATEMENT, parent=parent)
 
         # Handlers assume a single node is returned and in this
         # implementation we create an assignment (see below), a
@@ -5868,7 +5983,7 @@ class Fparser2Reader():
         # fparser2 does not keep the original filename (if there was
         # one) so this can't be provided as the name of the
         # FileContainer.
-        file_container = FileContainer("None", parent=parent)
+        file_container = FileContainer("", parent=parent)
         self.process_nodes(file_container, node.children)
         return file_container
 
@@ -5967,7 +6082,7 @@ class Fparser2Reader():
         if to_direc:
             content = str_rep[2:].lstrip()
             return UnknownDirective(content, parent=parent)
-        code_block = CodeBlock(
+        code_block = Fparser2CodeBlock(
             [node],
             CodeBlock.Structure.STATEMENT,
             parent=parent

@@ -348,6 +348,21 @@ def test_read_values():
     assert _config.filename == str(TEST_CONFIG)
 
 
+def test_frontend():
+    ''' Checks for getter and setter for frontend parameter '''
+    config = Config()
+    config.load(config_file=TEST_CONFIG)
+    # Defaults to fparser2
+    assert config.frontend == "fparser2"
+    # Check the setter method
+    config.frontend = "treesitter"
+    assert config.frontend == "treesitter"
+    with pytest.raises(ConfigurationError) as err:
+        config.frontend = "invalid"
+    assert ("frontend must be one of ['fparser2', 'treesitter'] but got "
+            "'invalid'" in str(err.value))
+
+
 def test_dm():
     ''' Checks for getter and setter for distributed memory '''
     config = Config()

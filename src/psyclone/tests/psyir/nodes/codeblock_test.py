@@ -40,15 +40,52 @@
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran_treesitter_reader import \
+    FortranTreeSitterReader
+from psyclone.psyir.nodes.codeblock import (
+    CodeBlock, Fparser2CodeBlock, TreeSitterCodeBlock
+)
 from psyclone.psyir.nodes.node import colored
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
+
+
+def test_codeblock_create():
+    ''' Check the create method of the Code Block class.'''
+
+    # The generic create works like a factory that creates the appropriate
+    # CodeBlock subclass looking at the selected parser by default is fparser2
+    cb = CodeBlock.create("3 + 3", partial_code="expression")
+    assert isinstance(cb, Fparser2CodeBlock)
+    assert "3 + 3" in cb.get_fortran_lines()
+
+    cb = CodeBlock.create("a => b", partial_code="pointer_assignment")
+    assert isinstance(cb, Fparser2CodeBlock)
+    assert "a => b" in cb.get_fortran_lines()
+
+    # Use the treesitter frontend (the frontend doesn't support partial
+    # expressions yet, but we should get the appropriate error)
+    Config.get()._frontend = "treesitter"
+    with pytest.raises(ValueError) as err:
+        cb = CodeBlock.create("3 + 3", partial_code="expression")
+    assert "Syntax Error found at line 1: 3 + 3" in str(err.value)
+    with pytest.raises(ValueError) as err:
+        cb = CodeBlock.create("a => b", partial_code="pointer_assignment")
+    assert "Syntax Error found at line 1: a => b" in str(err.value)
+
+    # Use a different fronted value
+    Config.get()._frontend = "newfrontend"
+    with pytest.raises(InternalError) as err:
+        cb = CodeBlock.create("3 + 3", partial_code="expression")
+    assert ("The 'newfrontend' frontend does not have an associated CodeBlock "
+            "subclass" in str(err.value))
 
 
 def test_codeblock_node_str():
     ''' Check the node_str method of the Code Block class.'''
-    cblock = CodeBlock([], "dummy")
+    cblock = CodeBlock([], CodeBlock.Structure.EXPRESSION)
     coloredtext = colored("CodeBlock", CodeBlock._colour)
     output = cblock.node_str()
     assert coloredtext+"[" in output
@@ -63,8 +100,8 @@ def test_codeblock_can_be_printed():
     assert "]" in str(cblock)
 
 
-def test_codeblock_getastnodes():
-    '''Test that the get_ast_nodes method of a CodeBlock instance returns
+def test_codeblock_constructor_and_getastnodes():
+    '''Test that the parse_tree_nodes method of a CodeBlock instance returns
     a copy of the list of nodes from the original AST that are associated with
     this code block.
 
@@ -73,10 +110,15 @@ def test_codeblock_getastnodes():
     '''
     original = ["hello", "there"]
     cblock = CodeBlock(original, CodeBlock.Structure.EXPRESSION)
-    result = cblock.get_ast_nodes
+    result = cblock.parse_tree_nodes
     assert result == original
     # Check that the list is a copy not a reference.
     assert result is not original
+
+    # If only one element is provided, this is added to a list
+    original = 3
+    cblock = CodeBlock(original, CodeBlock.Structure.EXPRESSION)
+    assert cblock.parse_tree_nodes == [3]
 
 
 @pytest.mark.parametrize("structure", [CodeBlock.Structure.STATEMENT,
@@ -102,11 +144,56 @@ def test_codeblock_children_validation():
             " LeafNode and doesn't accept children.") in str(excinfo.value)
 
 
-def test_codeblock_get_symbol_names(parser):
+def test_abstract_methods():
+    ''' Test that the abstract methods of CodeBlock raise a NotImplementedError
+    (to simplify other tests they still work when there is no associated parse
+    tree) '''
+    # If there is no associated parse_tree, the methods return a falsy value
+    cblock = CodeBlock([], "dummy")
+    assert not cblock.get_symbol_names()
+    assert not cblock.has_potential_control_flow_jump()
+    assert not cblock.get_fortran_lines()
+
+    # But if there is one, the node will need to be subclassed to properly
+    # interpret the meaning of the ast
+    cblock._parse_tree_nodes = ["something"]
+    with pytest.raises(NotImplementedError) as err:
+        _ = cblock.get_symbol_names()
+    assert "Use appropriate CodeBlock subclass" in str(err.value)
+    with pytest.raises(NotImplementedError) as err:
+        _ = cblock.has_potential_control_flow_jump()
+    assert "Use appropriate CodeBlock subclass" in str(err.value)
+    with pytest.raises(NotImplementedError) as err:
+        _ = cblock.get_fortran_lines()
+    assert "Use appropriate CodeBlock subclass" in str(err.value)
+
+
+def test_codeblock_get_fortran_lines():
+    '''
+    Test the get_fortran_lines method for fparser and treesiteer codeblocks.
+
+    (These should be the same to guarantee identical outcomes with both
+    frontends)
+    '''
+    code = "\nsubroutine mytest\nend subroutine"
+    tree = Fparser2Reader().generate_parse_tree_from_source(code)
+    block = Fparser2CodeBlock(tree.children, CodeBlock.Structure.STATEMENT)
+    assert isinstance(block.get_fortran_lines(), list)
+    assert "subroutine mytest" in block.get_fortran_lines()
+    assert "end subroutine" in block.get_fortran_lines()
+
+    tree = FortranTreeSitterReader().generate_parse_tree_from_source(code)
+    block = TreeSitterCodeBlock(tree, CodeBlock.Structure.STATEMENT)
+    assert isinstance(block.get_fortran_lines(), list)
+    assert "subroutine mytest" in block.get_fortran_lines()
+    assert "end subroutine" in block.get_fortran_lines()
+
+
+def test_codeblock_get_symbol_names():
     '''Test that the get_symbol_names methods returns the names of the symbols
     used inside the CodeBlock. This is slightly subtle as we have to avoid
     any labels on loop and branching statements.'''
-    reader = FortranStringReader('''
+    prog = Fparser2Reader().generate_parse_tree_from_source('''
     subroutine mytest
       myloop: DO i = 1, 10
         a = b + sqrt(c)
@@ -119,8 +206,7 @@ def test_codeblock_get_symbol_names(parser):
         END IF myifblock
       END DO myloop
     end subroutine mytest''')
-    prog = parser(reader)
-    block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    block = Fparser2CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
     sym_names = block.get_symbol_names()
     assert "a" in sym_names
     assert "b" in sym_names
@@ -195,7 +281,8 @@ def test_codeblock_ref_accesses(parser):
       END DO myloop
     end subroutine mytest''')
     prog = parser(reader)
-    block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    block = Fparser2CodeBlock(
+        prog.children, CodeBlock.Structure.STATEMENT)
     vam = block.reference_accesses()
     all_sigs = vam.all_signatures
     all_names = [sig.var_name for sig in all_sigs]

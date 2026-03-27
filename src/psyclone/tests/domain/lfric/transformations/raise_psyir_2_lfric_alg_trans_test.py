@@ -186,7 +186,7 @@ def test_codeblock_invalid(monkeypatch, fortran_reader):
     assert ("Error in RaisePSyIR2LFRicAlgTrans transformation. The arguments "
             "to this invoke call are expected to be kernel calls which are "
             "represented in generic PSyIR as Calls, but ''xx' // 'xx'' is of "
-            "type 'CodeBlock'." in str(info.value))
+            "type 'Fparser2CodeBlock'." in str(info.value))
 
 
 def test_arg_declaration_error(fortran_reader):
