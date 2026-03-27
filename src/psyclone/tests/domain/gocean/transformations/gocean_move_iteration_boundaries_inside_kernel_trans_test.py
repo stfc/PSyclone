@@ -62,7 +62,7 @@ def test_description():
         "Move kernel iteration boundaries inside the kernel code."
 
 
-def test_validation(monkeypatch):
+def test_validation():
     '''Check that the transformation can only be applied to routine nodes.'''
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     with pytest.raises(TransformationError) as info:
@@ -72,8 +72,7 @@ def test_validation(monkeypatch):
             "'GOKern' nodes, but found 'NoneType'." in str(info.value))
 
 
-def test_go_move_iteration_boundaries_inside_kernel_trans(tmp_path,
-                                                          fortran_writer):
+def test_go_move_iteration_boundaries_inside_kernel_trans(tmp_path):
     ''' Tests that the GOMoveIterationBoundariesInsideKernelTrans
     transformation for the GOcean API adds the 4 boundary values as kernel
     arguments and adds a masking statement at the beginning of the code.
@@ -162,7 +161,7 @@ def test_go_move_iteration_boundaries_inside_kernel_trans(tmp_path,
 
 
 def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice(
-        fortran_writer):
+        fortran_writer, tmp_path):
     ''' Tests that the GOMoveIterationBoundariesInsideKernelTrans
     transformation for the GOcean API produces the expected code when the
     invoke has two kernels and the transformation is applied twice.
@@ -229,3 +228,4 @@ end subroutine invoke_0
 '''
 
     assert expected in output
+    assert GOceanBuild(tmp_path).code_compiles(psy)
