@@ -5549,12 +5549,6 @@ class Fparser2Reader():
                 f"PSyclone does not support routines that contain one or more "
                 f"ENTRY statements but found '{entry_stmts[0]}'")
 
-        # If the parent of this subroutine is a FileContainer, then we need
-        # to create its symbol and store it there. No visibility information
-        # is available since we're not contained in module.
-        if isinstance(parent, FileContainer):
-            _process_routine_symbols(node, parent, {})
-
         # Get the subroutine or function statement and store the comments
         # that precede it, or attach it to the last parsed node if it is
         # on the same line.
@@ -5869,6 +5863,14 @@ class Fparser2Reader():
         # one) so this can't be provided as the name of the
         # FileContainer.
         file_container = FileContainer("None", parent=parent)
+
+        # Create symbols for all routines defined within this file (i.e.
+        # that are not within a module)
+        for child in node.children:
+            if isinstance(child, (Fortran2003.Subroutine_Subprogram,
+                                  Fortran2003.Function_Subprogram)):
+                _process_routine_symbols(child, file_container, {})
+
         self.process_nodes(file_container, node.children)
         return file_container
 
