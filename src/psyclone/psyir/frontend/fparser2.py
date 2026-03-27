@@ -1075,6 +1075,7 @@ class Fparser2Reader():
             process_directives=not self._ignore_directives,
             include_omp_conditional_lines=self._conditional_openmp,
         )
+        reader.set_format(FortranFormat(True, True))
         return self._fparser2_tree_from_fparser2_reader(reader, source_code,
                                                         partial_code)
 
@@ -1107,6 +1108,13 @@ class Fparser2Reader():
                 raise ValueError(
                     f"Supplied source does not represent a Fortran "
                     f"expression: '{source_code}'") from err
+        elif partial_code == "call":
+            try:
+                parse_tree = Fortran2003.Call_Stmt(source_code)
+            except NoMatchError as err:
+                raise ValueError(
+                    f"Supplied source does not represent a Fortran "
+                    f"call: '{source_code}'") from err
         elif partial_code == "statement":
             try:
                 parse_tree = Fortran2003.Execution_Part(reader)

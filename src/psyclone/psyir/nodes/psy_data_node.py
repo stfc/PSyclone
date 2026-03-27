@@ -42,15 +42,10 @@ or profiling. '''
 
 from collections import namedtuple
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.common.sourceinfo import FortranFormat
-from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
-
 from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.nodes.codeblock import CodeBlock, Fparser2CodeBlock
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.nodes.node import Node
@@ -606,18 +601,23 @@ class PSyDataNode(Statement):
             argument_str = ""
             if argument_list:
                 argument_str += "("
-                argument_str += ",".join([str(arg) for arg in argument_list])
+                argument_str += ", ".join([str(arg) for arg in argument_list])
                 argument_str += ")"
 
-            ParserFactory().create(std=Config.get().fortran_standard)
-            reader = FortranStringReader(
-                f"CALL {typename}%{methodname}{argument_str}")
-            # Tell the reader that the source is free format
-            reader.set_format(FortranFormat(True, False))
-            fp2_node = Fortran2003.Call_Stmt(reader)
-            return Fparser2CodeBlock(
-                [fp2_node], CodeBlock.Structure.STATEMENT,
-                annotations=annotations)
+            # ParserFactory().create(std=Config.get().fortran_standard)
+            # reader = FortranStringReader(
+            #     f"CALL {typename}%{methodname}{argument_str}")
+            # # Tell the reader that the source is free format
+            # reader.set_format(FortranFormat(True, False))
+            # fp2_node = Fortran2003.Call_Stmt(reader)
+            # return Fparser2CodeBlock(
+            #     [fp2_node], CodeBlock.Structure.STATEMENT,
+            #     annotations=annotations)
+            return CodeBlock.create(
+                f"CALL {typename} % {methodname}{argument_str}",
+                partial_code="call",
+                annotations=annotations
+            )
 
         routine_schedule = self.ancestor(Routine)
         if routine_schedule is None:

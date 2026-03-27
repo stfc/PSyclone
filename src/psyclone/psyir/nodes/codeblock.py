@@ -43,7 +43,9 @@ import re
 from enum import Enum
 from typing import Optional, Any, Union
 
+from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, VariablesAccessMap
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
@@ -109,6 +111,24 @@ class CodeBlock(Statement, DataNode):
             self._parse_tree_nodes = [parse_tree]
         # Store the structure of the code block.
         self._structure = structure
+
+    @staticmethod
+    def create(*args, **kwargs) -> CodeBlock:
+        '''
+        :returns: a CodeBlock node for the given source code using the
+            appropriate CodeBlock subclass.
+
+        :raises InternalError: if a fronted does not have an associated
+            CodeBlock subclass.
+        '''
+        frontend = Config.get().frontend
+        if frontend == "fparser2":
+            return Fparser2CodeBlock.create(*args, **kwargs)
+        if frontend == "treesitter":
+            return TreeSitterCodeBlock.create(*args, **kwargs)
+        raise InternalError(
+            f"The '{frontend}' frontend does not have an associated "
+            f"CodeBlock subclass")
 
     def __eq__(self, other: Any) -> bool:
         '''
@@ -210,6 +230,43 @@ class CodeBlock(Statement, DataNode):
 
 class Fparser2CodeBlock(CodeBlock):
     ''' The fparser2 implementation of CodeBlock. '''
+
+    @staticmethod
+    def create(
+        source_code: str, partial_code: str, **kwargs
+    ) -> Fparser2CodeBlock:
+        '''
+        :param source_code: the given source
+        :param partial_code: keyword to assist the parser with the starting
+            node.
+        :param kwargs: additional arguments to provide to the constructor.
+
+        :returns: a CodeBlock node for the given source code using the
+            appropriate CodeBlock subclass.
+
+        :raises ValueError: if the provided partial_code keyword is not
+            recognised.
+        '''
+        # Purposely inlined to lazily load this modules only when needed
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+        reader = Fparser2Reader()
+        tree = reader.generate_parse_tree_from_source(source_code,
+                                                      partial_code)
+        if partial_code == "call":
+            structure = CodeBlock.Structure.STATEMENT
+        elif partial_code == "statement":
+            structure = CodeBlock.Structure.STATEMENT
+        elif partial_code == "expression":
+            structure = CodeBlock.Structure.EXPRESSION
+        else:
+            raise ValueError(
+                f"fparser2 codeblocks can only be created with the "
+                f"partial_code argument being 'call', 'statement' or "
+                f"'expression' but found '{partial_code}"
+            )
+
+        return Fparser2CodeBlock(tree, structure, **kwargs)
 
     def get_symbol_names(self) -> list[str]:
         '''
@@ -324,6 +381,40 @@ class Fparser2CodeBlock(CodeBlock):
 
 class TreeSitterCodeBlock(CodeBlock):
     ''' The treesitter implementation of CodeBlock. '''
+
+    @staticmethod
+    def create(
+        source_code: str, partial_code: str = "", **kwargs
+    ) -> TreeSitterCodeBlock:
+        '''
+        :param source_code: the given source
+        :param partial_code: keyword to assist the parser with the starting
+            node.
+        :param kwargs: additional arguments to provide to the constructor.
+
+        :returns: a CodeBlock node for the given source code using the
+            appropriate CodeBlock subclass.
+        '''
+        # Purposely inlined to lazily load this modules only when needed
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.frontend.fortran_treesitter_reader import \
+            FortranTreeSitterReader
+        reader = FortranTreeSitterReader()
+        tree = reader.generate_parse_tree_from_source(source_code)
+
+        if partial_code == "call":
+            structure = CodeBlock.Structure.STATEMENT
+        elif partial_code == "statement":
+            structure = CodeBlock.Structure.STATEMENT
+        elif partial_code == "expression":
+            structure = CodeBlock.Structure.EXPRESSION
+        else:
+            raise ValueError(
+                f"treesitter codeblocks can only be created with the "
+                f"partial_code argument being 'call', 'statement' or "
+                f"'expression' but found '{partial_code}"
+            )
+        return TreeSitterCodeBlock(tree, structure, **kwargs)
 
     def get_fortran_lines(self) -> list[str]:
         '''
