@@ -46,12 +46,11 @@ from psyclone.core import AccessType, Signature
 # The next two imports cannot be merged, since this would create
 # a circular dependency.
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import DataSymbol, ArrayType
+from psyclone.psyir.symbols import DataSymbol, ArrayType, SymbolTable
 
 
 class ArgOrdering:
@@ -106,7 +105,7 @@ class ArgOrdering:
             # _kern may be outdated, so go back up to the invoke first
             current_invoke = self._kern.ancestor(psyGen.InvokeSchedule).invoke
             return current_invoke.schedule.symbol_table
-        return LFRicSymbolTable()
+        return SymbolTable()
 
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.

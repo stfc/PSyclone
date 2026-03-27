@@ -43,12 +43,11 @@ kernel based on the kernel metadata.
 from psyclone.core import AccessType
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.psyir.nodes import Reference
-from psyclone.psyir.symbols import ArgumentInterface
+from psyclone.psyir.symbols import ArgumentInterface, SymbolTable
 
 
 # pylint: disable=too-many-public-methods, no-member
@@ -108,7 +107,7 @@ class KernelInterface(ArgOrdering):
         # ArgOrdering constructor defaults to). This is so that we can
         # specify the correct interface for those symbols passed
         # as arguments.
-        self._forced_symtab = LFRicSymbolTable()
+        self._forced_symtab = SymbolTable()
 
     def generate(self, var_accesses=None):
         '''Call the generate base class then add the argument list as it can't
