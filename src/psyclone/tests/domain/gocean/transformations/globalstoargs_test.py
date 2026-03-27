@@ -40,13 +40,12 @@ import os
 import pytest
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.gocean1p0 import GOKern
 from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import Argument, PSyFactory, InvokeSchedule
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE, INTEGER_TYPE,
-                                    CHARACTER_TYPE, Symbol, SymbolError)
+                                    CHARACTER_TYPE, Symbol)
 from psyclone.tests.utilities import get_invoke, make_external_module
 from psyclone.transformations import (KernelImportsToArguments,
                                       TransformationError)
