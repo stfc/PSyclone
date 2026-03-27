@@ -541,7 +541,7 @@ operator_r_def, f1, f2, m1, a, m2, istp, qr)
     use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, \
 quadrature_xyoz_type
     use function_space_mod, only : basis, diff_basis
-    use testkern_qr_mod, only : testkern_qr_code""" in output
+    real""" in output
     assert "mixed_kernel_mod" not in output
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
