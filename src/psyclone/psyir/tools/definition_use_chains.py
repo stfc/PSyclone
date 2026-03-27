@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. B. G. Chalk, STFC Daresbury Lab
+# Minor contributions: M. Schreiber, Univ. Grenoble Alpes
 # -----------------------------------------------------------------------------
 """This module contains the DefinitionUseChain class"""
 
@@ -88,6 +89,7 @@ class DefinitionUseChain:
         control_flow_region: Iterable[Node] = (),
         start_point: Optional[int] = None,
         stop_point: Optional[int] = None,
+        stop_at_call: bool = True
     ):
         if not isinstance(reference, Reference):
             raise TypeError(
@@ -114,6 +116,7 @@ class DefinitionUseChain:
             )
         self._start_point = start_point
         self._stop_point = stop_point
+        self._stop_at_call = stop_at_call
         if not control_flow_region:
             self._scope = [reference.ancestor(Routine)]
             if self._scope[0] is None:
@@ -257,6 +260,7 @@ class DefinitionUseChain:
                             body,
                             start_point=ancestor.abs_position,
                             stop_point=sub_stop_point,
+                            stop_at_call=self._stop_at_call
                         )
                         chains.insert(0, chain)
                     # If its a while loop, create a basic block for the while
@@ -269,6 +273,7 @@ class DefinitionUseChain:
                             [ancestor.condition],
                             start_point=ancestor.abs_position,
                             stop_point=sub_stop_point,
+                            stop_at_call=self._stop_at_call
                         )
                         chains.insert(0, chain)
                     ancestor = ancestor.ancestor((Loop, WhileLoop))
@@ -291,6 +296,7 @@ class DefinitionUseChain:
                             [ancestor.lhs],
                             start_point=ancestor.lhs.abs_position - 1,
                             stop_point=ancestor.lhs.abs_position + 1,
+                            stop_at_call=self._stop_at_call
                         )
                         control_flow_nodes.append(None)
                         chains.append(chain)
@@ -310,6 +316,7 @@ class DefinitionUseChain:
                     block,
                     start_point=self._start_point,
                     stop_point=self._stop_point,
+                    stop_at_call=self._stop_at_call
                 )
                 chains.append(chain)
             for i, chain in enumerate(chains):
@@ -393,6 +400,7 @@ class DefinitionUseChain:
                         [ancestor.lhs],
                         start_point=ancestor.lhs.abs_position - 1,
                         stop_point=ancestor.lhs.abs_position + 1,
+                        stop_at_call=self._stop_at_call
                     )
                     # Find any forward_accesses in the lhs.
                     chain.find_forward_accesses()
@@ -507,11 +515,17 @@ class DefinitionUseChain:
                         # catch the arguments that are passed into the call
                         # later as References.
                         continue
-                    # For now just assume calls are bad if we have a non-local
-                    # variable and we treat them as though they were a write.
-                    if defs_out is not None:
-                        self._killed.append(defs_out)
-                    defs_out = reference
+
+                    if self._stop_at_call:
+                        # For now just assume calls are bad if we have a
+                        # non-local variable and we treat them as though
+                        # they were a write.
+                        if defs_out is not None:
+                            self._killed.append(defs_out)
+
+                        defs_out = reference
+                    else:
+                        self._uses.append(reference)
                     continue
                 elif reference.get_signature_and_indices()[0] == sig:
                     # Work out if its read only or not.
@@ -912,6 +926,7 @@ class DefinitionUseChain:
                     block,
                     start_point=self._start_point,
                     stop_point=self._stop_point,
+                    stop_at_call=self._stop_at_call
                 )
                 chains.append(chain)
             # If this is the top level access, we need to check if the
@@ -951,6 +966,7 @@ class DefinitionUseChain:
                             body,
                             start_point=sub_start_point,
                             stop_point=sub_stop_point,
+                            stop_at_call=self._stop_at_call
                         )
                         chains.append(chain)
                         control_flow_nodes.append(ancestor)
@@ -964,6 +980,7 @@ class DefinitionUseChain:
                             [ancestor.condition],
                             start_point=ancestor.abs_position,
                             stop_point=sub_stop_point,
+                            stop_at_call=self._stop_at_call
                         )
                         chains.append(chain)
                     ancestor = ancestor.ancestor((Loop, WhileLoop))
@@ -982,6 +999,7 @@ class DefinitionUseChain:
                             ancestor.rhs.children[:],
                             start_point=ancestor.rhs.abs_position,
                             stop_point=end.abs_position,
+                            stop_at_call=self._stop_at_call
                         )
                         control_flow_nodes.append(None)
                         chains.append(chain)
@@ -1071,6 +1089,7 @@ class DefinitionUseChain:
                         [ancestor.rhs],
                         start_point=ancestor.rhs.abs_position,
                         stop_point=sys.maxsize,
+                        stop_at_call=self._stop_at_call
                     )
                     # Find any backward_accesses in the rhs.
                     chain.find_backward_accesses()
