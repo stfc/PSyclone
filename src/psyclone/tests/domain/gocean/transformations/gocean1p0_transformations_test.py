@@ -49,12 +49,11 @@ from psyclone.gocean1p0 import GOKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.transformations import (
-    LoopFuseTrans, LoopTrans, TransformationError,
-    OMPParallelTrans)
+from psyclone.psyir.transformations import LoopFuseTrans, \
+    LoopTrans, TransformationError, ACCLoopTrans, OMPParallelTrans
 from psyclone.transformations import ACCRoutineTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
-    OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
+    OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import count_lines, get_invoke, get_base_path

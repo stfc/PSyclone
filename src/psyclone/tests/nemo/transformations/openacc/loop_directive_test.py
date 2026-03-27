@@ -41,7 +41,8 @@
 
 import pytest
 from psyclone.psyGen import TransInfo
-from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans, ACCLoopTrans)
 from psyclone.psyir.nodes import Loop
 from psyclone.errors import GenerationError
 
@@ -60,7 +61,7 @@ def test_missing_enclosing_region(fortran_reader):
                 "end do\n"
                 "end program do_loop\n")
     schedule = psyir.children[0]
-    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    acc_trans = ACCLoopTrans()
     acc_trans.apply(schedule[0])
     with pytest.raises(GenerationError) as err:
         schedule[0].validate_global_constraints()
@@ -85,7 +86,7 @@ def test_explicit_loop(fortran_reader, fortran_writer):
                 "end do\n"
                 "end program do_loop\n")
     schedule = psyir.children[0]
-    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    acc_trans = ACCLoopTrans()
     para_trans = TransInfo().get_trans_name('ACCParallelTrans')
     data_trans = TransInfo().get_trans_name('ACCDataTrans')
     para_trans.apply(schedule.children)
@@ -144,7 +145,7 @@ def test_seq_loop(fortran_reader, fortran_writer):
     clause. '''
     psyir = fortran_reader.psyir_from_source(SINGLE_LOOP)
     schedule = psyir.children[0]
-    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    acc_trans = ACCLoopTrans()
     # An ACC Loop must be within a KERNELS or PARALLEL region
     kernels_trans = ACCKernelsTrans()
     kernels_trans.apply(schedule.children)
@@ -164,7 +165,7 @@ def test_loop_clauses(fortran_reader, fortran_writer, clause):
     clauses for independent loops. '''
     psyir = fortran_reader.psyir_from_source(SINGLE_LOOP)
     schedule = psyir.children[0]
-    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    acc_trans = ACCLoopTrans()
     # An ACC Loop must be within a KERNELS or PARALLEL region
     kernels_trans = ACCKernelsTrans()
     kernels_trans.apply(schedule.children)
@@ -183,7 +184,7 @@ def test_collapse(fortran_reader, fortran_writer):
     clause. '''
     psyir = fortran_reader.psyir_from_source(DOUBLE_LOOP)
     schedule = psyir.children[0]
-    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    acc_trans = ACCLoopTrans()
     # An ACC Loop must be within a KERNELS or PARALLEL region
     kernels_trans = ACCKernelsTrans()
     kernels_trans.apply(schedule.children)

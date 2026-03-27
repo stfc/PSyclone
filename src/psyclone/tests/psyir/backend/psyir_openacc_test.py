@@ -40,7 +40,6 @@
    psyclone.psyir.backend.fortran and c modules. '''
 
 import pytest
-from psyclone.psyGen import TransInfo
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Assignment, Reference, Loop, Directive,
@@ -49,6 +48,7 @@ from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (ACCDataTrans, ACCParallelTrans)
 from psyclone.tests.utilities import get_invoke
+from psyclone.psyir.transformations.acc_loop_trans import ACCLoopTrans
 
 
 NEMO_TEST_CODE = '''
@@ -202,7 +202,7 @@ def test_acc_loop(fortran_reader, fortran_writer):
     ''' Tests that an OpenACC loop directive is handled correctly. '''
     psyir = fortran_reader.psyir_from_source(DOUBLE_LOOP)
     schedule = psyir.children[0]
-    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    acc_trans = ACCLoopTrans()
     # An ACC Loop must be within a KERNELS or PARALLEL region
     kernels_trans = ACCKernelsTrans()
     kernels_trans.apply(schedule.children)
