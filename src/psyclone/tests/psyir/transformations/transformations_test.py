@@ -579,7 +579,8 @@ def test_omploop_trans_new_options(sample_psyir):
             "'fakeoption2']. Valid options are '['node_type_check', "
             "'verbose', 'collapse', 'force', 'ignore_dependencies_for', "
             "'privatise_arrays', 'sequential', 'nowait', 'reduction_ops', "
-            "'force_private', 'options', 'reprod', 'enable_reductions']."
+            "'dep_tools', 'force_private', 'options', 'reprod', "
+            "'enable_reductions']."
             == str(excinfo.value))
 
     # Check we get the relevant error message when submitting multiple
