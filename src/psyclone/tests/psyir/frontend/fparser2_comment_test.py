@@ -174,7 +174,7 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
         assert isinstance(module.children[-1], CodeBlock)
         assert isinstance(module.children[-1].parse_tree_nodes[0],
                           Fortran2003.Comment)
-        assert (module.children[-1].parse_tree_nodes[0].tostr()
+        assert (module.children[-1].get_fortran_lines()[0]
                 == "! Comment at end of module => CodeBlock")
     else:
         assert not isinstance(module.children[-1], CodeBlock)
@@ -215,7 +215,7 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
         assert isinstance(last_child, CodeBlock)
         assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.parse_tree_nodes[0].tostr()
+            last_child.get_fortran_lines()[0]
             == "! Comment at end of subroutine => CodeBlock"
         )
     else:
@@ -257,7 +257,7 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
         assert isinstance(last_child, CodeBlock)
         assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.parse_tree_nodes[0].tostr()
+            last_child.get_fortran_lines()[0]
             == "! Comment on elseif block 'elseif (a == 2) then' => CodeBlock"
         )
     else:
@@ -268,7 +268,7 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
         assert isinstance(last_child, CodeBlock)
         assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.parse_tree_nodes[0].tostr()
+            last_child.get_fortran_lines()[0]
             == "! Comment on else block 'else' => CodeBlock"
         )
     else:
@@ -277,7 +277,7 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     if last_comments_as_codeblocks:
         assert isinstance(last_child, CodeBlock)
         assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
-        assert (last_child.parse_tree_nodes[0].tostr() ==
+        assert (last_child.get_fortran_lines()[0] ==
                 "! Comment on 'end if' => CodeBlock")
     else:
         assert not isinstance(last_child, CodeBlock)
@@ -292,7 +292,7 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
         assert isinstance(last_child, CodeBlock)
         assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.parse_tree_nodes[0].tostr()
+            last_child.get_fortran_lines()[0]
             == "! Comment at end of loop on i => CodeBlock"
         )
     else:
@@ -307,7 +307,7 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
         assert isinstance(last_child, CodeBlock)
         assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.parse_tree_nodes[0].tostr()
+            last_child.get_fortran_lines()[0]
             == "! Comment at end of loop on j => CodeBlock"
         )
     else:

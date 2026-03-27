@@ -148,9 +148,9 @@ class MarkRoutineForGPUMixin:
             cblocks = sched.walk(CodeBlock)
             if not force:
                 if cblocks:
-                    cblock_txt = ("\n  " + "\n  ".join(
-                        str(node) for node in cblocks[0].parse_tree_nodes)
-                                  + "\n")
+                    cblock_txt = (
+                        "\n  " + "\n  ".join(cblocks[0].get_fortran_lines())
+                        + "\n")
                     option_txt = "options={'force': True}"
                     raise TransformationError(
                         f"Cannot safely apply {type(self).__name__} to "

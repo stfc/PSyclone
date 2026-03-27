@@ -68,4 +68,4 @@ def test_read_only_verify_lower_to_language_level():
                 'CALL read_only_verify_psy_data % PostEnd']
 
     for codeblock, code in zip(routine.walk(CodeBlock), expected):
-        assert str(codeblock.parse_tree_nodes[0]) == code
+        assert codeblock.get_fortran_lines()[0] == code

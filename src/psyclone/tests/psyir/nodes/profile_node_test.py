@@ -169,7 +169,7 @@ def test_lower_named_profile_node():
     kschedule.lower_to_language_level()
     cblocks = kschedule.walk(CodeBlock)
     assert ("PreStart(\"my_mod\", \"first\", 0, 0)" in
-            str(cblocks[0].parse_tree_nodes[0]))
+            cblocks[0].get_fortran_lines()[0])
 
 
 def test_lower_to_lang_level_multi_node():
@@ -190,14 +190,12 @@ def test_lower_to_lang_level_multi_node():
     sym1 = table.lookup("profile_psy_data_1")
     assert isinstance(sym1, DataSymbol)
     cblocks = sched.walk(CodeBlock)
-    ptree = cblocks[0].parse_tree_nodes
-    code = str(ptree[0]).lower()
+    code = cblocks[0].get_fortran_lines()[0].lower()
     assert ("call profile_psy_data % prestart(\"psy_single_invoke_two_"
             "kernels\", \"invoke_0-compute_cu_code-r0\"" in code)
     assert cblocks[0].annotations == ["psy-data-start"]
     assert cblocks[1].annotations == []
-    ptree = cblocks[2].parse_tree_nodes
-    code = str(ptree[0]).lower()
+    code = cblocks[2].get_fortran_lines()[0].lower()
     assert ("call profile_psy_data_1 % prestart(\"psy_single_invoke_two_"
             "kernels\", \"invoke_0-time_smooth_code-r1\"" in code)
     assert cblocks[2].annotations == ["psy-data-start"]

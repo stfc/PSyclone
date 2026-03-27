@@ -122,7 +122,6 @@ def test_generate_psyir():
     '''
     processor = FortranTreeSitterReader()
 
-    # Valid code returns a treesitter Node
     valid_code = """
     module test
         implicit none
@@ -141,7 +140,7 @@ def test_generate_psyir():
 
 def test_codeblock_generation_and_messages():
     '''
-    Test that NotImplementedErrors are catch and converted to CodeBlocks
+    Test that NotImplementedErrors are caught and converted to CodeBlocks
     with the appropriate associated comment
     '''
     processor = FortranTreeSitterReader()
