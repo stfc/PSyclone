@@ -3763,6 +3763,7 @@ def test_mixed_precision_args(tmp_path):
     assert """
   use field_mod, only : field_proxy_type, field_type
   use operator_mod, only : operator_proxy_type, operator_type
+  use mixed_kernel_mod, only : mixed_code
   use r_solver_field_mod, only : r_solver_field_proxy_type, r_solver_field_type
   use r_solver_operator_mod, only : r_solver_operator_proxy_type, \
 r_solver_operator_type
@@ -3771,14 +3772,11 @@ r_solver_operator_type
 r_tran_operator_type
   use r_bl_field_mod, only : r_bl_field_proxy_type, r_bl_field_type
   implicit none
-  public
-
-  contains
-  subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, \
+""" in generated_code
+    assert """subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, \
 scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, \
 field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
     use mesh_mod, only : mesh_type
-    use mixed_kernel_mod, only : mixed_code
     use constants_mod, only : i_def
     real(kind=r_def), intent(in) :: scalar_r_def
     type(field_type), intent(in) :: field_r_def

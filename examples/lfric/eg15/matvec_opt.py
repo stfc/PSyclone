@@ -69,28 +69,31 @@ $ psyclone -api lfric -s ./matvec_opt.py \
 
 '''
 import sys
-from psyclone.psyir.nodes import IntrinsicCall
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.psyir.nodes import FileContainer, IntrinsicCall
 from psyclone.psyir.transformations import Matmul2CodeTrans
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
-def trans(psyir):
+def trans(psyir: FileContainer):
     '''PSyclone transformation script for the LFRic API to optimise
     the matvec kernel for many-core CPUs. For the moment simply find
-    the first matvec kernel in the example, transform the matmul
-    intrinsic to equivalent inline code and then print out its PSyIR
-    representation and output it as Fortran using the PSyIR Fortran
-    back-end.
+    the first matvec kernel in the example, bring it into the same
+    module as the PSy-layer, transform the matmul intrinsic to equivalent
+    inline code and then print out its PSyIR and output it as Fortran using
+    the PSyIR Fortran back-end.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     matmul2code_trans = Matmul2CodeTrans()
     fortran_writer = FortranWriter()
+    mod_inline_trans = KernelModuleInlineTrans()
 
     for kernel in psyir.coded_kernels():
-        if kernel.name.lower() == "matrix_vector_kernel_code":
+        if kernel.name.lower() == "matrix_vector_code":
+            # Module-inline the kernel so that we can transform it.
+            mod_inline_trans.apply(kernel)
             kernel_schedules = kernel.get_callees()
             # For simplicity, ASSUME that the kernel is not polymorphic and
             # thus only has one schedule.
