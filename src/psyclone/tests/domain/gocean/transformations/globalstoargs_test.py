@@ -87,7 +87,8 @@ def test_kernelimportsstoargumentstrans_requires_module_inline():
     with pytest.raises(TransformationError) as err:
         trans.validate(kernel)
     assert ("Cannot transform this Kernel call to 'kernel_with_global_code' "
-            "because its implementation resides in a different"
+            "because Routine 'kernel_with_global_code' is not in the same "
+            "Container ('psy_single_invoke_test') as the call site."
             in str(err.value))
 
 

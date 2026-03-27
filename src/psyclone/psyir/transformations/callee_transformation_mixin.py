@@ -89,25 +89,40 @@ class CalleeTransformationMixin:
         msg_text = (f"Cannot transform this {kernel_txt}call to '{node_name}' "
                     f"because")
 
-        # (The symbol could have an 'automatic' interface if it is a
-        # GenericInterfaceSymbol rather than a RoutineSymbol.)
-        if not rsymbol or not (rsymbol.is_modulevar or rsymbol.is_automatic):
-            raise TransformationError(
-                f"{msg_text} its implementation resides in a different source "
-                f"file. Apply KernelModuleInlineTrans first to bring it into "
-                f"this module."
-            )
         container = node.ancestor(Container)
+
         if not container:
             raise TransformationError(
                 f"{msg_text} there is no ancestor Container in which "
                 f"to look for its implementation."
             )
-        names = container.resolve_routine(node.name)
+        names = container.resolve_routine(node_name)
         for name in names:
             rt = container.find_routine_psyir(name, allow_private=True)
             if not rt:
                 raise TransformationError(
-                    f"{msg_text} the ancestor Container does not contain "
-                    f"a Routine named '{name}'"
+                    f"{msg_text} Routine '{name}' is not in the same Container"
+                    f" ('{container.name}') as the call site. Try using "
+                    f"KernelModuleInlineTrans to bring the routine into the "
+                    f"same Container first.")
+
+        # (The symbol could have an 'automatic' interface if it is a
+        # GenericInterfaceSymbol rather than a RoutineSymbol. If it is in a
+        # FileContainer rather than a Container then it can have an Unresolved)
+        if not rsymbol:
+            raise TransformationError(
+                f"{msg_text} cannot find the RoutineSymbol for the target "
+                f"routine '{name}'. This means its implementation resides in "
+                f"a different source file. Apply KernelModuleInlineTrans first"
+                f" to bring it into this module."
+            )
+        if not (rsymbol.is_modulevar or rsymbol.is_automatic):
+            # We permit an import interface if the routine is being imported
+            # (unnecessarily) from the ancestor Container.
+            if not (rsymbol.is_import and
+                    rsymbol.interface.container_symbol.name == container.name):
+                raise TransformationError(
+                    f"{msg_text} its implementation resides in a different "
+                    f"source file. Apply KernelModuleInlineTrans first to "
+                    f"bring it into this module."
                 )

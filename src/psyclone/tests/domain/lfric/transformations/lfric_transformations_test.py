@@ -7656,7 +7656,8 @@ def test_kern_const_invalid():
     # Kernel not module inlined
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"number_of_layers": 1})
-    assert ("because its implementation resides in a different source file"
+    assert ("because Routine 'testkern_code' is not in the same Container "
+            "('single_invoke_psy') as the call site. Try using KernelModule"
             in str(excinfo.value))
 
     # Module-inline it so we can continue with tests.

@@ -1807,10 +1807,9 @@ def test_validate_routine_in_same_container(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(psyir.walk(Call)[0])
-    assert ("Routine 'sub' is not in the same Container as the call site "
-            "('test_mod') and therefore cannot be inlined. (Try using "
-            "KernelModuleInlineTrans to bring the routine into the same "
-            "Container first." in str(err.value))
+    assert ("Routine 'sub' is not in the same Container ('test_mod') as the "
+            "call site. Try using KernelModuleInlineTrans to bring the routine"
+            " into the same Container first." in str(err.value))
 
 
 def test_validate_return_stmt(fortran_reader):

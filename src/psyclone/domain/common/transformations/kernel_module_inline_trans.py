@@ -164,6 +164,8 @@ class KernelModuleInlineTrans(Transformation):
             rt_sym = node.scope.symbol_table.lookup(kernel_schedule.name,
                                                     otherwise=None)
             if (not rt_sym or (rt_sym is not kernel_schedule.symbol) or
+                    (node.ancestor(Container) is not
+                     kernel_schedule.ancestor(Container)) or
                     (rt_sym.is_import or rt_sym.is_unresolved)):
                 needs_inline = True
 
