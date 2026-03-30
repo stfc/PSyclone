@@ -5756,7 +5756,7 @@ class Fparser2Reader():
             pass
 
         name = node.children[0].children[1].string
-        routine = Routine.create(name, is_program=True)
+        routine = Routine.create(name, is_program=True, parent=parent)
         routine._ast = node
 
         try:
