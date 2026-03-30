@@ -1057,15 +1057,6 @@ class Kern(Statement):
         '''
         return self._name
 
-    @name.setter
-    def name(self, value: str):
-        '''
-        Set the name of the kernel.
-
-        :param value: The name of the kernel.
-        '''
-        self._name = value
-
     def is_coloured(self) -> bool:
         '''
         :returns: True if this kernel is being called from within a
