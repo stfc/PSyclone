@@ -97,6 +97,12 @@ class CalleeTransformationMixin:
                 f"to look for its implementation."
             )
         names = container.resolve_routine(node_name)
+        if not names:
+            raise TransformationError(
+                f"{msg_text} no routine or interface matching this "
+                f"name could be found in the same Container as the "
+                f"call site. Try using KernelModuleInlineTrans to bring the "
+                f"routine into the same Container first.")
         for name in names:
             rt = container.find_routine_psyir(name, allow_private=True)
             if not rt:
@@ -105,24 +111,3 @@ class CalleeTransformationMixin:
                     f" ('{container.name}') as the call site. Try using "
                     f"KernelModuleInlineTrans to bring the routine into the "
                     f"same Container first.")
-
-        # (The symbol could have an 'automatic' interface if it is a
-        # GenericInterfaceSymbol rather than a RoutineSymbol. If it is in a
-        # FileContainer rather than a Container then it can have an Unresolved)
-        if not rsymbol:
-            raise TransformationError(
-                f"{msg_text} cannot find the RoutineSymbol for the target "
-                f"routine '{name}'. This means its implementation resides in "
-                f"a different source file. Apply KernelModuleInlineTrans first"
-                f" to bring it into this module."
-            )
-        if not (rsymbol.is_modulevar or rsymbol.is_automatic):
-            # We permit an import interface if the routine is being imported
-            # (unnecessarily) from the ancestor Container.
-            if not (rsymbol.is_import and
-                    rsymbol.interface.container_symbol.name == container.name):
-                raise TransformationError(
-                    f"{msg_text} its implementation resides in a different "
-                    f"source file. Apply KernelModuleInlineTrans first to "
-                    f"bring it into this module."
-                )
