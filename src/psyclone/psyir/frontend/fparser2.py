@@ -5845,23 +5845,21 @@ class Fparser2Reader():
 
         return container
 
-    def _program_handler(self, node, parent):
+    def _program_handler(self,
+                         node: Fortran2003.Program,
+                         parent: Node) -> Node:
         '''Processes an fparser2 Program statement. Program is the top level
         node of a complete fparser2 tree and may contain one or more
         program-units. This is captured with a FileContainer node.
 
         :param node: top level node in fparser2 parse tree.
-        :type node: :py:class:`fparser.two.Fortran2003.Program`
         :param parent: parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of the program.
-        :rtype: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        # fparser2 does not keep the original filename (if there was
-        # one) so this can't be provided as the name of the
-        # FileContainer.
+        # fparser2 does not keep the original filename (if there was one) so
+        # this can't be provided as the name of the FileContainer.
         file_container = FileContainer("None", parent=parent)
 
         # Create symbols for all routines defined within this file (i.e.
@@ -5869,6 +5867,8 @@ class Fparser2Reader():
         for child in node.children:
             if isinstance(child, (Fortran2003.Subroutine_Subprogram,
                                   Fortran2003.Function_Subprogram)):
+                # No visibility information is available since we're not
+                # within a module.
                 _process_routine_symbols(child, file_container, {})
 
         self.process_nodes(file_container, node.children)

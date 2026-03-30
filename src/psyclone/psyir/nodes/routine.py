@@ -171,7 +171,7 @@ class Routine(Schedule, CommentableMixin):
                     f"child of children argument in create method of "
                     f"Routine class should be a PSyIR Node but "
                     f"found '{type(child).__name__}'.")
-        if parent and not isinstance(parent, Node):
+        if parent is not None and not isinstance(parent, Node):
             raise TypeError(
                 f"parent argument in create method of Routine class should "
                 f"be a PSyIR Node but found '{type(parent).__name__}'")
