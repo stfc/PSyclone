@@ -706,6 +706,12 @@ class SymbolTable():
                     isinstance(other_sym, IntrinsicSymbol)):
                 continue
 
+            # If both symbols have CommonBlockInterface, they represent the
+            # same shared COMMON-block data. They cannot (and do not need to)
+            # be renamed, so treat this as a benign clash.
+            if this_sym.is_commonblock and other_sym.is_commonblock:
+                continue
+
             if other_sym.is_import and this_sym.is_import:
                 # Both symbols are imported. That's fine as long as they have
                 # the same import interface (are imported from the same
@@ -947,11 +953,40 @@ class SymbolTable():
             already been updated to refer to a Container in this table.
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
+
+        # Names (normalised) of commonblock variables already in this table.
+        # Used below to decide whether a _PSYCLONE_INTERNAL_COMMONBLOCK marker
+        # from other_table is a duplicate that must be skipped.
+        self_cb_names = frozenset(
+            self._normalize(s.name)
+            for s in self.symbols if s.is_commonblock)
+
+        # Normalised names of commonblock variables in other_table.  Any
+        # overlap with self_cb_names means the COMMON block is already
+        # declared in this table and the incoming marker is a duplicate.
+        other_cb_names = frozenset(
+            self._normalize(s.name)
+            for s in other_table.symbols if s.is_commonblock)
+        cb_overlap = bool(self_cb_names & other_cb_names)
+
         for old_sym in other_table.symbols:
 
             if old_sym in symbols_to_skip or isinstance(old_sym,
                                                         ContainerSymbol):
                 # We've dealt with Container symbols in _add_container_symbols.
+                continue
+
+            # Skip _PSYCLONE_INTERNAL_COMMONBLOCK marker symbols when any of
+            # the COMMON-block variables they represent are already present in
+            # this table.  Adding such a marker would produce a duplicate
+            # COMMON declaration and a Fortran compile error like
+            # "Symbol 'x' is already in a COMMON block".
+            if (cb_overlap and
+                    self._normalize(old_sym.name).startswith(
+                        "_psyclone_internal_commonblock") and
+                    isinstance(old_sym.datatype, UnsupportedFortranType)):
                 continue
 
             try:
@@ -1006,6 +1041,33 @@ class SymbolTable():
             # check_for_clashes has previously determined that they must
             # refer to the same thing and we don't have to do anything.
             return
+
+        if old_sym.is_commonblock and self_sym.is_commonblock:
+            return
+
+        from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
+        if (isinstance(old_sym.datatype, UnsupportedFortranType) and
+                isinstance(self_sym.datatype, UnsupportedFortranType)):
+            if old_sym.datatype.declaration == self_sym.datatype.declaration:
+                # Identical COMMON-block markers – already present in self.
+                return
+            # Markers have different declarations.  Skip the incoming one only
+            # if its COMMON-block name(s) overlap with those already in self:
+            # that means the block is already declared and adding a second
+            # marker for it would produce a "Symbol X is already in a COMMON
+            # block" compile error.  If the block names are different this is
+            # a genuinely new COMMON block and we fall through to the
+            # rename-and-add path below.
+            if self._normalize(old_sym.name).startswith(
+                    "_psyclone_internal_commonblock"):
+                import re  # pylint: disable=import-outside-toplevel
+                _blk_re = re.compile(r"/\s*(\w*)\s*/", re.IGNORECASE)
+                old_blocks = set(_blk_re.findall(
+                    old_sym.datatype.declaration))
+                self_blocks = set(_blk_re.findall(
+                    self_sym.datatype.declaration))
+                if old_blocks & self_blocks:
+                    return
 
         # A Symbol with the same name already exists so we attempt to rename
         # first the one that we are adding and failing that, the existing

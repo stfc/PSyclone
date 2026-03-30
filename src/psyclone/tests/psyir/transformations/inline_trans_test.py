@@ -2844,3 +2844,49 @@ def test_apply_array_access_check_unresolved_override_option(
     inline_trans.apply(
         call, use_first_callee_and_no_arg_check=True)
     # TODO check results
+
+
+def test_apply_common_block_no_duplicate(fortran_reader, fortran_writer):
+    '''Test that inlining two routines that share a COMMON block does not
+    produce duplicate COMMON declarations (which would cause a Fortran compile
+    error "Symbol X is already in a COMMON block").'''
+
+    src_caller = """\
+subroutine caller()
+  implicit none
+  call sub1()
+  call sub2()
+end subroutine caller
+"""
+    src_sub1 = """\
+subroutine sub1()
+  implicit none
+  real :: volume, lmmpi
+  COMMON /blk/ volume, lmmpi
+  volume = 1.0
+end subroutine sub1
+"""
+    src_sub2 = """\
+subroutine sub2()
+  implicit none
+  real :: volume, lmmpi
+  COMMON /blk/ volume, lmmpi
+  lmmpi = 2.0
+end subroutine sub2
+"""
+    caller = fortran_reader.psyir_from_source(src_caller).walk(Routine)[0]
+    sub1 = fortran_reader.psyir_from_source(src_sub1).walk(Routine)[0]
+    sub2 = fortran_reader.psyir_from_source(src_sub2).walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    trans.apply(calls[0], routine=sub1)
+    calls = caller.walk(Call)
+    trans.apply(calls[0], routine=sub2)
+
+    result = fortran_writer(caller)
+    # Exactly one COMMON declaration must appear.
+    assert result.count("COMMON /blk/") == 1
+    # Both variables must still be present.
+    assert "volume" in result
+    assert "lmmpi" in result
