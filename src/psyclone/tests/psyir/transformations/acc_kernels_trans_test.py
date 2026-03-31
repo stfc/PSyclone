@@ -44,7 +44,7 @@ import pytest
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
-    Assignment, ACCKernelsDirective, Loop, Routine
+    Assignment, ACCKernelsDirective, Loop, Reference, Routine
 )
 from psyclone.psyir.symbols import UnsupportedFortranType
 from psyclone.psyir.transformations import (
@@ -443,9 +443,17 @@ def test_no_assumed_size_char_in_kernels(fortran_reader):
     or intrinsics that aren't available on GPU.
 
     '''
+    # A routine with some quite complex argument types to check the various
+    # branches of the code that finds out whether there's a character length
+    # specified.
     code = '''\
-subroutine ice(assumed_size_char, assumed2, assumed3, assumed4)
+subroutine ice(dtype, dtype_ptr, type_list, assumed_size_char, assumed2, &
+               assumed3, assumed4)
+  use some_mod, only: a_type
   implicit none
+  type(a_type) :: dtype
+  type(d_type), pointer :: dtype_ptr
+  type(a_type), dimension(10) :: type_list
   character(len = *), intent(in) :: assumed_size_char
   character*(*) :: assumed2
   character(len=*), optional :: assumed3
@@ -545,13 +553,17 @@ def test_check_async_queue_with_enter_data(fortran_reader):
             "or bool, got : 3.5" in str(err.value))
     psyir = fortran_reader.psyir_from_source(
                 "program two_loops\n"
-                "  integer :: ji\n"
+                "  integer :: ji, aqueue\n"
                 "  real :: array(10,10)\n"
                 "  do ji = 1, 5\n"
                 "    array(ji,1) = 2.0*array(ji,2)\n"
                 "  end do\n"
                 "end program two_loops\n")
     prog = psyir.walk(Routine)[0]
+    # Check that we can supply a bool or a Reference to specify the queue.
+    acc_trans.check_async_queue(prog.walk(Loop), True)
+    acc_trans.check_async_queue(prog.walk(Loop),
+                                Reference(prog.symbol_table.lookup("aqueue")))
     # TODO #2668 deprecate options coverage. This test is left for options
     # coverage
     acc_edata_trans.apply(prog, options={"async_queue": 1})

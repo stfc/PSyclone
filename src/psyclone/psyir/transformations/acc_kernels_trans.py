@@ -269,15 +269,15 @@ class ACCKernelsTrans(RegionTrans):
         if parent_routine:
             arg_syms = parent_routine.symbol_table.argument_datasymbols
             for sym in arg_syms:
-                if isinstance(sym.datatype, DataTypeSymbol):
-                    continue
-                if sym.datatype.intrinsic != ScalarType.Intrinsic.CHARACTER:
-                    continue
                 dtype = sym.datatype
-                if isinstance(sym.datatype, UnsupportedFortranType):
-                    dtype = sym.datatype.partial_datatype
-                if isinstance(sym.datatype, ArrayType):
-                    dtype = sym.datatype.elemental_type
+                if isinstance(dtype, UnsupportedFortranType):
+                    dtype = dtype.partial_datatype
+                if isinstance(dtype, DataTypeSymbol):
+                    continue
+                if dtype.intrinsic != ScalarType.Intrinsic.CHARACTER:
+                    continue
+                if isinstance(dtype, ArrayType):
+                    dtype = dtype.elemental_type
                 if isinstance(dtype.length, ScalarType.CharLengthParameter):
                     char_syms.append(sym)
 
