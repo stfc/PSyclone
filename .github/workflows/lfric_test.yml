@@ -45,7 +45,7 @@ env:
   LFRIC_APPS_HASH: 948b9ec1a7ae6ef110b97ed45ced8d4b71079f34
   PYTHON_VERSION: "3.14"
   GNU_TOOLCHAIN: gnu14_openmpi
-  NVHPC_TOOLCHAIN: nvhpc25_11_openmpi
+  NVHPC_TOOLCHAIN: nvhpc26_3_openmpi
   NUM_PARALLEL: 16
 
 jobs:

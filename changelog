@@ -1,3 +1,8 @@
+   73) PR #3387. Update CI to use nvhpc 26.3.
+
+   72) PR #3382 towards #1570. Removes the unnecessary check on the precision
+   of a scalar used in a reduction in the LFRic API.
+ 
    71) PR #3381. Update integration tests to LFRic_apps 3.1.1
 
    70) PR #3358 for #1734, #2975 and #2949. Improve symbol table consistency

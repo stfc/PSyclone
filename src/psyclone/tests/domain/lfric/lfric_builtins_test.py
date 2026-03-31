@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic and O. Brunt, Met Office
+# Modified: I. Kavcic, O. Brunt and A. Pirrie, Met Office
 # Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: by J. Henrichs, Bureau of Meteorology
 
@@ -1883,6 +1883,28 @@ def test_x_innerproduct_x(fortran_writer):
     code = fortran_writer(kern)
     assert ("! Built-in: X_innerproduct_X (real-valued field)\n"
             "asum = asum + f1_data(df) * f1_data(df)\n") in code
+
+
+def test_x_innerproduct_x_r_double(fortran_writer, tmp_path):
+    ''' Test the lower_to_language_level builtin methods for real64 precision.
+
+    '''
+    kern = builtin_from_file("15.9.3_X_innerproduct_X_builtin_r_double.f90")
+    assert str(kern) == "Built-in: X_innerproduct_X (real-valued field)"
+
+    # Test the 'lower_to_language_level()' method
+    lowered = kern.lower_to_language_level()
+    sum = lowered.scope.symbol_table.lookup("asum")
+    assert sum.datatype.precision.name == "r_double"
+
+    code = fortran_writer(lowered)
+    assert ("! Built-in: X_innerproduct_X (real-valued field)\n"
+            "asum = asum + f1_data(df) * f1_data(df)\n") in code
+
+    # Test compilation of generated code
+    psy, _ = get_invoke("15.9.3_X_innerproduct_X_builtin_r_double.f90",
+                        api=API, idx=0, dist_mem=True)
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_x_innerproduct_y(fortran_writer):
