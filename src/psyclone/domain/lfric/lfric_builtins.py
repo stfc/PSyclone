@@ -52,6 +52,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
     FieldVectorArgMetadata)
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
@@ -487,8 +488,6 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         table = self.scope.symbol_table
         # The symbol representing the loop index is created in the LFRicLoop
         # constructor.
-        # pylint: disable-next=import-outside-toplevel
-        from psyclone.domain.lfric import LFRicTypes
         return table.find_or_create(
             "df", tag="dof_loop_idx", symbol_type=DataSymbol,
             datatype=LFRicTypes("LFRicIntegerScalarDataType")())

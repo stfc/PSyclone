@@ -410,14 +410,16 @@ def test_add_precision_symbol():
     table = SymbolTable()
     # A recognised LFRic precision is successfully added to the table as
     # an import, along with the originating ContainerSymbol.
-    LFRicTypes.add_precision_symbol(table, "r_def")
+    sym = LFRicTypes.add_precision_symbol(table, "r_def")
     rdef = table.lookup("r_def")
+    assert sym is rdef
     assert rdef.is_import
     csym = table.lookup("constants_mod")
     assert isinstance(csym, ContainerSymbol)
     assert rdef.interface.container_symbol is csym
     # Repeating the call should have no effect.
-    LFRicTypes.add_precision_symbol(table, "r_def")
+    sym = LFRicTypes.add_precision_symbol(table, "r_def")
+    assert sym is rdef
     assert table.lookup("r_def") is rdef
     # An unrecognised LFRic precision raises an error.
     with pytest.raises(ValueError) as err:

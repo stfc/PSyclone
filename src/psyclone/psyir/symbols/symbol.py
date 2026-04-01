@@ -44,14 +44,14 @@ from enum import Enum
 from typing import Optional, TYPE_CHECKING
 
 from psyclone.errors import PSycloneError, InternalError
-if TYPE_CHECKING:
-    from psyclone.psyir.nodes import Node
-    from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyir.symbols.interfaces import (
     AutomaticInterface, SymbolInterface, ArgumentInterface,
     UnresolvedInterface, ImportInterface, UnknownInterface,
     CommonBlockInterface, DefaultModuleInterface, StaticInterface)
 from psyclone.psyir.commentable_mixin import CommentableMixin
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes import Node
+    from psyclone.psyir.symbols import SymbolTable
 
 
 class SymbolError(PSycloneError):
