@@ -88,11 +88,11 @@ class LFRicTypes:
 
         :param str name: the name to query for.
 
-        :returns: the corresponding object, which can be a class or an \
+        :returns: the corresponding object, which can be a class or an
             instance.
         :rtype: object (various types)
 
-        :raises InternalError: if there specified name is not a name for \
+        :raises InternalError: if there specified name is not a name for
             an object managed here.
 
         '''
