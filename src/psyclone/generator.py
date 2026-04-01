@@ -55,9 +55,6 @@ import shutil
 from typing import Union, Callable, List, Tuple, Iterable
 import logging
 
-from fparser.api import get_reader
-from fparser.two import Fortran2003
-
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import (
     Config, ConfigurationError, VALID_KERNEL_NAMING_SCHEMES,
@@ -87,16 +84,7 @@ from psyclone.psyir.symbols import UnresolvedInterface
 from psyclone.psyir.transformations import TransformationError
 from psyclone.version import __VERSION__
 
-# TODO issue #1618 remove temporary LFRIC_TESTING flag, associated
-# logic and Alg class plus tests (and ast variable).
-#
-# Temporary flag to allow optional testing of new LFRic metadata
-# implementation (mainly that the PSyIR works with algorithm-layer
-# code) whilst keeping the original implementation as default
-# until it is working.
-LFRIC_TESTING = False
-# off "level" choice is sys.maxsize to disable all
-# log messages.
+# off "level" choice is sys.maxsize to disable all log messages.
 LOG_LEVELS = {"OFF": sys.maxsize,
               logging.getLevelName(logging.DEBUG): logging.DEBUG,
               logging.getLevelName(logging.INFO): logging.INFO,
@@ -286,167 +274,129 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     # can be combined.
     ModuleManager.get().add_search_path(kernel_paths)
 
+    # Create language-level PSyIR from the Algorithm file
+    reader = FortranReader(
+        ignore_comments=not keep_comments,
+        ignore_directives=not keep_directives,
+        conditional_openmp_statements=keep_conditional_openmp_statements,
+        free_form=free_form)
+    try:
+        psyir = reader.psyir_from_file(filename)
+    except (InternalError, ValueError, IOError) as err:
+        print(f"Failed to create PSyIR from file '{filename}'",
+              file=sys.stderr)
+        logger.error(err, exc_info=True)
+        sys.exit(1)
+
+    # Raise to Algorithm PSyIR
+    if api in GOCEAN_API_NAMES:
+        alg_trans = AlgTrans()
+    else:  # api in LFRIC_API_NAMES
+        alg_trans = LFRicAlgTrans()
+    try:
+        alg_trans.apply(psyir)
+    except TransformationError as info:
+        raise GenerationError(
+            f"In algorithm file '{filename}':\n{info.value}") from info
+
+    if not psyir.walk(AlgorithmInvokeCall):
+        raise NoInvokesError(
+            "Algorithm file contains no invoke() calls: refusing to "
+            "generate empty PSy code")
+
+    if script_name is not None:
+        # Call the optimisation script for algorithm optimisations
+        recipe, _, _ = load_script(script_name, "trans_alg",
+                                   is_optional=True)
+        if recipe:
+            recipe(psyir)
+
+    # For each kernel called from the algorithm layer
+    kernels = {}
+    for invoke_call in psyir.walk(AlgorithmInvokeCall):
+        kernels[id(invoke_call)] = {}
+        for kern in invoke_call.walk(KernelFunctor):
+            if isinstance(kern, LFRicBuiltinFunctor):
+                # Skip builtins
+                continue
+            if isinstance(kern.symbol.interface, UnresolvedInterface):
+                # This kernel functor is not specified in a use statement.
+                # Find all container symbols that are in scope.
+                st_ref = kern.scope.symbol_table
+                container_symbols = [
+                    symbol.name for symbol in st_ref.containersymbols]
+                while st_ref.parent_symbol_table():
+                    st_ref = st_ref.parent_symbol_table()
+                    container_symbols += [
+                        symbol.name for symbol in st_ref.containersymbols]
+                message = (
+                    f"Kernel functor '{kern.name}' in routine "
+                    f"'{kern.ancestor(Routine).name}' from algorithm file "
+                    f"'{filename}' must be named in a use statement "
+                    f"(found {container_symbols})")
+                if api in LFRIC_API_NAMES:
+                    message += (
+                        f" or be a recognised built-in (one of "
+                        f"{list(BUILTIN_MAP.keys())})")
+                message += "."
+                raise GenerationError(message)
+            container_symbol = kern.symbol.interface.container_symbol
+
+            # Find the kernel file containing the container
+            filepath = get_kernel_filepath(
+                container_symbol.name, kernel_paths, filename)
+
+            try:
+                # Create language-level PSyIR from the kernel file
+                kernel_psyir = reader.psyir_from_file(filepath)
+            except (InternalError, ValueError, IOError) as info:
+                print(f"Failed to create PSyIR from kernel file "
+                      f"'{filepath}'", file=sys.stderr)
+                logger.error(info, exc_info=True)
+                sys.exit(1)
+
+            # Raise to Kernel PSyIR
+            if api in GOCEAN_API_NAMES:
+                kern_trans = RaisePSyIR2GOceanKernTrans(kern.symbol.name)
+                kern_trans.apply(kernel_psyir)
+            else:  # api in LFRIC_API_NAMES
+                kern_trans = RaisePSyIR2LFRicKernTrans()
+                kern_trans.apply(
+                    kernel_psyir,
+                    options={"metadata_name": kern.symbol.name})
+
+            kernels[id(invoke_call)][id(kern)] = kernel_psyir
+
+    # Transform 'invoke' calls into calls to PSy-layer subroutines
+    if api in GOCEAN_API_NAMES:
+        invoke_trans = GOceanAlgInvoke2PSyCallTrans()
+    else:  # api in LFRIC_API_NAMES
+        invoke_trans = LFRicAlgInvoke2PSyCallTrans()
+    for invoke_call in psyir.walk(AlgorithmInvokeCall):
+        invoke_trans.apply(
+            invoke_call, options={"kernels": kernels[id(invoke_call)]})
+
+    # Create Fortran from Algorithm PSyIR
+    writer = FortranWriter()
+    alg_gen = writer(psyir)
+
+    # Create the PSy-layer
+    # TODO: issue #1629 replace invoke_info with alg and kern psyir
     ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                              kernel_paths=kernel_paths,
                              line_length=line_length)
+    psy = PSyFactory(api, distributed_memory=distributed_memory)\
+        .create(invoke_info)
 
-    if api in LFRIC_API_NAMES and not LFRIC_TESTING:
-        psy = PSyFactory(api, distributed_memory=distributed_memory)\
-            .create(invoke_info)
-        if script_name is not None:
-            # Apply provided recipe to PSyIR
-            recipe, _, _ = load_script(script_name)
-            recipe(psy.container.root)
-        alg_gen = None
-
-    elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
-        # Create language-level PSyIR from the Algorithm file
-        reader = FortranReader(
-            ignore_comments=not keep_comments,
-            ignore_directives=not keep_directives,
-            conditional_openmp_statements=keep_conditional_openmp_statements,
-            free_form=free_form)
-        if api in LFRIC_API_NAMES:
-            # avoid undeclared builtin errors in PSyIR by adding a
-            # wildcard use statement.
-            fp2_tree = parse_fp2(filename, ignore_comments=not keep_comments)
-            # Choose a module name that is invalid Fortran so that it
-            # does not clash with any existing names in the algorithm
-            # layer.
-            builtins_module_name = "_psyclone_builtins"
-            add_builtins_use(fp2_tree, builtins_module_name)
-            psyir = Fparser2Reader(ignore_directives=not keep_directives).\
-                generate_psyir(fp2_tree)
-            # Check that there is only one module/program per file.
-            check_psyir(psyir, filename)
-        else:
-            try:
-                psyir = reader.psyir_from_file(filename)
-            except (InternalError, ValueError, IOError) as err:
-                print(f"Failed to create PSyIR from file '{filename}'",
-                      file=sys.stderr)
-                logger.error(err, exc_info=True)
-                sys.exit(1)
-
-        # Raise to Algorithm PSyIR
-        if api in GOCEAN_API_NAMES:
-            alg_trans = AlgTrans()
-        else:  # api in LFRIC_API_NAMES
-            alg_trans = LFRicAlgTrans()
-        try:
-            alg_trans.apply(psyir)
-        except TransformationError as info:
-            raise GenerationError(
-                f"In algorithm file '{filename}':\n{info.value}") from info
-
-        if not psyir.walk(AlgorithmInvokeCall):
-            raise NoInvokesError(
-                "Algorithm file contains no invoke() calls: refusing to "
-                "generate empty PSy code")
-
-        if script_name is not None:
-            # Call the optimisation script for algorithm optimisations
-            recipe, _, _ = load_script(script_name, "trans_alg",
-                                       is_optional=True)
-            if recipe:
-                recipe(psyir)
-
-        # For each kernel called from the algorithm layer
-        kernels = {}
-        for invoke in psyir.walk(AlgorithmInvokeCall):
-            kernels[id(invoke)] = {}
-            for kern in invoke.walk(KernelFunctor):
-                if isinstance(kern, LFRicBuiltinFunctor):
-                    # Skip builtins
-                    continue
-                if isinstance(kern.symbol.interface, UnresolvedInterface):
-                    # This kernel functor is not specified in a use statement.
-                    # Find all container symbols that are in scope.
-                    st_ref = kern.scope.symbol_table
-                    container_symbols = [
-                        symbol.name for symbol in st_ref.containersymbols]
-                    while st_ref.parent_symbol_table():
-                        st_ref = st_ref.parent_symbol_table()
-                        container_symbols += [
-                            symbol.name for symbol in st_ref.containersymbols]
-                    message = (
-                        f"Kernel functor '{kern.name}' in routine "
-                        f"'{kern.ancestor(Routine).name}' from algorithm file "
-                        f"'{filename}' must be named in a use statement "
-                        f"(found {container_symbols})")
-                    if api in LFRIC_API_NAMES:
-                        message += (
-                            f" or be a recognised built-in (one of "
-                            f"{list(BUILTIN_MAP.keys())})")
-                    message += "."
-                    raise GenerationError(message)
-                container_symbol = kern.symbol.interface.container_symbol
-
-                # Find the kernel file containing the container
-                filepath = get_kernel_filepath(
-                    container_symbol.name, kernel_paths, filename)
-
-                try:
-                    # Create language-level PSyIR from the kernel file
-                    kernel_psyir = reader.psyir_from_file(filepath)
-                except (InternalError, ValueError, IOError) as info:
-                    print(f"Failed to create PSyIR from kernel file "
-                          f"'{filepath}'", file=sys.stderr)
-                    logger.error(info, exc_info=True)
-                    sys.exit(1)
-
-                # Raise to Kernel PSyIR
-                if api in GOCEAN_API_NAMES:
-                    kern_trans = RaisePSyIR2GOceanKernTrans(kern.symbol.name)
-                    kern_trans.apply(kernel_psyir)
-                else:  # api in LFRIC_API_NAMES
-                    kern_trans = RaisePSyIR2LFRicKernTrans()
-                    kern_trans.apply(
-                        kernel_psyir,
-                        options={"metadata_name": kern.symbol.name})
-
-                kernels[id(invoke)][id(kern)] = kernel_psyir
-
-        # Transform 'invoke' calls into calls to PSy-layer subroutines
-        if api in GOCEAN_API_NAMES:
-            invoke_trans = GOceanAlgInvoke2PSyCallTrans()
-        else:  # api in LFRIC_API_NAMES
-            invoke_trans = LFRicAlgInvoke2PSyCallTrans()
-        for invoke in psyir.walk(AlgorithmInvokeCall):
-            invoke_trans.apply(
-                invoke, options={"kernels": kernels[id(invoke)]})
-        if api in LFRIC_API_NAMES:
-            # Remove any use statements that were temporarily added to
-            # avoid the PSyIR complaining about undeclared builtin
-            # names.
-            for node in psyir.walk((Routine, Container)):
-                symbol_table = node.symbol_table
-                if builtins_module_name in symbol_table:
-                    symbol = symbol_table.lookup(builtins_module_name)
-                    symbol_table.remove(symbol)
-
-        # Create Fortran from Algorithm PSyIR
-        writer = FortranWriter()
-        alg_gen = writer(psyir)
-
-        # Create the PSy-layer
-        # TODO: issue #1629 replace invoke_info with alg and kern psyir
-        psy = PSyFactory(api, distributed_memory=distributed_memory)\
-            .create(invoke_info)
-
-        if script_name is not None:
-            # Call the optimisation script for psy-layer optimisations
-            recipe, _, _ = load_script(script_name)
-            recipe(psy.container.root)
-
-    # TODO issue #1618 remove Alg class and tests from PSyclone
-    if api in LFRIC_API_NAMES and not LFRIC_TESTING:
-        alg_gen = Alg(ast, psy).gen
+    if script_name is not None:
+        # Call the optimisation script for psy-layer optimisations
+        recipe, _, _ = load_script(script_name)
+        recipe(psy.container.root)
 
     # Add profiling nodes to schedule if automatic profiling has
     # been requested.
-    for invoke in psy.invokes.invoke_list:
-        Profiler.add_profile_nodes(invoke.schedule, Loop)
+    for invoke_call in psy.invokes.invoke_list:
+        Profiler.add_profile_nodes(invoke_call.schedule, Loop)
 
     return alg_gen, psy.gen
 
@@ -859,41 +809,6 @@ def check_psyir(psyir, filename):
             f"Expecting LFRic algorithm-layer code within file "
             f"'{filename}' to be a single program or module, but "
             f"found '{type(psyir.children[0]).__name__}'.")
-
-
-def add_builtins_use(fp2_tree, name):
-    '''Modify the fparser2 tree adding a 'use <name>' so that builtin kernel
-    functors do not appear to be undeclared.
-
-    :param fp2_tree: the fparser2 tree to modify.
-    :type fp2_tree: py:class:`fparser.two.Program`
-    :param str name: the name of the module imported by the use
-        statement.
-
-    '''
-    for node in fp2_tree.children:
-        if isinstance(node, (Fortran2003.Module, Fortran2003.Main_Program)):
-            # add "use <name>" to the module or program
-            if not isinstance(
-                    node.children[1], Fortran2003.Specification_Part):
-                # Create a valid use statement then modify its name as
-                # the supplied name may be invalid Fortran to avoid
-                # clashes with existing Fortran names.
-                fp2_reader = get_reader("use dummy")
-                spec_part = Fortran2003.Specification_Part(fp2_reader)
-                use_stmt = spec_part.children[0]
-                use_name = use_stmt.children[2]
-                use_name.string = name
-                node.children.insert(1, spec_part)
-            else:
-                spec_part = node.children[1]
-                # Create a valid use statement then modify its name as
-                # the supplied name may be invalid Fortran to avoid
-                # clashes with existing Fortran names.
-                use_stmt = Fortran2003.Use_Stmt("use dummy")
-                use_name = use_stmt.children[2]
-                use_name.string = name
-                spec_part.children.insert(0, use_stmt)
 
 
 def code_transformation_mode(input_file, recipe_file, output_file,
