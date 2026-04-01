@@ -212,6 +212,9 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
         # The processed (lowered) argument list for any quadrature
         # arguments.
         quad_arguments = []
+        # The processed (lowered) argument list for any halo
+        # arguments.
+        halo_arguments = []
 
         # pylint: disable=too-many-nested-blocks
         for kern_call in node.arguments:
@@ -264,6 +267,13 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                         self._add_arg(quad_arg, quad_arguments)
                     arg_idx += 1
 
+            if "halo_cell_column" in kernel_metadata.operates_on:
+                # If a kernel operates_on the halo cells, it must have
+                # a final argument with the halo_depth
+                halo_arg = kern_call.children[arg_idx]
+                arg_idx += 1
+                self._add_arg(halo_arg, halo_arguments)
+
             # Incorrect number of kernel functor arguments
             if check_args and len(kern_call.children) != arg_idx:
                 raise GenerationError(
@@ -275,11 +285,12 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
         # expected in the processed (lowered) argument list. (We
         # expect all scalar, field and operator arguments first, then
         # all stencil arguments (separated into size arguments first
-        # followed by direction arguments) and finally all qr
-        # arguments).
+        # followed by direction arguments), then all qr arguments and
+        # finally all halo arguments.
         arguments.extend(stencil_size_arguments)
         arguments.extend(stencil_direction_arguments)
         arguments.extend(quad_arguments)
+        arguments.extend(halo_arguments)
 
         return arguments
 
