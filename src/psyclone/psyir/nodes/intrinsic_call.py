@@ -212,14 +212,14 @@ def _type_of_named_arg_with_optional_kind_and_dim(
     arg = node.argument_by_name(arg_name)
     if "kind" in node.argument_names:
         dtype = ScalarType(
-            arg.datatype.elemental_type.intrinsic,
+            arg.datatype.intrinsic,
             node.argument_by_name("kind").copy(),
         )
     else:
         # PSyclone has the UNDEFINED Precision as the default kind for all
         # supported inbuilt datatypes.
         dtype = ScalarType(
-            arg.datatype.elemental_type.intrinsic,
+            arg.datatype.intrinsic,
             ScalarType.Precision.UNDEFINED,
         )
     # If "dim" argument isn't present then the result is an array of the same
@@ -368,7 +368,7 @@ def _findloc_return_type(node: IntrinsicCall) -> DataType:
     """
     if "kind" in node.argument_names:
         dtype = ScalarType(
-            node.argument_by_name("array").datatype.elemental_type.intrinsic,
+            node.argument_by_name("array").datatype.intrinsic,
             node.argument_by_name("kind").copy(),
         )
     else:
@@ -439,8 +439,8 @@ def _iparity_return_type(node: IntrinsicCall) -> DataType:
     :returns: the computed datatype for the IntrinsicCall.
     """
     dtype = ScalarType(
-        node.argument_by_name("array").datatype.elemental_type.intrinsic,
-        node.argument_by_name("array").datatype.elemental_type.precision,
+        node.argument_by_name("array").datatype.intrinsic,
+        node.argument_by_name("array").datatype.precision,
     )
     # If dim is not present then we return a scalar.
     if "dim" not in node.argument_names:
@@ -565,14 +565,14 @@ def _maxval_return_type(node: IntrinsicCall) -> DataType:
     :returns: the computed datatype for the IntrinsicCall.
     """
     dtype = ScalarType(
-        node.argument_by_name("array").datatype.elemental_type.intrinsic,
-        node.argument_by_name("array").datatype.elemental_type.precision
+        node.argument_by_name("array").datatype.intrinsic,
+        node.argument_by_name("array").datatype.precision
     )
+    arg = node.argument_by_name("array")
     if "dim" not in node.argument_names:
         return dtype
     # We have a dimension specified. We don't know the resultant shape
     # in any detail as its dependent on the value of dim
-    arg = node.argument_by_name("array")
     return _type_of_arg_with_rank_minus_one(arg, dtype)
 
 
@@ -3217,7 +3217,7 @@ class IntrinsicCall(Call):
                 _type_of_scalar_with_optional_kind(
                     node,
                     node.argument_by_name("l").
-                    datatype.elemental_type.intrinsic,
+                    datatype.intrinsic,
                     "kind",
                 ) if "kind" in node.argument_names else
                 _type_of_named_argument(node, "l")
@@ -3766,9 +3766,9 @@ class IntrinsicCall(Call):
             return_type=lambda node: ArrayType(
                 ScalarType(
                     node.argument_by_name("array").datatype.
-                    elemental_type.intrinsic,
+                    intrinsic,
                     node.argument_by_name("array").datatype.
-                    elemental_type.precision),
+                    precision),
                 [ArrayType.Extent.DEFERRED]
             ),
             reference_accesses=lambda node: (
@@ -3893,7 +3893,7 @@ class IntrinsicCall(Call):
                 _type_with_specified_precision_and_optional_dim(
                     node, "array",
                     node.argument_by_name("array").datatype.
-                    elemental_type.intrinsic
+                    intrinsic
                 )
             ),
             reference_accesses=lambda node: (
@@ -4451,9 +4451,9 @@ class IntrinsicCall(Call):
             return_type=lambda node: ArrayType(
                 ScalarType(
                     node.argument_by_name("source").datatype.
-                    elemental_type.intrinsic,
+                    intrinsic,
                     node.argument_by_name("source").datatype.
-                    elemental_type.precision),
+                    precision),
                 ([ArrayType.Extent.DEFERRED] *
                  (len(node.argument_by_name("source").datatype.shape) + 1)
                  if isinstance(node.argument_by_name("source").datatype,
@@ -4553,7 +4553,7 @@ class IntrinsicCall(Call):
                 _type_with_specified_precision_and_optional_dim(
                     node, "array",
                     node.argument_by_name("array").datatype.
-                    elemental_type.intrinsic
+                    intrinsic
                 )
             ),
             reference_accesses=lambda node: (
@@ -4725,9 +4725,9 @@ class IntrinsicCall(Call):
                 else ArrayType(
                     ScalarType(
                         node.argument_by_name("mold").datatype.
-                        elemental_type.intrinsic,
+                        intrinsic,
                         node.argument_by_name("mold").datatype.
-                        elemental_type.precision
+                        precision
                     ),
                     [ArrayType.Extent.DEFERRED])
             ),
@@ -4750,9 +4750,9 @@ class IntrinsicCall(Call):
             optional_args={},
             return_type=lambda node: ArrayType(ScalarType(
                 node.argument_by_name("matrix").datatype.
-                elemental_type.intrinsic,
+                intrinsic,
                 node.argument_by_name("matrix").datatype.
-                elemental_type.precision),
+                precision),
                 [node.argument_by_name("matrix").datatype.shape[1],
                  node.argument_by_name("matrix").datatype.shape[0]]
             ),
@@ -4911,7 +4911,18 @@ class IntrinsicCall(Call):
         if isinstance(self.intrinsic.return_type, Callable):
             try:
                 return self.intrinsic.return_type(self)
+            except TypeError as err:
+                # FIXME This should be only sometimes?
+                # For array of structure or something.
+                # return UnresolvedType()
+                raise InternalError(
+                    f"Failed to compute the datatype of a "
+                    f"'{self.intrinsic.name}' intrinsic. This is likely due "
+                    f"to not fully initialising the intrinsic correctly."
+                ) from err
             except AttributeError as err:
+                # This is to handle when we call .intrinsic or
+                # .precision on an UnresolvedType
                 # If we get an attribute error, and its because of attempting
                 # to lookup the precision or intrinsic, then it is likely
                 # due to looking up the datatype elements of an Unresolved

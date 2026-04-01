@@ -70,9 +70,9 @@ from psyclone.psyir.nodes import (
     StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall,
     Assignment, ArrayReference, Loop, Container, DataNode, Schedule, Node)
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, DataSymbol, DataType, DataTypeSymbol, ScalarType,
-    UnresolvedType, ContainerSymbol, ImportInterface, StructureType,
-    ArrayType, UnsupportedFortranType, ArgumentInterface)
+    INTEGER_TYPE, DataSymbol, DataType, DataTypeSymbol,
+    ScalarType, UnresolvedType, ContainerSymbol, ImportInterface,
+    StructureType, ArrayType, UnsupportedFortranType, ArgumentInterface)
 
 
 # pylint: disable=too-many-lines
@@ -1795,13 +1795,14 @@ class LFRicCMAOperators(LFRicCollection):
                 f"{op_name}_{suffix}")
             tag = f"{op_name}:{suffix}"
             arg = self._cma_ops[op_name]["arg"]
-            precision = LFRicConstants().precision_for_type(arg.data_type)
+            # Ensure that the appropriate precision symbol exists.
+            kind_sym = self.symtab.add_lfric_precision_symbol(arg.precision)
             array_type = ArrayType(
-                LFRicTypes("LFRicRealScalarDataType")(precision),
+                LFRicTypes("LFRicRealScalarDataType")(kind_sym),
                 [ArrayType.Extent.DEFERRED]*3)
             index_str = ",".join(3*[":"])
             dtype = UnsupportedFortranType(
-                f"real(kind={arg.precision}), pointer, "
+                f"real(kind={kind_sym.name}), pointer, "
                 f"dimension({index_str}) :: {new_name} => null()",
                 partial_datatype=array_type)
             self.symtab.new_symbol(new_name,
@@ -3017,10 +3018,12 @@ class LFRicBasisFunctions(LFRicCollection):
                     dims.append(Literal(value, INTEGER_TYPE))
                 except ValueError:
                     dims.append(Reference(self.symtab.find_or_create(value)))
+            kind_sym = self.symtab.add_lfric_precision_symbol("r_def")
+            arr_type = ArrayType(ScalarType(ScalarType.Intrinsic.REAL,
+                                            Reference(kind_sym)), dims)
             arg = self.symtab.find_or_create_tag(
                 basis, symbol_type=DataSymbol,
-                datatype=ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
-                                   dims))
+                datatype=arr_type)
             arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(arg)
 
@@ -3033,11 +3036,9 @@ class LFRicBasisFunctions(LFRicCollection):
                 raise InternalError(
                     f"Quadrature shapes other than {supported_shapes} are not "
                     f"yet supported - got: '{shape}'")
-            kind_sym = self.symtab.find_or_create(
-                const.QUADRATURE_TYPE_MAP[shape]["kind"],
-                symbol_type=DataSymbol, datatype=UnresolvedType(),
-                interface=ImportInterface(
-                    self.symtab.lookup("constants_mod")))
+
+            kind_sym = self.symtab.add_lfric_precision_symbol(
+                const.QUADRATURE_TYPE_MAP[shape]["kind"])
 
             # All quatratures are REAL
             intr_type = ScalarType(ScalarType.Intrinsic.REAL,
@@ -3102,6 +3103,8 @@ class LFRicBasisFunctions(LFRicCollection):
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
         # or an evaluator
         if self._qr_vars or self._eval_targets:
+            # Quadrature weights and basis functions are in r_def precision.
+            self.symtab.add_lfric_precision_symbol("r_def")
             module = self.symtab.find_or_create(
                 const.FUNCTION_SPACE_TYPE_MAP["function_space"]["module"],
                 symbol_type=ContainerSymbol)
@@ -3201,6 +3204,7 @@ class LFRicBasisFunctions(LFRicCollection):
             # to evaluate basis/diff-basis functions
             nodes_name = "nodes_" + fspace.mangled_name
             kind = api_config.default_kind["real"]
+            self.symtab.add_lfric_precision_symbol(kind)
             symbol = self.symtab.new_symbol(
                 nodes_name, symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
@@ -5901,38 +5905,22 @@ class LFRicKernelArgument(KernelArgument):
                     "Reductions for datatypes other than real are not yet "
                     "supported in PSyclone.")
 
-            expected_precision = const.DATA_TYPE_MAP["reduction"]["kind"]
-            # If the algorithm information is not being ignored
-            # then check that the expected precision and the
-            # precision defined in the algorithm layer are
-            # the same.
-            if check and alg_precision and \
-               alg_precision != expected_precision:
-                raise GenerationError(
-                    f"This scalar is a reduction which assumes precision "
-                    f"of type '{expected_precision}' but the algorithm "
-                    f"declares this scalar with precision "
-                    f"'{alg_precision}'.")
+            self._data_type = const.DATA_TYPE_MAP["scalar"]["type"]
+            self._proxy_data_type = None
+            self._module_name = const.DATA_TYPE_MAP["scalar"]["module"]
 
-            # Use the default 'real' scalar reduction properties.
-            self._precision = expected_precision
-            self._data_type = const.DATA_TYPE_MAP["reduction"]["type"]
-            self._proxy_data_type = const.DATA_TYPE_MAP[
-                "reduction"]["proxy_type"]
-            self._module_name = const.DATA_TYPE_MAP["reduction"]["module"]
+        # The precision of the symbol does not depend on whether
+        # it is a reduction
+        if check and alg_precision:
+            # Use the algorithm precision if it is available
+            # and not being ignored.
+            self._precision = alg_precision
         else:
-            # This is a scalar that is not part of a reduction.
-
-            if check and alg_precision:
-                # Use the algorithm precision if it is available
-                # and not being ignored.
-                self._precision = alg_precision
-            else:
-                # Use default precision for this datatype if the
-                # algorithm precision is either not available or is
-                # being ignored.
-                self._precision = const.SCALAR_PRECISION_MAP[
-                    self.intrinsic_type]
+            # Use default precision for this datatype if the
+            # algorithm precision is either not available or is
+            # being ignored.
+            self._precision = const.SCALAR_PRECISION_MAP[
+                self.intrinsic_type]
 
     def _init_field_properties(self, alg_datatype, check=True):
         '''Set up the properties of this field using algorithm datatype
@@ -6465,14 +6453,8 @@ class LFRicKernelArgument(KernelArgument):
             except KeyError:
                 mod_map = LFRicConstants().UTILITIES_MOD_MAP
                 const_mod = mod_map["constants"]["module"]
-                try:
-                    constants_container = symtab.lookup(const_mod)
-                except KeyError:
-                    # TODO Once #696 is done, we should *always* have a
-                    # symbol for this container at this point so should
-                    # raise an exception if we haven't.
-                    constants_container = LFRicTypes(const_mod)
-                    symtab.add(constants_container)
+                constants_container = symtab.find_or_create(
+                    const_mod, symbol_type=ContainerSymbol)
                 kind_symbol = DataSymbol(
                     kind_name, INTEGER_TYPE,
                     interface=ImportInterface(constants_container))

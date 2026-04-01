@@ -99,7 +99,7 @@ def test_chunkloop_trans_validate2():
     parent.addchild(Literal("128", INTEGER_TYPE))
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as excinfo:
-        chunktrans.validate(parent, {"chunksize": 16})
+        chunktrans.validate(parent, chunksize=16)
     assert ("Cannot apply a ChunkLoopTrans to a loop with larger step size "
             "(128) than the chosen chunk size (16).") in str(excinfo.value)
 
@@ -310,24 +310,20 @@ def test_chunkloop_trans_validation_options(fortran_reader):
         end subroutine test
      ''')
     outer_loop = psyir.walk(Loop)[0]
-    with pytest.raises(TransformationError) as err:
-        ChunkLoopTrans().validate(outer_loop, {'unsupported': None})
-    assert ("The ChunkLoopTrans does not support the transformation option"
-            " 'unsupported', the supported options are: ['chunksize']."
-            in str(err.value))
 
     with pytest.raises(TransformationError) as err:
+        # TODO #2668: Deprecate options dict.
         ChunkLoopTrans().validate(outer_loop, {'chunksize': '32'})
     assert ("The ChunkLoopTrans chunksize option must be a positive integer "
             "but found a 'str'." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        ChunkLoopTrans().validate(outer_loop, {'chunksize': -64})
+        ChunkLoopTrans().validate(outer_loop, chunksize=-64)
     assert ("The ChunkLoopTrans chunksize option must be a positive integer "
             "but found '-64'." in str(err.value))
 
     # Positive integers are accepted
-    ChunkLoopTrans().validate(outer_loop, {'chunksize': 64})
+    ChunkLoopTrans().validate(outer_loop, chunksize=64)
 
 
 def test_chunkloop_trans_apply_pos():
@@ -385,7 +381,7 @@ def test_chunkloop_trans_apply_with_options():
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     chunktrans = ChunkLoopTrans()
-    chunktrans.apply(schedule.children[0], {'chunksize': 4})
+    chunktrans.apply(schedule.children[0], chunksize=4)
     code = str(psy.gen)
     correct = \
         '''do j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 4

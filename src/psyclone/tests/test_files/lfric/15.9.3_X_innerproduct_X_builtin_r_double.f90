@@ -31,28 +31,20 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author J. Henrichs, Bureau of Meteorology
+! Author: A. Pirrie, Met Office
 
-!> This module implements a PSyData-based verification that checks if
-!! variable values are within a certain range. It is based on the
-!! ValueRangeCheckBaseType (from which it inherits the handling of the
-!! basic Fortran data types and 2d-arrays, as specified in the Makefile),
-!! and just extends it with a dummy implementation to provide the same
-!! module name as the domain-specific implementations.
+program single_invoke
 
-module value_range_check_psy_data_mod
+  ! Description: single point-wise operation (inner product of one field by
+  ! itself) specified in an invoke call of double precision.
+  use constants_mod, only: r_double
+  use field_mod,     only: field_type
 
-    use value_range_check_base_mod, only : ValueRangeCheckBaseType
+  implicit none
 
-    implicit none
+  type(field_type) :: f1
+  real(r_double)     :: asum
 
-    !> This is the data type that manages the information required
-    !! to write data to a binary file using the PSyData API. A
-    !! static instance of this type is created for each instrumented
-    !! region with PSyclone (and each region will write a separate
-    !! file).
-    type, extends(ValueRangeCheckBaseType), public :: value_range_check_psydatatype
+  call invoke( X_innerproduct_X(asum, f1) )
 
-    end type value_range_check_psydatatype
-
-end module value_range_check_psy_data_mod
+end program single_invoke
