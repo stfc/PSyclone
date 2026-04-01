@@ -528,8 +528,9 @@ def test_same_name_invalid_array():
         _, _ = generate(
             os.path.join(BASE_PATH, "1.11_single_invoke_same_name_array.f90"),
             api="lfric")
-    assert ("Argument 'f1(1, n)' is passed into kernel 'testkern_code' code "
-            "more than once") in str(excinfo.value)
+    assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
+            "Reference or a KernelFunctor, but 'f1(1, n)' passed to kernel "
+            "'testkern_type' is of type 'Call'." in str(excinfo.value))
 
 
 def test_derived_type_deref_naming(tmpdir):

@@ -55,7 +55,6 @@ import shutil
 from typing import Union, Callable, List, Tuple, Iterable
 import logging
 
-from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import (
     Config, ConfigurationError, VALID_KERNEL_NAMING_SCHEMES,
     LFRIC_API_NAMES, GOCEAN_API_NAMES)
@@ -73,12 +72,11 @@ from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.parse.kernel import get_kernel_filepath
-from psyclone.parse.utils import ParseError, parse_fp2
+from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Loop, Container, Routine
 from psyclone.psyir.symbols import UnresolvedInterface
 from psyclone.psyir.transformations import TransformationError
@@ -230,7 +228,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     :raises GenerationError: if a kernel functor is not named in a use
         statement.
     :raises IOError: if the filename or search path do not exist.
-    :raises NoInvokesError: if no invokes are found in the algorithm file.
+    :raises GenerationError: if no invokes are found in the algorithm file.
 
     For example:
 
@@ -242,6 +240,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     >>> alg, psy = generate("algspec.f90", distributed_memory=False)
 
     '''
+    writer = FortranWriter()
     logger = logging.getLogger(__name__)
 
     if kernel_paths is None:
@@ -300,9 +299,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             f"In algorithm file '{filename}':\n{info.value}") from info
 
     if not psyir.walk(AlgorithmInvokeCall):
-        raise NoInvokesError(
-            "Algorithm file contains no invoke() calls: refusing to "
-            "generate empty PSy code")
+        logger.warning("Algorithm file contains no invoke() call")
+        return writer(psyir), ''
 
     if script_name is not None:
         # Call the optimisation script for algorithm optimisations
@@ -377,7 +375,6 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             invoke_call, options={"kernels": kernels[id(invoke_call)]})
 
     # Create Fortran from Algorithm PSyIR
-    writer = FortranWriter()
     alg_gen = writer(psyir)
 
     # Create the PSy-layer
@@ -738,16 +735,16 @@ def main(arguments):
                 keep_conditional_openmp_statements=args.
                 keep_conditional_openmp_statements,
                 free_form=free_form)
-        except NoInvokesError:
-            _, exc_value, _ = sys.exc_info()
-            print(f"Warning: {exc_value}")
-            # no invoke calls were found in the algorithm file so we do
-            # not need to process it, or generate any psy layer code, so
-            # output the original algorithm file and set the psy file to
-            # be empty
-            with open(args.filename, encoding="utf8") as alg_file:
-                alg = alg_file.read()
-            psy = ""
+        # except GenerationError:
+        #     _, exc_value, _ = sys.exc_info()
+        #     print(f"Warning: {exc_value}")
+        #     # no invoke calls were found in the algorithm file so we do
+        #     # not need to process it, or generate any psy layer code, so
+        #     # output the original algorithm file and set the psy file to
+        #     # be empty
+        #     with open(args.filename, encoding="utf8") as alg_file:
+        #         alg = alg_file.read()
+        #     psy = ""
         except (OSError, IOError, ParseError, GenerationError,
                 RuntimeError):
             _, exc_value, _ = sys.exc_info()

@@ -37,6 +37,7 @@
 GOceanAlgInvoke2PSyCallTrans transformation.
 
 '''
+from psyclone.errors import GenerationError
 import pytest
 
 from psyclone.domain.common.algorithm import (
@@ -77,8 +78,8 @@ def test_get_arguments(monkeypatch):
 
     # Check for exception
     monkeypatch.setattr(invoke.children[1], "_children", [None])
-    with pytest.raises(TypeError) as info:
+    with pytest.raises(GenerationError) as info:
         _ = trans.get_arguments(invoke)
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
-            "Reference or CodeBlock, but found 'NoneType'."
+            "Reference or a KernelFunctor, but found 'NoneType'."
             in str(info.value))

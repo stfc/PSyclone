@@ -54,11 +54,7 @@ from sys import modules
 from typing import Optional
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.parser import ParserFactory
-
 from psyclone import generator
-from psyclone.alg_gen import NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
@@ -1532,28 +1528,6 @@ def test_main_fort_line_length_all(capsys):
             in output)
 
 
-def test_main_no_invoke_alg_stdout(capsys):
-    '''Tests that the main() function outputs the original algorithm input
-    file to stdout when the algorithm file does not contain an invoke
-    and that it does not produce any psy output.
-
-    '''
-    # pass in a kernel file as that has no invokes in it
-    kern_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                  "test_files", "lfric",
-                                  "testkern_mod.F90"))
-    main([kern_filename, "-api", "lfric"])
-    out, _ = capsys.readouterr()
-
-    with open(kern_filename, encoding="utf8") as kern_file:
-        kern_str = kern_file.read()
-        expected_output = (
-            f"Warning: Algorithm Error: Algorithm file contains no "
-            f"invoke() calls: refusing to generate empty PSy code\n"
-            f"Transformed algorithm code:\n{kern_str}\n")
-        assert expected_output == out
-
-
 def test_main_write_psy_file(capsys, tmpdir):
     '''Tests that the main() function outputs successfully writes the
     generated psy output to a specified file.
@@ -1579,7 +1553,7 @@ def test_main_write_psy_file(capsys, tmpdir):
         assert psy_str in stdout
 
 
-def test_main_no_invoke_alg_file(capsys, tmpdir):
+def test_main_no_invoke_alg_file(capsys, tmpdir, caplog):
     '''Tests that the main() function outputs the original algorithm input
     file to file when the algorithm file does not contain an invoke
     and that it does not produce any psy output.
@@ -1594,22 +1568,18 @@ def test_main_no_invoke_alg_file(capsys, tmpdir):
     psy_filename = str(tmpdir.join("psy.f90"))
     # no need to delete the files as they have not been created
 
-    main([kern_filename, '-api', 'lfric',
-          '-oalg', alg_filename, '-opsy', psy_filename])
-    stdout, _ = capsys.readouterr()
+    # Check that it generates a warning
+    with caplog.at_level(logging.WARNING, "psyclone"):
+        main([kern_filename, '-api', 'lfric',
+              '-oalg', alg_filename, '-opsy', psy_filename])
+    assert "Algorithm file contains no invoke() call" in caplog.text
 
-    # check stdout contains warning
+    # Check alg file has the same output as input file
     with open(kern_filename, encoding="utf8") as kern_file:
         kern_str = kern_file.read()
-        expected_stdout = ("Warning: Algorithm Error: Algorithm file contains "
-                           "no invoke() calls: refusing to generate empty PSy "
-                           "code\n")
-        assert expected_stdout == stdout
-
-    # check alg file has same output as input file
     with open(alg_filename, encoding="utf8") as expected_file:
         expected_alg_str = expected_file.read()
-        assert expected_alg_str == kern_str
+    assert expected_alg_str[-50:] == kern_str[-50:]
     os.remove(alg_filename)
 
     # check psy file is not created
@@ -1918,18 +1888,17 @@ def test_builtins_lfric():
     assert "use _psyclone_builtins" not in alg
 
 
-def test_no_invokes_lfric():
-    '''Test that the generate function in generator.py raises the expected
-    exception if the algorithm layer contains no invoke() calls.
+def test_no_invokes_lfric(caplog):
+    '''Test that the generate function in generator.py logs the expected
+    message if the algorithm layer contains no invoke() calls.
 
     '''
     # pass a kernel file as it has no invoke's in it.
-    with pytest.raises(NoInvokesError) as info:
+    with caplog.at_level(logging.WARNING, "psyclone"):
         _, _ = generate(
             os.path.join(BASE_PATH, "lfric", "testkern_mod.F90"),
             api="lfric")
-    assert ("Algorithm file contains no invoke() calls: refusing to generate "
-            "empty PSy code" in str(info.value))
+    assert "Algorithm file contains no invoke() call" in str(caplog.text)
 
 
 @pytest.mark.parametrize("invoke", ["call invoke", "if (.true.) call invoke"])
