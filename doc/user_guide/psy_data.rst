@@ -316,7 +316,7 @@ An example taken from the LFric tutorial (note that values greater than
 4000 are actually valid, the upper limit was just chosen to show
 a few warnings raised by the value range checker)::
 
-    PSY_VALUE_RANGE="time_evolution.invoke_initialise_perturbation.perturbation_data=0.0:4"000"
+    PSY_VALUE_RANGE="time_evolution.invoke_initialise_perturbation.perturbation_data=0.0:4000"
     PSY_VALUE_RANGE="time_evolution.perturbation_data=0.0:4000"
     PSY_VALUE_RANGE="perturbation_data=0.0:4000"
     
