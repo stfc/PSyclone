@@ -41,8 +41,8 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import CommonBlockInterface, \
-    UnsupportedFortranType
+from psyclone.psyir.symbols import (
+    CommonBlockInterface, ScalarType, UnsupportedFortranType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -57,7 +57,7 @@ def test_named_common_block():
 
     # Test with a single common block
     reader = FortranStringReader('''
-        integer :: a, b, c
+        integer(kind=i_def) :: a, b, c
         common /name1/ a, b, c''')
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
@@ -75,7 +75,8 @@ def test_named_common_block():
     # The same common block can also bring other variables in a separate
     # statement
     reader = FortranStringReader('''
-        real :: d, e
+        real :: d
+        real(kind=wp) :: e
         common /name1/ d, e''')
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
@@ -85,7 +86,9 @@ def test_named_common_block():
     commonblock_2 = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK_1")
     assert commonblock_2.datatype.declaration == "COMMON /name1/ d, e"
     assert isinstance(symtab.lookup("d").interface, CommonBlockInterface)
-    assert isinstance(symtab.lookup("e").interface, CommonBlockInterface)
+    esym = symtab.lookup("e")
+    assert isinstance(esym.interface, CommonBlockInterface)
+    assert esym.datatype.intrinsic is ScalarType.Intrinsic.REAL
 
 
 @pytest.mark.usefixtures("f2008_parser")
