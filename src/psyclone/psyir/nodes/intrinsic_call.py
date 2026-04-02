@@ -4918,13 +4918,6 @@ class IntrinsicCall(Call):
                 if ("ScalarType expected 'intrinsic' argument to be of type "
                         "ScalarType.Intrinsic but found " in str(err)):
                     return UnresolvedType()
-                # For array of structure or something.
-                # return UnresolvedType()
-                raise InternalError(
-                    f"Failed to compute the datatype of a "
-                    f"'{self.intrinsic.name}' intrinsic. This is likely due "
-                    f"to not fully initialising the intrinsic correctly."
-                ) from err
             except AttributeError as err:
                 # This is to handle when we call .intrinsic or
                 # .precision on an UnresolvedType
@@ -4938,13 +4931,14 @@ class IntrinsicCall(Call):
                     and "NoneType" not in
                         str(err)):
                     return UnresolvedType()
-                # Can't use debug string due to this being a potentially
-                # incomplete IntrinsicCall
-                raise InternalError(
-                    f"Failed to compute the datatype of a "
-                    f"'{self.intrinsic.name}' intrinsic. This is likely due "
-                    f"to not fully initialising the intrinsic correctly."
-                ) from err
+            # Fall through to the internalerror.
+            # Can't use debug string due to this being a potentially
+            # incomplete IntrinsicCall
+            raise InternalError(
+                f"Failed to compute the datatype of a "
+                f"'{self.intrinsic.name}' intrinsic. This is likely due "
+                f"to not fully initialising the intrinsic correctly."
+            ) from err
         else:
             return self.intrinsic.return_type
 
