@@ -26,7 +26,7 @@ To begin, we will make use of PSyclone's support for the
 demonstration purposes we will be using the 'simple-timing' library
 distributed with PSyclone since that has no dependencies. (PSyclone
 currently provides wrapper libraries for profiling tools such as
-[dl_timer](https://bitbucket.org/apeg/dl_timer/src/master/), DrHook
+[dl_timer](https://github.com/stfc/dl_timer), DrHook
 (from ECMWF), [tau](https://www.cs.uoregon.edu/research/tau) and NVIDIA's
 nvtx. You may wish to investigate these if you have time at the end of
 this session.)
@@ -200,9 +200,9 @@ transformation script to perform finer-grained profiling.
    [bitbucket](https://bitbucket.org/apeg/dl_timer/src/master/). You
    will need to obtain the source for this library:
    ```
-   git clone https://bitbucket.org/apeg/dl_timer.git
+   git clone https://github.com/stfc/dl_timer.git
    cd dl_timer
-   . compiler_setup/gnu.sh
+   . compiler_setup/gnu_setup.sh
    make sm_lib
    ```
    and then update the
