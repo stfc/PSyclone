@@ -953,40 +953,11 @@ class SymbolTable():
             already been updated to refer to a Container in this table.
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
-
-        # Names (normalised) of commonblock variables already in this table.
-        # Used below to decide whether a _PSYCLONE_INTERNAL_COMMONBLOCK marker
-        # from other_table is a duplicate that must be skipped.
-        self_cb_names = frozenset(
-            self._normalize(s.name)
-            for s in self.symbols if s.is_commonblock)
-
-        # Normalised names of commonblock variables in other_table.  Any
-        # overlap with self_cb_names means the COMMON block is already
-        # declared in this table and the incoming marker is a duplicate.
-        other_cb_names = frozenset(
-            self._normalize(s.name)
-            for s in other_table.symbols if s.is_commonblock)
-        cb_overlap = bool(self_cb_names & other_cb_names)
-
         for old_sym in other_table.symbols:
 
             if old_sym in symbols_to_skip or isinstance(old_sym,
                                                         ContainerSymbol):
                 # We've dealt with Container symbols in _add_container_symbols.
-                continue
-
-            # Skip _PSYCLONE_INTERNAL_COMMONBLOCK marker symbols when any of
-            # the COMMON-block variables they represent are already present in
-            # this table.  Adding such a marker would produce a duplicate
-            # COMMON declaration and a Fortran compile error like
-            # "Symbol 'x' is already in a COMMON block".
-            if (cb_overlap and
-                    self._normalize(old_sym.name).startswith(
-                        "_psyclone_internal_commonblock") and
-                    isinstance(old_sym.datatype, UnsupportedFortranType)):
                 continue
 
             try:
@@ -1037,6 +1008,7 @@ class SymbolTable():
 
         self_sym = self.lookup(old_sym.name)
         if old_sym.is_unresolved and self_sym.is_unresolved:
+            # Update after fixing issue #3392
             # The clashing symbols are both unresolved so we ASSUME that
             # check_for_clashes has previously determined that they must
             # refer to the same thing and we don't have to do anything.
