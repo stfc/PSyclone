@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,8 +51,10 @@ from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, INTEGER_TYPE, Symbol)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class HoistLocalArraysTrans(Transformation):
     '''This transformation takes a Routine and promotes any local arrays to
     the Container scope:
@@ -113,10 +115,12 @@ then
     By default, the target routine will be rejected if it is found to contain
     an ACCRoutineDirective since this usually implies that the routine will be
     launched in parallel on the OpenACC device. This check can be disabled
-    by setting 'allow_accroutine' to True in the `options` dictionary.
+    by setting the 'allow_accroutine' keyword argument to True on the apply
+    call.
 
     '''
-    def apply(self, node, options=None):
+    def apply(self, node: Routine, options=None,
+              allow_accroutine: bool = False, **kwargs):
         '''Applies the transformation to the supplied Routine node,
         moving any local arrays up to Container scope and adding
         a suitable allocation when they are first accessed. If there
@@ -124,16 +128,16 @@ then
         this method does nothing.
 
         :param node: target PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :param bool options["allow_accroutine"]: permit the target routine \
-            to contain an ACCRoutineDirective. These are forbidden by default \
-            because their presence usually indicates that the routine will be \
-            run in parallel on the OpenACC device.
         :type options: Optional[Dict[str, Any]]
+        :param allow_accroutine: permit the target routine
+            to contain an ACCRoutineDirective. These are forbidden by default
+            because their presence usually indicates that the routine will be
+            run in parallel on the OpenACC device.
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, allow_accroutine=allow_accroutine,
+                      **kwargs)
 
         if node.is_program:
             # Cannot hoist arrays out of a program so do nothing.
@@ -406,13 +410,12 @@ then
 
         return list(local_arrays.values())
 
-    def validate(self, node, options=None):
+    def validate(self, node: Routine, options=None, **kwargs):
         '''Checks that the supplied node is a valid target for a hoist-
         local-arrays transformation. It must be a Routine that is within
         a Container (that is not a FileContainer).
 
         :param node: target PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
         :param options: any options for the transformation.
         :type options: Optional[Dict[str, Any]]
 
@@ -426,12 +429,19 @@ then
             Container.
 
         '''
-        super().validate(node, options=options)
+        super().validate(node, options=options, **kwargs)
+
+        if options:
+            # TODO #2668: Deprecate options dict.
+            allow_accroutine = options.get("allow_accroutine")
+        else:
+            self.validate_options(**kwargs)
+            allow_accroutine = self.get_option("allow_accroutine", **kwargs)
 
         # The node should be a Routine.
         if not isinstance(node, Routine):
             raise TransformationError(
-                f"The target of the HoistLocalArraysTrans transformation "
+                f"The target of the {self.name} transformation "
                 f"should be a Routine but found '{type(node).__name__}'.")
 
         if node.is_program:
@@ -452,7 +462,7 @@ then
                 f"Container but the enclosing container is a "
                 f"FileContainer (named '{container.name}').")
 
-        if not (options and options.get("allow_accroutine")):
+        if not allow_accroutine:
             if node.walk(ACCRoutineDirective):
                 raise TransformationError(
                     f"The supplied routine '{node.name}' contains an ACC "

@@ -8,7 +8,7 @@
 ! ----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2021-2025, Science and Technology Facilities Council
+! Modifications copyright (c) 2021-2026, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -91,7 +91,7 @@ contains
 !! @param[in] div Divergence operator used in the update
 !! @param[in] ncell_3d2 Total number of cells related to div_multiplier
 !! @param[in] div_multiplier Divergence multiplier used in the update
-!! @param[in] field_min The minimum value we want to enfore for the updated field
+!! @param[in] field_min The minimum value we want to enforce for the updated field
 !! @param[in] dts  The time-step used in the update
 !! @param[in] ndf1 Number of degrees of freedom per cell for the output field
 !! @param[in] undf1 Unique number of degrees of freedom  for the output field

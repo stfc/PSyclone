@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -89,7 +89,7 @@ class Symbol(CommentableMixin):
 
         PUBLIC: the symbol is visible in any scoping region that has access to
                 the SymbolTable containing it.
-        PRIVATE: the symbol is only visibile inside the scoping region that
+        PRIVATE: the symbol is only visible inside the scoping region that
                  contains the SymbolTable to which it belongs.
         '''
         PUBLIC = 1
@@ -415,7 +415,7 @@ class Symbol(CommentableMixin):
     def find_symbol_table(self, node):
         '''
         Searches back up the PSyIR tree for the SymbolTable that contains
-        this Symbol.
+        this Symbol instance.
 
         :param node: the PSyIR node from which to search.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
@@ -438,8 +438,7 @@ class Symbol(CommentableMixin):
         try:
             current = node.scope.symbol_table
             while current:
-                if self.name in current:
-                    # TODO #2949: Add: and current.lookup(self.name) is self:
+                if self.name in current and current.lookup(self.name) is self:
                     return current
                 if current.node.parent:
                     current = current.node.parent.scope.symbol_table

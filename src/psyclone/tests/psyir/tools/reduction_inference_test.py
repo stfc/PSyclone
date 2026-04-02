@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, University of Cambridge, UK
+# Copyright (c) 2025-2026, University of Cambridge, UK
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without

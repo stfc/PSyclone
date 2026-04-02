@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
+# Authors: A. B. G. Chalk, R. Ford and A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module tests the line_limit module using pytest. '''
@@ -211,6 +210,29 @@ def test_multiple_lines_comment():
     assert output_file == expected_output
 
 
+def test_inline_comment():
+    '''Test that an in-line comment that takes us over the length limit is
+    wrapped correctly.'''
+    input_code = ("            wfx_err_sub(ji,jj) = wfx_err_sub(ji,jj) - "
+                  "pevap_rema(ji,jj) * a_i(ji,jj,jl_cat) * r1_Dt_ice  ! "
+                  "<=0 (net evap for the ocean in kg.m-2.s-1)")
+    fll = FortLineLength(line_length=132)
+    output = fll.process(input_code)
+    assert "for the \n!& ocean in kg.m-2.s-1)" in output
+    input_code = ("            wfx_err_sub(ji,jj) = wfx_err_sub(ji,jj) - "
+                  "pevap_rema(ji,jj) * a_i(ji,jj,jl_cat) * r1_Dt_ice  ! "
+                  "<=0 (net evap for the ocean! in kg.m-2.s-1)")
+    output = fll.process(input_code)
+    assert "for the \n!& ocean! in kg.m-2.s-1)" in output
+    # Test when the comment is on a directive.
+    input_code = (f"!$acc kernels ! A very {' '.join(30*['long'])} comment")
+    output = fll.process(input_code)
+    if "long  \n!$ long long" not in output:
+        pytest.xfail(
+            reason="TODO fparser/#468 - fparser.common.FortranReader "
+            "represents directives as Comments.")
+
+
 def test_exception_line_too_long():
     ''' Test that output lines are not longer than the maximum
     specified'''
@@ -245,8 +267,6 @@ def test_break_types_multi_line():
 
     fll = FortLineLength(line_length=24)
     output_file = fll.process(input_file)
-    print("("+output_file+")")
-    print(expected_output)
     assert output_file == expected_output
 
 
@@ -266,8 +286,6 @@ def test_edge_conditions_statements():
         "INTEGER &\n&INTEGER\n")
     fll = FortLineLength(line_length=len("INTEGER INTEGE"))
     output_string = fll.process(input_string)
-    print(output_string)
-    print(expected_output)
     assert output_string == expected_output
 
     input_string = (

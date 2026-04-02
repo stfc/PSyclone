@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,13 +42,13 @@ from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(autouse=True)
 def api_setup_fixture():
     '''Make sure that all tests here use LFRic as API.'''
     Config.get().api = "lfric"
 
 
-@pytest.fixture(name="lfrickern", scope="module")
+@pytest.fixture(name="lfrickern")
 def lfrickern_fixture():
     '''
     :returns: an LFRicKern object created from example metadata.
@@ -93,7 +93,7 @@ end module testkern_field_mod
     return kern
 
 
-@pytest.fixture(name="lfrickern_halo", scope="module")
+@pytest.fixture(name="lfrickern_halo")
 def lfrichalokern_fixture():
     '''
     :returns: an LFRicKern object created from example metadata which specifies
@@ -134,7 +134,7 @@ end module testkern_field_mod
     return kern
 
 
-@pytest.fixture(name="lfrickern_op", scope="module")
+@pytest.fixture(name="lfrickern_op")
 def lfrickern_op_fixture():
     '''
     :returns: an LFRicKern object created from example metadata that includes

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -142,6 +142,7 @@ def test_riv_not_movable(fortran_reader, fortran_writer):
     '''
     source = '''program test
                 integer i, ic1, ic2, ic3, ic4, ic5, ic6
+                character cc1
                 integer :: some_func
                 real, dimension(10) :: a
                 do i = 1, 10
@@ -153,6 +154,7 @@ def test_riv_not_movable(fortran_reader, fortran_writer):
                         ic5 = 1
                     endif
                     ic6 = i + some_func()    ! Function might depend on #calls
+                    cc1 = 'a' // 'b'         ! Has a Codeblock
                     a(ic1) = 1+(ic1+1)*ic1
                     a(ic2) = 2+(ic2+1)*ic2
                     a(ic3) = 3+(ic3+1)*ic3
@@ -204,7 +206,7 @@ def test_riv_other_step_size(fortran_reader, fortran_writer):
                                         "myt%a(i)%b", "myt%a%b(i)%c",
                                         "myt%a(i)", "myt%a%b(i)"])
 def test_riv_no_arrays(array_expr, fortran_reader, fortran_writer):
-    '''Tests that no arrays are accepted as induction varibles.'''
+    '''Tests that no arrays are accepted as induction variables.'''
     source = f'''program test
                 use mymod
                 integer i, invariant

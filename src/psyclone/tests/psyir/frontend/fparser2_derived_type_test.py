@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -345,7 +345,7 @@ END TYPE my_type'''
 def test_derived_type_self_ref(type_name):
     ''' Test that we can parse a derived type that contains a pointer
     reference of that same type. The 'pointer' attribute is not supported
-    so we get a DataTypeSymbol of UnsupportedFortranType. '''
+    so we get a component of UnsupportedFortranType. '''
     fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
@@ -359,7 +359,9 @@ def test_derived_type_self_ref(type_name):
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
     assert isinstance(sym, DataTypeSymbol)
-    assert isinstance(sym.datatype, UnsupportedFortranType)
+    assert isinstance(sym.datatype, StructureType)
+    assert isinstance(sym.datatype.components["next"].datatype,
+                      UnsupportedFortranType)
     assert symtab.lookup("var").datatype is sym
 
 
@@ -628,3 +630,86 @@ def test_array_of_derived_type_pointer(f2008_parser):
     assert assignments[1].is_pointer
     assert isinstance(assignments[1].lhs, ArrayOfStructuresReference)
     assert isinstance(assignments[2], CodeBlock)
+
+
+def test_type_with_unsupported_component(f2008_parser):
+    ''' Check that types with unsupported components create StructureType with
+    the correct component names of UnsupportedFortranType.  '''
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    processor = Fparser2Reader()
+    fparser2spec = f2008_parser(
+        FortranStringReader("subroutine my_sub()\n"
+                            "  type :: my_type\n"
+                            "    real :: supported, supported2\n"
+                            "    real, pointer :: unsupported, unsupported2\n"
+                            "  end type my_type\n"
+                            "end subroutine my_sub\n"))
+
+    processor.process_declarations(fake_parent,
+                                   walk(fparser2spec.content,
+                                        Fortran2003.Derived_Type_Def),
+                                   [])
+    newtype = fake_parent.symbol_table.lookup("my_type").datatype
+    assert isinstance(newtype.components["supported"].datatype, ScalarType)
+    assert isinstance(newtype.components["supported2"].datatype, ScalarType)
+    assert isinstance(newtype.components["unsupported"].datatype,
+                      UnsupportedFortranType)
+    assert isinstance(newtype.components["unsupported2"].datatype,
+                      UnsupportedFortranType)
+
+
+def test_type_with_outside_reference(f2008_parser):
+    ''' Check that a derived types components with references before and
+    after their declaration can be parsed and have consistent symbosl.
+    '''
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    processor = Fparser2Reader()
+    fparser2spec = f2008_parser(
+        FortranStringReader("subroutine my_sub()\n"
+                            "  type :: before\n"
+                            "  end type\n"
+                            "  TYPE y\n"
+                            "    TYPE(before), POINTER :: a\n"
+                            "    TYPE(after), POINTER :: b\n"
+                            "    TYPE(before) :: c\n"
+                            "    TYPE(after) :: d\n"
+                            "  END TYPE y\n"
+                            "  type :: after\n"
+                            "  end type\n"
+                            "end subroutine my_sub\n"))
+
+    processor.process_declarations(fake_parent,
+                                   walk(fparser2spec.content,
+                                        Fortran2003.Derived_Type_Def),
+                                   [])
+
+    # Check that the 3 types exist
+    before = fake_parent.symbol_table.lookup("before")
+    y = fake_parent.symbol_table.lookup("y")
+    after = fake_parent.symbol_table.lookup("after")
+
+    assert before.is_automatic
+    assert after.is_automatic
+
+    # Check that the symbols are consistent
+    assert y.datatype.components["c"].datatype is before
+    assert y.datatype.components["d"].datatype is after
+
+    # It also works inside modules and it has the appropriate interface
+    fake_parent = Container("mymod")
+    fparser2spec = f2008_parser(
+        FortranStringReader("module mymod\n"
+                            "  TYPE y\n"
+                            "    TYPE(after), POINTER :: b\n"
+                            "    TYPE(after) :: d\n"
+                            "  END TYPE y\n"
+                            "  type :: after\n"
+                            "  end type\n"
+                            "end module\n"))
+    processor.process_declarations(fake_parent,
+                                   walk(fparser2spec.content,
+                                        Fortran2003.Derived_Type_Def),
+                                   [])
+    y = fake_parent.symbol_table.lookup("y")
+    after = fake_parent.symbol_table.lookup("after")
+    assert after.is_modulevar

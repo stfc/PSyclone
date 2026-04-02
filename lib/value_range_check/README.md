@@ -28,6 +28,9 @@ their own directory (to allow for the required data types to be supported).
 The API-specific implementations do not link with the compiled version from
 this directory.
 
+There is also a generic implementation, which can be used with any existing
+Fortran code.
+
 ## [``dl_esm_inf``](./dl_esm_inf) directory
 
 Contains the ``ValueRangeCheck``, PSyData-API-based, wrapper library for the
@@ -40,6 +43,11 @@ Contains the ``ValueRangeCheck``, PSyData-API-based, wrapper library for the
 [LFRic API](
 https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html).
 
+
+## [``generic``](./generic) directory
+Contains the generic implementation, supporting 1- to 5-dimensional arrays,
+and 4 and 8 byte integer and real values.
+
 <!--
 ## Licence
 
@@ -47,7 +55,7 @@ https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html).
 
 BSD 3-Clause License
 
-Copyright (c) 2024-2025, Science and Technology Facilities Council.
+Copyright (c) 2024-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -161,7 +161,7 @@ def test_gis_str():
     ash = RoutineSymbol("ash")
     holly = RoutineSymbol("holly")
     coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False)])
-    assert str(coppice) == ("coppice: GenericInterfaceSymbol<NoType, "
+    assert str(coppice) == ("coppice: GenericInterfaceSymbol<UnresolvedType, "
                             "routines=['ash', 'holly']>")
 
 

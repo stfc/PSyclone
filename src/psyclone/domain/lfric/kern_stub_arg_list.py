@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,16 +32,18 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner and A. Pirrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements a class that creates the argument list
 for a kernel subroutine.
 '''
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from psyclone.core import VariablesAccessMap
+if TYPE_CHECKING:
+    from psyclone.lfric import LFRicKernelArgument
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
@@ -132,6 +134,34 @@ class KernStubArgList(ArgOrdering):
         gamma_p = arg.name + "_gamma_p"
         _local_args += [bandwidth, alpha, beta, gamma_m, gamma_p]
         self.extend(_local_args, var_accesses)
+
+    def scalar(self,
+               scalar_arg: 'LFRicKernelArgument',
+               var_accesses: Optional[VariablesAccessMap] = None):
+        '''Add the name associated with the scalar argument to the argument
+        list and optionally add this scalar to the variable access
+        information.
+
+        :param scalar_arg: the kernel argument.
+        :param var_accesses: optional VariablesAccessMap instance that
+            stores information about variable accesses.
+
+        :raises InternalError: if the argument is not a recognised scalar type.
+
+        '''
+        const = LFRicConstants()
+        if not (scalar_arg.is_scalar or scalar_arg.is_scalar_array):
+            raise InternalError(
+                f"Expected argument type to be one of "
+                f"{const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES}"
+                f" but got '{scalar_arg.argument_type}'")
+
+        if scalar_arg.is_scalar:
+            self.append(scalar_arg.name, var_accesses)
+        else:
+            # ScalarArray
+            self.append("dims_" + scalar_arg.name, var_accesses)
+            self.append(scalar_arg.name, var_accesses)
 
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the

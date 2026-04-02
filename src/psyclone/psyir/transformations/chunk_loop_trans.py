@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,8 +47,10 @@ from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
         TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ChunkLoopTrans(LoopTrans):
     '''
     Apply a chunking transformation to a loop (in order to permit a
@@ -88,16 +90,13 @@ class ChunkLoopTrans(LoopTrans):
     def __str__(self):
         return "Split a loop into a chunked loop pair"
 
-    def validate(self, node, options=None):
+    def validate(self, node: Loop, options=None, **kwargs):
         '''
         Validates that the given Loop node can have a ChunkLoopTrans applied.
 
         :param node: the loop to validate.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformation.
         :type options: Optional[Dict[str, Any]]
-        :param int options["chunksize"]: The size to chunk over for this \
-                transformation. If not specified, the value 32 is used.
 
         :raises TransformationError: if the supplied Loop has a step size \
                 which is not a constant value.
@@ -117,31 +116,27 @@ class ChunkLoopTrans(LoopTrans):
         :raises TransformationError: if the provided tilesize is not a \
             positive integer.
         '''
-        if options is None:
-            options = {}
-        super().validate(node, options=options)
 
-        # Validate options map
-        # TODO #613: Hardcoding the valid_options does not allow for
-        # subclassing this transformation and adding new options, this
-        # should be fixed.
-        valid_options = ['chunksize']
-        for key, value in options.items():
-            if key in valid_options:
-                if key == "chunksize" and not isinstance(value, int):
-                    raise TransformationError(
-                        f"The ChunkLoopTrans chunksize option must be a "
-                        f"positive integer but found a "
-                        f"'{type(value).__name__}'.")
-                if key == "chunksize" and value <= 0:
-                    raise TransformationError(
-                        f"The ChunkLoopTrans chunksize option must be a "
-                        f"positive integer but found '{value}'.")
-            else:
+        super().validate(node, options=options, **kwargs)
+
+        if options:
+            # TODO #2668: Deprecate options dict.
+            chunk_size = options.get("chunksize", 32)
+            # This check was present with the old options dict, but
+            # is done automatically by the new validate_options.
+            if not isinstance(chunk_size, int):
                 raise TransformationError(
-                    f"The ChunkLoopTrans does not support the "
-                    f"transformation option '{key}', the supported options "
-                    f"are: {valid_options}.")
+                    f"The ChunkLoopTrans chunksize option must be a "
+                    f"positive integer but found a "
+                    f"'{type(chunk_size).__name__}'.")
+        else:
+            self.validate_options(**kwargs)
+            chunk_size = self.get_option("chunksize", **kwargs)
+
+        if chunk_size <= 0:
+            raise TransformationError(
+                f"The ChunkLoopTrans chunksize option must be a "
+                f"positive integer but found '{chunk_size}'.")
 
         if not isinstance(node.step_expr, nodes.Literal):
             # If step is a variable we don't support it.
@@ -149,13 +144,12 @@ class ChunkLoopTrans(LoopTrans):
                 f"Cannot apply a ChunkLoopTrans to a loop with a non-literal "
                 f"step size, but a step expression node of type "
                 f"'{type(node).__name__}' was found.")
-        if node.step_expr.datatype.intrinsic is not \
-           ScalarType.Intrinsic.INTEGER:
+        if (node.step_expr.datatype.intrinsic is not
+                ScalarType.Intrinsic.INTEGER):
             raise TransformationError(
                 f"Cannot apply a ChunkLoopTrans to a loop with a non-integer "
                 f"step size, but a step expression of type "
                 f"'{node.step_expr.datatype.intrinsic.name}' was found.")
-        chunk_size = options.get("chunksize", 32)
         if abs(int(node.step_expr.value)) > abs(chunk_size):
             raise TransformationError(
                 f"Cannot apply a ChunkLoopTrans to a loop with larger step "
@@ -204,25 +198,23 @@ class ChunkLoopTrans(LoopTrans):
                     f"the boundary variable '{access2.signature.var_name}' "
                     f"is written to inside the loop body.")
 
-    def apply(self, node, options=None):
+    def apply(self, node: Loop, options=None, chunksize: int = 32, **kwargs):
         '''
         Converts the given Loop node into a nested loop where the outer
         loop is over chunks and the inner loop is over each individual element
         of the chunk.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param int options["chunksize"]: The size to chunk over for this \
+        :param chunksize: The size to chunk over for this
                 transformation. If not specified, the value 32 is used.
 
         '''
 
-        self.validate(node, options)
-        if options is None:
-            options = {}
-        chunk_size = options.get("chunksize", 32)
+        self.validate(node, options, chunksize=chunksize, **kwargs)
+        if options:
+            chunksize = options.get("chunksize", 32)
         # Create (or find) the symbols we need for the chunking transformation
         routine = node.ancestor(nodes.Routine)
         outer_loop_variable = routine.symbol_table.find_or_create_tag(
@@ -238,33 +230,33 @@ class ChunkLoopTrans(LoopTrans):
         stop = node.stop_expr
 
         # For positive steps we do:
-        #     el_inner = min(out_var+chunk_size-1, el_outer)
+        #     el_inner = min(out_var+chunksize-1, el_outer)
         if int(node.step_expr.value) > 0:
             add = BinaryOperation.create(
                     BinaryOperation.Operator.ADD,
                     Reference(outer_loop_variable),
                     BinaryOperation.create(
                         BinaryOperation.Operator.SUB,
-                        Literal(f"{chunk_size}", node.variable.datatype),
+                        Literal(f"{chunksize}", node.variable.datatype),
                         Literal("1", node.variable.datatype)))
             minop = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
                                          [add, stop.copy()])
             inner_loop_end = minop
         # For negative steps we do:
-        #     el_inner = max(out_var-chunk_size+1, el_outer)
+        #     el_inner = max(out_var-chunksize+1, el_outer)
         elif int(node.step_expr.value) < 0:
             sub = BinaryOperation.create(
                     BinaryOperation.Operator.SUB,
                     Reference(outer_loop_variable),
                     BinaryOperation.create(
                         BinaryOperation.Operator.ADD,
-                        Literal(f"{chunk_size}", node.variable.datatype),
+                        Literal(f"{chunksize}", node.variable.datatype),
                         Literal("1", node.variable.datatype)))
             maxop = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
                                          [sub, stop.copy()])
             inner_loop_end = maxop
-            # chunk_size needs to be negative if we're reducing
-            chunk_size = -chunk_size
+            # chunksize needs to be negative if we're reducing
+            chunksize = -chunksize
         # step size of 0 is caught by the validate call
 
         # Replace the inner loop start and end with the chunking ones
@@ -274,7 +266,7 @@ class ChunkLoopTrans(LoopTrans):
         # Create the outerloop as a bare Loop construct
         outerloop = Loop(variable=outer_loop_variable)
         outerloop.children = [start, stop,
-                              Literal(f"{chunk_size}",
+                              Literal(f"{chunksize}",
                                       outer_loop_variable.datatype),
                               Schedule(parent=outerloop,
                                        children=[])]

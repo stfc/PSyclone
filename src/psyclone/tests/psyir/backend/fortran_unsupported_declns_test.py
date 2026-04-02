@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 '''Performs pytest tests on the support for declarations of UnsupportedType in
    the psyclone.psyir.backend.fortran module.'''
 
-import os
 import pytest
 
 from psyclone.errors import InternalError
@@ -74,7 +73,7 @@ def test_fw_unsupported_decln(fortran_writer):
     assert "integer, value :: b" in fortran_writer.gen_vardecl(sym)
 
 
-def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
+def test_fw_unsupported_interface_decln(tmp_path, fortran_writer):
     ''' Check that the backend recreates an interface declaration stored as
     an unsupported type and adds an appropriate access statement. '''
     container = Container("my_mod")
@@ -105,20 +104,20 @@ def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
     # Routines add their own symbols into the Container's symbol table
     container.addchild(Routine.create("eos1d", eos1d_table, []))
     container.addchild(Routine.create("eos2d", SymbolTable(), []))
-    assert Compile(tmpdir).string_compiles(fortran_writer(container))
+    assert Compile(tmp_path).string_compiles(fortran_writer(container))
 
 
 def test_fw_unsupportedtype_routine_symbols_error(fortran_writer):
     ''' Check that the backend raises the expected error if a RoutineSymbol
     which is not imported or a Fortran interface (currently an
-    UnsupportedFortanType) is found by the gen_decls. This symbols are
+    UnsupportedFortranType) is found by the gen_decls. This symbols are
     implicitly declared by the routine definition.
 
     '''
     class OtherType(UnsupportedType):
         ''' UnsupportedType is abstract so sub-class it for this test '''
         def __str__(self):
-            return "OtherType"
+            ...
 
     container = Container("my_mod")
     container.symbol_table.add(RoutineSymbol("eos", OtherType("some code")))
@@ -151,7 +150,8 @@ def test_fw_add_accessibility_errors():
     raises the expected errors. '''
     with pytest.raises(TypeError) as err:
         add_accessibility_to_unsupported_declaration("hello")
-    assert str(err.value) == "Expected a Symbol but got 'str'"
+    assert str(err.value) == (
+        "Expected a Symbol or DerivedType component but got 'str'")
     with pytest.raises(TypeError) as err:
         add_accessibility_to_unsupported_declaration(
             DataSymbol("var", INTEGER_TYPE))
@@ -241,14 +241,14 @@ def test_fw_preceding_and_inline_comment(fortran_writer):
 
 
 def test_generating_unsupportedtype_routine_imports(
-        fortran_reader, tmpdir, monkeypatch, fortran_writer):
+        fortran_reader, tmp_path, monkeypatch, fortran_writer):
     ''' Tests that generating UnsupportedType imported RoutineSymbols (if their
     UnresolvedType is resolved) are not misinterpreted as interfaces.'''
 
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
 
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
           module a_mod
@@ -302,3 +302,28 @@ def test_fw_save_common(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     assert "SAVE :: /my_common/\n" in output
     assert "integer, save, public :: var3\n" in output
+
+
+def test_fw_unsupported_type_components_with_visibility(
+            fortran_reader, fortran_writer):
+    ''' Check that the writer can handler type declarations with unsupported
+    components, and these have the visibility attribute modified when needed.
+    '''
+
+    code = '''\
+module mymod
+  type :: test
+     real :: supported
+     real, public :: supported_public
+     real, pointer :: unsupported
+     real, public, pointer :: unsupported_public
+     private
+  end type test
+end module mymod\n'''
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    # Check that the private attribute has been added to supported and
+    # unsupported, component types (because the backend does not use
+    # global visibility statements)
+    assert "real, private :: supported" in output
+    assert "real, pointer, private :: unsupported" in output

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -829,7 +829,7 @@ def test_acc_atomics_validate_global_constraints(fortran_reader, monkeypatch):
             "statement, but found " in str(err.value))
 
 
-def test_acc_atomics_srtings():
+def test_acc_atomics_strings():
     ''' Test the ACCAtomicDirective begin and end strings '''
     atomic = ACCAtomicDirective()
     assert atomic.begin_string() == "acc atomic"

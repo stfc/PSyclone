@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2025, Science and Technology Facilities Council
+.. Copyright (c) 2017-2026, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -253,6 +253,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.DataNodeToTempTrans
+      :members: apply
+      :no-index:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.DebugChecksumTrans
       :members: apply
       :no-index:
@@ -370,7 +376,7 @@ can be found in the API-specific sections).
 
 .. _sec_move_trans:
 
-.. autoclass:: psyclone.transformations.MoveTrans
+.. autoclass:: psyclone.psyir.transformations.MoveTrans
     :members: apply
     :no-index:
 
@@ -379,6 +385,12 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.domain.gocean.transformations.GOOpenCLTrans
       :members: apply
       :no-index:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.OMPCriticalTrans
+    :members: apply
+    :no-index:
 
 ####
 
@@ -417,7 +429,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPParallelTrans
+.. autoclass:: psyclone.psyir.transformations.OMPParallelTrans
     :inherited-members:
     :exclude-members: name
     :no-index:
@@ -688,8 +700,9 @@ transformations currently supported allow the addition of:
 * an **OpenMP Single** directive
 * an **OpenMP Master** directive
 * an **OpenMP Taskloop** directive
-* multiple **OpenMP Taskwait** directives; and
-* an **OpenMP Parallel Do** directive.
+* multiple **OpenMP Taskwait** directives
+* an **OpenMP Parallel Do** directive; and
+* an **OpenMP Critical** directive.
 
 The generic versions of these transformations (i.e. ones that
 theoretically work for all APIs) were given in the
@@ -710,11 +723,11 @@ PSyclone supports parallel scalar reductions.  If a scalar reduction is
 specified in the Kernel metadata (see the API-specific sections for
 details) then PSyclone ensures the appropriate reduction is performed.
 
-In the case of distributed memory, PSyclone will add **GlobalSum's**
-at the appropriate locations. As can be inferred by the name, only
-"summation" reductions are currently supported for distributed memory.
+In the case of distributed memory, PSyclone will add **GlobalReduction**
+nodes at the appropriate locations. These can be one of summation, mimimum value
+or maximum value.
 
-In the case of an OpenMP parallel loop the standard reduction support
+In the case of an OpenMP parallel loop, the standard reduction support
 will be used by default. For example
 ::
 

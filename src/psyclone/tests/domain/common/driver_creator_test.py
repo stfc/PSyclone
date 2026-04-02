@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,8 @@
 
 ''' This module tests the driver creation for extracted kernels.'''
 
+import re
+
 import pytest
 
 from psyclone.domain.common import DriverCreator
@@ -49,6 +51,21 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, RoutineSymbol
 from psyclone.tests.utilities import Compile, get_invoke
 
 
+# ----------------------------------------------------------------------------
+def test_lfric_driver_valid_unit_name():
+    '''Tests that we create valid unit names, i.e. less than 64 characters,
+    and no ":" in name.'''
+
+    long_name = "A"*100
+    new_name = DriverCreator._make_valid_unit_name(long_name)
+    assert new_name == "A"*63
+
+    special_characters = "aaa-bbb"
+    new_name = DriverCreator._make_valid_unit_name(special_characters)
+    assert new_name == "aaabbb"
+
+
+# ----------------------------------------------------------------------------
 def test_basic_driver_add_call(fortran_writer):
     '''Tests that adding a call detects errors and adds calls
     with and without parameters as expected.
@@ -113,6 +130,7 @@ def test_lfric_driver_simple_test():
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
+    driver = driver.lower()
     for line in [
         "if (ALLOCATED(psydata_filename)) then",
         "call extract_psy_data%OpenReadFileName(psydata_filename)",
@@ -137,9 +155,14 @@ def test_lfric_driver_simple_test():
         "call extract_psy_data%ReadVariable('undf_w3', undf_w3)",
         "call extract_psy_data%ReadVariable('x_ptr_vector_data', "
         "x_ptr_vector_data)",
-        "call extract_psy_data%ReadVariable('cell_post', cell_post)"
     ]:
-        assert line.lower() in driver.lower(), line
+        assert line.lower() in driver, line
+
+    # Loop variables should be removed. Test that the loop variable
+    # is indeed called `cell`:
+    assert re.search("do *cell *=", driver) is not None
+    # Then make sure that the output variable is not stored:
+    assert re.search("readvariable.*cell_post", driver) is None
 
     # A read-write/inc variable should not be allocated (since it will
     # be allocated as part of reading in its value):

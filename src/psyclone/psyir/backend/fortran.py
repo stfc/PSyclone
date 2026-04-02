@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@
 from a PSyIR tree. '''
 
 # pylint: disable=too-many-lines
+from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -133,7 +134,7 @@ def precedence(fortran_operator):
     raise KeyError()
 
 
-def add_accessibility_to_unsupported_declaration(symbol):
+def add_accessibility_to_unsupported_declaration(symbol: Symbol) -> str:
     '''
     Utility that manipulates the UnsupportedFortranType declaration for the
     supplied Symbol so as to ensure that it has the correct accessibility
@@ -142,25 +143,25 @@ def add_accessibility_to_unsupported_declaration(symbol):
     as is and this may or may not include accessibility information.)
 
     :param symbol: the symbol for which the declaration is required.
-    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
-    :returns: Fortran declaration of the supplied symbol with accessibility \
+    :returns: Fortran declaration of the supplied symbol with accessibility
         information included (public/private).
     :rtype: str
 
-    :raises TypeError: if the supplied argument is not a Symbol of \
-        UnsupportedFortranType.
-    :raises InternalError: if the declaration associated with the Symbol is \
+    :raises TypeError: if the supplied argument is not a Symbol or DerivedType
+        component of UnsupportedFortranType.
+    :raises InternalError: if the declaration associated with the Symbol is
         empty.
-    :raises NotImplementedError: if the original declaration does not use \
+    :raises NotImplementedError: if the original declaration does not use
         '::' to separate the entity name from its type.
-    :raises InternalError: if the declaration stored for the supplied symbol \
-        contains accessibility information which does not match the \
+    :raises InternalError: if the declaration stored for the supplied symbol
+        contains accessibility information which does not match the
         visibility of the supplied symbol.
 
     '''
-    if not isinstance(symbol, Symbol):
-        raise TypeError(f"Expected a Symbol but got '{type(symbol).__name__}'")
+    if not isinstance(symbol, (Symbol, StructureType.ComponentType)):
+        raise TypeError(f"Expected a Symbol or DerivedType component but got "
+                        f"'{type(symbol).__name__}'")
 
     if not isinstance(symbol.datatype, UnsupportedFortranType):
         raise TypeError(f"Expected a Symbol of UnsupportedFortranType but "
@@ -214,6 +215,8 @@ class FortranWriter(LanguageWriter):
 
     '''
     _COMMENT_PREFIX = "! "
+    #: The maximum length of a 'name' in Fortran 2008 is 63 characters.
+    MAX_VARIABLE_NAME_LENGTH = 63
 
     def __init__(self, **kwargs):
         # Construct the base class using () as array parenthesis, and
@@ -911,18 +914,20 @@ class FortranWriter(LanguageWriter):
                     f"{[sym.name for sym in local_constants]}")
         return declarations
 
-    def gen_decls(self, symbol_table, is_module_scope=False):
+    def gen_decls(self,
+                  symbol_table: SymbolTable,
+                  is_module_scope: bool = False) -> str:
         '''Create and return the Fortran declarations for the supplied
         SymbolTable.
 
         :param symbol_table: the SymbolTable instance.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool is_module_scope: whether or not the declarations are in
+        :param is_module_scope: whether or not the declarations are in
             a module scoping unit. Default is False.
 
         :returns: the Fortran declarations for the table.
-        :rtype: str
 
+        :raises VisitorError: if a symbol is found that has a name longer than
+            the permitted maximum.
         :raises VisitorError: if one of the symbols is a RoutineSymbol which
             does not have an ImportInterface or UnresolvedInterface (
             representing named and unqualified imports respectively) or
@@ -988,6 +993,15 @@ class FortranWriter(LanguageWriter):
                 f"imported from a module and there are no wildcard "
                 f"imports which could be bringing them into scope: "
                 f"{symbols_txt}")
+
+        # Check that the names of all symbols are less than the limit
+        # imposed by the Fortran standard.
+        for sym in all_symbols:
+            if len(sym.name) > self.MAX_VARIABLE_NAME_LENGTH:
+                raise VisitorError(
+                    f"Found a symbol '{sym.name}' with a name greater than "
+                    f"{self.MAX_VARIABLE_NAME_LENGTH} characters in length. "
+                    "This is not standards-compliant Fortran.")
 
         # As a convention, we will declare the variables in the following
         # order:
@@ -1679,7 +1693,7 @@ class FortranWriter(LanguageWriter):
         in the PSyIR tree. It returns the directive as a string.
 
         :param node: a StandaloneDirective PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.StandloneDirective`
+        :type node: :py:class:`psyclone.psyir.nodes.StandaloneDirective`
 
         :returns: the Fortran code for this node.
         :rtype: str
@@ -1739,7 +1753,67 @@ class FortranWriter(LanguageWriter):
                 result_list.append(self._visit(child))
         return ", ".join(result_list)
 
-    def call_node(self, node) -> str:
+    def intrinsiccall_node(self, node: IntrinsicCall) -> str:
+        '''Translate the PSyIR IntrinsicCall node to Fortran.
+
+        :param node: an IntrinsicCall PSyIR node.
+
+        :returns: the equivalent Fortran code.
+
+        '''
+        # Check the config to determine if we're outputting all argument
+        # names.
+        if not Config.get().backend_intrinsic_named_kwargs:
+            # Config says to avoid outputting argument names where
+            # possible.
+            try:
+                # Argument name computation handles any error checking we
+                # might otherwise want to try. Most IntrinsicCalls should
+                # already have argument names added, but we do it here to
+                # ensure that argument name computation is possible.
+                node.compute_argument_names()
+                intrinsic_interface = node._find_matching_interface()
+                args = []
+                correct_names = True
+                for idx, arg_name in enumerate(node.argument_names):
+                    if idx < len(intrinsic_interface) and correct_names:
+                        # This is a potential required argument.
+                        if arg_name == intrinsic_interface[idx]:
+                            args.append(self._visit(node.arguments[idx]))
+                            continue
+                        # Otherwise it didn't match, so we can't remove any
+                        # more argument names, and fall back to the default
+                        # behaviour from here.
+                        correct_names = False
+                    # Otherwise, use the default behaviour.
+                    if node.argument_names[idx]:
+                        args.append(
+                             f"{node.argument_names[idx]}="
+                             f"{self._visit(node.arguments[idx])}"
+                        )
+                    else:
+                        args.append(f"{self._visit(node.arguments[idx])}")
+                args = ", ".join(args)
+            except NotImplementedError:
+                # If the Intrinsic fails to have argument names added, or to
+                # match to an interface, then use the default behaviour.
+                args = self._gen_arguments(node)
+        else:
+            args = self._gen_arguments(node)
+
+        if node.routine.name not in [
+                "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS", "RANDOM_NUMBER",
+                "RANDOM_SEED"]:
+            # Most intrinsics are functions and so don't have 'call'.
+            if not node.parent or isinstance(node.parent, Schedule):
+                return f"{self._nindent}{node.routine.name}({args})\n"
+            return f"{node.routine.name}({args})"
+
+        # Otherwise we have one of the intrinsics that requires "Call X"
+        # syntax.
+        return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
+
+    def call_node(self, node: Call) -> str:
         '''Translate the PSyIR call node to Fortran.
 
         :param node: a Call PSyIR node.
@@ -1749,13 +1823,6 @@ class FortranWriter(LanguageWriter):
 
         '''
         args = self._gen_arguments(node)
-        if isinstance(node, IntrinsicCall) and node.routine.name not in [
-                "DATE_AND_TIME", "SYSTEM_CLOCK", "MVBITS", "RANDOM_NUMBER",
-                "RANDOM_SEED"]:
-            # Most intrinsics are functions and so don't have 'call'.
-            if not node.parent or isinstance(node.parent, Schedule):
-                return f"{self._nindent}{node.routine.name}({args})\n"
-            return f"{node.routine.name}({args})"
 
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {self._visit(node.routine)}({args})\n"

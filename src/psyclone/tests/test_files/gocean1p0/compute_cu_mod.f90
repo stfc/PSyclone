@@ -5,7 +5,7 @@ module compute_cu_mod
   use argument_mod
   use field_mod
   use grid_mod
-  use kind_params_mod
+  use kind_params_mod, only: go_wp
   use kernel_mod
   implicit none
 
@@ -43,7 +43,7 @@ contains
   !! compute_cu_code().
   subroutine invoke_compute_cu(cufld, pfld, ufld)
     implicit none
-    type(r2d_field), intent(inout) :: cufld
+    type(r2d_field), intent(out)   :: cufld
     type(r2d_field), intent(in)    :: pfld, ufld
     ! Locals
     integer :: I, J

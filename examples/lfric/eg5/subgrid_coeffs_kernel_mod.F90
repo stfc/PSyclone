@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2026,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2025, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2026, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -108,7 +108,7 @@ public subgrid_coeffs_code
 
 contains
 
-!> @brief Compute the subgrid reconstruction coeffiecients for a density field
+!> @brief Compute the subgrid reconstruction coefficients for a density field
 !! @param[in] nlayers Number of layers
 !! @param[out] a0 Coefficient a0
 !! @param[out] a1 Coefficient a1

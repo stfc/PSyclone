@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ def test_parallel_single_loop(fortran_reader, fortran_writer, tmpdir):
 def test_parallel_single_loop_with_no_default_present_clause(
         fortran_reader, fortran_writer, tmpdir):
     ''' Check that we can apply the transformation to a single, explicit
-    loop, wihtout the default present clause '''
+    loop, without the default present clause '''
     psyir = fortran_reader.psyir_from_source(SINGLE_LOOP)
     schedule = psyir.children[0]
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')

@@ -1,11 +1,11 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2026,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020-2025, Science and Technology Facilities Council.
+! Modifications copyright (c) 2020-2026, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ contains
 !! to a field
 !> @details An array of size 3 for the type field is passed in to be populated.
 !! The field proxy is used to break encapsulation and access the function space
-!! and the data atributes of the field so that its values can be assigned.
+!! and the data attributes of the field so that its values can be assigned.
 !! calls two subroutines, get_cell_coords from the mesh generator and then
 !! assign_coordinate on a column by column basis
 !! @param[in]  mesh Mesh on which this field is attached

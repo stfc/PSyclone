@@ -122,7 +122,7 @@ https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html)
 uses the LFRic infrastructure (see the linked documentation on how to
 access and use the LFRic code). The locations of the respective
 infrastructure libraries can be configured with the variables
-``GOCEAN_INF_DIR`` and ``LFRIC_INF_DIR``, respectively (as said above,
+``GOCEAN_INF_DIR`` and ``LFRIC_PATH``, respectively (as said above,
 to remove the compiled infrastructure libraries it is necessary to
 run ``make allclean``). In addition, these wrapper libraries use
 specific Jinja templates whose default location is set to the relative
@@ -144,7 +144,7 @@ configure paths to where these libraries are located in a user environment.
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2025, Science and Technology Facilities Council.
+Copyright (c) 2020-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council
+# Copyright (c) 2022-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import ScalarArrayArgMetadata
 
 
@@ -98,9 +99,10 @@ def test_check_access():
     ScalarArrayArgMetadata.check_access("GH_READ")
     with pytest.raises(ValueError) as info:
         ScalarArrayArgMetadata.check_access("invalid")
-    assert ("The 'access descriptor' metadata should be a recognised value "
-            "(one of ['gh_read', 'gh_sum']) but found 'invalid'."
-            in str(info.value))
+    const = LFRicConstants()
+    assert (f"The 'access descriptor' metadata should be a recognised value "
+            f"(one of {const.VALID_SCALAR_ACCESS_TYPES}) but found "
+            f"'invalid'." in str(info.value))
 
 
 def test_get_array_ndims():

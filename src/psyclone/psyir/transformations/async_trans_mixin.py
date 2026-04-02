@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -184,7 +184,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                     closest = access
                     closest_position = abs_position
                     continue
-        # If this directive is contained inside a loop the closest foward
+        # If this directive is contained inside a loop the closest forward
         # dependency might be itself. So if closest is not within the ancestor
         # loop of node then we can't do nowait, so return False.
         node_ancestor = directive.ancestor((Loop, WhileLoop))

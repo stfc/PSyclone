@@ -3,7 +3,7 @@
 This library is a simple stand-alone timer library (see the [User Guide Profiling](
 https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling) section
 for more details). It counts the number of calls for each region, and reports
-minumum, maximum and average times. This library is **not thread-safe**, and
+minimum, maximum and average times. This library is **not thread-safe**, and
 **not MPI-aware** (e.g. maximum reported is per process, not across all
 processes).
 
@@ -83,7 +83,7 @@ psy_time_step_mod::swlat_update_code                      11      1.87500000    
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2025, Science and Technology Facilities Council.
+Copyright (c) 2019-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

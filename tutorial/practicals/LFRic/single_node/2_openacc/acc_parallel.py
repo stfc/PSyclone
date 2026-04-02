@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council
+# Copyright (c) 2020-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ from psyclone.domain.lfric.function_space import FunctionSpace
 def trans(psyir):
     '''PSyclone transformation script for the LFRic api to apply
     OpenACC Kernels directives to all loops generically. It also
-    outputs a textual representation of the transformated PSyIR.
+    outputs a textual representation of the transformed PSyIR.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

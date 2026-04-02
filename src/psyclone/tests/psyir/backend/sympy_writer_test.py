@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,9 +47,11 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Assignment, Literal, Node
+from psyclone.psyir.nodes import (
+        Assignment, Literal, Node, IntrinsicCall, Reference, Call
+)
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
-                                    INTEGER_TYPE)
+                                    INTEGER_TYPE, SymbolTable)
 
 
 def test_sym_writer_constructor():
@@ -330,6 +332,33 @@ def test_sympy_writer_type_map(expr, sym_map, fortran_reader):
     assert writer._sympy_type_map.keys() == sym_map.keys()
 
 
+def test_sympy_writer_type_map_non_canonical(fortran_reader):
+    ''' Test we get an error when the intrinsic can't have argument names
+    computed.'''
+    source = """program test_prog
+    use my_mod
+    integer :: i, j, k
+    end program test_prog"""
+    psyir = fortran_reader.psyir_from_source(source)
+    # Create an ambiguous intrinsic.
+    routine = psyir.children[0]
+    ref_i = Reference(routine.symbol_table.lookup("i"))
+    ref_j = Reference(routine.symbol_table.lookup("j"))
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
+    intrinsic.addchild(ref_i)
+    intrinsic.addchild(ref_j)
+    assign = Assignment.create(ref_i.copy(), intrinsic)
+    routine.addchild(assign)
+
+    writer = SymPyWriter()
+    with pytest.raises(VisitorError) as err:
+        _ = writer.intrinsiccall_node(assign.rhs)
+    assert ("Sympy handler can't handle an IntrinsicCall that can't have "
+            "argument names automatically added. Use explicit argument names "
+            "instead. Failing node was 'SUM(i, j)'."
+            in str(err.value))
+
+
 def test_sym_writer_parse_expr(fortran_reader):
     '''Tests that convenience function `parse_expr` works as expected.
 
@@ -589,17 +618,18 @@ def test_sym_writer_reserved_names(fortran_reader, expression):
     assert str(sympy_exp) == expression
 
 
-@pytest.mark.parametrize("expressions", [("a+b", "2*b"),
-                                         ("a-b", "0"),
-                                         ("a-a", "0"),
-                                         ("b-b", "0"),
-                                         ("b", "b"),
-                                         # We can't just use 'a', since then
-                                         # there would be no variable 'b'
-                                         # defined. So add 0*b:
-                                         ("a-0*b", "b"),
-                                         ("a+b+c", "2*b + c"),
-                                         ])
+@pytest.mark.parametrize("expressions",
+                         [("a+b", "2*b"),
+                          ("a-b", "0"),
+                          ("a-a", "0"),
+                          ("b-b", "0"),
+                          ("b", "b"),
+                          # We can't just use 'a', since then there would be no
+                          # variable 'b' defined. So add 0.0*b (has to be 0.0
+                          # as frontend optimises-out 0*):
+                          ("a-0.0*b", "b"),
+                          ("a+b+c", "2*b + c"),
+                          ])
 def test_sym_writer_identical_variables(fortran_reader, expressions):
     '''Test that we can indicate that certain variables are identical,
     in which case the sympy expression will replace one variable with
@@ -642,3 +672,30 @@ def test_sym_writer_identical_variables_errors():
         sympy_writer(Node(), identical_variables={"var": 1})
     assert ("Dictionary identical_variables contains a non-string key or "
             "value" in str(err.value))
+
+
+def test_sym_writer_intrinsiccall_node(fortran_reader):
+    '''Handle edge cases for intrinsiccall node, i.e. when we have an
+    IntrinsicCall input that requires an explicit 'call' (e.g. MVBITS).
+    '''
+    code = """subroutine test
+        integer :: b
+        call randomcall(b, b, b, b, b)
+    end subroutine test"""
+    # Can't create MVBITS intrinsic directly yet - create
+    # a call then replace it.
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    args = []
+    for arg in call.arguments[:]:
+        args.append(arg.detach())
+    intrinsic = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MVBITS,
+        args
+    )
+    call.replace_with(intrinsic)
+    sympy_writer = SymPyWriter()
+    # Add an arbitrary symbol table to avoid things breaking.
+    sympy_writer._symbol_table = SymbolTable()
+    res = sympy_writer.intrinsiccall_node(psyir.walk(IntrinsicCall)[0])
+    assert "call MVBITS(b, b, b, b, b)\n" == res

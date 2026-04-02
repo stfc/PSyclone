@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic and L, Turner, Met Office
+# Modified: I. Kavcic, L, Turner and A. Pirrie, Met Office
 #           A. R. Porter, STFC Daresbury Laboratory
 #           R. W. Ford, STFC Daresbury Laboratory
 
@@ -43,6 +43,7 @@ This module provides a class with all LFRic related constants.
 from collections import OrderedDict
 
 from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 
 
@@ -114,8 +115,8 @@ class LFRicConstants():
         # pylint: disable=too-many-instance-attributes
 
         # Supported access types
-        # gh_sum for scalars is restricted to iterates_over == 'dof'
-        LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read", "gh_sum"]
+        # Reduction for scalars is restricted to iterates_over == 'dof'
+        LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read", "gh_reduction"]
         LFRicConstants.VALID_ARRAY_ACCESS_TYPES = ["gh_read"]
         LFRicConstants.VALID_FIELD_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
@@ -124,8 +125,20 @@ class LFRicConstants():
         LFRicConstants.VALID_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
 
+        # Mapping from metadata access patterns to internal access type.
+        LFRicConstants.ACCESS_MAPPING = {"gh_read": AccessType.READ,
+                                         "gh_write": AccessType.WRITE,
+                                         "gh_readwrite": AccessType.READWRITE,
+                                         "gh_inc": AccessType.INC,
+                                         "gh_readinc": AccessType.READINC,
+                                         "gh_reduction": AccessType.REDUCTION}
+
+        LFRicConstants.REVERSE_ACCESS_MAPPING = {}
+        for key, value in LFRicConstants.ACCESS_MAPPING.items():
+            LFRicConstants.REVERSE_ACCESS_MAPPING[value] = key
+
         LFRicConstants.WRITE_ACCESSES = [
-            "gh_write", "gh_readwrite", "gh_inc", "gh_readinc", "gh_sum"]
+            "gh_write", "gh_readwrite", "gh_inc", "gh_readinc", "gh_reduction"]
 
         # Supported LFRic API stencil types and directions
         LFRicConstants.VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross",
@@ -376,13 +389,13 @@ class LFRicConstants():
         # Data structure type mandates its proxy name, Fortran intrinsic type
         # of its data and the kind (precision) for the intrinsic type.
         LFRicConstants.DATA_TYPE_MAP = {
-            # 'real'-valued scalar reduction of kind 'r_def' (used for global
-            # reductions of "field_type" data)
-            "reduction": {"module": "scalar_mod",
-                          "type": "scalar_type",
-                          "proxy_type": None,
-                          "intrinsic": "real",
-                          "kind": "r_def"},
+            # 'real'-valued scalar reduction of default kind 'None' (used for
+            # global reductions of "field_type" data)
+            "scalar": {"module": "scalar_mod",
+                       "type": "scalar_type",
+                       "proxy_type": None,
+                       "intrinsic": "real",
+                       "kind": None},
             # 'real'-valued field with data of kind 'r_def'
             "field": {"module": "field_mod",
                       "type": "field_type",
@@ -560,6 +573,10 @@ class LFRicConstants():
         :raises InternalError: if an unknown data_type is specified.
 
         '''
+        invalid_types = ["scalar_type"]
+        if data_type in invalid_types:
+            raise ValueError(f"Cannot infer the precision of a '{data_type}'.")
+
         for module_info in self.DATA_TYPE_MAP.values():
             if module_info["type"] == data_type:
                 # TODO #2659 - this method should probably just return a name
@@ -568,8 +585,8 @@ class LFRicConstants():
                 from psyclone.domain.lfric.lfric_types import LFRicTypes
                 return LFRicTypes(module_info["kind"].upper())
 
-        valid = [module_info["type"]
-                 for module_info in self.DATA_TYPE_MAP.values()]
+        valid = [module_info["type"] for module_info in
+                 self.DATA_TYPE_MAP.values()]
         raise InternalError(f"Unknown data type '{data_type}', expected one "
                             f"of {valid}.")
 

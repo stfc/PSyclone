@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,8 +55,8 @@ def disable_declaration_check(monkeypatch):
     '''
     monkeypatch.setattr(
         fp2, "_find_or_create_unresolved_symbol",
-        lambda _1, name, _2=None: DataSymbol(name,
-                                             INTEGER_TYPE))
+        lambda _1, name, symbol_type=None, datatype=None: DataSymbol(
+            name, INTEGER_TYPE))
 
 
 @pytest.fixture(name="clear_module_manager", scope="function", autouse=True)

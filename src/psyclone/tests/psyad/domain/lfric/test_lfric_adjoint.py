@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -405,9 +405,9 @@ def test_update_access_metadata_index_error():
             "perhaps it is a PSyKAl-lite kernel?" in str(info.value))
 
 
-def test_update_access_metadata_scalar_sum():
+def test_update_access_metadata_scalar_reduction():
     '''Test that a scalar with intent inout results in metadata with
-    access gh_sum.
+    access gh_reduction.
 
     TODO #2333 - only Builtin kernels are permitted to write to scalars so
     really we need to check with the user or flag it as an error.
@@ -419,7 +419,7 @@ def test_update_access_metadata_scalar_sum():
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
     access = _update_access_metadata("scalar", arguments, metadata)
-    assert access.lower() == "gh_sum"
+    assert access.lower() == "gh_reduction"
     assert metadata.meta_args[3].access.lower() == access.lower()
 
 

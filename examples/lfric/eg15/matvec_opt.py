@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council
+# Copyright (c) 2020-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,7 +78,7 @@ def trans(psyir):
     '''PSyclone transformation script for the LFRic API to optimise
     the matvec kernel for many-core CPUs. For the moment simply find
     the first matvec kernel in the example, transform the matmul
-    intrinsic to equivalant inline code and then print out its PSyIR
+    intrinsic to equivalent inline code and then print out its PSyIR
     representation and output it as Fortran using the PSyIR Fortran
     back-end.
 

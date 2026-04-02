@@ -116,7 +116,7 @@ Profiling information for program='./profile_test.drhook', proc#1:
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2025, Science and Technology Facilities Council.
+Copyright (c) 2019-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,11 +43,9 @@
 
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
-                                   LFRicInvokes)
+from psyclone.domain.lfric import LFRicSymbolTable, LFRicInvokes
 from psyclone.psyGen import PSy
 from psyclone.psyir.nodes import ScopingNode
-from psyclone.psyir.symbols import ContainerSymbol
 
 
 class LFRicPSy(PSy):
@@ -67,14 +65,7 @@ class LFRicPSy(PSy):
         # TODO #1954: Remove the protected access using a factory
         ScopingNode._symbol_table_class = LFRicSymbolTable
         Config.get().api = "lfric"
-        PSy.__init__(self, invoke_info)
-
-        # Add a wildcard "constants_mod" import at the Container level
-        # since kinds are often disconnected.
-        const = LFRicConstants()
-        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        self.container.symbol_table.add(
-            ContainerSymbol(const_mod, wildcard_import=True))
+        super().__init__(invoke_info)
 
         # Then initialise the Invokes
         self._invokes = LFRicInvokes(invoke_info.calls, self)

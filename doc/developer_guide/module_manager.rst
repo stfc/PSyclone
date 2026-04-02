@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2025, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2026, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -122,7 +122,7 @@ which prints the filenames of all modules used in ``tl_testkern_mod``:
 
     mod_manager = ModuleManager.get()
     # Add the path to the PSyclone LFRic example codes:
-    mod_manager.add_search_path("../../src/psyclone/tests/test_files/"
+    mod_manager.add_search_path("../src/psyclone/tests/test_files/"
                                 "lfric")
 
     testkern_info = mod_manager.get_module_info("tl_testkern_mod")
@@ -172,7 +172,7 @@ of `ModuleManager`.
 
 .. testcode ::
 
-    mod_manager = ModuleManager.get(cache_active=True)
+    ModuleManager.get().cache_active = True
 
 
 Most of the time in the PSyIR generation is currently spent in the
@@ -200,8 +200,9 @@ a path can be provided to the module manager.
 
 .. testcode ::
 
-    mod_manager = ModuleManager.get(cache_active=True,
-                     cache_path="/tmp/my_cache_path")
+    mod_manager = ModuleManager.get()
+    mod_manager.cache_active = True
+    mod_manager.cache_path = "/tmp/my_cache_path"
 
 A cache file name will then be created based on the hashsum of each
 source code file. The combination of the provided `cache_path` and

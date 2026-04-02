@@ -81,7 +81,7 @@ class BinaryOperator(ExpressionNode):
 
 
 class Slicing(ExpressionNode):
-    """Expression node for Fortran colon array slicings."""
+    """Expression node for Fortran colon array slices."""
     def __init__(self, toks):
         ExpressionNode.__init__(self, toks)
 

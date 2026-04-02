@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -140,7 +140,7 @@ class DataSymbol(TypedSymbol):
         if new_initial_value is not None:
             self.initial_value = new_initial_value
 
-        # Now that we know whether or not we have an intial_value and an
+        # Now that we know whether or not we have an initial_value and an
         # interface, we can call the is_constant setter.
         if new_is_constant_value is not None:
             self.is_constant = new_is_constant_value

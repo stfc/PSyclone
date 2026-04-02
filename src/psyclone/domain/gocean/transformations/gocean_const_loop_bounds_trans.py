@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ from psyclone.configuration import Config
 
 class GOConstLoopBoundsTrans(Transformation):
     ''' Use of a common constant variable for each loop bound within
-    a GOInvokeSchedule. By deafault, PSyclone generates loops where
+    a GOInvokeSchedule. By default, PSyclone generates loops where
     the bounds are obtained by de-referencing a field object, e.g.:
 
     .. code-block:: fortran

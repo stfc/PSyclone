@@ -18,7 +18,7 @@ The following steps are required for this (using simplified code examples):
                                1, 1,  &    ! # procs in x and y direction
                                0,     &    ! max stencil size
                                0,     &    ! local rank
-                               1)          ! number of proceses
+                               1)          ! number of processes
     ```
 
 3) Create a uniform extrusion:
@@ -64,7 +64,7 @@ The following steps are required for this (using simplified code examples):
 
 A simple makefile is provided to compile the example. It needs the
 infrastructure library ``liblfric.a`` provided in
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
+``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
 If this library is not available, it will be automatically compiled.
 
 The following environment variables can be set to define the compiler

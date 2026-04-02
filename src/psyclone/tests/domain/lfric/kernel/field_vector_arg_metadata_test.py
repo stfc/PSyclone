@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
+# Copyright (c) 2022-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import FieldVectorArgMetadata
 
 
@@ -96,9 +97,10 @@ def test_init_invalid_stencil():
     with pytest.raises(ValueError) as info:
         _ = FieldVectorArgMetadata(
             "GH_REAL", "GH_READ", "W0", "2", stencil="invalid")
-    assert ("The 'stencil' metadata should be a recognised value (one of "
-            "['x1d', 'y1d', 'xory1d', 'cross', 'region', 'cross2d']) but "
-            "found 'invalid'." in str(info.value))
+    const = LFRicConstants()
+    assert (f"The 'stencil' metadata should be a recognised value (one of "
+            f"{const.VALID_STENCIL_TYPES}) but "
+            f"found 'invalid'." in str(info.value))
 
 
 def test_get_metadata():

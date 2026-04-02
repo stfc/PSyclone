@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@ class LFRicAlg:
         '''
         Generates LFRic algorithm PSyIR that calls the supplied kernel through
         an 'invoke'. All of the arguments required by the kernel are
-        constructed and intialised appropriately. Fields and scalars are all
+        constructed and initialised appropriately. Fields and scalars are all
         set to unity.
 
         :param str name: name to use for the algorithm subroutine.
@@ -239,7 +239,7 @@ class LFRicAlg:
 
     def _create_function_spaces(self, prog, fspaces):
         '''
-        Adds PSyIR to the supplied Routine that declares and intialises
+        Adds PSyIR to the supplied Routine that declares and initialises
         the specified function spaces. The order of these spaces is
         set by the element_order_<h,v> variables which are provided by the
         LFRic finite_element_config_mod module.
@@ -372,7 +372,7 @@ class LFRicAlg:
     @staticmethod
     def initialise_quadrature(prog, qr_sym, shape):
         '''
-        Adds the necessary declarations and intialisation for the supplied
+        Adds the necessary declarations and initialisation for the supplied
         quadrature to the supplied routine.
 
         :param prog: the routine to which to add suitable declarations etc.

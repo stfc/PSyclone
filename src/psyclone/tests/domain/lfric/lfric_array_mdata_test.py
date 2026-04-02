@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -220,17 +220,17 @@ def test_ad_array_type_no_readwrite():
 
 def test_ad_array_type_no_sum():
     ''' Tests that an error is raised when the argument descriptor
-    metadata for an array specifies 'GH_SUM' access (reduction). '''
+    metadata for an array specifies 'GH_REDUCTION' access (reduction). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = ARRAY_CODE.replace(
         "arg_type(gh_scalar_array,   gh_real,    gh_read, 1)",
-        "arg_type(gh_scalar_array,   gh_real,    gh_sum,  1)", 1)
+        "arg_type(gh_scalar_array,   gh_real,    gh_reduction,  1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_array_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert ("ScalarArray arguments must have read-only ('gh_read') "
-            "access but found 'gh_sum'" in str(excinfo.value))
+            "access but found 'gh_reduction'" in str(excinfo.value))
 
 
 def test_no_vector_array():

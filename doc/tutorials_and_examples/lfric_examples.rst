@@ -162,7 +162,7 @@ of the kernel launches and data transfers:
     upload CUDA data  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=183 device=0 threadid=1 variable=.attach. bytes=144
     launch CUDA kernel  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=186 device=0 threadid=1 num_gangs=5 num_workers=1 vector_length=128 grid=5 block=128
      PostEnd called for module 'main_psy' region 'invoke_2-setval_c-r2'
-    download CUDA data  file=PSyclone/src/psyclone/tests/test_files/lfric/infrastructure//field/field_r64_mod.f90 function=log_minmax line=756 device=0 threadid=1 variable=self%data(:) bytes=4312
+    download CUDA data  file=PSyclone/external/lfric_infrastructure/src/field/field_real64_mod.f90 function=log_minmax line=756 device=0 threadid=1 variable=self%data(:) bytes=4312
     20230807214504.374+0100:INFO : Min/max minmax of field1 =   0.30084014E+00  0.17067212E+01
    ...
 
@@ -264,9 +264,28 @@ the input and output parameters for the two invokes in this example:
 .. code-block:: bash
 
     cd full_example_extraction
-    TYPE=netcdf make compile
-    ./extract.netcdf
-    ncdump ./main-update.nc | less
+    TYPE=ascii make compile
+    ...
+    ./extract.ascii
+    ...
+    make driver-main-init
+    ./driver-main-init
+    ...
+    make driver-main-update
+    ./driver-main-update
+
+Example 17.4: Value Range Check
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The example in the subdirectory ``value_range_check`` shows the
+use of PSyclone's :ref:`Value Range Check<psydata_value_range_check>`
+transformation. You can compile and execute the code like this:
+
+.. code-block:: bash
+
+  cd value_range_change
+  make compile
+  PSY_VALUE_RANGE="field1_data=0:7" ./value_range_check
+
 
 
 Example 18: Special Accesses of Continuous Fields - Incrementing After Reading and Writing Before (Potentially) Reading

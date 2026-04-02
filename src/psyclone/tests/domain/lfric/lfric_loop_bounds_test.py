@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council
+# Copyright (c) 2021-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,10 +71,10 @@ def test_lbounds_initialise(monkeypatch, fortran_writer):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    lbounds = LFRicLoopBounds(invoke)
 
     table = invoke.schedule.symbol_table
-
+    invoke.setup_psy_layer_symbols()
+    lbounds = LFRicLoopBounds(invoke)
     lbounds.initialise(0)
 
     # Check that new symbols exist

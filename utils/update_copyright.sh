@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024-2025, Science and Technology Facilities Council
+# Copyright (c) 2024-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -69,15 +69,34 @@ find . $FIND_OPT "*.rst"      -print -exec bash -c "update_copyright \{}" \; >/d
 
 echo "Updating shell scripts"
 find . $FIND_OPT "*.sh"       -print -exec bash -c "update_copyright \{}" \; >/dev/null
+find . $FIND_OPT "*.csh"      -print -exec bash -c "update_copyright \{}" \; >/dev/null
 
 echo "Updating Makefiles"
 find . $FIND_OPT "Makefile*"  -print -exec bash -c "update_copyright \{}" \; >/dev/null
+find . $FIND_OPT "*.mk"       -print -exec bash -c "update_copyright \{}" \; >/dev/null
 
 echo "Updating Fortran programs"
 find . $FIND_OPT "*.[fFxX]90" -print -exec bash -c "update_copyright \{}" \; >/dev/null
+
+echo "Updating .h files"
+find . $FIND_OPT "*.h" -print -exec bash -c "update_copyright \{}" \; >/dev/null
 
 echo "Updating READMEs"
 find . $FIND_OPT "README*"    -print -exec bash -c "update_copyright \{}" \; >/dev/null
 
 echo "Updating configs"
-find . $FIND_OPT "*.cfg"    -print -exec bash -c "update_copyright \{}" \; >/dev/null
+find . $FIND_OPT "*.cfg"      -print -exec bash -c "update_copyright \{}" \; >/dev/null
+
+echo "Updating jinja"
+find . $FIND_OPT "*.jinja"    -print -exec bash -c "update_copyright \{}" \; >/dev/null
+
+echo "Updating yaml"
+find . $FIND_OPT "*.yaml"     -print -exec bash -c "update_copyright \{}" \; >/dev/null
+find . $FIND_OPT "*.yml"      -print -exec bash -c "update_copyright \{}" \; >/dev/null
+
+echo "Updating misc"
+for i in ./doc/developer_guide/pip_requirements.txt     \
+		 ./apt.txt ./bin/psyclonefc ./bin/psyclone-kern \
+		 ./bin/psyclone ./bin/psyad ./LICENSE; do
+	update_copyright $i >/dev/null
+done

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap
@@ -60,6 +60,7 @@ from psyclone.psyir.symbols import (
     Symbol,
     SymbolError,
     UnsupportedFortranType,
+    UnresolvedType
 )
 from psyclone.psyir.symbols.datatypes import ArrayType
 
@@ -310,7 +311,7 @@ class Call(Statement, DataNode):
 
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are AccessSequence
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -318,7 +319,14 @@ class Call(Statement, DataNode):
 
         # The RoutineSymbol has a CALL access.
         sig, indices_list = self.routine.get_signature_and_indices()
-        var_accesses.add_access(sig, AccessType.CALL, self.routine)
+
+        # pylint: disable=unidiomatic-typecheck
+        if type(self.symbol) is Symbol:
+            # If the type of the Symbol is unknown then this may be a Call or
+            # an array access so the access is UNKNOWN.
+            var_accesses.add_access(sig, AccessType.UNKNOWN, self.routine)
+        else:
+            var_accesses.add_access(sig, AccessType.CALL, self.routine)
 
         # Attempt to find the target of the Call so that the argument intents
         # can be examined.
@@ -366,49 +374,85 @@ class Call(Statement, DataNode):
         return var_accesses
 
     @property
-    def routine(self):
+    def symbol(self) -> Optional[Symbol]:
+        '''
+        :returns: the routine symbol that this call calls.
+        '''
+        if self.routine and self.routine.symbol:
+            return self.routine.symbol
+        # In case of incomplete Calls (without mandatory children), return None
+        return None
+
+    @property
+    def routine(self) -> Optional[Reference]:
         '''
         :returns: the routine reference that this call calls.
-        :rtype: Optional[py:class:`psyclone.psyir.nodes.Reference`]
         '''
         if len(self._children) >= 1:
             return self.children[0]
         return None
 
     @property
-    def arguments(self) -> Tuple[DataNode]:
+    def datatype(self) -> DataType:
+        '''
+        :returns: the return value type of this call.
+        '''
+        if self.routine:
+            if isinstance(self.routine.symbol, RoutineSymbol):
+                dt = self.routine.symbol.datatype
+                # We only return the type if it has been resolved, otherwise
+                # we give a chance to the super() method as it can use location
+                # based knowledge to infer its type
+                if not isinstance(dt, UnresolvedType):
+                    return dt
+        return super().datatype
+
+    @property
+    def arguments(self) -> Tuple[DataNode, ...]:
         '''
         :returns: the children of this node that represent its arguments.
-        :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
         '''
         if len(self._children) >= 2:
             return tuple(self.children[1:])
         return ()
 
+    def argument_by_name(self, name: str) -> Union[DataNode, None]:
+        '''
+        :param name: The name of the argument to lookup.
+
+        :returns: The argument specified with the input name, or None if its
+                  not present.
+        '''
+        arg_names = [arg.lower() if arg is not None else None
+                     for arg in self.argument_names]
+        lname = name.lower()
+        if lname not in arg_names:
+            return None
+        return self.arguments[arg_names.index(lname)]
+
     @property
-    def is_elemental(self):
+    def is_elemental(self) -> Optional[bool]:
         '''
         :returns: whether the routine being called is elemental (provided with
             an input array it will apply the operation individually to each of
             the array elements and return an array with the results). If this
             information is not known then it returns None.
-        :rtype: NoneType | bool
         '''
-        if self.routine and self.routine.symbol:
-            return self.routine.symbol.is_elemental
+        if self.symbol and isinstance(self.symbol, RoutineSymbol):
+            return self.symbol.is_elemental
+        # In case of incomplete Calls (without mandatory children), return None
         return None
 
     @property
-    def is_pure(self):
+    def is_pure(self) -> Optional[bool]:
         '''
         :returns: whether the routine being called is pure (guaranteed to
             return the same result when provided with the same argument
             values).  If this information is not known then it returns None.
-        :rtype: NoneType | bool
         '''
-        if (self.routine and self.routine.symbol and
-                isinstance(self.routine.symbol, RoutineSymbol)):
-            return self.routine.symbol.is_pure
+        if self.symbol and isinstance(self.symbol, RoutineSymbol):
+            return self.symbol.is_pure
+        # In case of incomplete Calls (without mandatory children), return None
         return None
 
     def is_available_on_device(self, device_string: str = "") -> bool:
@@ -502,7 +546,7 @@ class Call(Statement, DataNode):
         rsym = self.routine.symbol
         if rsym.is_unresolved:
             # Search for the Routine in the current file. This search is
-            # stopped if we encouter a wildcard import that could be
+            # stopped if we encounter a wildcard import that could be
             # responsible for shadowing the routine name with an external
             # implementation.
             table = rsym.find_symbol_table(self)

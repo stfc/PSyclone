@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -275,7 +275,7 @@ def test_symbol_specialise():
     assert str(asym) == "a: Symbol<Automatic>"
     asym.specialise(RoutineSymbol)
     assert type(asym) is RoutineSymbol
-    assert (str(asym) == "a: RoutineSymbol<NoType, pure=unknown, "
+    assert (str(asym) == "a: RoutineSymbol<UnresolvedType, pure=unknown, "
             "elemental=unknown>")
 
 

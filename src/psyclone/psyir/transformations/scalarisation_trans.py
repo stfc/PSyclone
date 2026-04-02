@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024-2025, Science and Technology Facilities Council.
+# Copyright (c) 2024-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,6 @@
 
 '''This module provides the sclarization transformation class.'''
 
-import itertools
 from typing import Optional, Dict, Any, List, Tuple
 
 from psyclone.core import VariablesAccessMap, Signature, SymbolicMaths
@@ -51,7 +50,7 @@ class ScalarisationTrans(LoopTrans):
     '''This transformation takes a Loop and converts any array accesses
     to scalar if the results of the loop are unused, and the initial value
     is unused. For example in the following snippet the value of a(i)
-    is only used inside the loop, so can be turned into a scalar, wheras
+    is only used inside the loop, so can be turned into a scalar, whereas
     the values of b(i) are used in the following loop so are kept as an array:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
@@ -149,29 +148,26 @@ class ScalarisationTrans(LoopTrans):
         scalarisable = True
         for access in var_accesses[signature]:
             if array_indices is None:
-                array_indices = access.component_indices
-            # For some reason using == on the component_lists doesn't work
-            # so we use [:] notation.
-            elif array_indices[:] != access.component_indices[:]:
+                array_indices = access.component_indices()
+            elif array_indices != access.component_indices():
                 scalarisable = False
                 break
             # For each index, we need to check they're not written to in
             # the loop.
-            flattened_indices = list(itertools.chain.from_iterable(
-                    array_indices))
-            for index in flattened_indices:
-                # Index may not be a Reference, so we need to loop over the
-                # References
-                for ref in index.walk(Reference):
-                    # This Reference could be the symbol for a Call or
-                    # IntrinsicCall, which we don't allow to scalarise
-                    if isinstance(ref.symbol, RoutineSymbol):
-                        scalarisable = False
-                        break
-                    sig, _ = ref.get_signature_and_indices()
-                    if var_accesses[sig].is_written():
-                        scalarisable = False
-                        break
+            for component in array_indices:
+                for index in component:
+                    # Index may not be a Reference, so we need to loop over the
+                    # References
+                    for ref in index.walk(Reference):
+                        # This Reference could be the symbol for a Call or
+                        # IntrinsicCall, which we don't allow to scalarise
+                        if isinstance(ref.symbol, RoutineSymbol):
+                            scalarisable = False
+                            break
+                        sig, _ = ref.get_signature_and_indices()
+                        if var_accesses[sig].is_written():
+                            scalarisable = False
+                            break
 
         return scalarisable
 
@@ -442,7 +438,7 @@ class ScalarisationTrans(LoopTrans):
         for target in finalised_targets:
             target_accesses = var_accesses[target]
             first_access = target_accesses[0].node
-            symbol_type = first_access.symbol.datatype.datatype
+            symbol_type = first_access.symbol.datatype.elemental_type
             symbol_name = first_access.symbol.name
             scalar_symbol = routine_table.new_symbol(
                     root_name=f"{symbol_name}_scalar",

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council
+# Copyright (c) 2017-2026, Science and Technology Facilities Council
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # All rights reserved.
@@ -55,8 +55,8 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    from psyclone.transformations import LFRicRedundantComputationTrans, \
-        MoveTrans
+    from psyclone.transformations import LFRicRedundantComputationTrans
+    from psyclone.psyir.transformations import MoveTrans
     rc_trans = LFRicRedundantComputationTrans()
     m_trans = MoveTrans()
 

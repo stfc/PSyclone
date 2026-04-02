@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
+# Copyright (c) 2022-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ def test_init():
     # Python >= 3.9 spots that 'method' should be singular. Prior to this it
     # was plural. Python >= 3.12 tweaks the error message yet again to mention
     # the lack of an implementation and to quote the method name.
-    # We split the check to accomodate for this.
+    # We split the check to accommodate for this.
     assert ("Can't instantiate abstract class CommonArgMetadata with"
             in str(info.value))
     assert ("abstract method" in str(info.value))

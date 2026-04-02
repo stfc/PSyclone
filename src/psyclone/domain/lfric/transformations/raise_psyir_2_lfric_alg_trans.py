@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@ invoke calls which uses specialised classes.
 from psyclone.domain.common.transformations import RaisePSyIR2AlgTrans
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicBuiltinFunctorFactory, LFRicKernelFunctor, LFRicAlgorithmInvokeCall)
-from psyclone.psyir.nodes import ArrayReference
 
 
 class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
@@ -74,33 +73,15 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
 
             if call.argument_names[idx]:
                 call_name = f"{call_arg.value}"
-            elif isinstance(call_arg, ArrayReference):
-                # kernel or builtin misrepresented as ArrayReference
-                args = call_arg.pop_all_children()
+            else:
+                symbol = call_arg.routine.symbol
+                args = call_arg.pop_all_children()[1:]
                 try:
-                    calls.append(factory.create(call_arg.name, table, args))
+                    calls.append(factory.create(symbol.name, table, args))
                 except KeyError:
                     # No match for a builtin so create a user-defined kernel.
-                    self._specialise_symbol(call_arg.symbol)
-                    calls.append(LFRicKernelFunctor.create(call_arg.symbol,
-                                                           args))
-            else:
-                for fp2_node in call_arg.get_ast_nodes:
-                    # This child is a kernel or builtin
-                    name = fp2_node.children[0].string
-                    args = RaisePSyIR2AlgTrans._parse_args(call_arg,
-                                                           fp2_node)
-                    name = fp2_node.children[0].string
-                    try:
-                        calls.append(factory.create(name, table, args))
-                    except KeyError:
-                        # No match for a builtin so create a user-defined
-                        # kernel.
-                        type_symbol = RaisePSyIR2AlgTrans._get_symbol(
-                            call, fp2_node)
-                        self._specialise_symbol(type_symbol)
-                        calls.append(LFRicKernelFunctor.create(type_symbol,
-                                                               args))
+                    self._specialise_symbol(symbol)
+                    calls.append(LFRicKernelFunctor.create(symbol, args))
 
         invoke_call = LFRicAlgorithmInvokeCall.create(
             call.routine.symbol, calls, index, name=call_name)
