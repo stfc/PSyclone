@@ -4912,7 +4912,12 @@ class IntrinsicCall(Call):
             try:
                 return self.intrinsic.return_type(self)
             except TypeError as err:
-                # FIXME This should be only sometimes?
+                # If we get an invalid argument to a ScalarType constructor it
+                # means we attempted to pass either an UnresolvedType into the
+                # datatype
+                if ("ScalarType expected 'intrinsic' argument to be of type "
+                        "ScalarType.Intrinsic but found " in str(err)):
+                    return UnresolvedType()
                 # For array of structure or something.
                 # return UnresolvedType()
                 raise InternalError(
