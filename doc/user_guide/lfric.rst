@@ -182,9 +182,11 @@ primitive type. In the LFRic infrastructure, these fields are
 represented by instances of the ``field_type`` and ``integer_field_type``
 classes, respectively.
 
-Typically, a field will have the same number of vertical layers as the
-model mesh. However, this is not a requirement and the number of layers
-can be as few as one (a 2D field).
+Different fields may be defined on different numbers of vertical layers.
+The the number of layers can be as few as one (a 2D field). Unfortunately,
+the number of layers affects the numbering of the DoFs of a field. Therefore,
+a distinct DoF map is required for each unique combination of function
+space and number of vertical levels.
 
 .. _lfric-field-vector:
 
@@ -1456,7 +1458,7 @@ Supported Function Spaces
 As mentioned in the :ref:`lfric-field` and :ref:`lfric-field-vector`
 sections, the function space of an argument specifies how it maps
 onto the underlying topology and, additionally, whether the data at a
-point is a vector. In LFRic API the dimension of the basis function
+point is a vector. In the LFRic API the dimension of the basis function
 set for the scalar function spaces is 1 and for the vector function spaces
 is 3 (see the table in :ref:`lfric-stub-generation-rules` for the
 dimensions of the basis and differential basis functions).
@@ -1756,9 +1758,9 @@ mesh must also be on the same function space.
 Number of Layers Metadata
 """""""""""""""""""""""""
 
-If a particular field argument to a kernel has a number of vertical levels
-that is not the same as the extruded mesh then this must be specified using
-the ``NLAYERS`` option to ``GH_FIELD``, e.g.::
+If a particular field/operator kernel argument has a number of vertical
+levels that is *not* the same as the first field/operator argument then
+this must be specified using the ``NLAYERS`` option to ``GH_FIELD``, e.g.::
 
   arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS=1)
 
