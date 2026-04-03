@@ -48,6 +48,7 @@ from collections.abc import Iterable
 import inspect
 import copy
 import logging
+import re
 from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 from psyclone.configuration import Config
@@ -57,6 +58,7 @@ from psyclone.psyir.symbols import (
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
+from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
 
 if TYPE_CHECKING:
     from psyclone.psyir.nodes.scoping_node import ScopingNode
@@ -953,12 +955,37 @@ class SymbolTable():
             already been updated to refer to a Container in this table.
 
         '''
+
         for old_sym in other_table.symbols:
 
             if old_sym in symbols_to_skip or isinstance(old_sym,
                                                         ContainerSymbol):
                 # We've dealt with Container symbols in _add_container_symbols.
                 continue
+
+            # Avoid duplicate COMMON-block marker symbols when multiple
+            # routines sharing the same COMMON blocks are inlined into a
+            # single caller.  Each routine is parsed independently so its
+            # _PSYCLONE_INTERNAL_COMMONBLOCK_N markers carry different
+            # numbers and may therefore never trigger the name-clash path;
+            # we must scan *all* existing markers in self for overlapping
+            # block names before attempting to add.
+            if (self._normalize(old_sym.name).startswith(
+                    "_psyclone_internal_commonblock")
+                    and isinstance(old_sym.datatype, UnsupportedFortranType)):
+                _blk_re = re.compile(r"/\s*(\w*)\s*/", re.IGNORECASE)
+                old_blocks = set(_blk_re.findall(
+                    old_sym.datatype.declaration))
+                if any(
+                    old_blocks & set(_blk_re.findall(
+                        sym.datatype.declaration))
+                    for sym in self.symbols
+                    if (self._normalize(sym.name).startswith(
+                            "_psyclone_internal_commonblock")
+                        and isinstance(sym.datatype,
+                                       UnsupportedFortranType))
+                ):
+                    continue
 
             try:
                 self.add(old_sym)
@@ -1017,7 +1044,6 @@ class SymbolTable():
         if old_sym.is_commonblock and self_sym.is_commonblock:
             return
 
-        from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
         if (isinstance(old_sym.datatype, UnsupportedFortranType) and
                 isinstance(self_sym.datatype, UnsupportedFortranType)):
             if old_sym.datatype.declaration == self_sym.datatype.declaration:
@@ -1036,10 +1062,18 @@ class SymbolTable():
                 _blk_re = re.compile(r"/\s*(\w*)\s*/", re.IGNORECASE)
                 old_blocks = set(_blk_re.findall(
                     old_sym.datatype.declaration))
-                self_blocks = set(_blk_re.findall(
-                    self_sym.datatype.declaration))
-                if old_blocks & self_blocks:
-                    return
+                # Check ALL existing commonblock markers in self, not just
+                # the same-named one, because the numbering may differ when
+                # the caller already has extra COMMON blocks of its own.
+                for sym in self.symbols:
+                    if (self._normalize(sym.name).startswith(
+                            "_psyclone_internal_commonblock")
+                            and isinstance(sym.datatype,
+                                          UnsupportedFortranType)):
+                        self_blocks = set(_blk_re.findall(
+                            sym.datatype.declaration))
+                        if old_blocks & self_blocks:
+                            return
 
         # A Symbol with the same name already exists so we attempt to rename
         # first the one that we are adding and failing that, the existing

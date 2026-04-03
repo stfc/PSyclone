@@ -2890,3 +2890,116 @@ end subroutine sub2
     # Both variables must still be present.
     assert "volume" in result
     assert "lmmpi" in result
+
+
+def test_apply_common_block_no_duplicate_three_routines(
+        fortran_reader, fortran_writer):
+    '''Test that inlining three routines that all share the same COMMON block
+    does not produce duplicate COMMON declarations. This mirrors the real-world
+    case of inlining zetabc_tile, u2dbc_tile and v2dbc_tile (each of which
+    includes the same set of COMMON-block headers) into step2D_FB_tile.'''
+
+    src_caller = """\
+subroutine caller()
+  implicit none
+  call sub1()
+  call sub2()
+  call sub3()
+end subroutine caller
+"""
+    src_sub1 = """\
+subroutine sub1()
+  implicit none
+  real :: zeta, ubar, vbar
+  COMMON /ocean_zeta/ zeta
+  COMMON /ocean_ubar/ ubar
+  COMMON /ocean_vbar/ vbar
+  zeta = 1.0
+end subroutine sub1
+"""
+    src_sub2 = """\
+subroutine sub2()
+  implicit none
+  real :: zeta, ubar, vbar
+  COMMON /ocean_zeta/ zeta
+  COMMON /ocean_ubar/ ubar
+  COMMON /ocean_vbar/ vbar
+  ubar = 2.0
+end subroutine sub2
+"""
+    src_sub3 = """\
+subroutine sub3()
+  implicit none
+  real :: zeta, ubar, vbar
+  COMMON /ocean_zeta/ zeta
+  COMMON /ocean_ubar/ ubar
+  COMMON /ocean_vbar/ vbar
+  vbar = 3.0
+end subroutine sub3
+"""
+    caller = fortran_reader.psyir_from_source(src_caller).walk(Routine)[0]
+    sub1 = fortran_reader.psyir_from_source(src_sub1).walk(Routine)[0]
+    sub2 = fortran_reader.psyir_from_source(src_sub2).walk(Routine)[0]
+    sub3 = fortran_reader.psyir_from_source(src_sub3).walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    trans.apply(calls[0], routine=sub1)
+    calls = caller.walk(Call)
+    trans.apply(calls[0], routine=sub2)
+    calls = caller.walk(Call)
+    trans.apply(calls[0], routine=sub3)
+
+    result = fortran_writer(caller)
+    # Each COMMON block must appear exactly once.
+    assert result.count("COMMON /ocean_zeta/") == 1
+    assert result.count("COMMON /ocean_ubar/") == 1
+    assert result.count("COMMON /ocean_vbar/") == 1
+    # All three variables must still be present.
+    assert "zeta" in result
+    assert "ubar" in result
+    assert "vbar" in result
+
+
+def test_apply_common_block_caller_has_extra_block(
+        fortran_reader, fortran_writer):
+    '''Test that inlining a routine whose only COMMON block is already present
+    in the caller does not produce a duplicate COMMON declaration, even when
+    the caller also has an *additional* COMMON block that the inlined routine
+    does not declare.  This is a regression test derived from the real-world
+    test.f file: the presence of the extra /comm_setup_mpi1/ block in the
+    caller was enough to confuse the earlier deduplication logic and caused
+    "Symbol 'zeta' at (1) is already in a COMMON block".'''
+
+    src_caller = """\
+subroutine caller()
+  implicit none
+  integer :: lmmpi
+  COMMON /comm_setup_mpi1/ lmmpi
+  real :: zeta
+  COMMON /ocean_zeta/ zeta
+  call subfoo()
+end subroutine caller
+"""
+    src_subfoo = """\
+subroutine subfoo()
+  implicit none
+  real :: zeta
+  COMMON /ocean_zeta/ zeta
+  zeta = zeta + 1.0
+end subroutine subfoo
+"""
+    caller = fortran_reader.psyir_from_source(src_caller).walk(Routine)[0]
+    subfoo = fortran_reader.psyir_from_source(src_subfoo).walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    trans.apply(calls[0], routine=subfoo)
+
+    result = fortran_writer(caller)
+    # /ocean_zeta/ must appear exactly once – not duplicated.
+    assert result.count("COMMON /ocean_zeta/") == 1
+    # The extra block from the caller must be preserved.
+    assert result.count("COMMON /comm_setup_mpi1/") == 1
+    assert "zeta" in result
+    assert "lmmpi" in result
