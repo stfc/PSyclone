@@ -145,6 +145,7 @@ class InlineTrans(Transformation):
               use_first_callee_and_no_arg_check: bool = False,
               permit_codeblocks: bool = False,
               permit_unsupported_type_args: bool = False,
+              parameter_cloning: bool = True,
               **kwargs
               ):
         '''
@@ -161,6 +162,13 @@ class InlineTrans(Transformation):
             if the target routine contains a CodeBlock.
         :param permit_unsupported_type_args: If `True` then the target routine
             is permitted to have arguments of UnsupportedType.
+        :param parameter_cloning: if `True` (the default), constant
+            (PARAMETER) symbols from the routine being inlined are always
+            copied into the call-site symbol table, potentially being renamed
+            to avoid clashes. If `False`, a constant from the routine is
+            skipped when an identical constant (same name, same type, and same
+            value) already exists at the call site, so no duplicate is
+            created.
 
         :raises InternalError: if the merge of the symbol tables fails.
             In theory this should never happen because validate() should
@@ -217,6 +225,15 @@ class InlineTrans(Transformation):
         #     just delete the if statement.
         self._optional_arg_eliminate_ifblock_if_const_condition(routine)
 
+        # If parameter_cloning is disabled, identify duplicate constant
+        # (PARAMETER) symbols and redirect their references *before* the
+        # routine body is extracted, so that the extracted statements already
+        # carry references to the call-site symbols.
+        extra_skip: List[DataSymbol] = []
+        if not parameter_cloning:
+            extra_skip = self._redirect_duplicate_parameters(
+                table, routine, routine_table)
+
         # Construct lists of the nodes that will be inserted and all of the
         # References that they contain.
         new_stmts = []
@@ -229,7 +246,8 @@ class InlineTrans(Transformation):
         # call site. This preserves any references to them.
         try:
             table.merge(routine_table,
-                        symbols_to_skip=routine_table.argument_list[:])
+                        symbols_to_skip=routine_table.argument_list[:]
+                        + extra_skip)
         except SymbolError as err:
             raise InternalError(
                 f"Error copying routine symbols to call site. This should "
@@ -326,6 +344,116 @@ class InlineTrans(Transformation):
             for child in new_stmts[1:]:
                 idx += 1
                 parent.addchild(child, idx)
+
+    def _redirect_duplicate_parameters(
+        self,
+        table,
+        routine: Routine,
+        routine_table,
+    ) -> List[DataSymbol]:
+        '''
+        Identifies constant (PARAMETER) symbols in ``routine_table`` that
+        are identical to constants already present in ``table`` (same name,
+        same type, and same initial value). For each such symbol, every
+        :py:class:`~psyclone.psyir.nodes.Reference` to it inside ``routine``
+        and inside the datatypes / initial-value expressions of other symbols
+        in ``routine_table`` is redirected to point to the corresponding
+        symbol in ``table``.
+
+        Only constants whose initial value is represented as a PSyIR node
+        (i.e. ``initial_value is not None``) are considered; constants of
+        ``UnsupportedFortranType`` with an embedded value string are left
+        unchanged.
+
+        A constant is only considered a duplicate when every routine-local
+        symbol referenced inside its initial-value expression is itself a
+        confirmed duplicate.  This prevents false positives for expressions
+        like ``negflag = .NOT. flag`` when ``flag`` has different values in
+        the caller and the callee (the names would match but the semantics
+        would differ).
+
+        :param table: the call-site symbol table.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param routine: the (copy of the) routine being inlined.
+        :type routine: :py:class:`psyclone.psyir.nodes.Routine`
+        :param routine_table: the symbol table of the routine copy.
+        :type routine_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :returns: the list of routine symbols that are duplicates of
+            call-site constants and should be excluded from the subsequent
+            table merge.
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+
+        '''
+        # The names of all local data symbols in the routine table (used to
+        # identify references that point to routine-local constants).
+        routine_local_names = {
+            s.name.lower() for s in routine_table.datasymbols
+            if not s.is_argument
+        }
+
+        # First pass: collect all constants from the routine whose name,
+        # datatype, and initial-value tree match a constant in the call-site
+        # table. The structural comparison uses __eq__, which compares
+        # Reference nodes by symbol name. This is correct for leaf constants
+        # (Literals) and is refined for dependent constants in the second
+        # pass below.
+        candidates: dict = {}
+        for rsym in routine_table.datasymbols:
+            if not rsym.is_constant or rsym.initial_value is None:
+                # Skip constants whose value is not represented as a PSyIR
+                # node (e.g. UnsupportedFortranType with embedded value).
+                continue
+            tsym = table.lookup(rsym.name, otherwise=None)
+            if not isinstance(tsym, DataSymbol):
+                continue
+            if not tsym.is_constant or tsym.initial_value is None:
+                continue
+            if rsym.datatype != tsym.datatype:
+                continue
+            if rsym.initial_value != tsym.initial_value:
+                continue
+            candidates[rsym.name.lower()] = rsym
+
+        # Second pass: iteratively remove candidates whose initial-value
+        # expression references a routine-local symbol that is NOT itself
+        # a confirmed duplicate. Without this step, an expression like
+        # ``negflag = .NOT. flag`` would compare as equal by name even when
+        # ``flag`` has different values in the two routines.
+        changed = True
+        while changed:
+            changed = False
+            to_remove = [
+                name for name, rsym in candidates.items()
+                if any(
+                    dep.name.lower() in routine_local_names
+                    and dep.name.lower() not in candidates
+                    for dep in rsym.initial_value.get_all_accessed_symbols()
+                )
+            ]
+            for name in to_remove:
+                del candidates[name]
+            if to_remove:
+                changed = True
+
+        duplicates: List[DataSymbol] = list(candidates.values())
+
+        # Redirect all references from duplicate routine symbols to their
+        # call-site counterparts.
+        for rsym in duplicates:
+            tsym = table.lookup(rsym.name)
+            # Update all References in the routine body.
+            routine.replace_symbols_using(tsym)
+            # Update any references to rsym embedded in the datatypes or
+            # initial-value expressions of other symbols in routine_table.
+            for sym in routine_table.symbols:
+                if sym is rsym:
+                    continue
+                sym.replace_symbols_using(tsym)
+                if hasattr(sym, 'datatype') and sym.datatype is not None:
+                    sym.datatype.replace_symbols_using(tsym)
+
+        return duplicates
 
     def _optional_arg_resolve_present_intrinsics(self,
                                                  routine_node: Routine,
