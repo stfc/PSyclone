@@ -43,11 +43,11 @@ import pytest
 
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.transformations import ExtractTrans, TransformationError
+from psyclone.psyir.transformations import (
+    ACCLoopTrans, ExtractTrans, TransformationError)
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (ACCParallelTrans,
                                       LFRicOMPParallelLoopTrans)
-from psyclone.psyir.transformations import ACCLoopTrans
 
 
 # --------------------------------------------------------------------------- #

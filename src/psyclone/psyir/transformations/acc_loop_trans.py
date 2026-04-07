@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,12 +56,12 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
+    >>> from psyclone.psyir.transformations import ACCLoopTrans
+    >>> from psyclone.psyir.transformations import AccParallelTrans
     >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
     >>> ltrans = t.get_trans_name('ACCLoopTrans')
     >>> rtrans = t.get_trans_name('ACCParallelTrans')
     >>>

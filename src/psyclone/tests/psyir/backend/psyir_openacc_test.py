@@ -46,9 +46,9 @@ from psyclone.psyir.nodes import (Assignment, Reference, Loop, Directive,
                                   Schedule)
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.psyir.transformations.acc_loop_trans import ACCLoopTrans
 from psyclone.transformations import (ACCDataTrans, ACCParallelTrans)
 from psyclone.tests.utilities import get_invoke
-from psyclone.psyir.transformations.acc_loop_trans import ACCLoopTrans
 
 
 NEMO_TEST_CODE = '''

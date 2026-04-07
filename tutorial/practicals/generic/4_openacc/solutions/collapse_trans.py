@@ -51,10 +51,9 @@ have already been preprocessed (if required).
 '''
 
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.psyir.transformations import ACCKernelsTrans, ACCLoopTrans
 from psyclone.transformations import (
     ACCDataTrans, TransformationError)
-from psyclone.psyir.transformations import ACCLoopTrans
 
 
 Loop.set_loop_type_inference_rules({
