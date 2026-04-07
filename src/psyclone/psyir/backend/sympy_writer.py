@@ -115,11 +115,6 @@ class SymPyWriter(FortranWriter):
          BinaryOperation.Operator.EQ: "Eq({lhs}, {rhs})"
          }
 
-    # A mapping of PSyIR's logical unary operations to the required
-    # SymPy format:
-    _UNARY_OP_MAPPING: dict[UnaryOperation.Operator, str] = \
-        {UnaryOperation.Operator.NOT: "Not({operand})"}
-
     def __init__(self):
         super().__init__()
 
@@ -858,10 +853,9 @@ class SymPyWriter(FortranWriter):
         :returns: the SymPy representation as a string.
 
         '''
-        if node.operator in self._UNARY_OP_MAPPING:
+        if node.operator == UnaryOperation.Operator.NOT:
             operand = self._visit(node.children[0])
-            return self._UNARY_OP_MAPPING[node.operator].format(
-                operand=operand)
+            return f"Not({operand})"
 
         return super().unaryoperation_node(node)
 

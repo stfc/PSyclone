@@ -548,6 +548,7 @@ def test_sympy_writer_user_types(fortran_reader, fortran_writer,
 
 @pytest.mark.parametrize("fortran_expr,sympy_str",
                          [(".not. a", "Not(a)"),
+                          ("-1", "-1"),
                           ("a .and. b", "And(a, b)"),
                           ("a .or. b", "Or(a, b)"),
                           ("a .eqv. b", "Equivalent(a, b)"),
