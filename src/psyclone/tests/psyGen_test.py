@@ -529,8 +529,9 @@ def test_same_name_invalid_array():
             os.path.join(BASE_PATH, "1.11_single_invoke_same_name_array.f90"),
             api="lfric")
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
-            "Reference or a KernelFunctor, but 'f1(1, n)' passed to kernel "
-            "'testkern_type' is of type 'Call'." in str(excinfo.value))
+            "Reference, type-bound Call or a CodeBlock but 'f1(1, n)' passed "
+            "to kernel 'testkern_type' is of type 'Call'."
+            in str(excinfo.value))
 
 
 def test_derived_type_deref_naming(tmpdir):

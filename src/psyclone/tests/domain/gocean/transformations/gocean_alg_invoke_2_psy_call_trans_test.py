@@ -81,5 +81,5 @@ def test_get_arguments(monkeypatch):
     with pytest.raises(GenerationError) as info:
         _ = trans.get_arguments(invoke)
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
-            "Reference or a KernelFunctor, but found 'NoneType'."
+            "Reference, type-bound Call or a CodeBlock but found 'NoneType'."
             in str(info.value))

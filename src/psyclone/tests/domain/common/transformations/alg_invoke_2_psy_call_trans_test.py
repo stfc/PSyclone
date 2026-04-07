@@ -197,8 +197,9 @@ def test_ai2psycall_apply_error(fortran_reader):
     with pytest.raises(GenerationError) as info:
         trans.apply(invoke)
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
-            "Reference or a KernelFunctor, but 'field * 1.0' passed to kernel "
-            "'kern' is of type 'BinaryOperation'." in str(info.value))
+            "Reference, type-bound Call or a CodeBlock but 'field * 1.0' "
+            "passed to kernel 'kern' is of type 'BinaryOperation'."
+            in str(info.value))
 
 
 def test_ai2psycall_invalid_name(fortran_reader):
@@ -493,7 +494,7 @@ def test_ai2psycall_add_arg():
     with pytest.raises(GenerationError) as info:
         AlgInvoke2PSyCallTrans._add_arg(None, [])
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
-            "Reference or a KernelFunctor, but found 'NoneType'."
+            "Reference, type-bound Call or a CodeBlock but found 'NoneType'."
             in str(info.value))
 
     # Invalid argument exception (Node parent is not a KernelFunctor)
@@ -502,7 +503,7 @@ def test_ai2psycall_add_arg():
     with pytest.raises(GenerationError) as info:
         AlgInvoke2PSyCallTrans._add_arg(arg, [])
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
-            "Reference or a KernelFunctor, but '+1.0' is of type "
+            "Reference, type-bound Call or a CodeBlock but '+1.0' is of type "
             "'UnaryOperation'."
             in str(info.value))
 
@@ -512,8 +513,9 @@ def test_ai2psycall_add_arg():
     with pytest.raises(GenerationError) as info:
         AlgInvoke2PSyCallTrans._add_arg(arg, [])
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
-            "Reference or a KernelFunctor, but '+1.0' passed to kernel "
-            "'my_kernel' is of type 'UnaryOperation'." in str(info.value))
+            "Reference, type-bound Call or a CodeBlock but '+1.0' passed "
+            "to kernel 'my_kernel' is of type 'UnaryOperation'."
+            in str(info.value))
 
     # literal (nothing added)
     args = []
