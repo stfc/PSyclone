@@ -42,11 +42,14 @@ from psyclone.psyir.nodes import (
     Assignment,
     Call,
     DataNode,
+    IfBlock,
     IntrinsicCall,
+    Loop,
     Range,
     Reference,
     Statement,
     Schedule,
+    UnaryOperation,
 )
 from psyclone.psyir.symbols.datatypes import (
     ArrayType,
@@ -59,6 +62,7 @@ from psyclone.psyir.symbols.interfaces import (
 )
 from psyclone.psyir.symbols import (
     DataSymbol, ImportInterface, ContainerSymbol, Symbol)
+from psyclone.psyir.tools.dependency_tools import DependencyTools
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -321,7 +325,7 @@ class DataNodeToTempTrans(Transformation):
         schedule.addchild(assign, pos)
 
         # If the datatype is an array, we need to allocate the array
-        # before the statement too.
+        # before the statement too if its not already allocated.
         if isinstance(datatype, ArrayType):
             # Create an array reference to the symbol with the dimensions
             # returned by the datatype call earlier.
@@ -335,9 +339,39 @@ class DataNodeToTempTrans(Transformation):
                 IntrinsicCall.Intrinsic.ALLOCATE,
                 (ref,)
             )
-            # Add the allocate statement into the tree immediately before
-            # its use.
-            schedule.addchild(intrinsic, pos)
+            allocated = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.ALLOCATED,
+                (Reference(symbol),)
+            )
+
+            ifblock = IfBlock.create(
+                UnaryOperation.create(
+                    UnaryOperation.Operator.NOT,
+                    allocated),
+                [intrinsic]
+            )
+            # Check if there's ancestor loops.
+            loop = node.ancestor(Loop)
+            last_loop = None
+            if loop:
+                dtools = DependencyTools()
+                # while the ancestor can be parallelised, we should search
+                # higher for where to place the allocate.
+                while loop:
+                    if dtools.can_loop_be_parallelised(loop):
+                        last_loop = loop
+                        loop = loop.ancestor(Loop)
+                    else:
+                        loop = None
+            # After this, the last loop that can be parallelised
+            # is set to last_loop. If last_loop is None we can
+            # use the previously computed schedule and position
+            if last_loop:
+                schedule = last_loop.ancestor(Schedule)
+                pos = last_loop.position
+            # Add the allocate statement and the containing ifblock into the
+            # tree immediately before its use.
+            schedule.addchild(ifblock, pos)
 
 
 __all__ = ["DataNodeToTempTrans"]

@@ -287,7 +287,9 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path,
     out = fortran_writer(psyir)
     assert """  integer, allocatable, dimension(:,:) :: tmp
 
-  ALLOCATE(tmp(1:SIZE(a, dim=1),1:SIZE(b, dim=2)))
+  if (.NOT.ALLOCATED(tmp)) then
+    ALLOCATE(tmp(1:SIZE(a, dim=1),1:SIZE(b, dim=2)))
+  end if
   tmp = MATMUL(a, b)
   d = c + tmp""" in out
     assert Compile(tmp_path).string_compiles(out)
@@ -338,7 +340,9 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path,
     out = fortran_writer(psyir)
     assert """  integer, allocatable, dimension(:) :: tmp
 
-  ALLOCATE(tmp(1:3))
+  if (.NOT.ALLOCATED(tmp)) then
+    ALLOCATE(tmp(1:3))
+  end if
   tmp = 3 * b
   a(:4) = tmp""" in out
     assert Compile(tmp_path).string_compiles(out)
@@ -397,7 +401,9 @@ def test_datanodetotemptrans_apply_imports(
     out = fortran_writer(psyir)
     assert """  integer, allocatable, dimension(:,:) :: tmp
 
-  ALLOCATE(tmp(1:25,1:50))
+  if (.NOT.ALLOCATED(tmp)) then
+    ALLOCATE(tmp(1:25,1:50))
+  end if
   tmp = some_var
   b = tmp""" in out
 
@@ -424,7 +430,9 @@ def test_datanodetotemptrans_apply_imports(
   integer, dimension(25,50) :: b
   integer, allocatable, dimension(:,:) :: tmp
 
-  ALLOCATE(tmp(1:25,1:i))
+  if (.NOT.ALLOCATED(tmp)) then
+    ALLOCATE(tmp(1:25,1:i))
+  end if
   tmp = some_var
   b = tmp""" in out
 
@@ -462,7 +470,9 @@ def test_datanodetotemptrans_apply_imports(
   use f_mod, only : some_var
   integer, allocatable, dimension(:,:) :: tmp
 
-  ALLOCATE(tmp(1:25,1:i))
+  if (.NOT.ALLOCATED(tmp)) then
+    ALLOCATE(tmp(1:25,1:i))
+  end if
   tmp = some_var
   j = tmp""" in out
 
@@ -493,6 +503,9 @@ def test_datanodetotemptrans_apply_nemo_example(fortran_reader,
     out = fortran_writer(psyir)
     assert """real, allocatable, dimension(:,:,:) :: tmp
 
-    ALLOCATE(tmp(1:nie0 - nis0 + 1,1:nje0 - njs0 + 1,1:SIZE(rn2, dim=3)))
+    if (.NOT.ALLOCATED(tmp)) then
+      ALLOCATE(tmp(1:nie0 - nis0 + 1,1:nje0 - njs0 + 1,1:SIZE(rn2, dim=3)))
+    end if
     tmp = -avt_k(:,:,:) * rn2(nis0:nie0,njs0:nje0,:) * \
-wmask(nis0:nie0,njs0:nje0,:)""" in out
+wmask(nis0:nie0,njs0:nje0,:)
+    call iom_put('estrat_k', tmp)""" in out
