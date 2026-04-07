@@ -40,7 +40,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Assignment, Reference
+    Assignment, IntrinsicCall, Reference
 )
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE
@@ -509,3 +509,29 @@ def test_datanodetotemptrans_apply_nemo_example(fortran_reader,
     tmp = -avt_k(:,:,:) * rn2(nis0:nie0,njs0:nje0,:) * \
 wmask(nis0:nie0,njs0:nje0,:)
     call iom_put('estrat_k', tmp)""" in out
+
+
+def test_datanodetotemptrans_apply_loops(fortran_reader,
+                                         fortran_writer):
+    '''Test that if we have parallelisable (and non-parallelisable) loops
+    around the extracted node we place the new code in the correct place.'''
+    code = """subroutine test
+    integer :: i
+    real, dimension(100) :: arr, arr2
+    do i = 1, 100
+       arr(i) = SUM(ABS(arr2))
+    end do
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    dtrans = DataNodeToTempTrans()
+    from psyclone.psyir.nodes import Loop
+    loop = psyir.walk(Loop)[0]
+    from psyclone.psyir.tools.dependency_tools import DependencyTools
+    dtools = DependencyTools()
+    print(dtools.can_loop_be_parallelised(loop))
+    # apply the extraction to the ABS(arr2)
+    dtrans.apply(psyir.walk(IntrinsicCall)[1])
+    out = fortran_writer(psyir)
+    print(out)
+    assert False
