@@ -1760,23 +1760,28 @@ Number of Layers Metadata
 
 If a particular field/operator kernel argument has a number of vertical
 levels that is *not* the same as the first field/operator argument then
-this must be specified using the ``NLAYERS`` option to ``GH_FIELD``, e.g.::
+this must be specified using the ``NLAYERS`` option to ``GH_FIELD``/
+``GH_OPERATOR``, e.g.::
 
   arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS=1)
 
 The value specified for ``NLAYERS`` may be a literal if it is known at
-compile time. Alternatively, it may be given a named value (one of
-``GH_NLAYERSM1`` TODO) or the special value
-``GH_RUNTIME``. A named value means that the number of levels is to be
+compile time. Alternatively, it may be given a name (e.g.
+``GH_NLAYERS_SHIFTED``) or the special tag ``GH_RUNTIME``. A named value
+means that the number of levels is to be
 determined at runtime by querying the field object (in the generated
 PSy layer). If two different field arguments are on the same function
 space but both have ``NLAYERS=GH_RUNTIME`` then it is assumed that
 they may have *different* values of ``NLAYERS`` and hence a separate
 dofmap is passed to the kernel for each. However, if two or more field
 arguments are on the same function space and have the same, named number
-of layers which is not ``GH_RUNTIME`` then only one dofmap is passed to
-the kernel for those arguments.
+of layers which is not ``GH_RUNTIME`` then only one dofmap (that of the
+first such field listed in the metadata) is passed to the kernel for
+those arguments.
 
+(Since run-time value of ``NLAYERS`` is looked-up from the corresponding
+kernel argument, the labels given in the kernel metadata are just that
+- they do not have to correspond to anything in the LFRic infrastructure.)
 
 Multi-Data Metadata
 """""""""""""""""""
