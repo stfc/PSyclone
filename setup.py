@@ -170,7 +170,7 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser>=0.2.2', 'configparser',
+        install_requires=['pyparsing', 'fparser==0.2.2', 'configparser',
                           'sympy', "Jinja2", 'termcolor', 'graphviz'],
         # Have to pin Sphinx to a pre-9.0 version because of
         # https://github.com/sphinx-doc/sphinx/issues/14223
