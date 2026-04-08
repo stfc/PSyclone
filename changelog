@@ -1,3 +1,5 @@
+   74) PR #3391 towards #3364. Update PSyclone to use fparser 0.2.2.
+
    73) PR #3387. Update CI to use nvhpc 26.3.
 
    72) PR #3382 towards #1570. Removes the unnecessary check on the precision
