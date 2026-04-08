@@ -45,9 +45,10 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
-    HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
-    OMPMinimiseSyncTrans, Reference2ArrayRangeTrans,
-    ScalarisationTrans, IncreaseRankLoopArraysTrans, MaximalRegionTrans)
+    HoistTrans, InlineTrans, Maxval2LoopTrans, Sum2LoopTrans, Minval2LoopTrans,
+    Product2LoopTrans, ProfileTrans, OMPMinimiseSyncTrans,
+    Reference2ArrayRangeTrans, ScalarisationTrans, IncreaseRankLoopArraysTrans,
+    MaximalRegionTrans)
 from psyclone.transformations import TransformationError
 
 # USE statements to chase to gather additional symbol information.
@@ -219,11 +220,17 @@ def normalise_loops(
 
     if loopify_array_intrinsics:
         for intr in schedule.walk(IntrinsicCall):
-            if intr.intrinsic.name == "MAXVAL":
-                try:
+            try:
+                if intr.intrinsic.name == "MAXVAL":
                     Maxval2LoopTrans().apply(intr, verbose=True)
-                except TransformationError as err:
-                    print(err.value)
+                elif intr.intrinsic.name == "SUM":
+                    Sum2LoopTrans().apply(intr, verbose=True)
+                elif intr.intrinsic.name == "MINVAL":
+                    Minval2LoopTrans().apply(intr, verbose=True)
+                elif intr.intrinsic.name == "PRODUCT":
+                    Product2LoopTrans().apply(intr, verbose=True)
+            except TransformationError as err:
+                print(err.value)
 
     if convert_range_loops:
         # Convert all array implicit loops to explicit loops
