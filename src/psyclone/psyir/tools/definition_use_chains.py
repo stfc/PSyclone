@@ -471,20 +471,20 @@ class DefinitionUseChain:
                         self._stop_point = save_stop_position
                         return self._reaches
             # We can compute the rest of the accesses
-            # FIXME Here onwards won't work yet.
             self._compute_forward_uses(self._scope)
-            for ref in self._uses:
-                self._reaches.append(ref)
-            # If this block doesn't kill any accesses, then we add
-            # the defsout into the reaches array.
-            if len(self.killed) == 0:
-                for ref in self._defsout:
-                    self._reaches.append(ref)
-            else:
-                # If this block killed any accesses, then the first element
-                # of the killed writes is the access access that we're
-                # dependent with.
-                self._reaches.append(self.killed[0])
+            for sig in self._reference_signatures:
+                for ref in self._uses[sig]:
+                    self._reaches[sig].append(ref)
+                # If this block doesn't kill any accesses, then we add
+                # the defsout into the reaches array.
+                if len(self.killed[sig]) == 0:
+                    for ref in self._defsout[sig]:
+                        self._reaches[sig].append(ref)
+                else:
+                    # If this block killed any accesses, then the first element
+                    # of the killed writes is the access access that we're
+                    # dependent with.
+                    self._reaches[sig].append(self.killed[sig][0])
 
         # Reset the start and stop points before returning the result.
         self._start_point = save_start_position
@@ -560,30 +560,31 @@ class DefinitionUseChain:
                             if defs_out[sig] is not None:
                                 self._killed[sig].append(defs_out[sig])
                             defs_out[sig] = reference
-                # FIXME from here
                 elif isinstance(reference, Call):
                     # If its a local variable we can ignore it as we'll catch
                     # the Reference later if its passed into the Call.
-                    if self._reference.symbol.is_automatic:
-                        continue
-                    if isinstance(reference, IntrinsicCall):
-                        # IntrinsicCall can only do stuff to arguments, these
-                        # will be caught by Reference walk already.
-                        # Note that this assumes two symbols are not
-                        # aliases of each other.
-                        continue
-                    if reference.is_pure:
-                        # Pure subroutines only touch their arguments, so we'll
-                        # catch the arguments that are passed into the call
-                        # later as References.
-                        continue
-                    # For now just assume calls are bad if we have a non-local
-                    # variable and we treat them as though they were a write.
-                    if defs_out is not None:
-                        self._killed.append(defs_out)
-                    defs_out = reference
-                    continue
-                elif reference.get_signature_and_indices()[0] == sig:
+                    for i, ref in self._references:
+                        if ref.symbol.is_automatic:
+                            continue
+                        if isinstance(reference, IntrinsicCall):
+                            # IntrinsicCall can only do stuff to arguments, these
+                            # will be caught by Reference walk already.
+                            # Note that this assumes two symbols are not
+                            # aliases of each other.
+                            continue
+                        if reference.is_pure:
+                            # Pure subroutines only touch their arguments, so we'll
+                            # catch the arguments that are passed into the call
+                            # later as References.
+                            continue
+                        # For now just assume calls are bad if we have a non-local
+                        # variable and we treat them as though they were a write.
+                        sig = self._reference_signatures[i]
+                        if defs_out[sig] is not None:
+                            self._killed[sig].append(defs_out[sig])
+                        defs_out[sig] = reference
+                elif reference.get_signature_and_indices()[0] in self._reference_signatures:
+                    sig = reference.get_signature_and_indices()[0]
                     # Work out if its read only or not.
                     assign = reference.ancestor(Assignment)
                     if assign is not None:
@@ -591,12 +592,12 @@ class DefinitionUseChain:
                             # This is a write to the reference, so kill the
                             # previous defs_out and set this to be the
                             # defs_out.
-                            if defs_out is not None:
-                                self._killed.append(defs_out)
-                            defs_out = reference
+                            if defs_out[sig] is not None:
+                                self._killed[sig].append(defs_out[sig])
+                            defs_out[sig] = reference
                         elif (
                             assign.lhs is defs_out
-                            and len(self._killed) == 0
+                            and len(self._killed[sig]) == 0
                             and assign.lhs.get_signature_and_indices()[0]
                             == sig
                             and assign.lhs is not self._reference
@@ -605,28 +606,29 @@ class DefinitionUseChain:
                             # a = a + 1. Since the PSyIR tree walk accesses
                             # the lhs of an assignment before the rhs of an
                             # assignment we need to not ignore these accesses.
-                            self._uses.append(reference)
+                            self._uses[sig].append(reference)
                         else:
                             # Read only, so if we've not yet set written to
                             # this variable this is a use. NB. We need to
                             # check the if the write is the LHS of the parent
                             # assignment and if so check if we killed any
                             # previous assignments.
-                            if defs_out is None:
-                                self._uses.append(reference)
+                            if defs_out[sig] is None:
+                                self._uses[sig].append(reference)
                     elif reference.ancestor(Call):
                         # Otherwise we assume read/write access for now.
-                        if defs_out is not None:
-                            self._killed.append(defs_out)
-                        defs_out = reference
+                        if defs_out[sig] is not None:
+                            self._killed[sig].append(defs_out[sig])
+                        defs_out[sig] = reference
                     else:
                         # Reference outside an Assignment - read only
                         # This could be References inside a While loop
                         # condition for example.
-                        if defs_out is None:
-                            self._uses.append(reference)
-        if defs_out is not None:
-            self._defsout.append(defs_out)
+                        if defs_out[sig] is None:
+                            self._uses[sig].append(reference)
+        for sig in self._reference_signatures:
+            if defs_out[sig] is not None:
+                self._defsout[sig].append(defs_out[sig])
 
     def _find_basic_blocks(
         self, nodelist: list[Node]
