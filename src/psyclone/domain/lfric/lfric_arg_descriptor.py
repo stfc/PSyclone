@@ -51,7 +51,8 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
 import psyclone.expression as expr
-from psyclone.parse.kernel import Descriptor, get_stencil, get_mesh
+from psyclone.parse.kernel import (
+    Descriptor, get_stencil, get_mesh, get_nlevels)
 from psyclone.parse.utils import ParseError
 
 # API configuration
@@ -109,6 +110,7 @@ class LFRicArgDescriptor(Descriptor):
         self._function_space2 = None
         self._stencil = None
         self._mesh = None
+        self._nlevels = ""
         self._nargs = 0
 
         # Check for the correct argument type descriptor
@@ -400,10 +402,11 @@ class LFRicArgDescriptor(Descriptor):
                 f"'{arg_type.args[prop_ind].name}' in '{arg_type}'.")
         self._function_space1 = arg_type.args[prop_ind].name
 
-        # The optional 5th argument is either a stencil specification
-        # or a mesh identifier (for inter-grid kernels)
-        prop_ind = 4
-        if self._nargs == nargs_field_max:
+        num_args = len(arg_type.args)
+        if num_args > 4:
+            # The optional 5th argument is either a stencil specification
+            # or a mesh identifier (for inter-grid kernels)
+            prop_ind = 4
             try:
                 if "stencil" in str(arg_type.args[prop_ind]):
                     self._stencil = get_stencil(
@@ -412,15 +415,33 @@ class LFRicArgDescriptor(Descriptor):
                 elif "mesh" in str(arg_type.args[prop_ind]):
                     self._mesh = get_mesh(arg_type.args[prop_ind],
                                           const.VALID_MESH_TYPES)
+                elif "nlevels" in str(arg_type.args[prop_ind]):
+                    self._nlevels = get_nlevels(arg_type.args[prop_ind])
                 else:
                     raise ParseError("Unrecognised metadata entry")
             except ParseError as err:
                 raise ParseError(
                     f"In the LFRic API argument {prop_ind+1} of a 'meta_arg' "
                     f"field entry must be either a valid stencil specification"
-                    f" or a mesh identifier (for inter-grid kernels). However,"
-                    f" entry '{arg_type}' raised the following error: "
-                    f"{err}.") from err
+                    f", a number of levels or a mesh identifier (for inter-"
+                    f"grid kernels). However, entry '{arg_type}' raised the "
+                    f"following error: {err}.") from err
+
+        if num_args > 5:
+            # If there are this many arguments then the last one must be
+            # nlevels.
+            prop_ind = 5
+            try:
+                if "nlevels" in str(arg_type.args[prop_ind]):
+                    self._nlevels = get_nlevels(arg_type.args[prop_ind])
+                else:
+                    raise ParseError("Unrecognised metadata entry")
+            except ParseError as err:
+                raise ParseError(
+                    f"In the LFRic API, argument {prop_ind+1} of a 'meta_arg' "
+                    f"field entry must be a number of levels. However entry "
+                    f"'{arg_type}' raised the following error: {err}."
+                ) from err
 
         # Test allowed accesses for fields
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
@@ -793,6 +814,14 @@ class LFRicArgDescriptor(Descriptor):
             return []
         raise InternalError(f"Expected a valid argument type but got "
                             f"'{self._argument_type}'.")
+
+    @property
+    def nlevels(self) -> str:
+        '''
+        :returns: a label identifying the number of vertical levels
+                  associated with this argument.
+        '''
+        return self._nlevels
 
     @property
     def vector_size(self):

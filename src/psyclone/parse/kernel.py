@@ -400,6 +400,27 @@ def get_stencil(metadata, valid_types):
     return {"type": stencil_type, "extent": stencil_extent}
 
 
+def get_nlevels(metadata: expr.NamedArg) -> str:
+    '''
+    Returns the number of levels described by the supplied meta-data
+
+    :param metadata: node in fparser1 ast holding the meta-data.
+
+    :return: a label identifying the number of vertical levels.
+
+    :raises ParseError: if the supplied ast does not correspond to
+                        `nlevels="some-label"`.
+    '''
+    if (not isinstance(metadata, expr.NamedArg) or
+            metadata.name.lower() != "nlevels"):
+        raise ParseError(
+            f"{metadata} is not a valid mesh identifier (expected "
+            f"nlevels='label')")
+    mesh = metadata.value.lower()
+
+    return mesh
+
+
 class Descriptor():
     '''
     A description of how a kernel argument is accessed, constructed from
