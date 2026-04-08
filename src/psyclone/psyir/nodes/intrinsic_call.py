@@ -241,8 +241,7 @@ def _type_of_named_arg_with_optional_kind_and_dim(
 
 def _type_with_specified_precision_and_optional_dim(
         node: IntrinsicCall, argument_name: str,
-        intrinsic: ScalarType.Intrinsic = ScalarType.Intrinsic.BOOLEAN
-        ) -> DataType:
+) -> DataType:
     """Helper function for the common IntrinsicCall case where the
     return type is a Scalar with the precision of a named argument,
     unless an optional argument named 'dim' exists, in which case an array
@@ -250,17 +249,19 @@ def _type_with_specified_precision_and_optional_dim(
 
     :param node: The IntrinsicCall whose return type to compute.
     :param argument_name: The name of the argument whose precision to be used.
-    :param intrinsic: The type of the intrinsic of the resulting datatype.
-                      Default is ScalarType.Intrinsic.BOOLEAN
 
     :returns: the computed datatype for the IntrinsicCall.
     """
-    dtype = ScalarType(
-        intrinsic, node.argument_by_name(argument_name).datatype.precision
-    )
-    # If dim is not present, or the rank of the
-    # array argument is 1 then this returns a scalar.
     arg = node.argument_by_name(argument_name)
+    arg_dt = arg.datatype
+    if (
+        not isinstance(arg_dt, ArrayType) or
+        not isinstance(arg_dt.elemental_type, ScalarType) or
+        not isinstance(arg_dt.elemental_type.intrinsic, ScalarType.Intrinsic)
+    ):
+        return UnresolvedType()
+    dtype = arg_dt.elemental_type
+    # If dim is not present, return the same datatype
     if "dim" not in node.argument_names:
         return dtype
 
@@ -3885,7 +3886,6 @@ class IntrinsicCall(Call):
                 lambda node:
                 _type_with_specified_precision_and_optional_dim(
                     node, "array",
-                    node.argument_by_name("array").datatype.intrinsic
                 )
             ),
             reference_accesses=lambda node: (
@@ -4542,7 +4542,6 @@ class IntrinsicCall(Call):
                 lambda node:
                 _type_with_specified_precision_and_optional_dim(
                     node, "array",
-                    node.argument_by_name("array").datatype.intrinsic
                 )
             ),
             reference_accesses=lambda node: (
