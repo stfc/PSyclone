@@ -86,7 +86,7 @@ class ArgOrdering:
         self._arg_index_to_metadata_index = {}
 
     @property
-    def _symtab(self):
+    def _symtab(self) -> SymbolTable:
         ''' Provide a reference to the associate Invoke SymbolTable, usually
         following the `self._kernel.ancestor(InvokeSchedule)._symbol_table`
         path unless a _forced_symtab has been provided.
@@ -97,7 +97,7 @@ class ArgOrdering:
         Note: This could be improved by TODO #2503
 
         :returns: the associate invoke symbol table.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
         '''
         if self._forced_symtab:
             return self._forced_symtab

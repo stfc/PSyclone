@@ -555,13 +555,12 @@ class LFRicKern(CodedKern):
         return tmap
 
     @property
-    def last_cell_all_colours_symbol(self):
+    def last_cell_all_colours_symbol(self) -> str:
         '''
         Getter for the symbol of the array holding the index of the last
         cell of each colour.
 
         :returns: name of the array.
-        :rtype: str
 
         :raises InternalError: if this kernel is not coloured.
         '''

@@ -40,12 +40,16 @@ This module implements a class that captures all the arguments
 of a Kernel as required by an `invoke` of that kernel.
 '''
 
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants
-# Avoid circular dependency:
+from typing import Optional, TYPE_CHECKING
+from psyclone.core import VariablesAccessMap
+from psyclone.domain.lfric.arg_ordering import ArgOrdering
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, SymbolTable,
     ContainerSymbol, ImportInterface)
+if TYPE_CHECKING:
+    from psyclone.domain.lfric import LFRicKernelArgument
 
 
 class KernCallInvokeArgList(ArgOrdering):
@@ -131,19 +135,18 @@ class KernCallInvokeArgList(ArgOrdering):
         self._halo_depth = None
         super().generate(var_accesses)
 
-    def scalar(self, scalar_arg, var_accesses=None):
+    def scalar(self,
+               scalar_arg: "LFRicKernelArgument",
+               var_accesses: Optional[VariablesAccessMap] = None
+               ) -> None:
         '''
         Add the necessary argument for a scalar quantity as well as an
         appropriate Symbol to the SymbolTable.
 
         :param scalar_arg: the scalar kernel argument.
-        :type scalar_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance that \
-            stores information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
+        :param var_accesses: optional information about variable accesses.
 
-        :raises NotImplementedError: if a scalar of type other than real \
+        :raises NotImplementedError: if a scalar of type other than real
             or integer is found.
 
         '''

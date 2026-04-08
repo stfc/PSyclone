@@ -65,21 +65,20 @@ class LFRicAlg:
     layer from Kernel metadata.
 
     '''
-    def create_from_kernel(self, name, kernel_path):
+    def create_from_kernel(self, name: str, kernel_path: str) -> Container:
         '''
         Generates LFRic algorithm PSyIR that calls the supplied kernel through
         an 'invoke'. All of the arguments required by the kernel are
         constructed and initialised appropriately. Fields and scalars are all
         set to unity.
 
-        :param str name: name to use for the algorithm subroutine.
-        :param str kernel_path: location of Kernel source code.
+        :param name: name to use for the algorithm subroutine.
+        :param kernel_path: location of Kernel source code.
 
         :returns: LFRic algorithm PSyIR.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
-        :raises NotImplementedError: if the specified kernel file does not \
-            follow the LFRic naming convention by having a module with a name \
+        :raises NotImplementedError: if the specified kernel file does not
+            follow the LFRic naming convention by having a module with a name
             ending in '_mod'.
 
         '''
@@ -167,7 +166,7 @@ class LFRicAlg:
         return cont
 
     @staticmethod
-    def create_alg_routine(name):
+    def create_alg_routine(name: str) -> Container:
         '''
         Creates an LFRic algorithm subroutine within a module. The
         generated subroutine has three arguments:
@@ -176,11 +175,10 @@ class LFRicAlg:
          * chi: coordinate field (optional).
          * panel_id: field mapping cells to panel IDs (optional).
 
-        :param str name: the name to give the created routine. The associated \
+        :param str name: the name to give the created routine. The associated
                          container will have "_mod" appended to this name.
 
         :returns: a container.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         :raises TypeError: if the 'name' argument is of the wrong type.
 
@@ -298,17 +296,15 @@ class LFRicAlg:
             prog.addchild(cblock)
 
     @staticmethod
-    def initialise_field(prog, sym, space):
+    def initialise_field(prog: Routine, sym: DataSymbol, space: str) -> None:
         '''
         Creates the PSyIR for initialisation of the field or field vector
         represented by the supplied symbol and adds it to the supplied
         routine.
 
         :param prog: the routine to which to add initialisation code.
-        :type prog: :py:class:`psyclone.psyir.nodes.Routine`
         :param sym: the symbol representing the LFRic field.
-        :type sym: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param str space: the function space of the field.
+        :param space: the function space of the field.
 
         :raises InternalError: if the supplied symbol is of the wrong type.
 

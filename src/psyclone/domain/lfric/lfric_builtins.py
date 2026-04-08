@@ -476,13 +476,12 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         return self._reduction_type
 
-    def get_dof_loop_index_symbol(self):
+    def get_dof_loop_index_symbol(self) -> DataSymbol:
         '''
         Finds or creates the symbol representing the index in any loops
         over DoFs.
 
         :returns: symbol representing the DoF loop index.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         table = self.scope.symbol_table

@@ -40,6 +40,7 @@
 kernel based on the kernel metadata.
 
 '''
+from typing import TYPE_CHECKING
 from psyclone.core import AccessType
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
@@ -48,6 +49,8 @@ from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols import ArgumentInterface, SymbolTable
+if TYPE_CHECKING:
+    from psyclone.domain.lfric.lfric_kern import LFRicKern
 
 
 # pylint: disable=too-many-public-methods, no-member
@@ -71,7 +74,6 @@ class KernelInterface(ArgOrdering):
     code when all of its methods are implemented.
 
     :param kern: the kernel for which to create arguments.
-    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     '''
     #: Mapping from a generic PSyIR datatype to the equivalent
@@ -100,7 +102,7 @@ class KernelInterface(ArgOrdering):
         "gh_quadrature_edge": "DiffBasisFunctionQrEdgeDataSymbol"}
     _read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
-    def __init__(self, kern):
+    def __init__(self, kern: "LFRicKern"):
         super().__init__(kern)
         # We need a brand new symbol table, not a reference to the one for
         # the Schedule containing this kernel call (which is what the

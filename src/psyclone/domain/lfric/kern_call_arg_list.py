@@ -42,8 +42,9 @@ as a list of PSyIR nodes. TODO #1930: the support for the string format
 should be removed as we migrate to use PSyIR in LFRic.
 '''
 
+from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional, Tuple, TYPE_CHECKING
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature, VariablesAccessMap
@@ -57,6 +58,8 @@ from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
     ImportInterface, ScalarType, ArrayType, Symbol, UnsupportedFortranType,
     ArgumentInterface)
+if TYPE_CHECKING:
+    from psyclone.lfric import LFRicKernelArgument
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
@@ -355,14 +358,15 @@ class KernCallArgList(ArgOrdering):
             self.append(sym.name, var_accesses, mode=mode,
                         metadata_posn=arg.metadata_index)
 
-    def field_vector(self, argvect,
-                     var_accesses: Optional[VariablesAccessMap] = None):
+    def field_vector(self,
+                     argvect: "LFRicKernelArgument",
+                     var_accesses: Optional[VariablesAccessMap] = None
+                     ) -> None:
         '''Add the field vector associated with the argument 'argvect' to the
         argument list. If supplied it also stores these accesses to the
         var_access object.
 
         :param argvect: the field vector to add.
-        :type argvect: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
 
@@ -401,12 +405,14 @@ class KernCallArgList(ArgOrdering):
             var_accesses.add_access(Signature(argvect.name), argvect.access,
                                     self._kern)
 
-    def field(self, arg, var_accesses: Optional[VariablesAccessMap] = None):
+    def field(self,
+              arg: "LFRicKernelArgument",
+              var_accesses: Optional[VariablesAccessMap] = None
+              ) -> None:
         '''Add the field array associated with the argument 'arg' to the
         argument list. If supplied it also stores this access in var_accesses.
 
         :param arg: the field to be added.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
 
