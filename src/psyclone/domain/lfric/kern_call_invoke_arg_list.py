@@ -49,7 +49,7 @@ from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, SymbolTable,
     ContainerSymbol, ImportInterface)
 if TYPE_CHECKING:
-    from psyclone.domain.lfric import LFRicKernelArgument
+    from psyclone.lfric import LFRicKernelArgument
 
 
 class KernCallInvokeArgList(ArgOrdering):
