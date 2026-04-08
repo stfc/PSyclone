@@ -44,6 +44,7 @@ from psyclone.psyir.nodes import (
     DataNode,
     IfBlock,
     IntrinsicCall,
+    Loop,
     Range,
     Reference,
     Statement,
@@ -348,6 +349,26 @@ class DataNodeToTempTrans(Transformation):
                     allocated),
                 [intrinsic]
             )
+            # If the shape doesn't contain array references then we can hoist
+            # the allocate statement outside of any ancestor loops.
+            hoistable = True
+            for shape in ref.indices:
+                for ref2 in shape.walk(Reference):
+                    if isinstance(ref2, ArrayReference):
+                        hoistable = False
+            # If we can hoist the allocate, find the highest level Loop
+            # ancestor and set the schedule and position to place the
+            # allocate before this loop.
+            if hoistable:
+                loop_anc = schedule.ancestor(Loop)
+                finger = loop_anc
+                while finger:
+                    loop_anc = finger
+                    finger = finger.ancestor(Loop)
+                if loop_anc:
+                    pos = loop_anc.position
+                    schedule = loop_anc.ancestor(Schedule)
+
             # Add the allocate statement and the containing ifblock into the
             # tree immediately before its use.
             schedule.addchild(ifblock, pos)
