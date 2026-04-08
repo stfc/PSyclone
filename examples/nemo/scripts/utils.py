@@ -537,6 +537,6 @@ def iom_put_argument_to_temporary(calls: list[Call]):
                     DataNodeToTempTrans().apply(arg)
                 except TransformationError as err:
                     call.append_preceding_comment(
-                        f"Couldn't pull the second argument to a temporary "
+                        f"Couldn't pull the argument {arg} to a temporary "
                         f"due to the following error: {str(err.value)}"
                     )
