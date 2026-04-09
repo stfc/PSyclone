@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,12 +30,32 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
-# This makefile triggers the corresponding make targets in all
-# subdirectories.
+'''Python script intended to be passed to PSyclone via the -s option.
+It adds kernel extraction code to
+the invokes. When the transformed program is compiled and run, it
+will create one NetCDF file for each of the two invokes. A separate
+driver program is also created for each invoke which can read the
+created NetCDF files, execute the invokes and then compare the results.
+'''
 
-EXAMPLES=$(wildcard full_example*) value_range_check
+from psyclone.psyir.nodes import Routine
+from psyclone.psyir.transformations import ValueRangeCheckTrans
 
-include ../../top_level.mk
+
+def trans(psyir):
+    '''
+    Add kernel extraction code.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
+    vrc = ValueRangeCheckTrans()
+
+    for subroutine in psyir.walk(Routine):
+        vrc.apply(subroutine)

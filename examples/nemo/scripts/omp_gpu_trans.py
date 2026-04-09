@@ -203,8 +203,7 @@ def trans(psyir):
                 subroutine,
                 hoist_local_arrays=False,
                 convert_array_notation=True,
-                # See issue #3022
-                loopify_array_intrinsics=psyir.name != "getincom.f90",
+                loopify_array_intrinsics=True,
                 convert_range_loops=True,
                 increase_array_ranks=not NEMOV4,
                 hoist_expressions=True
