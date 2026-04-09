@@ -898,7 +898,9 @@ class DependencyTools():
             except AttributeError:
                 # If its a node without a symbol, look it up
                 var_name = signature.var_name
-                symbol = symbol_table.lookup(var_name)
+                symbol = symbol_table.lookup(var_name, otherwise=None)
+                if symbol is None:
+                    return False
 
             # TODO #1270 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info)
