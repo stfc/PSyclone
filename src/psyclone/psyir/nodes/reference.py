@@ -245,8 +245,9 @@ class Reference(DataNode):
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DefinitionUseChain
-        chain = DefinitionUseChain(self)
-        return chain.find_backward_accesses()
+        chain = DefinitionUseChain([self])
+        sig = self.get_signature_and_indices()[0]
+        return chain.find_backward_accesses()[sig]
 
     def next_accesses(self):
         '''
@@ -258,8 +259,9 @@ class Reference(DataNode):
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DefinitionUseChain
-        chain = DefinitionUseChain(self)
-        return chain.find_forward_accesses()
+        chain = DefinitionUseChain([self])
+        sig = self.get_signature_and_indices()[0]
+        return chain.find_forward_accesses()[sig]
 
     def escapes_scope(
             self, scope: Node, visited_nodes: Optional[set] = None
