@@ -103,11 +103,10 @@ class DefinitionUseChain:
                     f"DefinitionUseChain must be a list of References "
                     f"but found '{type(ref).__name__}' in the list."
                 )
-        # We need all the references to have the same parent.
-        # FIXME Same parent or same ancestor statement? Latter more useful.
-        parent = references[0].parent
+        # We need all the references to have the same ancestor Statement.
+        parent = references[0].ancestor(Statement)
         for ref in references:
-            if ref.parent is not parent:
+            if ref.ancestor(Statement) is not parent:
                 raise InternalError(
                     "All references provided into a DefinitionUseChain "
                     "must have the same parent."
