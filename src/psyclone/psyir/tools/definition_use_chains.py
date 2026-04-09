@@ -358,17 +358,11 @@ class DefinitionUseChain:
                     # here is to find all the reached nodes.
                     for sig in chain._reaches:
                         for ref in chain._reaches[sig]:
-                            # Add unique references to reaches. Since we could
-                            # have multiple references to the same symbol in
-                            # the input they're not unique, so we need to
-                            # check for uniqueness. As nodes can be == but
-                            # not the same object, this has to be done
-                            # using a loop and `is`.
-                            for ref2 in self._reaches[sig]:
-                                if ref2 is ref:
-                                    break
-                            else:
-                                self._reaches[sig].append(ref)
+                            # Add unique references to reaches. Since we're not
+                            # in a control flow region, we can't have added
+                            # these references into the reaches array yet so
+                            # they're guaranteed to be unique.
+                            self._reaches[sig].append(ref)
                     # If we have a defsout in the chain then we can stop for
                     # that reference as we will never get past the write
                     # as its not conditional.
