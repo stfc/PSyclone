@@ -37,6 +37,7 @@
 forward_accesses routine.'''
 
 import pytest
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     ArrayReference,
     Assignment,
@@ -139,6 +140,15 @@ def test_definition_use_chain_init_and_properties(fortran_reader):
         duc = DefinitionUseChain([r1], stop_point="123")
     assert ("The stop_point passed into a DefinitionUseChain must be an "
             "int but found 'str'." in str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        duc = DefinitionUseChain(["a", "b"])
+    assert ("The 'references' argument passed into a DefinitionUseChain must "
+            "be a list of References but found 'str' in the list."
+            in str(excinfo.value))
+    with pytest.raises(InternalError) as excinfo:
+        duc = DefinitionUseChain([r1, Reference(sym)])
+    assert ("All references provided into a DefinitionUseChain "
+            "must have the same parent." in str(excinfo.value))
 
 
 def test_definition_use_chain_is_basic_block(fortran_reader):
