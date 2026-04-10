@@ -239,16 +239,16 @@ def _type_of_named_arg_with_optional_kind_and_dim(
     return _type_of_arg_with_rank_minus_one(arg, dtype)
 
 
-def _type_with_specified_precision_and_optional_dim(
+def _type_of_named_arg_accounting_for_dim_arg(
         node: IntrinsicCall, argument_name: str,
 ) -> DataType:
     """Helper function for the common IntrinsicCall case where the
-    return type is a Scalar with the precision of a named argument,
-    unless an optional argument named 'dim' exists, in which case an array
-    with rank one less than the input node is given instead.
+    return type is the same than a given named argument. If intrinsiccall
+    has no 'dim' argument, it returns its elemental type, but if 'dim'
+    exists, it will be the given named argument rank minus one.
 
-    :param node: The IntrinsicCall whose return type to compute.
-    :param argument_name: The name of the argument whose precision to be used.
+    :param node: the IntrinsicCall whose return type to compute.
+    :param argument_name: the name of the argument whose type to use.
 
     :returns: the computed datatype for the IntrinsicCall.
     """
@@ -876,7 +876,7 @@ class IntrinsicCall(Call):
             optional_args={"dim": DataNode},
             return_type=(
                 lambda node:
-                _type_with_specified_precision_and_optional_dim(
+                _type_of_named_arg_accounting_for_dim_arg(
                     node, "mask"
                 )
             ),
@@ -944,7 +944,7 @@ class IntrinsicCall(Call):
             optional_args={"dim": DataNode},
             return_type=(
                 lambda node:
-                _type_with_specified_precision_and_optional_dim(
+                _type_of_named_arg_accounting_for_dim_arg(
                     node, "mask"
                 )
             ),
@@ -3884,7 +3884,7 @@ class IntrinsicCall(Call):
             optional_args={"mask": DataNode},
             return_type=(
                 lambda node:
-                _type_with_specified_precision_and_optional_dim(
+                _type_of_named_arg_accounting_for_dim_arg(
                     node, "array",
                 )
             ),
@@ -4540,7 +4540,7 @@ class IntrinsicCall(Call):
             optional_args={"mask": DataNode},
             return_type=(
                 lambda node:
-                _type_with_specified_precision_and_optional_dim(
+                _type_of_named_arg_accounting_for_dim_arg(
                     node, "array",
                 )
             ),

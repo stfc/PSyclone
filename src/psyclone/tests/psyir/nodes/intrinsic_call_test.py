@@ -61,7 +61,7 @@ from psyclone.psyir.nodes.intrinsic_call import (
     _type_of_arg_with_rank_minus_one,
     _type_of_named_argument,
     _type_of_named_arg_with_optional_kind_and_dim,
-    _type_with_specified_precision_and_optional_dim,
+    _type_of_named_arg_accounting_for_dim_arg,
     _type_of_scalar_with_optional_kind,
     _type_of_intrinsic_with_argname_kind_and_optional_dim,
     _type_of_intrinsic_with_precision_of_named_arg,
@@ -1064,8 +1064,8 @@ def test_type_of_named_arg_with_optional_kind_and_dim(
     assert dtype.precision.value == "8"
 
 
-def test_type_with_specified_precision_and_optional_dim(fortran_reader):
-    """Test the _type_with_specified_precision_and_optional_dim
+def test_type_of_named_arg_accounting_for_dim_arg(fortran_reader):
+    """Test the _type_of_named_arg_accounting_for_dim_arg
     helper function."""
     code = """subroutine test
     use other
@@ -1078,14 +1078,14 @@ def test_type_with_specified_precision_and_optional_dim(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     intrinsics = psyir.walk(IntrinsicCall)
 
-    dtype = _type_with_specified_precision_and_optional_dim(
+    dtype = _type_of_named_arg_accounting_for_dim_arg(
         intrinsics[0], "array"
     )
     assert isinstance(dtype, ScalarType)
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
-    dtype = _type_with_specified_precision_and_optional_dim(
+    dtype = _type_of_named_arg_accounting_for_dim_arg(
         intrinsics[1], "array"
     )
     assert isinstance(dtype, ArrayType)
@@ -1094,7 +1094,7 @@ def test_type_with_specified_precision_and_optional_dim(fortran_reader):
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
-    dtype = _type_with_specified_precision_and_optional_dim(
+    dtype = _type_of_named_arg_accounting_for_dim_arg(
         intrinsics[2], "array"
     )
     assert isinstance(dtype, UnresolvedType)
