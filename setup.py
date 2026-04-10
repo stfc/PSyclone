@@ -54,6 +54,7 @@ NAME = 'PSyclone'
 AUTHOR = ('Rupert Ford, '
           'Andrew Porter <andrew.porter@stfc.ac.uk>, '
           'Sergi Siso <sergi.siso@stfc.ac.uk>, '
+          'Aidan Chalk <aidan.chalk@stfc.ac.uk>, '
           'Joerg Henrichs <joerg.henrichs@bom.gov.au>')
 AUTHOR_EMAIL = 'andrew.porter@stfc.ac.uk'
 URL = 'https://github.com/stfc/psyclone'
@@ -169,7 +170,7 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser>=0.2.1', 'configparser',
+        install_requires=['pyparsing', 'fparser==0.2.2', 'configparser',
                           'sympy', "Jinja2", 'termcolor', 'graphviz'],
         # Have to pin Sphinx to a pre-9.0 version because of
         # https://github.com/sphinx-doc/sphinx/issues/14223
