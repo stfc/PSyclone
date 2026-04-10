@@ -44,6 +44,7 @@ from fparser.two.Fortran2003 import (
     Goto_Stmt,
 )
 
+from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     Assignment,
@@ -103,14 +104,19 @@ class DefinitionUseChain:
                     f"DefinitionUseChain must be a list of References "
                     f"but found '{type(ref).__name__}' in the list."
                 )
-        # We need all the references to have the same ancestor Statement.
-        parent = references[0].ancestor(Statement)
-        for ref in references:
-            if ref.ancestor(Statement) is not parent:
-                raise InternalError(
-                    "All references provided into a DefinitionUseChain "
-                    "must have the same parent."
-                )
+        # We need all the references to have the same ancestor Schedule and
+        # belong to the same child of the Schedule.
+        # Skip this check if we only have 1 input.
+        if len(references) > 1:
+            parent = references[0].ancestor(Schedule)
+            parent_path = references[0].path_from(parent)[0]
+            for ref in references:
+                if (ref.ancestor(Schedule) is not parent or
+                        ref.path_from(parent)[0] != parent_path):
+                    raise InternalError(
+                        "All references provided into a DefinitionUseChain "
+                        "must have the same parent in the ancestor Schedule."
+                    )
         # Make a copy of the list so we can modify it.
         self._references = [ref for ref in references]
         # Store the absolute positions and signatures for later.
@@ -213,9 +219,9 @@ class DefinitionUseChain:
                 return False
         return True
 
-    def find_forward_accesses(self) -> list[Node]:
+    def find_forward_accesses(self) -> dict[Signature, list[Node]]:
         """
-        Find all the forward accesses for the reference defined in this
+        Find all the forward accesses for the references defined in this
         DefinitionUseChain.
         Forward accesses are all of the References or Calls that read
         or write to the symbol of the reference up to the point that a
@@ -224,7 +230,7 @@ class DefinitionUseChain:
         that occur inside control flow do not end the forward access
         chain.
 
-        :returns: the forward accesses of the reference given to this
+        :returns: the forward accesses of the references given to this
                   DefinitionUseChain
         """
         # Compute the abs position caches as we'll use these a lot.
@@ -425,9 +431,6 @@ class DefinitionUseChain:
             if ancestor is not None:
                 # If any of the references is the lhs then we can ignore the
                 # RHS.
-                # FIXME original if statement is
-                # "ancestor.lhs is self._reference"
-                # FIXME Is that true?
                 if any([ancestor.lhs is ref for ref in self._references]):
                     # Find the last node in the assignment
                     last_node = ancestor.walk(Node)[-1]
@@ -953,7 +956,7 @@ class DefinitionUseChain:
             if defs_out[sig] is not None:
                 self._defsout[sig].append(defs_out[sig])
 
-    def find_backward_accesses(self) -> list[Node]:
+    def find_backward_accesses(self) -> dict[Signature, list[Node]]:
         """
         Find all the backward accesses for the reference defined in this
         DefinitionUseChain.
@@ -1167,8 +1170,8 @@ class DefinitionUseChain:
             if ancestor is not None:
                 # If we get here to check the start part of a loop we need
                 # to handle this differently.
-                # If the reference is the lhs then we can ignore the RHS.
-                if all([ancestor.lhs is not ref for ref in self._references]):
+                # If any reference is the lhs then we can ignore the RHS.
+                if any([ancestor.lhs is ref for ref in self._references]):
                     pass
                 elif ancestor.rhs is self._scope[0] and len(self._scope) == 1:
                     # If the ancestor RHS is the scope of this chain then we

@@ -145,10 +145,20 @@ def test_definition_use_chain_init_and_properties(fortran_reader):
     assert ("The 'references' argument passed into a DefinitionUseChain must "
             "be a list of References but found 'str' in the list."
             in str(excinfo.value))
+
+    # Create a containing schedule.
+    code = """subroutine test
+        integer :: r1
+        r1 = 1
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    r1 = psyir.walk(Assignment)[0].lhs
     with pytest.raises(InternalError) as excinfo:
         duc = DefinitionUseChain([r1, Reference(sym)])
     assert ("All references provided into a DefinitionUseChain "
-            "must have the same parent." in str(excinfo.value))
+            "must have the same parent in the ancestor Schedule."
+            in str(excinfo.value))
 
 
 def test_definition_use_chain_is_basic_block(fortran_reader):

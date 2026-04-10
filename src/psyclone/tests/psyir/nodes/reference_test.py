@@ -565,6 +565,10 @@ def test_reference_is_read(fortran_reader):
     assert references[1].is_read
     assert references[3].symbol.name == "c"
     assert references[3].is_read
+
+    # Routine or Intrinsic Symbols are not read.
+    assert references[5].symbol.name == "LBOUND"
+    assert not references[5].is_read
     # For the lbound, d should be an inquiry (so not a read) but
     # x should be a read
     assert references[6].symbol.name == "d"

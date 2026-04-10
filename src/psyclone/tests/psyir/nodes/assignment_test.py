@@ -379,3 +379,123 @@ def test_reference_accesses(fortran_reader):
     assert accesses[Signature('g')][0].access_type == AccessType.READ
     assert accesses[Signature('g')][1].node == assigns[1].lhs
     assert accesses[Signature('g')][1].access_type == AccessType.WRITE
+
+
+def test_next_accesses(fortran_reader):
+    ''' Test the assignment.next_accesses function.'''
+    # Start with a basic test where the assignment just has a single
+    # Reference.
+    psyir = fortran_reader.psyir_from_source(
+        """program test
+            integer :: a
+            a = 1
+            a = a + 1
+        end program"""
+    )
+    assigns = psyir.walk(Assignment)
+
+    reaches = assigns[0].next_accesses()
+    sig = assigns[0].lhs.get_signature_and_indices()[0]
+    assert len(reaches) == 1
+    assert len(reaches[sig]) == 2
+    assert reaches[sig][0] is assigns[1].rhs.children[0]
+    assert reaches[sig][1] is assigns[1].lhs
+
+    # Next test multiple References to different symbols in the
+    # Assignment
+    psyir = fortran_reader.psyir_from_source(
+        """program test
+            integer :: a
+            integer :: b
+            a = b
+            a = a + 1
+            b = 2
+        end program"""
+    )
+    assigns = psyir.walk(Assignment)
+    reaches = assigns[0].next_accesses()
+    a_sig = assigns[0].lhs.get_signature_and_indices()[0]
+    b_sig = assigns[0].rhs.get_signature_and_indices()[0]
+    assert len(reaches) == 2
+    assert len(reaches[a_sig]) == 2
+    assert reaches[a_sig][0] is assigns[1].rhs.children[0]
+    assert reaches[a_sig][1] is assigns[1].lhs
+    assert len(reaches[b_sig]) == 1
+    assert reaches[b_sig][0] is assigns[2].lhs
+
+    # Test References inside an inquiry function are ignored
+    psyir = fortran_reader.psyir_from_source(
+        """program test
+            integer :: a
+            integer :: b
+            integer, dimension(100) :: c
+            a = b + size(c)
+            c = 1
+        end program"""
+    )
+    assigns = psyir.walk(Assignment)
+    reaches = assigns[0].next_accesses()
+    a_sig = assigns[0].lhs.get_signature_and_indices()[0]
+    b_sig = assigns[0].rhs.children[0].get_signature_and_indices()[0]
+    assert len(reaches) == 2
+    assert len(reaches[a_sig]) == 0
+    assert len(reaches[b_sig]) == 0
+
+
+def test_previous_accesses(fortran_reader):
+    ''' Test the assignment.previous_accesses function.'''
+    # Start with a basic test where the assignment just has a single
+    # Reference.
+    psyir = fortran_reader.psyir_from_source(
+        """program test
+            integer :: a
+            a = a + 1
+            a = 1
+        end program"""
+    )
+    assigns = psyir.walk(Assignment)
+
+    reaches = assigns[1].previous_accesses()
+    sig = assigns[0].lhs.get_signature_and_indices()[0]
+    assert len(reaches) == 1
+    assert len(reaches[sig]) == 1
+    assert reaches[sig][0] is assigns[0].lhs
+
+    # Next test multiple References to different symbols in the
+    # Assignment
+    psyir = fortran_reader.psyir_from_source(
+        """program test
+            integer :: a
+            integer :: b
+            b = 2
+            a = a + 1
+            a = b
+        end program"""
+    )
+    assigns = psyir.walk(Assignment)
+    reaches = assigns[2].previous_accesses()
+    a_sig = assigns[2].lhs.get_signature_and_indices()[0]
+    b_sig = assigns[2].rhs.get_signature_and_indices()[0]
+    assert len(reaches) == 2
+    assert len(reaches[a_sig]) == 1
+    assert reaches[a_sig][0] is assigns[1].lhs
+    assert len(reaches[b_sig]) == 1
+    assert reaches[b_sig][0] is assigns[0].lhs
+
+    # Test References inside an inquiry function are ignored
+    psyir = fortran_reader.psyir_from_source(
+        """program test
+            integer :: a
+            integer :: b
+            integer, dimension(100) :: c
+            c = 1
+            a = b + size(c)
+        end program"""
+    )
+    assigns = psyir.walk(Assignment)
+    reaches = assigns[1].previous_accesses()
+    a_sig = assigns[1].lhs.get_signature_and_indices()[0]
+    b_sig = assigns[1].rhs.children[0].get_signature_and_indices()[0]
+    assert len(reaches) == 2
+    assert len(reaches[a_sig]) == 0
+    assert len(reaches[b_sig]) == 0

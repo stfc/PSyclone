@@ -45,7 +45,12 @@ from psyclone.core import AccessType, Signature, VariablesAccessMap
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import Symbol, AutomaticInterface
+from psyclone.psyir.symbols import (
+    Symbol,
+    AutomaticInterface,
+    RoutineSymbol,
+    IntrinsicSymbol
+)
 from psyclone.psyir.symbols.datatypes import UnresolvedType
 
 
@@ -95,6 +100,12 @@ class Reference(DataNode):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.assignment import Assignment
         from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+
+        # If the symbol is a RoutineSymbol or IntrinsicSymbol we don't read
+        # the symbol.
+        if isinstance(self.symbol, (RoutineSymbol, IntrinsicSymbol)):
+            return False
+
         parent = self.parent
         if isinstance(parent, Assignment):
             if parent.lhs is self:
@@ -235,7 +246,7 @@ class Reference(DataNode):
             return super().datatype
         return self.symbol.datatype
 
-    def previous_accesses(self):
+    def previous_accesses(self) -> list[Node]:
         '''
         :returns: the nodes accessing the same symbol directly before this
                   reference. It can be multiple nodes if the control flow
@@ -249,7 +260,7 @@ class Reference(DataNode):
         sig = self.get_signature_and_indices()[0]
         return chain.find_backward_accesses()[sig]
 
-    def next_accesses(self):
+    def next_accesses(self) -> list[Node]:
         '''
         :returns: the nodes accessing the same symbol directly after this
                   reference. It can be multiple nodes if the control flow
