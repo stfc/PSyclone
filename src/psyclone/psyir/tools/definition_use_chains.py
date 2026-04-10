@@ -1170,8 +1170,9 @@ class DefinitionUseChain:
             if ancestor is not None:
                 # If we get here to check the start part of a loop we need
                 # to handle this differently.
-                # If any reference is the lhs then we can ignore the RHS.
-                if any([ancestor.lhs is ref for ref in self._references]):
+                # If no reference is the lhs then we can skip the rhs when
+                # searching backwards..
+                if all([ancestor.lhs is not ref for ref in self._references]):
                     pass
                 elif ancestor.rhs is self._scope[0] and len(self._scope) == 1:
                     # If the ancestor RHS is the scope of this chain then we
@@ -1179,9 +1180,10 @@ class DefinitionUseChain:
                     pass
                 else:
                     # Add the rhs as a potential basic block with different
-                    # start and stop positions.
+                    # start and stop positions. This only needs to be computed
+                    # for the Reference on the LHS of the ancestor assignment.
                     chain = DefinitionUseChain(
-                        [ref for ref in self._references],
+                        [ancestor.lhs],
                         [ancestor.rhs],
                         start_point=ancestor.rhs.abs_position,
                         stop_point=sys.maxsize,
