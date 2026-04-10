@@ -902,7 +902,7 @@ class DependencyTools():
                 if symbol is None:
                     return False
 
-            # TODO #1270 - the is_array_access function might be moved
+            # TODO #3098 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info)
             if is_array:
                 # Handle arrays
@@ -985,7 +985,7 @@ class DependencyTools():
                 continue
 
             symbol = symbol_table.lookup(signature.var_name)
-            # TODO #1270 - the is_array_access function might be moved
+            # TODO #3098 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info1)
             if not is_array:
                 result = self._fuse_validate_written_scalar(var_info1,
