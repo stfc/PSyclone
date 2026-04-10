@@ -604,15 +604,6 @@ class PSyDataNode(Statement):
                 argument_str += ", ".join([str(arg) for arg in argument_list])
                 argument_str += ")"
 
-            # ParserFactory().create(std=Config.get().fortran_standard)
-            # reader = FortranStringReader(
-            #     f"CALL {typename}%{methodname}{argument_str}")
-            # # Tell the reader that the source is free format
-            # reader.set_format(FortranFormat(True, False))
-            # fp2_node = Fortran2003.Call_Stmt(reader)
-            # return Fparser2CodeBlock(
-            #     [fp2_node], CodeBlock.Structure.STATEMENT,
-            #     annotations=annotations)
             return CodeBlock.create(
                 f"CALL {typename} % {methodname}{argument_str}",
                 partial_code="call",

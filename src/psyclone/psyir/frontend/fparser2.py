@@ -1075,7 +1075,6 @@ class Fparser2Reader():
             process_directives=not self._ignore_directives,
             include_omp_conditional_lines=self._conditional_openmp,
         )
-        reader.set_format(FortranFormat(True, True))
         return self._fparser2_tree_from_fparser2_reader(reader, source_code,
                                                         partial_code)
 
@@ -1091,7 +1090,7 @@ class Fparser2Reader():
             addition to the reader the partial expressions are provided.
         :param partial_code: if the provided source_code is not a full unit
             this indicates the starting parsing point. It currently supports
-            "expression" or "statement".
+            "expression", "statement", "call" and "pointer_assignment".
 
         :returns: the fparser2 parsetree of the given source code.
 
@@ -1101,11 +1100,13 @@ class Fparser2Reader():
             std = Config.get().fortran_standard
             self._parser = ParserFactory().create(std=std)
 
-        # Set reader to free format.
+        # Set reader to the requested Fortran format.
         reader.set_format(FortranFormat(self._free_form, False))
 
         SYMBOL_TABLES.clear()
         if partial_code == "":
+            # No partial_code provided, so attempt to parse the provided
+            # source code as a complete program unit.
             try:
                 return self._parser(reader)
             except (FortranSyntaxError, NoMatchError) as err:
@@ -1115,6 +1116,9 @@ class Fparser2Reader():
                     f" CPP directives must be handled by a pre-processor)?"
                 ) from err
         try:
+            # If it reaches this point a partial_code was provided, attempt
+            # to parse the soruce_code with the fparser2 component that
+            # represents the provided partial_code
             parse_tree = None
             if partial_code == "expression":
                 parse_tree = Fortran2003.Expr(source_code)

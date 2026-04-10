@@ -118,7 +118,7 @@ class CodeBlock(Statement, DataNode):
         :returns: a CodeBlock node for the given source code using the
             appropriate CodeBlock subclass.
 
-        :raises InternalError: if a fronted does not have an associated
+        :raises InternalError: if a frontend does not have an associated
             CodeBlock subclass.
         '''
         frontend = Config.get().frontend
@@ -242,10 +242,8 @@ class Fparser2CodeBlock(CodeBlock):
         :param kwargs: additional arguments to provide to the constructor.
 
         :returns: a CodeBlock node for the given source code using the
-            appropriate CodeBlock subclass.
+            Fparser2CodeBlock subclass.
 
-        :raises ValueError: if the provided partial_code keyword is not
-            recognised.
         '''
         if partial_code == "expression":
             structure = CodeBlock.Structure.EXPRESSION
@@ -385,7 +383,7 @@ class TreeSitterCodeBlock(CodeBlock):
         :param kwargs: additional arguments to provide to the constructor.
 
         :returns: a CodeBlock node for the given source code using the
-            appropriate CodeBlock subclass.
+            TreeSitterCodeBlock subclass.
         '''
         if partial_code == "expression":
             structure = CodeBlock.Structure.EXPRESSION
