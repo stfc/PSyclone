@@ -41,10 +41,10 @@
 
 __MAJOR__ = 3
 __MINOR__ = 3
-__MICRO__ = 0
+__MICRO__ = 1
 
 # Version suffix (e.g. -rc1 or -dev)
-_VERSION_SUFFIX = "-rc1"
+_VERSION_SUFFIX = "-dev"
 
 __SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}{_VERSION_SUFFIX}"
 __VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}{_VERSION_SUFFIX}"
