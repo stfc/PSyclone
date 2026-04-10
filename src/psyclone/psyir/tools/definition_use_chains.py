@@ -899,12 +899,13 @@ class DefinitionUseChain:
                             # Check if the RHS contains the self._references.
                             # Can't use in since equality is not what we want
                             # here.
+                            # We also only stop if the stop_point of the chain
+                            # is in the assignment's rhs.
                             found = False
                             for ref in assign.rhs.walk(Reference):
                                 if (
                                     any([ref is ref2 for
                                          ref2 in self._references])
-                                    # FIXME What does this and check?
                                     and self._stop_point == ref.abs_position
                                 ):
                                     found = True
