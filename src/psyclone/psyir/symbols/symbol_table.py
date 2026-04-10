@@ -1069,7 +1069,7 @@ class SymbolTable():
                     if (self._normalize(sym.name).startswith(
                             "_psyclone_internal_commonblock")
                             and isinstance(sym.datatype,
-                                          UnsupportedFortranType)):
+                                           UnsupportedFortranType)):
                         self_blocks = set(_blk_re.findall(
                             sym.datatype.declaration))
                         if old_blocks & self_blocks:
