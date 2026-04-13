@@ -498,8 +498,7 @@ jobs:
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -acc -mp=gpu -gpu=mem:managed,math_uniform"
         rm -rf tests/${TEST_DIR}
-        ./makenemo  -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/acc_kernels_trans.py add_key "key_nosignedzero" -j ${NUM_PARALLEL}
-
+        ./makenemo  -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/acc_kernels_trans.py del_key "key_si3" add_key "key_nosignedzero" -j ${NUM_PARALLEL}
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
