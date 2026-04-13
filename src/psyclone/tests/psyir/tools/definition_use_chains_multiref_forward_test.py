@@ -72,7 +72,16 @@ from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
     a = 1
     b = 1
     end subroutine test
-    """
+    """,
+    """subroutine test
+    integer :: a, b
+    a = b
+    b = 2
+    if (b > 1) then
+       a = 1
+    end if
+    a = 2 * b
+    end subroutine test"""
     ])
 def test_duc_forward_equivalence(code, fortran_reader):
     '''TODO'''
