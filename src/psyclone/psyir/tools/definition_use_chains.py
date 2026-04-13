@@ -109,14 +109,18 @@ class DefinitionUseChain:
         # Skip this check if we only have 1 input.
         if len(references) > 1:
             parent = references[0].ancestor(Schedule)
-            parent_path = references[0].path_from(parent)[0]
-            for ref in references:
-                if (ref.ancestor(Schedule) is not parent or
-                        ref.path_from(parent)[0] != parent_path):
-                    raise InternalError(
-                        "All references provided into a DefinitionUseChain "
-                        "must have the same parent in the ancestor Schedule."
-                    )
+            # Skip this check for detached nodes, since we get copies
+            # provided to the recursive calls.
+            if parent:
+                parent_path = references[0].path_from(parent)[0]
+                for ref in references:
+                    if (ref.ancestor(Schedule) is not parent or
+                            ref.path_from(parent)[0] != parent_path):
+                        raise InternalError(
+                            "All references provided into a "
+                            "DefinitionUseChain must have the same parent in "
+                            "the ancestor Schedule."
+                            )
         # Make a copy of the list so we can modify it.
         self._references = [ref for ref in references]
         # Store the absolute positions and signatures for later.
@@ -326,14 +330,17 @@ class DefinitionUseChain:
                         self._start_point = last_node.abs_position
                     else:
                         # Add the lhs as a potential basic block with
-                        # different start and stop positions.
+                        # different start and stop positions, but don't
+                        # include the lhs if the lhs is present.
                         chain = DefinitionUseChain(
-                            [ref.copy() for ref in self._references],
+                            [ref.copy() for ref in self._references if
+                             ref != ancestor.lhs],
                             [ancestor.lhs],
                             start_point=ancestor.lhs.abs_position - 1,
                             stop_point=ancestor.lhs.abs_position + 1,
                         )
-                        control_flow_nodes.append(None)
+                        index = len(chains)
+                        control_flow_nodes.insert(index, None)
                         chains.append(chain)
                         # N.B. For now this assumes that for an expression
                         # b = a * a, that next_access to the first Reference
@@ -353,6 +360,7 @@ class DefinitionUseChain:
                     stop_point=self._stop_point,
                 )
                 chains.append(chain)
+
             for i, chain in enumerate(chains):
                 # Compute the defsout, killed and reaches for the block.
                 chain.find_forward_accesses()
@@ -370,9 +378,12 @@ class DefinitionUseChain:
                             self._reaches[sig].append(ref)
                     # If we have a defsout in the chain then we can stop for
                     # that reference as we will never get past the write
-                    # as its not conditional.
+                    # as its not conditional. Since we don't always include
+                    # the LHS of an assignment into the chain we skip the
+                    # signature if its not present in the chain defsout dict.
                     for i, sig in enumerate(self._reference_signatures):
-                        if len(chain.defsout[sig]) > 0:
+                        if (sig in chain.defsout and
+                                len(chain.defsout[sig]) > 0):
                             self._references.pop(i)
                             self._reference_signatures.pop(i)
                     # If we have found an end point for all references then
@@ -1084,7 +1095,8 @@ class DefinitionUseChain:
                             start_point=ancestor.rhs.abs_position,
                             stop_point=end.abs_position,
                         )
-                        control_flow_nodes.append(None)
+                        index = len(chains)
+                        control_flow_nodes.insert(index, None)
                         chains.append(chain)
                         # N.B. For now this assumes that for an expression
                         # b = a * a, that next_access to the first Reference
