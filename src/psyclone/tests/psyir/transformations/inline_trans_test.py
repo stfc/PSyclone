@@ -45,7 +45,7 @@ from psyclone.errors import InternalError
 from psyclone.psyGen import Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    Assignment, Call, CodeBlock, IntrinsicCall, Loop, Node, Reference,
+    Assignment, Call, IntrinsicCall, Loop, Node, Reference,
     Routine, Statement)
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType)
@@ -2623,7 +2623,8 @@ def test_validate_automatic_array_sized_by_arg(fortran_reader, monkeypatch):
         "  ndim = 5\n"
         "  ! A read access to ndim is fine.\n"
         "  zdim = ndim + mdim\n"
-        "  write(*,*) ndim\n"
+        "  do ndim = 1, 10\n"
+        "  enddo\n"
         "  call sub(var, ndim, ndim)\n"
         "end subroutine main\n"
         "subroutine sub(x, ilen, jlen)\n"
@@ -2644,11 +2645,10 @@ def test_validate_automatic_array_sized_by_arg(fortran_reader, monkeypatch):
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because one or more of its "
             "declarations depends on 'ilen' which is passed by argument and "
-            "may be written to before the call ('! PSyclone CodeBlock"
+            "may be written to before the call ('do ndim ="
             in str(err.value))
-    # Remove the CodeBlock so the Assignment is found.
-    cblock = psyir.walk(CodeBlock)[0]
-    cblock.detach()
+    # Remove the Loop so the Assignment is found.
+    psyir.walk(Loop)[0].detach()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because one or more of its "

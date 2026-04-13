@@ -665,34 +665,41 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
     assert "scalar2" in [x.name for x in fpvars]
 
 
-def test_infer_sharing_attributes_with_codeblocks(
-        fortran_reader, fortran_writer):
+@pytest.mark.parametrize("code, loop_idx", [
+   (lambda x, y: f"write(*,*) {x}, {y}\n", 0),
+   (lambda x, y: f"do {x} = 1,2\nenddo\ndo {y} = 1,2\nenddo\n", 2)
+])
+def test_infer_sharing_attributes_with_hidden_references(
+        code, loop_idx, fortran_reader, fortran_writer):
     ''' Tests the infer_sharing_attributes() method when some of the loops have
-    Codeblocks inside it. We check that the infer_sharing attribute analysis
-    succeed by assuming worst case.
+    potentially hidden references (e.g. inside codeblocks or loop variables).
+    We check that the infer_sharing attribute analysis succeed by assuming
+    worst case.
     '''
-    psyir = fortran_reader.psyir_from_source('''
+    psyir = fortran_reader.psyir_from_source(f'''
         subroutine my_subroutine()
             use other, only: mystruct
             integer :: i, j, scalar1 = 1, scalar2 = 2
             real, dimension(10) :: array, array2
-            write(*,*) scalar1, scalar2
+            {code("scalar2", "scalar2")}
             do j = 1, 10
                do i = 1, size(array, 1)
-                   write(*,*) scalar2, mystruct(i)%field2
+                   {code("scalar2", "scalar2")}
+                   write(*,*) mystruct(i)%field2
                    if (.true.) then
                        scalar1 = 1
-                       write(*,*) scalar1, mystruct(i)%field1
+                       {code("scalar1", "scalar1")}
+                       write(*,*) mystruct(i)%field1
                    end if
                    scalar2 = scalar1 + 1
-                   write(*,*) scalar1, scalar2
+                   {code("scalar1", "scalar2")}
                enddo
             enddo
-            write(*,*) scalar1, scalar2
+            {code("scalar1", "scalar2")}
         end subroutine''')
     omplooptrans = OMPLoopTrans()
     omplooptrans.omp_directive = "paralleldo"
-    loop = psyir.walk(Loop)[0]
+    loop = psyir.walk(Loop)[loop_idx]
     # Make sure that the write statements inside the loop are CodeBlocks,
     # otherwise we need a new test example
     assert loop.has_descendant(nodes.CodeBlock)
@@ -703,7 +710,7 @@ def test_infer_sharing_attributes_with_codeblocks(
     # over with CodeBlocks. This will often still be defensively firstprivate
     # as we condiser all codeblock accesses as READWRITE.
     output = fortran_writer(psyir)
-    assert "firstprivate(scalar1,scalar2)" in output
+    assert "firstprivate(scalar1,scalar2)" in output, output
 
     # Add many more Codeblocks. For performance reasons this will skip the
     # analysis, but still return them all as firstprivate
