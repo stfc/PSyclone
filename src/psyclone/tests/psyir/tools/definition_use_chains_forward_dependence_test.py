@@ -1282,3 +1282,371 @@ def test_forward_accesses_multiple_elements(fortran_reader):
     assert len(reaches[sig1]) == 2
     assert reaches[sig1][0] is assigns[2].rhs
     assert reaches[sig1][1] is assigns[3].lhs
+
+
+def test_forward_accesses_if_else(fortran_reader):
+    """Test that for a reference in an if_body of an IfBlock we don't find
+    dependencies from the else_body"""
+    code = """subroutine x
+    integer :: a
+    logical :: test
+
+    if(test) then
+      a = 2
+    else
+      a = 4
+    end if
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assigns = routine.walk(Assignment)
+    lhs = assigns[0].lhs
+    sig = lhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain([lhs])
+    reaches = chains.find_forward_accesses()[sig]
+
+    assert len(reaches) == 0
+
+
+
+    from psyclone.psyir.nodes import (
+        Loop, Directive, Node, Reference, CodeBlock, Call,
+        Schedule, IntrinsicCall, StructureReference, IfBlock)
+    from psyclone.psyir.symbols import DataSymbol
+    from psyclone.psyir.transformations import (
+        ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
+        HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
+        OMPMinimiseSyncTrans, Reference2ArrayRangeTrans,
+        ScalarisationTrans, IncreaseRankLoopArraysTrans, MaximalRegionTrans,
+        TransformationError)
+    
+    def increase_rank_and_reorder_nemov5_loops(routine: Routine):
+        ''' This method increases the rank of temporary arrays used inside selected
+        loops (in order to parallelise the outer loop without overlapping them)
+        and then rearranges the outer loop next to the inner ones (in order to
+        collapse them), so that more parallelism can be leverage. This is useful
+        in GPU contexts, but it increases the memory footprint and may not be
+        beneficial for caching-architectures.
+    
+        :param routine: the target routine.
+    
+        '''
+        irlatrans = IncreaseRankLoopArraysTrans()
+    
+        # Map of routines and arrays
+        selection = {
+            "dyn_zdf": ['zwd', 'zwi', 'zws'],
+            "tra_zdf_imp": ['zwd', 'zwi', 'zws', 'zwt'],
+            "tke_tke": ['zice_fra', 'zd_lw', 'zd_up', 'zdiag', 'zwlc2', 'zpelc',
+                        'imlc', 'zhlc', 'zus3'],
+            "tke_avn": ['zmxlm', 'zmxld']
+        }
+    
+        if routine.name not in selection:
+            return
+    
+        for outer_loop in routine.walk(Loop, stop_type=Loop):
+            if outer_loop.variable.name == "jj":
+                # Increase the rank of the temporary arrays in this loop
+                irlatrans.apply(outer_loop, arrays=selection[routine.name])
+                # Now reorder the code
+                for child in outer_loop.loop_body[:]:
+                    # Move the contents of the jj loop outside it
+                    outer_loop.parent.addchild(child.detach(),
+                                               index=outer_loop.position)
+                    # Add a new jj loop around each inner loop that is not 'jn'
+                    target_loop = []
+                    for inner_loop in child.walk(Loop, stop_type=Loop):
+                        if inner_loop.variable.name != "jn":
+                            target_loop.append(inner_loop)
+                        else:
+                            for next_loop in inner_loop.loop_body.walk(
+                                                Loop, stop_type=Loop):
+                                target_loop.append(next_loop)
+                    for inner_loop in target_loop:
+                        if isinstance(inner_loop.loop_body[0], Loop):
+                            inner_loop = inner_loop.loop_body[0]
+                        inner_loop.replace_with(
+                            Loop.create(
+                                outer_loop.variable,
+                                outer_loop.start_expr.copy(),
+                                outer_loop.stop_expr.copy(),
+                                outer_loop.step_expr.copy(),
+                                children=[inner_loop.copy()]
+                            )
+                        )
+                # Remove the now empty jj loop
+                outer_loop.detach()
+
+    def normalise_loops(
+            schedule,
+            hoist_local_arrays: bool = True,
+            convert_array_notation: bool = True,
+            loopify_array_intrinsics: bool = True,
+            convert_range_loops: bool = True,
+            scalarise_loops: bool = False,
+            increase_array_ranks: bool = False,
+            hoist_expressions: bool = True,
+            ):
+        ''' Normalise all loops in the given schedule so that they are in an
+        appropriate form for the Parallelisation transformations to analyse
+        them.
+    
+        :param schedule: the PSyIR Schedule to transform.
+        :type schedule: :py:class:`psyclone.psyir.nodes.node`
+        :param bool hoist_local_arrays: whether to hoist local arrays.
+        :param bool convert_array_notation: whether to convert array notation
+            to explicit loops.
+        :param bool loopify_array_intrinsics: whether to convert intrinsics that
+            operate on arrays to explicit loops (currently only maxval).
+        :param bool convert_range_loops: whether to convert ranges to explicit
+            loops.
+        :param scalarise_loops: whether to attempt to convert arrays to scalars
+            where possible, default is False.
+        :param increase_array_ranks: whether to increase the rank of selected
+            arrays.
+        :param hoist_expressions: whether to hoist bounds and loop invariant
+            statements out of the loop nest.
+        '''
+        if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
+            # Apply the HoistLocalArraysTrans when possible, it cannot be applied
+            # to files with statement functions because it will attempt to put the
+            # allocate above it, which is not valid Fortran.
+            try:
+                HoistLocalArraysTrans().apply(schedule)
+            except TransformationError:
+                pass
+    
+        if convert_array_notation:
+            for reference in schedule.walk(Reference):
+                try:
+                    Reference2ArrayRangeTrans().apply(reference)
+                except TransformationError:
+                    pass
+    
+        if loopify_array_intrinsics:
+            for intr in schedule.walk(IntrinsicCall):
+                if intr.intrinsic.name == "MAXVAL":
+                    try:
+                        Maxval2LoopTrans().apply(intr, verbose=True)
+                    except TransformationError as err:
+                        print(err.value)
+    
+        if convert_range_loops:
+            # Convert all array implicit loops to explicit loops
+            explicit_loops = ArrayAssignment2LoopsTrans()
+            for assignment in schedule.walk(Assignment):
+                try:
+                    explicit_loops.apply(
+                        assignment, options={'verbose': True})
+                except TransformationError:
+                    pass
+    
+        if scalarise_loops:
+            # Apply scalarisation to every loop. Execute this in reverse order
+            # as sometimes we can scalarise earlier loops if following loops
+            # have already been scalarised.
+            loops = schedule.walk(Loop)
+            loops.reverse()
+            scalartrans = ScalarisationTrans()
+            for loop in loops:
+                scalartrans.apply(loop)
+    
+        if increase_array_ranks:
+            increase_rank_and_reorder_nemov5_loops(schedule)
+    
+        if hoist_expressions:
+            # First hoist all possible expressions
+            for loop in schedule.walk(Loop):
+                try:
+                    HoistLoopBoundExprTrans().apply(loop)
+                except TransformationError:
+                    pass
+    
+            # Hoist all possible assignments (in reverse order so the inner loop
+            # constants are hoisted all the way out if possible)
+            for loop in reversed(schedule.walk(Loop)):
+                for statement in list(loop.loop_body):
+                    try:
+                        HoistTrans().apply(statement)
+                    except TransformationError:
+                        pass
+    
+        # TODO #1928: In order to perform better on the GPU, nested loops with two
+        # sibling inner loops need to be fused or apply loop fission to the
+        # top level. This would allow the collapse clause to be applied.
+
+
+
+
+
+
+
+
+
+
+
+    code = """
+   SUBROUTINE tra_asm_inc( kt, Kbb, Kmm, pts, Krhs )
+      !!----------------------------------------------------------------------
+      !!                    ***  ROUTINE tra_asm_inc  ***
+      !!
+      !! ** Purpose : Apply the tracer (T and S) assimilation increments
+      !!
+      !! ** Method  : Direct initialization or Incremental Analysis Updating
+      !!
+      !! ** Action  :
+      !!----------------------------------------------------------------------
+      INTEGER                                  , INTENT(in   ) :: kt             ! Current time step
+      INTEGER                                  , INTENT(in   ) :: Kbb, Kmm, Krhs ! Time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) :: pts            ! active tracers and RHS of tracer equation
+      !
+      INTEGER  :: ji, jj, jk
+      INTEGER  :: it
+      REAL(wp) :: zincwgt  ! IAU weight for current time step
+      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zfzptnz, zdep2d   ! Freezing point values
+      REAL(wp), DIMENSION(jpi,jpj,jpk)      ::   zvalid_bv         ! Mask representing Brunt-Vaisala (N2) checks used to reject T/S
+                                                                   ! increments
+      !!----------------------------------------------------------------------
+         !                             !--------------------------------------
+      IF ( ln_asmiau ) THEN            ! Incremental Analysis Updating
+         !                             !--------------------------------------
+         !
+         IF ( ( kt >= nitiaustr_r ).AND.( kt <= nitiaufin_r ) ) THEN
+            !
+            it = kt - nit000 + 1
+            zincwgt = wgtiau(it) / rn_Dt   ! IAU weight for the current time step
+            !
+            IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
+               IF(lwp) THEN
+                  WRITE(numout,*)
+                  WRITE(numout,*) 'tra_asm_inc : Tracer IAU at time step = ', kt,' with IAU weight = ', wgtiau(it)
+                  WRITE(numout,*) '~~~~~~~~~~~~'
+               ENDIF
+            ENDIF
+            !
+            IF( ln_temnofreeze ) ALLOCATE( zfzptnz(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0)), zdep2d(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0)) )
+            !
+            ! Call Brunt-Vaisala checks to reject T/S increments
+            zvalid_bv(:,:,:) = 1.0_wp
+            IF ( ln_bv_check ) CALL verify_incs_bv( wgtiau(it), Kmm, pts, zvalid_bv )
+            !
+            ! Update the tracer tendencies
+            DO jk = 1, jpkm1
+               IF (ln_temnofreeze) THEN
+                  ! Do not apply negative increments if the temperature will fall below freezing
+                  DO jj = ntsj-( 0), ntej+(  0 ) ; DO ji = ntsi-( 0), ntei+(  0)
+                     zdep2d(ji,jj) = ((gdept_1d(jk) ) *(1._wp+r3t(ji,jj,Kmm)))   ! better solution: define an interface for eos_fzp when ((gdept_1d(jk) ) *(1._wp+r3t(ji,jj,Kmm))) is a scalar
+                  END DO   ;   END DO
+                  CALL eos_fzp( pts(:,:,jk,jp_sal,Kmm), zfzptnz(:,:), zdep2d(:,:), kbnd=0 )
+                  !
+                  WHERE(t_bkginc(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk) > 0.0_wp .OR. &
+                     &   pts(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk,jp_tem,Kmm) + pts(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk,jp_tem,Krhs) + t_bkginc(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk) * wgtiau(it) > zfzptnz(:,:) )
+                     pts(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk,jp_tem,Krhs) = pts(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk,jp_tem,Krhs) + t_bkginc(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk) * zvalid_bv(ji,jj,jk) * zincwgt
+                  END WHERE
+               ELSE
+                  DO jj = ntsj-( 0), ntej+(  0 ) ; DO ji = ntsi-( 0), ntei+(  0)
+                     pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + t_bkginc(ji,jj,jk) * zvalid_bv(ji,jj,jk) * zincwgt
+                  END DO   ;   END DO
+               ENDIF
+               IF (ln_salfix) THEN
+                  ! Do not apply negative increments if the salinity will fall below a specified
+                  ! minimum value rn_salfixmin
+                  WHERE(s_bkginc(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk) > 0.0_wp .OR. &
+                     &   pts(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk,jp_sal,Kmm) + pts(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk,jp_sal,Krhs) + s_bkginc(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk) * wgtiau(it) > rn_salfixmin )
+                     pts(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk,jp_sal,Krhs) = pts(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk,jp_sal,Krhs) + s_bkginc(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),jk) * zvalid_bv(ji,jj,jk) * zincwgt
+                  END WHERE
+               ELSE
+                  DO jj = ntsj-( 0), ntej+(  0 ) ; DO ji = ntsi-( 0), ntei+(  0)
+                     pts(ji,jj,jk,jp_sal,Krhs) = pts(ji,jj,jk,jp_sal,Krhs) + s_bkginc(ji,jj,jk) * zvalid_bv(ji,jj,jk) * zincwgt
+                  END DO   ;   END DO
+               ENDIF
+            END DO
+            !
+            IF( ln_temnofreeze ) DEALLOCATE( zfzptnz, zdep2d )
+            !
+         ENDIF
+         !
+         IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
+            IF ( kt == nitiaufin_r + 1  ) THEN   ! For bias crcn to work
+               IF (ALLOCATED(t_bkginc)) DEALLOCATE( t_bkginc )
+               IF (ALLOCATED(s_bkginc)) DEALLOCATE( s_bkginc )
+            ENDIF
+         ENDIF
+         !                             !--------------------------------------
+      ELSEIF ( ln_asmdin ) THEN        ! Direct Initialization
+         !                             !--------------------------------------
+         !
+         IF ( kt == nitdin_r ) THEN
+            !
+            l_1st_euler = .TRUE.  ! Force Euler forward step
+            !
+            ! Call Brunt-Vaisala checks to reject T/S increments
+            zvalid_bv(:,:,:) = 1.0_wp
+            IF ( ln_bv_check ) CALL verify_incs_bv( 1.0_wp, Kmm, pts, zvalid_bv )
+            !
+            ! Initialize the now fields with the background + increment
+            IF (ln_temnofreeze) THEN
+               ! Do not apply negative increments if the temperature will fall below freezing
+               ALLOCATE( zfzptnz(ntsi-(nn_hls):ntei+(nn_hls),ntsj-(nn_hls):ntej+(nn_hls)), zdep2d(ntsi-(nn_hls):ntei+(nn_hls),ntsj-(nn_hls):ntej+(nn_hls)) )
+               !
+               DO jk = 1, jpkm1
+                  DO jj = ntsj-( nn_hls), ntej+(  nn_hls ) ; DO ji = ntsi-( nn_hls), ntei+(  nn_hls)
+                     zdep2d(ji,jj) = ((gdept_1d(jk) ) *(1._wp+r3t(ji,jj,Kmm)))   ! better solution: define an interface for eos_fzp when ((gdept_1d(jk) ) *(1._wp+r3t(ji,jj,Kmm))) is a scalar
+                  END DO   ;   END DO
+                  CALL eos_fzp( pts(:,:,jk,jp_sal,Kmm), zfzptnz(:,:), zdep2d(:,:) )
+                  !
+                  WHERE( t_bkginc(:,:,jk) > 0.0_wp .OR. pts(:,:,jk,jp_tem,Kmm) + t_bkginc(:,:,jk) > zfzptnz(:,:) )
+                     pts(:,:,jk,jp_tem,Kmm) = t_bkg(:,:,jk) + t_bkginc(:,:,jk) * zvalid_bv(:,:,jk)
+                  END WHERE
+               END DO
+               !
+               DEALLOCATE( zfzptnz, zdep2d )
+            ELSE
+               pts(:,:,:,jp_tem,Kmm) = t_bkg(:,:,:) + t_bkginc(:,:,:) * zvalid_bv(:,:,:)
+            ENDIF
+            IF (ln_salfix) THEN
+               ! Do not apply negative increments if the salinity will fall below a specified
+               ! minimum value rn_salfixmin
+               WHERE( s_bkginc(:,:,:) > 0.0_wp .OR. pts(:,:,:,jp_sal,Kmm) + s_bkginc(:,:,:) > rn_salfixmin )
+                  pts(:,:,:,jp_sal,Kmm) = s_bkg(:,:,:) + s_bkginc(:,:,:) * zvalid_bv(:,:,:)
+               END WHERE
+            ELSE
+               pts(:,:,:,jp_sal,Kmm) = s_bkg(:,:,:) + s_bkginc(:,:,:) * zvalid_bv(:,:,:)
+            ENDIF
+
+            pts(:,:,:,:,Kbb) = pts(:,:,:,:,Kmm)                 ! Update before fields
+            CALL eos( pts, Kbb, rhd, rhop )                     ! Before potential and in situ densities
+
+            DEALLOCATE( t_bkginc )
+            DEALLOCATE( s_bkginc )
+            DEALLOCATE( t_bkg    )
+            DEALLOCATE( s_bkg    )
+         ENDIF
+         !
+      ENDIF
+      ! Perhaps the following call should be in step
+      IF ( ln_sicinc )   CALL sic_asm_inc ( kt )      ! apply sea ice concentration increment
+      IF ( ln_sitinc )   CALL sit_asm_inc ( kt )      ! apply sea ice thickness increment
+      !
+   END SUBROUTINE tra_asm_inc"""
+    psyir = fortran_reader.psyir_from_source(code)
+    normalise_loops(
+            psyir.walk(Routine)[0],
+            hoist_local_arrays=False,
+            convert_array_notation=True,
+            loopify_array_intrinsics=True,
+            convert_range_loops=True,
+            increase_array_ranks=True,
+            hoist_expressions=True
+    )
+    references = psyir.walk(Reference)
+    res = None
+    for ref in references:
+        if "pts" in ref.parent.debug_string():
+            print(ref.parent.debug_string())
+        if "pts(widx1,widx2,jk,jp_tem,kmm) = t_bkg(LBOUND(t_bkg, dim=1) + widx1 - 1,LBOUND(t_bkg, dim=2) + widx2 - 1,jk) + t_bkginc(LBOUND(t_bkginc, dim=1) + widx1 - 1,LBOUND(t_bkginc, dim=2) + widx2 - 1,jk) * zvalid_bv(widx1,widx2,jk)" in ref.parent.debug_string():
+            res = ref
+            break
+    print(res)
+    assert False
