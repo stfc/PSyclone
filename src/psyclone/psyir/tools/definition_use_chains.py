@@ -328,13 +328,14 @@ class DefinitionUseChain:
                         # Modify the start_point to only include the node after
                         # this assignment.
                         self._start_point = last_node.abs_position
-                    else:
+                    elif (all([ref is not ancestor.lhs for
+                               ref in self._references])):
                         # Add the lhs as a potential basic block with
                         # different start and stop positions, but don't
                         # include the lhs if the lhs is present.
                         chain = DefinitionUseChain(
                             [ref.copy() for ref in self._references if
-                             ref != ancestor.lhs],
+                             ref is not ancestor.lhs],
                             [ancestor.lhs],
                             start_point=ancestor.lhs.abs_position - 1,
                             stop_point=ancestor.lhs.abs_position + 1,
