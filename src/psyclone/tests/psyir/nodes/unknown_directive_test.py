@@ -31,21 +31,31 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors A. B. G. Chalk, STFC Daresbury Lab.
+# Authors A. B. G. Chalk and S. Siso, STFC Daresbury Lab.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the test for the UnknownDirective node.'''
 
+import pytest
 from psyclone.psyir.nodes import UnknownDirective
 
 
-def test_psydirective():
+def test_psydirective_constructor_and_getters():
     '''Tests the functionality of the UnknownDirective.'''
 
-    direc = UnknownDirective("psy info")
-    assert direc._directive_string == "psy info"
-    assert direc.directive_string == "psy info"
+    # Check TypeErrors
+    with pytest.raises(TypeError) as err:
+        direc = UnknownDirective(3)
+    assert "'directive_string' must be a 'str' but found" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        direc = UnknownDirective("hello", 3)
+    assert ("'sentinel_infix_string' must be a 'str' but found"
+            in str(err.value))
+
+    direc = UnknownDirective("hello", "there")
+    assert direc._directive_string == "hello"
+    assert direc.directive_string == "hello"
+    assert direc._sentinel_infix_string == "there"
+    assert direc.sentinel_infix_string == "there"
 
     assert not UnknownDirective._validate_child(None, None)
-
-    assert direc.begin_string() == "psy info"

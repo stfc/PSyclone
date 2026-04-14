@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, Range, StructureReference,
     Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
-    OMPDependClause, IntrinsicCall, OMPReductionClause)
+    OMPDependClause, IntrinsicCall, OMPReductionClause, UnknownDirective)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol, DataSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, StaticInterface, Symbol, SymbolTable,
@@ -2243,3 +2243,13 @@ def test_fw_intrinsiccall(fortran_reader, fortran_writer):
             "argument name 'scalar' found" in str(err.value))
     output = fortran_writer(intrinsic)
     assert "ALLOCATED(scalar=b)" in output
+
+
+def test_fw_unknowndirective(fortran_writer):
+    '''
+    Test that the UnknownDirective visitor generate the expected string.
+    '''
+    direc = UnknownDirective("omp atomic")
+    assert fortran_writer(direc) == "!$omp atomic\n"
+    direc = UnknownDirective(" IVDEP", "DIR")
+    assert fortran_writer(direc) == "!DIR$ IVDEP\n"
