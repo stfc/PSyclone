@@ -375,12 +375,14 @@ class DefinitionUseChain:
                     for sig in chain._reaches:
                         if sig in self._reference_signatures:
                             for ref in chain._reaches[sig]:
-                                # Add unique references to reaches. Since we're
-                                # not in a control flow region, we can't have
-                                # added these references into the reaches
-                                # array yet so they're guaranteed to be
-                                # unique.
-                                self._reaches[sig].append(ref)
+                                # Add unique references to reaches. We always
+                                # need to check as the input can have multiple
+                                # References to the same symbol.
+                                for ref2 in self._reaches[sig]:
+                                    if ref2 is ref:
+                                        break
+                                else:
+                                    self._reaches[sig].append(ref)
                     # If we have a defsout in the chain then we can stop for
                     # that reference as we will never get past the write
                     # as its not conditional. Since we don't always include
@@ -1009,7 +1011,7 @@ class DefinitionUseChain:
         if self._stop_point is None:
             # Find the max abs position, as all of these are
             # contained in the same parent.
-            self._stop_point = max(list(self._references_abs_pos.values()))
+            self._stop_point = min(list(self._references_abs_pos.values()))
         # If there is no set stop point, then any Reference after
         # the start point can potentially be a forward access.
         if self._start_point is None:
@@ -1104,7 +1106,7 @@ class DefinitionUseChain:
                         # Add the rhs as a potential basic block with
                         # different start and stop positions.
                         chain = DefinitionUseChain(
-                            [ref.copy() for ref in self._references],
+                            [ancestor.lhs.copy()],
                             ancestor.rhs.children[:],
                             start_point=ancestor.rhs.abs_position,
                             stop_point=end.abs_position,
@@ -1128,24 +1130,29 @@ class DefinitionUseChain:
                     # We're outside a control flow region, updating the reaches
                     # here is to find all the reached nodes.
                     for sig in chain._reaches:
-                        for ref in chain._reaches[sig]:
-                            # Add unique references to reaches. Since we're not
-                            # in a control flow region, we can't have added
-                            # these references into the reaches array yet so
-                            # they're guaranteed to be unique.
-                            found = False
-                            for ref2 in self._reaches[sig]:
-                                if ref is ref2:
-                                    found = True
-                                    break
-                            if not found:
-                                self._reaches[sig].append(ref)
+                        if sig in self._reference_signatures:
+                            for ref in chain._reaches[sig]:
+                                # Add unique references to reaches. Since
+                                # we're not in a control flow region, we
+                                # can't have added these references into the
+                                # reaches array yet so they're guaranteed
+                                # to be unique.
+                                found = False
+                                for ref2 in self._reaches[sig]:
+                                    if ref is ref2:
+                                        found = True
+                                        break
+                                if not found:
+                                    self._reaches[sig].append(ref)
                     # If we have a defsout in the chain then we can stop as we
                     # will never get past the write as its not conditional.
                     for i, sig in enumerate(self._reference_signatures):
-                        if len(chain.defsout[sig]) > 0:
-                            self._references.pop(i)
-                            self._reference_signatures.pop(i)
+                        # Not all references are passed into all subchains.
+                        if sig in chain.defsout:
+                            if len(chain.defsout[sig]) > 0:
+                                self._references.pop(i)
+                                self._reference_signatures.pop(i)
+                                self._defsout[sig].extend(chain.defsout[sig])
                     # If we have found an end point for all references then
                     # we can stop.
                     if len(self._references) == 0:
@@ -1183,14 +1190,15 @@ class DefinitionUseChain:
                                     self._stop_point = save_stop_position
                                     return self._reaches
                     for sig in chain._reaches:
-                        for ref in chain._reaches[sig]:
-                            found = False
-                            for ref2 in self._reaches[sig]:
-                                if ref is ref2:
-                                    found = True
-                                    break
-                            if not found:
-                                self._reaches[sig].append(ref)
+                        if sig in self._reference_signatures:
+                            for ref in chain._reaches[sig]:
+                                found = False
+                                for ref2 in self._reaches[sig]:
+                                    if ref is ref2:
+                                        found = True
+                                        break
+                                if not found:
+                                    self._reaches[sig].append(ref)
         else:
             # Check if there is an ancestor Assignment.
             ancestor = self._references[0].ancestor(Assignment)
