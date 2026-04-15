@@ -49,7 +49,7 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.nodes import (
     BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
     Literal, Node, OMPDependClause, OMPReductionClause, Operation, Range,
-    Routine, Schedule, UnaryOperation)
+    Routine, Schedule, UnaryOperation, UnknownDirective)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
@@ -1708,6 +1708,18 @@ class FortranWriter(LanguageWriter):
         result = result + "\n"
 
         return result
+
+    def unknowndirective_node(self, node: UnknownDirective) -> str:
+        '''This method is called when a UnknownDirective instance is found
+        in the PSyIR tree. It returns the directive as a string.
+
+        :param node: a UnknownDirective PSyIR node.
+
+        :returns: the Fortran code for this node.
+
+        '''
+        return (f"{self._nindent}!{node.sentinel_infix_string}$"
+                f"{node.directive_string}\n")
 
     def _gen_arguments(self, node):
         '''Utility function that check that all named args occur after all

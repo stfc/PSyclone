@@ -2985,10 +2985,10 @@ def test_structuretype_used_before_def(fortran_reader):
     assert mytype.is_import
 
 
-def test_generate_parse_tree_methods():
+def test_generate_parse_tree_from_source():
     '''
-    Test that generate_parse_tree returns fparser2 parse tree nodes or
-    an appropriate error message
+    Test that generate_parse_tree_from_source returns fparser2 parse tree
+    nodes or an appropriate error messages.
     '''
     processor = Fparser2Reader()
 

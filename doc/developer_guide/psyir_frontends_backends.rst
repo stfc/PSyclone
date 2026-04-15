@@ -43,8 +43,8 @@ other representations (such as languages like Fortran or C, or other
 Intermediate Representations like SIR).
 
 The set of PSyIR nodes that the frontends and backends recognise and translate
-from/to are known as the language_level nodes. PSyclone also provide
-:ref:`uplifting-lowering` to support higher-level or domain specific abstractions.
+to/from are known as the language_level nodes. PSyclone also provide
+:ref:`uplifting-lowering` to support higher-level or domain-specific abstractions.
 
 
 .. _psyir-frontends:
@@ -52,8 +52,7 @@ from/to are known as the language_level nodes. PSyclone also provide
 PSyIR Frontends
 ===============
 
-Currently 2 Fortran frontends are available, the frontend to use can be
-selected with the ``psyclone --frontend <frontend>`` flag:
+Currently two Fortran frontends are available:
 
 fparser2:
   This is the main Fortran frontend based on
@@ -64,6 +63,8 @@ treesitter:
   This is a highly experimental frontend based on
   `the treesitter parser <https://tree-sitter.github.io>`_ which has the
   potential to be faster, but is currently severely incomplete and untested.
+
+The frontend is selected with the ``psyclone --frontend <frontend>`` flag.
 
 .. _psyir-backends:
 
@@ -298,16 +299,16 @@ is commented out:
 PSyIR Validation
 ----------------
 
-Although some validations are made during the Node creation and transformation,
-there are often constraints that can only be checked once the tree is complete
-i.e. at the point that a backend is used to generate code. One such example
-is that an OpenMP `do` directive must appear within an OpenMP `parallel`
-region.
+Although some validation is performed during the Node creation and when
+applying transformations, there are often constraints that can only be checked
+once the tree is complete, i.e. at the point that a backend is used to generate
+code. One such example is that an OpenMP `do` directive must appear within an
+OpenMP `parallel` region.
 
-The base PSyVisitor class provides support for this validation by
-calling the ``validate_global_constraints()`` method of each Node that
-it visits. The ``Node`` base class contains an empty implementation of
-this method. Therefore, if a subclass of ``Node`` is subject to certain
+For this reason, the base PSyVisitor class provides support for this global
+validation by calling the ``validate_global_constraints()`` method of each
+Node that it visits. The ``Node`` base class contains an empty implementation
+of this method. Therefore, if a subclass of ``Node`` is subject to certain
 global constraints then it must override this method and implement the
 required checks. If those checks fail then the method should raise a
 ``GenerationError``.
