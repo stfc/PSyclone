@@ -994,7 +994,7 @@ coarse mesh.
 Lowering
 --------
 
-As described in :ref:`psy_layer_backends`, the use of a PSyIR backend to
+As described in :ref:`uplifting-lowering`, the use of a PSyIR backend to
 generate code for the LFRic PSy layer requires that each LFRic-specific
 node be lowered to 'language-level' PSyIR. This requires that each node
 have the ``lower_to_language_level()`` method implemented.
