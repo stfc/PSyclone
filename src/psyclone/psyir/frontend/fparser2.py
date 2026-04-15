@@ -5656,7 +5656,8 @@ class Fparser2Reader():
                 if isinstance(routine, Routine) and routine.name == name:
                     sym = routine.symbol
                     routine.detach()
-                    parent.symbol_table.add(sym)
+                    if sym.name not in parent.symbol_table:
+                        parent.symbol_table.add(sym)
             raise NotImplementedError("PSyclone doesn't yet support 'Contains'"
                                       " inside a Subroutine or Function")
         except ValueError:
