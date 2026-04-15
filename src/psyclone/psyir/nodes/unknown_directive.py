@@ -65,11 +65,11 @@ class UnknownDirective(StandaloneDirective):
         if not isinstance(directive_string, str):
             raise TypeError(
                 f"'directive_string' must be a 'str' but found "
-                f"'{type(directive_string)}'")
+                f"'{type(directive_string).__name__}'")
         if not isinstance(sentinel_infix_string, str):
             raise TypeError(
                 f"'sentinel_infix_string' must be a 'str' but found "
-                f"'{type(sentinel_infix_string)}'")
+                f"'{type(sentinel_infix_string).__name__}'")
         self._directive_string = directive_string
         self._sentinel_infix_string = sentinel_infix_string
 
@@ -96,6 +96,8 @@ class UnknownDirective(StandaloneDirective):
     @property
     def sentinel_infix_string(self) -> str:
         '''
-        :returns: The sentinel infix content of this UnknownDirective node.
+        :returns: The content inside the directive sentinel of this
+            UnknownDirective node (e.g. in Fortran this is the string
+            between the ! and $ such as in !DIR$ or !GCC$).
         '''
         return self._sentinel_infix_string
