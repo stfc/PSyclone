@@ -73,7 +73,7 @@ from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
-    UnresolvedType)
+    SymbolError, UnresolvedType)
 from psyclone.psyir.transformations.callee_transformation_mixin import (
     CalleeTransformationMixin)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -2305,9 +2305,23 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
                 f"for the GOcean API but got an InvokeSchedule of type: "
                 f"'{type(invoke_schedule).__name__}'")
 
-        # Check that the kernel has already been module-inlined. This also
-        # implies that there are no unqualified imports or undeclared symbols.
+        # Check that the kernel has already been module-inlined (as this
+        # permits us to safely modify it).
         self._check_callee_implementation_is_local(node)
+
+        # Check that the kernel implementation doesn't have any unresolved
+        # symbols.
+        for kernel in node.get_callees():
+            try:
+                kernel.check_outer_scope_accesses(
+                    node, "Kernel",
+                    permit_unresolved=False,
+                    ignore_non_data_accesses=True)
+            except SymbolError as err:
+                raise TransformationError(
+                    f"Cannot apply {self.name} to Kernel '{node.name}' "
+                    f"because it accesses data from its outer scope: "
+                    f"{err.value}") from err
 
     def apply(self, node, options=None):
         '''

@@ -50,11 +50,13 @@ class TestTrans(Transformation, CalleeTransformationMixin):
     '''
     def validate(self, node, **kwargs):
         '''
+        Just calls the CalleeTransformationMixin validation.
         '''
         self._check_callee_implementation_is_local(node)
 
     def apply(self, node, **kwargs):
         '''
+        Do nothing.
         '''
 
 

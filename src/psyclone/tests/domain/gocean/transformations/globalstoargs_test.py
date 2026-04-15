@@ -92,6 +92,23 @@ def test_kernelimportsstoargumentstrans_requires_module_inline():
             in str(err.value))
 
 
+def test_kernelimportstoargumentstrans_no_wildcard_import():
+    ''' Check that the transformation rejects kernels with wildcard
+    imports. '''
+    psy, invoke_info = get_invoke(
+        "single_invoke_kern_with_unqualified_use.f90", idx=0, api=API)
+    kernel = invoke_info.schedule.coded_kernels()[0]
+
+    # Kernel has to be module-inlined first.
+    KernelModuleInlineTrans().apply(kernel)
+
+    trans = KernelImportsToArguments()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(kernel)
+    assert ("'kernel_with_use_code' contains accesses to 'rdt' which is "
+            "unresolved" in str(err.value))
+
+
 def test_kernelimportstoargumentstrans(fortran_writer):
     ''' Check the KernelImportsToArguments transformation with a single kernel
     invoke and an imported variable.'''
