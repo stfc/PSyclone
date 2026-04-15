@@ -49,7 +49,8 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
 from psyclone.psyir.symbols import (
-    ArrayType, ScalarType, UnsupportedFortranType)
+    ArrayType, ContainerSymbol, DataTypeSymbol, ScalarType,
+    UnsupportedFortranType)
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import LFRicColourTrans
 
@@ -87,6 +88,44 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
         result.append(re.sub(r"[(]\s*:(,\s*:)*\s*[)]$", "", out))
 
     assert result == create_arg_list._arglist
+
+
+def test_get_user_type():
+    '''
+    Tests for the get_user_type() method.
+    '''
+    # Get a Kernel object.
+    _, invoke = get_invoke("1_single_invoke.f90", api=TEST_API, idx=0)
+    kernel = invoke.schedule.kernels()[0]
+
+    assert not kernel.scope.symbol_table.lookup("operator_mod", otherwise=None)
+
+    create_arg_list = KernCallArgList(kernel)
+    sym = create_arg_list.get_user_type("operator_mod",
+                                        "operator_type",
+                                        "my_op")
+    assert isinstance(sym.datatype, DataTypeSymbol)
+    assert sym.datatype.name == "operator_type"
+    op_mod = kernel.scope.symbol_table.lookup("operator_mod")
+    assert isinstance(op_mod, ContainerSymbol)
+
+    # Repeat - to check that the ContainerSymbol added last time is
+    # re-used.
+    sym = create_arg_list.get_user_type("operator_mod",
+                                        "operator_proxy_type",
+                                        "my_op_proxy",
+                                        tag="my_tag")
+    assert kernel.scope.symbol_table.lookup_with_tag("my_tag") is sym
+    assert isinstance(sym.datatype, DataTypeSymbol)
+    assert sym.datatype.name == "operator_proxy_type"
+    proxy_type = kernel.scope.symbol_table.lookup("operator_proxy_type")
+    assert proxy_type.interface.container_symbol is op_mod
+    # Repeat with the same tag -> should get the same symbol.
+    sym2 = create_arg_list.get_user_type("operator_mod",
+                                         "operator_proxy_type",
+                                         "my_op_proxy",
+                                         tag="my_tag")
+    assert sym2 is sym
 
 
 def test_cellmap_intergrid(dist_mem, fortran_writer):
@@ -579,21 +618,23 @@ def test_indirect_dofmap(fortran_writer):
         # because the PSyIR doesn't support pointers. However, its
         # 'partial_datatype' is the type of the member accessed, i.e. it's
         # the 1D real array.
-        assert isinstance(psyir_args[i].datatype, UnsupportedFortranType)
-        assert isinstance(psyir_args[i].datatype.partial_datatype,
+        assert isinstance(psyir_args[i].symbol.datatype,
+                          UnsupportedFortranType)
+        assert isinstance(psyir_args[i].symbol.datatype.partial_datatype,
                           ArrayType)
-        assert (psyir_args[i].datatype.partial_datatype.intrinsic ==
+        assert (psyir_args[i].symbol.datatype.partial_datatype.intrinsic ==
                 ScalarType.Intrinsic.REAL)
 
     # Test all 3D real arrays:
-    assert isinstance(psyir_args[4].datatype, UnsupportedFortranType)
-    assert (psyir_args[4].datatype.partial_datatype.intrinsic ==
+    print(psyir_args[4].datatype)
+    assert isinstance(psyir_args[4].symbol.datatype, UnsupportedFortranType)
+    assert (psyir_args[4].symbol.datatype.partial_datatype.intrinsic ==
             ScalarType.Intrinsic.REAL)
-    assert len(psyir_args[4].datatype.partial_datatype.shape) == 3
+    assert len(psyir_args[4].symbol.datatype.partial_datatype.shape) == 3
 
     # Test all 1D integer arrays:
     for i in [15, 19]:
-        assert "(:)" in psyir_args[i].datatype.declaration
+        assert "(:)" in psyir_args[i].symbol.datatype.declaration
 
     # Test all 2D integer arrays:
     for i in [14, 18]:

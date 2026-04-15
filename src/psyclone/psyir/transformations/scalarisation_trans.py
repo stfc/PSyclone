@@ -438,7 +438,7 @@ class ScalarisationTrans(LoopTrans):
         for target in finalised_targets:
             target_accesses = var_accesses[target]
             first_access = target_accesses[0].node
-            symbol_type = first_access.symbol.datatype.datatype
+            symbol_type = first_access.symbol.datatype.elemental_type
             symbol_name = first_access.symbol.name
             scalar_symbol = routine_table.new_symbol(
                     root_name=f"{symbol_name}_scalar",

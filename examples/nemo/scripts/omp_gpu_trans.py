@@ -84,7 +84,6 @@ NEMOV5_EXCLUSIONS = [
 
 NEMOV4_EXCLUSIONS = [
     "dynspg_ts.f90",
-    "tranxt.f90",
 ]
 
 SKIP_FOR_PERFORMANCE = [
@@ -191,19 +190,20 @@ def trans(psyir):
                 subroutine.name == 'dom_zgr' or
                 subroutine.name == 'dom_ngb'):
             continue
-        if subroutine.name == "solfrac_mod.f90":
+        if subroutine.name == "solfrac":
             # Bring these solfrac parameters to the subroutine as nvidia
             # does not permit offloaded kernels to access module parameters
             symtab = subroutine.symbol_table
-            symtab.add(symtab.lookup("pp_wgt"))
-            symtab.add(symtab.lookup("pp_len"))
+            if "pp_wgt" not in symtab:
+                symtab.add(symtab.lookup("pp_wgt"))
+            if "pp_len" not in symtab:
+                symtab.add(symtab.lookup("pp_len"))
 
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,
                 convert_array_notation=True,
-                # See issue #3022
-                loopify_array_intrinsics=psyir.name != "getincom.f90",
+                loopify_array_intrinsics=True,
                 convert_range_loops=True,
                 increase_array_ranks=not NEMOV4,
                 hoist_expressions=True

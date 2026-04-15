@@ -88,7 +88,7 @@ def test_command_line(capsys, caplog):
     GOLoop._bounds_lookup = {}
     # Check that --config with a parameter is accepted but logs a warning
     # about the deprecated access_mapping entry.
-    with caplog.at_level(logging.WARN):
+    with caplog.at_level(logging.WARN, logger="psyclone.configuration"):
         main(options+["--config", config_file, f90_file])
     assert ("Configuration file contains an ACCESS_MAPPING entry. This is "
             "deprecated" in caplog.text)

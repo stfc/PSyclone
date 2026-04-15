@@ -86,7 +86,10 @@ def trans(psyir):
                 if isinstance(child, Assignment):
                     hoist_trans.apply(child)
 
-        kern = sir_writer(subroutine)
-        # TODO issue #1854. There should be backend support for
-        # writing out SIR.
-        print(kern)
+        try:
+            kern = sir_writer(subroutine)
+            # TODO issue #1854. There should be backend support for
+            # writing out SIR.
+            print(kern)
+        except Exception as e:
+            print(f"Failed to transform {subroutine.name}: {e}")

@@ -965,7 +965,7 @@ PSy-layer concepts
   are the singular units of computation that can be found inside a
   `PSyLoop`.
 * The `HaloExchange` is a distributed-memory concept in the PSy-layer.
-* The `GlobalSum` is a distributed-memory concept in the PSy-layer.
+* The `GlobalReduction` is a distributed-memory concept in the PSy-layer.
 
 
 Other specializations
@@ -973,7 +973,7 @@ Other specializations
 
 In LFRic there are specialisations for
 kernel-layer datatypes and symbols. For the algorithm layer in both
-GOcean1.0 and LFRic there are specialisations for invokes and kernel
+GOcean and LFRic there are specialisations for invokes and kernel
 calls. This is discussed further in the following sections.
 
 The LFRic PSyIR

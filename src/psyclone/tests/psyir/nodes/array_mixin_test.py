@@ -639,6 +639,7 @@ def test_get_effective_shape(fortran_reader):
         "  b(idx, 1+indices(1,1):) = 1\n"
         "  b(idx, a) = -1.0\n"
         "  b(scalarval, arrayval) = 1\n"
+        "  b(:,indices(:)) = 1\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
@@ -660,7 +661,7 @@ def test_get_effective_shape(fortran_reader):
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
-    assert "SIZE(a, dim=1)" in shape[0].debug_string()
+    assert "10" in shape[0].debug_string()
     # Array slice with only lower-bound specified.
     #   a(2:) = 0.0
     child_idx += 1
@@ -748,6 +749,11 @@ def test_get_effective_shape(fortran_reader):
             " of 'UnresolvedType' type and therefore whether it is an array "
             "slice (i.e. an indirect access) cannot be determined."
             in str(err.value))
+    # Nested array accesses with ranges with implicit bounds
+    child_idx += 1
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert "10" == shape[0].debug_string()
+    assert "8" == shape[1].debug_string()
 
 
 def test_struct_get_effective_shape(fortran_reader):

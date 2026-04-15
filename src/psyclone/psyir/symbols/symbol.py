@@ -415,7 +415,7 @@ class Symbol(CommentableMixin):
     def find_symbol_table(self, node):
         '''
         Searches back up the PSyIR tree for the SymbolTable that contains
-        this Symbol.
+        this Symbol instance.
 
         :param node: the PSyIR node from which to search.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
@@ -438,8 +438,7 @@ class Symbol(CommentableMixin):
         try:
             current = node.scope.symbol_table
             while current:
-                if self.name in current:
-                    # TODO #2949: Add: and current.lookup(self.name) is self:
+                if self.name in current and current.lookup(self.name) is self:
                     return current
                 if current.node.parent:
                     current = current.node.parent.scope.symbol_table

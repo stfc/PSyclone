@@ -48,10 +48,10 @@ NO_DEP_LIBS = lfric_timer simple_timing template
 
 # The list with all libraries (include the ones that have additional
 # dependencies):
-ALL_LIBS = $(NO_DEP_LIBS) dl_timer drhook nvidia tau vernier
+ALL_LIBS = $(NO_DEP_LIBS) amd dl_timer drhook nvidia tau vernier
 
 .PHONY: default all $(NO_DEP_LIBS) clean allclean \
-	dl_timer drhook nvidia tau vernier
+	amd dl_timer drhook nvidia tau vernier
 
 # By default, compile all libraries that do not have additional dependencies
 # The 'all' target is used by the compilation tests, so this also can only

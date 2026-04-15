@@ -352,7 +352,7 @@ def test_sympy_writer_type_map_non_canonical(fortran_reader):
 
     writer = SymPyWriter()
     with pytest.raises(VisitorError) as err:
-        _ = writer([assign.rhs])
+        _ = writer.intrinsiccall_node(assign.rhs)
     assert ("Sympy handler can't handle an IntrinsicCall that can't have "
             "argument names automatically added. Use explicit argument names "
             "instead. Failing node was 'SUM(i, j)'."
@@ -547,7 +547,9 @@ def test_sympy_writer_user_types(fortran_reader, fortran_writer,
 
 
 @pytest.mark.parametrize("fortran_expr,sympy_str",
-                         [("a .and. b", "And(a, b)"),
+                         [(".not. a", "Not(a)"),
+                          ("-1", "-1"),
+                          ("a .and. b", "And(a, b)"),
                           ("a .or. b", "Or(a, b)"),
                           ("a .eqv. b", "Equivalent(a, b)"),
                           ("a .neqv. b", "Xor(a, b)"),
