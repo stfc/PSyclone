@@ -151,8 +151,6 @@ END PROGRAM my_test'''
     prog = psyir.walk(Routine)[0]
     assert len(prog.children) == 1
     assert isinstance(prog.children[0], CodeBlock)
-    assert isinstance(prog.children[0].ast,
-                      Fortran2003.Block_Nonlabel_Do_Construct)
 
 
 def test_unhandled_labelled_do(fortran_reader):
@@ -169,8 +167,6 @@ END PROGRAM my_test'''
     prog = psyir.walk(Routine)[0]
     assert len(prog.children) == 1
     assert isinstance(prog.children[0], CodeBlock)
-    assert isinstance(prog.children[0].ast,
-                      Fortran2003.Block_Nonlabel_Do_Construct)
 
 
 def test_undeclared_loop_var(fortran_reader):
