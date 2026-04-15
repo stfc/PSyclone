@@ -342,7 +342,8 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                 # TODO #898 SymbolTable.remove() does not support
                 # DataTypeSymbol so remove it manually.
                 # pylint: disable=protected-access
-                del table._symbols[sym.name]
+                if sym.name in table._symbols:
+                    del table._symbols[sym.name]
 
 
 __all__ = ['LFRicAlgInvoke2PSyCallTrans']
