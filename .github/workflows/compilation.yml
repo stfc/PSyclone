@@ -88,7 +88,7 @@ jobs:
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
         pip install external/fparser
-        pip install .[test,psydata,doc]
+        pip install .[test,psydata,doc,treesitter]
     - name: Unit tests with compilation - gfortran
       run: |
         . .runner_venv/bin/activate
@@ -177,5 +177,6 @@ jobs:
     - name: Test reasonable psycloning times for complex files
       run: |
         . .runner_venv/bin/activate
-        # Fail if it takes more than 15s
-        timeout -s INT 15s psyclone /archive/psyclone-tests/latest-run/slow_files/ukca_aero_ctl.F90
+        # Fail if it takes more time than expected
+        timeout -s INT 12s psyclone /archive/psyclone-tests/latest-run/slow_files/ukca_aero_ctl.F90
+        timeout -s INT 0.5s psyclone --frontend treesitter /archive/psyclone-tests/latest-run/slow_files/ukca_aero_ctl.F90
