@@ -1,3 +1,8 @@
+   3) PR #3351 towards #3083. Adds scaffolding for new Treesitter-based
+   frontend.
+ 
+   2) PR #3401 for #3400. Fixes a frontend issue causing issues with NEMO
+   master branch.
 
    1) PR #3393 for #2917 and #2887 - updates test to show that symbols with
    explicit precision in common blocks now work OK. Also corrects tutorial
