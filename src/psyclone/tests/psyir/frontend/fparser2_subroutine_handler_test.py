@@ -439,7 +439,7 @@ def test_unsupported_char_len_function(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     cblock = psyir.children[0].children[0]
     assert isinstance(cblock, CodeBlock)
-    assert "LEN = 2" in str(cblock.get_ast_nodes[0])
+    assert "LEN = 2" in str(cblock.parse_tree_nodes[0])
     fsym = psyir.children[0].symbol_table.lookup("my_func")
     assert isinstance(fsym, RoutineSymbol)
     assert isinstance(fsym.datatype, UnresolvedType)
@@ -461,23 +461,56 @@ def test_unsupported_contains_subroutine(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     cblock = psyir.children[0]
     assert isinstance(cblock, CodeBlock)
-    assert "FUNCTION" in str(cblock.get_ast_nodes[0])
+    assert "FUNCTION" in str(cblock.parse_tree_nodes[0])
 
-    code = '''subroutine a(b, c, d)
-    real b, c, d
-
-    call my_func(c, d)
-
-    contains
-    subroutine my_func(a1, a2)
-    real a1, a2
-    a1 = a1 * a2
-    end subroutine
-    end subroutine'''
+    code = '''
+    module test
+        implicit none
+        contains
+        subroutine a(b, c, d)
+            real b, c, d
+            call my_func(c, d)
+        contains
+            subroutine my_func(a1, a2)
+                real a1, a2
+                a1 = a1 * a2
+            end subroutine
+        end subroutine
+    end module
+    '''
     psyir = fortran_reader.psyir_from_source(code)
-    cblock = psyir.children[0]
+    cblock = psyir.children[0].children[0]
     assert isinstance(cblock, CodeBlock)
-    assert "CONTAINS\n  SUBROUTINE" in str(cblock.get_ast_nodes[0])
+    assert "CONTAINS\n  SUBROUTINE" in str(cblock.parse_tree_nodes[0])
+    # The RoutineSymbol is still added to the symbol_table
+    assert isinstance(psyir.children[0].symbol_table.lookup("a"),
+                      RoutineSymbol)
+
+    # Do it again, but with a pre-existing reference to subroutine that will
+    # become a codeblock, the symbol should still exist
+    code = '''
+    module test
+        implicit none
+        contains
+        subroutine uses_a()
+           call a(1,2,3)
+        end subroutine
+        subroutine a(b, c, d)
+            real b, c, d
+
+            call my_func(c, d)
+
+        contains
+            subroutine my_func(a1, a2)
+                real a1, a2
+                a1 = a1 * a2
+            end subroutine
+        end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].symbol_table.lookup("a"),
+                      RoutineSymbol)
 
 
 def test_unsupported_contains_function(fortran_reader):
@@ -497,7 +530,7 @@ def test_unsupported_contains_function(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     cblock = psyir.children[0]
     assert isinstance(cblock, CodeBlock)
-    assert "CONTAINS\n  REAL FUNCTION" in str(cblock.get_ast_nodes[0])
+    assert "CONTAINS\n  REAL FUNCTION" in str(cblock.parse_tree_nodes[0])
 
     code = '''function a(b, c, d)
     real b, c, d
@@ -514,7 +547,7 @@ def test_unsupported_contains_function(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     cblock = psyir.children[0]
     assert isinstance(cblock, CodeBlock)
-    assert "SUBROUTINE" in str(cblock.get_ast_nodes[0])
+    assert "SUBROUTINE" in str(cblock.parse_tree_nodes[0])
 
 
 def test_implicit_declns(fortran_reader):
