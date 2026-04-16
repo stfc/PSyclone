@@ -355,7 +355,7 @@ class DefinitionUseChain:
                 if len(block) == 0:
                     continue
                 chain = DefinitionUseChain(
-                    [ref.copy() for ref in self._references],
+                    [ref for ref in self._references],
                     block,
                     start_point=self._start_point,
                     stop_point=self._stop_point,
