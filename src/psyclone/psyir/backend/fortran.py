@@ -51,7 +51,7 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.nodes import (
     BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
     Literal, Member, Node, OMPDependClause, OMPReductionClause, Operation,
-    Range, Routine, Schedule, UnaryOperation)
+    Range, Routine, Schedule, UnaryOperation, UnknownDirective)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataType,
     DataTypeSymbol, GenericInterfaceSymbol, IntrinsicSymbol,
@@ -1608,13 +1608,10 @@ class FortranWriter(LanguageWriter):
         result = ""
         if node.structure == CodeBlock.Structure.STATEMENT:
             # indent and newlines required
-            for ast_node in node.get_ast_nodes:
-                # Using tofortran() ensures we get any label associated
-                # with this statement.
-                for line in ast_node.tofortran().split("\n"):
-                    result += f"{self._nindent}{line}\n"
+            for line in node.get_fortran_lines():
+                result += f"{self._nindent}{line}\n"
         elif node.structure == CodeBlock.Structure.EXPRESSION:
-            for ast_node in node.get_ast_nodes:
+            for ast_node in node.parse_tree_nodes:
                 result += str(ast_node)
         else:
             raise VisitorError(
@@ -1724,6 +1721,18 @@ class FortranWriter(LanguageWriter):
         result = result + "\n"
 
         return result
+
+    def unknowndirective_node(self, node: UnknownDirective) -> str:
+        '''This method is called when a UnknownDirective instance is found
+        in the PSyIR tree. It returns the directive as a string.
+
+        :param node: a UnknownDirective PSyIR node.
+
+        :returns: the Fortran code for this node.
+
+        '''
+        return (f"{self._nindent}!{node.sentinel_infix_string}$"
+                f"{node.directive_string}\n")
 
     def _gen_arguments(self, node):
         '''Utility function that check that all named args occur after all
