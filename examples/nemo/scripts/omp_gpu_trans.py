@@ -98,18 +98,6 @@ OFFLOADING_ISSUES = [
     # The following issues only affect BENCH (because ice is enabled?)
     # Runtime Error: Illegal address during kernel execution
     "trcrad.f90",
-    # Signal 11 issues
-    "trcbbl.f90",
-    "bdyice.f90",
-    "sedfunc.f90",
-    "stpmlf.f90",
-    "trddyn.f90",
-    "trczdf.f90",
-    "trcice_pisces.f90",
-    "dtatsd.f90",
-    "trcatf.f90",
-    "stp2d.f90",
-    "trabbc.f90",
 ]
 
 ASYNC_ISSUES = [
@@ -123,8 +111,6 @@ ASYNC_ISSUES = [
     "zdfsh2.f90",
     # Diverging results with asynchronicity
     "traadv_fct.f90",
-    # Signal 11 in build
-    "zdfswm.f90",
 ]
 
 
