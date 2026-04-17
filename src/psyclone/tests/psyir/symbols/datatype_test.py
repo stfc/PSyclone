@@ -228,8 +228,8 @@ def test_scalartype_character_length():
             in str(err.value))
     with pytest.raises(TypeError) as err:
         data_type.length = "yes"
-    assert ("must be an int, ScalarType.CharLengthParameter or DataNode but "
-            "got 'str'" in str(err.value))
+    assert ("must be a non-negative int, ScalarType.CharLengthParameter or "
+            "DataNode but got 'str'" in str(err.value))
 
     # Now test with a non-character type.
     non_char = INTEGER_TYPE
