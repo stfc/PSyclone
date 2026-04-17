@@ -267,19 +267,19 @@ def test_gen_decls_char(fortran_writer):
     sym2 = DataSymbol("amos",
                       ScalarType(ScalarType.Intrinsic.CHARACTER,
                                  ScalarType.Precision.UNDEFINED,
-                                 ScalarType.CharLengthParameter.COLON))
+                                 ScalarType.CharLengthParameter.DEFERRED))
     table.add(sym2)
     sym3 = DataSymbol("amat",
                       ScalarType(ScalarType.Intrinsic.CHARACTER,
                                  ScalarType.Precision.UNDEFINED,
-                                 ScalarType.CharLengthParameter.ASTERISK))
+                                 ScalarType.CharLengthParameter.ASSUMED))
     table.add(sym3)
     char_kind = DataSymbol("ckind", INTEGER_TYPE)
     table.add(char_kind)
     sym4 = DataSymbol("amore",
                       ScalarType(ScalarType.Intrinsic.CHARACTER,
                                  Reference(char_kind),
-                                 ScalarType.CharLengthParameter.ASTERISK))
+                                 ScalarType.CharLengthParameter.ASSUMED))
     table.add(sym4)
     # When both len and kind are given by expressions.
     sym5 = DataSymbol(

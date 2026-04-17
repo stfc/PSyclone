@@ -335,9 +335,9 @@ class FortranWriter(LanguageWriter):
         len_str = ""
         if scalar_type.intrinsic == ScalarType.Intrinsic.CHARACTER:
             # Include length information for a character type.
-            if scalar_type.length == ScalarType.CharLengthParameter.ASTERISK:
+            if scalar_type.length == ScalarType.CharLengthParameter.ASSUMED:
                 len_str = "*"
-            elif scalar_type.length == ScalarType.CharLengthParameter.COLON:
+            elif scalar_type.length == ScalarType.CharLengthParameter.DEFERRED:
                 len_str = ":"
             else:
                 len_str = self._visit(scalar_type.length).strip()

@@ -3072,8 +3072,8 @@ class Fparser2Reader():
 
         if isinstance(char_len, Fortran2003.Type_Param_Value):
             if char_len.string == ":":
-                return ScalarType.CharLengthParameter.COLON
-            return ScalarType.CharLengthParameter.ASTERISK
+                return ScalarType.CharLengthParameter.DEFERRED
+            return ScalarType.CharLengthParameter.ASSUMED
 
         # Create a dummy assignment so we can process the length expression.
         dummy = Assignment(parent=psyir_parent)

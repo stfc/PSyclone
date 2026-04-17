@@ -61,16 +61,17 @@ from psyclone.psyir.symbols import (
                            ScalarType.Precision.UNDEFINED),
                           ("*(2*max_len)", "2 * max_len",
                            ScalarType.Precision.UNDEFINED),
-                          ("(len=:)", "COLON", ScalarType.Precision.UNDEFINED),
-                          ("(:)", "COLON", ScalarType.Precision.UNDEFINED),
-                          ("*(:)", "COLON", ScalarType.Precision.UNDEFINED),
-                          ("(len=*)", "ASTERISK",
+                          ("(len=:)", "DEFERRED",
                            ScalarType.Precision.UNDEFINED),
-                          ("(*)", "ASTERISK", ScalarType.Precision.UNDEFINED),
-                          ("*(*)", "ASTERISK", ScalarType.Precision.UNDEFINED),
+                          ("(:)", "DEFERRED", ScalarType.Precision.UNDEFINED),
+                          ("*(:)", "DEFERRED", ScalarType.Precision.UNDEFINED),
+                          ("(len=*)", "ASSUMED",
+                           ScalarType.Precision.UNDEFINED),
+                          ("(*)", "ASSUMED", ScalarType.Precision.UNDEFINED),
+                          ("*(*)", "ASSUMED", ScalarType.Precision.UNDEFINED),
                           ("(len=3, kind=ckind)", "3",
                            Reference(Symbol("ckind"))),
-                          ("(len=*, kind=ckind)", "ASTERISK",
+                          ("(len=*, kind=ckind)", "ASSUMED",
                            Reference(Symbol("ckind")))])
 def test_char_decln_length_handling(len_expr, length, kind):
     '''
@@ -133,4 +134,4 @@ def test_char_len_inline():
     assert l2_var.datatype.length.symbol is symtab.lookup("MAX_LEN")
     assert symtab.lookup("l3").datatype.length.value == "5"
     assert (symtab.lookup("l4").datatype.length ==
-            ScalarType.CharLengthParameter.COLON)
+            ScalarType.CharLengthParameter.DEFERRED)

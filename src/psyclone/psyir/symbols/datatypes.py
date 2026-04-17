@@ -368,7 +368,7 @@ class ScalarType(DataType):
 
     '''
 
-    class ScalarTypeAttribute:
+    class ScalarTypeAttribute(Enum):
         '''
         Provides some common functionality to the various classes that
         describe attributes of a ScalarType.
@@ -382,7 +382,7 @@ class ScalarType(DataType):
             ''':returns: the name of the Enum item.'''
             return self.name
 
-    class Intrinsic(ScalarTypeAttribute, Enum):
+    class Intrinsic(ScalarTypeAttribute):
         '''Enumeration of the different intrinsic scalar datatypes that are
         supported by the PSyIR.
 
@@ -392,7 +392,7 @@ class ScalarType(DataType):
         BOOLEAN = 3
         CHARACTER = 4
 
-    class Precision(ScalarTypeAttribute, Enum):
+    class Precision(ScalarTypeAttribute):
         '''Enumeration of the different types of 'default' precision that may
         be specified for a scalar datatype.
 
@@ -401,9 +401,17 @@ class ScalarType(DataType):
         DOUBLE = 2
         UNDEFINED = 3
 
-    class CharLengthParameter(ScalarTypeAttribute, Enum):
-        ASTERISK = 1
-        COLON = 2
+    class CharLengthParameter(ScalarTypeAttribute):
+        '''Enumeration of different length characteristics that a character
+        type may have.
+
+        '''
+        #: The length is defined by some other variable. In Fortran
+        ## this is indicated with an asterisk.
+        ASSUMED = 1
+        #: The length can change during program execution. In Fortran this
+        ## is indicated with a colon.
+        DEFERRED = 2
 
     #: Mapping from PSyIR scalar data types to intrinsic Python types
     #: ignoring precision.
@@ -521,8 +529,8 @@ class ScalarType(DataType):
             self._length = value
         else:
             raise TypeError(
-                f"The length property of a character ScalarType must be an "
-                f"int, ScalarType.CharLengthParameter "
+                f"The length property of a character ScalarType must be a non-"
+                f"negative int, ScalarType.CharLengthParameter "
                 f"or DataNode but got '{type(value).__name__}'")
 
     @property

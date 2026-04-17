@@ -153,9 +153,10 @@ def test_scalartype_enum_precision(intrinsic, precision):
     assert scalar_type.is_allocatable is False
 
 
-@pytest.mark.parametrize("attribute", [ScalarType.Precision.DOUBLE,
-                                       ScalarType.Intrinsic.BOOLEAN,
-                                       ScalarType.CharLengthParameter.COLON])
+@pytest.mark.parametrize("attribute",
+                         [ScalarType.Precision.DOUBLE,
+                          ScalarType.Intrinsic.BOOLEAN,
+                          ScalarType.CharLengthParameter.DEFERRED])
 def test_scalartypeattribute(attribute):
     '''
     Test the debug_string() and copy() methods provided by ScalarTypeAttribute.
@@ -217,9 +218,9 @@ def test_scalartype_character_length():
     assert data_type.length.value == "5"
     data_type.length = Reference(Symbol("MAX_LEN"))
     assert data_type.length.symbol.name == "MAX_LEN"
-    data_type.length = ScalarType.CharLengthParameter.COLON
-    assert data_type.length == ScalarType.CharLengthParameter.COLON
-    assert data_type.length.debug_string() == "COLON"
+    data_type.length = ScalarType.CharLengthParameter.DEFERRED
+    assert data_type.length == ScalarType.CharLengthParameter.DEFERRED
+    assert data_type.length.debug_string() == "DEFERRED"
 
     with pytest.raises(ValueError) as err:
         data_type.length = -1
