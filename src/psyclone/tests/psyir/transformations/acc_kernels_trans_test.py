@@ -447,13 +447,10 @@ def test_no_assumed_size_char_in_kernels(fortran_reader):
     # branches of the code that finds out whether there's a character length
     # specified.
     code = '''\
-subroutine ice(dtype, dtype_ptr, type_list, assumed_size_char, assumed2, &
-               assumed3, assumed4)
+subroutine ice(dtype, assumed_size_char, assumed2, assumed3, assumed4)
   use some_mod, only: a_type
   implicit none
   type(a_type) :: dtype
-  type(d_type), pointer :: dtype_ptr
-  type(a_type), dimension(10) :: type_list
   character(len = *), intent(in) :: assumed_size_char
   character*(*) :: assumed2
   character(len=*), optional :: assumed3

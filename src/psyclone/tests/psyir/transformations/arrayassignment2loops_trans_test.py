@@ -627,8 +627,8 @@ def test_character_validation(fortran_reader):
 
 def test_unsupported_type_character(fortran_reader):
     ''' Test that the check for character references inside the assignment
-    being transformed also works with 'unsupported characters arrays' (see
-    issue #2612).
+    being transformed also works with character substrings.
+
     '''
     code = '''subroutine test()
         character(LEN=100) :: a
