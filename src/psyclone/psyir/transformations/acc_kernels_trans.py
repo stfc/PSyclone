@@ -272,6 +272,8 @@ class ACCKernelsTrans(RegionTrans):
                 dtype = sym.datatype
                 if isinstance(dtype, UnsupportedFortranType):
                     dtype = dtype.partial_datatype
+                    if not dtype:
+                        continue
                 if isinstance(dtype, DataTypeSymbol):
                     continue
                 if dtype.intrinsic != ScalarType.Intrinsic.CHARACTER:

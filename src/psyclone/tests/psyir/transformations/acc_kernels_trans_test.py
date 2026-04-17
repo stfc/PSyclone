@@ -445,18 +445,28 @@ def test_no_assumed_size_char_in_kernels(fortran_reader):
     '''
     # A routine with some quite complex argument types to check the various
     # branches of the code that finds out whether there's a character length
-    # specified.
+    # specified. Although some of these arguments aren't actually used in
+    # the subroutine, they are needed for test coverage.
     code = '''\
-subroutine ice(dtype, assumed_size_char, assumed2, assumed3, assumed4)
+subroutine ice(dtype, dtype_ptr, type_list, assumed_size_char, assumed2, &
+               assumed3, assumed4, ctype)
   use some_mod, only: a_type
   implicit none
   type(a_type) :: dtype
+  ! An unsupported datatype which has a partial_datatype that is a
+  ! DataTypeSymbol.
+  type(d_type), pointer :: dtype_ptr
+  ! An unsupported datatype which has a partial_datatype that is an
+  ! array of DataTypeSymbol.
+  type(a_type), dimension(10) :: type_list
   character(len = *), intent(in) :: assumed_size_char
   character*(*) :: assumed2
   character(len=*), optional :: assumed3
   character(len=10) :: explicit_size_char
   real, dimension(10,10) :: my_var
   character(len=*), dimension(:) :: assumed4
+  ! An unsupported declaration for which we have no partial_datatype
+  complex :: ctype
 
   if (assumed_size_char == 'literal') then
     my_var(:UBOUND(my_var)) = 0.0
