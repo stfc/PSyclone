@@ -48,7 +48,8 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.lfric_global_reductions import LFRicGlobalSum
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.domain.lfric.transformations import (
+    LFRicLoopFuseTrans, LFRicRedundantComputationTrans)
 from psyclone.domain.lfric import LFRicLoop
 from psyclone.lfric import (LFRicHaloExchangeStart,
                             LFRicHaloExchangeEnd, LFRicHaloExchange)
@@ -66,8 +67,7 @@ from psyclone.psyir.transformations import (
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (
-    LFRicColourTrans, LFRicOMPLoopTrans,
-    LFRicOMPParallelLoopTrans, LFRicRedundantComputationTrans,
+    LFRicColourTrans, LFRicOMPLoopTrans, LFRicOMPParallelLoopTrans,
     LFRicAsyncHaloExchangeTrans, LFRicKernelConstTrans,
     ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
 from psyclone.psyir.transformations import MoveTrans
@@ -8071,11 +8071,9 @@ def test_deprecated_names(capsys):
     # pylint: disable=no-name-in-module, import-outside-toplevel
     from psyclone.transformations import (
         Dynamo0p3OMPParallelLoopTrans, Dynamo0p3OMPLoopTrans,
-        Dynamo0p3ColourTrans, Dynamo0p3RedundantComputationTrans,
-        Dynamo0p3AsyncHaloExchangeTrans)
+        Dynamo0p3ColourTrans, Dynamo0p3AsyncHaloExchangeTrans)
     for trans_cls in [Dynamo0p3OMPParallelLoopTrans, Dynamo0p3OMPLoopTrans,
-                      Dynamo0p3ColourTrans, Dynamo0p3RedundantComputationTrans,
-                      Dynamo0p3AsyncHaloExchangeTrans]:
+                      Dynamo0p3ColourTrans, Dynamo0p3AsyncHaloExchangeTrans]:
         old_name = trans_cls.__name__
         new_name = old_name.replace("Dynamo0p3", "LFRic")
         _ = trans_cls()
