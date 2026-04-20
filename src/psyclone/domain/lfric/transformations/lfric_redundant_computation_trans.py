@@ -50,8 +50,10 @@ from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.transformations import check_intergrid
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class LFRicRedundantComputationTrans(LoopTrans):
     '''This transformation allows the user to modify a loop's bounds so
     that redundant computation will be performed. Redundant
@@ -128,6 +130,11 @@ class LFRicRedundantComputationTrans(LoopTrans):
             but the loop has already been set to the maximum halo depth.
 
         '''
+        if not options:
+            self.validate_options(depth=depth, **kwargs)
+        else:
+            #TODO #2668: Deprecate options dictionary.
+            depth = options.get("depth")
         # pylint: disable=too-many-branches
         # check node is a loop
         super().validate(node, options=options)
@@ -251,7 +258,11 @@ class LFRicRedundantComputationTrans(LoopTrans):
                         "apply method the loop is already set to the maximum "
                         "halo depth so can't be set to a fixed value")
 
-    def apply(self, loop, options=None):
+    def apply(self,
+              loop: Loop,
+              options=None,
+              depth: Union[int, DataNode] = None
+              **kwargs):
         # pylint:disable=arguments-renamed
         '''Apply the redundant computation transformation to the loop
         :py:obj:`loop`. This transformation can be applied to loops iterating
@@ -269,10 +280,11 @@ class LFRicRedundantComputationTrans(LoopTrans):
                 to None.
 
         '''
-        self.validate(loop, options=options)
-        if not options:
-            options = {}
-        depth = options.get("depth")
+        if options:
+            #TODO #2668: Deprecate options dictionary.
+            depth = options.get("depth")
+
+        self.validate(loop, options=options, depth=depth, **kwargs)
 
         if loop.loop_type == "":
             # Loop is over cells
