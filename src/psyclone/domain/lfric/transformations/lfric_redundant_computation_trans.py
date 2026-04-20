@@ -41,9 +41,11 @@
 
 ''' This module provides the LFRic redundant-computation transformation. '''
 
+from typing import Union
+
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicInvokeSchedule, LFRicConstants
-from psyclone.psyir.nodes.directive import Directive
+from psyclone.psyir.nodes import DataNode, Directive
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -78,7 +80,7 @@ class LFRicRedundantComputationTrans(LoopTrans):
     def __str__(self):
         return "Change iteration space to perform redundant computation"
 
-    def validate(self, node: Loop, options=None):
+    def validate(self, node: Loop, options=None, depth=None, **kwargs):
         '''Perform various checks to ensure that it is valid to apply the
         RedundantComputation transformation to the supplied node
 
@@ -133,7 +135,7 @@ class LFRicRedundantComputationTrans(LoopTrans):
         if not options:
             self.validate_options(depth=depth, **kwargs)
         else:
-            #TODO #2668: Deprecate options dictionary.
+            # TODO #2668: Deprecate options dictionary.
             depth = options.get("depth")
         # pylint: disable=too-many-branches
         # check node is a loop
@@ -261,7 +263,7 @@ class LFRicRedundantComputationTrans(LoopTrans):
     def apply(self,
               loop: Loop,
               options=None,
-              depth: Union[int, DataNode] = None
+              depth: Union[int, DataNode] = None,
               **kwargs):
         # pylint:disable=arguments-renamed
         '''Apply the redundant computation transformation to the loop
@@ -281,7 +283,7 @@ class LFRicRedundantComputationTrans(LoopTrans):
 
         '''
         if options:
-            #TODO #2668: Deprecate options dictionary.
+            # TODO #2668: Deprecate options dictionary.
             depth = options.get("depth")
 
         self.validate(loop, options=options, depth=depth, **kwargs)
