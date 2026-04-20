@@ -1,3 +1,7 @@
+   4) PR #3388 for #3334. Remove the functionality to write (and rename)
+   kernel files from the invoke. Now to modify kernels they must be inlinded
+   first or modified directy in their file (e.g. with lfric transmute pass).
+
    3) PR #3351 towards #3083. Adds scaffolding for new Treesitter-based
    frontend.
  
