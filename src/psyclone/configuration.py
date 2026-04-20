@@ -60,14 +60,6 @@ from psyclone.errors import PSycloneError, InternalError
 # Name of the config file we search for
 _FILE_NAME = "psyclone.cfg"
 
-# The different naming schemes supported when transforming kernels:
-# multiple = Every transformed kernel is given a unique name. This permits
-#            multiple versions of the same kernel to be created.
-# single = If any given kernel (within a single Application) is transformed
-#          more than once then the same transformation must always be
-#          applied and only one version of the transformed kernel is created.
-VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
-
 LFRIC_API_NAMES = ["lfric", "dynamo0.3"]
 GOCEAN_API_NAMES = ["gocean", "gocean1.0"]
 SUPPORTED_FRONTENDS = ["fparser2", "treesitter"]
@@ -746,31 +738,6 @@ class Config:
         :param str value: directory to which to write transformed kernels.
         '''
         self._kernel_output_dir = value
-
-    @property
-    def kernel_naming(self):
-        '''
-        :returns: what naming scheme to use when writing transformed kernels \
-                  to file.
-        :rtype: str
-        '''
-        return self._kernel_naming
-
-    @kernel_naming.setter
-    def kernel_naming(self, value):
-        '''
-        Setter for how to re-name kernels when writing transformed kernels
-        to file.
-
-        :param str value: one of VALID_KERNEL_NAMING_SCHEMES.
-        :raises ValueError: if the supplied value is not a recognised \
-                            kernel-renaming scheme.
-        '''
-        if value not in VALID_KERNEL_NAMING_SCHEMES:
-            raise ValueError(
-                f"kernel_naming must be one of '{VALID_KERNEL_NAMING_SCHEMES}'"
-                f" but got '{value}'")
-        self._kernel_naming = value
 
     @property
     def include_paths(self):
