@@ -248,7 +248,7 @@ class Assignment(Statement):
     def previous_accesses(self) -> dict[Signature, list[Node]]:
         '''
         :returns: the nodes containing the previous accesses of the symbols
-                  accessed within this node. It can be multiple nodes for 
+                  accessed within this node. It can be multiple nodes for
                   each symbol if the control flow diverges and there are
                   multiple possible accesses.
         '''
@@ -266,7 +266,7 @@ class Assignment(Statement):
     def next_accesses(self) -> dict[Signature, list[Node]]:
         '''
         :returns: the nodes containing the next accesses of the symbols
-                  accessed within this node. It can be multiple nodes for 
+                  accessed within this node. It can be multiple nodes for
                   each symbol if the control flow diverges and there are
                   multiple possible accesses.
         '''
