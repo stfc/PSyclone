@@ -48,5 +48,7 @@ from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_alg_trans \
     import RaisePSyIR2LFRicAlgTrans
 from psyclone.domain.lfric.transformations.lfric_loop_fuse_trans \
     import LFRicLoopFuseTrans
+from psyclone.domain.lfric.transformations.lfric_redundant_computation_trans \
+    import LFRicRedundantComputationTrans
 from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans \
     import RaisePSyIR2LFRicKernTrans

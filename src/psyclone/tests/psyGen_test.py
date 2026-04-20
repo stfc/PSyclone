@@ -62,7 +62,8 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (lfric_builtins,
                                    LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.domain.lfric.transformations import (
+    LFRicLoopFuseTrans, LFRicRedundantComputationTrans)
 from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
@@ -82,8 +83,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (LFRicRedundantComputationTrans,
-                                      LFRicKernelConstTrans,
+from psyclone.transformations import (LFRicKernelConstTrans,
                                       LFRicColourTrans,
                                       LFRicOMPLoopTrans,
                                       Transformation)
