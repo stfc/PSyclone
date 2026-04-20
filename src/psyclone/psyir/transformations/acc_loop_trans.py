@@ -57,13 +57,13 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
     >>> from psyclone.psyir.transformations import ACCLoopTrans
-    >>> from psyclone.psyir.transformations import AccParallelTrans
+    >>> from psyclone.transformations import ACCParallelTrans
     >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> ltrans = t.get_trans_name('ACCLoopTrans')
-    >>> rtrans = t.get_trans_name('ACCParallelTrans')
+    >>> ltrans = ACCLoopTrans()
+    >>> rtrans = ACCParallelTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
@@ -156,3 +156,7 @@ class ACCLoopTrans(ParallelLoopTrans):
 
         # Call the apply() method of the base class
         super().apply(node, options)
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["ACCLoopTrans"]
