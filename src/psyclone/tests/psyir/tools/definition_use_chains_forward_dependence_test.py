@@ -106,10 +106,10 @@ def test_definition_use_chain_init_and_properties(fortran_reader):
 
     # Test exceptions when passed a non_list for various inputs.
     with pytest.raises(TypeError) as excinfo:
-        duc = DefinitionUseChain(a_1)
+        duc = DefinitionUseChain("a")
     assert ("The 'references' argument passed into a DefinitionUseChain "
-            "must be a list of References but found 'Reference'"
-            in str(excinfo.value))
+            "must be a list of References or a single Reference but found "
+            "'str'" in str(excinfo.value))
 
     with pytest.raises(TypeError) as excinfo:
         duc = DefinitionUseChain([a_1], control_flow_region=2)

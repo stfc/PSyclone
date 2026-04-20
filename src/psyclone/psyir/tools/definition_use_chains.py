@@ -36,7 +36,7 @@
 """This module contains the DefinitionUseChain class"""
 
 import sys
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union
 
 from fparser.two.Fortran2003 import (
     Cycle_Stmt,
@@ -86,16 +86,18 @@ class DefinitionUseChain:
 
     def __init__(
         self,
-        references: list[Reference],
+        references: Union[list[Reference], Reference],
         control_flow_region: Iterable[Node] = (),
         start_point: Optional[int] = None,
         stop_point: Optional[int] = None,
     ):
+        if isinstance(references, Reference):
+            references = [references]
         if not isinstance(references, list):
             raise TypeError(
                 f"The 'references' argument passed into a DefinitionUseChain "
-                f"must be a list of References but found "
-                f"'{type(references).__name__}'."
+                f"must be a list of References or a single Reference but "
+                f"found '{type(references).__name__}'."
             )
         for ref in references:
             if not isinstance(ref, Reference):
@@ -112,17 +114,17 @@ class DefinitionUseChain:
             # Skip this check for detached nodes, since we get copies
             # provided to the recursive calls.
             if parent:
-                parent_path = references[0].path_from(parent)[0]
+                parent_idx = references[0].path_from(parent)[0]
                 for ref in references:
                     if (ref.ancestor(Schedule) is not parent or
-                            ref.path_from(parent)[0] != parent_path):
+                            ref.path_from(parent)[0] != parent_idx):
                         raise InternalError(
                             "All references provided into a "
                             "DefinitionUseChain must have the same parent in "
                             "the ancestor Schedule."
                             )
-        # Make a copy of the list so we can modify it.
-        self._references = [ref for ref in references]
+        # Make a shallow copy of the list so we can modify it.
+        self._references = references[:]
         # Store the absolute positions and signatures for later.
         self._reference_signatures = []
         self._references_abs_pos = {}
@@ -185,26 +187,28 @@ class DefinitionUseChain:
     @property
     def uses(self) -> dict[list[Node]]:
         """
-        :returns: the lists of nodes using the value that the referenced
-                  symbols has before it is reassigned.
+        :returns: a map holding, for each referenced Symbol, the list of nodes
+                  that use the value that the Symbol had before it is
+                  reassigned.
         """
         return self._uses
 
     @property
     def defsout(self) -> dict[list[Node]]:
         """
-        :returns: the lists of nodes that reach the end of the block without
-                  being killed, and therefore can have dependencies outside
-                  of this block.
+        :returns: a map holding, for each referenced Symbol, the list of nodes
+                  whose values reach the end of the block without being killed,
+                  and therefore can have dependencies outside of this block.
         """
         return self._defsout
 
     @property
     def killed(self) -> dict[list[Node]]:
         """
-        :returns: the lists of nodes that represent the last use of an assigned
-                  variable. Calling next_access on any of these nodes will find
-                  a write that reassigns it's value.
+        :returns: a map holding, for each reference Symbol, the list of nodes
+                  that represent the last use of the assigned Symbol. Calling
+                  next_access on any of these nodes will find a write that
+                  reassigns the value of the Symbol inside this block.
         """
         return self._killed
 
@@ -334,8 +338,7 @@ class DefinitionUseChain:
                         # different start and stop positions, but don't
                         # include the lhs if the lhs is present.
                         chain = DefinitionUseChain(
-                            [ref.copy() for ref in self._references if
-                             ref is not ancestor.lhs],
+                            [ref.copy() for ref in self._references],
                             [ancestor.lhs],
                             start_point=ancestor.lhs.abs_position - 1,
                             stop_point=ancestor.lhs.abs_position + 1,
@@ -355,7 +358,7 @@ class DefinitionUseChain:
                 if len(block) == 0:
                     continue
                 chain = DefinitionUseChain(
-                    [ref for ref in self._references],
+                    self._references[:],
                     block,
                     start_point=self._start_point,
                     stop_point=self._stop_point,
@@ -371,7 +374,7 @@ class DefinitionUseChain:
                     # We're outside a control flow region, updating the reaches
                     # here is to find all the reached nodes.
                     # Some signatures may already have been removed by being
-                    # killed, so we only add those if they've not already been
+                    # killed, so we only add those that haven't already been
                     # killed.
                     for sig in chain._reaches:
                         if sig in self._reference_signatures:
@@ -413,7 +416,8 @@ class DefinitionUseChain:
                     # or if block structures to see if we're guaranteed to
                     # write to the symbol.
                     # If the control flow node is a Loop we have to check
-                    # if the variable is the same symbol as the _reference.
+                    # if the variable is the same symbol as any of the
+                    # References in _references.
                     if isinstance(cfn, Loop):
                         cfn_abs_pos = cfn.abs_position
                         for i, ref in enumerate(self._references[:]):
@@ -509,7 +513,7 @@ class DefinitionUseChain:
                         self._reaches[sig].append(ref)
                 else:
                     # If this block killed any accesses, then the first element
-                    # of the killed writes is the access access that we're
+                    # of the killed writes is the access that we're
                     # dependent with.
                     self._reaches[sig].append(self.killed[sig][0])
 
@@ -605,7 +609,7 @@ class DefinitionUseChain:
                             # the call later as References.
                             continue
                         # For now just assume calls are bad if we have a
-                        # non-local variable and we treat them as though they
+                        # non-local variable: we treat them as though they
                         # were a write.
                         sig = self._reference_signatures[i]
                         if defs_out[sig] is not None:
@@ -1010,7 +1014,7 @@ class DefinitionUseChain:
         # If there is no set start point, then we look for all
         # accesses after the Reference.
         if self._stop_point is None:
-            # Find the max abs position, as all of these are
+            # Find the min abs position, as all of these are
             # contained in the same parent.
             self._stop_point = min(list(self._references_abs_pos.values()))
         # If there is no set stop point, then any Reference after
@@ -1035,7 +1039,7 @@ class DefinitionUseChain:
                 # Create a copy of the list as it can modify elements
                 # in the list.
                 chain = DefinitionUseChain(
-                    [ref for ref in self._references],
+                    self._references[:],
                     block,
                     start_point=self._start_point,
                     stop_point=self._stop_point,
@@ -1068,7 +1072,7 @@ class DefinitionUseChain:
                             Assignment
                         ).abs_position
                     else:
-                        sub_start_point = max(list(
+                        sub_start_point = min(list(
                             self._references_abs_pos.values()
                         ))
                     # If we have a basic block with no children then skip it,
@@ -1242,7 +1246,7 @@ class DefinitionUseChain:
                         self._reaches[sig].append(ref)
                 else:
                     # If this block killed any accesses, then the first element
-                    # of the killed writes is the access access that we're
+                    # of the killed writes is the access that we're
                     # dependent with.
                     self._reaches[sig].append(self.killed[sig][0])
 

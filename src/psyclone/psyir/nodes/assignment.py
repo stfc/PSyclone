@@ -247,10 +247,10 @@ class Assignment(Statement):
 
     def previous_accesses(self) -> dict[Signature, list[Node]]:
         '''
-        :returns: the nodes accessing the same symbols directly before this
-                  after this. It can be multiple nodes for each symbol if
-                  the control flow diverges and there are multiple
-                  possible accesses.
+        :returns: the nodes containing the previous accesses of the symbols
+                  accessed within this node. It can be multiple nodes for 
+                  each symbol if the control flow diverges and there are
+                  multiple possible accesses.
         '''
         # Find all of the read/write References in this assignment.
         refs = []
@@ -265,10 +265,10 @@ class Assignment(Statement):
 
     def next_accesses(self) -> dict[Signature, list[Node]]:
         '''
-        :returns: the nodes accessing the same symbols directly after this
-                  after this. It can be multiple nodes for each symbol if
-                  the control flow diverges and there are multiple
-                  possible accesses.
+        :returns: the nodes containing the next accesses of the symbols
+                  accessed within this node. It can be multiple nodes for 
+                  each symbol if the control flow diverges and there are
+                  multiple possible accesses.
         '''
         # Find all of the read/write References in this assignment.
         refs = []

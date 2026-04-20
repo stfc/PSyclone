@@ -251,12 +251,11 @@ class Reference(DataNode):
         :returns: the nodes accessing the same symbol directly before this
                   reference. It can be multiple nodes if the control flow
                   diverges and there are multiple possible accesses.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DefinitionUseChain
-        chain = DefinitionUseChain([self])
+        chain = DefinitionUseChain(self)
         sig = self.get_signature_and_indices()[0]
         return chain.find_backward_accesses()[sig]
 
@@ -265,12 +264,11 @@ class Reference(DataNode):
         :returns: the nodes accessing the same symbol directly after this
                   reference. It can be multiple nodes if the control flow
                   diverges and there are multiple possible accesses.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DefinitionUseChain
-        chain = DefinitionUseChain([self])
+        chain = DefinitionUseChain(self)
         sig = self.get_signature_and_indices()[0]
         return chain.find_forward_accesses()[sig]
 
