@@ -40,6 +40,9 @@
 
 ''' This module contains the Routine node implementation.'''
 
+from __future__ import annotations
+from typing import Optional
+
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
@@ -118,29 +121,30 @@ class Routine(Schedule, CommentableMixin):
         return is_eq
 
     @classmethod
-    def create(cls, name, symbol_table=None, children=None, is_program=False,
-               return_symbol_name=None):
+    def create(cls,
+               name: str,
+               symbol_table: Optional[SymbolTable] = None,
+               children: Optional[list[Node]] = None,
+               is_program: bool = False,
+               return_symbol_name: Optional[str] = None,
+               parent: Optional[Node] = None) -> Routine:
         # pylint: disable=too-many-arguments
         '''Create an instance of the supplied class given a name, a symbol
         table and a list of child nodes. This is implemented as a classmethod
         so that it is able to act as a Factory for subclasses - e.g. it
         will create a KernelSchedule if called from KernelSchedule.create().
 
-        :param str name: the name of the Routine (or subclass).
+        :param name: the name of the Routine (or subclass).
         :param symbol_table: the symbol table associated with this Routine.
-        :type symbol_table: Optional[:py:class:`psyclone.psyGen.SymbolTable`]
         :param children: a list of PSyIR nodes contained in the Routine.
-        :type children: Optional[list of :py:class:`psyclone.psyir.nodes.Node`]
-        :param Optional[bool] is_program: whether this Routine represents the
-                                          entry point into a program (e.g.
-                                          Fortran Program or C main()). Default
-                                          is False.
-        :param str return_symbol_name: name of the symbol that holds the
-            return value of this routine (if any). Must be present in the
+        :param is_program: whether this Routine represents the entry point into
+            a program (e.g. Fortran Program or C main()). Default is False.
+        :param return_symbol_name: name of the symbol that holds the return
+            value of this routine (if any). Must be present in the
             supplied symbol table.
+        :param parent: the parent Node of the Node being created.
 
         :returns: an instance of `cls`.
-        :rtype: :py:class:`psyclone.psyir.nodes.Routine` or subclass
 
         :raises TypeError: if the arguments to the create method
             are not of the expected type.
@@ -167,9 +171,14 @@ class Routine(Schedule, CommentableMixin):
                     f"child of children argument in create method of "
                     f"Routine class should be a PSyIR Node but "
                     f"found '{type(child).__name__}'.")
+        if parent is not None and not isinstance(parent, Node):
+            raise TypeError(
+                f"parent argument in create method of Routine class should "
+                f"be a PSyIR Node but found '{type(parent).__name__}'")
 
         symbol = RoutineSymbol(name)
-        routine = cls(symbol, is_program=is_program, symbol_table=symbol_table)
+        routine = cls(symbol, is_program=is_program, symbol_table=symbol_table,
+                      parent=parent)
         routine.children = children
         if return_symbol_name:
             routine.return_symbol = routine.symbol_table.lookup(
