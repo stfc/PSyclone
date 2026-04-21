@@ -307,6 +307,8 @@ def generate(filename: str,
             if isinstance(kern, LFRicBuiltinFunctor):
                 # Skip builtins
                 continue
+                # Fixme: can this be done inside the Raising and remove the
+                # backend quickfix
             if isinstance(kern.symbol.interface, UnresolvedInterface):
                 # This kernel functor is not specified in a use statement.
                 # Find all container symbols that are in scope.
@@ -343,6 +345,7 @@ def generate(filename: str,
                 logger.error(info, exc_info=True)
                 sys.exit(1)
 
+            # Fixme: Codeblocks with an invoke inside are not transformed
             # Raise to Kernel PSyIR
             if api in GOCEAN_API_NAMES:
                 kern_trans = RaisePSyIR2GOceanKernTrans(kern.symbol.name)

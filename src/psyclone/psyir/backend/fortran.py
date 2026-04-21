@@ -989,8 +989,11 @@ class FortranWriter(LanguageWriter):
         # them.
         unresolved_symbols = []
         for sym in all_symbols[:]:
+            from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
+            lfric_builtins = [x.lower() for x in BUILTIN_MAP.keys()]
             if isinstance(sym.interface, UnresolvedInterface):
-                unresolved_symbols.append(sym)
+                if sym.name.lower() not in lfric_builtins:
+                    unresolved_symbols.append(sym)
                 all_symbols.remove(sym)
         try:
             internal_interface_symbol = symbol_table.lookup(
