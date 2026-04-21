@@ -2850,38 +2850,34 @@ def test_apply_common_block_no_duplicate(fortran_reader, fortran_writer):
     produce duplicate COMMON declarations (which would cause a Fortran compile
     error "Symbol X is already in a COMMON block").'''
 
-    src_caller = """\
-subroutine caller()
+    src = """\
+module test_mod
   implicit none
-  call sub1()
-  call sub2()
-end subroutine caller
+contains
+  subroutine caller()
+    call sub1()
+    call sub2()
+  end subroutine caller
+  subroutine sub1()
+    real :: volume, lmmpi
+    COMMON /blk/ volume, lmmpi
+    volume = 1.0
+  end subroutine sub1
+  subroutine sub2()
+    real :: volume, lmmpi
+    COMMON /blk/ volume, lmmpi
+    lmmpi = 2.0
+  end subroutine sub2
+end module test_mod
 """
-    src_sub1 = """\
-subroutine sub1()
-  implicit none
-  real :: volume, lmmpi
-  COMMON /blk/ volume, lmmpi
-  volume = 1.0
-end subroutine sub1
-"""
-    src_sub2 = """\
-subroutine sub2()
-  implicit none
-  real :: volume, lmmpi
-  COMMON /blk/ volume, lmmpi
-  lmmpi = 2.0
-end subroutine sub2
-"""
-    caller = fortran_reader.psyir_from_source(src_caller).walk(Routine)[0]
-    sub1 = fortran_reader.psyir_from_source(src_sub1).walk(Routine)[0]
-    sub2 = fortran_reader.psyir_from_source(src_sub2).walk(Routine)[0]
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
 
     trans = InlineTrans()
     calls = caller.walk(Call)
-    trans.apply(calls[0], routine=sub1)
+    trans.apply(calls[0])
     calls = caller.walk(Call)
-    trans.apply(calls[0], routine=sub2)
+    trans.apply(calls[0])
 
     result = fortran_writer(caller)
     # Exactly one COMMON declaration must appear.
@@ -2898,56 +2894,48 @@ def test_apply_common_block_no_duplicate_three_routines(
     case of inlining zetabc_tile, u2dbc_tile and v2dbc_tile (each of which
     includes the same set of COMMON-block headers) into step2D_FB_tile.'''
 
-    src_caller = """\
-subroutine caller()
+    src = """\
+module test_mod
   implicit none
-  call sub1()
-  call sub2()
-  call sub3()
-end subroutine caller
+contains
+  subroutine caller()
+    call sub1()
+    call sub2()
+    call sub3()
+  end subroutine caller
+  subroutine sub1()
+    real :: zeta, ubar, vbar
+    COMMON /ocean_zeta/ zeta
+    COMMON /ocean_ubar/ ubar
+    COMMON /ocean_vbar/ vbar
+    zeta = 1.0
+  end subroutine sub1
+  subroutine sub2()
+    real :: zeta, ubar, vbar
+    COMMON /ocean_zeta/ zeta
+    COMMON /ocean_ubar/ ubar
+    COMMON /ocean_vbar/ vbar
+    ubar = 2.0
+  end subroutine sub2
+  subroutine sub3()
+    real :: zeta, ubar, vbar
+    COMMON /ocean_zeta/ zeta
+    COMMON /ocean_ubar/ ubar
+    COMMON /ocean_vbar/ vbar
+    vbar = 3.0
+  end subroutine sub3
+end module test_mod
 """
-    src_sub1 = """\
-subroutine sub1()
-  implicit none
-  real :: zeta, ubar, vbar
-  COMMON /ocean_zeta/ zeta
-  COMMON /ocean_ubar/ ubar
-  COMMON /ocean_vbar/ vbar
-  zeta = 1.0
-end subroutine sub1
-"""
-    src_sub2 = """\
-subroutine sub2()
-  implicit none
-  real :: zeta, ubar, vbar
-  COMMON /ocean_zeta/ zeta
-  COMMON /ocean_ubar/ ubar
-  COMMON /ocean_vbar/ vbar
-  ubar = 2.0
-end subroutine sub2
-"""
-    src_sub3 = """\
-subroutine sub3()
-  implicit none
-  real :: zeta, ubar, vbar
-  COMMON /ocean_zeta/ zeta
-  COMMON /ocean_ubar/ ubar
-  COMMON /ocean_vbar/ vbar
-  vbar = 3.0
-end subroutine sub3
-"""
-    caller = fortran_reader.psyir_from_source(src_caller).walk(Routine)[0]
-    sub1 = fortran_reader.psyir_from_source(src_sub1).walk(Routine)[0]
-    sub2 = fortran_reader.psyir_from_source(src_sub2).walk(Routine)[0]
-    sub3 = fortran_reader.psyir_from_source(src_sub3).walk(Routine)[0]
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
 
     trans = InlineTrans()
     calls = caller.walk(Call)
-    trans.apply(calls[0], routine=sub1)
+    trans.apply(calls[0])
     calls = caller.walk(Call)
-    trans.apply(calls[0], routine=sub2)
+    trans.apply(calls[0])
     calls = caller.walk(Call)
-    trans.apply(calls[0], routine=sub3)
+    trans.apply(calls[0])
 
     result = fortran_writer(caller)
     # Each COMMON block must appear exactly once.
@@ -2970,30 +2958,30 @@ def test_apply_common_block_caller_has_extra_block(
     caller was enough to confuse the earlier deduplication logic and caused
     "Symbol 'zeta' at (1) is already in a COMMON block".'''
 
-    src_caller = """\
-subroutine caller()
+    src = """\
+module test_mod
   implicit none
-  integer :: lmmpi
-  COMMON /comm_setup_mpi1/ lmmpi
-  real :: zeta
-  COMMON /ocean_zeta/ zeta
-  call subfoo()
-end subroutine caller
+contains
+  subroutine caller()
+    integer :: lmmpi
+    COMMON /comm_setup_mpi1/ lmmpi
+    real :: zeta
+    COMMON /ocean_zeta/ zeta
+    call subfoo()
+  end subroutine caller
+  subroutine subfoo()
+    real :: zeta
+    COMMON /ocean_zeta/ zeta
+    zeta = zeta + 1.0
+  end subroutine subfoo
+end module test_mod
 """
-    src_subfoo = """\
-subroutine subfoo()
-  implicit none
-  real :: zeta
-  COMMON /ocean_zeta/ zeta
-  zeta = zeta + 1.0
-end subroutine subfoo
-"""
-    caller = fortran_reader.psyir_from_source(src_caller).walk(Routine)[0]
-    subfoo = fortran_reader.psyir_from_source(src_subfoo).walk(Routine)[0]
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
 
     trans = InlineTrans()
     calls = caller.walk(Call)
-    trans.apply(calls[0], routine=subfoo)
+    trans.apply(calls[0])
 
     result = fortran_writer(caller)
     # /ocean_zeta/ must appear exactly once – not duplicated.
