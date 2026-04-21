@@ -1325,6 +1325,90 @@ def test_handle_symbol_clash_imported_symbols():
             "of the same name imported from 'Ridcully'" in str(err.value))
 
 
+def test_handle_symbol_clash_commonblock_same_declaration():
+    '''Test that _handle_symbol_clash() ignores duplicate COMMON-block
+    markers with identical declarations.'''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    decl = "common /keep_me/ a"
+    marker_name = "_PSYCLONE_INTERNAL_COMMONBLOCK_1"
+    table1.add(symbols.DataSymbol(
+        marker_name, symbols.UnsupportedFortranType(decl)))
+    table2.add(symbols.DataSymbol(
+        marker_name, symbols.UnsupportedFortranType(decl)))
+
+    old_sym = table2.lookup(marker_name)
+    table1._handle_symbol_clash(old_sym, table2)
+
+    assert len(table1.symbols) == 1
+    assert old_sym.name == marker_name
+
+
+def test_handle_symbol_clash_commonblock_overlap_with_other_marker():
+    '''Test that _handle_symbol_clash() scans all existing COMMON-block
+    markers and skips incoming marker when block names overlap.'''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    marker_name = "_PSYCLONE_INTERNAL_COMMONBLOCK_1"
+    # Clash with same name but different block.
+    table1.add(symbols.DataSymbol(
+        marker_name, symbols.UnsupportedFortranType("common /other/ b")))
+    # Include a non-marker symbol so the marker filter condition also takes
+    # the false branch while scanning existing symbols.
+    table1.add(symbols.DataSymbol("plain", symbols.INTEGER_TYPE))
+    # Existing marker with different internal number but same block as incoming
+    # marker. This exercises the scan of all existing markers in table1.
+    table1.add(symbols.DataSymbol(
+        "_PSYCLONE_INTERNAL_COMMONBLOCK_2",
+        symbols.UnsupportedFortranType("common /overlap/ c")))
+    table2.add(symbols.DataSymbol(
+        marker_name, symbols.UnsupportedFortranType("common /overlap/ a")))
+
+    old_sym = table2.lookup(marker_name)
+    table1._handle_symbol_clash(old_sym, table2)
+
+    assert len(table1.symbols) == 3
+    assert old_sym.name == marker_name
+
+
+def test_handle_symbol_clash_commonblock_distinct_blocks_renamed():
+    '''Test that _handle_symbol_clash() renames and adds an incoming
+    COMMON-block marker when block names do not overlap.'''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    marker_name = "_PSYCLONE_INTERNAL_COMMONBLOCK_1"
+    table1.add(symbols.DataSymbol(
+        marker_name, symbols.UnsupportedFortranType("common /first/ a")))
+    table2.add(symbols.DataSymbol(
+        marker_name, symbols.UnsupportedFortranType("common /second/ b")))
+
+    old_sym = table2.lookup(marker_name)
+    table1._handle_symbol_clash(old_sym, table2)
+
+    assert old_sym.name != marker_name
+    assert any(sym.datatype.declaration == "common /second/ b"
+               for sym in table1.symbols)
+
+
+def test_handle_symbol_clash_unsupported_fortran_non_commonblock_name():
+    '''Test that a clash between UnsupportedFortranType symbols with names
+    unrelated to common-block markers takes the standard rename-and-add path.
+    '''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    table1.add(symbols.DataSymbol(
+        "clash", symbols.UnsupportedFortranType("type(t1) :: clash")))
+    table2.add(symbols.DataSymbol(
+        "clash", symbols.UnsupportedFortranType("type(t2) :: clash")))
+
+    old_sym = table2.lookup("clash")
+    table1._handle_symbol_clash(old_sym, table2)
+
+    assert old_sym.name != "clash"
+    assert any(sym.datatype.declaration == "type(t2) :: clash"
+               for sym in table1.symbols)
+
+
 def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
     # pylint: disable=too-many-statements
