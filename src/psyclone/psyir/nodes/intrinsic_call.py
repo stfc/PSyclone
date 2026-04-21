@@ -792,7 +792,8 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("string",),)),
             optional_args={},
-            # TODO 2612 This may be more complex if we support character len
+            # Returned string is of the same length as the input (trailing
+            # spaces are added as needed).
             return_type=lambda node: _type_of_named_argument(node, "string"),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
@@ -811,7 +812,8 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("string",),)),
             optional_args={},
-            # TODO 2612 This may be more complex if we support character len
+            # Returned string is of the same length as the input (leading
+            # spaces are added as needed).
             return_type=lambda node: _type_of_named_argument(node, "string"),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
