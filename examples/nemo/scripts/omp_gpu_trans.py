@@ -98,6 +98,9 @@ OFFLOADING_ISSUES = [
     # The following issues only affect BENCH (because ice is enabled?)
     # Runtime Error: Illegal address during kernel execution
     "trcrad.f90",
+    # Signal 11 issues
+    "trcatf.f90",
+    "seddsrjac.f90"
 ]
 
 ASYNC_ISSUES = [
