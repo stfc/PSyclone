@@ -36,7 +36,7 @@
 ''' This module contains pytest tests for the LFRicInvokeSchedule class. '''
 
 import os
-from psyclone.domain.lfric import LFRicSymbolTable, LFRicInvokeSchedule
+from psyclone.domain.lfric import LFRicInvokeSchedule
 from psyclone.parse.algorithm import parse
 from psyclone.psyir.nodes import Container, colored
 from psyclone.psyir.symbols import RoutineSymbol
@@ -60,7 +60,7 @@ def test_lfricinvsched_parent():
     dsched = LFRicInvokeSchedule(symbol, kcalls)
     assert dsched.parent is None
     # With a parent
-    fake_parent = Container("my_mod", symbol_table=LFRicSymbolTable())
+    fake_parent = Container("my_mod")
     dsched2 = LFRicInvokeSchedule(symbol, kcalls, parent=fake_parent)
     assert dsched2.parent is fake_parent
 

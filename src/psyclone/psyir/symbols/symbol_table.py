@@ -452,17 +452,15 @@ class SymbolTable():
         self.add(symbol, tag)
         return symbol
 
-    def find_or_create(self, name, **new_symbol_args):
+    def find_or_create(self, name: str, **new_symbol_args: object) -> Symbol:
         ''' Lookup a symbol by its name, if it doesn't exist create a new
         symbol with the given properties.
 
-        :param str name: name of the symbol to lookup or create.
+        :param name: name of the symbol to lookup or create.
         :param new_symbol_args: arguments to create a new symbol.
-        :type new_symbol_args: unwrapped Dict[str, object]
 
-        :raises SymbolError: if the symbol already exists but the type_symbol \
-                             argument does not match the type of the symbol \
-                             found.
+        :raises SymbolError: if the symbol already exists but the type_symbol
+            argument does not match the type of the symbol found.
 
         '''
         try:
