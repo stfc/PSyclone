@@ -1,3 +1,25 @@
+   5) PR #3377 for #2612. Add support for Fortran character length.
+
+   4) PR #3388 for #3334. Remove the functionality to write (and rename)
+   kernel files from the invoke. Now to modify kernels they must be inlinded
+   first or modified directy in their file (e.g. with lfric transmute pass).
+
+   3) PR #3351 towards #3083. Adds scaffolding for new Treesitter-based
+   frontend.
+ 
+   2) PR #3401 for #3400. Fixes a frontend issue causing issues with NEMO
+   master branch.
+
+   1) PR #3393 for #2917 and #2887 - updates test to show that symbols with
+   explicit precision in common blocks now work OK. Also corrects tutorial
+   text relating to dl-timer.
+
+Release 3.3.0-rc1 9th April 2026
+
+   75) PR #3394. Added .NOT. support for sympy.
+
+   74) PR #3391 towards #3364. Update PSyclone to use fparser 0.2.2.
+
    73) PR #3387. Update CI to use nvhpc 26.3.
 
    72) PR #3382 towards #1570. Removes the unnecessary check on the precision
