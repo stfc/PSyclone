@@ -39,8 +39,9 @@
 
 import pytest
 
-from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicSymbolTable)
-from psyclone.psyir.symbols import DataTypeSymbol, UnresolvedType, DataSymbol
+from psyclone.domain.lfric import KernCallInvokeArgList
+from psyclone.psyir.symbols import (DataSymbol, DataTypeSymbol,
+                                    SymbolTable, UnresolvedType)
 
 
 def test_kcial_construct(lfrickern):
@@ -49,7 +50,7 @@ def test_kcial_construct(lfrickern):
         KernCallInvokeArgList(lfrickern, None)
     assert ("Argument 'symbol_table' must be a SymbolTable instance but got "
             "'NoneType'" in str(err.value))
-    obj = KernCallInvokeArgList(lfrickern, LFRicSymbolTable())
+    obj = KernCallInvokeArgList(lfrickern, SymbolTable())
     assert obj.fields == []
     assert obj.scalars == []
     assert obj.quadrature_objects == []
@@ -59,7 +60,7 @@ def test_kcial_generate(lfrickern):
     ''' Tests for the KernCallInvokeArgList.generate() method. '''
     # generate() assumes a suitably initialised symbol table so create
     # that here.
-    table = LFRicSymbolTable()
+    table = SymbolTable()
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
                      datatype=UnresolvedType())
     kcial = KernCallInvokeArgList(lfrickern, table)
@@ -82,7 +83,7 @@ def test_kcial_generate_operator(lfrickern_op):
     arguments required by the kernel.'''
     # generate() assumes a suitably initialised symbol table so create
     # that here.
-    table = LFRicSymbolTable()
+    table = SymbolTable()
     table.new_symbol("operator_type", symbol_type=DataTypeSymbol,
                      datatype=UnresolvedType())
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
@@ -104,7 +105,7 @@ def test_kcial_generate_halos(lfrickern_halo):
     '''
     # generate() assumes a suitably initialised symbol table so create
     # that here.
-    table = LFRicSymbolTable()
+    table = SymbolTable()
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
                      datatype=UnresolvedType())
     kcial = KernCallInvokeArgList(lfrickern_halo, table)
@@ -116,7 +117,7 @@ def test_kcial_generate_halos(lfrickern_halo):
 def test_kcial_not_implemented(lfrickern):
     ''' Check all the methods that handle unsupported types of kernel
     argument. '''
-    kcial = KernCallInvokeArgList(lfrickern, LFRicSymbolTable())
+    kcial = KernCallInvokeArgList(lfrickern, SymbolTable())
     with pytest.raises(NotImplementedError) as err:
         kcial.stencil(None)
     assert "Stencils are not yet supported" in str(err.value)

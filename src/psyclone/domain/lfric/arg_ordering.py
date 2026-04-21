@@ -46,12 +46,11 @@ from psyclone.core import AccessType, Signature
 # The next two imports cannot be merged, since this would create
 # a circular dependency.
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import DataSymbol, ArrayType
+from psyclone.psyir.symbols import DataSymbol, ArrayType, SymbolTable
 
 
 class ArgOrdering:
@@ -87,7 +86,7 @@ class ArgOrdering:
         self._arg_index_to_metadata_index = {}
 
     @property
-    def _symtab(self):
+    def _symtab(self) -> SymbolTable:
         ''' Provide a reference to the associate Invoke SymbolTable, usually
         following the `self._kernel.ancestor(InvokeSchedule)._symbol_table`
         path unless a _forced_symtab has been provided.
@@ -98,7 +97,7 @@ class ArgOrdering:
         Note: This could be improved by TODO #2503
 
         :returns: the associate invoke symbol table.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
         '''
         if self._forced_symtab:
             return self._forced_symtab
@@ -106,7 +105,7 @@ class ArgOrdering:
             # _kern may be outdated, so go back up to the invoke first
             current_invoke = self._kern.ancestor(psyGen.InvokeSchedule).invoke
             return current_invoke.schedule.symbol_table
-        return LFRicSymbolTable()
+        return SymbolTable()
 
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.
