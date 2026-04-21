@@ -4918,10 +4918,12 @@ class IntrinsicCall(Call):
                 # means we attempted to pass either an UnresolvedType into the
                 # datatype
                 if ("ScalarType expected 'intrinsic' argument to be of type "
+                    in str(err)
                     or "ScalarType expected 'precision' argument to be of "
                         "type " in str(err)):
                     return UnresolvedType()
-                # FIXME Is this reachable? Monkeypatch probably.
+                # Is this reachable? Tested via monkeypatch as there may be
+                # some edge case I can't think of.
                 outerr = err
             except AttributeError as err:
                 # This is to handle when we call .intrinsic or

@@ -1112,8 +1112,8 @@ class Fparser2Reader():
             except (FortranSyntaxError, NoMatchError) as err:
                 raise ValueError(
                     f"Failed to parse the provided source code:\n{source_code}"
-                    "\nError was: {err}\nIs the input valid Fortran (note that"
-                    f" CPP directives must be handled by a pre-processor)?"
+                    f"\nError was: {err}\nIs the input valid Fortran (note "
+                    f"that CPP directives must be handled by a pre-processor)?"
                 ) from err
         try:
             # If it reaches this point a partial_code was provided, attempt

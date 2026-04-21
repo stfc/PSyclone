@@ -509,3 +509,64 @@ def test_datanodetotemptrans_apply_nemo_example(fortran_reader,
     tmp = -avt_k(:,:,:) * rn2(nis0:nie0,njs0:nje0,:) * \
 wmask(nis0:nie0,njs0:nje0,:)
     call iom_put('estrat_k', tmp)""" in out
+
+
+def test_datanodetotemptrans_hoistable_array(fortran_reader,
+                                             fortran_writer):
+    '''
+    Takes an array sized datanode and ensures the allocate is hoisted out of
+    the containing loop if possible.
+    '''
+
+    code = """subroutine test
+        use some_mod, only: some_func
+        integer :: i
+        real, dimension(100,100) :: arr1, arr2
+
+        do i = 1, 100
+            call some_func(arr1*arr2)
+        end do
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    dtrans = DataNodeToTempTrans()
+    dtrans.apply(
+        psyir.children[0].children[0].loop_body.children[0].arguments[0]
+    )
+
+    out = fortran_writer(psyir)
+    assert """  if (.NOT.ALLOCATED(tmp)) then
+    ALLOCATE(tmp(1:100,1:100))
+  end if
+  do i = 1, 100, 1
+    tmp = arr1 * arr2
+    call some_func(tmp)
+  enddo""" in out
+
+    # If the shape of the result contains an array expression then we
+    # shouldn't hoist.
+
+    code = """subroutine test
+        use some_mod, only: some_func
+        integer :: i
+        real, dimension(100, 100) :: arr1, arr2
+        integer, dimension(100) :: arr3
+
+        do i = 1, 100
+            call some_func(arr1(1:arr3(i),:)*arr2(1:arr3(i),:))
+        end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    dtrans = DataNodeToTempTrans()
+    dtrans.apply(
+        psyir.children[0].children[0].loop_body.children[0].arguments[0]
+    )
+
+    out = fortran_writer(psyir)
+    assert """  do i = 1, 100, 1
+    if (.NOT.ALLOCATED(tmp)) then
+      ALLOCATE(tmp(1:arr3(i),1:100))
+    end if
+    tmp = arr1(:arr3(i),:) * arr2(:arr3(i),:)
+    call some_func(tmp)
+  enddo""" in out
