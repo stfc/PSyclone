@@ -47,8 +47,8 @@ from typing import Optional, Union, Iterable
 
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
+from fparser.common.readfortran import FortranStringReader
 
-from psyclone.psyir.frontend.fortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import FileContainer
 from psyclone.errors import PSycloneError
@@ -509,7 +509,8 @@ class FileInfo:
         processor = Fparser2Reader(
             resolve_modules=self._resolve_imports
         )
-        self._psyir_node = processor.generate_psyir(fparse_tree, filename)
+        self._psyir_node = processor.generate_psyir(fparse_tree)
+        self._psyir_node.name = filename
 
         # TODO #2786: Uncomment if psyir nodes are serializable
         # self._cache_save()
