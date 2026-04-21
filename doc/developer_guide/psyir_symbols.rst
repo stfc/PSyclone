@@ -80,8 +80,8 @@ explicitly listed may be assumed to be unsupported):
 +======================+====================+====================+
 |Variables             |ALLOCATABLE         |CLASS               |
 +----------------------+--------------------+--------------------+
-|                      |CHARACTER, DOUBLE   |COMPLEX, CHARACTER  |
-|                      |PRECISION, INTEGER, |with LEN or KIND    |
+|                      |CHARACTER, DOUBLE   |COMPLEX             |
+|                      |PRECISION, INTEGER, |                    |
 |                      |LOGICAL, REAL       |                    |
 +----------------------+--------------------+--------------------+
 |                      |Derived Types       |'extends',          |
@@ -89,10 +89,7 @@ explicitly listed may be assumed to be unsupported):
 |                      |                    |CONTAINS; Operator  |
 |                      |                    |overloading         |
 +----------------------+--------------------+--------------------+
-|                      |DIMENSION           |Array extents       |
-|                      |                    |specified using     |
-|                      |                    |expressions;        |
-|                      |                    |Assumed-size arrays |
+|                      |DIMENSION           |Assumed-size arrays |
 +----------------------+--------------------+--------------------+
 |                      |INTENT, PARAMETER,  |VOLATILE, VALUE,    |
 |                      |SAVE                |POINTER             |
@@ -102,8 +99,8 @@ explicitly listed may be assumed to be unsupported):
 +----------------------+--------------------+--------------------+
 |                      |PUBLIC, PRIVATE     |                    |
 +----------------------+--------------------+--------------------+
-|Initialisation        |Explicit            |                    |
-|expressions           |initialisation      |                    |
+|Initialisation        |Explicit            | Implicit loops,    |
+|expressions           |initialisation      | array constructors |
 +----------------------+--------------------+--------------------+
 |                      |Data statements     |                    |
 |                      |(limited)           |                    |

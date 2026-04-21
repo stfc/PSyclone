@@ -189,6 +189,12 @@ def test_routine_create_invalid():
         "child of children argument in create method of Routine class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
+    # parent is not a Node
+    with pytest.raises(TypeError) as err:
+        _ = Routine.create("my_sub", symbol_table, [], parent="no")
+    assert ("parent argument in create method of Routine class should be a "
+            "PSyIR Node but found 'str'" in str(err.value))
+
 
 def test_routine_create():
     '''Test that the create method correctly creates a Routine instance. '''
@@ -197,14 +203,17 @@ def test_routine_create():
     symbol_table.add(symbol)
     assignment = Assignment.create(Reference(symbol),
                                    Literal("0.0", REAL_TYPE))
+    cntr = Container("my_mod")
     kschedule = Routine.create("mod_name", symbol_table, [assignment],
-                               is_program=True, return_symbol_name=symbol.name)
+                               is_program=True, return_symbol_name=symbol.name,
+                               parent=cntr)
     assert isinstance(kschedule, Routine)
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
     assert symbol_table.node is kschedule
     assert kschedule.is_program
     assert kschedule.return_symbol is symbol
+    assert kschedule.parent is cntr
 
 
 def test_routine_equality(monkeypatch):
