@@ -1,3 +1,5 @@
+   7) PR #3374 for 3366. Removes LFRicSymbolTable.
+
    6) PR #3369 towards #1658. Switches NEMO scripts to use all of the
    supported reduction intrinsic expansion transformations.
 
