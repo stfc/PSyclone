@@ -2229,6 +2229,37 @@ def test_validate_array_reshape(fortran_reader):
             "argument, 'x', has rank 1" in str(err.value))
 
 
+def test_validate_unknown_type_array_arg(fortran_reader):
+    '''Test that _validate_inline_of_call_and_routine_argument_pairs rejects
+    an attempt to inline a call when the actual argument has an unknown type
+    but the corresponding formal argument is an array.'''
+    code = """\
+module test_mod
+contains
+subroutine main
+  use some_mod, only: mystery
+  call sub(mystery)
+end subroutine
+subroutine sub(x)
+  real, dimension(10), intent(inout) :: x
+  x(:) = 0.0
+end subroutine
+end module
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    sub = psyir.walk(Routine)[1]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans._validate_inline_of_call_and_routine_argument_pairs(
+            call, call.arguments[0], sub, sub.symbol_table.lookup("x"))
+    assert (
+        "Routine 'sub' cannot be inlined because the type of the actual "
+        "argument 'mystery' corresponding to an array formal argument "
+        "('x') is unknown." in str(err.value)
+    )
+
+
 def test_validate_array_arg_expression(fortran_reader):
     '''
     Check that validate rejects a call if an argument corresponding to
@@ -3341,3 +3372,73 @@ end module test_mod
     assert "negflag_1" in result
     assert "if (negflag_1)" in result
 
+
+def test_apply_parameter_cloning_false_caller_has_non_constant(
+        fortran_reader, fortran_writer):
+    '''Test that parameter_cloning=False does NOT suppress a routine constant
+    when the call-site has a symbol with the same name that is not a constant
+    (i.e. tsym.is_constant is False). This exercises the
+    ``if not tsym.is_constant or tsym.initial_value is None`` branch in
+    _redirect_duplicate_parameters.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    integer :: constval
+    constval = 7
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    integer, parameter :: constval = 10
+    integer :: a
+    a = constval
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    # bar's constval is a variable; foo's is a parameter. They are not
+    # duplicates, so foo's parameter constant must appear (possibly renamed).
+    assert "parameter" in result
+
+
+def test_apply_parameter_cloning_false_different_datatype(
+        fortran_reader, fortran_writer):
+    '''Test that parameter_cloning=False does NOT suppress a routine constant
+    when the call-site has a constant with the same name but a different
+    datatype. This exercises the ``if rsym.datatype != tsym.datatype``
+    branch in _redirect_duplicate_parameters.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    integer, parameter :: constval = 10
+    integer :: b
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    real, parameter :: constval = 10.0
+    integer :: a
+    a = int(constval)
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    # bar has integer constval=10, foo has real constval=10.0. Different
+    # types so the routine's parameter must be added (renamed) rather than
+    # deduplicated.
+    assert "constval" in result
+    assert "parameter" in result
