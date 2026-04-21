@@ -707,9 +707,11 @@ def test_declarations_with_initialisations(fortran_reader):
     psyir = fortran_reader.psyir_from_source(
         """
         module test
+            implicit none
             integer :: a = 1, aa = 4
             integer, save :: b = 1
             integer, parameter :: c = 1
+            integer, parameter :: MAXDIM = 4
             contains
             subroutine mysub()
                 integer :: d = 1
@@ -747,6 +749,37 @@ def test_declarations_with_initialisations(fortran_reader):
 
     assert isinstance(fsym.initial_value, Literal)
     assert fsym.is_constant is True
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_array_declarations_with_initialisations(fortran_reader):
+    '''Test that Fparser2Reader keeps variable initialisation
+    expressions for arrays.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        """
+        module test
+            implicit none
+            integer, parameter :: MAXDIM = 4
+            contains
+            subroutine mysub()
+                integer, dimension(3) :: g = (/1, 2, 3/)
+                integer :: i
+                integer, dimension(MAXDIM) :: h = (/ (i, i=1,MAXDIM) /)
+                integer, dimension(2,2) :: l = MAXDIM
+            end subroutine mysub
+        end module test
+        """)
+    inner_st = psyir.walk(Routine)[0].symbol_table
+    gsym = inner_st.lookup('g')
+    hsym = inner_st.lookup('h')
+    all_syms = [gsym, hsym]
+
+    assert all(isinstance(sym, DataSymbol) for sym in all_syms)
+    assert all(isinstance(sym.initial_value, CodeBlock) for sym in all_syms)
+    lsym = inner_st.lookup('l')
+    assert isinstance(lsym.initial_value, Reference)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -837,18 +870,6 @@ def test_process_unsupported_declarations(fortran_reader):
     c2sym = fake_parent.symbol_table.lookup("c2")
     assert isinstance(c2sym.datatype, UnsupportedFortranType)
     assert c2sym.datatype.declaration == "COMPLEX :: c2"
-
-    # Char lengths are not supported
-    psyir = fortran_reader.psyir_from_source("program dummy\n"
-                                             "character :: l*4\n"
-                                             "end program")
-    assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
-                      UnsupportedFortranType)
-    psyir = fortran_reader.psyir_from_source("program dummy\n"
-                                             "character(len=4) :: l\n"
-                                             "end program")
-    assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
-                      UnsupportedFortranType)
 
     # Test that CodeBlocks and references to variables initialised with a
     # CodeBlock are handled correctly
@@ -2983,3 +3004,33 @@ def test_structuretype_used_before_def(fortran_reader):
     mytype = sym_table.lookup("my_type")
     assert isinstance(mytype, DataTypeSymbol)
     assert mytype.is_import
+
+
+def test_generate_parse_tree_from_source():
+    '''
+    Test that generate_parse_tree_from_source returns fparser2 parse tree
+    nodes or an appropriate error messages.
+    '''
+    processor = Fparser2Reader()
+
+    # Valid cases
+    code = """
+        program test
+        end program test
+    """
+    ptree = processor.generate_parse_tree_from_source(code)
+    assert isinstance(ptree, Fortran2003.Program)
+    code = "3 + 3"
+    ptree = processor.generate_parse_tree_from_source(
+        code, partial_code="expression")
+    assert isinstance(ptree, Fortran2003.Base)
+
+    # Invalid cases
+    with pytest.raises(ValueError) as err:
+        _ = processor.generate_parse_tree_from_source(code, "call")
+    assert ("Supplied source does not represent a Fortran call: '3 + 3'"
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        _ = processor.generate_parse_tree_from_source(code, "somethingelse")
+    assert ("Supplied source does not represent a Fortran somethingelse: "
+            "'3 + 3'" in str(err.value))
