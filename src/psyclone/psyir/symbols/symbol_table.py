@@ -968,17 +968,13 @@ class SymbolTable():
             # single caller.  Each routine is parsed independently so its
             # _PSYCLONE_INTERNAL_COMMONBLOCK_N markers carry different
             # numbers and may therefore never trigger the name-clash path;
-            # we must scan *all* existing markers in self for overlapping
-            # block names before attempting to add.
+            # we must scan *all* existing markers in self for an identical
+            # declaration before attempting to add.
             if (self._normalize(old_sym.name).startswith(
                     "_psyclone_internal_commonblock")
                     and isinstance(old_sym.datatype, UnsupportedFortranType)):
-                _blk_re = re.compile(r"/\s*(\w*)\s*/", re.IGNORECASE)
-                old_blocks = set(_blk_re.findall(
-                    old_sym.datatype.declaration))
                 if any(
-                    old_blocks & set(_blk_re.findall(
-                        sym.datatype.declaration))
+                    sym.datatype.declaration == old_sym.datatype.declaration
                     for sym in self.symbols
                     if (self._normalize(sym.name).startswith(
                             "_psyclone_internal_commonblock")
@@ -1069,7 +1065,7 @@ class SymbolTable():
                     if (self._normalize(sym.name).startswith(
                             "_psyclone_internal_commonblock")
                             and isinstance(sym.datatype,
-                                          UnsupportedFortranType)):
+                                           UnsupportedFortranType)):
                         self_blocks = set(_blk_re.findall(
                             sym.datatype.declaration))
                         if old_blocks & self_blocks:
