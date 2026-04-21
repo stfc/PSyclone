@@ -83,7 +83,7 @@ def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
             "may enable resolution of these symbols." in str(err.value))
 
     code = """subroutine test
-        character(len=25) :: a, b
+        complex :: a, b
 
         b = a
     end subroutine test"""
