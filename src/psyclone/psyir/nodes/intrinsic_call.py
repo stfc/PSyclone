@@ -243,9 +243,9 @@ def _type_of_named_arg_accounting_for_dim_arg(
         node: IntrinsicCall, argument_name: str,
 ) -> DataType:
     """Helper function for the common IntrinsicCall case where the
-    return type is the same than a given named argument. If intrinsiccall
+    return type is the same as the given named argument. If intrinsiccall
     has no 'dim' argument, it returns its elemental type, but if 'dim'
-    exists, it will be the given named argument rank minus one.
+    exists, it will be the given named argument's rank minus one.
 
     :param node: the IntrinsicCall whose return type to compute.
     :param argument_name: the name of the argument whose type to use.
