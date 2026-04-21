@@ -1054,7 +1054,6 @@ class SymbolTable():
             # rename-and-add path below.
             if self._normalize(old_sym.name).startswith(
                     "_psyclone_internal_commonblock"):
-                import re  # pylint: disable=import-outside-toplevel
                 _blk_re = re.compile(r"/\s*(\w*)\s*/", re.IGNORECASE)
                 old_blocks = set(_blk_re.findall(
                     old_sym.datatype.declaration))
