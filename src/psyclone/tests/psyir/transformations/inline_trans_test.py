@@ -3385,6 +3385,7 @@ module test_mod
 contains
   subroutine bar(b)
     integer :: constval
+    integer :: b
     constval = 7
     call foo(b)
   end subroutine bar
@@ -3405,7 +3406,16 @@ end module test_mod
     result = fortran_writer(bar)
     # bar's constval is a variable; foo's is a parameter. They are not
     # duplicates, so foo's parameter constant must appear (possibly renamed).
-    assert "parameter" in result
+    assert """\
+subroutine bar(b)
+  integer, parameter :: constval_1 = 10
+  integer :: b
+  integer :: constval
+
+  constval = 7
+  b = constval_1
+
+end subroutine bar""" in result
 
 
 def test_apply_parameter_cloning_false_different_datatype(
@@ -3440,5 +3450,12 @@ end module test_mod
     # bar has integer constval=10, foo has real constval=10.0. Different
     # types so the routine's parameter must be added (renamed) rather than
     # deduplicated.
-    assert "constval" in result
-    assert "parameter" in result
+    assert """\
+subroutine bar(b)
+  integer, parameter :: constval = 10
+  real, parameter :: constval_1 = 10.0
+  integer :: b
+
+  b = INT(constval_1)
+
+end subroutine bar""" in result
