@@ -61,7 +61,7 @@ from psyclone.psyir.nodes.intrinsic_call import (
     _type_of_arg_with_rank_minus_one,
     _type_of_named_argument,
     _type_of_named_arg_with_optional_kind_and_dim,
-    _type_with_specified_precision_and_optional_dim,
+    _type_of_named_arg_accounting_for_dim_arg,
     _type_of_scalar_with_optional_kind,
     _type_of_intrinsic_with_argname_kind_and_optional_dim,
     _type_of_intrinsic_with_precision_of_named_arg,
@@ -1064,33 +1064,40 @@ def test_type_of_named_arg_with_optional_kind_and_dim(
     assert dtype.precision.value == "8"
 
 
-def test_type_with_specified_precision_and_optional_dim(fortran_reader):
-    """Test the _type_with_specified_precision_and_optional_dim
+def test_type_of_named_arg_accounting_for_dim_arg(fortran_reader):
+    """Test the _type_of_named_arg_accounting_for_dim_arg
     helper function."""
     code = """subroutine test
+    use other
     integer, dimension(100, 100) :: x
     integer :: y
     y = PRODUCT(x)
     y = PRODUCT(x, dim=2)
+    y = PRODUCT(z, dim=2)
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     intrinsics = psyir.walk(IntrinsicCall)
 
-    dtype = _type_with_specified_precision_and_optional_dim(
-        intrinsics[0], "array", ScalarType.Intrinsic.INTEGER,
+    dtype = _type_of_named_arg_accounting_for_dim_arg(
+        intrinsics[0], "array"
     )
     assert isinstance(dtype, ScalarType)
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
-    dtype = _type_with_specified_precision_and_optional_dim(
-        intrinsics[1], "array", ScalarType.Intrinsic.INTEGER,
+    dtype = _type_of_named_arg_accounting_for_dim_arg(
+        intrinsics[1], "array"
     )
     assert isinstance(dtype, ArrayType)
     assert len(dtype.shape) == 1
     assert dtype.shape[0] == ArrayType.Extent.DEFERRED
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert dtype.precision == ScalarType.Precision.UNDEFINED
+
+    dtype = _type_of_named_arg_accounting_for_dim_arg(
+        intrinsics[2], "array"
+    )
+    assert isinstance(dtype, UnresolvedType)
 
 
 def test_type_of_intrinsic_with_precision_of_named_arg(fortran_reader):
