@@ -87,7 +87,7 @@ def test_psyclonefc(monkeypatch, capsys):
     assert "-o source.psycloned.f90 source.f90" in stdout
     assert "true source.psycloned.f90 -c -o source.o" in stdout
 
-    # Now with PSYCONE_OPTS and multiple files
+    # Now with PSYCONE_OPTS, PSYCLONEFC_EXCLUDE_FILES and multiple files
     monkeypatch.setattr(os, 'environ', {
         'PSYCLONE_COMPILER': 'true',
         # Also check that multi-spaces are fine
@@ -95,13 +95,15 @@ def test_psyclonefc(monkeypatch, capsys):
         'PSYCLONEFC_EXCLUDE_FILES': 'source3.f90',
     })
     with pytest.raises(SystemExit) as err:
-        compiler_wrapper(['source1.f90', 'source2.f90', 'source3.f90', '-c', '-o', 'app.exe'])
+        compiler_wrapper(['source1.f90', 'source2.f90', 'source3.f90', '-c',
+                          '-o', 'app.exe'])
     assert err.value.code == 0
     stdout, _ = capsys.readouterr()
     # This will execute:
     assert "psyclone -l output -I " in stdout
     assert "-o source1.psycloned.f90 source1.f90" in stdout
     assert "-o source2.psycloned.f90 source2.f90" in stdout
+    # source3 is ignored from the psyclonefc command conversion
     assert "-o source3.psycloned.f90 source3.f90" not in stdout
-    assert ("true source1.psycloned.f90 source2.psycloned.f90 source3.f90 -c -o app.exe"
-            in stdout)
+    assert ("true source1.psycloned.f90 source2.psycloned.f90 source3.f90 "
+            "-c -o app.exe" in stdout)
