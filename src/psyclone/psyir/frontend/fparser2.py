@@ -5717,7 +5717,16 @@ class Fparser2Reader():
         try:
             x = _first_type_match(node.children,
                                   Fortran2003.Internal_Subprogram_Part)
-            name = str(x.parent.children[0].children[1])
+            subroutine_stmt = None
+            for child in x.parent.children:
+                if isinstance(child, Fortran2003.Subroutine_Stmt):
+                    subroutine_stmt = child
+                    break
+            # Backup branch to maintain old functionality for edge cases
+            # and test suite.
+            if not subroutine_stmt:
+                subroutine_stmt = x.parent.children[0]
+            name = str(subroutine_stmt.children[1])
             # If we will make a CodeBlock to represent this subroutine then
             # we still need to ensure the symbol is in the parent's symbol
             # table. For this case the best we can do is place the symbol

@@ -46,6 +46,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
 from psyclone.psyir.symbols import (
     DataSymbol, UnresolvedType, NoType, RoutineSymbol, ScalarType,
@@ -622,3 +623,32 @@ def test_module_contains_subroutine_contains_subroutine(
         psyir.children[0].symbol_table.lookup("s")
     out = fortran_writer(psyir)
     assert "subroutine func_a" not in out
+
+
+def test_module_contains_comment_before_subroutine(
+    fortran_writer
+):
+    '''Test to check that subroutines contained in a module are
+    correctly handled when there are comments before the subroutine
+    statement after the contains.'''
+    code = """MODULE tsltde
+CONTAINS
+! Here is a comment
+   SUBROUTINE tsl_tde_osc()
+   END SUBROUTINE tsl_tde_osc
+END MODULE tsltde"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    assert """module tsltde
+  implicit none
+  public
+
+  contains
+  ! Here is a comment
+  subroutine tsl_tde_osc()
+
+
+  end subroutine tsl_tde_osc
+
+end module tsltde""" in out
