@@ -1449,8 +1449,8 @@ def test_fw_char_literal(fortran_writer):
 
 
 def test_fw_ifblock(fortran_reader, fortran_writer, tmpdir):
-    '''Check the FortranWriter class ifblock method
-    correctly prints out the Fortran representation.
+    '''Check the FortranWriter class ifblock method correctly prints out the
+    Fortran representation. Also check that PSyIR nested elseif are flattened.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -1464,6 +1464,10 @@ def test_fw_ifblock(fortran_reader, fortran_writer, tmpdir):
         "      n=n+1\n"
         "    end if\n"
         "    if (n.gt.4) then\n"
+        "      a = -1\n"
+        "    elseif (n.gt.3) then\n"
+        "      a = -1\n"
+        "    elseif (n.gt.2) then\n"
         "      a = -1\n"
         "    else\n"
         "      a = 1\n"
@@ -1479,6 +1483,10 @@ def test_fw_ifblock(fortran_reader, fortran_writer, tmpdir):
         "      n = n + 1\n"
         "    end if\n"
         "    if (n > 4) then\n"
+        "      a = -1\n"
+        "    elseif (n > 3) then\n"
+        "      a = -1\n"
+        "    elseif (n > 2) then\n"
         "      a = -1\n"
         "    else\n"
         "      a = 1\n"

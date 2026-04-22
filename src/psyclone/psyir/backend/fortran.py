@@ -51,7 +51,7 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.nodes import (
     BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
     Literal, Member, Node, OMPDependClause, OMPReductionClause, Operation,
-    Range, Routine, Schedule, UnaryOperation, UnknownDirective)
+    Range, Routine, Schedule, UnaryOperation, UnknownDirective, IfBlock)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataType,
     DataTypeSymbol, GenericInterfaceSymbol, IntrinsicSymbol,
@@ -1456,26 +1456,31 @@ class FortranWriter(LanguageWriter):
         if_body = ""
         for child in node.if_body:
             if_body += self._visit(child)
-        else_body = ""
-        # node.else_body is None if there is no else clause.
-        if node.else_body:
-            for child in node.else_body:
-                else_body += self._visit(child)
         self._depth -= 1
 
-        if else_body:
-            result = (
-                f"{self._nindent}if ({condition}) then\n"
-                f"{if_body}"
-                f"{self._nindent}else\n"
-                f"{else_body}"
-                f"{self._nindent}end if\n")
-        else:
-            result = (
-                f"{self._nindent}if ({condition}) then\n"
-                f"{if_body}"
-                f"{self._nindent}end if\n")
-        return result
+        else_block = ""
+        # node.else_body is None if there is no else clause.
+        if node.else_body:
+            if (
+                len(node.else_body.children) == 1 and
+                isinstance(node.else_body.children[0], IfBlock)
+            ):
+                else_block += self._visit(node.else_body)
+                # Start with an elseif and remove the final endif
+                else_block = else_block.replace("if", "elseif", 1)
+                else_block = else_block.rstrip("end if\n").rstrip(" ") + "\n"
+            else:
+                else_block = f"{self._nindent}else\n"
+                self._depth += 1
+                for child in node.else_body:
+                    else_block += self._visit(child)
+                self._depth -= 1
+
+        return (
+            f"{self._nindent}if ({condition}) then\n"
+            f"{if_body}"
+            f"{else_block}"
+            f"{self._nindent}end if\n")
 
     def whileloop_node(self, node):
         '''This method is called when a WhileLoop instance is found in the
