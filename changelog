@@ -1,3 +1,6 @@
+   8) PR #3371 towards #3012. Add workaround to bypass psyclonefc fixed-from
+   issues.
+
    7) PR #3374 for 3366. Removes LFRicSymbolTable.
 
    6) PR #3369 towards #1658. Switches NEMO scripts to use all of the
