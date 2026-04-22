@@ -363,14 +363,14 @@ def test_rrbl_code_not_transformed_because_involves_more_than_just_literal(
     assert "x = b" in written_code
 
 
-def test_rrbl_annotating_fortran_code_because_str_not_literal(
+def test_rrbl_annotating_fortran_code_because_complex_not_literal(
     fortran_reader, fortran_writer
 ):
     """test fortran code annotation with transformation warning"""
 
     source = """subroutine foo()
-    character(len=4), parameter ::  a = "toto"
-    character(len=4):: x
+    complex, parameter ::  a = (1.0, 1.0)
+    complex :: x
     x = a
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(source)
@@ -382,13 +382,12 @@ def test_rrbl_annotating_fortran_code_because_str_not_literal(
     rbbl.apply(routine_foo)
     written_code = fortran_writer(routine_foo.ancestor(Container))
     assert "x = a" in written_code
-    assert 'x = "toto"' not in written_code
-    toto_var_name = '"toto"'
+    assert written_code.count("x = ") == 1
     assert (
         f"{rbbl.name}: only "
-        + "support constant (parameter) but UnsupportedFortranType"
-        + f"('CHARACTER(LEN = 4), PARAMETER :: a = {toto_var_name}') "
-        + "is not seen by Psyclone as a constant."
+        f"support constant (parameter) but UnsupportedFortranType"
+        f"('COMPLEX, PARAMETER :: a = (1.0, 1.0)') "
+        f"is not seen by Psyclone as a constant."
         in written_code
     )
 

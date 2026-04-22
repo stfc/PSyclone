@@ -44,8 +44,9 @@ import pytest
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
-    Assignment, ACCKernelsDirective, Loop, Routine
+    Assignment, ACCKernelsDirective, Loop, Reference, Routine
 )
+from psyclone.psyir.symbols import UnsupportedFortranType
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, TransformationError, ProfileTrans)
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans
@@ -118,7 +119,7 @@ def test_no_kernels_error(fortran_reader):
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children[0:2],
                         default_present=True)
-    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
+    assert ("Nodes of type 'Fparser2CodeBlock' cannot be enclosed by a "
             "ACCKernelsTrans transformation" in str(err.value))
 
 
@@ -257,7 +258,7 @@ def test_no_code_block_kernels(fortran_reader):
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children)
-    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
+    assert ("Nodes of type 'Fparser2CodeBlock' cannot be enclosed by a "
             "ACCKernelsTrans" in str(err.value))
 
 
@@ -442,13 +443,30 @@ def test_no_assumed_size_char_in_kernels(fortran_reader):
     or intrinsics that aren't available on GPU.
 
     '''
+    # A routine with some quite complex argument types to check the various
+    # branches of the code that finds out whether there's a character length
+    # specified. Although some of these arguments aren't actually used in
+    # the subroutine, they are needed for test coverage.
     code = '''\
-subroutine ice(assumed_size_char, assumed2)
+subroutine ice(dtype, dtype_ptr, type_list, assumed_size_char, assumed2, &
+               assumed3, assumed4, ctype)
+  use some_mod, only: a_type
   implicit none
+  type(a_type) :: dtype
+  ! An unsupported datatype which has a partial_datatype that is a
+  ! DataTypeSymbol.
+  type(d_type), pointer :: dtype_ptr
+  ! An unsupported datatype which has a partial_datatype that is an
+  ! array of DataTypeSymbol.
+  type(a_type), dimension(10) :: type_list
   character(len = *), intent(in) :: assumed_size_char
   character*(*) :: assumed2
+  character(len=*), optional :: assumed3
   character(len=10) :: explicit_size_char
   real, dimension(10,10) :: my_var
+  character(len=*), dimension(:) :: assumed4
+  ! An unsupported declaration for which we have no partial_datatype
+  complex :: ctype
 
   if (assumed_size_char == 'literal') then
     my_var(:UBOUND(my_var)) = 0.0
@@ -467,7 +485,11 @@ subroutine ice(assumed_size_char, assumed2)
 
   explicit_size_char = assumed2
 
-end
+  assumed3(:) = ''
+
+  assumed4 = ''
+
+end subroutine ice
 '''
     psyir = fortran_reader.psyir_from_source(code)
     sub = psyir.walk(Routine)[0]
@@ -514,6 +536,18 @@ end
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
             " region but found 'explicit_size_char = assumed2" in
             str(err.value))
+    # Assumed-size within an UnsupportedFortranType
+    assert isinstance(sub.symbol_table.lookup("assumed3").datatype,
+                      UnsupportedFortranType)
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[6])
+    assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
+            " region but found 'assumed3(:) = ''" in str(err.value))
+    # Array of character strings
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[7])
+    assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
+            " region but found 'assumed4 = ''" in str(err.value))
 
 
 def test_check_async_queue_with_enter_data(fortran_reader):
@@ -526,13 +560,17 @@ def test_check_async_queue_with_enter_data(fortran_reader):
             "or bool, got : 3.5" in str(err.value))
     psyir = fortran_reader.psyir_from_source(
                 "program two_loops\n"
-                "  integer :: ji\n"
+                "  integer :: ji, aqueue\n"
                 "  real :: array(10,10)\n"
                 "  do ji = 1, 5\n"
                 "    array(ji,1) = 2.0*array(ji,2)\n"
                 "  end do\n"
                 "end program two_loops\n")
     prog = psyir.walk(Routine)[0]
+    # Check that we can supply a bool or a Reference to specify the queue.
+    acc_trans.check_async_queue(prog.walk(Loop), True)
+    acc_trans.check_async_queue(prog.walk(Loop),
+                                Reference(prog.symbol_table.lookup("aqueue")))
     # TODO #2668 deprecate options coverage. This test is left for options
     # coverage
     acc_edata_trans.apply(prog, options={"async_queue": 1})

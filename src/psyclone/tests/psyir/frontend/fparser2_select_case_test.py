@@ -512,8 +512,8 @@ test_psyclone_internal_cmp_char
 
     # Check that the char implementation is in the code
     assert '''function test_psyclone_internal_cmp_char(op1, op2)
-    CHARACTER(LEN = *), INTENT(IN) :: op1
-    CHARACTER(LEN = *), INTENT(IN) :: op2
+    character(len=*), intent(in) :: op1
+    character(len=*), intent(in) :: op2
     logical :: test_psyclone_internal_cmp_char
 
     test_psyclone_internal_cmp_char = op1 == op2

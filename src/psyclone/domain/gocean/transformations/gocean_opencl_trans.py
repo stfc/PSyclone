@@ -38,22 +38,18 @@
 
 import os
 
-from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import (
-        Transformation, args_filter, InvokeSchedule,
-        HaloExchange
-)
+    Transformation, args_filter, InvokeSchedule, HaloExchange)
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-        Routine, Call, Reference, Literal,
-        Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation,
-        StructureReference, FileContainer, CodeBlock, IntrinsicCall,
-        Container, DataNode)
+    Routine, Call, Reference, Literal, Assignment, IfBlock, ArrayReference,
+    Schedule, BinaryOperation, StructureReference, FileContainer, CodeBlock,
+    IntrinsicCall, Container, DataNode)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, RoutineSymbol, ContainerSymbol,
     UnsupportedFortranType, ArgumentInterface, ImportInterface,
@@ -198,8 +194,8 @@ class GOOpenCLTrans(Transformation):
         # any form of global data (that is not a routine argument or just
         # type information).
         for kern in node.kernels():
-            KernelModuleInlineTrans().validate(kern)
-
+            if not kern.module_inline:
+                KernelModuleInlineTrans().validate(kern)
             for ksched in kern.get_callees():
 
                 global_variables = set(ksched.symbol_table.imported_symbols)
@@ -369,9 +365,8 @@ class GOOpenCLTrans(Transformation):
         setup_block.if_body.addchild(Call.create(psy_init, []))
 
         # Set up cmd_queues pointer
-        ptree = Fortran2003.Pointer_Assignment_Stmt(
-            f"{qlist.name} => {get_cmd_queues.name}()")
-        cblock = CodeBlock([ptree], CodeBlock.Structure.STATEMENT)
+        cblock = CodeBlock.create(f"{qlist.name} => {get_cmd_queues.name}()",
+                                  "pointer_assignment")
         setup_block.if_body.addchild(cblock)
 
         # Declare and assign kernel pointers
@@ -792,14 +787,10 @@ class GOOpenCLTrans(Transformation):
         else:
             self._kernels_file.addchild(kernel_copy)
 
-    def _output_opencl_kernels_file(self):
+    def _output_opencl_kernels_file(self) -> None:
         ''' Write the OpenCL kernels to a file using the OpenCL backend.
 
         '''
-        # TODO 1013: The code below duplicates some logic of the CodedKern
-        # rename_and_write method. Ideally this should be moved out of
-        # the AST and transformations and put into some kind of IOManager.
-
         ocl_writer = OpenCLWriter(kernels_local_size=64)
         new_kern_code = ocl_writer(self._kernels_file)
 
