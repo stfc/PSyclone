@@ -631,24 +631,54 @@ def test_module_contains_comment_before_subroutine(
     '''Test to check that subroutines contained in a module are
     correctly handled when there are comments before the subroutine
     statement after the contains.'''
-    code = """MODULE tsltde
+    code = """MODULE test_mod
 CONTAINS
 ! Here is a comment
-   SUBROUTINE tsl_tde_osc()
-   END SUBROUTINE tsl_tde_osc
-END MODULE tsltde"""
+   SUBROUTINE test()
+     contains
+     Subroutine subsub()
+     end subroutine
+   END SUBROUTINE test
+END MODULE test_mod"""
     fortran_reader = FortranReader(ignore_comments=False)
     psyir = fortran_reader.psyir_from_source(code)
     out = fortran_writer(psyir)
-    assert """module tsltde
-  implicit none
-  public
-
-  contains
+    assert """  contains
+  ! PSyclone CodeBlock (unsupported code) reason:
+  !  - PSyclone doesn't yet support 'Contains' inside a Subroutine or Function
   ! Here is a comment
-  subroutine tsl_tde_osc()
+    SUBROUTINE test
+    CONTAINS
+    SUBROUTINE subsub
+    END SUBROUTINE
+  END SUBROUTINE test""" in out
 
 
-  end subroutine tsl_tde_osc
+def test_module_contains_comment_before_function(
+    fortran_writer
+):
+    '''Test to check that functions contained in a module are
+    correctly handled when there are comments before the function
+    statement after the contains.'''
+    code = """MODULE test_mod
+CONTAINS
+! Here is a comment
+   FUNCTION test()
+     contains
+     function subsub()
+     end function
+   END FUNCTION test
+END MODULE test_mod"""
 
-end module tsltde""" in out
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    assert """  contains
+  ! PSyclone CodeBlock (unsupported code) reason:
+  !  - PSyclone doesn't yet support 'Contains' inside a Subroutine or Function
+  ! Here is a comment
+    FUNCTION test()
+    CONTAINS
+    FUNCTION subsub()
+    END FUNCTION
+  END FUNCTION test""" in out
