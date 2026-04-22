@@ -85,19 +85,6 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans, ABC):
         super().__init__()
         self._compare_operator = None
 
-    def validate(self, node, options=None):
-        '''
-        Check that it is safe to apply the transformation to the supplied node.
-
-        :param node: the SIGN call to transform.
-        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
-        :param options: any of options for the transformation.
-        :type options: dict[str, Any]
-
-        '''
-        super().validate(node, options=options)
-        super()._validate_scalar_arg(node)
-
     def apply(self, node, options=None, **kwargs):
         '''Apply this utility transformation to the specified node. This node
         must be a MIN or MAX IntrinsicCall. The intrinsic is converted to
@@ -145,14 +132,21 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans, ABC):
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
 
-        # Create two temporary variables.
-        result_type = node.arguments[0].datatype
+        # Create a temporary result variable. There is an assumption
+        # here that the Intrinsic returns a PSyIR real type. This
+        # might not be what is wanted (e.g. the args might PSyIR
+        # integers), or there may be errors (arguments are of
+        # different types) but this can't be checked as we don't have
+        # appropriate methods to query nodes (see #658).
         res_var_symbol = symbol_table.new_symbol(
             f"res_{self._intrinsic.name.lower()}",
-            symbol_type=DataSymbol, datatype=result_type)
+            symbol_type=DataSymbol, datatype=REAL_TYPE)
+        # Create a temporary variable. Again there is an
+        # assumption here about the datatype - please see previous
+        # comment (associated issue #658).
         tmp_var_symbol = symbol_table.new_symbol(
             f"tmp_{self._intrinsic.name.lower()}",
-            symbol_type=DataSymbol, datatype=result_type)
+            symbol_type=DataSymbol, datatype=REAL_TYPE)
 
         # Replace intrinsic with a temporary (res_var).
         node.replace_with(Reference(res_var_symbol))

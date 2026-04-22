@@ -69,8 +69,8 @@ def test_apply(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
   integer :: l
-  integer :: res_max
-  integer :: tmp_max
+  real :: res_max
+  real :: tmp_max
 
   res_max = i
   tmp_max = j

@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
- BSD 3-Clause License
+# BSD 3-Clause License
 #
 # Copyright (c) 2021-2026, Science and Technology Facilities Council
 # All rights reserved.
@@ -70,8 +70,8 @@ def test_apply(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
   integer :: l
-  integer :: res_min
-  integer :: tmp_min
+  real :: res_min
+  real :: tmp_min
 
   res_min = i
   tmp_min = j
