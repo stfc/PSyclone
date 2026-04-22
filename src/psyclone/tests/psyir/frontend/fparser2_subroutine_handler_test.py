@@ -642,6 +642,8 @@ CONTAINS
 END MODULE test_mod"""
     fortran_reader = FortranReader(ignore_comments=False)
     psyir = fortran_reader.psyir_from_source(code)
+    assert "test" in psyir.children[0].symbol_table
+    assert "subsub" not in psyir.children[0].symbol_table
     out = fortran_writer(psyir)
     assert """  contains
   ! PSyclone CodeBlock (unsupported code) reason:
@@ -672,6 +674,8 @@ END MODULE test_mod"""
 
     fortran_reader = FortranReader(ignore_comments=False)
     psyir = fortran_reader.psyir_from_source(code)
+    assert "test" in psyir.children[0].symbol_table
+    assert "subsub" not in psyir.children[0].symbol_table
     out = fortran_writer(psyir)
     assert """  contains
   ! PSyclone CodeBlock (unsupported code) reason:
