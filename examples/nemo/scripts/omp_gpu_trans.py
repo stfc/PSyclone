@@ -75,12 +75,12 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = [
     # Has an implicit symbol declaration (psyclone only works
-    # with 'implicit none' Fortran
+    # with 'implicit none' Fortran)
     "icefrm.f90",
 ]
 
 NEMOV5_EXCLUSIONS = [
-    # Excluded in NEMOv5 for performance
+    # Excluded only in NEMOv5 for performance
     "lbclnk.f90",
 ]
 
