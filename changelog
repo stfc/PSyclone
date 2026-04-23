@@ -1,3 +1,6 @@
+   9) PR #3406 for # 3406. Fix issue with comment before a subroutine that
+   turns into a CodeBlock.
+ 
    8) PR #3371 towards #3012. Add workaround to bypass psyclonefc fixed-from
    issues.
 
