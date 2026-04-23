@@ -40,9 +40,8 @@ directives into Nemo code. '''
 import os
 from utils import (
     add_profiling, inline_calls, insert_explicit_loop_parallelism,
-    normalise_loops, iom_put_argument_to_temporary,
-    PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
-from psyclone.psyir.nodes import Routine, Loop, Call
+    normalise_loops, PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
+from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import (
     OMPTargetTrans, OMPDeclareTargetTrans)
 from psyclone.transformations import (
@@ -202,8 +201,6 @@ def trans(psyir):
 
         # Extract any array operations from iom_put calls to temporary
         # expressions that can be parallelised.
-        iom_put_argument_to_temporary(subroutine.walk(Call))
-
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,
@@ -211,7 +208,8 @@ def trans(psyir):
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
                 increase_array_ranks=not NEMOV4,
-                hoist_expressions=True
+                hoist_expressions=True,
+                hoist_argument_expressions=True,
         )
         # Perform module-inlining of called routines.
         if INLINING_ENABLED:

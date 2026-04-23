@@ -181,6 +181,7 @@ def normalise_loops(
         scalarise_loops: bool = False,
         increase_array_ranks: bool = False,
         hoist_expressions: bool = True,
+        hoist_argument_expressions: bool = True,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
     appropriate form for the Parallelisation transformations to analyse
@@ -201,7 +202,14 @@ def normalise_loops(
         arrays.
     :param hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
+    :param hoist_argument_expressions: whether to hoist array expressions
+        out of the containing Call.
     '''
+    # TODO #3412: This is currently limited to iom_put, we want to expand it
+    # throughout the code
+    if hoist_argument_expressions:
+        iom_put_argument_to_temporary(schedule.walk(Call))
+
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
         # to files with statement functions because it will attempt to put the
@@ -545,7 +553,8 @@ def iom_put_argument_to_temporary(calls: list[Call]):
                         DataNodeToTempTrans().apply(arg)
                     except TransformationError as err:
                         call.append_preceding_comment(
-                            f"Couldn't pull the argument {arg} to a "
+                            f"PSyclone Warning: Couldn't pull the argument "
+                            f"{arg.debug_string().rstrip()} to a "
                             f"temporary due to the following error: "
                             f"{str(err.value)}"
                         )

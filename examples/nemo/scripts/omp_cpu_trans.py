@@ -40,9 +40,8 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    iom_put_argument_to_temporary,
     PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT)
-from psyclone.psyir.nodes import Routine, Call
+from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
 # Enable the insertion of profiling hooks during the transformation script
@@ -108,10 +107,6 @@ def trans(psyir):
     for subroutine in psyir.walk(Routine):
         print(f"Adding OpenMP threading to subroutine: {subroutine.name}")
 
-        # Extract any array operations from iom_put calls to temporary
-        # expressions that can be parallelised.
-        iom_put_argument_to_temporary(subroutine.walk(Call))
-
         if PROFILING_ENABLED:
             add_profiling(subroutine.children)
 
@@ -122,7 +117,8 @@ def trans(psyir):
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
                 hoist_expressions=False,
-                scalarise_loops=False
+                scalarise_loops=False,
+                hoist_argument_expressions=True
         )
 
         if psyir.name not in PARALLELISATION_ISSUES:

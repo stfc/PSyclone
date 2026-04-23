@@ -51,7 +51,7 @@ from psyclone.psyir.transformations import (
 from psyclone.tests.utilities import Compile
 
 
-def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
+def test_datanodetotemptrans_validate(fortran_reader):
     """Tests the non-import related functionality of the validate
     function of the DataNodeToTempTrans."""
     dtrans = DataNodeToTempTrans()
@@ -62,10 +62,12 @@ def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("Input node's datatype is an array of unknown size, so the "
             "DataNodeToTempTrans cannot be applied. Input node was "
             "'b + a'" in str(err.value))
+    assert ("PSyclone Warning: Input node's datatype is an array" in
+            assign.preceding_comment)
 
     code = """subroutine test
         use some_mod
@@ -74,13 +76,17 @@ def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("The datatype of the supplied node cannot be computed, so "
             "the DataNodeToTempTrans cannot be applied. Input node "
             "was 'b + a'. The following symbols in the input "
             "node have not been resolved by PSyclone: '['a', 'b']'. "
             "Setting RESOLVE_IMPORTS in the transformation script "
             "may enable resolution of these symbols." in str(err.value))
+    assert ("PSyclone Warning: The datatype of the supplied node " in
+            assign.preceding_comment)
+    assert ("Setting RESOLVE_IMPORTS in the transformation script" in
+            assign.preceding_comment)
 
     code = """subroutine test
         complex :: a, b
@@ -90,10 +96,12 @@ def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("The datatype of the supplied node cannot be computed, "
             "so the DataNodeToTempTrans cannot be applied. Input node "
             "was 'a'" in str(err.value))
+    assert ("PSyclone Warning: The datatype of the supplied node " in
+            assign.preceding_comment)
 
     with pytest.raises(TypeError) as err:
         dtrans.validate("abc")
@@ -128,11 +136,13 @@ def test_datanodetotemptrans_validate(fortran_reader, tmp_path):
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[2]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("Input node to DataNodeToTempTrans contains a call "
             "'some_func(a, b)' that is not "
             "guaranteed to be pure. Input node is 'a + some_func(a, b)'."
             in str(err.value))
+    assert ("PSyclone Warning: Input node to DataNodeToTempTrans contains a "
+            "call" in assign.preceding_comment)
 
 
 def test_datanodetotemptrans_validate_imports(
@@ -160,10 +170,12 @@ def test_datanodetotemptrans_validate_imports(
     psyir.children[0].symbol_table.resolve_imports()
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("The type of the node supplied to DataNodeToTempTrans depends "
             "upon an imported symbol 'i' which has a name clash with a "
             "symbol in the current scope." in str(err.value))
+    assert ("PSyclone Warning: The type of the node supplied to "
+            in assign.preceding_comment)
 
     # This should work if the i in scope is imported from the
     # some_mod already.
@@ -240,11 +252,13 @@ def test_datanodetotemptrans_validate_imports(
     psyir = FortranReader(resolve_modules=True).psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("Input node contains an imported symbol 'i' whose containing "
             "module collides with an existing symbol. Colliding name is "
             "'tmpmod'."
             in str(err.value))
+    assert ("PSyclone Warning: Input node contains an imported symbol 'i' "
+            in assign.preceding_comment)
 
     filename = tmp_path / "some_other_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
@@ -264,14 +278,15 @@ end subroutine test
     psyir = FortranReader(resolve_modules=True).psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(assign.rhs)
+        dtrans.validate(assign.rhs, verbose=True)
     assert ("The datatype of the node suppled to DataNodeToTempTrans depends "
             "upon an imported symbol 'dim1' that is declared as private in "
             "its containing module, so cannot be imported." in str(err.value))
+    assert ("PSyclone Warning: The datatype of the node suppled to" in
+            assign.preceding_comment)
 
 
-def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path,
-                                   monkeypatch):
+def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path):
     """Tests the apply function of the DataNodeToTempTrans without imported
     symbols."""
     dtrans = DataNodeToTempTrans()

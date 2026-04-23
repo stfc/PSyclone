@@ -115,6 +115,7 @@ class DataNodeToTempTrans(Transformation):
         """
         # Validate the input options and types.
         self.validate_options(**kwargs)
+        verbose = self.get_option("verbose", **kwargs)
 
         if not isinstance(node, DataNode):
             raise TypeError(
@@ -127,21 +128,31 @@ class DataNodeToTempTrans(Transformation):
         calls = node.walk(Call)
         for call in calls:
             if not call.is_pure:
-                raise TransformationError(
+                message = (
                     f"Input node to {self.name} contains a call "
                     f"'{call.debug_string().strip()}' that is not guaranteed "
                     f"to be pure. Input node is "
                     f"'{node.debug_string().strip()}'."
                 )
+                if verbose:
+                    node.ancestor(Statement).append_preceding_comment(
+                        f"PSyclone Warning: {message}"
+                    )
+                raise TransformationError(message)
         if isinstance(dtype, ArrayType):
             for element in dtype.shape:
                 if element in [ArrayType.Extent.DEFERRED,
                                ArrayType.Extent.ATTRIBUTE]:
-                    raise TransformationError(
+                    message = (
                         f"Input node's datatype is an array of unknown size, "
                         f"so the {self.name} cannot be applied. "
                         f"Input node was '{node.debug_string().strip()}'."
                     )
+                    if verbose:
+                        node.ancestor(Statement).append_preceding_comment(
+                            f"PSyclone Warning: {message}"
+                        )
+                    raise TransformationError(message)
                 # The shape must now be set by ArrayBounds, we need to
                 # examine the symbols used to define those bounds.
                 symbols = set()
@@ -163,22 +174,32 @@ class DataNodeToTempTrans(Transformation):
                         # container then we can skip this.
                         if scoped_name_sym.interface == sym.interface:
                             continue
-                        raise TransformationError(
+                        message = (
                             f"The type of the node supplied to {self.name} "
                             f"depends upon an imported symbol '{sym.name}' "
                             f"which has a name clash with a symbol in the "
                             f"current scope."
                         )
+                        if verbose:
+                            node.ancestor(Statement).append_preceding_comment(
+                                f"PSyclone Warning: {message}"
+                            )
+                        raise TransformationError(message)
                     # If its not in the current scope, and its visibility is
                     # private then we can't import it.
                     if (not scoped_name_sym and sym.visibility ==
                             Symbol.Visibility.PRIVATE):
-                        raise TransformationError(
+                        message = (
                             f"The datatype of the node suppled to "
                             f"{self.name} depends upon an imported symbol "
                             f"'{sym.name}' that is declared as private in "
                             f"its containing module, so cannot be imported."
                         )
+                        if verbose:
+                            node.ancestor(Statement).append_preceding_comment(
+                                f"PSyclone Warning: {message}"
+                            )
+                        raise TransformationError(message)
                     # If its an imported symbol we need to check if its
                     # the same import interface.
                     if isinstance(sym.interface, ImportInterface):
@@ -188,13 +209,19 @@ class DataNodeToTempTrans(Transformation):
                         )
                         if scoped_name_sym and not isinstance(
                                 scoped_name_sym, ContainerSymbol):
-                            raise TransformationError(
+                            message = (
                                 f"Input node contains an imported symbol "
                                 f"'{sym.name}' whose containing module "
                                 f"collides with an existing symbol. Colliding "
                                 f"name is "
                                 f"'{sym.interface.container_symbol.name}'."
                                 )
+                            if verbose:
+                                node.ancestor(Statement).\
+                                append_preceding_comment(
+                                    f"PSyclone Warning: {message}"
+                                )
+                            raise TransformationError(message)
 
         if node.ancestor(Statement) is None:
             raise TransformationError(
@@ -223,18 +250,26 @@ class DataNodeToTempTrans(Transformation):
                     f"RESOLVE_IMPORTS in the transformation script may "
                     f"enable resolution of these symbols."
                 )
+            if verbose:
+                node.ancestor(Statement).append_preceding_comment(
+                    f"PSyclone Warning: {message}"
+                )
             raise TransformationError(message)
 
-    def apply(self, node: DataNode, storage_name: str = "", **kwargs):
+    def apply(self, node: DataNode, storage_name: str = "",
+              verbose: bool = False, **kwargs):
         """Applies the DataNodeToTempTrans to the input arguments.
 
         :param node: The datanode to extract.
         :param storage_name: The base name of the temporary variable to store
             the result of the input node in. The default is tmp(_...)
             based on the rules defined in the SymbolTable class.
+        :param verbose: Whether to add comments to the input node if
+                        the transformation fails.
         """
         # Call validate to check inputs are valid.
-        self.validate(node, storage_name=storage_name, **kwargs)
+        self.validate(node, storage_name=storage_name, verbose=verbose,
+                      **kwargs)
 
         # Find the datatype
         datatype = node.datatype
@@ -359,12 +394,14 @@ class DataNodeToTempTrans(Transformation):
             # If we can hoist the allocate, find the highest level Loop
             # ancestor and set the schedule and position to place the
             # allocate before this loop.
+            # TODO #1445: Use HositTrans to do this if its extended to support
+            # more node types.
             if hoistable:
                 loop_anc = schedule.ancestor(Loop)
-                finger = loop_anc
-                while finger:
-                    loop_anc = finger
-                    finger = finger.ancestor(Loop)
+                cursor = loop_anc
+                while cursor:
+                    loop_anc = cursor
+                    cursor = cursor.ancestor(Loop)
                 if loop_anc:
                     pos = loop_anc.position
                     schedule = loop_anc.ancestor(Schedule)
