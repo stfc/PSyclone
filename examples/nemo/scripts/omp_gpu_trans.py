@@ -74,12 +74,14 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = [
-    "icefrm.f90",  # Has an unsupported implicit symbol declaration
+    # Has an implicit symbol declaration (psyclone only works
+    # with 'implicit none' Fortran
+    "icefrm.f90",
 ]
 
 NEMOV5_EXCLUSIONS = [
-    # get_cssrcsurf produces signal SIGFPE, Arithmetic exception
-    "sbcclo.f90",
+    # Excluded in NEMOv5 for performance
+    "lbclnk.f90",
 ]
 
 NEMOV4_EXCLUSIONS = [
@@ -92,12 +94,10 @@ SKIP_FOR_PERFORMANCE = [
     "iom_def.f90",
     "timing.f90",
     "histcom.f90",
+    "dtatsd.f90",
 ]
 
 OFFLOADING_ISSUES = [
-    # The following issues only affect BENCH (because ice is enabled?)
-    # Runtime Error: Illegal address during kernel execution
-    "trcrad.f90",
     # Signal 11 issues
     "trcatf.f90",
     "seddsrjac.f90"
