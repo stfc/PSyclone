@@ -343,8 +343,10 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path):
   enddo""" in out
 
     code = """subroutine test()
+    integer, parameter :: i = 1
+    integer, parameter :: j = 3
     integer, dimension(2:6) :: a
-    integer, dimension(1:3) :: b
+    integer, dimension(i:j) :: b
 
     a(2:4) = 3 * b
 
@@ -356,7 +358,7 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path):
     assert """  integer, allocatable, dimension(:) :: tmp
 
   if (.NOT.ALLOCATED(tmp)) then
-    ALLOCATE(tmp(1:3))
+    ALLOCATE(tmp(i:j))
   end if
   tmp = 3 * b
   a(:4) = tmp""" in out
@@ -414,11 +416,8 @@ def test_datanodetotemptrans_apply_imports(
     assign = psyir.walk(Assignment)[0]
     dtrans.apply(assign.rhs)
     out = fortran_writer(psyir)
-    assert """  integer, allocatable, dimension(:,:) :: tmp
+    assert """  integer, dimension(25,50) :: tmp
 
-  if (.NOT.ALLOCATED(tmp)) then
-    ALLOCATE(tmp(1:25,1:50))
-  end if
   tmp = some_var
   b = tmp""" in out
 
@@ -535,8 +534,8 @@ def test_datanodetotemptrans_hoistable_array(fortran_reader,
 
     code = """subroutine test
         use some_mod, only: some_func
-        integer :: i
-        real, dimension(100,100) :: arr1, arr2
+        integer :: i, a, b
+        real, dimension(a,b) :: arr1, arr2
 
         do i = 1, 100
             call some_func(arr1*arr2)
@@ -551,7 +550,7 @@ def test_datanodetotemptrans_hoistable_array(fortran_reader,
 
     out = fortran_writer(psyir)
     assert """  if (.NOT.ALLOCATED(tmp)) then
-    ALLOCATE(tmp(1:100,1:100))
+    ALLOCATE(tmp(1:a,1:b))
   end if
   do i = 1, 100, 1
     tmp = arr1 * arr2

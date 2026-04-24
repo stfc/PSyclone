@@ -44,6 +44,7 @@ from psyclone.psyir.nodes import (
     DataNode,
     IfBlock,
     IntrinsicCall,
+    Literal,
     Loop,
     Range,
     Reference,
@@ -319,13 +320,27 @@ class DataNodeToTempTrans(Transformation):
             # the datatype to use the in-scope symbols
             datatype.replace_symbols_using(node.scope.symbol_table)
 
-            # We want to create an allocatable symbol for Array entities, so
-            # create a new datatype for the symbol and keep the
-            # datatype around for the ALLOCATE statement later.
-            allocatable_datatype = datatype
-            datatype = ArrayType(allocatable_datatype.elemental_type,
-                                 [ArrayType.Extent.DEFERRED for x in
-                                  allocatable_datatype.shape])
+            # If any of the bound information aren't static then we need
+            # to create an allocatable array.
+            is_static = True
+            for element in datatype.shape:
+                if not isinstance(element.lower, Literal):
+                    is_static = False
+                    break
+                if not isinstance(element.upper, Literal):
+                    is_static = False
+                    break
+            if is_static:
+                datatype = ArrayType(datatype.elemental_type,
+                                     [x.copy() for x in datatype.shape])
+            else:
+                # We want to create an allocatable symbol for Array entities,
+                # so create a new datatype for the symbol and keep the
+                # datatype around for the ALLOCATE statement later.
+                allocatable_datatype = datatype
+                datatype = ArrayType(allocatable_datatype.elemental_type,
+                                     [ArrayType.Extent.DEFERRED for x in
+                                      allocatable_datatype.shape])
 
         # Create a symbol of the relevant type.
         if not storage_name:
@@ -360,7 +375,7 @@ class DataNodeToTempTrans(Transformation):
 
         # If the datatype is an array, we need to allocate the array
         # before the statement too if its not already allocated.
-        if isinstance(datatype, ArrayType):
+        if isinstance(datatype, ArrayType) and not is_static:
             # Create an array reference to the symbol with the dimensions
             # returned by the datatype call earlier.
             ref = ArrayReference.create(
