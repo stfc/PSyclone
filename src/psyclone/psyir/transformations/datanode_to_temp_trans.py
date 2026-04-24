@@ -218,7 +218,7 @@ class DataNodeToTempTrans(Transformation):
                                 )
                             if verbose:
                                 node.ancestor(Statement).\
-                                append_preceding_comment(
+                                    append_preceding_comment(
                                     f"PSyclone Warning: {message}"
                                 )
                             raise TransformationError(message)
