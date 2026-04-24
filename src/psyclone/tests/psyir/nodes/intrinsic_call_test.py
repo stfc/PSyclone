@@ -70,8 +70,10 @@ from psyclone.psyir.nodes.intrinsic_call import (
     _type_of_intrinsic_with_precision_of_named_arg,
     _findloc_return_type,
     _int_return_type,
+    _iparity_return_type,
     _get_bound_function_return_type,
     _matmul_return_type,
+    _maxval_return_type,
 )
 from psyclone.psyir.symbols import (
     ArrayType,
@@ -1388,6 +1390,39 @@ def test_int_return_type(fortran_reader):
     assert rtype.precision.symbol.name == "wp"
 
 
+def test_iparity_return_type(fortran_reader):
+    """Test the _iparity_return_type helper function."""
+    code = """
+    subroutine x
+    integer, dimension(100, 100) :: array
+    integer :: k
+    k = IPARITY(array)
+    end subroutine x
+    """
+    # TODO #3415: Test is superfluous with this issue fixed.
+    psyir = fortran_reader.psyir_from_source(code)
+    # TODO #3268 Can't iparity directily with fortran reader, so need to
+    # create the Intrinsics manually using the psyir from the generated code.
+    intrinsic = psyir.walk(Call)[0]
+    intrinsic = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.IPARITY,
+        [x.copy() for x in intrinsic.arguments]
+    )
+
+    assert _iparity_return_type(intrinsic) == INTEGER_TYPE
+
+    k_sym = psyir.children[0].symbol_table.lookup("k")
+    intrinsic = psyir.walk(Call)[0]
+    intrinsic = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.IPARITY,
+        [("array", intrinsic.arguments[0].copy()), ("dim", Reference(k_sym))],
+    )
+    res = _iparity_return_type(intrinsic)
+    assert isinstance(res, ArrayType)
+    assert len(res.shape) == 1
+    assert res.shape[0] == ArrayType.Extent.DEFERRED
+
+
 def test_get_bound_function_return_type(fortran_reader):
     """Test the _get_bound_function_return_type helper function."""
     code = """subroutine x
@@ -1520,6 +1555,46 @@ def test_matmul_return_type(fortran_reader):
     assert res.shape[1].upper.intrinsic == IntrinsicCall.Intrinsic.SIZE
     assert res.shape[1].upper.arguments[0].symbol.name == "h"
     assert res.shape[1].upper.arguments[1].value == "2"
+
+
+def test_maxval_return_type(fortran_reader):
+    '''Test for the _maxval_return_type function.'''
+    # TODO #3415: Test is superfluous with this issue fixed.
+    code = """subroutine test
+    integer, parameter :: wp = 8
+    integer*8, dimension(100,100) :: x
+    integer, dimension(100) :: z
+    integer(kind=wp), dimension(100) :: m
+    integer :: y
+    y = MAXVAL(x)
+    z = MAXVAL(x, dim=2)
+    y = MAXVAL(m)
+    end subroutine test
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    intrs = psyir.walk(IntrinsicCall)
+
+    # Input is a int*8 so the return type should be an int*8
+    res = _maxval_return_type(intrs[0])
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision == 8
+
+    # Input is a 2D array of int*8 with dim specified so the result
+    # is a 1D int*8 array.
+    res = _maxval_return_type(intrs[1])
+    assert isinstance(res, ArrayType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert res.precision == 8
+    assert len(res.shape) == 1
+    assert res.shape[0] == ArrayType.Extent.DEFERRED
+
+    # Input is a 1D array of int(kind=wp) so the result is an
+    # int(kind=wp)
+    res = _maxval_return_type(intrs[2])
+    assert isinstance(res, ScalarType)
+    assert res.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(res.precision, Reference)
+    assert res.precision.symbol.name == "wp"
 
 
 @pytest.mark.parametrize(

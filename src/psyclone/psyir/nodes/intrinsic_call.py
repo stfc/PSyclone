@@ -259,7 +259,6 @@ def _type_of_named_arg_accounting_for_dim_arg(
         not isinstance(arg_dt.elemental_type, ScalarType) or
         not isinstance(arg_dt.elemental_type.intrinsic, ScalarType.Intrinsic)
     ):
-        print("?", arg_dt, type(arg_dt), arg_dt.elemental_type)
         return UnresolvedType()
     dtype = arg_dt.elemental_type
     # If dim is not present, return the same datatype
@@ -428,6 +427,36 @@ def _int_return_type(node: IntrinsicCall) -> DataType:
     )
 
 
+def _iparity_return_type(node: IntrinsicCall) -> DataType:
+    """Helper function for the IPARITY case.
+
+    The result is the same type as the "array" argument. If the
+    "dim" argument is not present, a scalar of that type is returned.
+    Otherwise an ArrayType of rank n-1 (where n is the rank of "array") of
+    that type is returned instead.
+
+    :param node: The IntrinsicCall whose return type to compute.
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    # TODO #3415: Replace with _type_of_named_arg_accounting_for_dim_arg(
+    # node, "array").
+    dtype = ScalarType(
+        node.argument_by_name("array").datatype.intrinsic,
+        node.argument_by_name("array").datatype.precision,
+    )
+    # If dim is not present then we return a scalar.
+    if "dim" not in node.argument_names:
+        return dtype
+    # We have a dimension specified. We don't know the resultant shape
+    # in any detail as its dependent on the value of dim
+    return ArrayType(
+        dtype,
+        [ArrayType.Extent.DEFERRED]
+        * (len(node.argument_by_name("array").datatype.shape) - 1),
+    )
+
+
 def _get_bound_function_return_type(node: IntrinsicCall) -> DataType:
     """Helper function for the return types of functions like LBOUND and
     LCOBOUND etc.
@@ -523,6 +552,33 @@ def _matmul_return_type(node: IntrinsicCall) -> DataType:
              ("dim", Literal("2", INTEGER_TYPE))])
         shape = [extent1, extent2]
     return ArrayType(stype, shape)
+
+
+def _maxval_return_type(node: IntrinsicCall) -> DataType:
+    """ Helper function for the MAXVAL (and similar) intrinsic return
+    types.
+
+    If the "dim" argument is absent, or the "array" argument has rank one
+    then the result is a ScalarType of the type of the "array" argument.
+    Otherwise the result is an ArrayType of rank n-1 (where n is the rank of
+    the "array" argument) with the same datatype of the "array" argument.
+
+    :param node: The IntrinsicCall whose return type to compute.
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    # TODO #3415: Replace with _type_of_named_arg_accounting_for_dim_arg(
+    # node, "array").
+    dtype = ScalarType(
+        node.argument_by_name("array").datatype.intrinsic,
+        node.argument_by_name("array").datatype.precision
+    )
+    arg = node.argument_by_name("array")
+    if "dim" not in node.argument_names:
+        return dtype
+    # We have a dimension specified. We don't know the resultant shape
+    # in any detail as its dependent on the value of dim
+    return _type_of_arg_with_rank_minus_one(arg, dtype)
 
 
 def _dot_product_return_type(node: IntrinsicCall) -> DataType:
@@ -2802,9 +2858,7 @@ class IntrinsicCall(Call):
                 )
             ),
             optional_args={"mask": DataNode},
-            return_type=lambda node: (
-                _type_of_named_arg_accounting_for_dim_arg(node, "array")
-            ),
+            return_type=_iparity_return_type,
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -3169,7 +3223,8 @@ class IntrinsicCall(Call):
             return_type=lambda node: (
                 _type_of_scalar_with_optional_kind(
                     node,
-                    node.argument_by_name("l").datatype.intrinsic,
+                    node.argument_by_name("l").
+                    datatype.intrinsic,
                     "kind",
                 ) if "kind" in node.argument_names else
                 _type_of_named_argument(node, "l")
@@ -3327,9 +3382,7 @@ class IntrinsicCall(Call):
                 )
             ),
             optional_args={"mask": DataNode},
-            return_type=lambda node: (
-                _type_of_named_arg_accounting_for_dim_arg(node, "array")
-            ),
+            return_type=_maxval_return_type,
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -3458,9 +3511,7 @@ class IntrinsicCall(Call):
                 )
             ),
             optional_args={"mask": DataNode},
-            return_type=lambda node: (
-                _type_of_named_arg_accounting_for_dim_arg(node, "array")
-            ),
+            return_type=_maxval_return_type,
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -4015,9 +4066,7 @@ class IntrinsicCall(Call):
             optional_args={"mask": DataNode,
                            "identity": DataNode,
                            "ordered": DataNode},
-            return_type=lambda node: (
-                _type_of_named_arg_accounting_for_dim_arg(node, "array")
-            ),
+            return_type=_maxval_return_type,
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
