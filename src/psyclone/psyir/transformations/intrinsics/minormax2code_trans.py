@@ -48,7 +48,7 @@ from abc import ABC
 import warnings
 
 from psyclone.psyir.nodes import (
-    BinaryOperation, Assignment, Reference, IfBlock
+    BinaryOperation, Assignment, Reference, IfBlock, IntrinsicCall
 )
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
@@ -87,20 +87,18 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans, ABC):
         super().__init__()
         self._compare_operator = None
 
-    def validate(self, node, options=None):
+    def validate(self, node: IntrinsicCall, options=None, **kwargs):
         '''
         Check that it is safe to apply the transformation to the supplied node.
 
         :param node: the SIGN call to transform.
-        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: any of options for the transformation.
-        :type options: dict[str, Any]
 
         '''
-        super().validate(node, options=options)
+        super().validate(node, options=options, **kwargs)
         super()._validate_scalar_arg(node)
 
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node: IntrinsicCall, options=None, **kwargs):
         '''Apply this utility transformation to the specified node. This node
         must be a MIN or MAX IntrinsicCall. The intrinsic is converted to
         equivalent inline code. This is implemented as a PSyIR transform from:
@@ -132,7 +130,6 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans, ABC):
         this is not the case.
 
         :param node: a MIN or MAX intrinsic.
-        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
