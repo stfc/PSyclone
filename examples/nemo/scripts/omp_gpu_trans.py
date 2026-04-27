@@ -190,8 +190,6 @@ def trans(psyir):
             if "pp_len" not in symtab:
                 symtab.add(symtab.lookup("pp_len"))
 
-        # Extract any array operations from iom_put calls to temporary
-        # expressions that can be parallelised.
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,

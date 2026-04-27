@@ -542,19 +542,21 @@ def add_profiling(children: Union[List[Node], Schedule]):
 
 def iom_put_argument_to_temporary(calls: list[Call]):
     '''Extracts the second argument of all iom_put calls and puts them
-     in a temporary if they are an Operation with an array datatype.'''
+     in a temporary if they are an Operation with an array datatype.
+
+    :param calls: The list of calls in a subroutine whose arguments
+        may be moved into temporary storage to allow additional potential
+        parallelisation.
+
+     '''
     for call in calls:
         if call.symbol.name == "iom_put":
             for arg in call.arguments:
                 dtype = arg.datatype
                 if (isinstance(dtype, ArrayType) and
-                        isinstance(arg, Operation)):
+                    (isinstance(arg, Operation) or
+                        isinstance(arg, IntrinsicCall))):
                     try:
-                        DataNodeToTempTrans().apply(arg)
-                    except TransformationError as err:
-                        call.append_preceding_comment(
-                            f"PSyclone Warning: Couldn't pull the argument "
-                            f"{arg.debug_string().rstrip()} to a "
-                            f"temporary due to the following error: "
-                            f"{str(err.value)}"
-                        )
+                        DataNodeToTempTrans().apply(arg, verbose=True)
+                    except TransformationError:
+                        pass
