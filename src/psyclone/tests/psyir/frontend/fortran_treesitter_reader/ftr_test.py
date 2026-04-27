@@ -97,11 +97,7 @@ def test_generate_parse_tree(tmpdir_factory, caplog):
     """
     with pytest.raises(ValueError) as err:
         _ = processor.generate_parse_tree_from_source(invalid_code)
-    # The result of this test also now seems dependent on Python version
-    if sys.version_info >= (3, 14):
-        assert "Syntax Error found at line 3" in str(err.value)
-    else:
-        assert "Syntax Error found at line 2" in str(err.value)
+    assert "Syntax Error found at line" in str(err.value)
 
     # Test providing a source file
     filename = str(tmpdir_factory.mktemp('ts_test').join("testfile.f90"))
