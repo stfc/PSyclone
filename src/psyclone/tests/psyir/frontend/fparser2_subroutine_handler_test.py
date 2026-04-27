@@ -46,6 +46,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
 from psyclone.psyir.symbols import (
     DataSymbol, UnresolvedType, NoType, RoutineSymbol, ScalarType,
@@ -622,3 +623,66 @@ def test_module_contains_subroutine_contains_subroutine(
         psyir.children[0].symbol_table.lookup("s")
     out = fortran_writer(psyir)
     assert "subroutine func_a" not in out
+
+
+def test_module_contains_comment_before_subroutine(
+    fortran_writer
+):
+    '''Test to check that subroutines contained in a module are
+    correctly handled when there are comments before the subroutine
+    statement after the contains.'''
+    code = """MODULE test_mod
+CONTAINS
+! Here is a comment
+   SUBROUTINE test()
+     contains
+     Subroutine subsub()
+     end subroutine
+   END SUBROUTINE test
+END MODULE test_mod"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    assert "test" in psyir.children[0].symbol_table
+    assert "subsub" not in psyir.children[0].symbol_table
+    out = fortran_writer(psyir)
+    assert """  contains
+  ! PSyclone CodeBlock (unsupported code) reason:
+  !  - PSyclone doesn't yet support 'Contains' inside a Subroutine or Function
+  ! Here is a comment
+    SUBROUTINE test
+    CONTAINS
+    SUBROUTINE subsub
+    END SUBROUTINE
+  END SUBROUTINE test""" in out
+
+
+def test_module_contains_comment_before_function(
+    fortran_writer
+):
+    '''Test to check that functions contained in a module are
+    correctly handled when there are comments before the function
+    statement after the contains.'''
+    code = """MODULE test_mod
+CONTAINS
+! Here is a comment
+   FUNCTION test()
+     contains
+     function subsub()
+     end function
+   END FUNCTION test
+END MODULE test_mod"""
+
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    assert "test" in psyir.children[0].symbol_table
+    assert "subsub" not in psyir.children[0].symbol_table
+    out = fortran_writer(psyir)
+    assert """  contains
+  ! PSyclone CodeBlock (unsupported code) reason:
+  !  - PSyclone doesn't yet support 'Contains' inside a Subroutine or Function
+  ! Here is a comment
+    FUNCTION test()
+    CONTAINS
+    FUNCTION subsub()
+    END FUNCTION
+  END FUNCTION test""" in out
