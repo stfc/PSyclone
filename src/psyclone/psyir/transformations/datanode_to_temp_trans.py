@@ -322,15 +322,15 @@ class DataNodeToTempTrans(Transformation):
 
             # If any of the bound information aren't static then we need
             # to create an allocatable array.
-            is_static = True
+            has_static_bounds = True
             for element in datatype.shape:
                 if not isinstance(element.lower, Literal):
-                    is_static = False
+                    has_static_bounds = False
                     break
                 if not isinstance(element.upper, Literal):
-                    is_static = False
+                    has_static_bounds = False
                     break
-            if is_static:
+            if has_static_bounds:
                 datatype = ArrayType(datatype.elemental_type,
                                      [x.copy() for x in datatype.shape])
             else:
@@ -375,7 +375,7 @@ class DataNodeToTempTrans(Transformation):
 
         # If the datatype is an array, we need to allocate the array
         # before the statement too if its not already allocated.
-        if isinstance(datatype, ArrayType) and not is_static:
+        if isinstance(datatype, ArrayType) and not has_static_bounds:
             # Create an array reference to the symbol with the dimensions
             # returned by the datatype call earlier.
             ref = ArrayReference.create(

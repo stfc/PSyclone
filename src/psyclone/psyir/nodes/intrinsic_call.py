@@ -3223,8 +3223,7 @@ class IntrinsicCall(Call):
             return_type=lambda node: (
                 _type_of_scalar_with_optional_kind(
                     node,
-                    node.argument_by_name("l").
-                    datatype.intrinsic,
+                    node.argument_by_name("l").datatype.intrinsic,
                     "kind",
                 ) if "kind" in node.argument_names else
                 _type_of_named_argument(node, "l")
@@ -3772,10 +3771,8 @@ class IntrinsicCall(Call):
             optional_args={"vector": DataNode},
             return_type=lambda node: ArrayType(
                 ScalarType(
-                    node.argument_by_name("array").datatype.
-                    intrinsic,
-                    node.argument_by_name("array").datatype.
-                    precision),
+                    node.argument_by_name("array").datatype.intrinsic,
+                    node.argument_by_name("array").datatype.precision),
                 [ArrayType.Extent.DEFERRED]
             ),
             reference_accesses=lambda node: (
@@ -4455,10 +4452,8 @@ class IntrinsicCall(Call):
             optional_args={},
             return_type=lambda node: ArrayType(
                 ScalarType(
-                    node.argument_by_name("source").datatype.
-                    intrinsic,
-                    node.argument_by_name("source").datatype.
-                    precision),
+                    node.argument_by_name("source").datatype.intrinsic,
+                    node.argument_by_name("source").datatype.precision),
                 ([ArrayType.Extent.DEFERRED] *
                  (len(node.argument_by_name("source").datatype.shape) + 1)
                  if isinstance(node.argument_by_name("source").datatype,
@@ -4727,10 +4722,8 @@ class IntrinsicCall(Call):
                                 ArrayType))
                 else ArrayType(
                     ScalarType(
-                        node.argument_by_name("mold").datatype.
-                        intrinsic,
-                        node.argument_by_name("mold").datatype.
-                        precision
+                        node.argument_by_name("mold").datatype.intrinsic,
+                        node.argument_by_name("mold").datatype.precision
                     ),
                     [ArrayType.Extent.DEFERRED])
             ),
@@ -4752,10 +4745,8 @@ class IntrinsicCall(Call):
                 arg_names=(("matrix",),)),
             optional_args={},
             return_type=lambda node: ArrayType(ScalarType(
-                node.argument_by_name("matrix").datatype.
-                intrinsic,
-                node.argument_by_name("matrix").datatype.
-                precision),
+                node.argument_by_name("matrix").datatype.intrinsic,
+                node.argument_by_name("matrix").datatype.precision),
                 [node.argument_by_name("matrix").datatype.shape[1],
                  node.argument_by_name("matrix").datatype.shape[0]]
             ),
@@ -4923,8 +4914,7 @@ class IntrinsicCall(Call):
                     or "ScalarType expected 'precision' argument to be of "
                         "type " in str(err)):
                     return UnresolvedType()
-                # Is this reachable? Tested via monkeypatch as there may be
-                # some edge case I can't think of.
+                # This should never happen, propogate as an InternalError.
                 outerr = err
             except AttributeError as err:
                 # This is to handle when we call .intrinsic or
