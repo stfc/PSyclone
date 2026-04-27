@@ -39,6 +39,8 @@
 ''' Performs py.test tests on the CodeBlock PSyIR node. '''
 
 import pytest
+import sys
+
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -65,8 +67,19 @@ def test_codeblock_create():
     assert isinstance(cb, Fparser2CodeBlock)
     assert "a => b" in cb.get_fortran_lines()
 
+    # Use a different fronted value
+    Config.get()._frontend = "newfrontend"
+    with pytest.raises(InternalError) as err:
+        cb = CodeBlock.create("3 + 3", partial_code="expression")
+    assert ("The 'newfrontend' frontend does not have an associated CodeBlock "
+            "subclass" in str(err.value))
+
     # Use the treesitter frontend (the frontend doesn't support partial
     # expressions yet, but it gets an appropriate error)
+    # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+    # treesitter.
+    if sys.version_info < (3, 10):
+        return
     Config.get()._frontend = "treesitter"
     cb = CodeBlock.create("program test\nend program\n")
     assert isinstance(cb, TreeSitterCodeBlock)
@@ -76,13 +89,6 @@ def test_codeblock_create():
     with pytest.raises(ValueError) as err:
         cb = CodeBlock.create("a => b", partial_code="pointer_assignment")
     assert "Syntax Error found at line 1: a => b" in str(err.value)
-
-    # Use a different fronted value
-    Config.get()._frontend = "newfrontend"
-    with pytest.raises(InternalError) as err:
-        cb = CodeBlock.create("3 + 3", partial_code="expression")
-    assert ("The 'newfrontend' frontend does not have an associated CodeBlock "
-            "subclass" in str(err.value))
 
 
 def test_codeblock_node_str():
@@ -184,6 +190,10 @@ def test_codeblock_get_fortran_lines():
     assert "subroutine mytest" in block.get_fortran_lines()
     assert "end subroutine" in block.get_fortran_lines()
 
+    # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+    # treesitter.
+    if sys.version_info < (3, 10):
+        return
     tree = FortranTreeSitterReader().generate_parse_tree_from_source(code)
     block = TreeSitterCodeBlock(tree, CodeBlock.Structure.STATEMENT)
     assert isinstance(block.get_fortran_lines(), list)

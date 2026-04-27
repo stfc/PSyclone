@@ -38,6 +38,8 @@
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
 
 import pytest
+import sys
+
 from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -97,6 +99,10 @@ def test_fortran_reader_constructor():
     # the return value of this function is tested in the following tests
     freader.psyir_from_source(ONLY_2008_CODE)
 
+    # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+    # treesitter.
+    if sys.version_info < (3, 10):
+        return
     # Now repeat the process with treesitter
     Config.get().frontend = "treesitter"
     freader = FortranReader()

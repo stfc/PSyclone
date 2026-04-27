@@ -75,7 +75,7 @@ def test_generate_parse_tree(tmpdir_factory, caplog):
     Test that generate_parse_tree returns treesitter trees or appropriate
     error messages.
     '''
-    # Skip treesitter tests below 3.10 as they're unsupported by
+    # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
     # treesitter.
     if sys.version_info < (3, 10):
         return
@@ -98,7 +98,7 @@ def test_generate_parse_tree(tmpdir_factory, caplog):
     with pytest.raises(ValueError) as err:
         _ = processor.generate_parse_tree_from_source(invalid_code)
     # The result of this test also now seems dependent on Python version
-    if sys.version_info > (3, 12):
+    if sys.version_info >= (3, 13):
         assert "Syntax Error found at line 3" in str(err.value)
     else:
         assert "Syntax Error found at line 2" in str(err.value)
@@ -129,7 +129,7 @@ def test_generate_psyir():
     Test that generate_psyir transforms treesitter parse trees to
     PSyIR nodes.
     '''
-    # Skip treesitter tests below 3.10 as they're unsupported by
+    # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
     # treesitter.
     if sys.version_info < (3, 10):
         return
@@ -156,7 +156,7 @@ def test_codeblock_generation_and_messages():
     Test that NotImplementedErrors are caught and converted to CodeBlocks
     with the appropriate associated comment
     '''
-    # Skip treesitter tests below 3.10 as they're unsupported by
+    # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
     # treesitter.
     if sys.version_info < (3, 10):
         return
