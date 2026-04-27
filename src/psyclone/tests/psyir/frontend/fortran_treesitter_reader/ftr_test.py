@@ -85,8 +85,7 @@ def test_generate_parse_tree(tmpdir_factory, caplog):
     assert isinstance(ptree, TSNode)
 
     # Invalid code raises a Value error with a relevant error message
-    invalid_code = """
-        program test
+    invalid_code = """program test
             syntax error
         end program test
     """
