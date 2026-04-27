@@ -41,7 +41,7 @@
 
 ''' This module provides the LFRic redundant-computation transformation. '''
 
-from typing import Union
+from typing import Any, Optional, Union
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicInvokeSchedule, LFRicConstants
@@ -80,7 +80,7 @@ class LFRicRedundantComputationTrans(LoopTrans):
     def __str__(self):
         return "Change iteration space to perform redundant computation"
 
-    def validate(self, node: Loop, options=None, depth=None, **kwargs):
+    def validate(self, node: Loop, options=None, **kwargs):
         '''Perform various checks to ensure that it is valid to apply the
         RedundantComputation transformation to the supplied node
 
@@ -133,7 +133,8 @@ class LFRicRedundantComputationTrans(LoopTrans):
 
         '''
         if not options:
-            self.validate_options(depth=depth, **kwargs)
+            self.validate_options(**kwargs)
+            depth = self.get_option("depth", **kwargs)
         else:
             # TODO #2668: Deprecate options dictionary.
             depth = options.get("depth")
@@ -261,33 +262,35 @@ class LFRicRedundantComputationTrans(LoopTrans):
                         "halo depth so can't be set to a fixed value")
 
     def apply(self,
-              loop: Loop,
-              options=None,
-              depth: Union[int, DataNode] = None,
+              node: Loop,
+              options: Optional[dict[str, Any]] = None,
+              depth: Optional[Union[int, DataNode]] = None,
               **kwargs):
         # pylint:disable=arguments-renamed
         '''Apply the redundant computation transformation to the loop
-        :py:obj:`loop`. This transformation can be applied to loops iterating
+        :py:obj:`node`. This transformation can be applied to loops iterating
         over 'cells or 'dofs'. if :py:obj:`depth` is set to a value then the
         value will be the depth of the field's halo over which redundant
         computation will be performed. If :py:obj:`depth` is not set to a
         value then redundant computation will be performed to the full depth
         of the field's halo.
 
-        :param loop: the loop that we are transforming.
-        :type loop: :py:class:`psyclone.psyGen.LFRicLoop`
+        :param node: the loop to transform.
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param int options["depth"]: the depth of the stencil. Defaults \
-                to None.
+        :param depth: the depth to which to perform redundant computation.
+            Default is None in which case the full halo depth is used.
 
         '''
+        # TODO #2668: remove options dictionary.
+        self.validate(node, options=options, **kwargs)
+
         if options:
             # TODO #2668: Deprecate options dictionary.
             depth = options.get("depth")
+        else:
+            depth = self.get_option("depth", **kwargs)
 
-        self.validate(loop, options=options, depth=depth, **kwargs)
-
+        loop = node
         if loop.loop_type == "":
             # Loop is over cells
             loop.set_upper_bound("cell_halo", depth)
