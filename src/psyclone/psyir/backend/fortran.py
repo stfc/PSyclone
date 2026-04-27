@@ -1636,7 +1636,6 @@ class FortranWriter(LanguageWriter):
             OMPDependClause.DependClauseTypes.OUT: "out",
             OMPDependClause.DependClauseTypes.INOUT: "inout",
             OMPReductionClause.ReductionClauseTypes.ADD: "+",
-            OMPReductionClause.ReductionClauseTypes.SUB: "-",
             OMPReductionClause.ReductionClauseTypes.MUL: "*",
             OMPReductionClause.ReductionClauseTypes.AND: ".AND.",
             OMPReductionClause.ReductionClauseTypes.OR: ".OR.",
