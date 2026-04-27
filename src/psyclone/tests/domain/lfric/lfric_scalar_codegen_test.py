@@ -62,10 +62,11 @@ def test_real_scalar(tmpdir):
                         dist_mem=True)
     generated_code = str(psy.gen)
 
+    assert "use testkern_mod, only : testkern_code\n" in generated_code
+
     expected = (
         "  subroutine invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "    use mesh_mod, only : mesh_type\n"
-        "    use testkern_mod, only : testkern_code\n"
         "    use constants_mod, only : i_def\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1\n"
@@ -164,12 +165,13 @@ def test_int_scalar(tmpdir):
                         api=TEST_API, idx=0)
     generated_code = str(psy.gen)
 
+    assert ("use testkern_one_int_scalar_mod, only : "
+            "testkern_one_int_scalar_code\n" in generated_code)
+
     expected = (
         "  subroutine invoke_0_testkern_one_int_scalar_type"
         "(f1, iflag, f2, m1, m2)\n"
         "    use mesh_mod, only : mesh_type\n"
-        "    use testkern_one_int_scalar_mod, only : "
-        "testkern_one_int_scalar_code\n"
         "    type(field_type), intent(in) :: f1\n"
         "    integer(kind=i_def), intent(in) :: iflag\n"
         "    type(field_type), intent(in) :: f2\n"
@@ -268,12 +270,13 @@ def test_two_real_scalars(tmpdir):
                         dist_mem=True, idx=0)
     generated_code = str(psy.gen)
 
+    assert ("use testkern_two_real_scalars_mod, only : "
+            "testkern_two_real_scalars_code\n" in generated_code)
+
     expected = (
         "  subroutine invoke_0_testkern_two_real_scalars_type(a, f1, f2, "
         "m1, m2, b)\n"
         "    use mesh_mod, only : mesh_type\n"
-        "    use testkern_two_real_scalars_mod, only : "
-        "testkern_two_real_scalars_code\n"
         "    use constants_mod, only : i_def\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1\n"
@@ -380,8 +383,6 @@ def test_two_int_scalars(tmpdir):
     expected = (
         "  subroutine invoke_0(iflag, f1, f2, m1, m2, istep)\n"
         "    use mesh_mod, only : mesh_type\n"
-        "    use testkern_two_int_scalars_mod, only : "
-        "testkern_two_int_scalars_code\n"
         "    integer(kind=i_def), intent(in) :: iflag\n"
         "    type(field_type), intent(in) :: f1\n"
         "    type(field_type), intent(in) :: f2\n"
@@ -497,6 +498,8 @@ def test_three_scalars(tmpdir):
         "module single_invoke_psy\n"
         "  use constants_mod, only : i_def, l_def, r_def\n"
         "  use field_mod, only : field_proxy_type, field_type\n"
+        "  use testkern_three_scalars_mod, only : "
+        "testkern_three_scalars_code\n"
         "  implicit none\n"
         "  public\n"
         "\n"
@@ -504,8 +507,6 @@ def test_three_scalars(tmpdir):
         "  subroutine invoke_0_testkern_three_scalars_type(a, f1, f2, m1, "
         "m2, lswitch, istep)\n"
         "    use mesh_mod, only : mesh_type\n"
-        "    use testkern_three_scalars_mod, only : "
-        "testkern_three_scalars_code\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1\n"
         "    type(field_type), intent(in) :: f2\n"

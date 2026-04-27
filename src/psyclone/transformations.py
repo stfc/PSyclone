@@ -52,16 +52,20 @@ import warnings
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessMap
-from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
-                                   LFRicInvokeSchedule, LFRicKern, LFRicLoop)
+from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
+from psyclone.domain.lfric.lfric_kern import LFRicKern
+from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.lfric import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
-    ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective, Call,
-    CodeBlock, Loop, Return, Schedule, PSyDataNode, IntrinsicCall)
+    ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
+    Call, CodeBlock, Container, Loop,
+    Return, Schedule, PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.omp_directives import (
@@ -73,6 +77,8 @@ from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
     SymbolError, UnresolvedType)
+from psyclone.psyir.transformations.callee_transformation_mixin import (
+    CalleeTransformationMixin)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import (
@@ -1268,7 +1274,7 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
                 f"'{type(node)}'.")
 
 
-class LFRicKernelConstTrans(Transformation):
+class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
     '''Modifies a kernel so that the number of dofs, number of layers and
     number of quadrature points are fixed in the kernel rather than
     being passed in by argument.
@@ -1456,12 +1462,7 @@ class LFRicKernelConstTrans(Transformation):
 
         arg_list_info = KernCallArgList(kernel)
         arg_list_info.generate()
-        try:
-            kernel_schedules = kernel.get_callees()
-        except NotImplementedError as excinfo:
-            raise TransformationError(
-                f"Failed to parse kernel '{kernel.name}'. Error reported was "
-                f"'{excinfo}'.") from excinfo
+        kernel_schedules = kernel.get_callees()
 
         for kernel_schedule in kernel_schedules:
             symbol_table = kernel_schedule.symbol_table
@@ -1512,9 +1513,6 @@ class LFRicKernelConstTrans(Transformation):
                     make_constant(symbol_table, info.position, ndofs,
                                   function_space=info.function_space)
 
-        # Flag that the kernel has been modified
-        kernel.modified = True
-
     def validate(self, node, options=None):
         '''This method checks whether the input arguments are valid for
         this transformation.
@@ -1547,6 +1545,8 @@ class LFRicKernelConstTrans(Transformation):
             raise TransformationError(
                 f"Error in LFRicKernelConstTrans transformation. Supplied "
                 f"node must be an LFRic kernel but found '{type(node)}'.")
+
+        self._check_callee_implementation_is_local(node)
 
         if not options:
             options = {}
@@ -1760,7 +1760,8 @@ class ACCEnterDataTrans(Transformation):
 
 
 @transformation_documentation_wrapper
-class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
+class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
+                      CalleeTransformationMixin):
     '''
     Transform a kernel or routine by adding a "!$acc routine" directive
     (causing it to be compiled for the OpenACC accelerator device).
@@ -1815,9 +1816,6 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
         if isinstance(node, Kern):
-            # Flag that the kernel has been modified
-            node.modified = True
-
             # Get the schedule(s) representing the kernel subroutine
             routines = node.get_callees()
         else:
@@ -1864,6 +1862,9 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         super().validate(node, options, **kwargs)
 
         self.validate_it_can_run_on_gpu(node, options, **kwargs)
+
+        if isinstance(node, Kern):
+            self._check_callee_implementation_is_local(node)
 
         if options:
             # TODO #2668: Deprecate options dictionary
@@ -2018,7 +2019,7 @@ class ACCDataTrans(RegionTrans):
                             f"component is the one being iterated over.")
 
 
-class KernelImportsToArguments(Transformation):
+class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
     '''
     Transformation that removes any accesses of imported data from the supplied
     kernel and places them in the caller. The values/references are then passed
@@ -2067,15 +2068,13 @@ class KernelImportsToArguments(Transformation):
                 f"for the GOcean API but got an InvokeSchedule of type: "
                 f"'{type(invoke_schedule).__name__}'")
 
-        # Check that there are no unqualified imports or undeclared symbols
-        try:
-            kernels = node.get_callees()
-        except (SymbolError, NotImplementedError) as err:
-            raise TransformationError(
-                f"Kernel '{node.name}' contains undeclared symbol: "
-                f"{err.value}") from err
+        # Check that the kernel has already been module-inlined (as this
+        # permits us to safely modify it).
+        self._check_callee_implementation_is_local(node)
 
-        for kernel in kernels:
+        # Check that the kernel implementation doesn't have any unresolved
+        # symbols.
+        for kernel in node.get_callees():
             try:
                 kernel.check_outer_scope_accesses(
                     node, "Kernel",
@@ -2091,7 +2090,9 @@ class KernelImportsToArguments(Transformation):
         '''
         Convert the imported variables used inside the kernel into arguments
         and modify the InvokeSchedule to pass the same imported variables to
-        the kernel call.
+        the kernel call. Since it is a pre-requisite that the kernel have been
+        module-inlined first, this transformation must also update all other
+        calls to the same module-inlined routine.
 
         :param node: a kernel call.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
@@ -2107,6 +2108,9 @@ class KernelImportsToArguments(Transformation):
         symtab = kernel.symbol_table
         invoke_symtab = node.ancestor(InvokeSchedule).symbol_table
         count_imported_vars_removed = 0
+
+        # The arguments that we have to add to the Kernel call.
+        new_kernel_args: list[tuple(str, str)] = []
 
         # Transform each imported variable into an argument.
         # TODO #11: When support for logging is added, we could warn the user
@@ -2172,17 +2176,22 @@ class KernelImportsToArguments(Transformation):
                     f"infrastructure does not have any scalar type equivalent "
                     f"to the PSyIR {updated_sym.datatype} type.")
 
-            # Add the imported variable in the call argument list
-            node.arguments.append(updated_sym.name, go_space)
+            # Record the addition to the call argument list
+            new_kernel_args.append((updated_sym.name, go_space))
 
             # Check whether we still need the Container symbol from which
             # this import was originally accessed
-            if not kernel.symbol_table.symbols_imported_from(container) and \
-               not container.wildcard_import:
+            if (not kernel.symbol_table.symbols_imported_from(container) and
+                    not container.wildcard_import):
                 kernel.symbol_table.remove(container)
 
-        if count_imported_vars_removed > 0:
-            node.modified = True
+        # Since we've modified the Kernel argument list *and* have removed the
+        # imported symbols from its implementation, we have to make sure we
+        # update the argument lists of all other calls to the inlined kernel.
+        for kern in node.ancestor(Container).walk(CodedKern):
+            if kern.name == node.name:
+                for arg in new_kernel_args:
+                    kern.arguments.append(arg[0], arg[1])
 
 
 # Create a compatibility layer for all existing Dynamo0p3 transformation

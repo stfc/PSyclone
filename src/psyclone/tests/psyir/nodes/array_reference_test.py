@@ -47,9 +47,9 @@ from psyclone.psyir.nodes import (
     Reference, ArrayReference, Assignment,
     Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, ScalarType,
+    ArrayType, DataSymbol, DataTypeSymbol, ScalarType,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, Symbol, INTEGER_TYPE,
-    UnsupportedFortranType, StructureType)
+    UnsupportedFortranType, StructureType, UnresolvedType)
 from psyclone.tests.utilities import check_links
 
 
@@ -479,6 +479,7 @@ def test_array_datatype(fortran_reader):
     real, dimension(10) :: test
     real, dimension(10, 8) :: test_2d
     real, dimension(3:) :: test3
+    character(len=10) :: my_string, string2
     real :: thing
 
     thing = test(1)
@@ -486,7 +487,7 @@ def test_array_datatype(fortran_reader):
     thing = test_2d(2, 2:6:2)
     thing = test3(:)
     thing = test_2d(:, 1)
-
+    string2 = my_string(1:10)
 
     end subroutine code"""
     psyir = fortran_reader.psyir_from_source(code)
@@ -539,6 +540,14 @@ def test_array_datatype(fortran_reader):
     assert len(dtype.shape) == 1
     assert dtype.shape[0].lower.value == "1"
     assert dtype.shape[0].upper.value == "10"
+
+    # Character sub-strings are currently mis-identified as array
+    # ranges (TODO #3240):
+    # my_string(1:10)
+    dref = refs[5]
+    dtype = dref.datatype
+    assert isinstance(dtype, ArrayType)
+    assert dtype.intrinsic is ScalarType.Intrinsic.CHARACTER
 
     # Reference to a single element of an array of structures.
     one = Literal("1", INTEGER_TYPE)
