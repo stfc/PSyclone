@@ -61,7 +61,7 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCParallelDirective, ACCRoutineDirective,
-    ACCLoopDirective, Call, CodeBlock, Container, Directive, Literal, Loop,
+    Call, CodeBlock, Container, Directive, Literal, Loop,
     OMPMasterDirective, OMPParallelDirective, OMPSerialDirective,
     OMPSingleDirective, Return, Schedule, PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
