@@ -40,8 +40,8 @@
     doc/{user_guide,developer_guide,reference_guide/source}/conf.py '''
 
 __MAJOR__ = 3
-__MINOR__ = 2
-__MICRO__ = 2
+__MINOR__ = 3
+__MICRO__ = 1
 
 # Version suffix (e.g. -rc1 or -dev)
 _VERSION_SUFFIX = "-dev"

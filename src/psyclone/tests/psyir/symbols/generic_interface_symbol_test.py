@@ -161,7 +161,7 @@ def test_gis_str():
     ash = RoutineSymbol("ash")
     holly = RoutineSymbol("holly")
     coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False)])
-    assert str(coppice) == ("coppice: GenericInterfaceSymbol<NoType, "
+    assert str(coppice) == ("coppice: GenericInterfaceSymbol<UnresolvedType, "
                             "routines=['ash', 'holly']>")
 
 

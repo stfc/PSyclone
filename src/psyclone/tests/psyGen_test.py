@@ -39,11 +39,6 @@
 ''' Performs py.test tests on the psyGen module '''
 
 
-# internal classes requiring tests
-# PSy, Invokes, Invoke, Kern, Argument1ts, Argument, KernelArgument
-
-# user classes requiring tests
-# PSyFactory, TransInfo, Transformation
 import os
 import sys
 import logging
@@ -59,10 +54,12 @@ from psyclone import transformations
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import (lfric_builtins, LFRicInvokeSchedule,
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.domain.lfric import (lfric_builtins,
+                                   LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.lfric import LFRicGlobalSum, LFRicKernelArguments
+from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
@@ -70,7 +67,7 @@ from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.psyGen import (TransInfo, PSyFactory,
                              InlinedKern, object_index, HaloExchange, Invoke,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
-                             GlobalSum, InvokeSchedule)
+                             InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
                                   colored, Schedule)
@@ -82,7 +79,6 @@ from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (LFRicRedundantComputationTrans,
-                                      LFRicKernelConstTrans,
                                       LFRicColourTrans,
                                       LFRicOMPLoopTrans,
                                       Transformation)
@@ -549,13 +545,13 @@ def test_derived_type_deref_naming(tmpdir):
         "  subroutine invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
         "    use mesh_mod, only : mesh_type\n"
-        "    use testkern_mod, only : testkern_code\n"
+        "    use constants_mod, only : i_def\n"
         "    integer(kind=i_def) :: cell\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1_my_field\n"
         "    type(field_type), intent(in) :: f1_my_field_1\n"
         "    type(field_type), intent(in) :: m1\n"
-        "    type(field_type), intent(in) :: m2\n ")
+        "    type(field_type), intent(in) :: m2\n")
     assert output in generated_code
 
 
@@ -663,124 +659,20 @@ def test_codedkern_node_str():
     assert expected_output in out
 
 
-def test_codedkern_module_inline_getter_and_setter():
-    ''' Check that the module_inline setter changes the module inline
-    attribute to all the same kernels in the invoke'''
+def test_codedkern_module_inline_getter():
+    ''' Check that the module_inline property of CodedKern. '''
     # Use LFRic example with a repeated CodedKern
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("4.6_multikernel_invokes.f90", api="lfric", idx=0)
     schedule = invoke.schedule
-    coded_kern_1 = schedule.children[0].loop_body[0]
-    coded_kern_2 = schedule.children[1].loop_body[0]
-
-    # By default they are not module-inlined
-    assert not coded_kern_1.module_inline
-    assert not coded_kern_2.module_inline
-    assert "module_inline=False" in coded_kern_1.node_str()
-    assert "module_inline=False" in coded_kern_2.node_str()
-
-    # It can be turned on (and both kernels change)
-    coded_kern_1.module_inline = True
-    assert coded_kern_1.module_inline
-    assert coded_kern_2.module_inline
-    assert "module_inline=True" in coded_kern_1.node_str()
-    assert "module_inline=True" in coded_kern_2.node_str()
-
-    # It can not be turned off
-    with pytest.raises(TypeError) as err:
-        coded_kern_2.module_inline = False
-    assert ("The module inline parameter only accepts the type boolean "
-            "'True' since module-inlining is irreversible. But found: 'False'"
-            in str(err.value))
-    assert coded_kern_1.module_inline
-    assert coded_kern_2.module_inline
-
-    # And it doesn't accept other types
-    with pytest.raises(TypeError) as err:
-        coded_kern_2.module_inline = 3
-    assert ("The module inline parameter only accepts the type boolean "
-            "'True' since module-inlining is irreversible. But found: '3'"
-            in str(err.value))
-
-
-def test_codedkern_module_inline_lowering(tmpdir):
-    ''' Check that a CodedKern with module-inline gets copied into the
-    local module appropriately when the PSy-layer is generated'''
-    # Use LFRic example with a repeated CodedKern
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    coded_kern = schedule.children[0].loop_body[0]
-    gen = str(psy.gen)
-
-    # Without module-inline the subroutine is used by a module import
-    assert "use ru_kernel_mod, only : ru_code" in gen
-    assert "subroutine ru_code(" not in gen
-
-    # With module-inline the subroutine does not need to be imported
-    coded_kern.module_inline = True
-
-    # Fail if local routine symbol does not already exist
-    with pytest.raises(VisitorError) as err:
-        gen = str(psy.gen)
-    assert ("Cannot generate this kernel call to 'ru_code' because it "
-            "is marked as module-inlined but no such subroutine exists in "
-            "this module." in str(err.value))
-
-    # Create the symbol and try again, it now must succeed
-    psy.container.symbol_table.new_symbol(
-            "ru_code", symbol_type=RoutineSymbol)
-
-    gen = str(psy.gen)
-    assert "use ru_kernel_mod, only : ru_code" not in gen
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
-    ''' Check that module-inline works as expected when the same kernel
-    is provided in different invokes'''
-    # Use LFRic example with the kernel 'testkern_qr_mod' repeated once in
-    # the first invoke and 3 times in the second invoke.
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-
-    # By default the kernel is imported once per invoke
-    gen = str(psy.gen)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 2
-
-    # Module inline kernel in invoke 1
-    schedule = psy.invokes.invoke_list[0].schedule
-    for coded_kern in schedule.walk(CodedKern):
-        if coded_kern.name == "testkern_qr_code":
-            coded_kern.module_inline = True
-    # A top-level RoutineSymbol must now exist
-    schedule.ancestor(Container).symbol_table.new_symbol(
-            "testkern_qr_code", symbol_type=RoutineSymbol)
-    gen = str(psy.gen)
-
-    # After this, one invoke uses the inlined top-level subroutine
-    # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    # Module inline kernel in invoke 2
-    schedule = psy.invokes.invoke_list[1].schedule
-    for coded_kern in schedule.walk(CodedKern):
-        if coded_kern.name == "testkern_qr_code":
-            coded_kern.module_inline = True
-    gen = str(psy.gen)
-    # After this, no imports are remaining and both use the same
-    # top-level implementation
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 0
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    ckerns = schedule.walk(CodedKern)
+    # Double check that both kernels are the same.
+    assert ckerns[0].name == ckerns[1].name
+    assert ckerns[0].module_inline is False
+    mod_inline_trans = KernelModuleInlineTrans()
+    mod_inline_trans.apply(ckerns[0])
+    # Module inlining one should have updated both.
+    assert ckerns[0].module_inline is True
+    assert ckerns[1].module_inline is True
 
 
 def test_codedkern_lower_to_language_level(monkeypatch):
@@ -1017,48 +909,6 @@ def test_haloexchange_unknown_halo_depth():
     a halo depth'''
     halo_exchange = HaloExchange(None)
     assert halo_exchange._halo_depth is None
-
-
-def test_globalsum_node_str():
-    '''test the node_str method in the GlobalSum class. The simplest way
-    to do this is to use an LFRic builtin example which contains a
-    scalar and then call node_str() on that.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    gsum = None
-    for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, LFRicGlobalSum):
-            gsum = child
-            break
-    assert gsum
-    output = gsum.node_str()
-    expected_output = (colored("GlobalSum", GlobalSum._colour) +
-                       "[scalar='asum']")
-    assert expected_output in output
-
-
-def test_globalsum_children_validation():
-    '''Test that children added to GlobalSum are validated. A GlobalSum node
-    does not accept any children.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    gsum = None
-    for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, LFRicGlobalSum):
-            gsum = child
-            break
-    with pytest.raises(GenerationError) as excinfo:
-        gsum.addchild(Literal("2", INTEGER_TYPE))
-    assert ("Item 'Literal' can't be child 0 of 'GlobalSum'. GlobalSum is a"
-            " LeafNode and doesn't accept children.") in str(excinfo.value)
 
 
 def test_args_filter():
@@ -1431,21 +1281,6 @@ def test_argument_find_read_arguments():
         assert result[idx] == loop.loop_body[0].arguments.args[3]
 
 
-def test_globalsum_arg():
-    ''' Check that the globalsum argument is defined as gh_readwrite and
-    points to the GlobalSum node '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    glob_sum = schedule.children[2]
-    glob_sum_arg = glob_sum.scalar
-    assert glob_sum_arg.access == AccessType.READWRITE
-    assert glob_sum_arg.call == glob_sum
-
-
 def test_haloexchange_arg():
     '''Check that the HaloExchange argument is defined as gh_readwrite and
     points to the HaloExchange node'''
@@ -1699,20 +1534,6 @@ def test_haloexchange_args():
     for haloexchange in schedule.children[:2]:
         assert len(haloexchange.args) == 1
         assert haloexchange.args[0] == haloexchange.field
-
-
-def test_globalsum_args():
-    '''Test that the globalsum class args method returns the appropriate
-    argument '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    global_sum = schedule.children[2]
-    assert len(global_sum.args) == 1
-    assert global_sum.args[0] == global_sum.scalar
 
 
 def test_call_forward_dependence():
@@ -2226,31 +2047,6 @@ def test_dataaccess_same_vector_indices(monkeypatch):
     assert (
         "The halo exchange vector indices for 'e' are the same. This should "
         "never happen" in str(excinfo.value))
-
-
-def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
-    '''Modified Fortran kernels are written to file linewrapped at 132
-    characters. This test checks that this linewrapping works.
-
-    '''
-    psy, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    # This example does not conform to the <name>_code, <name>_mod
-    # convention so monkeypatch it to avoid the PSyIR code generation
-    # raising an exception. This limitation is the subject of issue
-    # #520.
-    monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
-    ktrans = LFRicKernelConstTrans()
-    ktrans.apply(kernels[0], {"number_of_layers": 100})
-    # Generate the code (this triggers the generation of new kernels)
-    _ = str(psy.gen)
-    filepath = os.path.join(str(kernel_outputdir), "testkern_0_mod.f90")
-    assert os.path.isfile(filepath)
-    # Check that the argument list is line wrapped as it is longer
-    # than 132 characters.
-    with open(filepath, encoding="utf-8") as testfile:
-        assert "map_w2, &\n&ndf_w3" in testfile.read()
 
 
 def test_walk(fortran_reader):

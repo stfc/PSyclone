@@ -83,8 +83,8 @@ def test_accregiondir_validate_global(fortran_reader):
     with pytest.raises(GenerationError) as err:
         accnode.validate_global_constraints()
     assert ("Cannot include CodeBlocks or calls to PSyData routines within "
-            "OpenACC regions but found ['CodeBlock'] within a region enclosed "
-            "by an 'MyACCRegion'" in str(err.value))
+            "OpenACC regions but found ['Fparser2CodeBlock'] within a region "
+            "enclosed by an 'MyACCRegion'" in str(err.value))
 
 
 def test_accregiondir_signatures():

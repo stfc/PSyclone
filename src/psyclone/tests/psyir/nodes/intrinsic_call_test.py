@@ -61,7 +61,7 @@ from psyclone.psyir.nodes.intrinsic_call import (
     _type_of_arg_with_rank_minus_one,
     _type_of_named_argument,
     _type_of_named_arg_with_optional_kind_and_dim,
-    _type_with_specified_precision_and_optional_dim,
+    _type_of_named_arg_accounting_for_dim_arg,
     _type_of_scalar_with_optional_kind,
     _type_of_intrinsic_with_argname_kind_and_optional_dim,
     _type_of_intrinsic_with_precision_of_named_arg,
@@ -727,7 +727,7 @@ def test_type_of_arg_with_rank_minus_one(fortran_reader):
     assert isinstance(res2, ArrayType)
     assert len(res2.shape) == 2
     assert all(x == ArrayType.Extent.DEFERRED for x in res2.shape)
-    assert res2.datatype == REAL_TYPE
+    assert res2.elemental_type == REAL_TYPE
 
 
 def test_index_intrinsic(fortran_reader, fortran_writer):
@@ -1055,8 +1055,8 @@ def test_type_of_named_arg_with_optional_kind_and_dim(
     assert isinstance(dtype, ArrayType)
     assert len(dtype.shape) == 1
     assert dtype.shape[0] == ArrayType.Extent.DEFERRED
-    assert dtype.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
-    assert dtype.datatype.precision == ScalarType.Precision.UNDEFINED
+    assert dtype.elemental_type.intrinsic == ScalarType.Intrinsic.BOOLEAN
+    assert dtype.elemental_type.precision == ScalarType.Precision.UNDEFINED
     dtype = _type_of_named_arg_with_optional_kind_and_dim(
             all_calls[2], "array"
     )
@@ -1064,33 +1064,40 @@ def test_type_of_named_arg_with_optional_kind_and_dim(
     assert dtype.precision.value == "8"
 
 
-def test_type_with_specified_precision_and_optional_dim(fortran_reader):
-    """Test the _type_with_specified_precision_and_optional_dim
+def test_type_of_named_arg_accounting_for_dim_arg(fortran_reader):
+    """Test the _type_of_named_arg_accounting_for_dim_arg
     helper function."""
     code = """subroutine test
+    use other
     integer, dimension(100, 100) :: x
     integer :: y
     y = PRODUCT(x)
     y = PRODUCT(x, dim=2)
+    y = PRODUCT(z, dim=2)
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     intrinsics = psyir.walk(IntrinsicCall)
 
-    dtype = _type_with_specified_precision_and_optional_dim(
-        intrinsics[0], "array", ScalarType.Intrinsic.INTEGER,
+    dtype = _type_of_named_arg_accounting_for_dim_arg(
+        intrinsics[0], "array"
     )
     assert isinstance(dtype, ScalarType)
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
-    dtype = _type_with_specified_precision_and_optional_dim(
-        intrinsics[1], "array", ScalarType.Intrinsic.INTEGER,
+    dtype = _type_of_named_arg_accounting_for_dim_arg(
+        intrinsics[1], "array"
     )
     assert isinstance(dtype, ArrayType)
     assert len(dtype.shape) == 1
     assert dtype.shape[0] == ArrayType.Extent.DEFERRED
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert dtype.precision == ScalarType.Precision.UNDEFINED
+
+    dtype = _type_of_named_arg_accounting_for_dim_arg(
+        intrinsics[2], "array"
+    )
+    assert isinstance(dtype, UnresolvedType)
 
 
 def test_type_of_intrinsic_with_precision_of_named_arg(fortran_reader):
@@ -1356,7 +1363,7 @@ def test_get_bound_function_return_type(fortran_reader):
     res = _get_bound_function_return_type(intrinsics[0])
     assert isinstance(res, ArrayType)
     assert len(res.shape) == 1
-    assert res.datatype == INTEGER_TYPE
+    assert res.elemental_type == INTEGER_TYPE
     assert res.shape[0].lower.value == "1"
     assert res.shape[0].upper.value == "2"
 

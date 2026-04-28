@@ -51,9 +51,9 @@ from psyclone.psyir.nodes.array_of_structures_member import (
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 from psyclone.psyir.nodes.structure_member import StructureMember
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataType,
-                                    DataTypeSymbol, UnresolvedType, ScalarType,
-                                    StructureType, UnsupportedType)
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, DataType, DataTypeSymbol, UnresolvedType,
+    StructureType, UnsupportedType)
 
 
 class StructureReference(StructureAccessorMixin, Reference):
@@ -368,13 +368,8 @@ class StructureReference(StructureAccessorMixin, Reference):
 
         # We must have a scalar.
         if isinstance(cursor_type, ArrayType):
-            # We have an access to a single element of the array.
-            # Currently arrays of scalars are handled in a
-            # different way to all other types of array. Issue #1857 will
-            # fix this anomaly.
-            if isinstance(cursor_type.intrinsic, ScalarType.Intrinsic):
-                return ScalarType(cursor_type.intrinsic, cursor_type.precision)
-            return cursor_type.intrinsic
+            return cursor_type.elemental_type
+
         return cursor_type
 
 

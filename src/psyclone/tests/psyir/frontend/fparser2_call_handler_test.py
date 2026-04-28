@@ -48,7 +48,7 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     CodeBlock, Schedule, Call, Reference, StructureReference,
-    ArrayOfStructuresReference, Routine)
+    ArrayOfStructuresReference, Routine, Assignment)
 from psyclone.psyir.symbols import (
     RoutineSymbol, UnresolvedInterface, ImportInterface, NoType)
 
@@ -81,6 +81,7 @@ def test_call_noargs():
     assert isinstance(routine_symbol.interface, UnresolvedInterface)
     assert routine_symbol.name == "kernel"
     assert routine_symbol in call_node.scope.symbol_table.symbols
+    # This is a "call ..." expression, the Routine is NoType (subroutine)
     assert isinstance(routine_symbol.datatype, NoType)
 
     assert (str(call_node)) == "Call[name='kernel']"
@@ -114,6 +115,7 @@ def test_call_declared_routine(f2008_parser):
         assert isinstance(routine_symbol.interface, ImportInterface)
         assert routine_symbol.name == "kernel"
         assert routine_symbol in call_node.scope.symbol_table.symbols
+        # This is a "call ..." expression, the Routine is NoType
         assert isinstance(routine_symbol.datatype, NoType)
         assert (str(call_node)) == "Call[name='kernel']"
 
@@ -232,3 +234,48 @@ def test_unresolved_shadowed_routine(fortran_reader):
     assert isinstance(calls[0].routine.symbol, RoutineSymbol)
     # Symbol should be in the table of the Routine containing the call.
     assert calls[0].routine.symbol.find_symbol_table(calls[0]).node is do_it
+
+
+def test_function_call_or_derived_type_constructor(fortran_reader):
+    ''' fparser is finiky about what is a function call and what is a derived
+    type constructor. Regardless, check that PSyIR classifies both of them as
+    function calls and properly keeps track of their arguments and argument
+    names. '''
+    code = """subroutine foo()
+    type(mytype) :: derived_type
+    real :: a, b, c
+
+    ! Definition not found (could be a function or a Constructor)
+    a = unknown()
+    a = unknown(3, b+4)
+    a = unknown(name=3+c, name2=b)
+
+    ! Definition found (it is a Constructor)
+    a = derived_type()
+    a = derived_type(3, b+4)
+    a = derived_type(name=3+c, name2=b)
+
+    end subroutine foo"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assignments = psyir.walk(Assignment)
+
+    # All assignment rhs in this code are PSyIR calls
+    for assignment in assignments:
+        assert isinstance(assignment.rhs, Call)
+
+    # Four of them have 2 arguments
+    assert len(assignments[0].rhs.arguments) == 0
+    assert len(assignments[1].rhs.arguments) == 2
+    assert len(assignments[2].rhs.arguments) == 2
+    assert len(assignments[3].rhs.arguments) == 0
+    assert len(assignments[4].rhs.arguments) == 2
+    assert len(assignments[5].rhs.arguments) == 2
+
+    # Two of them have named arguments
+    assert assignments[0].rhs.argument_names == []
+    assert assignments[1].rhs.argument_names == [None, None]
+    assert assignments[2].rhs.argument_names == ["name", "name2"]
+    assert assignments[3].rhs.argument_names == []
+    assert assignments[4].rhs.argument_names == [None, None]
+    assert assignments[5].rhs.argument_names == ["name", "name2"]

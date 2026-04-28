@@ -57,22 +57,23 @@ from psyclone.core import AccessType, Signature, SymbolicMaths
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (
     FunctionSpace, KernCallAccArgList, KernCallArgList, LFRicCollection,
-    LFRicConstants, LFRicSymbolTable, LFRicKern, LFRicTypes, LFRicLoop)
+    LFRicConstants, LFRicKern, LFRicTypes, LFRicLoop)
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (Arguments, DataAccess, InvokeSchedule, Kern,
-                             KernelArgument, HaloExchange, GlobalSum)
+                             KernelArgument, HaloExchange)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Reference, ACCEnterDataDirective, ArrayOfStructuresReference,
     StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall,
     Assignment, ArrayReference, Loop, Container, DataNode, Schedule, Node)
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, DataSymbol, DataType, DataTypeSymbol, ScalarType,
-    UnresolvedType, ContainerSymbol, ImportInterface, StructureType,
-    ArrayType, UnsupportedFortranType, ArgumentInterface)
+    INTEGER_TYPE, DataSymbol, DataType, DataTypeSymbol,
+    ScalarType, UnresolvedType, ContainerSymbol, ImportInterface,
+    StructureType, SymbolTable, ArrayType, UnsupportedFortranType,
+    ArgumentInterface)
 
 
 # pylint: disable=too-many-lines
@@ -1290,7 +1291,7 @@ class LFRicProxies(LFRicCollection):
             if arg.argument_type == "gh_columnwise_operator":
                 # CMA operators are handled by the LFRicCMAOperators class.
                 continue
-            ctable.add_lfric_precision_symbol(arg.precision)
+            LFRicTypes.add_precision_symbol(ctable, arg.precision)
             intrinsic_type = "integer" if arg in int_field_args else "real"
             suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
             if arg.vector_size > 1:
@@ -1795,13 +1796,15 @@ class LFRicCMAOperators(LFRicCollection):
                 f"{op_name}_{suffix}")
             tag = f"{op_name}:{suffix}"
             arg = self._cma_ops[op_name]["arg"]
-            precision = LFRicConstants().precision_for_type(arg.data_type)
+            # Ensure that the appropriate precision symbol exists.
+            kind_sym = LFRicTypes.add_precision_symbol(self.symtab,
+                                                       arg.precision)
             array_type = ArrayType(
-                LFRicTypes("LFRicRealScalarDataType")(precision),
+                LFRicTypes("LFRicRealScalarDataType")(kind_sym),
                 [ArrayType.Extent.DEFERRED]*3)
             index_str = ",".join(3*[":"])
             dtype = UnsupportedFortranType(
-                f"real(kind={arg.precision}), pointer, "
+                f"real(kind={kind_sym.name}), pointer, "
                 f"dimension({index_str}) :: {new_name} => null()",
                 partial_datatype=array_type)
             self.symtab.new_symbol(new_name,
@@ -2138,34 +2141,45 @@ class LFRicMeshes():
                     datatype=UnsupportedFortranType(
                         f"integer(kind=i_def), pointer :: {base_name}(:,:,:)"))
                 base_name = "ntilecolour_" + carg_name
-                ntilecolours = self.symtab.find_or_create_integer_symbol(
-                                    base_name, tag=base_name)
+                ntilecolours = self.symtab.find_or_create(
+                                    base_name, tag=base_name,
+                                    symbol_type=DataSymbol,
+                                    datatype=LFRicTypes(
+                                        "LFRicIntegerScalarDataType")())
                 # Array holding the last cell of a given colour.
                 if (Config.get().distributed_memory and
                         not call.all_updates_are_writes):
                     # This will require a loop into the halo and so the array
                     # is 2D (indexed by colour *and* halo depth).
                     base_name = "last_halo_tile_per_colour_" + carg_name
-                    last_tile = self.symtab.find_or_create_array(
-                        base_name, 2, ScalarType.Intrinsic.INTEGER,
-                        tag=base_name)
+                    last_tile = self.symtab.find_or_create(
+                        base_name, tag=base_name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            2*[ArrayType.Extent.DEFERRED]))
                     base_name = ("last_halo_cell_per_colour_and_tile_" +
                                  carg_name)
-                    last_cell_tile = self.symtab.find_or_create_array(
-                        base_name, 3, ScalarType.Intrinsic.INTEGER,
-                        tag=base_name)
+                    last_cell_tile = self.symtab.find_or_create(
+                        base_name, tag=base_name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            3*[ArrayType.Extent.DEFERRED]))
                 else:
                     # Array holding the last edge cell of a given colour. Just
                     # 1D as indexed by colour only.
                     base_name = "last_edge_tile_per_colour_" + carg_name
-                    last_tile = self.symtab.find_or_create_array(
-                        base_name, 1, ScalarType.Intrinsic.INTEGER,
-                        tag=base_name)
+                    last_tile = self.symtab.find_or_create(
+                        base_name, tag=base_name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]))
                     base_name = ("last_edge_cell_per_colour_and_tile_"
                                  + carg_name)
-                    last_cell_tile = self.symtab.find_or_create_array(
-                        base_name, 2, ScalarType.Intrinsic.INTEGER,
-                        tag=base_name)
+                    last_cell_tile = self.symtab.find_or_create(
+                        base_name, tag=base_name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            2*[ArrayType.Extent.DEFERRED]))
                 # Add these symbols into the dictionary entry for this
                 # inter-grid kernel
                 call._intergrid_ref.set_tilecolour_info(
@@ -3017,10 +3031,12 @@ class LFRicBasisFunctions(LFRicCollection):
                     dims.append(Literal(value, INTEGER_TYPE))
                 except ValueError:
                     dims.append(Reference(self.symtab.find_or_create(value)))
+            kind_sym = LFRicTypes.add_precision_symbol(self.symtab, "r_def")
+            arr_type = ArrayType(ScalarType(ScalarType.Intrinsic.REAL,
+                                            Reference(kind_sym)), dims)
             arg = self.symtab.find_or_create_tag(
                 basis, symbol_type=DataSymbol,
-                datatype=ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
-                                   dims))
+                datatype=arr_type)
             arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(arg)
 
@@ -3033,11 +3049,9 @@ class LFRicBasisFunctions(LFRicCollection):
                 raise InternalError(
                     f"Quadrature shapes other than {supported_shapes} are not "
                     f"yet supported - got: '{shape}'")
-            kind_sym = self.symtab.find_or_create(
-                const.QUADRATURE_TYPE_MAP[shape]["kind"],
-                symbol_type=DataSymbol, datatype=UnresolvedType(),
-                interface=ImportInterface(
-                    self.symtab.lookup("constants_mod")))
+
+            kind_sym = LFRicTypes.add_precision_symbol(
+                self.symtab, const.QUADRATURE_TYPE_MAP[shape]["kind"])
 
             # All quatratures are REAL
             intr_type = ScalarType(ScalarType.Intrinsic.REAL,
@@ -3102,6 +3116,8 @@ class LFRicBasisFunctions(LFRicCollection):
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
         # or an evaluator
         if self._qr_vars or self._eval_targets:
+            # Quadrature weights and basis functions are in r_def precision.
+            LFRicTypes.add_precision_symbol(self.symtab, "r_def")
             module = self.symtab.find_or_create(
                 const.FUNCTION_SPACE_TYPE_MAP["function_space"]["module"],
                 symbol_type=ContainerSymbol)
@@ -3201,6 +3217,7 @@ class LFRicBasisFunctions(LFRicCollection):
             # to evaluate basis/diff-basis functions
             nodes_name = "nodes_" + fspace.mangled_name
             kind = api_config.default_kind["real"]
+            LFRicTypes.add_precision_symbol(self.symtab, kind)
             symbol = self.symtab.new_symbol(
                 nodes_name, symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
@@ -3892,79 +3909,6 @@ class LFRicBoundaryConditions(LFRicCollection):
             cursor += 1
 
         return cursor
-
-
-class LFRicGlobalSum(GlobalSum):
-    '''
-    LFRic specific global sum class which can be added to and
-    manipulated in a schedule.
-
-    :param scalar: the kernel argument for which to perform a global sum.
-    :type scalar: :py:class:`psyclone.lfric.LFRicKernelArgument`
-    :param parent: the parent node of this node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    :raises GenerationError: if distributed memory is not enabled.
-    :raises InternalError: if the supplied argument is not a scalar.
-    :raises GenerationError: if the scalar is not of "real" intrinsic type.
-
-    '''
-    def __init__(self, scalar, parent=None):
-        # Check that distributed memory is enabled
-        if not Config.get().distributed_memory:
-            raise GenerationError(
-                "It makes no sense to create an LFRicGlobalSum object when "
-                "distributed memory is not enabled (dm=False).")
-        # Check that the global sum argument is indeed a scalar
-        if not scalar.is_scalar:
-            raise InternalError(
-                f"LFRicGlobalSum.init(): A global sum argument should be a "
-                f"scalar but found argument of type '{scalar.argument_type}'.")
-        # Check scalar intrinsic types that this class supports (only
-        # "real" for now)
-        if scalar.intrinsic_type != "real":
-            raise GenerationError(
-                f"LFRicGlobalSum currently only supports real scalars, but "
-                f"argument '{scalar.name}' in Kernel '{scalar.call.name}' has "
-                f"'{scalar.intrinsic_type}' intrinsic type.")
-        # Initialise the parent class
-        super().__init__(scalar, parent=parent)
-
-    def lower_to_language_level(self):
-        '''
-        :returns: this node lowered to language-level PSyIR.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
-        '''
-
-        # Get the name strings to use
-        name = self._scalar.name
-        type_name = self._scalar.data_type
-        mod_name = self._scalar.module_name
-
-        # Get the symbols from the given names
-        symtab = self.ancestor(InvokeSchedule).symbol_table
-        sum_mod = symtab.find_or_create(mod_name, symbol_type=ContainerSymbol)
-        sum_type = symtab.find_or_create(type_name,
-                                         symbol_type=DataTypeSymbol,
-                                         datatype=UnresolvedType(),
-                                         interface=ImportInterface(sum_mod))
-        sum_name = symtab.find_or_create_tag("global_sum",
-                                             symbol_type=DataSymbol,
-                                             datatype=sum_type)
-        tmp_var = symtab.lookup(name)
-
-        # Create the assignments
-        assign1 = Assignment.create(
-            lhs=StructureReference.create(sum_name, ["value"]),
-            rhs=Reference(tmp_var)
-        )
-        assign1.preceding_comment = "Perform global sum"
-        self.parent.addchild(assign1, self.position)
-        assign2 = Assignment.create(
-            lhs=Reference(tmp_var),
-            rhs=Call.create(StructureReference.create(sum_name, ["get_sum"]))
-        )
-        return self.replace_with(assign2)
 
 
 def _create_depth_list(halo_info_list, parent):
@@ -5383,11 +5327,11 @@ class LFRicKernelArguments(Arguments):
                 symtab = inv_sched.symbol_table
             else:
                 # This can happen in stub generation.
-                symtab = LFRicSymbolTable()
+                symtab = SymbolTable()
         else:
             # TODO 719 The symtab is not connected to other parts of the
             # Stub generation.
-            symtab = LFRicSymbolTable()
+            symtab = SymbolTable()
         const = LFRicConstants()
         for arg in self._args:
             if not arg.descriptor.stencil:
@@ -5974,38 +5918,22 @@ class LFRicKernelArgument(KernelArgument):
                     "Reductions for datatypes other than real are not yet "
                     "supported in PSyclone.")
 
-            expected_precision = const.DATA_TYPE_MAP["reduction"]["kind"]
-            # If the algorithm information is not being ignored
-            # then check that the expected precision and the
-            # precision defined in the algorithm layer are
-            # the same.
-            if check and alg_precision and \
-               alg_precision != expected_precision:
-                raise GenerationError(
-                    f"This scalar is a reduction which assumes precision "
-                    f"of type '{expected_precision}' but the algorithm "
-                    f"declares this scalar with precision "
-                    f"'{alg_precision}'.")
+            self._data_type = const.DATA_TYPE_MAP["scalar"]["type"]
+            self._proxy_data_type = None
+            self._module_name = const.DATA_TYPE_MAP["scalar"]["module"]
 
-            # Use the default 'real' scalar reduction properties.
-            self._precision = expected_precision
-            self._data_type = const.DATA_TYPE_MAP["reduction"]["type"]
-            self._proxy_data_type = const.DATA_TYPE_MAP[
-                "reduction"]["proxy_type"]
-            self._module_name = const.DATA_TYPE_MAP["reduction"]["module"]
+        # The precision of the symbol does not depend on whether
+        # it is a reduction
+        if check and alg_precision:
+            # Use the algorithm precision if it is available
+            # and not being ignored.
+            self._precision = alg_precision
         else:
-            # This is a scalar that is not part of a reduction.
-
-            if check and alg_precision:
-                # Use the algorithm precision if it is available
-                # and not being ignored.
-                self._precision = alg_precision
-            else:
-                # Use default precision for this datatype if the
-                # algorithm precision is either not available or is
-                # being ignored.
-                self._precision = const.SCALAR_PRECISION_MAP[
-                    self.intrinsic_type]
+            # Use default precision for this datatype if the
+            # algorithm precision is either not available or is
+            # being ignored.
+            self._precision = const.SCALAR_PRECISION_MAP[
+                self.intrinsic_type]
 
     def _init_field_properties(self, alg_datatype, check=True):
         '''Set up the properties of this field using algorithm datatype
@@ -6254,7 +6182,8 @@ class LFRicKernelArgument(KernelArgument):
             reader = FortranReader()
             if self.precision:
                 # Ensure any associated precision symbol is in the table.
-                symbol_table.add_lfric_precision_symbol(self.precision)
+                LFRicTypes.add_precision_symbol(symbol_table,
+                                                self.precision)
             lit = reader.psyir_from_expression(self.name, symbol_table)
 
             # Sanity check that the resulting expression is a literal.
@@ -6538,14 +6467,8 @@ class LFRicKernelArgument(KernelArgument):
             except KeyError:
                 mod_map = LFRicConstants().UTILITIES_MOD_MAP
                 const_mod = mod_map["constants"]["module"]
-                try:
-                    constants_container = symtab.lookup(const_mod)
-                except KeyError:
-                    # TODO Once #696 is done, we should *always* have a
-                    # symbol for this container at this point so should
-                    # raise an exception if we haven't.
-                    constants_container = LFRicTypes(const_mod)
-                    symtab.add(constants_container)
+                constants_container = symtab.find_or_create(
+                    const_mod, symbol_type=ContainerSymbol)
                 kind_symbol = DataSymbol(
                     kind_name, INTEGER_TYPE,
                     interface=ImportInterface(constants_container))
@@ -6603,7 +6526,6 @@ __all__ = [
     'LFRicInterGrid',
     'LFRicBasisFunctions',
     'LFRicBoundaryConditions',
-    'LFRicGlobalSum',
     'LFRicHaloExchange',
     'LFRicHaloExchangeStart',
     'LFRicHaloExchangeEnd',

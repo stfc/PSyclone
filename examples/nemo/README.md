@@ -159,3 +159,9 @@ OpenMP parallelisation (for CPU and GPU) of `tra_adv` over levels, using
 
 A simple profiling example that shows OpenMP offloading transformations
 with profiling hooks enabled.
+
+## Example 9
+
+A simple stand-alone example that shows PSyclone's value range transformation.
+A user can specify valid ranges for variables, which will be verified at
+runtime.

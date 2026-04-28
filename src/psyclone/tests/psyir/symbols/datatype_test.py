@@ -153,6 +153,18 @@ def test_scalartype_enum_precision(intrinsic, precision):
     assert scalar_type.is_allocatable is False
 
 
+@pytest.mark.parametrize("attribute",
+                         [ScalarType.Precision.DOUBLE,
+                          ScalarType.Intrinsic.BOOLEAN,
+                          ScalarType.CharLengthParameter.DEFERRED])
+def test_scalartypeattribute(attribute):
+    '''
+    Test the debug_string() and copy() methods provided by ScalarTypeAttribute.
+    '''
+    assert attribute.copy() == attribute
+    assert attribute.debug_string() == attribute.name
+
+
 @pytest.mark.parametrize("precision", [1, 8, 16])
 @pytest.mark.parametrize("intrinsic", [ScalarType.Intrinsic.INTEGER,
                                        ScalarType.Intrinsic.REAL,
@@ -194,6 +206,46 @@ def test_scalartype_datasymbol_precision(intrinsic):
     assert scalar_type.precision.symbol is precision_symbol
     scalar_type2 = ScalarType(intrinsic, Reference(precision_symbol))
     assert scalar_type == scalar_type2
+
+
+def test_scalartype_character_length():
+    '''
+    Test the length getter and setter of ScalarType.
+    '''
+    data_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                           ScalarType.Precision.UNDEFINED,
+                           length=Literal("5", INTEGER_TYPE))
+    assert data_type.length.value == "5"
+    data_type.length = Reference(Symbol("MAX_LEN"))
+    assert data_type.length.symbol.name == "MAX_LEN"
+    data_type.length = ScalarType.CharLengthParameter.DEFERRED
+    assert data_type.length == ScalarType.CharLengthParameter.DEFERRED
+    assert data_type.length.debug_string() == "DEFERRED"
+
+    with pytest.raises(ValueError) as err:
+        data_type.length = -1
+    assert ("specified using an int then it must be >= 0 but got: -1"
+            in str(err.value))
+    with pytest.raises(TypeError) as err:
+        data_type.length = "yes"
+    assert ("must be a non-negative int, ScalarType.CharLengthParameter or "
+            "DataNode but got 'str'" in str(err.value))
+
+    # Now test with a non-character type.
+    non_char = INTEGER_TYPE
+    # The getter raises an error.
+    with pytest.raises(TypeError) as err:
+        _ = non_char.length
+    assert ("ScalarType of intrinsic type 'Intrinsic.INTEGER' does not have "
+            "the 'length' property" in str(err.value))
+    # The setter does permit a value of None.
+    non_char.length = None
+    # The setter rejects a value that is not None.
+    with pytest.raises(TypeError) as err:
+        non_char.length = 10
+    assert ("character type support the length property but length '10' was "
+            "supplied to an intrinsic type of 'Intrinsic.INTEGER'"
+            in str(err.value))
 
 
 def test_scalartype_equal():
@@ -287,6 +339,12 @@ def test_scalartype_str():
     data_type = ScalarType(ScalarType.Intrinsic.BOOLEAN,
                            ScalarType.Precision.UNDEFINED)
     assert str(data_type) == "Scalar<BOOLEAN, UNDEFINED>"
+    str_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED,
+                          4)
+    assert str(str_type) == (
+        "Scalar<CHARACTER, UNDEFINED, "
+        "len:Literal[value:'4', Scalar<INTEGER, UNDEFINED>]>")
 
 
 def test_scalartype_immutable():
@@ -322,6 +380,12 @@ def test_scalartype_replace_symbols():
     stype2.replace_symbols_using(table)
     # Precision symbol should have been updated.
     assert stype2.precision.symbol is rdef2
+    # Repeat but for a Symbol used to define the length of a character string
+    chartype = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED,
+                          Reference(rdef))
+    chartype.replace_symbols_using(table)
+    assert chartype.length.symbol is rdef2
 
 
 def test_scalartype_get_all_accessed_symbols():
@@ -331,6 +395,11 @@ def test_scalartype_get_all_accessed_symbols():
                         Reference(rdef))
     dependent_symbols = stype2.get_all_accessed_symbols()
     assert rdef in dependent_symbols
+    chartype = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED,
+                          Reference(rdef))
+    dependent_symbols2 = chartype.get_all_accessed_symbols()
+    assert rdef in dependent_symbols2
 
 
 def test_scalartype_copy():
@@ -356,6 +425,23 @@ def test_scalartype_copy():
     assert rcopy.intrinsic == stype2.intrinsic
     assert rcopy.precision == stype2.precision
     assert rcopy.precision is not stype2.precision
+
+    # Repeat but with precision as an int.
+    # TODO #3135 - once precision is always stored as a DataNode this separate
+    # test won't be necessary.
+    itype = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
+    icopy = itype.copy()
+    assert icopy.precision == 4
+
+    # Test a character type with a length.
+    chartype = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED,
+                          Reference(rdef))
+    ccopy = chartype.copy()
+    # Length expression has been copied.
+    assert ccopy.length is not chartype.length
+    # Referenced Symbol is unchanged.
+    assert ccopy.length.symbol is rdef
 
 
 # ArrayType class
@@ -426,8 +512,7 @@ def test_arraytype():
     assert shape0.upper.value == "10"
     assert shape0.upper.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert shape0.upper.datatype.precision == ScalarType.Precision.UNDEFINED
-    # TODO #1857: the datatype property might be affected.
-    assert array_type.datatype == scalar_type
+    assert array_type.elemental_type == scalar_type
     # Provided and stored as a Literal (DataNode)
     assert array_type.shape[1].upper == literal
     # Provided and stored as an Operator (DataNode)
@@ -467,8 +552,9 @@ def test_arraytype_invalid_datatype():
     '''
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(None, None)
-    assert ("ArrayType expected 'datatype' argument to be of type DataType "
-            "or DataTypeSymbol but found 'NoneType'." in str(excinfo.value))
+    assert ("ArrayType expected 'elemental_type' argument to be of type "
+            "DataType or DataTypeSymbol but found 'NoneType'."
+            in str(excinfo.value))
 
 
 def test_arraytype_datatypesymbol_only():
@@ -489,7 +575,7 @@ def test_arraytype_datatypesymbol():
     tsym = DataTypeSymbol("my_type", UnresolvedType())
     atype = ArrayType(tsym, [5])
     assert isinstance(atype, ArrayType)
-    assert atype.datatype == tsym
+    assert atype.elemental_type == tsym
     assert len(atype.shape) == 1
     assert atype.intrinsic is tsym
     assert atype.precision is None
@@ -501,7 +587,7 @@ def test_arraytype_unsupportedtype():
     utype = UnsupportedFortranType("integer, pointer :: var")
     atype = ArrayType(utype, [8])
     assert isinstance(atype, ArrayType)
-    assert atype.datatype is utype
+    assert atype.elemental_type is utype
     assert atype.precision is None
     assert utype.declaration == "integer, pointer :: var"
     # Since no partial datatype is provided, these return None

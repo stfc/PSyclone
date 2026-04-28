@@ -280,7 +280,7 @@ class DataNodeToTempTrans(Transformation):
             # create a new datatype for the symbol and keep the
             # datatype around for the ALLOCATE statement later.
             allocatable_datatype = datatype
-            datatype = ArrayType(allocatable_datatype.datatype,
+            datatype = ArrayType(allocatable_datatype.elemental_type,
                                  [ArrayType.Extent.DEFERRED for x in
                                   allocatable_datatype.shape])
 

@@ -47,12 +47,16 @@
 # pylint: disable=too-many-lines
 
 from typing import Any, Dict, Optional
+import warnings
 
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessMap
-from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
-                                   LFRicInvokeSchedule, LFRicKern, LFRicLoop)
+from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
+from psyclone.domain.lfric.lfric_kern import LFRicKern
+from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.lfric import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
@@ -60,7 +64,7 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Directive, Literal, Loop, Node,
+    Call, CodeBlock, Container, Directive, Literal, Loop,
     Return, Schedule, PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -73,6 +77,8 @@ from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
     SymbolError, UnresolvedType)
+from psyclone.psyir.transformations.callee_transformation_mixin import (
+    CalleeTransformationMixin)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import (
@@ -1183,109 +1189,6 @@ class ACCParallelTrans(ParallelRegionTrans):
         node_parent.addchild(directive, index=node_position)
 
 
-class MoveTrans(Transformation):
-    '''Provides a transformation to move a node in the tree. For
-    example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> ast,invokeInfo=parse("lfric.F90")
-    >>> psy=PSyFactory("lfric").create(invokeInfo)
-    >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> from psyclone.transformations import MoveTrans
-    >>> trans=MoveTrans()
-    >>> trans.apply(schedule.children[0], schedule.children[2],
-    ...             options = {"position":"after")
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-
-    Nodes may only be moved to a new location with the same parent
-    and must not break any dependencies otherwise an exception is
-    raised.'''
-
-    def __str__(self):
-        return "Move a node to a different location"
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-        return "Move"
-
-    def validate(self, node, location, options=None):
-        # pylint: disable=arguments-differ
-        ''' validity checks for input arguments.
-
-        :param node: the node to be moved.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param location: node before or after which the given node\
-            should be moved.
-        :type location: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["position"]: either 'before' or 'after'.
-
-        :raises TransformationError: if the given node is not an instance \
-            of :py:class:`psyclone.psyir.nodes.Node`
-        :raises TransformationError: if the location is not valid.
-        '''
-
-        # Check that the first argument is a Node
-        if not isinstance(node, Node):
-            raise TransformationError(
-                "In the Move transformation apply method the first argument "
-                "is not a Node")
-
-        # Check new location conforms to any data dependencies
-        # This also checks the location and position arguments
-        if not options:
-            options = {}
-        position = options.get("position", "before")
-        if not node.is_valid_location(location, position=position):
-            raise TransformationError(
-                "In the Move transformation apply method, data dependencies "
-                "forbid the move to the new location")
-
-    def apply(self, node, location, options=None):
-        '''Move the node represented by :py:obj:`node` before location
-        :py:obj:`location` (which is also a node) by default and after
-        if the optional `position` argument is set to 'after'.
-
-        :param node: the node to be moved.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param location: node before or after which the given node\
-            should be moved.
-        :type location: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["position"]: either 'before' or 'after'.
-
-        :raises TransformationError: if the given node is not an instance \
-            of :py:class:`psyclone.psyir.nodes.Node`
-        :raises TransformationError: if the location is not valid.
-
-        '''
-        # pylint:disable=arguments-differ
-
-        self.validate(node, location, options)
-
-        if not options:
-            options = {}
-        position = options.get("position", "before")
-
-        parent = node.parent
-
-        my_node = parent.children.pop(node.position)
-
-        location_index = location.position
-        if position == "before":
-            location.parent.children.insert(location_index, my_node)
-        else:
-            location.parent.children.insert(location_index+1, my_node)
-
-
 class LFRicRedundantComputationTrans(LoopTrans):
     '''This transformation allows the user to modify a loop's bounds so
     that redundant computation will be performed. Redundant
@@ -1611,7 +1514,7 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
                 f"'{type(node)}'.")
 
 
-class LFRicKernelConstTrans(Transformation):
+class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
     '''Modifies a kernel so that the number of dofs, number of layers and
     number of quadrature points are fixed in the kernel rather than
     being passed in by argument.
@@ -1799,12 +1702,7 @@ class LFRicKernelConstTrans(Transformation):
 
         arg_list_info = KernCallArgList(kernel)
         arg_list_info.generate()
-        try:
-            kernel_schedules = kernel.get_callees()
-        except NotImplementedError as excinfo:
-            raise TransformationError(
-                f"Failed to parse kernel '{kernel.name}'. Error reported was "
-                f"'{excinfo}'.") from excinfo
+        kernel_schedules = kernel.get_callees()
 
         for kernel_schedule in kernel_schedules:
             symbol_table = kernel_schedule.symbol_table
@@ -1855,9 +1753,6 @@ class LFRicKernelConstTrans(Transformation):
                     make_constant(symbol_table, info.position, ndofs,
                                   function_space=info.function_space)
 
-        # Flag that the kernel has been modified
-        kernel.modified = True
-
     def validate(self, node, options=None):
         '''This method checks whether the input arguments are valid for
         this transformation.
@@ -1890,6 +1785,8 @@ class LFRicKernelConstTrans(Transformation):
             raise TransformationError(
                 f"Error in LFRicKernelConstTrans transformation. Supplied "
                 f"node must be an LFRic kernel but found '{type(node)}'.")
+
+        self._check_callee_implementation_is_local(node)
 
         if not options:
             options = {}
@@ -2102,7 +1999,9 @@ class ACCEnterDataTrans(Transformation):
         self.check_child_async(sched, async_queue)
 
 
-class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
+@transformation_documentation_wrapper
+class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
+                      CalleeTransformationMixin):
     '''
     Transform a kernel or routine by adding a "!$acc routine" directive
     (causing it to be compiled for the OpenACC accelerator device).
@@ -2125,7 +2024,9 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
     >>> rtrans.apply(kern)
 
     '''
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, force: bool = False,
+              parallelism: str = "seq", device_string: str = "",
+              **kwargs):
         '''
         Add the '!$acc routine' OpenACC directive into the code of the
         supplied Kernel (in a PSyKAl API such as GOcean or LFRic) or directly
@@ -2136,28 +2037,31 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether to allow routines with
+        :param force: whether to allow routines with
             CodeBlocks to run on the GPU.
-        :param str options["parallelism"]: the level of parallelism that the
+        :param parallelism: the level of parallelism that the
             target routine (or a callee) exposes. One of "seq" (the default),
             "vector", "worker" or "gang".
-        :param str options["device_string"]: provide a compiler-platform
-            identifier.
+        :param device_string: provide a compiler-platform identifier.
 
         '''
         # Check that we can safely apply this transformation
-        self.validate(node, options)
+        self.validate(node, options, force=force,
+                      parallelism=parallelism,
+                      device_string=device_string,
+                      **kwargs)
+
+        # TODO 2668: options are now deprecated:
+        if options is not None:
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
         if isinstance(node, Kern):
-            # Flag that the kernel has been modified
-            node.modified = True
-
             # Get the schedule(s) representing the kernel subroutine
             routines = node.get_callees()
         else:
             routines = [node]
 
-        para = options.get("parallelism", "seq") if options else "seq"
+        para = options.get("parallelism", "seq") if options else parallelism
         for routine in routines:
             # Insert the directive to the routine if it doesn't already exist
             for child in routine.children:
@@ -2167,7 +2071,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             routine.children.insert(
                 0, ACCRoutineDirective(parallelism=para))
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Perform checks that the supplied kernel or routine can be transformed.
 
@@ -2194,17 +2098,25 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             but is not a recognised level of parallelism.
 
         '''
-        super().validate(node, options)
+        self.validate_options(**kwargs)
+        super().validate(node, options, **kwargs)
 
-        self.validate_it_can_run_on_gpu(node, options)
+        self.validate_it_can_run_on_gpu(node, options, **kwargs)
 
-        if options and "parallelism" in options:
-            para = options["parallelism"]
-            if para not in ACCRoutineDirective.SUPPORTED_PARALLELISM:
-                raise TransformationError(
-                    f"{self.name}: '{para}' is not a supported level of "
-                    f"parallelism. Should be one of "
-                    f"{ACCRoutineDirective.SUPPORTED_PARALLELISM}")
+        if isinstance(node, Kern):
+            self._check_callee_implementation_is_local(node)
+
+        if options:
+            # TODO #2668: Deprecate options dictionary
+            parallelism = options.get("parallelism", "seq")
+        else:
+            parallelism = self.get_option("parallelism", **kwargs)
+
+        if parallelism not in ACCRoutineDirective.SUPPORTED_PARALLELISM:
+            raise TransformationError(
+                f"{self.name}: '{parallelism}' is not a supported level of "
+                f"parallelism. Should be one of "
+                f"{ACCRoutineDirective.SUPPORTED_PARALLELISM}")
 
 
 class ACCDataTrans(RegionTrans):
@@ -2347,7 +2259,7 @@ class ACCDataTrans(RegionTrans):
                             f"component is the one being iterated over.")
 
 
-class KernelImportsToArguments(Transformation):
+class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
     '''
     Transformation that removes any accesses of imported data from the supplied
     kernel and places them in the caller. The values/references are then passed
@@ -2396,15 +2308,13 @@ class KernelImportsToArguments(Transformation):
                 f"for the GOcean API but got an InvokeSchedule of type: "
                 f"'{type(invoke_schedule).__name__}'")
 
-        # Check that there are no unqualified imports or undeclared symbols
-        try:
-            kernels = node.get_callees()
-        except (SymbolError, NotImplementedError) as err:
-            raise TransformationError(
-                f"Kernel '{node.name}' contains undeclared symbol: "
-                f"{err.value}") from err
+        # Check that the kernel has already been module-inlined (as this
+        # permits us to safely modify it).
+        self._check_callee_implementation_is_local(node)
 
-        for kernel in kernels:
+        # Check that the kernel implementation doesn't have any unresolved
+        # symbols.
+        for kernel in node.get_callees():
             try:
                 kernel.check_outer_scope_accesses(
                     node, "Kernel",
@@ -2420,7 +2330,9 @@ class KernelImportsToArguments(Transformation):
         '''
         Convert the imported variables used inside the kernel into arguments
         and modify the InvokeSchedule to pass the same imported variables to
-        the kernel call.
+        the kernel call. Since it is a pre-requisite that the kernel have been
+        module-inlined first, this transformation must also update all other
+        calls to the same module-inlined routine.
 
         :param node: a kernel call.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
@@ -2436,6 +2348,9 @@ class KernelImportsToArguments(Transformation):
         symtab = kernel.symbol_table
         invoke_symtab = node.ancestor(InvokeSchedule).symbol_table
         count_imported_vars_removed = 0
+
+        # The arguments that we have to add to the Kernel call.
+        new_kernel_args: list[tuple(str, str)] = []
 
         # Transform each imported variable into an argument.
         # TODO #11: When support for logging is added, we could warn the user
@@ -2501,17 +2416,22 @@ class KernelImportsToArguments(Transformation):
                     f"infrastructure does not have any scalar type equivalent "
                     f"to the PSyIR {updated_sym.datatype} type.")
 
-            # Add the imported variable in the call argument list
-            node.arguments.append(updated_sym.name, go_space)
+            # Record the addition to the call argument list
+            new_kernel_args.append((updated_sym.name, go_space))
 
             # Check whether we still need the Container symbol from which
             # this import was originally accessed
-            if not kernel.symbol_table.symbols_imported_from(container) and \
-               not container.wildcard_import:
+            if (not kernel.symbol_table.symbols_imported_from(container) and
+                    not container.wildcard_import):
                 kernel.symbol_table.remove(container)
 
-        if count_imported_vars_removed > 0:
-            node.modified = True
+        # Since we've modified the Kernel argument list *and* have removed the
+        # imported symbols from its implementation, we have to make sure we
+        # update the argument lists of all other calls to the inlined kernel.
+        for kern in node.ancestor(Container).walk(CodedKern):
+            if kern.name == node.name:
+                for arg in new_kernel_args:
+                    kern.arguments.append(arg[0], arg[1])
 
 
 # Create a compatibility layer for all existing Dynamo0p3 transformation
@@ -2553,7 +2473,6 @@ __all__ = [
    "GOceanOMPLoopTrans",
    "GOceanOMPParallelLoopTrans",
    "KernelImportsToArguments",
-   "MoveTrans",
    "OMPMasterTrans",
    "OMPParallelLoopTrans",
    "OMPSingleTrans",

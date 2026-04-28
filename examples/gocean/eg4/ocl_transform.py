@@ -39,22 +39,25 @@
 '''
 
 from psyclone.transformations import KernelImportsToArguments
-from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
-    GOMoveIterationBoundariesInsideKernelTrans
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.domain.gocean.transformations import (
+    GOOpenCLTrans, GOMoveIterationBoundariesInsideKernelTrans)
+from psyclone.psyir.nodes import FileContainer
 
 
-def trans(psyir):
+def trans(psyir: FileContainer):
     '''
     Transformation routine for use with PSyclone. Applies the OpenCL
-    transform to the first Invoke in the psy object.
+    transform to the first Invoke in the PSy-layer.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     # Convert any kernel accesses to imported data into arguments
+    mod_inline_trans = KernelModuleInlineTrans()
     ktrans = KernelImportsToArguments()
     for kern in psyir.kernels():
+        mod_inline_trans.apply(kern)
         ktrans.apply(kern)
 
     # Provide kernel-specific OpenCL optimization options

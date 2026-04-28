@@ -53,7 +53,8 @@ This PSyclone transformation script is designed to be passed to
 PSyclone, it is not designed to be run directly from python.
 
 '''
-from psyclone.transformations import LFRicAsyncHaloExchangeTrans, MoveTrans
+from psyclone.transformations import LFRicAsyncHaloExchangeTrans
+from psyclone.psyir.transformations import MoveTrans
 
 
 def trans(psyir):

@@ -661,7 +661,7 @@ def test_get_effective_shape(fortran_reader):
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
-    assert "SIZE(a, dim=1)" in shape[0].debug_string()
+    assert "10" in shape[0].debug_string()
     # Array slice with only lower-bound specified.
     #   a(2:) = 0.0
     child_idx += 1
@@ -752,8 +752,8 @@ def test_get_effective_shape(fortran_reader):
     # Nested array accesses with ranges with implicit bounds
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
-    assert "SIZE(b, dim=1)\n" == shape[0].debug_string()
-    assert "SIZE(indices, dim=1)\n" == shape[1].debug_string()
+    assert "10" == shape[0].debug_string()
+    assert "8" == shape[1].debug_string()
 
 
 def test_struct_get_effective_shape(fortran_reader):
