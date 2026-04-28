@@ -89,8 +89,9 @@ from psyclone.psyir.symbols import (
 MAP_REDUCTION_OP_TO_OMP = {
     BinaryOperation.Operator.ADD:
         OMPReductionClause.ReductionClauseTypes.ADD,
+    # From OpenMP 5.2 the - reduction is not supported, use + instead
     BinaryOperation.Operator.SUB:
-        OMPReductionClause.ReductionClauseTypes.SUB,
+        OMPReductionClause.ReductionClauseTypes.ADD,
     BinaryOperation.Operator.MUL:
         OMPReductionClause.ReductionClauseTypes.MUL,
     BinaryOperation.Operator.AND:

@@ -1,4 +1,10 @@
-   9) PR #3406 for # 3406. Fix issue with comment before a subroutine that
+   11) PR #3414 for #3279. Update the lists of exclusions to improve GPU
+   performance for NEMO.
+
+   10) PR #3413 for #3411. Remove OpenMP SUB reduction operator and relpace
+   with ADD as is required by OpenMP 5.2.
+
+   9) PR #3406 for #3406. Fix issue with comment before a subroutine that
    turns into a CodeBlock.
  
    8) PR #3371 towards #3012. Add workaround to bypass psyclonefc fixed-from
