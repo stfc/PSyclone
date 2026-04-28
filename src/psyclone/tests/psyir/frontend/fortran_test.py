@@ -38,6 +38,7 @@
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
 
 import pytest
+
 from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -49,6 +50,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols import (
     SymbolTable, DataSymbol, ScalarType, UnresolvedType)
+from psyclone.tests.utilities import min_version_3_10
 
 
 # The 'contiguous' keyword is just valid with Fortran 2008
@@ -87,6 +89,9 @@ end subroutine my_sub
 '''
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_fortran_reader_constructor():
     ''' Test that the constructor initialises the _parser and _processor
     attributes. '''
