@@ -44,6 +44,7 @@ from tree_sitter import Node as TSNode
 from psyclone.psyir.frontend.fortran_treesitter_reader import \
     FortranTreeSitterReader
 from psyclone.psyir.nodes import FileContainer, CodeBlock, Container
+from psyclone.tests.utilities import min_version_3_10
 
 
 def test_constructor():
@@ -69,6 +70,9 @@ def test_constructor():
     # TODO #3038 Typecheck arguments
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_generate_parse_tree(tmpdir_factory, caplog):
     '''
     Test that generate_parse_tree returns treesitter trees or appropriate
@@ -92,7 +96,7 @@ def test_generate_parse_tree(tmpdir_factory, caplog):
     """
     with pytest.raises(ValueError) as err:
         _ = processor.generate_parse_tree_from_source(invalid_code)
-    assert "Syntax Error found at line 2" in str(err.value)
+    assert "Syntax Error found at line" in str(err.value)
 
     # Test providing a source file
     filename = str(tmpdir_factory.mktemp('ts_test').join("testfile.f90"))
@@ -115,6 +119,9 @@ def test_generate_parse_tree(tmpdir_factory, caplog):
     assert isinstance(ptree, TSNode)
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_generate_psyir():
     '''
     Test that generate_psyir transforms treesitter parse trees to
@@ -138,6 +145,9 @@ def test_generate_psyir():
     assert isinstance(psyir.children[0].children[0], CodeBlock)
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_codeblock_generation_and_messages():
     '''
     Test that NotImplementedErrors are caught and converted to CodeBlocks
