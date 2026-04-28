@@ -1494,6 +1494,46 @@ def test_fw_ifblock(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
+    # Also test that is works with elseif coming from select case constructs
+    # and that multiple else at the end are handled properly
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a, n)\n"
+        "  integer, intent(inout) :: n\n"
+        "  real, intent(out) :: a(n)\n"
+        "    select case (n)\n"
+        "      case(1)\n"
+        "        a = 1\n"
+        "      case(2)\n"
+        "        a = 2\n"
+        "      case default\n"
+        "        a = 3\n"
+        "        if (n > 5) then\n"
+        "          a = 5\n"
+        "        else\n"
+        "          a = 4\n"
+        "        end if\n"
+        "   end select\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(schedule)
+    assert """
+    if (n == 1) then
+      a = 1
+    elseif (n == 2) then
+      a = 2
+    else
+      a = 3
+      if (n > 5) then
+        a = 5
+      else
+        a = 4
+      end if
+    end if""" in result
+    assert Compile(tmpdir).string_compiles(result)
+
 def test_fw_loop(fortran_reader, fortran_writer, tmpdir):
     '''Check the FortranWriter class loop method
     correctly prints out the Fortran representation.

@@ -1465,10 +1465,14 @@ class FortranWriter(LanguageWriter):
                 len(node.else_body.children) == 1 and
                 isinstance(node.else_body.children[0], IfBlock)
             ):
+                # This can be an elseif block, so we continue without
+                # additional indentation
                 else_block += self._visit(node.else_body)
-                # Start with an elseif and remove the final endif
+                # Replace the first if with an elseif
                 else_block = else_block.replace("if", "elseif", 1)
-                else_block = else_block.rstrip("end if\n").rstrip(" ") + "\n"
+                # And remove the final (endif) line, as it will be merged
+                # with the current if construct
+                else_block = "\n".join(else_block.split('\n')[:-2]) + "\n"
             else:
                 else_block = f"{self._nindent}else\n"
                 self._depth += 1
