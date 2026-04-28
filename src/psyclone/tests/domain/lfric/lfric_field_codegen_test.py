@@ -321,7 +321,6 @@ module single_invoke_fs_psy
   subroutine invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, m3, m4, f5, \
 f6, m5, m6, m7)
     use mesh_mod, only : mesh_type
-    use testkern_fs_mod, only : testkern_fs_code
     use constants_mod, only : i_def
     integer(kind=i_def) :: cell
     type(field_type), intent(in) :: f1
@@ -656,7 +655,6 @@ def test_int_field_fs(tmpdir):
   subroutine invoke_0_testkern_fs_int_field_type(f1, f2, m1, m2, f3, f4, m3, \
 m4, f5, f6, m5, m6, f7, f8, m7)
     use mesh_mod, only : mesh_type
-    use testkern_fs_int_field_mod, only : testkern_fs_int_field_code
     integer(kind=i_def) :: cell
     type(integer_field_type), intent(in) :: f1
     type(integer_field_type), intent(in) :: f2
