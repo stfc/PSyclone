@@ -39,7 +39,7 @@ PSyclone algorithm-layer-specific PSyIR which uses specialised classes.
 '''
 from psyclone.domain.common.transformations import RaisePSyIR2AlgTrans
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Call, Routine, Container
+from psyclone.psyir.nodes import Call, Routine, Container, CodeBlock
 from psyclone.psyir.transformations import TransformationError
 from psyclone.utils import transformation_documentation_wrapper
 
@@ -81,6 +81,17 @@ class AlgTrans(Transformation):
                 f"Error in {self.name} transformation. The supplied node "
                 f"should be the root of a PSyIR tree but this node has a "
                 f"parent.")
+
+        for cb in node.walk(CodeBlock):
+            if "invoke" in cb.get_symbol_names():
+                raise TransformationError(
+                    f"Error in {self.name} transformation. The supplied code"
+                    f"cannot be uplifted to an Algorithm layer because "
+                    f"there is an unrecognised Fortran construct containing an"
+                    f" invoke: {cb.debug_string()}\n You could attempt "
+                    f"rewriting the algorithm file with the invoke outside "
+                    f" this construct.")
+
 
     def apply(self, node, options=None, **kwargs):
         ''' Apply transformation to the supplied PSyIR node.
