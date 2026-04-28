@@ -647,5 +647,5 @@ def test_unsupported_decl_with_deps(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
     assert """\
-  integer, parameter :: ilenwmo = 58
+  integer, parameter, public :: ilenwmo = 58
   character(len = ilenwmo), """ in output

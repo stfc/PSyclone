@@ -187,6 +187,8 @@ def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice(
     assert "use time_smooth_mod" not in output
 
     expected = '''subroutine invoke_0(cu_fld, p_fld, u_fld, unew_fld, uold_fld)
+  integer :: j
+  integer :: i
   type(r2d_field), intent(inout) :: cu_fld
   type(r2d_field), intent(inout) :: p_fld
   type(r2d_field), intent(inout) :: u_fld
