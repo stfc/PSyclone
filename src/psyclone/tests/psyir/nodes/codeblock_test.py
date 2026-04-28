@@ -39,7 +39,6 @@
 ''' Performs py.test tests on the CodeBlock PSyIR node. '''
 
 import pytest
-import sys
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
@@ -52,8 +51,12 @@ from psyclone.psyir.nodes.codeblock import (
 )
 from psyclone.psyir.nodes.node import colored
 from psyclone.errors import GenerationError, InternalError
+from psyclone.tests.utilities import min_version_3_10
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_codeblock_create():
     ''' Check the create method of the Code Block class.'''
 
@@ -76,10 +79,6 @@ def test_codeblock_create():
 
     # Use the treesitter frontend (the frontend doesn't support partial
     # expressions yet, but it gets an appropriate error)
-    # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-    # treesitter.
-    if sys.version_info < (3, 10):
-        return
     Config.get()._frontend = "treesitter"
     cb = CodeBlock.create("program test\nend program\n")
     assert isinstance(cb, TreeSitterCodeBlock)
@@ -176,6 +175,9 @@ def test_abstract_methods():
     assert "Use appropriate CodeBlock subclass" in str(err.value)
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_codeblock_get_fortran_lines():
     '''
     Test the get_fortran_lines method for fparser and treesiteer codeblocks.
@@ -190,10 +192,6 @@ def test_codeblock_get_fortran_lines():
     assert "subroutine mytest" in block.get_fortran_lines()
     assert "end subroutine" in block.get_fortran_lines()
 
-    # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-    # treesitter.
-    if sys.version_info < (3, 10):
-        return
     tree = FortranTreeSitterReader().generate_parse_tree_from_source(code)
     block = TreeSitterCodeBlock(tree, CodeBlock.Structure.STATEMENT)
     assert isinstance(block.get_fortran_lines(), list)

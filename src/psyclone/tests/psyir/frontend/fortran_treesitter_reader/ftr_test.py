@@ -38,13 +38,13 @@
 
 import logging
 import pytest
-import sys
 
 from tree_sitter import Node as TSNode
 
 from psyclone.psyir.frontend.fortran_treesitter_reader import \
     FortranTreeSitterReader
 from psyclone.psyir.nodes import FileContainer, CodeBlock, Container
+from psyclone.tests.utilities import min_version_3_10
 
 
 def test_constructor():
@@ -70,15 +70,14 @@ def test_constructor():
     # TODO #3038 Typecheck arguments
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_generate_parse_tree(tmpdir_factory, caplog):
     '''
     Test that generate_parse_tree returns treesitter trees or appropriate
     error messages.
     '''
-    # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-    # treesitter.
-    if sys.version_info < (3, 10):
-        return
     processor = FortranTreeSitterReader()
 
     # Valid code returns a treesitter Node
@@ -120,15 +119,14 @@ def test_generate_parse_tree(tmpdir_factory, caplog):
     assert isinstance(ptree, TSNode)
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_generate_psyir():
     '''
     Test that generate_psyir transforms treesitter parse trees to
     PSyIR nodes.
     '''
-    # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-    # treesitter.
-    if sys.version_info < (3, 10):
-        return
     processor = FortranTreeSitterReader()
 
     valid_code = """
@@ -147,15 +145,14 @@ def test_generate_psyir():
     assert isinstance(psyir.children[0].children[0], CodeBlock)
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_codeblock_generation_and_messages():
     '''
     Test that NotImplementedErrors are caught and converted to CodeBlocks
     with the appropriate associated comment
     '''
-    # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-    # treesitter.
-    if sys.version_info < (3, 10):
-        return
     processor = FortranTreeSitterReader()
 
     unsupported_code = """
