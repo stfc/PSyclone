@@ -1493,7 +1493,6 @@ def test_fw_ifblock(fortran_reader, fortran_writer, tmpdir):
         "    end if\n") in result
     assert Compile(tmpdir).string_compiles(result)
 
-
     # Also test that is works with elseif coming from select case constructs
     # and that multiple else at the end are handled properly
     code = (
@@ -1533,6 +1532,7 @@ def test_fw_ifblock(fortran_reader, fortran_writer, tmpdir):
       end if
     end if""" in result
     assert Compile(tmpdir).string_compiles(result)
+
 
 def test_fw_loop(fortran_reader, fortran_writer, tmpdir):
     '''Check the FortranWriter class loop method
