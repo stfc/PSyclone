@@ -641,11 +641,38 @@ def test_unsupported_decl_with_deps(fortran_reader, fortran_writer):
     code = """
     module test_mod
     implicit none
-      character(len = ilenwmo), dimension(:), pointer, public :: cdwmo
       integer, parameter :: ilenwmo = 58
+      ! The 'pointer' attribute is not supported.
+      character(len = ilenwmo), dimension(:), pointer, public :: cdwmo
     end module test_mod"""
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
     assert """\
   integer, parameter, public :: ilenwmo = 58
   character(len = ilenwmo), """ in output
+
+
+def test_complex_decl_with_deps(fortran_reader, fortran_writer, tmp_path):
+    '''
+    Test that dependencies within a declaration of a complex variable are
+    handled OK.
+
+    '''
+    code = """
+    module test_mod
+      implicit none
+      ! This ordering of declarations is not valid Fortran but fparser2 doesn't
+      ! check and this lets us mimick the fact that symbols can be added to
+      ! a SymbolTable in any order.
+      complex(kind=dp), dimension(np) :: myvar = i
+      complex, parameter :: i = (0,1)
+      integer :: a_var
+      integer, parameter :: np = 5
+      integer, parameter :: dp = KIND(1.0d0)
+    end module test_mod"""
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert """\
+  integer, parameter, public :: dp = KIND(1.0d0)
+  complex(kind = dp), dimension(np), public :: myvar = i""" in output
+    assert Compile(tmp_path).string_compiles(output)
