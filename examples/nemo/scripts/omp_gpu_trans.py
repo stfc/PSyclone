@@ -197,7 +197,8 @@ def trans(psyir):
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
                 increase_array_ranks=not NEMOV4,
-                hoist_expressions=True
+                hoist_expressions=True,
+                hoist_argument_expressions=True,
         )
         # Perform module-inlining of called routines.
         if INLINING_ENABLED:
