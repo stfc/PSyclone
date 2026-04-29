@@ -51,8 +51,8 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, GenericInterfaceSymbol, RoutineSymbol, Symbol,
     SymbolError)
 from psyclone.psyir.nodes import (
-    Call, Container, FileContainer, Routine, ScopingNode,
-    IntrinsicCall, )
+    Call, Container, FileContainer, Reference, Routine, ScopingNode,
+    IntrinsicCall)
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -372,11 +372,7 @@ class KernelModuleInlineTrans(Transformation):
                 routines=[(sym, True) for sym in name_map.values()],
                 visibility=Symbol.Visibility.PRIVATE)
 
-        # Update the Kernel to point to the updated PSyIR and set
-        # the module-inline flag to avoid generating the kernel imports
-        # TODO #1823. If the kernel imports were generated at PSy-layer
-        # creation time, we could just remove it here instead of setting a
-        # flag.
+        # Update the Kernel to point to the updated PSyIR.
         if isinstance(node, CodedKern):
             node._name = new_sym.name
             # pylint: disable=protected-access

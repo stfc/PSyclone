@@ -47,7 +47,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.nodes import (
     CodeBlock, Literal, Loop, Node, Reference, Schedule, Statement,
-    ACCLoopDirective, OMPMasterDirective,
+    ACCLoopDirective, OMPMasterDirective, Fparser2CodeBlock,
     OMPDoDirective, OMPLoopDirective, Routine)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE,
@@ -163,8 +163,8 @@ def test_accparalleltrans_validate(fortran_reader):
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[1])
-    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a ACCParallel"
-            "Trans transformation" in str(err.value))
+    assert ("Nodes of type 'Fparser2CodeBlock' cannot be enclosed by a "
+            "ACCParallelTrans transformation" in str(err.value))
 
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[2])
@@ -355,8 +355,9 @@ def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
         not_declared1 = not_declared1 + not_declared2
     end subroutine mytest''')
     prog = parser(reader)
-    block = CodeBlock(prog.children[0].children[1].children[0].children,
-                      CodeBlock.Structure.EXPRESSION)
+    block = Fparser2CodeBlock(
+        prog.children[0].children[1].children[0].children,
+        CodeBlock.Structure.EXPRESSION)
     ref1.replace_with(block)
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(routine)

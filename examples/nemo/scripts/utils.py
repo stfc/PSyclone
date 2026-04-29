@@ -41,14 +41,15 @@ from typing import List, Union
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, Call,
-    Routine, Schedule, IntrinsicCall, StructureReference, IfBlock)
-from psyclone.psyir.symbols import DataSymbol
+    Routine, Schedule, IntrinsicCall, StructureReference, IfBlock,
+    Operation)
+from psyclone.psyir.symbols import DataSymbol, ArrayType
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
-    HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
-    OMPMinimiseSyncTrans, Reference2ArrayRangeTrans,
-    ScalarisationTrans, IncreaseRankLoopArraysTrans, MaximalRegionTrans)
-from psyclone.transformations import TransformationError
+    HoistTrans, InlineTrans, Maxval2LoopTrans, Sum2LoopTrans, Minval2LoopTrans,
+    Product2LoopTrans, ProfileTrans, OMPMinimiseSyncTrans,
+    Reference2ArrayRangeTrans, ScalarisationTrans, IncreaseRankLoopArraysTrans,
+    MaximalRegionTrans, TransformationError, DataNodeToTempTrans)
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
@@ -180,6 +181,7 @@ def normalise_loops(
         scalarise_loops: bool = False,
         increase_array_ranks: bool = False,
         hoist_expressions: bool = True,
+        hoist_argument_expressions: bool = True,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
     appropriate form for the Parallelisation transformations to analyse
@@ -200,7 +202,14 @@ def normalise_loops(
         arrays.
     :param hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
+    :param hoist_argument_expressions: whether to hoist array expressions
+        out of the containing Call.
     '''
+    # TODO #3412: This is currently limited to iom_put, we want to expand it
+    # throughout the code
+    if hoist_argument_expressions:
+        iom_put_argument_to_temporary(schedule.walk(Call))
+
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
         # to files with statement functions because it will attempt to put the
@@ -219,11 +228,17 @@ def normalise_loops(
 
     if loopify_array_intrinsics:
         for intr in schedule.walk(IntrinsicCall):
-            if intr.intrinsic.name == "MAXVAL":
-                try:
+            try:
+                if intr.intrinsic.name == "MAXVAL":
                     Maxval2LoopTrans().apply(intr, verbose=True)
-                except TransformationError as err:
-                    print(err.value)
+                elif intr.intrinsic.name == "SUM":
+                    Sum2LoopTrans().apply(intr, verbose=True)
+                elif intr.intrinsic.name == "MINVAL":
+                    Minval2LoopTrans().apply(intr, verbose=True)
+                elif intr.intrinsic.name == "PRODUCT":
+                    Product2LoopTrans().apply(intr, verbose=True)
+            except TransformationError as err:
+                print(err.value)
 
     if convert_range_loops:
         # Convert all array implicit loops to explicit loops
@@ -480,7 +495,7 @@ def add_profiling(children: Union[List[Node], Schedule]):
 
         :param routine_name: The name of the Routine being profiled.
         '''
-        # We purposely don't encompase Directive, or Return statements
+        # We purposely don't encompass Directive, or Return statements
         # (which would create unclosed hooks).
         _allowed_contiguous_statements = (Assignment, Call, CodeBlock)
         _transformation = ProfileTrans
@@ -496,7 +511,7 @@ def add_profiling(children: Union[List[Node], Schedule]):
             '''
             if len(region) == 1:
                 if (isinstance(region[0], CodeBlock) and
-                        len(region[0].get_ast_nodes) == 1):
+                        len(region[0].parse_tree_nodes) == 1):
                     # Don't create profiling regions for CodeBlocks consisting
                     # of a single statement.
                     return False
@@ -523,3 +538,25 @@ def add_profiling(children: Union[List[Node], Schedule]):
     routine_name = parent_routine.name if parent_routine else ""
     if routine_name not in PROFILING_IGNORE:
         MaximalProfilingOutsideDirectivesTrans().apply(children)
+
+
+def iom_put_argument_to_temporary(calls: list[Call]):
+    '''Extracts the second argument of all iom_put calls and puts them
+     in a temporary if they are an Operation with an array datatype.
+
+    :param calls: The list of calls in a subroutine whose arguments
+        may be moved into temporary storage to allow additional potential
+        parallelisation.
+
+     '''
+    for call in calls:
+        if call.symbol.name == "iom_put":
+            for arg in call.arguments:
+                dtype = arg.datatype
+                if (isinstance(dtype, ArrayType) and
+                    (isinstance(arg, Operation) or
+                        isinstance(arg, IntrinsicCall))):
+                    try:
+                        DataNodeToTempTrans().apply(arg, verbose=True)
+                    except TransformationError:
+                        pass

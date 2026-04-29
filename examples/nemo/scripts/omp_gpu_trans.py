@@ -74,12 +74,14 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = [
-    "icefrm.f90",  # Has an unsupported implicit symbol declaration
+    # Has an implicit symbol declaration (psyclone only works
+    # with 'implicit none' Fortran)
+    "icefrm.f90",
 ]
 
 NEMOV5_EXCLUSIONS = [
-    # get_cssrcsurf produces signal SIGFPE, Arithmetic exception
-    "sbcclo.f90",
+    # Excluded only in NEMOv5 for performance
+    "lbclnk.f90",
 ]
 
 NEMOV4_EXCLUSIONS = [
@@ -92,24 +94,13 @@ SKIP_FOR_PERFORMANCE = [
     "iom_def.f90",
     "timing.f90",
     "histcom.f90",
+    "dtatsd.f90",
 ]
 
 OFFLOADING_ISSUES = [
-    # The following issues only affect BENCH (because ice is enabled?)
-    # Runtime Error: Illegal address during kernel execution
-    "trcrad.f90",
     # Signal 11 issues
-    "trcbbl.f90",
-    "bdyice.f90",
-    "sedfunc.f90",
-    "stpmlf.f90",
-    "trddyn.f90",
-    "trczdf.f90",
-    "trcice_pisces.f90",
-    "dtatsd.f90",
     "trcatf.f90",
-    "stp2d.f90",
-    "trabbc.f90",
+    "seddsrjac.f90"
 ]
 
 ASYNC_ISSUES = [
@@ -206,7 +197,8 @@ def trans(psyir):
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
                 increase_array_ranks=not NEMOV4,
-                hoist_expressions=True
+                hoist_expressions=True,
+                hoist_argument_expressions=True,
         )
         # Perform module-inlining of called routines.
         if INLINING_ENABLED:

@@ -49,7 +49,7 @@ from psyclone.parse import ModuleManager
 from psyclone.psyGen import CodedKern, Kern
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Container, Routine, CodeBlock, Call, IntrinsicCall)
+    Container, Routine, CodeBlock, Call, IntrinsicCall, Fparser2CodeBlock)
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, GenericInterfaceSymbol, ImportInterface,
     RoutineSymbol, REAL_TYPE, Symbol, SymbolError, UnresolvedInterface)
@@ -165,7 +165,7 @@ def test_validate_no_inline_global_var(parser):
         alpha = alpha + 1
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
-    block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
+    block = Fparser2CodeBlock(stmt, CodeBlock.Structure.STATEMENT)
     kschedules = kernels[0].get_callees()
     ksched = kschedules[0]
     ksched.pop_all_children()
@@ -182,7 +182,7 @@ def test_validate_no_inline_global_var(parser):
         unknown = unknown + 1
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
-    block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
+    block = Fparser2CodeBlock(stmt, CodeBlock.Structure.STATEMENT)
     kschedules = kernels[0].get_callees()
     ksched = kschedules[0]
     ksched.pop_all_children()
@@ -316,13 +316,15 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     monkeypatch.setattr(kern_call, "_schedules", [routine])
 
     container = kern_call.ancestor(Container)
-    assert "compute_cv_code" not in container.symbol_table
+    rsym = container.symbol_table.lookup("compute_cv_code")
+    assert rsym.is_import
 
     inline_trans.apply(kern_call)
 
     # A RoutineSymbol should have been added to the Container symbol table.
     rsym = container.symbol_table.lookup("compute_cv_code_inlined_")
     assert isinstance(rsym, RoutineSymbol)
+    assert not rsym.is_import
     assert rsym.visibility == Symbol.Visibility.PRIVATE
 
 
@@ -479,9 +481,9 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     psy, _ = get_invoke("3.1_multi_functions_multi_invokes.f90", "lfric",
                         idx=0, dist_mem=False)
 
-    # By default the kernel is imported once per invoke
+    # By default the kernel is imported just once (in the outer container)
     gen = str(psy.gen)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 2
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
     assert gen.count("end subroutine testkern_qr_code") == 0
 
     # Module inline kernel in invoke 1

@@ -39,24 +39,28 @@
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.transformations import (
     FoldConditionalReturnExpressionsTrans)
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import (
     GOOpenCLTrans, GOMoveIterationBoundariesInsideKernelTrans)
+from psyclone.psyir.nodes import FileContainer
 
 
-def trans(psyir):
+def trans(psyir: FileContainer):
     '''
     Applies OpenCL to the given PSy-layer.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    mod_inline_trans = KernelModuleInlineTrans()
     ocl_trans = GOOpenCLTrans()
     fold_trans = FoldConditionalReturnExpressionsTrans()
     move_boundaries_trans = GOMoveIterationBoundariesInsideKernelTrans()
 
     # Provide kernel-specific OpenCL optimization options
     for idx, kern in enumerate(psyir.kernels()):
+        # Kernel has to be module-inlined first.
+        mod_inline_trans.apply(kern)
         # Move the PSy-layer loop boundaries inside the kernel as a kernel
         # mask, this allows to iterate through the whole domain
         move_boundaries_trans.apply(kern)
