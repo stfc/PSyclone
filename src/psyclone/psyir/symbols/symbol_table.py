@@ -1012,7 +1012,18 @@ class SymbolTable():
             generic rename-and-add path should be followed.
 
         '''
-        self_sym = self.lookup(old_sym.name)
+        try:
+            self_sym = self.lookup(old_sym.name)
+        except KeyError:
+            # old_sym.name is not in this table: add() must have raised
+            # because an identical declaration is already present under a
+            # different marker name.  The COMMON block is already declared
+            # so the incoming marker should simply be skipped.
+            self_sym = None
+
+        if self_sym is None:
+            # Name absent means same-declaration / different-name duplicate.
+            return True
 
         if old_sym.is_commonblock and self_sym.is_commonblock:
             # check_for_clashes has already approved this; nothing to do.
@@ -1054,6 +1065,15 @@ class SymbolTable():
             check_for_clashes()).
 
         '''
+        # Check for COMMON-block markers first, before any lookup, because
+        # add() may have rejected old_sym because an identical declaration
+        # already exists under a *different* name.  In that case old_sym.name
+        # is not in this table at all, and lookup() would raise a KeyError.
+        if old_sym.is_commonblock or self._normalize(old_sym.name).startswith(
+                "_psyclone_internal_commonblock"):
+            if self._handle_symbol_clash_common_block(old_sym):
+                return
+
         self_sym = self.lookup(old_sym.name)
         if old_sym.is_import:
             # The clashing symbol is imported from a Container and the table
@@ -1082,11 +1102,6 @@ class SymbolTable():
             # check_for_clashes has previously determined that they must
             # refer to the same thing and we don't have to do anything.
             return
-
-        if old_sym.is_commonblock or self._normalize(old_sym.name).startswith(
-                "_psyclone_internal_commonblock"):
-            if self._handle_symbol_clash_common_block(old_sym):
-                return
 
         # A Symbol with the same name already exists so we attempt to rename
         # first the one that we are adding and failing that, the existing
