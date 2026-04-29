@@ -1,3 +1,10 @@
+   13) PR #3373 towards #3412. Extract argument expressions from NEMO iom_put
+   calls in order to parallelise/offload their implicit loops.
+
+   12) PR #3408 for #2812. Updates the Min/Max to code transformations so
+   that they use the datatype of their arguments rather than assuming real.
+   Also skips treesitter tests for Python < 3.10.
+ 
    11) PR #3414 for #3279. Update the lists of exclusions to improve GPU
    performance for NEMO.
 

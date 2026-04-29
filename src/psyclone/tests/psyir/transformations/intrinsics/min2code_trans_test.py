@@ -70,8 +70,8 @@ def test_apply(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
   integer :: l
-  real :: res_min
-  real :: tmp_min
+  integer :: res_min
+  integer :: tmp_min
 
   res_min = i
   tmp_min = j
