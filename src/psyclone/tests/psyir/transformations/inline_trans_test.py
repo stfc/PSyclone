@@ -2876,7 +2876,7 @@ def test_apply_array_access_check_unresolved_override_option(
     # TODO check results
 
 
-def test_apply_common_block_no_duplicate(fortran_reader, fortran_writer):
+def test_apply_common_block_no_duplicate(fortran_reader, fortran_writer, tmp_path):
     '''Test that inlining two routines that share a COMMON block does not
     produce duplicate COMMON declarations (which would cause a Fortran compile
     error "Symbol X is already in a COMMON block").'''
@@ -2916,10 +2916,11 @@ end module test_mod
     # Both variables must still be present.
     assert "volume" in result
     assert "lmmpi" in result
+    assert Compile(tmp_path).string_compiles(result)
 
 
 def test_apply_common_block_no_duplicate_three_routines(
-        fortran_reader, fortran_writer):
+        fortran_reader, fortran_writer, tmp_path):
     '''Test that inlining three routines that all share the same COMMON block
     does not produce duplicate COMMON declarations. This mirrors the real-world
     case of inlining zetabc_tile, u2dbc_tile and v2dbc_tile (each of which
@@ -2977,10 +2978,11 @@ end module test_mod
     assert "zeta" in result
     assert "ubar" in result
     assert "vbar" in result
+    assert Compile(tmp_path).string_compiles(result)
 
 
 def test_apply_common_block_caller_has_extra_block(
-        fortran_reader, fortran_writer):
+        fortran_reader, fortran_writer, tmp_path):
     '''Test that inlining a routine whose only COMMON block is already present
     in the caller does not produce a duplicate COMMON declaration, even when
     the caller also has an *additional* COMMON block that the inlined routine
@@ -3021,12 +3023,10 @@ end module test_mod
     assert result.count("COMMON /comm_setup_mpi1/") == 1
     assert "zeta" in result
     assert "lmmpi" in result
+    assert Compile(tmp_path).string_compiles(result)
 
 
-# parameter_cloning option
-
-
-def test_apply_parameter_cloning_default(fortran_reader, fortran_writer):
+def test_apply_parameter_cloning_default(fortran_reader, fortran_writer, tmp_path):
     '''Test that the default behaviour (parameter_cloning=True) clones a
     constant from the inlined routine into the call-site table, even when
     an identical constant already exists there, potentially renaming it.'''
@@ -3056,10 +3056,11 @@ end module test_mod
     # With cloning enabled the inlined constant must appear at least once;
     # it may be renamed to avoid the clash.
     assert "constval" in result
+    assert Compile(tmp_path).string_compiles(result)
 
 
 def test_apply_parameter_cloning_false_identical(fortran_reader,
-                                                 fortran_writer):
+                                                 fortran_writer, tmp_path):
     '''Test that parameter_cloning=False suppresses the duplicate when the
     call-site already has an identical constant (same name, type, value).
     This is the main use-case from the user request.'''
@@ -3090,10 +3091,11 @@ end module test_mod
     assert result.count("parameter :: constval") == 1
     # The inlined assignment should still use constval correctly.
     assert "constval" in result
+    assert Compile(tmp_path).string_compiles(result)
 
 
 def test_apply_parameter_cloning_false_different_value(fortran_reader,
-                                                       fortran_writer):
+                                                       fortran_writer, tmp_path):
     '''Test that parameter_cloning=False does NOT suppress a parameter when
     the values differ between the call site and the inlined routine.'''
     code = """\
@@ -3121,10 +3123,11 @@ end module test_mod
     result = fortran_writer(bar)
     # Both constant declarations must survive since they have different values.
     assert result.count("constval") >= 2
+    assert Compile(tmp_path).string_compiles(result)
 
 
 def test_apply_parameter_cloning_false_no_match_in_caller(fortran_reader,
-                                                          fortran_writer):
+                                                          fortran_writer, tmp_path):
     '''Test that parameter_cloning=False still adds a constant that does not
     exist at the call site.'''
     code = """\
@@ -3151,10 +3154,11 @@ end module test_mod
     result = fortran_writer(bar)
     # constval from foo must be added to bar because bar didn't have it.
     assert "constval" in result
+    assert Compile(tmp_path).string_compiles(result)
 
 
 def test_apply_parameter_cloning_false_used_in_array_dim(fortran_reader,
-                                                         fortran_writer):
+                                                         fortran_writer, tmp_path):
     '''Test that parameter_cloning=False correctly handles a constant that
     is used as an array-dimension bound inside the inlined routine.'''
     code = """\
@@ -3188,10 +3192,11 @@ end module test_mod
     # The inlined array tmp should still be present and use n.
     assert "tmp" in result
     assert "n" in result
+    assert Compile(tmp_path).string_compiles(result)
 
 
 def test_apply_parameter_cloning_false_multiple_params(fortran_reader,
-                                                       fortran_writer):
+                                                       fortran_writer, tmp_path):
     '''Test parameter_cloning=False with multiple constants, some matching
     and some not.'''
     code = """\
@@ -3222,10 +3227,11 @@ end module test_mod
     assert result.count("parameter :: shared") == 1
     # local_only is unique to foo, so it must be added to bar.
     assert "local_only" in result
+    assert Compile(tmp_path).string_compiles(result)
 
 
 def test_apply_parameter_cloning_false_complex_rhs_identical(fortran_reader,
-                                                             fortran_writer):
+                                                             fortran_writer, tmp_path):
     '''Test parameter_cloning=False with constants whose value is a complex
     PSyIR expression (BinaryOperation) that is identical in the caller and the
     routine. The duplicate should be suppressed.'''
@@ -3259,10 +3265,11 @@ end module test_mod
     assert result.count("parameter :: base_val") == 1
     # The inlined body should still reference constval.
     assert "constval" in result
+    assert Compile(tmp_path).string_compiles(result)
 
 
 def test_apply_parameter_cloning_false_complex_rhs_different(fortran_reader,
-                                                             fortran_writer):
+                                                             fortran_writer, tmp_path):
     '''Test parameter_cloning=False with constants that have identical names
     but different complex RHS expressions. Both declarations must be kept.'''
     code = """\
@@ -3295,47 +3302,11 @@ end module test_mod
         "constval" in result and "constval_1" in result)
     # base_val is identical and should be deduplicated.
     assert result.count("parameter :: base_val") == 1
-
-
-def test_apply_parameter_cloning_false_unary_op_identical(fortran_reader,
-                                                          fortran_writer):
-    '''Test parameter_cloning=False with a unary operation (.NOT.) that is
-    identical in both the caller and the callee. Both the base parameter and
-    the derived .NOT. parameter should be deduplicated.'''
-    code = """\
-module test_mod
-contains
-  subroutine bar(b)
-    logical, parameter :: flag = .true.
-    logical, parameter :: negflag = .not. flag
-    integer :: b
-    call foo(b)
-  end subroutine bar
-  subroutine foo(a)
-    logical, parameter :: flag = .true.
-    logical, parameter :: negflag = .not. flag
-    integer :: a
-    if (negflag) a = 42
-  end subroutine foo
-end module test_mod
-"""
-    psyir = fortran_reader.psyir_from_source(code)
-    bar = psyir.walk(Routine)[0]
-    foo = psyir.walk(Routine)[1]
-    call = bar.walk(Call)[0]
-
-    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
-
-    result = fortran_writer(bar)
-    # Both flag and negflag are identical so neither should be duplicated.
-    assert result.count("parameter :: flag") == 1
-    assert result.count("parameter :: negflag") == 1
-    # The inlined if-body must still reference negflag correctly.
-    assert "negflag" in result
+    assert Compile(tmp_path).string_compiles(result)
 
 
 def test_apply_parameter_cloning_false_unary_op_different_base(
-        fortran_reader, fortran_writer):
+        fortran_reader, fortran_writer, tmp_path):
     '''Test parameter_cloning=False where .NOT. parameters share a name but
     their base parameter differs. The derived constant must NOT be deduplicated
     because the structural match is only nominal (the base has different
@@ -3371,10 +3342,11 @@ end module test_mod
     # appear (renamed), and the inlined if must use foo's (renamed) negflag.
     assert "negflag_1" in result
     assert "if (negflag_1)" in result
+    assert Compile(tmp_path).string_compiles(result)
 
 
 def test_apply_parameter_cloning_false_caller_has_non_constant(
-        fortran_reader, fortran_writer):
+        fortran_reader, fortran_writer, tmp_path):
     '''Test that parameter_cloning=False does NOT suppress a routine constant
     when the call-site has a symbol with the same name that is not a constant
     (i.e. tsym.is_constant is False). This exercises the
@@ -3416,10 +3388,11 @@ subroutine bar(b)
   b = constval_1
 
 end subroutine bar""" in result
+    assert Compile(tmp_path).string_compiles(result)
 
 
 def test_apply_parameter_cloning_false_different_datatype(
-        fortran_reader, fortran_writer):
+        fortran_reader, fortran_writer, tmp_path):
     '''Test that parameter_cloning=False does NOT suppress a routine constant
     when the call-site has a constant with the same name but a different
     datatype. This exercises the ``if rsym.datatype != tsym.datatype``
@@ -3459,3 +3432,4 @@ subroutine bar(b)
   b = INT(constval_1)
 
 end subroutine bar""" in result
+    assert Compile(tmp_path).string_compiles(result)

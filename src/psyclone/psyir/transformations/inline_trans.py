@@ -38,7 +38,7 @@ This module contains the InlineTrans transformation.
 
 '''
 
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from psyclone.core import SymbolicMaths
 from psyclone.errors import LazyString, InternalError
@@ -56,6 +56,7 @@ from psyclone.psyir.symbols import (
     INTEGER_TYPE,
     StructureType,
     SymbolError,
+    SymbolTable,
     UnresolvedType,
     UnsupportedType,
     UnsupportedFortranType,
@@ -231,10 +232,10 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         # (PARAMETER) symbols and redirect their references *before* the
         # routine body is extracted, so that the extracted statements already
         # carry references to the call-site symbols.
-        extra_skip: List[DataSymbol] = []
+        extra_skip: list[DataSymbol] = []
         if not parameter_cloning:
             extra_skip = self._redirect_duplicate_parameters(
-                table, routine, routine_table)
+                table, routine)
 
         # Construct lists of the nodes that will be inserted and all of the
         # References that they contain.
@@ -351,8 +352,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         self,
         table,
         routine: Routine,
-        routine_table,
-    ) -> List[DataSymbol]:
+    ) -> list[DataSymbol]:
         '''
         Identifies constant (PARAMETER) symbols in ``routine_table`` that
         are identical to constants already present in ``table`` (same name,
@@ -375,23 +375,19 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         would differ).
 
         :param table: the call-site symbol table.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param routine: the (copy of the) routine being inlined.
-        :type routine: :py:class:`psyclone.psyir.nodes.Routine`
-        :param routine_table: the symbol table of the routine copy.
-        :type routine_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :returns: the list of routine symbols that are duplicates of
+        :returns: the list of symbols that are duplicates of
             call-site constants and should be excluded from the subsequent
             table merge.
-        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
+        routine_table: SymbolTable = routine.symbol_table
         # The names of all local data symbols in the routine table (used to
         # identify references that point to routine-local constants).
         routine_local_names = {
             s.name.lower() for s in routine_table.datasymbols
-            if not s.is_argument
+            if not s.is_automatic
         }
 
         # First pass: collect all constants from the routine whose name,
@@ -438,9 +434,9 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             if to_remove:
                 changed = True
 
-        duplicates: List[DataSymbol] = list(candidates.values())
+        duplicates: list[DataSymbol] = list(candidates.values())
 
-        # Redirect all references from duplicate routine symbols to their
+        # Redirect all references from duplicate symbols in the routine to their
         # call-site counterparts.
         for rsym in duplicates:
             tsym = table.lookup(rsym.name)
@@ -452,8 +448,6 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 if sym is rsym:
                     continue
                 sym.replace_symbols_using(tsym)
-                if hasattr(sym, 'datatype') and sym.datatype is not None:
-                    sym.datatype.replace_symbols_using(tsym)
 
         return duplicates
 
