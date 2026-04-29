@@ -47,6 +47,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import (
         gen_intent,  FortranWriter, precedence
 )
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     ACCEnterDataDirective, Assignment, Node, CodeBlock, Container, Literal,
     UnaryOperation, BinaryOperation, Reference, Call, KernelSchedule,
@@ -1453,7 +1454,6 @@ def test_fw_ifblock(fortran_reader, fortran_writer, tmpdir):
     Fortran representation. Also check that PSyIR nested elseif are flattened.
 
     '''
-    # Generate fparser2 parse tree from Fortran code.
     code = (
         "module test\n"
         "contains\n"
@@ -1531,6 +1531,49 @@ def test_fw_ifblock(fortran_reader, fortran_writer, tmpdir):
         a = 4
       end if
     end if""" in result
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_ifblock_with_comments(fortran_writer, tmpdir):
+    '''Check the FortranWriter handles comments with the if keyword when nested
+    ifs are flattened to elseif.
+    '''
+    # Use a reader with comments enabled instead of the fixture
+    fortran_reader = FortranReader(ignore_comments=False)
+
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a, n)\n"
+        "  integer, intent(inout) :: n\n"
+        "  real, intent(out) :: a(n)\n"
+        "    if (n.gt.4) then\n"
+        "      a = -1\n"
+        "    elseif (n.gt.2) then\n"
+        "      a = -1\n"
+        "    else\n"
+        "      ! Comment with if keyword\n"
+        "      ! appearing in a multi-line comment\n"
+        "      if (n > 1) then\n"
+        "        a = 1\n"
+        "      endif\n"
+        "    end if\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = fortran_reader.psyir_from_source(code)
+
+    # Generate Fortran from the PSyIR schedule
+    result = fortran_writer(schedule)
+    assert (
+        "    if (n > 4) then\n"
+        "      a = -1\n"
+        "    elseif (n > 2) then\n"
+        "      a = -1\n"
+        "    ! Comment with if keyword\n"
+        "    ! appearing in a multi-line comment\n"
+        "    elseif (n > 1) then\n"
+        "      a = 1\n"
+        "    end if\n") in result
     assert Compile(tmpdir).string_compiles(result)
 
 

@@ -1467,12 +1467,26 @@ class FortranWriter(LanguageWriter):
             ):
                 # This can be an elseif block, so we continue without
                 # additional indentation
+
+                # For the keyword substitution to work we have to handle
+                # any preceding comment separately
+                comment = node.else_body.children[0].preceding_comment
+                node.else_body.children[0].preceding_comment = ""
+
+                # Get the else body text
                 else_block += self._visit(node.else_body)
                 # Replace the first if with an elseif
                 else_block = else_block.replace("if", "elseif", 1)
                 # And remove the final (endif) line, as it will be merged
                 # with the current if construct
                 else_block = "\n".join(else_block.split('\n')[:-2]) + "\n"
+                # Prepend back the comment at the elseif level
+                if comment:
+                    for line in reversed(comment.splitlines()):
+                        else_block = (
+                            f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+                            f"{else_block}"
+                        )
             else:
                 else_block = f"{self._nindent}else\n"
                 self._depth += 1
