@@ -2223,7 +2223,7 @@ def test_validate_array_reshape(fortran_reader):
     sub_s = psyir.walk(Routine)[1]
     with pytest.raises(TransformationError) as err:
         inline_trans._validate_inline_of_call_and_routine_argument_pairs(
-            call, call.arguments[0],
+            call.arguments[0],
             sub_s, sub_s.symbol_table.lookup("x"))
     assert ("actual argument 'a(:,:)' has rank 2 but the corresponding formal "
             "argument, 'x', has rank 1" in str(err.value))
@@ -2252,7 +2252,7 @@ end module
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans._validate_inline_of_call_and_routine_argument_pairs(
-            call, call.arguments[0], sub, sub.symbol_table.lookup("x"))
+            call.arguments[0], sub, sub.symbol_table.lookup("x"))
     assert (
         "Routine 'sub' cannot be inlined because the type of the actual "
         "argument 'mystery' corresponding to an array formal argument "
@@ -2876,7 +2876,8 @@ def test_apply_array_access_check_unresolved_override_option(
     # TODO check results
 
 
-def test_apply_common_block_no_duplicate(fortran_reader, fortran_writer, tmp_path):
+def test_apply_common_block_no_duplicate(
+        fortran_reader, fortran_writer, tmp_path):
     '''Test that inlining two routines that share a COMMON block does not
     produce duplicate COMMON declarations (which would cause a Fortran compile
     error "Symbol X is already in a COMMON block").'''
@@ -3026,7 +3027,101 @@ end module test_mod
     assert Compile(tmp_path).string_compiles(result)
 
 
-def test_apply_parameter_cloning_default(fortran_reader, fortran_writer, tmp_path):
+def test_apply_common_block_accept_different_names(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that inlining is accepted when the same COMMON block is declared
+    in both the caller and the callee with different variable names but the
+    same type.  The callee's variable ('height') is an alias of the caller's
+    variable ('depth') at the same block position, so all references to
+    'height' inside the inlined body must be replaced by 'depth'.
+    '''
+
+    src = """\
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    COMMON /ocean/ depth
+    real :: depth
+    integer :: b
+    call subfoo(b)
+  end subroutine caller
+  subroutine subfoo(a)
+    COMMON /ocean/ height
+    real :: height
+    integer :: a
+
+    a = height
+  end subroutine subfoo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+
+    result = fortran_writer(psyir)
+    # 'height' must have been replaced by 'depth' (the caller's alias).
+    assert """\
+  subroutine caller()
+    real :: depth
+    integer :: b
+    COMMON /ocean/ depth
+
+    b = depth
+
+  end subroutine caller
+""" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_common_block_reject_due_to_different_types(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that inlining is rejected when the same COMMON block is declared
+    in both the caller and the callee with different variable names and
+    different types.
+    '''
+
+    src = """\
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    COMMON /ocean/ depth
+    real(kind=4) :: depth
+    integer :: b
+    call subfoo(b)
+  end subroutine caller
+  subroutine subfoo(a)
+    COMMON /ocean/ height
+    real(kind=8) :: height
+    integer :: a
+
+    a = 3
+  end subroutine subfoo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    with pytest.raises(TransformationError) as err:
+        # Should raise a TransformationError because
+        # the types of the common-block variables differ.
+        trans.apply(calls[0])
+    assert ("Cannot inline 'subfoo' because COMMON block '/ocean/' maps"
+            " 'depth' (type 'Scalar<REAL, Literal[value:'4',"
+            " Scalar<INTEGER, UNDEFINED>]>') in the caller to 'height'"
+            " (type 'Scalar<REAL, Literal[value:'8', Scalar<INTEGER,"
+            " UNDEFINED>]>') in the routine being inlined - the types"
+            " are incompatible.") in str(err.value)
+
+
+def test_apply_parameter_cloning_default(
+        fortran_reader, fortran_writer, tmp_path):
     '''Test that the default behaviour (parameter_cloning=True) clones a
     constant from the inlined routine into the call-site table, even when
     an identical constant already exists there, potentially renaming it.'''
@@ -3094,8 +3189,8 @@ end module test_mod
     assert Compile(tmp_path).string_compiles(result)
 
 
-def test_apply_parameter_cloning_false_different_value(fortran_reader,
-                                                       fortran_writer, tmp_path):
+def test_apply_parameter_cloning_false_different_value(
+        fortran_reader, fortran_writer, tmp_path):
     '''Test that parameter_cloning=False does NOT suppress a parameter when
     the values differ between the call site and the inlined routine.'''
     code = """\
@@ -3126,8 +3221,8 @@ end module test_mod
     assert Compile(tmp_path).string_compiles(result)
 
 
-def test_apply_parameter_cloning_false_no_match_in_caller(fortran_reader,
-                                                          fortran_writer, tmp_path):
+def test_apply_parameter_cloning_false_no_match_in_caller(
+        fortran_reader, fortran_writer, tmp_path):
     '''Test that parameter_cloning=False still adds a constant that does not
     exist at the call site.'''
     code = """\
@@ -3157,8 +3252,8 @@ end module test_mod
     assert Compile(tmp_path).string_compiles(result)
 
 
-def test_apply_parameter_cloning_false_used_in_array_dim(fortran_reader,
-                                                         fortran_writer, tmp_path):
+def test_apply_parameter_cloning_false_used_in_array_dim(
+        fortran_reader, fortran_writer, tmp_path):
     '''Test that parameter_cloning=False correctly handles a constant that
     is used as an array-dimension bound inside the inlined routine.'''
     code = """\
@@ -3195,8 +3290,8 @@ end module test_mod
     assert Compile(tmp_path).string_compiles(result)
 
 
-def test_apply_parameter_cloning_false_multiple_params(fortran_reader,
-                                                       fortran_writer, tmp_path):
+def test_apply_parameter_cloning_false_multiple_params(
+        fortran_reader, fortran_writer, tmp_path):
     '''Test parameter_cloning=False with multiple constants, some matching
     and some not.'''
     code = """\
@@ -3230,8 +3325,8 @@ end module test_mod
     assert Compile(tmp_path).string_compiles(result)
 
 
-def test_apply_parameter_cloning_false_complex_rhs_identical(fortran_reader,
-                                                             fortran_writer, tmp_path):
+def test_apply_parameter_cloning_false_complex_rhs_identical(
+        fortran_reader, fortran_writer, tmp_path):
     '''Test parameter_cloning=False with constants whose value is a complex
     PSyIR expression (BinaryOperation) that is identical in the caller and the
     routine. The duplicate should be suppressed.'''
@@ -3268,8 +3363,8 @@ end module test_mod
     assert Compile(tmp_path).string_compiles(result)
 
 
-def test_apply_parameter_cloning_false_complex_rhs_different(fortran_reader,
-                                                             fortran_writer, tmp_path):
+def test_apply_parameter_cloning_false_complex_rhs_different(
+        fortran_reader, fortran_writer, tmp_path):
     '''Test parameter_cloning=False with constants that have identical names
     but different complex RHS expressions. Both declarations must be kept.'''
     code = """\
@@ -3343,6 +3438,51 @@ end module test_mod
     assert "negflag_1" in result
     assert "if (negflag_1)" in result
     assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_parameter_type_clash(
+        fortran_reader, fortran_writer):
+    '''Test with parameter types that don't match.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    integer, parameter :: wp = kind(1.0d0)
+    real(kind=wp), parameter :: pi = 3.14592
+    real :: tmp
+    integer :: b
+
+    tmp = wp
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    integer, parameter :: wp = kind(1.0)
+    integer :: a
+
+    a = 42 * wp
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    assert """\
+subroutine bar(b)
+  integer, parameter :: wp = KIND(1.0d0)
+  real(kind=wp), parameter :: pi = 3.14592
+  integer, parameter :: wp_1 = KIND(1.0)
+  integer :: b
+  real :: tmp
+
+  tmp = wp
+  b = 42 * wp_1
+
+end subroutine bar""" in result
 
 
 def test_apply_parameter_cloning_false_caller_has_non_constant(

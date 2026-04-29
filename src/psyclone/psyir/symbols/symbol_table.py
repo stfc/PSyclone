@@ -610,6 +610,8 @@ class SymbolTable():
         :raises InternalError: if the new_symbol argument is not a symbol.
         :raises KeyError: if the symbol name is already in use.
         :raises KeyError: if a tag is supplied and it is already in use.
+        :raises KeyError: if the symbol is a COMMON-block marker and an
+            identical declaration is already present under another marker name.
         :raises SymbolError: if the supplied symbol has an ImportInterface that
                              refers to a ContainerSymbol that is not in scope.
 
@@ -622,6 +624,22 @@ class SymbolTable():
         if key in self._symbols:
             raise KeyError(f"Symbol table already contains a symbol with "
                            f"name '{new_symbol.name}'.")
+
+        # Treat a COMMON-block marker whose declaration exactly matches one
+        # already present (possibly under a different name) as a duplicate.
+        if (self._normalize(new_symbol.name).startswith(
+                "_psyclone_internal_commonblock")
+                and isinstance(new_symbol.datatype, UnsupportedFortranType)):
+            if any(
+                sym.datatype.declaration == new_symbol.datatype.declaration
+                for sym in self.symbols
+                if (self._normalize(sym.name).startswith(
+                        "_psyclone_internal_commonblock")
+                    and isinstance(sym.datatype, UnsupportedFortranType))
+            ):
+                raise KeyError(
+                    f"Symbol table already contains a COMMON-block marker "
+                    f"with the same declaration as '{new_symbol.name}'.")
 
         if tag:
             if tag in self.get_tags():
@@ -961,26 +979,6 @@ class SymbolTable():
                 # We've dealt with Container symbols in _add_container_symbols.
                 continue
 
-            # Avoid duplicate COMMON-block marker symbols when multiple
-            # routines sharing the same COMMON blocks are inlined into a
-            # single caller.  Each routine is parsed independently so its
-            # _PSYCLONE_INTERNAL_COMMONBLOCK_N markers carry different
-            # numbers and may therefore never trigger the name-clash path;
-            # we must scan *all* existing markers in self for an identical
-            # declaration before attempting to add.
-            if (self._normalize(old_sym.name).startswith(
-                    "_psyclone_internal_commonblock")
-                    and isinstance(old_sym.datatype, UnsupportedFortranType)):
-                if any(
-                    sym.datatype.declaration == old_sym.datatype.declaration
-                    for sym in self.symbols
-                    if (self._normalize(sym.name).startswith(
-                            "_psyclone_internal_commonblock")
-                        and isinstance(sym.datatype,
-                                       UnsupportedFortranType))
-                ):
-                    continue
-
             try:
                 self.add(old_sym)
 
@@ -988,11 +986,62 @@ class SymbolTable():
                 # We have a clash with a symbol in this table.
                 self._handle_symbol_clash(old_sym, other_table)
 
+    def _handle_symbol_clash_common_block(self, old_sym: Symbol) -> bool:
+        '''
+        Handles a name clash for COMMON-block related symbols.  Called from
+        :py:meth:`_handle_symbol_clash` as soon as a COMMON-block symbol is
+        detected.  Returns ``True`` if the clash has been fully resolved
+        (nothing more to do) or ``False`` if the generic rename-and-add path
+        should be followed instead.
+
+        Two kinds of COMMON-block symbol are handled:
+
+        * Variables with a
+          :py:class:`~psyclone.psyir.symbols.CommonBlockInterface`
+          (``is_commonblock``): the clash has already been approved by
+          ``check_for_clashes``; nothing to do.
+        * Internal marker symbols (``_PSYCLONE_INTERNAL_COMMONBLOCK_N``):
+          if the incoming marker's COMMON-block name(s) overlap with any
+          marker already in ``self``, the block is already declared and a
+          second declaration would produce a compile error — skip it.
+          Otherwise fall through to the rename-and-add path.
+
+        :param old_sym: the Symbol being added to self.
+
+        :returns: ``True`` if the clash is resolved; ``False`` if the
+            generic rename-and-add path should be followed.
+
+        '''
+        self_sym = self.lookup(old_sym.name)
+
+        if old_sym.is_commonblock and self_sym.is_commonblock:
+            # check_for_clashes has already approved this; nothing to do.
+            return True
+
+        if (isinstance(old_sym.datatype, UnsupportedFortranType)
+                and isinstance(self_sym.datatype, UnsupportedFortranType)
+                and self._normalize(old_sym.name).startswith(
+                    "_psyclone_internal_commonblock")):
+            # Marker with different declaration but possibly overlapping
+            # block name(s).  Skip if the block is already declared.
+            _blk_re = re.compile(r"/\s*(\w*)\s*/", re.IGNORECASE)
+            old_blocks = set(_blk_re.findall(old_sym.datatype.declaration))
+            for sym in self.symbols:
+                if (self._normalize(sym.name).startswith(
+                        "_psyclone_internal_commonblock")
+                        and isinstance(sym.datatype, UnsupportedFortranType)):
+                    self_blocks = set(_blk_re.findall(
+                        sym.datatype.declaration))
+                    if old_blocks & self_blocks:
+                        return True
+
+        return False
+
     def _handle_symbol_clash(self, old_sym, other_table):
         '''
-        Adds the supplied Symbol to the current table in the presence
-        of a name clash. `check_for_clashes` MUST have been called
-        prior to this method in order to check for any unresolvable cases.
+        Adds the supplied Symbol to the current table in the presence of a
+        name clash. ``check_for_clashes`` MUST have been called prior to this
+        method in order to check for any unresolvable cases.
 
         :param old_sym: the Symbol to be added to self.
         :type old_sym: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -1029,44 +1078,15 @@ class SymbolTable():
 
         self_sym = self.lookup(old_sym.name)
         if old_sym.is_unresolved and self_sym.is_unresolved:
-            # Update after fixing issue #3392
             # The clashing symbols are both unresolved so we ASSUME that
             # check_for_clashes has previously determined that they must
             # refer to the same thing and we don't have to do anything.
             return
 
-        if old_sym.is_commonblock and self_sym.is_commonblock:
-            return
-
-        if (isinstance(old_sym.datatype, UnsupportedFortranType) and
-                isinstance(self_sym.datatype, UnsupportedFortranType)):
-            if old_sym.datatype.declaration == self_sym.datatype.declaration:
-                # Identical COMMON-block markers – already present in self.
+        if old_sym.is_commonblock or self._normalize(old_sym.name).startswith(
+                "_psyclone_internal_commonblock"):
+            if self._handle_symbol_clash_common_block(old_sym):
                 return
-            # Markers have different declarations.  Skip the incoming one only
-            # if its COMMON-block name(s) overlap with those already in self:
-            # that means the block is already declared and adding a second
-            # marker for it would produce a "Symbol X is already in a COMMON
-            # block" compile error.  If the block names are different this is
-            # a genuinely new COMMON block and we fall through to the
-            # rename-and-add path below.
-            if self._normalize(old_sym.name).startswith(
-                    "_psyclone_internal_commonblock"):
-                _blk_re = re.compile(r"/\s*(\w*)\s*/", re.IGNORECASE)
-                old_blocks = set(_blk_re.findall(
-                    old_sym.datatype.declaration))
-                # Check ALL existing commonblock markers in self, not just
-                # the same-named one, because the numbering may differ when
-                # the caller already has extra COMMON blocks of its own.
-                for sym in self.symbols:
-                    if (self._normalize(sym.name).startswith(
-                            "_psyclone_internal_commonblock")
-                            and isinstance(sym.datatype,
-                                           UnsupportedFortranType)):
-                        self_blocks = set(_blk_re.findall(
-                            sym.datatype.declaration))
-                        if old_blocks & self_blocks:
-                            return
 
         # A Symbol with the same name already exists so we attempt to rename
         # first the one that we are adding and failing that, the existing

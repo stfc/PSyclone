@@ -1344,33 +1344,6 @@ def test_handle_symbol_clash_commonblock_same_declaration():
     assert old_sym.name == marker_name
 
 
-def test_handle_symbol_clash_commonblock_overlap_with_other_marker():
-    '''Test that _handle_symbol_clash() scans all existing COMMON-block
-    markers and skips incoming marker when block names overlap.'''
-    table1 = symbols.SymbolTable()
-    table2 = symbols.SymbolTable()
-    marker_name = "_PSYCLONE_INTERNAL_COMMONBLOCK_1"
-    # Clash with same name but different block.
-    table1.add(symbols.DataSymbol(
-        marker_name, symbols.UnsupportedFortranType("common /other/ b")))
-    # Include a non-marker symbol so the marker filter condition also takes
-    # the false branch while scanning existing symbols.
-    table1.add(symbols.DataSymbol("plain", symbols.INTEGER_TYPE))
-    # Existing marker with different internal number but same block as incoming
-    # marker. This exercises the scan of all existing markers in table1.
-    table1.add(symbols.DataSymbol(
-        "_PSYCLONE_INTERNAL_COMMONBLOCK_2",
-        symbols.UnsupportedFortranType("common /overlap/ c")))
-    table2.add(symbols.DataSymbol(
-        marker_name, symbols.UnsupportedFortranType("common /overlap/ a")))
-
-    old_sym = table2.lookup(marker_name)
-    table1._handle_symbol_clash(old_sym, table2)
-
-    assert len(table1.symbols) == 3
-    assert old_sym.name == marker_name
-
-
 def test_handle_symbol_clash_commonblock_distinct_blocks_renamed():
     '''Test that _handle_symbol_clash() renames and adds an incoming
     COMMON-block marker when block names do not overlap.'''
