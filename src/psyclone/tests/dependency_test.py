@@ -39,7 +39,6 @@
 ''' Module containing py.test tests for dependency analysis.'''
 
 import os
-import pytest
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
@@ -206,35 +205,11 @@ def test_nemo_array_range(fortran_reader):
             "t: INQUIRY+READ")
 
 
-@pytest.mark.xfail(reason="Gocean loops boundaries are strings #440")
 def test_goloop():
-    ''' Check the handling of non-NEMO do loops.
-    TODO #440: Does not work atm, GOLoops also have start/stop as
-    strings, which are even not defined. Only after lowering is called will
-    they be defined.
-    '''
+    ''' Check the handling of PSyKAL (e.g. GOLoops) do loops. '''
 
     _, invoke = get_invoke("single_invoke_two_kernels_scalars.f90",
                            "gocean", name="invoke_0")
-    do_loop = invoke.schedule.children[0]
-    assert isinstance(do_loop, Loop)
-    var_accesses = do_loop.reference_accesses()
-    assert (str(var_accesses) == ": READ, a_scalar: READ, i: READ+WRITE, "
-                                 "j: READ+WRITE, " "ssh_fld: READ+WRITE, "
-                                 "tmask: READ")
-    # TODO #440: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
-    # The empty value is caused by not having start, stop, end of the loop
-    # defined at this stage.
-
-
-def test_goloop_partially():
-    ''' Check the handling of non-NEMO do loops.
-    TODO #440: This test is identical to test_goloop above, but it asserts in a
-    way that works before #440 is fixed, so that we make sure we test the rest
-    of the gocean variable access handling.
-    '''
-    _, invoke = get_invoke("single_invoke_two_kernels_scalars.f90",
-                           "gocean", name="invoke_0", dist_mem=False)
     do_loop = invoke.schedule.children[0]
     assert isinstance(do_loop, Loop)
 
