@@ -2102,6 +2102,28 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             out_clause,
         )
 
+    def generate_data_and_depend_clauses(self):
+        """
+        Adds the data and depend clauses needed for this task directive.
+        """
+        # Create the clauses
+        (
+            private_clause,
+            firstprivate_clause,
+            shared_clause,
+            in_clause,
+            out_clause,
+        ) = self._compute_clauses()
+
+        # Replace the children with the new children
+        old_children = self.pop_all_children()
+        self.addchild(old_children[0])
+        self.addchild(private_clause)
+        self.addchild(firstprivate_clause)
+        self.addchild(shared_clause)
+        self.addchild(in_clause)
+        self.addchild(out_clause)
+
     def lower_to_language_level(self):
         """
         Lowers the structure of the PSyIR tree inside the Directive
@@ -2137,22 +2159,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 )
 
         # Create the clauses
-        (
-            private_clause,
-            firstprivate_clause,
-            shared_clause,
-            in_clause,
-            out_clause,
-        ) = self._compute_clauses()
-
-        # Replace the children with the new children
-        old_children = self.pop_all_children()
-        self.addchild(old_children[0])
-        self.addchild(private_clause)
-        self.addchild(firstprivate_clause)
-        self.addchild(shared_clause)
-        self.addchild(in_clause)
-        self.addchild(out_clause)
+        self.generate_data_and_depend_clauses()
         super().lower_to_language_level()
 
         # Replace this node with an OMPTaskDirective

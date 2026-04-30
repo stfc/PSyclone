@@ -131,5 +131,11 @@ class OMPParallelTrans(ParallelRegionTrans):
         # Now call the general validation checks
         super().validate(node_list, options)
 
+    def apply(self, node_list, options=None):
+        super().apply(node_list, options=options)
+        node_list = self.get_node_list(node_list)
+        node_list[0].ancestor(OMPParallelDirective,
+                              include_self=True).generate_data_clauses()
+
 
 __all__ = ["OMPParallelTrans"]

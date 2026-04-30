@@ -141,7 +141,7 @@ def test_gocean_omp_parallel():
     # So only convert starting from the OMPParallelDirective
     fvisitor = FortranWriter()
     result = fvisitor(invoke.schedule[0])
-    correct = '''!$omp parallel default(shared)
+    correct = '''!$omp parallel default(shared) private(i,j)
 a = b
 !$omp end parallel'''
     assert correct in result
@@ -149,7 +149,7 @@ a = b
     cvisitor = CWriter()
     # Remove newlines for easier RE matching
     result = cvisitor(invoke.schedule[0])
-    correct = '''#pragma omp parallel default(shared)
+    correct = '''#pragma omp parallel default(shared), private(i,j)
 {
   a = b;
 }'''

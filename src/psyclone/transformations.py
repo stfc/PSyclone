@@ -300,6 +300,8 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
+        node.ancestor(OMPParallelDirective,
+                      include_self=True).generate_data_clauses()
 
 
 class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
@@ -362,6 +364,11 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
         local_options["force"] = True
         super().validate(node, options=local_options)
 
+    def apply(self, node, options=None):
+        super().apply(node, options=options)
+        node.ancestor(OMPParallelDirective,
+                      include_self=True).generate_data_clauses()
+
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
@@ -407,6 +414,9 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
                 " is not of type inner or outer.")
 
         OMPParallelLoopTrans.apply(self, node)
+
+        node.ancestor(OMPParallelDirective,
+                      include_self=True).generate_data_clauses()
 
 
 class LFRicOMPLoopTrans(OMPLoopTrans):

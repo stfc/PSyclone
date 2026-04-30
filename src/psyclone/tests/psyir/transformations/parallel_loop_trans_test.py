@@ -64,6 +64,14 @@ class ParaTrans(ParallelLoopTrans):
         '''
         return OMPParallelDoDirective(children=children, collapse=collapse)
 
+    def apply(self, node, options=None, **kwargs):
+        '''Applies the ParaTrans to the provided node.'''
+        super().apply(node, options=options, **kwargs)
+        # Since we create OMPParallelDoDirectives we have to call
+        # the relevant method.
+        node.ancestor(OMPParallelDoDirective,
+                      include_self=True).generate_data_clauses()
+
 
 CODE = '''
 subroutine my_sub()
@@ -149,6 +157,7 @@ def test_paralooptrans_validate_pure_calls(fortran_reader, fortran_writer):
     loop = psyir.walk(Loop)[0]
     trans.apply(loop)
     code = fortran_writer(psyir)
+    print(code)
     assert "!$omp parallel do default(shared) private(i,j,k)" in code
 
 
@@ -665,6 +674,7 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
                          logger="psyclone.psyir.transformations"):
         trans.apply(loop, {"privatise_arrays": True,
                            "force_private": ["ztmp2", "symbol_not_in_loop"]})
+    print(fortran_writer(psyir))
     assert ("!$omp parallel do default(shared) private(ji,jj,ztmp) "
             "firstprivate(ztmp2)" in fortran_writer(psyir))
     assert ("ParaTrans has been provided with the 'symbol_not_in_loop' symbol "

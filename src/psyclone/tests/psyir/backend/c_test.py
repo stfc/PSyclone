@@ -571,6 +571,7 @@ def test_cw_directive_with_clause(fortran_reader):
     master = OMPMasterDirective(children=[directive])
     parallel = OMPParallelDirective.create(children=[master])
     schedule.addchild(parallel, 0)
+    parallel.generate_data_clauses()
     assert '''#pragma omp parallel default(shared), private(i)
 {
   #pragma omp master
