@@ -417,7 +417,7 @@ linkcheck_ignore = [
     # This often fails, but the link exists
     r'^https://www.khronos.org',
     r'^https://gtr.ukri.org',
-  - r'^https://www.cs.uoregon.edu/research/tau',
+    r'^https://www.cs.uoregon.edu/research/tau',
 ]
 
 # -- Autodoc configuration ---------------------------------------------------
