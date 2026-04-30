@@ -416,7 +416,8 @@ linkcheck_ignore = [
     r'^https://code.metoffice.gov.uk/trac',
     # This often fails, but the link exists
     r'^https://www.khronos.org',
-    r'^https://gtr.ukri.org'
+    r'^https://gtr.ukri.org',
+  - r'^https://www.cs.uoregon.edu/research/tau',
 ]
 
 # -- Autodoc configuration ---------------------------------------------------
