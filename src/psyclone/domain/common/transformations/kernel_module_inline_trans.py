@@ -51,7 +51,8 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, GenericInterfaceSymbol, RoutineSymbol, Symbol,
     SymbolError)
 from psyclone.psyir.nodes import (
-    Call, Container, FileContainer, IntrinsicCall, Routine, ScopingNode)
+    Call, Container, FileContainer, IntrinsicCall, Reference, Routine,
+    ScopingNode)
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -136,6 +137,8 @@ class KernelModuleInlineTrans(Transformation):
                 f"'{kname}' due to: {error}"
             ) from error
 
+        needs_inline = False
+
         if len(kernels) > 1:
             # We can't 'module' inline a call to an interface if there's no
             # ancestor Container in which to put the interface.
@@ -149,10 +152,26 @@ class KernelModuleInlineTrans(Transformation):
                     f"Cannot module-inline the call to '{kname}' since it is "
                     f"a polymorphic routine (i.e. an interface) and the call-"
                     f"site is not within a module.")
+            iface_sym = node.scope.symbol_table.lookup(kname, otherwise=None)
+            if (not iface_sym or (iface_sym.is_import or
+                                  iface_sym.is_unresolved)):
+                needs_inline = True
 
         # Validate the PSyIR of each routine/kernel.
         for kernel_schedule in kernels:
             self._validate_schedule(node, kname, kern_or_call, kernel_schedule)
+            rt_sym = node.scope.symbol_table.lookup(kernel_schedule.name,
+                                                    otherwise=None)
+            if (not rt_sym or (rt_sym is not kernel_schedule.symbol) or
+                    (node.ancestor(Container) is not
+                     kernel_schedule.ancestor(Container)) or
+                    (rt_sym.is_import or rt_sym.is_unresolved)):
+                needs_inline = True
+
+        if not needs_inline:
+            raise TransformationError(
+                f"The target of '{node.debug_string().strip()}' is already "
+                f"module inlined.")
 
     def _validate_schedule(self, node, kname, kern_or_call, kernel_schedule):
         '''
@@ -373,9 +392,24 @@ class KernelModuleInlineTrans(Transformation):
 
         # Update the Kernel to point to the updated PSyIR.
         if isinstance(node, CodedKern):
-            node._name = new_sym.name
+            node.routine = Reference(new_sym)
             # pylint: disable=protected-access
             node._schedules = updated_routines
         else:
             # Update the Call to point to the inlined routine.
             node.routine.symbol = new_sym
+
+        for call in container.walk((Call, CodedKern)):
+            if call.routine.symbol.name == caller_name:
+                break
+        else:
+            # No call to the original routine remains so we can remove it.
+            table = container.symbol_table
+            rsym = table.lookup(caller_name, otherwise=None)
+            table.remove(rsym)
+            # Check whether we can also remove the ContainerSymbol from which
+            # it was being imported.
+            csym = rsym.interface.container_symbol
+            if (not csym.wildcard_import and
+                    not table.symbols_imported_from(csym)):
+                table.remove(csym)

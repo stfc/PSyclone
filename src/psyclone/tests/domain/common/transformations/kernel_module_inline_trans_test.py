@@ -229,7 +229,6 @@ def test_validate_routine_name_clashes():
     is already used by another Routine in the Container scope.'''
     inline_trans = KernelModuleInlineTrans()
     # Use LFRic example with a repeated CodedKern
-    # Repeat but for a pre-existing Routine.
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric", idx=0,
                              dist_mem=False)
     schedule = invoke.schedule
@@ -237,12 +236,12 @@ def test_validate_routine_name_clashes():
 
     # Check that if a subroutine with the same name already exists
     # everything still works.
-    schedule.parent.addchild(Routine.create("ru_code"))
+    schedule.parent.addchild(Routine.create("ru_code_inlined_"))
     inline_trans.apply(coded_kern)
-    assert coded_kern.name == "ru_code_inlined_"
+    assert coded_kern.name == "ru_code_inlined__1"
 
     output = str(psy.gen)
-    assert output.count("end subroutine ru_code_inlined_") == 1
+    assert output.count("end subroutine ru_code_inlined__1") == 1
 
 
 def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
@@ -455,18 +454,17 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
             lookup("compute_cv_code_inlined_").is_modulevar)
 
     # Generate the code
-    code = str(psy.gen)
+    code = str(psy.gen).lower()
     assert 'subroutine compute_cv_code_inlined_(i, j, cv, p, v)' in code
 
-    # And the import has been remove from both, so check that the associated
-    # use no longer exists
-    assert 'use compute_cv_mod' not in code.lower()
+    # The import for the non-transformed Kern still exists
+    assert code.count('use compute_cv_mod') == 1
 
     # Do the check again because repeating the call resets some aspects and we
     # need to see if the second call still works as expected
     gen = str(psy.gen)
     assert 'subroutine compute_cv_code_inlined_(i, j, cv, p, v)' in gen
-    assert 'use compute_cv_mod' not in gen
+    assert gen.count('use compute_cv_mod') == 1
     assert gen.count("subroutine compute_cv_code_inlined_(") == 1
 
     # And it is valid code
@@ -495,19 +493,22 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
             mod_inline_trans.apply(coded_kern)
             artrans.apply(coded_kern)
     gen = str(psy.gen)
-    assert gen.count("end subroutine testkern_qr_code") == 1
+    assert gen.count("end subroutine testkern_qr_code_inlined_") == 1
 
-    # After this, each call should be to a separate copy of the inlined
-    # routine.
+    # After this, the other calls should still be to the original kernel.
+    # Transform these next (and check that there are three of them).
     schedule1 = psy.invokes.invoke_list[1].schedule
+    count = 0
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "testkern_qr_code":
+            count += 1
             mod_inline_trans.apply(coded_kern)
+    assert count == 3
     gen = str(psy.gen)
     # After this, no imports are remaining and both use the same
     # top-level implementation
     assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 0
-    assert gen.count("end subroutine testkern_qr_code") == 4
+    assert gen.count("end subroutine testkern_qr_code_") == 4
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
