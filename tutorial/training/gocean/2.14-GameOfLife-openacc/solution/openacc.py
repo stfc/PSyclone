@@ -38,7 +38,8 @@ It adds OpenACC directives to execute the code on GPUs.
 '''
 
 from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
-                                      ACCLoopTrans, ACCRoutineTrans)
+                                      ACCRoutineTrans)
+from psyclone.psyir.transformations import ACCLoopTrans
 from psyclone.psyir.nodes import FileContainer, Loop
 from psyclone.gocean1p0 import GOKern
 from psyclone.psyGen import InvokeSchedule
