@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, Assignment, BinaryOperation, CodeBlock, IfBlock, Literal,
     Node, Reference, Return, Schedule, UnaryOperation, Loop,
     OMPTaskloopDirective, OMPMasterDirective, OMPParallelDirective,
-    IntrinsicCall)
+    IntrinsicCall, OMPBarrierDirective)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol,
     INTEGER_TYPE, REAL_TYPE)
@@ -571,8 +571,13 @@ def test_cw_directive_with_clause(fortran_reader):
     master = OMPMasterDirective(children=[directive])
     parallel = OMPParallelDirective.create(children=[master])
     schedule.addchild(parallel, 0)
-    assert '''#pragma omp parallel default(shared), private(i)
+    # Add a barrier to cover the StandaloneDirective visitor
+    parallel.children[0].addchild(OMPBarrierDirective(), 0)
+
+    assert '''\
+#pragma omp parallel default(shared), private(i)
 {
+  #pragma omp barrier
   #pragma omp master
   {
     #pragma omp taskloop num_tasks(32), nogroup
