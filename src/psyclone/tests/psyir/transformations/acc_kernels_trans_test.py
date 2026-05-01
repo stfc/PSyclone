@@ -48,8 +48,8 @@ from psyclone.psyir.nodes import (
 )
 from psyclone.psyir.symbols import UnsupportedFortranType
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, TransformationError, ProfileTrans)
-from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans
+    ACCKernelsTrans, TransformationError, ProfileTrans, ACCLoopTrans)
+from psyclone.transformations import ACCEnterDataTrans
 from psyclone.tests.utilities import get_invoke
 
 EXPLICIT_LOOP = ("program do_loop\n"

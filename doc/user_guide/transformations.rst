@@ -211,7 +211,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ACCLoopTrans
+.. autoclass:: psyclone.psyir.transformations.ACCLoopTrans
     :members: apply
     :no-index:
 
@@ -344,11 +344,6 @@ can be found in the API-specific sections).
       :members: apply
       :no-index:
 
-.. warning:: This transformation assumes that the MAX Intrinsic acts on
-             PSyIR Real scalar data and does not check that this is
-             not the case. Once issue #658 is on master then this
-             limitation can be fixed.
-
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Maxval2LoopTrans
@@ -360,11 +355,6 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.Min2CodeTrans
       :members: apply
       :no-index:
-
-.. warning:: This transformation assumes that the MIN Intrinsic acts on
-             PSyIR Real scalar data and does not check that this is
-             not the case. Once issue #658 is on master then this
-             limitation can be fixed.
 
 ####
 
@@ -423,7 +413,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPParallelLoopTrans
+.. autoclass:: psyclone.psyir.transformations.OMPParallelLoopTrans
     :members: apply
     :no-index:
 

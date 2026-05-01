@@ -1112,8 +1112,8 @@ class Fparser2Reader():
             except (FortranSyntaxError, NoMatchError) as err:
                 raise ValueError(
                     f"Failed to parse the provided source code:\n{source_code}"
-                    "\nError was: {err}\nIs the input valid Fortran (note that"
-                    f" CPP directives must be handled by a pre-processor)?"
+                    f"\nError was: {err}\nIs the input valid Fortran (note "
+                    f"that CPP directives must be handled by a pre-processor)?"
                 ) from err
         try:
             # If it reaches this point a partial_code was provided, attempt
@@ -5717,7 +5717,13 @@ class Fparser2Reader():
         try:
             x = _first_type_match(node.children,
                                   Fortran2003.Internal_Subprogram_Part)
-            name = str(x.parent.children[0].children[1])
+            # Find the Subroutine_Stmt or Function_Stmt to find the Name
+            # from.
+            subroutine_stmt = _first_type_match(
+                x.parent.children,
+                (Fortran2003.Subroutine_Stmt, Fortran2003.Function_Stmt)
+            )
+            name = str(subroutine_stmt.children[1])
             # If we will make a CodeBlock to represent this subroutine then
             # we still need to ensure the symbol is in the parent's symbol
             # table. For this case the best we can do is place the symbol
