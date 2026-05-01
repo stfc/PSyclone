@@ -210,16 +210,16 @@ def test_omp_do_code_gen(fortran_reader, fortran_writer):
     loop_trans.apply(schedule[0].loop_body[1]
                      .else_body[0].else_body[0].dir_body[0])
     code = fortran_writer(psyir).lower()
-    correct = '''        !$omp parallel default(shared) private(ji,jj)
-        !$omp do schedule(auto)
-        do jj = 1, jpj, 1
-          do ji = 1, jpi, 1
-            zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - ptb(ji,jj,jk,jn)) * \
+    correct = '''      !$omp parallel default(shared) private(ji,jj)
+      !$omp do schedule(auto)
+      do jj = 1, jpj, 1
+        do ji = 1, jpi, 1
+          zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - ptb(ji,jj,jk,jn)) * \
 wmask(ji,jj,jk)
-          enddo
         enddo
-        !$omp end do
-        !$omp end parallel'''
+      enddo
+      !$omp end do
+      !$omp end parallel'''
     assert correct in code
     directive = schedule[0].loop_body[1].else_body[0].else_body[0].dir_body[0]
     assert isinstance(directive, OMPDoDirective)
@@ -238,15 +238,15 @@ def test_omp_do_within_if(fortran_reader, fortran_writer):
     otrans.apply(loop)
     gen = fortran_writer(psyir).lower()
     expected = (
-        "      else\n"
-        "        !$omp parallel do default(shared) private(ji,jj) "
+        "    else\n"
+        "      !$omp parallel do default(shared) private(ji,jj) "
         "schedule(auto)\n"
-        "        do jj = 1, jpj, 1\n"
-        "          do ji = 1, jpi, 1\n"
-        "            zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - "
+        "      do jj = 1, jpj, 1\n"
+        "        do ji = 1, jpi, 1\n"
+        "          zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - "
         "ptb(ji,jj,jk,jn)) * wmask(ji,jj,jk)\n"
-        "          enddo\n"
         "        enddo\n"
-        "        !$omp end parallel do\n"
-        "      end if\n")
+        "      enddo\n"
+        "      !$omp end parallel do\n"
+        "    end if\n")
     assert expected in gen

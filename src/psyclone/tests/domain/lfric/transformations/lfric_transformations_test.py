@@ -62,16 +62,15 @@ from psyclone.psyir.symbols import (AutomaticInterface, ScalarType, ArrayType,
                                     REAL_TYPE, INTEGER_TYPE)
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, LoopFuseTrans, LoopTrans, OMPLoopTrans,
-    TransformationError, OMPParallelTrans)
+    TransformationError, ACCLoopTrans, OMPParallelTrans,
+    MoveTrans)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans,
     LFRicOMPParallelLoopTrans, LFRicRedundantComputationTrans,
     LFRicAsyncHaloExchangeTrans, LFRicKernelConstTrans,
-    ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
-from psyclone.psyir.transformations import MoveTrans
-
+    ACCParallelTrans, ACCEnterDataTrans)
 
 # The version of the API that the tests in this file
 # exercise.

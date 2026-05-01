@@ -41,8 +41,9 @@ from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
     NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import Routine
+from psyclone.psyir.transformations import ACCLoopTrans
 from psyclone.transformations import (
-    ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans)
+    ACCParallelTrans, ACCRoutineTrans)
 
 # Enable the insertion of profiling hooks during the transformation script
 PROFILING_ENABLED = True
