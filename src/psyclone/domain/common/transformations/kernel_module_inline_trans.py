@@ -299,17 +299,22 @@ class KernelModuleInlineTrans(Transformation):
     def apply(self,
               node: Union[CodedKern, Call],
               options: dict[str, Any] = None,
+              update_all: Optional[bool] = False,
               **kwargs):
         ''' Bring the implementation of this kernel/call into this Container.
 
         NOTE: when applying this transformation to a Kernel in a PSyKAl invoke,
-        *only* that Kernel call is updated (and marked as inlined).
+        by default *only* that Kernel call is updated (and marked as inlined).
         Similarly, when applied to a Call to a Routine in a particular scope,
-        *only* that Call is updated.
+        *only* that Call is updated. This behaviour may be changed using the
+        `update_all=True` option.
 
         :param node: the Kernel or Call to module-inline.
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+        :param update_all: by default, only the supplied Kernel or Call is
+           updated by this transformation. If this argument is set to True then
+           this behaviour is modified and all calls to this Kernel/Routine in
+           the associated program unit are updated.
 
         '''
         if options:
