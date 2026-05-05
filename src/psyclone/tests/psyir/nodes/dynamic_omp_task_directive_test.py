@@ -2819,12 +2819,10 @@ va(:,j_out_var - 32),sshn_v(:,j_out_var - 32)) depend(out: va(:,j_out_var))
             jiv = j + 1
             va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
 sshn_v(i,jiv))
-          else
-            if (boundary(i,j + 1) < 0) then
-              jiv = j - 1
-              va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
+          elseif (boundary(i,j + 1) < 0) then
+            jiv = j - 1
+            va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
 sshn_v(i,jiv))
-            end if
           end if
         end if
       enddo
