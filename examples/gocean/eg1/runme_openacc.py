@@ -71,6 +71,7 @@ been loop-fused and then parallelised:
 
 '''
 from __future__ import print_function
+from psyclone.psyir.transformations import ACCLoopTrans
 
 if __name__ == "__main__":
     from psyclone.parse.algorithm import parse
@@ -92,7 +93,7 @@ if __name__ == "__main__":
     FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuseTrans')
     PTRANS = TRANS_INFO.get_trans_name('ACCParallelTrans')
     DTRANS = TRANS_INFO.get_trans_name('ACCEnterDataTrans')
-    LTRANS = TRANS_INFO.get_trans_name('ACCLoopTrans')
+    LTRANS = ACCLoopTrans()
 
     # invoke0
     # fuse all outer loops

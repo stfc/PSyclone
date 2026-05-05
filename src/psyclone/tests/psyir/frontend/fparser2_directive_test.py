@@ -419,11 +419,9 @@ Hey there!""")
 
       ! a comment
       !$pos dumm2
-    else
-      if (nn_e3f_typ == 1) then
-        ! case 1 inline comment
-        i = 2
-      end if
+    elseif (nn_e3f_typ == 1) then
+      ! case 1 inline comment
+      i = 2
     end if
   enddo"""
     assert correct in output
