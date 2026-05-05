@@ -67,7 +67,7 @@ def test_definition_use_chain_compute_backward_uses(fortran_reader):
     assert a_3 is psyir.walk(Assignment)[1].rhs
     sig = a_3.get_signature_and_indices()[0]
     duc = DefinitionUseChain(
-        [a_3], control_flow_region=[routine]
+        a_3, control_flow_region=[routine]
     )
     basic_block_list = routine.children[:]
     # Need to set the start point and stop points similar to what
@@ -94,7 +94,7 @@ def test_definition_use_chain_compute_backward_uses(fortran_reader):
     a_3 = psyir.walk(Reference)[4]
     sig = a_3.get_signature_and_indices()[0]
     duc = DefinitionUseChain(
-        [a_3], control_flow_region=[routine]
+        a_3, control_flow_region=[routine]
     )
     basic_block_list = routine.children[:]
     # Need to set the start point and stop points similar to what
@@ -144,7 +144,7 @@ end subroutine bar
     ref = routine.walk(Assignment)[8].lhs
     sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(
-        [ref], [routine]
+        ref, [routine]
     )
     reaches = chains.find_backward_accesses()[sig]
     # We find 2 results
@@ -157,7 +157,7 @@ end subroutine bar
     # Create use chain for c in b = c + d
     ref = routine.walk(Assignment)[5].rhs.children[0]
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref], [routine])
+    chains = DefinitionUseChain(ref, [routine])
     reaches = chains.find_backward_accesses()[sig]
     # We should find 2 results
     # C = d * a
@@ -183,7 +183,7 @@ def test_definition_use_chain_find_backward_accesses_assignment(
     # Start chain from A = a * a
     ref = routine.walk(Assignment)[1].lhs
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     # We should find 3 results, both 3 references in
     # a = A * A
@@ -217,7 +217,7 @@ def test_definition_use_chain_find_backward_accesses_ifelse_example(
     # Start the chain from b = A + d.
     ref = routine.walk(Assignment)[4].rhs.children[0]
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     # TODO #2760 For now the if statement doesn't kill the accesses,
     # even though it will always be written to.
@@ -268,7 +268,7 @@ def test_definition_use_chain_find_backward_accesses_psy_data_node_example(
     # Start the chain from b = A + d.
     ref = routine.walk(Assignment)[4].rhs.children[0]
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     # Inside the ProfileRegion the DUC has to work as before, the 'a' has
     # 4 backwards accesses as shown in the previous test.
@@ -297,9 +297,7 @@ def test_definition_use_chain_find_backward_accesses_loop_example(
     # Start the chain from A = a + i.
     ref = routine.walk(Assignment)[1].lhs
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain(
-        [ref]
-    )
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     # We should have 4? reaches
     # First  b = A + 2
@@ -335,7 +333,7 @@ def test_definition_use_chain_find_backward_accesses_loop_example(
     # Start the chain from I = 1231.
     ref = routine.walk(Assignment)[2].lhs
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     # We should have 1 reaches
     # It should be the loop
@@ -363,7 +361,7 @@ def test_definition_use_chain_find_backward_accesses_while_loop_example(
     # Start the chain from A = a + 3.
     ref = routine.children[2].loop_body.children[0].lhs
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
 
     assert len(reaches) == 4
@@ -398,7 +396,7 @@ def test_definition_use_chain_backward_accesses_nested_loop_example(
     loops = routine.walk(WhileLoop)
     ref = loops[1].walk(Assignment)[0].rhs.children[1]
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     # TODO #2760 The backwards accesses should not continue past a = a + 3 as
     # to reach the b = b + a statement we must have passed through the
@@ -429,7 +427,7 @@ def test_definition_use_chain_find_backward_accesses_structure_example(
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[2].lhs
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     assert len(reaches) == 1
     assert reaches[0] is routine.walk(Assignment)[0].lhs
@@ -450,7 +448,7 @@ def test_definition_use_chain_find_backward_accesses_no_control_flow_example(
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[0].lhs
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     assert len(reaches) == 1
     assert reaches[0] is routine.walk(Assignment)[0].rhs.children[0]
@@ -472,7 +470,7 @@ def test_definition_use_chain_find_backward_accesses_codeblock(
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[1].lhs
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     assert len(reaches) == 1
     assert reaches[0] is routine.walk(CodeBlock)[0]
@@ -495,7 +493,7 @@ def test_definition_use_chain_find_backward_accesses_codeblock_and_call_nlocal(
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[0].rhs.children[0]
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     assert len(reaches) == 1
     # Result is the argument of the call
@@ -522,7 +520,7 @@ def test_definition_use_chain_find_backward_accesses_codeblock_and_call_cflow(
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[0].rhs.children[0]
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     assert len(reaches) == 2
     assert reaches[0] is routine.walk(Call)[1].children[1]
@@ -547,7 +545,7 @@ def test_definition_use_chain_find_backward_accesses_codeblock_and_call_local(
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[0].rhs.children[0]
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     assert len(reaches) == 1
     assert reaches[0] is routine.walk(CodeBlock)[0]
@@ -570,7 +568,7 @@ def test_definition_use_chain_find_backward_accesses_call_and_codeblock_nlocal(
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[0].lhs
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     assert len(reaches) == 1
     assert reaches[0] is routine.walk(Call)[0]
@@ -619,7 +617,7 @@ def test_definition_use_chains_exit_statement(
     # Start the chain from a = A +i.
     ref = routine.walk(Assignment)[1].rhs.children[0]
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     # We should have 2 reaches
     # First is A = a + i
@@ -656,7 +654,7 @@ def test_definition_use_chains_cycle_statement(
     # Start the chain from a = A +i.
     ref = routine.walk(Assignment)[1].rhs.children[0]
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     # We should have 2 reaches
     # A = b * 4
@@ -690,7 +688,7 @@ def test_definition_use_chains_return_statement(
     # Start the chain from a = A +i.
     ref = routine.walk(Assignment)[1].rhs.children[0]
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     # We should have 2 reaches
     # A = b * 4
@@ -722,7 +720,7 @@ end module
     routine = psyir.walk(Routine)[1]
     ref = routine.walk(Assignment)[0].rhs
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     assert len(reaches) == 0
 
@@ -749,7 +747,7 @@ def test_definition_use_chains_backward_accesses_nonassign_reference_in_loop(
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Call)[0].children[1]
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     # TODO #2760 The backwards accesses should not continue past a = a + i
     # when searching backwards in the loop, or to a = 1
@@ -782,7 +780,7 @@ def test_definition_use_chains_backward_accesses_empty_schedules(
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[1].lhs
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     assert len(reaches) == 3
     assert reaches[0] is routine.walk(Assignment)[1].rhs.children[1]
@@ -809,7 +807,7 @@ def test_definition_use_chains_backward_accesses_inquiry_func(
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[1].lhs
     sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([ref])
+    chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
     assert len(reaches) == 0
 

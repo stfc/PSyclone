@@ -103,8 +103,9 @@ class DefinitionUseChain:
             if not isinstance(ref, Reference):
                 raise TypeError(
                     f"The 'references' argument passed into a "
-                    f"DefinitionUseChain must be a list of References "
-                    f"but found '{type(ref).__name__}' in the list."
+                    f"DefinitionUseChain must be a Reference or "
+                    f"list of References but found "
+                    f"'{type(ref).__name__}'."
                 )
         # We need all the references to have the same ancestor Schedule and
         # belong to the same child of the Schedule.
@@ -254,6 +255,10 @@ class DefinitionUseChain:
         if self._start_point is None:
             # Find the highest abs position, as all of these are
             # contained in the same parent.
+            # We start after the last of the provided references, as
+            # for a statement such as b = a + a we don't want to return
+            # any of the References to a if the second a Reference is provided
+            # as an input to the DUC.
             self._start_point = max(list(self._references_abs_pos.values()))
         # If there is no set stop point, then any Reference after
         # the start point can potentially be a forward access.
@@ -344,6 +349,10 @@ class DefinitionUseChain:
                             stop_point=ancestor.lhs.abs_position + 1,
                         )
                         index = len(chains)
+                        # This chain is missed by the call to
+                        # _find_basic_blocks, so we nede to add a None
+                        # into the control_flow_nodes list at the correct
+                        # place to keep behaviour correct.
                         control_flow_nodes.insert(index, None)
                         chains.append(chain)
                         # N.B. For now this assumes that for an expression
@@ -1016,6 +1025,10 @@ class DefinitionUseChain:
         if self._stop_point is None:
             # Find the min abs position, as all of these are
             # contained in the same parent.
+            # We start before any of the provided references, as
+            # for a statement such as b = a + a we don't want to return
+            # any of the References to a if the first a Reference is provided
+            # as an input to the DUC.
             self._stop_point = min(list(self._references_abs_pos.values()))
         # If there is no set stop point, then any Reference after
         # the start point can potentially be a forward access.
