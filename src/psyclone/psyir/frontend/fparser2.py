@@ -6159,9 +6159,10 @@ class Fparser2Reader():
         # correctly into Directive nodes. PSyclone currently always
         # outputs directives starting with !$
         dont_match = ["!$ompx", "!dir$"]
-        str_rep = str(node).lstrip().lower()
+        str_rep = str(node).lstrip()
+        lcase = str_rep.lower()
         to_direc = all([
-            not str_rep.startswith(prefix) for prefix in dont_match
+            not lcase.startswith(prefix) for prefix in dont_match
         ])
         if to_direc:
             content = str_rep[2:].lstrip()
