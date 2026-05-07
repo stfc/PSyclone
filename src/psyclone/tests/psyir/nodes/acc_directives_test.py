@@ -58,9 +58,9 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.symbols import (
     Symbol, SymbolTable, DataSymbol, INTEGER_TYPE)
-from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.psyir.transformations import ACCKernelsTrans, ACCLoopTrans
 from psyclone.transformations import (
-    ACCDataTrans, ACCEnterDataTrans, ACCLoopTrans,
+    ACCDataTrans, ACCEnterDataTrans,
     ACCParallelTrans, ACCRoutineTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -83,8 +83,8 @@ def test_accregiondir_validate_global(fortran_reader):
     with pytest.raises(GenerationError) as err:
         accnode.validate_global_constraints()
     assert ("Cannot include CodeBlocks or calls to PSyData routines within "
-            "OpenACC regions but found ['CodeBlock'] within a region enclosed "
-            "by an 'MyACCRegion'" in str(err.value))
+            "OpenACC regions but found ['Fparser2CodeBlock'] within a region "
+            "enclosed by an 'MyACCRegion'" in str(err.value))
 
 
 def test_accregiondir_signatures():

@@ -239,28 +239,29 @@ def _type_of_named_arg_with_optional_kind_and_dim(
     return _type_of_arg_with_rank_minus_one(arg, dtype)
 
 
-def _type_with_specified_precision_and_optional_dim(
+def _type_of_named_arg_accounting_for_dim_arg(
         node: IntrinsicCall, argument_name: str,
-        intrinsic: ScalarType.Intrinsic = ScalarType.Intrinsic.BOOLEAN
-        ) -> DataType:
+) -> DataType:
     """Helper function for the common IntrinsicCall case where the
-    return type is a Scalar with the precision of a named argument,
-    unless an optional argument named 'dim' exists, in which case an array
-    with rank one less than the input node is given instead.
+    return type is the same as the given named argument. If intrinsiccall
+    has no 'dim' argument, it returns its elemental type, but if 'dim'
+    exists, it will be the given named argument's rank minus one.
 
-    :param node: The IntrinsicCall whose return type to compute.
-    :param argument_name: The name of the argument whose precision to be used.
-    :param intrinsic: The type of the intrinsic of the resulting datatype.
-                      Default is ScalarType.Intrinsic.BOOLEAN
+    :param node: the IntrinsicCall whose return type to compute.
+    :param argument_name: the name of the argument whose type to use.
 
     :returns: the computed datatype for the IntrinsicCall.
     """
-    dtype = ScalarType(
-        intrinsic, node.argument_by_name(argument_name).datatype.precision
-    )
-    # If dim is not present, or the rank of the
-    # array argument is 1 then this returns a scalar.
     arg = node.argument_by_name(argument_name)
+    arg_dt = arg.datatype
+    if (
+        not isinstance(arg_dt, ArrayType) or
+        not isinstance(arg_dt.elemental_type, ScalarType) or
+        not isinstance(arg_dt.elemental_type.intrinsic, ScalarType.Intrinsic)
+    ):
+        return UnresolvedType()
+    dtype = arg_dt.elemental_type
+    # If dim is not present, return the same datatype
     if "dim" not in node.argument_names:
         return dtype
 
@@ -438,6 +439,8 @@ def _iparity_return_type(node: IntrinsicCall) -> DataType:
 
     :returns: the computed datatype for the IntrinsicCall.
     """
+    # TODO #3415: Replace with _type_of_named_arg_accounting_for_dim_arg(
+    # node, "array").
     dtype = ScalarType(
         node.argument_by_name("array").datatype.intrinsic,
         node.argument_by_name("array").datatype.precision,
@@ -564,8 +567,13 @@ def _maxval_return_type(node: IntrinsicCall) -> DataType:
 
     :returns: the computed datatype for the IntrinsicCall.
     """
+    # TODO #3415: Replace with _type_of_named_arg_accounting_for_dim_arg(
+    # node, "array").
+    dtype = ScalarType(
+        node.argument_by_name("array").datatype.intrinsic,
+        node.argument_by_name("array").datatype.precision
+    )
     arg = node.argument_by_name("array")
-    dtype = arg.datatype.elemental_type
     if "dim" not in node.argument_names:
         return dtype
     # We have a dimension specified. We don't know the resultant shape
@@ -587,8 +595,8 @@ def _dot_product_return_type(node: IntrinsicCall) -> DataType:
     from psyclone.psyir.tools.type_info_computation import (
         compute_scalar_type
     )
-    veca_datatype = node.argument_by_name("vector_a").datatype
-    vecb_datatype = node.argument_by_name("vector_b").datatype
+    veca_datatype = node.argument_by_name("vector_a").datatype.elemental_type
+    vecb_datatype = node.argument_by_name("vector_b").datatype.elemental_type
     return compute_scalar_type(
         [ScalarType(
             veca_datatype.intrinsic, veca_datatype.precision
@@ -791,7 +799,8 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("string",),)),
             optional_args={},
-            # TODO 2612 This may be more complex if we support character len
+            # Returned string is of the same length as the input (trailing
+            # spaces are added as needed).
             return_type=lambda node: _type_of_named_argument(node, "string"),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
@@ -810,7 +819,8 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("string",),)),
             optional_args={},
-            # TODO 2612 This may be more complex if we support character len
+            # Returned string is of the same length as the input (leading
+            # spaces are added as needed).
             return_type=lambda node: _type_of_named_argument(node, "string"),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
@@ -875,7 +885,7 @@ class IntrinsicCall(Call):
             optional_args={"dim": DataNode},
             return_type=(
                 lambda node:
-                _type_with_specified_precision_and_optional_dim(
+                _type_of_named_arg_accounting_for_dim_arg(
                     node, "mask"
                 )
             ),
@@ -943,7 +953,7 @@ class IntrinsicCall(Call):
             optional_args={"dim": DataNode},
             return_type=(
                 lambda node:
-                _type_with_specified_precision_and_optional_dim(
+                _type_of_named_arg_accounting_for_dim_arg(
                     node, "mask"
                 )
             ),
@@ -3212,7 +3222,8 @@ class IntrinsicCall(Call):
             optional_args={"kind": DataNode},
             return_type=lambda node: (
                 _type_of_scalar_with_optional_kind(
-                    node, node.argument_by_name("l").datatype.intrinsic,
+                    node,
+                    node.argument_by_name("l").datatype.intrinsic,
                     "kind",
                 ) if "kind" in node.argument_names else
                 _type_of_named_argument(node, "l")
@@ -3883,9 +3894,8 @@ class IntrinsicCall(Call):
             optional_args={"mask": DataNode},
             return_type=(
                 lambda node:
-                _type_with_specified_precision_and_optional_dim(
+                _type_of_named_arg_accounting_for_dim_arg(
                     node, "array",
-                    node.argument_by_name("array").datatype.intrinsic
                 )
             ),
             reference_accesses=lambda node: (
@@ -4540,9 +4550,8 @@ class IntrinsicCall(Call):
             optional_args={"mask": DataNode},
             return_type=(
                 lambda node:
-                _type_with_specified_precision_and_optional_dim(
+                _type_of_named_arg_accounting_for_dim_arg(
                     node, "array",
-                    node.argument_by_name("array").datatype.intrinsic
                 )
             ),
             reference_accesses=lambda node: (
@@ -4896,7 +4905,20 @@ class IntrinsicCall(Call):
         if isinstance(self.intrinsic.return_type, Callable):
             try:
                 return self.intrinsic.return_type(self)
+            except TypeError as err:
+                # If we get an invalid argument to a ScalarType constructor it
+                # means we attempted to pass either an UnresolvedType into the
+                # datatype
+                if ("ScalarType expected 'intrinsic' argument to be of type "
+                    in str(err)
+                    or "ScalarType expected 'precision' argument to be of "
+                        "type " in str(err)):
+                    return UnresolvedType()
+                # This should never happen, propogate as an InternalError.
+                outerr = err
             except AttributeError as err:
+                # This is to handle when we call .intrinsic or
+                # .precision on an UnresolvedType
                 # If we get an attribute error, and its because of attempting
                 # to lookup the precision or intrinsic, then it is likely
                 # due to looking up the datatype elements of an Unresolved
@@ -4907,13 +4929,15 @@ class IntrinsicCall(Call):
                     and "NoneType" not in
                         str(err)):
                     return UnresolvedType()
-                # Can't use debug string due to this being a potentially
-                # incomplete IntrinsicCall
-                raise InternalError(
-                    f"Failed to compute the datatype of a "
-                    f"'{self.intrinsic.name}' intrinsic. This is likely due "
-                    f"to not fully initialising the intrinsic correctly."
-                ) from err
+                outerr = err
+            # Fall through to the internalerror.
+            # Can't use debug string due to this being a potentially
+            # incomplete IntrinsicCall
+            raise InternalError(
+                f"Failed to compute the datatype of a "
+                f"'{self.intrinsic.name}' intrinsic. This is likely due "
+                f"to not fully initialising the intrinsic correctly."
+            ) from outerr
         else:
             return self.intrinsic.return_type
 

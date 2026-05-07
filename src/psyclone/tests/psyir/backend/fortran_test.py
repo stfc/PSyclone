@@ -47,13 +47,14 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import (
         gen_intent,  FortranWriter, precedence
 )
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     ACCEnterDataDirective, Assignment, Node, CodeBlock, Container, Literal,
     UnaryOperation, BinaryOperation, Reference, Call, KernelSchedule,
     ArrayReference, ArrayOfStructuresReference, Range, StructureReference,
     Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
-    OMPDependClause, IntrinsicCall, OMPReductionClause)
+    OMPDependClause, IntrinsicCall, OMPReductionClause, UnknownDirective)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol, DataSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, StaticInterface, Symbol, SymbolTable,
@@ -141,7 +142,7 @@ def test_gen_indices_error(fortran_writer):
     "type_name,result",
     [(ScalarType.Intrinsic.REAL, "real"),
      (ScalarType.Intrinsic.INTEGER, "integer"),
-     (ScalarType.Intrinsic.CHARACTER, "character"),
+     (ScalarType.Intrinsic.CHARACTER, "character(len=1)"),
      (ScalarType.Intrinsic.BOOLEAN, "logical")])
 def test_gen_datatype_default_precision(fortran_writer, type_name, result):
     '''Check for all supported datatype names that the gen_datatype
@@ -167,7 +168,7 @@ def test_gen_datatype_default_precision(fortran_writer, type_name, result):
       "double precision"),
      (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.SINGLE, "integer"),
      (ScalarType.Intrinsic.CHARACTER, ScalarType.Precision.SINGLE,
-      "character"),
+      "character(len=1)"),
      (ScalarType.Intrinsic.BOOLEAN, ScalarType.Precision.SINGLE, "logical"),])
 def test_gen_datatype_relative_precision(fortran_writer, type_name, precision,
                                          result):
@@ -299,11 +300,8 @@ def test_gen_datatype_kind_precision(fortran_writer, type_name, result):
     array_type = ArrayType(scalar_type, [10, 10])
     for my_type in [scalar_type, array_type]:
         if type_name == ScalarType.Intrinsic.CHARACTER:
-            with pytest.raises(VisitorError) as excinfo:
-                fortran_writer.gen_datatype(my_type, symbol_name)
-            assert (f"kind not supported for datatype 'character' in symbol "
-                    f"'{symbol_name}' in Fortran backend."
-                    in str(excinfo.value))
+            assert (fortran_writer.gen_datatype(my_type, symbol_name) ==
+                    f"{result}(kind={precision_name}, len=1)")
         else:
             assert (fortran_writer.gen_datatype(my_type, symbol_name) ==
                     f"{result}(kind={precision_name})")
@@ -1452,11 +1450,10 @@ def test_fw_char_literal(fortran_writer):
 
 
 def test_fw_ifblock(fortran_reader, fortran_writer, tmpdir):
-    '''Check the FortranWriter class ifblock method
-    correctly prints out the Fortran representation.
+    '''Check the FortranWriter class ifblock method correctly prints out the
+    Fortran representation. Also check that PSyIR nested elseif are flattened.
 
     '''
-    # Generate fparser2 parse tree from Fortran code.
     code = (
         "module test\n"
         "contains\n"
@@ -1467,6 +1464,10 @@ def test_fw_ifblock(fortran_reader, fortran_writer, tmpdir):
         "      n=n+1\n"
         "    end if\n"
         "    if (n.gt.4) then\n"
+        "      a = -1\n"
+        "    elseif (n.gt.3) then\n"
+        "      a = -1\n"
+        "    elseif (n.gt.2) then\n"
         "      a = -1\n"
         "    else\n"
         "      a = 1\n"
@@ -1483,7 +1484,94 @@ def test_fw_ifblock(fortran_reader, fortran_writer, tmpdir):
         "    end if\n"
         "    if (n > 4) then\n"
         "      a = -1\n"
+        "    elseif (n > 3) then\n"
+        "      a = -1\n"
+        "    elseif (n > 2) then\n"
+        "      a = -1\n"
         "    else\n"
+        "      a = 1\n"
+        "    end if\n") in result
+    assert Compile(tmpdir).string_compiles(result)
+
+    # Also test that is works with elseif coming from select case constructs
+    # and that multiple else at the end are handled properly
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a, n)\n"
+        "  integer, intent(inout) :: n\n"
+        "  real, intent(out) :: a(n)\n"
+        "    select case (n)\n"
+        "      case(1)\n"
+        "        a = 1\n"
+        "      case(2)\n"
+        "        a = 2\n"
+        "      case default\n"
+        "        a = 3\n"
+        "        if (n > 5) then\n"
+        "          a = 5\n"
+        "        else\n"
+        "          a = 4\n"
+        "        end if\n"
+        "   end select\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(schedule)
+    assert """
+    if (n == 1) then
+      a = 1
+    elseif (n == 2) then
+      a = 2
+    else
+      a = 3
+      if (n > 5) then
+        a = 5
+      else
+        a = 4
+      end if
+    end if""" in result
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_fw_ifblock_with_comments(fortran_writer, tmpdir):
+    '''Check the FortranWriter handles comments with the if keyword when nested
+    ifs are flattened to elseif.
+    '''
+    # Use a reader with comments enabled instead of the fixture
+    fortran_reader = FortranReader(ignore_comments=False)
+
+    code = (
+        "module test\n"
+        "contains\n"
+        "subroutine tmp(a, n)\n"
+        "  integer, intent(inout) :: n\n"
+        "  real, intent(out) :: a(n)\n"
+        "    if (n.gt.4) then\n"
+        "      a = -1\n"
+        "    elseif (n.gt.2) then\n"
+        "      a = -1\n"
+        "    else\n"
+        "      ! Comment with if keyword\n"
+        "      ! appearing in a multi-line comment\n"
+        "      if (n > 1) then\n"
+        "        a = 1\n"
+        "      endif\n"
+        "    end if\n"
+        "end subroutine tmp\n"
+        "end module test")
+    schedule = fortran_reader.psyir_from_source(code)
+
+    # Generate Fortran from the PSyIR schedule
+    result = fortran_writer(schedule)
+    assert (
+        "    if (n > 4) then\n"
+        "      a = -1\n"
+        "    elseif (n > 2) then\n"
+        "      a = -1\n"
+        "    ! Comment with if keyword\n"
+        "    ! appearing in a multi-line comment\n"
+        "    elseif (n > 1) then\n"
         "      a = 1\n"
         "    end if\n") in result
     assert Compile(tmpdir).string_compiles(result)
@@ -2243,3 +2331,13 @@ def test_fw_intrinsiccall(fortran_reader, fortran_writer):
             "argument name 'scalar' found" in str(err.value))
     output = fortran_writer(intrinsic)
     assert "ALLOCATED(scalar=b)" in output
+
+
+def test_fw_unknowndirective(fortran_writer):
+    '''
+    Test that the UnknownDirective visitor generate the expected string.
+    '''
+    direc = UnknownDirective("omp atomic")
+    assert fortran_writer(direc) == "!$omp atomic\n"
+    direc = UnknownDirective(" IVDEP", "DIR")
+    assert fortran_writer(direc) == "!DIR$ IVDEP\n"

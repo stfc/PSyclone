@@ -52,7 +52,7 @@ import sys
 import traceback
 import importlib
 import shutil
-from typing import Union, Callable, List, Tuple, Iterable
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 import logging
 
 from fparser.api import get_reader
@@ -60,8 +60,7 @@ from fparser.two import Fortran2003
 
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import (
-    Config, ConfigurationError, VALID_KERNEL_NAMING_SCHEMES,
-    LFRIC_API_NAMES, GOCEAN_API_NAMES)
+    Config, ConfigurationError, LFRIC_API_NAMES, GOCEAN_API_NAMES)
 from psyclone.domain.common.algorithm.psyir import (
     AlgorithmInvokeCall, KernelFunctor)
 from psyclone.domain.common.transformations import AlgTrans
@@ -186,15 +185,18 @@ def load_script(
         f"contain a callable '{function_name}' function")
 
 
-def generate(filename, api="", kernel_paths=None, script_name=None,
-             line_length=False,
-             distributed_memory=None,
-             kern_out_path="",
-             kern_naming="multiple",
+def generate(filename: str,
+             api: str = "",
+             kernel_paths: Optional[list[str]] = None,
+             script_name: Optional[str] = None,
+             line_length: bool = False,
+             distributed_memory: bool = None,
+             kern_out_path: str = "",
              keep_comments: bool = False,
              keep_directives: bool = False,
              keep_conditional_openmp_statements: bool = False,
-             free_form: bool = True):
+             free_form: bool = True
+             ) -> Tuple[str, str]:
     # pylint: disable=too-many-arguments, too-many-statements
     # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
@@ -202,32 +204,24 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     compiling with the specified kernel(s) and support
     infrastructure.
 
-    :param str filename: the file containing the algorithm specification.
-    :param str api: the name of the API to use. Defaults to empty string.
+    :param filename: the file containing the algorithm specification.
+    :param api: the name of the API to use. Defaults to empty string.
     :param kernel_paths: the directories from which to recursively
         search for the files containing the kernel source (if
         different from the location of the algorithm specification).
         Defaults to None.
-    :type kernel_paths: Optional[List[str]]
-    :param str script_name: a script file that can apply optimisations
+    :param script_name: a script file that can apply optimisations
         to the PSy layer (can be a path to a file or a filename that
         relies on the PYTHONPATH to find the module). Defaults to None.
-    :param bool line_length: a logical flag specifying whether we care
+    :param line_length: a logical flag specifying whether we care
         about line lengths being longer than 132 characters. If so,
         the input (algorithm and kernel) code is checked to make sure
         that it conforms. The default is False.
-    :param bool distributed_memory: a logical flag specifying whether
+    :param distributed_memory: a logical flag specifying whether
         to generate distributed memory code. The default is set in the
         'config.py' file.
-    :param str kern_out_path: directory to which to write transformed
+    :param kern_out_path: directory to which to write transformed
         kernel code. Defaults to empty string.
-    :param bool kern_naming: the scheme to use when re-naming transformed
-        kernels. Defaults to "multiple".
-    :return: 2-tuple containing the fparser1 AST for the algorithm code and
-        the fparser1 AST or a string (for NEMO) of the psy code.
-    :rtype: Tuple[:py:class:`fparser.one.block_statements.BeginSource`,
-        :py:class:`fparser.one.block_statements.Module`] |
-        Tuple[:py:class:`fparser.one.block_statements.BeginSource`, str]
     :param keep_comments: whether to keep comments from the original source.
     :param keep_directives: whether to keep directives from the original
         source.
@@ -235,8 +229,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         conditional compilation statements.
     :param free_form: whether the original source is free form Fortran.
 
+    :return: text of the Algorithm code and the PSy code.
+
     :raises GenerationError: if an invalid API is specified.
-    :raises GenerationError: if an invalid kernel-renaming scheme is specified.
     :raises GenerationError: if there is an error raising the PSyIR to
         domain-specific PSyIR.
     :raises GenerationError: if a kernel functor is not named in a use
@@ -269,11 +264,6 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
     # Store Kernel-output options in our Configuration object
     Config.get().kernel_output_dir = kern_out_path
-    try:
-        Config.get().kernel_naming = kern_naming
-    except ValueError as verr:
-        raise GenerationError(
-            f"Invalid kernel-renaming scheme supplied: {str(verr)}") from verr
 
     if not os.path.isfile(filename):
         raise IOError(f"File '{filename}' not found")
@@ -505,6 +495,10 @@ def main(arguments):
     parser.add_argument(
         '-p', '--profile', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="add profiling hooks for 'kernels', 'invokes' or 'routines'")
+    parser.add_argument(
+        '--frontend', default='fparser2', choices=['fparser2', 'treesitter'],
+        help=("choose the frontend parser ('treesitter' is HIGHLY "
+              "experimental!)"))
 
     # Code-transformation mode flags
     parser.add_argument('-o', metavar='OUTPUT_FILE',
@@ -530,11 +524,6 @@ def main(arguments):
     parser.add_argument(
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='(psykal mode) do not generate distributed memory code')
-    parser.add_argument(
-        '--kernel-renaming', default="multiple",
-        choices=VALID_KERNEL_NAMING_SCHEMES,
-        help='(psykal mode) naming scheme to use when re-naming transformed'
-             ' kernels')
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
     parser.add_argument(
         "--log-level", default="OFF",
@@ -668,6 +657,7 @@ def main(arguments):
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
     Config.get().load(args.config, args.config_opts)
+    Config.get().frontend = args.frontend
 
     # Check whether a PSyKAl API has been specified.
     if args.psykal_dsl is None:
@@ -777,7 +767,6 @@ def main(arguments):
                 line_length=(args.limit == 'all'),
                 distributed_memory=args.dist_mem,
                 kern_out_path=kern_out_path,
-                kern_naming=args.kernel_renaming,
                 keep_comments=args.keep_comments,
                 keep_directives=args.keep_directives,
                 keep_conditional_openmp_statements=args.

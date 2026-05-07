@@ -109,8 +109,6 @@ dag:
 openacc:
 	${PSYCLONE} -api gocean -s insert_openacc.py shallow_alg.f90 -oalg /dev/null -opsy /dev/null
 
-# The "--kernel-renaming single" parameter avoids generating duplicate
-# versions of OpenCL kernels called multiple times.
 opencl:
-	${PSYCLONE} -nodm -s ./opencl_transformation.py --kernel-renaming single \
+	${PSYCLONE} -nodm -s ./opencl_transformation.py \
 		-api gocean  -I${INF_INC} shallow_alg.f90

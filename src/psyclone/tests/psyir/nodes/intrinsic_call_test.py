@@ -43,6 +43,7 @@ TODO #2341 - tests need to be added for all of the supported intrinsics.
 """
 
 import pytest
+from enum import Enum
 
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
@@ -51,17 +52,19 @@ from psyclone.psyir.nodes import (
     Assignment,
     BinaryOperation,
     Call,
+    DataNode,
     Literal,
     Schedule,
     Reference,
 )
 from psyclone.psyir.nodes.intrinsic_call import (
+    ArgDesc,
     IntrinsicCall,
     IAttr,
     _type_of_arg_with_rank_minus_one,
     _type_of_named_argument,
     _type_of_named_arg_with_optional_kind_and_dim,
-    _type_with_specified_precision_and_optional_dim,
+    _type_of_named_arg_accounting_for_dim_arg,
     _type_of_scalar_with_optional_kind,
     _type_of_intrinsic_with_argname_kind_and_optional_dim,
     _type_of_intrinsic_with_precision_of_named_arg,
@@ -173,6 +176,80 @@ def test_intrinsiccall_datatype(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(IntrinsicCall)[0]
     assert isinstance(call.datatype, UnresolvedType)
+
+
+def test_intrinsiccall_datatype_typeerr_paths(
+    fortran_reader, monkeypatch
+):
+    '''Test the TypeError raising paths inside the datatype function
+    of IntrinsicCall.'''
+
+    def expected_typeerr(*args, **kwargs):
+        '''Raise one of the expected type errors that datatype can handle.'''
+        raise TypeError(
+            "ScalarType expected 'intrinsic' argument to be of type "
+        )
+
+    def unexpected_typeerr(*args, **kwargs):
+        '''Raise some other type error that datatype raises an error from.'''
+        raise TypeError(
+            "This is a bad type error."
+        )
+
+    class Intrinsic(IAttr, Enum):
+        '''Test class to override the base Intrinsic enum'''
+        MAX = IAttr(
+            name="MAX",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            # No upper limit on argument type so we don't store an
+            # argument list of names.
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=None,
+                types=DataNode,
+                arg_names=((None,),)),
+            optional_args={},
+            return_type=expected_typeerr,
+            reference_accesses=None,
+        )
+        MIN = IAttr(
+            name="MIN",
+            is_pure=True,
+            is_elemental=True,
+            is_inquiry=False,
+            # No upper limit on argument type so we don't store an
+            # argument list of names.
+            required_args=ArgDesc(
+                min_count=2,
+                max_count=None,
+                types=DataNode,
+                arg_names=((None,),)),
+            optional_args={},
+            return_type=unexpected_typeerr,
+            reference_accesses=None,
+        )
+
+    # Replace the Intrinsic Enum as its not modifiable.
+    monkeypatch.setattr(IntrinsicCall, "Intrinsic", Intrinsic)
+
+    code = """subroutine test
+    integer, dimension(100) :: i
+    integer :: j
+
+    j = MAX(i(1), i(2))
+    j = MIN(i(3), i(4))
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsics = psyir.walk(IntrinsicCall)
+
+    assert isinstance(intrinsics[0].datatype, UnresolvedType)
+    with pytest.raises(InternalError) as err:
+        _ = intrinsics[1].datatype
+    assert ("Failed to compute the datatype of a 'MIN' intrinsic. "
+            "This is likely due to not fully initialising the intrinsic "
+            "correctly." in str(err.value))
 
 
 def test_intrinsiccall_reference_accesses_no_arg_names():
@@ -1064,33 +1141,40 @@ def test_type_of_named_arg_with_optional_kind_and_dim(
     assert dtype.precision.value == "8"
 
 
-def test_type_with_specified_precision_and_optional_dim(fortran_reader):
-    """Test the _type_with_specified_precision_and_optional_dim
+def test_type_of_named_arg_accounting_for_dim_arg(fortran_reader):
+    """Test the _type_of_named_arg_accounting_for_dim_arg
     helper function."""
     code = """subroutine test
+    use other
     integer, dimension(100, 100) :: x
     integer :: y
     y = PRODUCT(x)
     y = PRODUCT(x, dim=2)
+    y = PRODUCT(z, dim=2)
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     intrinsics = psyir.walk(IntrinsicCall)
 
-    dtype = _type_with_specified_precision_and_optional_dim(
-        intrinsics[0], "array", ScalarType.Intrinsic.INTEGER,
+    dtype = _type_of_named_arg_accounting_for_dim_arg(
+        intrinsics[0], "array"
     )
     assert isinstance(dtype, ScalarType)
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert dtype.precision == ScalarType.Precision.UNDEFINED
 
-    dtype = _type_with_specified_precision_and_optional_dim(
-        intrinsics[1], "array", ScalarType.Intrinsic.INTEGER,
+    dtype = _type_of_named_arg_accounting_for_dim_arg(
+        intrinsics[1], "array"
     )
     assert isinstance(dtype, ArrayType)
     assert len(dtype.shape) == 1
     assert dtype.shape[0] == ArrayType.Extent.DEFERRED
     assert dtype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert dtype.precision == ScalarType.Precision.UNDEFINED
+
+    dtype = _type_of_named_arg_accounting_for_dim_arg(
+        intrinsics[2], "array"
+    )
+    assert isinstance(dtype, UnresolvedType)
 
 
 def test_type_of_intrinsic_with_precision_of_named_arg(fortran_reader):
@@ -1315,6 +1399,7 @@ def test_iparity_return_type(fortran_reader):
     k = IPARITY(array)
     end subroutine x
     """
+    # TODO #3415: Test is superfluous with this issue fixed.
     psyir = fortran_reader.psyir_from_source(code)
     # TODO #3268 Can't iparity directily with fortran reader, so need to
     # create the Intrinsics manually using the psyir from the generated code.
@@ -1474,6 +1559,7 @@ def test_matmul_return_type(fortran_reader):
 
 def test_maxval_return_type(fortran_reader):
     '''Test for the _maxval_return_type function.'''
+    # TODO #3415: Test is superfluous with this issue fixed.
     code = """subroutine test
     integer, parameter :: wp = 8
     integer*8, dimension(100,100) :: x

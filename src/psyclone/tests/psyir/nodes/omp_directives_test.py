@@ -4871,6 +4871,9 @@ def test_reduction_arith_ops(op, fortran_reader, fortran_writer):
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop, enable_reductions=True)
     output = fortran_writer(psyir)
+    # The + and - operators are equivalent, from OpenMP 5.2 the - is deprecated
+    if op == "-":
+        op = "+"
     assert f"reduction({op}: acc)" in output
 
 

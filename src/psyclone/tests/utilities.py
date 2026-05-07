@@ -663,3 +663,9 @@ def make_external_module(monkeypatch,
     # that it will be found when the named module is requested.
     mman = ModuleManager.get()
     monkeypatch.setitem(mman._modules, mod_name, minfo)
+
+
+# ============================================================================
+min_version_3_10 = pytest.mark.skipif(
+    sys.version_info < (3, 10), reason="tests require python 3.10 or higher"
+)

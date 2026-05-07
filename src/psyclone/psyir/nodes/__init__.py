@@ -50,7 +50,8 @@ from psyclone.psyir.nodes.atomic_mixin import (
     AtomicDirectiveType,
     AtomicDirectiveMixin,
 )
-from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.codeblock import (
+    CodeBlock, Fparser2CodeBlock, TreeSitterCodeBlock)
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.node import colored, Node
 from psyclone.psyir.nodes.scoping_node import ScopingNode
@@ -146,6 +147,9 @@ __all__ = [
         'UnaryOperation',
         'ScopingNode',
         'WhileLoop',
+        # CodeBlock nodes
+        'Fparser2CodeBlock',
+        'TreeSitterCodeBlock',
         # PSyclone-specific nodes
         'KernelSchedule',
         # PSyData Nodes
