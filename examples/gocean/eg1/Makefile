@@ -107,8 +107,7 @@ dag:
 	${PSYCLONE} -api gocean -s generate_dag.py shallow_alg.f90 -oalg /dev/null -opsy /dev/null
 
 openacc:
-	${PSYCLONE} -api gocean -s insert_openacc.py shallow_alg.f90 -oalg /dev/null -opsy /dev/null
+	${PSYCLONE} -nodm -api gocean -s fuse_and_insert_openacc.py shallow_alg.f90
 
 opencl:
-	${PSYCLONE} -nodm -s ./opencl_transformation.py \
-		-api gocean  -I${INF_INC} shallow_alg.f90
+	${PSYCLONE} -nodm -s ./opencl_transformation.py -api gocean -I${INF_INC} shallow_alg.f90

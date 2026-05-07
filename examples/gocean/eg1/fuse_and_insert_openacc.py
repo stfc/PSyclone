@@ -38,6 +38,7 @@
 from psyclone.psyir.nodes import FileContainer
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyGen import TransInfo
+from psyclone.psyir.transformations import ACCLoopTrans, LoopFuseTrans
 
 
 def trans(psyir: FileContainer):
@@ -52,10 +53,10 @@ def trans(psyir: FileContainer):
 
     trans_info = TransInfo()
     print(trans_info.list)
-    fuse_trans = trans_info.get_trans_name('LoopFuseTrans')
-    ptrans = TRANS_INFO.get_trans_name('ACCParallelTrans')
-    dtrans = TRANS_INFO.get_trans_name('ACCEnterDataTrans')
-    ltrans = TRANS_INFO.get_trans_name('ACCLoopTrans')
+    fuse_trans = LoopFuseTrans()
+    ptrans = trans_info.get_trans_name('ACCParallelTrans')
+    dtrans = trans_info.get_trans_name('ACCEnterDataTrans')
+    ltrans = ACCLoopTrans()
 
     for invoke in invokes:
         if invoke.name == "invoke_0":
@@ -71,10 +72,10 @@ def trans(psyir: FileContainer):
             fuse_trans.apply(invoke.children[0].loop_body[0],
                              invoke.children[0].loop_body[1])
             # Apply an OpenACC loop directive to the loop
-            ltrans.apply(SCHEDULE.children[0], {"collapse": 2})
+            ltrans.apply(invoke.children[0], {"collapse": 2})
 
             # Create an OpenACC parallel region around the loop
-            ptrans.apply(SCHEDULE.children[0])
+            ptrans.apply(invoke.children[0])
 
             # Add an OpenACC enter-data directive
-            dtrans.apply(SCHEDULE)
+            dtrans.apply(invoke)
