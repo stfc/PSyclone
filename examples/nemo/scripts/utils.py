@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, Call,
     Routine, Schedule, IntrinsicCall, StructureReference, IfBlock,
     Operation)
-from psyclone.psyir.symbols import DataSymbol, ArrayType
+from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, Sum2LoopTrans, Minval2LoopTrans,
@@ -550,13 +550,17 @@ def iom_put_argument_to_temporary(calls: list[Call]):
 
      '''
     for call in calls:
-        #if call.symbol.name == "iom_put":
+        # if call.symbol.name == "iom_put":
         for arg in call.arguments:
             dtype = arg.datatype
             if (isinstance(dtype, ArrayType) and
                 (isinstance(arg, Operation) or
                     isinstance(arg, IntrinsicCall))):
                 try:
+                    if (isinstance(dtype.elemental_type, ScalarType)
+                        and dtype.elemental_type.intrinsic ==
+                            ScalarType.Intrinsic.CHARACTER):
+                        continue
                     DataNodeToTempTrans().apply(arg, verbose=True)
                 except TransformationError:
                     pass
