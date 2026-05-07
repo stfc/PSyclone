@@ -550,13 +550,13 @@ def iom_put_argument_to_temporary(calls: list[Call]):
 
      '''
     for call in calls:
-        if call.symbol.name == "iom_put":
-            for arg in call.arguments:
-                dtype = arg.datatype
-                if (isinstance(dtype, ArrayType) and
-                    (isinstance(arg, Operation) or
-                        isinstance(arg, IntrinsicCall))):
-                    try:
-                        DataNodeToTempTrans().apply(arg, verbose=True)
-                    except TransformationError:
-                        pass
+        #if call.symbol.name == "iom_put":
+        for arg in call.arguments:
+            dtype = arg.datatype
+            if (isinstance(dtype, ArrayType) and
+                (isinstance(arg, Operation) or
+                    isinstance(arg, IntrinsicCall))):
+                try:
+                    DataNodeToTempTrans().apply(arg, verbose=True)
+                except TransformationError:
+                    pass
