@@ -1,3 +1,5 @@
+   17) PR #3427. Preserve directive format casing.
+
    16) PR #3422 for #440. Updates tests to use the Fortran backend to generate
    GOLoops in test suite.
    
