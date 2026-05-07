@@ -279,15 +279,15 @@ def test_unknowndirective(fortran_writer):
 
     assert len(pdirs) == 3
     assert pdirs[0].directive_string == "psy lowercase"
-    assert pdirs[1].directive_string == "psy uppercase"
-    assert pdirs[2].directive_string == "psy mixedcase"
+    assert pdirs[1].directive_string == "PSY Uppercase"
+    assert pdirs[2].directive_string == "PsY mixedCASE"
 
     # Check the output is also correct
     output = fortran_writer(psyir)
 
     assert "!$psy lowercase" in output
-    assert "!$psy uppercase" in output
-    assert "!$psy mixedcase" in output
+    assert "!$PSY Uppercase" in output
+    assert "!$PsY mixedCASE" in output
 
 
 def test_comments_on_directive_before_loop(fortran_writer):
