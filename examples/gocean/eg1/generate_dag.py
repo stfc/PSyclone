@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2026, Science and Technology Facilities Council
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,54 +31,29 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, N. Nobre, and S. Siso, STFC Daresbury Lab
 
-'''A simple test script showing basic usage of the PSyclone API.
-In order to use it you must first install PSyclone like so:
+''' PSyclone script to generate DAG of the invoke_0 '''
 
- >>> pip install --user psyclone
+import os
+from psyclone.psyir.nodes import FileContainer
+from psyclone.psyGen import InvokeSchedule
 
-(or see the Getting Going section in the User Guide). Once PSyclone
-is installed this script may be run by doing:
 
- >>> python runme.py
+def trans(psyir: FileContainer):
+    '''
+    :param psyir: the PSyIR of the PSy-layer.
 
-This should generate a lot of output, ending with a view of the
-Schedules:
-
- >>> ...
- >>> Schedule[invoke='invoke_0']
- >>>    Loop[type='outer',field_space='cu',it_space='internal_pts']
- >>>        Loop[type='inner',field_space='cu',it_space='internal_pts']
- >>>            CodedKern compute_cu_code(cu_fld,p_fld,u_fld)
- >>>    Loop[type='outer',field_space='cv',it_space='internal_pts']
- >>>        Loop[type='inner',field_space='cv',it_space='internal_pts']
- >>>            CodedKern compute_cv_code(cv_fld,p_fld,v_fld)
- >>>...
-
-'''
-
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.psyir.backend.fortran import FortranWriter
-
-API = "gocean"
-_, INVOKEINFO = parse("shallow_alg.f90", api=API)
-PSY = PSyFactory(API).create(INVOKEINFO)
-
-# Print the 'vanilla' generated Fortran
-writer = FortranWriter()
-print(writer(PSY.container))
-
-# Print a list of all of the invokes found
-print(PSY.invokes.names)
-
-# Print the Schedule of each of these Invokes
-SCHEDULE = PSY.invokes.get('invoke_0').schedule
-print(SCHEDULE.view())
-
-SCHEDULE = PSY.invokes.get('invoke_1').schedule
-print(SCHEDULE.view())
-
-SCHEDULE = PSY.invokes.get('invoke_2').schedule
-print(SCHEDULE.view())
+    '''
+    for invoke in psyir.walk(InvokeSchedule):
+        if invoke.name == "invoke_0":
+            # Generate a DAG for it. If graphviz is not available this call
+            # just returns without doing anything.
+            dag_name = "invoke_0_dag"
+            invoke.dag(file_name=dag_name, file_format="png")
+            dag_name += ".png"
+            if os.path.isfile(os.path.join(os.getcwd(), dag_name)):
+                print(f"Wrote DAG to file: {dag_name}")
+            else:
+                print("Failed to generate DAG image. Do you have the graphviz "
+                      "library and Python\nbindings installed?")
