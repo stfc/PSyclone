@@ -165,7 +165,7 @@ def test_omptaskloop_apply(monkeypatch):
         _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                "single_invoke.f90"), api="gocean")
         schedule = psy.invokes.invoke_list[0].schedule
-        taskloop.apply(schedule[0], {"nogroup": True})
+        taskloop.apply(schedule[0], nogroup=True)
     assert "Fake error" in str(excinfo.value)
     assert taskloop._nogroup is False
 

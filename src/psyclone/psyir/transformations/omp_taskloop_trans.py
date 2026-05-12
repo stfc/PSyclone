@@ -18,7 +18,7 @@
 This module provides the implementation of OMPTaskloopTrans
 
 '''
-
+from typing import Union
 from psyclone.psyir.transformations.parallel_loop_trans import (
     ParallelLoopTrans)
 
@@ -27,8 +27,10 @@ from psyclone.psyir.transformations.transformation_error import (
 
 from psyclone.psyir.nodes import (
     OMPTaskloopDirective)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class OMPTaskloopTrans(ParallelLoopTrans):
     '''
     Adds an OpenMP taskloop directive to a loop. Only one of grainsize or
@@ -230,7 +232,8 @@ class OMPTaskloopTrans(ParallelLoopTrans):
                                           nogroup=self.omp_nogroup)
         return _directive
 
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node, options=None, nogroup: Union[bool, None] = None,
+              **kwargs):
         '''Apply the OMPTaskloopTrans transformation to the specified node in
         a Schedule. This node must be a Loop since this transformation
         corresponds to wrapping the generated code with directives like so:
@@ -246,32 +249,36 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         At code-generation time (when lowering is called), this node must be
         within (i.e. a child of) an OpenMP SERIAL region.
 
-        If the keyword "nogroup" is specified in the options, it will cause a
-        nogroup clause be generated if it is set to True. This will override
+        If the nogroup option is True, it will cause a
+        nogroup clause be generated. This will override
         the value supplied to the constructor, but will only apply to the
         apply call to which the value is supplied.
 
-        :param node: the supplied node to which we will apply the \
+        :param node: the supplied node to which we will apply the
                      OMPTaskloopTrans transformation
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations\
+        :param options: a dictionary with options for transformations
                         and validation.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["nogroup"]:
+        :param nogroup:
                 indicating whether a nogroup clause should be applied to
-                this taskloop.
+                this taskloop. Defaults to None, which means to use the
+                option defined by the transformations omp_nogroup member.
 
         '''
-        if not options:
-            options = {}
         current_nogroup = self.omp_nogroup
         # If nogroup is specified it overrides that supplied to the
         # constructor of the Transformation, but will be reset at the
         # end of this function
-        self.omp_nogroup = options.get("nogroup", current_nogroup)
+        # TODO #2668: Remove options
+        if not options:
+            if nogroup is not None:
+                self.omp_nogroup = nogroup
+        else:
+            self.omp_nogroup = options.get("nogroup", current_nogroup)
 
         try:
-            super().apply(node, options, **kwargs)
+            super().apply(node, options, nogroup=self.omp_nogroup, **kwargs)
         finally:
             # Reset the nogroup value to the original value
             self.omp_nogroup = current_nogroup
