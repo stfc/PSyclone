@@ -47,6 +47,9 @@ from psyclone.psyir.nodes import (
     ArrayReference, Call, Reference, Member, StructureReference,
     ArrayOfStructuresMember, ArrayOfStructuresReference, ArrayMember,
     StructureMember, Assignment, Range)
+from psyclone.psyir.nodes.intrinsic_call import (
+    IntrinsicCall, REDUCTION_INTRINSICS
+)
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -232,15 +235,18 @@ class Reference2ArrayRangeTrans(Transformation):
 
         '''
         self.validate(node, **kwargs)
-
         # The following cases do not need expansions
         if node.parent and isinstance(node.parent, Call):
             if node is node.parent.routine:
                 return
-            if not node.parent.is_elemental:
+            if not ((isinstance(node.parent, IntrinsicCall) and
+                     node.parent.intrinsic in REDUCTION_INTRINSICS)
+                    or node.parent.is_elemental):
                 return
         if node and node.parent and isinstance(node.parent, Range):
             return
+#        if node.symbol.is_unresolved:
+#            return
 
         # Recurse down the node converting each plain Reference and Member
         # to ArrayReferences or ArrayMembers when they are associated to an
