@@ -86,9 +86,9 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
         DynamicOMPTaskDirective,
     )
 
-    def apply(self, nodes: Union[Node, Schedule, list[Node]], force_private: Iterable[str] = (), **kwargs):
+    def apply(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
         '''Applies the transformation to the nodes provided.
 
         :param nodes: can be a single node, a schedule or a list of nodes.
         '''
-        super().apply(nodes, force_private=force_private, **kwargs)
+        super().apply(nodes, **kwargs)

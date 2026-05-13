@@ -149,7 +149,6 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     def _compute_transformable_sections(
             self, node_list: list[Node],
             trans: Transformation,
-            force_private: Iterable[str] = (),
     ) -> list[list[Node]]:
         '''
         Computes the sections of the input node_list to apply the
@@ -170,7 +169,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                 # Check that validation still succeeds if we add this child
                 # to the current block.
                 try:
-                    trans.validate(current_block + [child], force_private=force_private)
+                    trans.validate(current_block + [child])
                     current_block.append(child)
                 except TransformationError:
                     # If validation now fails, then don't add this to the
@@ -212,7 +211,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         return all_blocks
 
-    def validate(self, nodes: Union[Node, Schedule, list[Node]], force_private: Iterable[str] = (), **kwargs):
+    def validate(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
         '''Validates whether this transformation can be applied to the
         nodes provided.
 
@@ -248,11 +247,10 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         node_list = self.get_node_list(nodes)
 
         # Call validate.
-        self.validate(nodes, force_private=force_private, **kwargs)
+        self.validate(nodes, **kwargs)
 
         par_trans = self._transformation()
-
-        all_blocks = self._compute_transformable_sections(node_list, par_trans, force_private=force_private)
+        all_blocks = self._compute_transformable_sections(node_list, par_trans)
 
         # Apply the transformation to all of the blocks found.
         for block in all_blocks:
