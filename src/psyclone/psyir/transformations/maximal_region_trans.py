@@ -239,7 +239,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                     f"{prev_position}.")
             prev_position = child.position
 
-    def apply(self, nodes: Union[Node, Schedule, list[Node]], force_private: Iterable[str] = (), **kwargs):
+    def apply(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
         '''Applies the transformation to the nodes provided.
 
         :param nodes: can be a single node, a schedule or a list of nodes.
@@ -254,4 +254,4 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         # Apply the transformation to all of the blocks found.
         for block in all_blocks:
-            par_trans.apply(block, force_private=force_private, **kwargs)
+            par_trans.apply(block, **kwargs)
