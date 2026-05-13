@@ -36,7 +36,6 @@
 '''This module contains the MaximalOMPParallelRegionTrans.'''
 
 from typing import Union
-from collections.abc import Iterable
 
 from psyclone.psyir.nodes import (
         OMPTaskwaitDirective,
