@@ -36,6 +36,7 @@
 '''This module contains the MaximalOMPParallelRegionTrans.'''
 
 from typing import Union
+from collections.abc import Iterable
 
 from psyclone.psyir.nodes import (
         OMPTaskwaitDirective,
@@ -85,9 +86,9 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
         DynamicOMPTaskDirective,
     )
 
-    def apply(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
+    def apply(self, nodes: Union[Node, Schedule, list[Node]], force_private: Iterable[str] = (), **kwargs):
         '''Applies the transformation to the nodes provided.
 
         :param nodes: can be a single node, a schedule or a list of nodes.
         '''
-        super().apply(nodes, **kwargs)
+        super().apply(nodes, force_private=force_private, **kwargs)

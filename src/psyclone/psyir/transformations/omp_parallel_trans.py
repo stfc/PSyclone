@@ -40,6 +40,8 @@
 #          J. Dendy, Met Office
 '''This module provides the OMPParallelTrans transformation.'''
 
+from collections.abc import Iterable
+
 from psyclone import psyGen
 from psyclone.psyir.nodes import (
     ACCDirective,
@@ -130,14 +132,14 @@ class OMPParallelTrans(ParallelRegionTrans):
         # TODO #2668: Remove options.
         super().validate(nodes, options, **kwargs)
 
-    def apply(self, nodes: list[Node], options=None, **kwargs):
+    def apply(self, nodes: list[Node], options=None, force_private: Iterable[str] = (), **kwargs):
         '''
         Surrounds the provided node list with an OpenMP Parallel region.
 
         :param nodes: list of Nodes to put within parallel region.
         '''
         # TODO #2668: Remove options.
-        super().apply(nodes, options, **kwargs)
+        super().apply(nodes, options, force_private=force_private, **kwargs)
 
 
 __all__ = ["OMPParallelTrans"]

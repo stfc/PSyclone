@@ -36,6 +36,7 @@
 '''This module contains the MaximalRegionTrans.'''
 
 import abc
+from collections.abc import Iterable
 from typing import Union
 
 from psyclone.psyir.nodes import (
@@ -148,6 +149,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     def _compute_transformable_sections(
             self, node_list: list[Node],
             trans: Transformation,
+            force_private: Iterable[str] = (),
     ) -> list[list[Node]]:
         '''
         Computes the sections of the input node_list to apply the
@@ -168,7 +170,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                 # Check that validation still succeeds if we add this child
                 # to the current block.
                 try:
-                    trans.validate(current_block + [child])
+                    trans.validate(current_block + [child], force_private=force_private)
                     current_block.append(child)
                 except TransformationError:
                     # If validation now fails, then don't add this to the
@@ -210,7 +212,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         return all_blocks
 
-    def validate(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
+    def validate(self, nodes: Union[Node, Schedule, list[Node]], force_private: Iterable[str] = (), **kwargs):
         '''Validates whether this transformation can be applied to the
         nodes provided.
 
@@ -238,7 +240,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                     f"{prev_position}.")
             prev_position = child.position
 
-    def apply(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
+    def apply(self, nodes: Union[Node, Schedule, list[Node]], force_private: Iterable[str] = (), **kwargs):
         '''Applies the transformation to the nodes provided.
 
         :param nodes: can be a single node, a schedule or a list of nodes.
@@ -246,12 +248,12 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         node_list = self.get_node_list(nodes)
 
         # Call validate.
-        self.validate(nodes, **kwargs)
+        self.validate(nodes, force_private=force_private, **kwargs)
 
         par_trans = self._transformation()
 
-        all_blocks = self._compute_transformable_sections(node_list, par_trans)
+        all_blocks = self._compute_transformable_sections(node_list, par_trans, force_private=force_private)
 
         # Apply the transformation to all of the blocks found.
         for block in all_blocks:
-            par_trans.apply(block)
+            par_trans.apply(block, force_private=force_private, **kwargs)
