@@ -119,6 +119,14 @@ class ArrayReductionBaseTrans(Transformation, ABC):
                 f"disambiguate the arguments names in '{node.debug_string()}'"
             ) from err
 
+        # We can enter here with References to an array expression, which
+        # must be blocked.
+        if not node.walk(ArrayReference):
+            raise TransformationError(
+                f"Error in {self.name}. No ArrayReferences found in "
+                f"'{node.debug_string()}'."
+            )
+
         array_ref = node.argument_by_name("array")
         dim_ref = node.argument_by_name("dim")
 

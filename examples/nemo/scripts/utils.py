@@ -205,10 +205,6 @@ def normalise_loops(
     :param hoist_argument_expressions: whether to hoist array expressions
         out of the containing Call.
     '''
-    # TODO #3412: This is currently limited to iom_put, we want to expand it
-    # throughout the code
-    if hoist_argument_expressions:
-        iom_put_argument_to_temporary(schedule.walk(Call))
 
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
@@ -225,6 +221,9 @@ def normalise_loops(
                 Reference2ArrayRangeTrans().apply(reference)
             except TransformationError:
                 pass
+            except Exception as err:
+                print(reference, reference.parent.parent.debug_string())
+                raise err
 
     if loopify_array_intrinsics:
         for intr in schedule.walk(IntrinsicCall):
@@ -280,6 +279,21 @@ def normalise_loops(
                 except TransformationError:
                     pass
 
+    # TODO #3412: This is currently limited to iom_put, we want to expand it
+    # throughout the code
+    if hoist_argument_expressions:
+        iom_put_argument_to_temporary(schedule.walk(Call))
+        normalise_loops(
+        schedule,
+        hoist_local_arrays=hoist_local_arrays,
+        convert_array_notation=convert_array_notation,
+        loopify_array_intrinsics=loopify_array_intrinsics,
+        convert_range_loops=convert_range_loops,
+        scalarise_loops=scalarise_loops,
+        increase_array_ranks=False,
+        hoist_expressions=hoist_expressions,
+        hoist_argument_expressions=False, # Make sure we never repeat this.
+        )
     # TODO #1928: In order to perform better on the GPU, nested loops with two
     # sibling inner loops need to be fused or apply loop fission to the
     # top level. This would allow the collapse clause to be applied.

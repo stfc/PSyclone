@@ -231,7 +231,10 @@ class DataNodeToTempTrans(Transformation):
                 f"Statement node which is not supported."
             )
 
-        if isinstance(dtype, (UnresolvedType, UnsupportedFortranType)):
+        if (isinstance(dtype, (UnresolvedType, UnsupportedFortranType))
+                or (isinstance(dtype, ArrayType) and
+                    isinstance(dtype.elemental_type,
+                               (UnresolvedType, UnsupportedFortranType)))):
             failing_symbols = []
             symbols = node.get_all_accessed_symbols()
             for sym in symbols:
