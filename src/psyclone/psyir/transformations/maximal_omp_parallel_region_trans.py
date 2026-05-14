@@ -88,6 +88,9 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
     def apply(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
         '''Applies the transformation to the nodes provided.
 
+        In addition to its own keyword argument options, it also accepts any
+        options valid for :py:class:`OMPParallelTrans`
+
         :param nodes: can be a single node, a schedule or a list of nodes.
         '''
         super().apply(nodes, **kwargs)
