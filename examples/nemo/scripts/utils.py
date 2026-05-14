@@ -284,15 +284,16 @@ def normalise_loops(
     if hoist_argument_expressions:
         iom_put_argument_to_temporary(schedule.walk(Call))
         normalise_loops(
-        schedule,
-        hoist_local_arrays=hoist_local_arrays,
-        convert_array_notation=convert_array_notation,
-        loopify_array_intrinsics=loopify_array_intrinsics,
-        convert_range_loops=convert_range_loops,
-        scalarise_loops=scalarise_loops,
-        increase_array_ranks=False,
-        hoist_expressions=hoist_expressions,
-        hoist_argument_expressions=False, # Make sure we never repeat this.
+            schedule,
+            hoist_local_arrays=hoist_local_arrays,
+            convert_array_notation=convert_array_notation,
+            loopify_array_intrinsics=loopify_array_intrinsics,
+            convert_range_loops=convert_range_loops,
+            scalarise_loops=scalarise_loops,
+            increase_array_ranks=False,
+            hoist_expressions=hoist_expressions,
+            # Make sure we never repeat this step.
+            hoist_argument_expressions=False,
         )
     # TODO #1928: In order to perform better on the GPU, nested loops with two
     # sibling inner loops need to be fused or apply loop fission to the
