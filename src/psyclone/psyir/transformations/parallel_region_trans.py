@@ -76,7 +76,10 @@ class ParallelRegionTrans(RegionTrans, ABC):
 
         '''
 
-    def _check_symbol_table_vars(self, region_node, force_private: Iterable[str] = ()):
+    def _check_symbol_table_vars(
+            self, region_node: RegionDirective,
+            force_private: Iterable[str] = ()
+        ) -> set[] :
         '''
         Check the symbol table of the provided region node contains the variable
         to be forcibly promoted. Return a set of explicitly_private_symbols.
@@ -163,7 +166,3 @@ class ParallelRegionTrans(RegionTrans, ABC):
         # of the first of these nodes
         node_parent.addchild(directive, index=node_position)
 
-        new_region_directive = nodes[0].ancestor(RegionDirective)
-        if force_private:
-            new_region_directive.explicitly_private_symbols.update(
-                self._check_symbol_table_vars(new_region_directive, force_private))
