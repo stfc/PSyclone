@@ -131,7 +131,7 @@ class ParallelRegionTrans(RegionTrans, ABC):
         # TODO #2668: Remove options.
         super().validate(node_list, options, **kwargs)
 
-    def apply(self, nodes: list[Node], **kwargs):
+    def apply(self, nodes: list[Node], options=None, **kwargs):
         # pylint: disable=arguments-renamed
         '''
         Apply this transformation to a subset of the nodes within a
