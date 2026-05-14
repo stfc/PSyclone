@@ -39,7 +39,7 @@
 #          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 #          J. Dendy, Met Office
 '''This module provides the OMPParallelTrans transformation.'''
-
+import logging
 from collections.abc import Iterable
 from psyclone import psyGen
 from psyclone.psyir.nodes import (
@@ -132,7 +132,10 @@ class OMPParallelTrans(ParallelRegionTrans):
         # TODO #2668: Remove options.
         super().validate(nodes, options, **kwargs)
 
-    def apply(self, nodes: list[Node], options=None, force_private: Iterable[str] = (), **kwargs):
+    def apply(
+            self, nodes: list[Node],
+            options=None, force_private: Iterable[str] = (),
+            **kwargs):
         '''
         Surrounds the provided node list with an OpenMP Parallel region.
 
@@ -141,9 +144,21 @@ class OMPParallelTrans(ParallelRegionTrans):
         # TODO #2668: Remove options.
         super().apply(nodes, options, **kwargs)
 
+        # Privatise the provided variables if they are found within the symbol
+        # table of the ancestor RegionDirective to the nodes which have just
+        # had a region spanned over.
         if force_private:
-            new_region_directive = nodes[0].ancestor(RegionDirective)
-            new_region_directive.explicitly_private_symbols.update(
-                super()._check_symbol_table_vars(new_region_directive, force_private))
+            new_region_directive = None
+            try:
+                new_region_directive = nodes[0].ancestor(RegionDirective)
+            except TypeError as err:
+                logging.warning(
+                    "Could not find an OMPParallelTrans ancestor as %", err)
+            if new_region_directive:
+                new_region_directive.explicitly_private_symbols.update(
+                    super()._check_symbol_table_vars(
+                        new_region_directive,
+                        force_private))
+
 
 __all__ = ["OMPParallelTrans"]
