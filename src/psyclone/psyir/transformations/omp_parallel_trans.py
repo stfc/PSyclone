@@ -144,12 +144,6 @@ class OMPParallelTrans(ParallelRegionTrans):
         # TODO #2668: Remove options.
         super().apply(nodes, options, **kwargs)
 
-        # if 'force_private' in kwargs.items():
-        #     force_private = kwargs.get("force_private")
-        # else:
-        #     force_private = None
-        #     
-        print(f"OMP Par kwargs: {kwargs}")
         # Privatise the provided variables if they are found within the symbol
         # table of the ancestor RegionDirective to the nodes which have just
         # had a region spanned over.

@@ -37,12 +37,7 @@
 '''This module contains the MaximalRegionTrans.'''
 
 import abc
-<<<<<<< HEAD
-from collections.abc import Iterable
-from typing import Union
-=======
 from typing import Union, Any
->>>>>>> 3432_split_and_propagate_kwargs
 
 from psyclone.psyir.nodes import (
     Node,
