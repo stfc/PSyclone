@@ -49,8 +49,8 @@ directives using PSyclone with the NEMO API. It is not intended to
 demonstrate how to obtain good performance.
 
 Since `tra_adv.F90` is instrumented for use with the dl_timer library,
-this library is also required. It is available from
-[bitbucket.org/apeg/dl_timer](https://github.com/stfc/dl_timer).
+this library is also required. It is available on
+[github](https://github.com/stfc/dl_timer).
 
 Once dl_timer has been downloaded, the supplied Makefile must be
 edited to supply the location of the library. The compiler and flags
