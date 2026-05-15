@@ -1,3 +1,9 @@
+   19) PR #3404 for 3403. Modernises the remaining runme examples.
+
+   18) PR #3410 towards #2668. Update more Transformations to use kwargs.
+
+   17) PR #3427. Preserve directive format casing.
+
    16) PR #3422 for #440. Updates tests to use the Fortran backend to generate
    GOLoops in test suite.
    

@@ -53,8 +53,10 @@ from psyclone.psyir.transformations.parallel_region_trans import (
     ParallelRegionTrans)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class OMPParallelTrans(ParallelRegionTrans):
     '''
     Create an OpenMP PARALLEL region by inserting directives. For
@@ -108,28 +110,34 @@ class OMPParallelTrans(ParallelRegionTrans):
         '''
         return "OMPParallelTrans"
 
-    def validate(self, node_list: list[Node], options=None):
+    def validate(self, nodes: list[Node], options=None, **kwargs):
         '''
         Perform OpenMP-specific validation checks.
 
-        :param node_list: list of Nodes to put within parallel region.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param nodes: list of Nodes to put within parallel region.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["node-type-check"]: this flag controls if the \
-                type of the nodes enclosed in the region should be tested \
-                to avoid using unsupported nodes inside a region.
 
         :raises TransformationError: if the target Nodes are already within \
                                      some OMP parallel region.
         '''
-        if node_list[0].ancestor(OMPDirective):
+        if nodes[0].ancestor(OMPDirective):
             raise TransformationError("Error in OMPParallel transformation:" +
                                       " cannot create an OpenMP PARALLEL " +
                                       "region within another OpenMP region.")
 
         # Now call the general validation checks
-        super().validate(node_list, options)
+        # TODO #2668: Remove options.
+        super().validate(nodes, options, **kwargs)
+
+    def apply(self, nodes: list[Node], options=None, **kwargs):
+        '''
+        Surrounds the provided node list with an OpenMP Parallel region.
+
+        :param nodes: list of Nodes to put within parallel region.
+        '''
+        # TODO #2668: Remove options.
+        super().apply(nodes, options, **kwargs)
 
     def apply(self, node_list, options=None):
         super().apply(node_list, options=options)

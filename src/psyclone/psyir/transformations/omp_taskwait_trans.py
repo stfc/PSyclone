@@ -38,17 +38,24 @@
 applied to an OMPParallelDirective to satisfy any task-based dependencies
 created by OpenMP Taskloops.'''
 
+import warnings
+
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import Loop, Schedule, \
-    OMPDoDirective, OMPTaskloopDirective, OMPSerialDirective, \
+from psyclone.psyir.nodes import (
+    Loop, Schedule,
+    OMPDoDirective, OMPTaskloopDirective, OMPSerialDirective,
     OMPTaskwaitDirective, OMPSingleDirective, OMPParallelDirective
-from psyclone.psyir.transformations.transformation_error import \
-        TransformationError
+)
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError
+)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class OMPTaskwaitTrans(Transformation):
     '''
     Adds zero or more OpenMP Taskwait directives to an OMP parallel region.
@@ -99,31 +106,29 @@ class OMPTaskwaitTrans(Transformation):
                 "region to satisfy 'OpenMP TASKLOOP' dependencies")
         return rval
 
-    def validate(self, node, options=None):
+    def validate(self, node: OMPParallelDirective, options=None, **kwargs):
         '''
         Validity checks for input arguments.
 
         :param node: the OMPParallelDirective node to validate.
-        :type node: :py:class:`psyclone.psyir.nodes.OMPParallelDirective`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["fail_on_no_taskloop"]:
-                indicating whether this should throw an error if no \
-                OMPTaskloop nodes are found in this tree. This can be \
-                safely disabled as if there are no Taskloop nodes the \
-                result of this transformation is valid OpenMP code. Default \
-                is True.
 
-        :raises TransformationError: If the supplied node is not an \
+        :raises TransformationError: If the supplied node is not an
                                      OMPParallelDirective
-        :raises TransformationError: If there are no OMPTaskloopDirective \
+        :raises TransformationError: If there are no OMPTaskloopDirective
                                      nodes in this tree.
-        :raises TransformationError: If taskloop dependencies can't be \
-                                     satisfied due to dependencies across \
+        :raises TransformationError: If taskloop dependencies can't be
+                                     satisfied due to dependencies across
                                      barrierless OpenMP Serial Regions.
         '''
-        fail_on_no_taskloop = True
-        if options is not None:
+        # TODO #2668: Remove options dict.
+        if options is None:
+            self.validate_options(**kwargs)
+            fail_on_no_taskloop = self.get_option("fail_on_no_taskloop",
+                                                  **kwargs)
+        else:
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
             fail_on_no_taskloop = options.get("fail_on_no_taskloop", True)
         # Check the supplied node is an OMPParallelDirective
         if not isinstance(node, nodes.OMPParallelDirective):
@@ -315,7 +320,7 @@ class OMPTaskwaitTrans(Transformation):
         :type taskloop_positions: list of int
         :param dependence_positions: positions of the taskloops' dependencies.
         :type dependence_positions: list of int
-        :param dependence_nodes: the nodes representing the forward \
+        :param dependence_nodes: the nodes representing the forward
                                  dependency of each taskloop node.
         :type dependence_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
@@ -366,7 +371,8 @@ class OMPTaskwaitTrans(Transformation):
                     break
         return dependence_positions, dependence_nodes
 
-    def apply(self, node, options=None):
+    def apply(self, node: OMPParallelDirective, options=None,
+              fail_on_no_taskloop: bool = True, **kwargs):
         '''
         Apply an OMPTaskwait Transformation to the supplied node
         (which must be an OMPParallelDirective). In the generated code this
@@ -384,19 +390,19 @@ class OMPTaskwaitTrans(Transformation):
           !$OMP END PARALLEL
 
         :param node: the node to which to apply the transformation.
-        :type node: :py:class:`psyclone.psyir.nodes.OMPParallelDirective`
-        :param options: a dictionary with options for transformations\
+        :param options: a dictionary with options for transformations
                         and validation.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["fail_on_no_taskloop"]:
-                indicating whether this should throw an error if no \
-                OMPTaskloop nodes are found in this tree. This can be \
-                safely disabled as if there are no Taskloop nodes the \
-                result of this transformation is valid OpenMP code. Default \
+        :param fail_on_no_taskloop:
+                indicating whether this should throw an error if no
+                OMPTaskloop nodes are found in this tree. This can be
+                safely disabled as if there are no Taskloop nodes the
+                result of this transformation is valid OpenMP code. Default
                 is True
 
         '''
-        self.validate(node, options=options)
+        self.validate(node, options=options,
+                      fail_on_no_taskloop=fail_on_no_taskloop, **kwargs)
 
         # Find all the OpenMP Single & Master regions
         task_regions = node.walk(OMPSerialDirective)
@@ -453,10 +459,11 @@ class OMPTaskwaitTrans(Transformation):
                     dependence_position[i] = forward_dep.abs_position
                     dependence_node[i] = forward_dep
             # Forward dependency positions are now computed for this region.
-            dependence_position, dependence_node = \
+            dependence_position, dependence_node = (
                 OMPTaskwaitTrans._eliminate_unneeded_dependencies(
                             taskloop_positions, dependence_position,
                             dependence_node)
+            )
             # dependence_position now contains only the required dependencies
             # to satisfy the full superset of dependencies. We can loop over
             # these by index, and if dependence_position[i] is not None then
