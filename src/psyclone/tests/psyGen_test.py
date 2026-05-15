@@ -228,6 +228,9 @@ def test_transformation_split_kwargs():
             assert test_option
             assert common_option
 
+        def validate(self, node, **kwargs):
+            self.validate_options(**kwargs)
+
     class Called2Trans(Transformation):
         ''' Transformation Example'''
         def apply(
@@ -247,6 +250,9 @@ def test_transformation_split_kwargs():
             assert test2_option
             assert common_option
 
+        def validate(self, node, **kwargs):
+            self.validate_options(**kwargs)
+
     class TestMetaTrans(Transformation):
         ''' MetaTrans Example'''
         _trans1 = Called1Trans
@@ -255,8 +261,8 @@ def test_transformation_split_kwargs():
 
         def validate(self, node, **kwargs):
             self_kwargs, tr1_kwargs, tr2_kwargs = self.split_kwargs(kwargs)
-            self._trans1().validate(node, tr1_kwargs)
-            self._trans2().validate(node, tr2_kwargs)
+            self._trans1().validate(node, **tr1_kwargs)
+            self._trans2().validate(node, **tr2_kwargs)
             self.validate_options(**self_kwargs)
 
             super().validate(node, **self_kwargs)
@@ -276,9 +282,10 @@ def test_transformation_split_kwargs():
                 node,
                 meta_option=meta_option,
                 **kwargs)
+            _, tr1_kwargs, tr2_kwargs = self.split_kwargs(kwargs)
 
-            self._trans1().apply(node, **kwargs)
-            self._trans2().apply(node, **kwargs)
+            self._trans1().apply(node, **tr1_kwargs)
+            self._trans2().apply(node, **tr2_kwargs)
 
             # Asserts to prove that the True value was propagated until here
             assert meta_option

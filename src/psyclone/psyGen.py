@@ -2369,7 +2369,8 @@ class Transformation(metaclass=abc.ABCMeta):
             transformation and every other transformation listed in the
             _SUB_TRANSFORMATIONS list. The first kwargs (the ones for itself)
             will also include any key that is not valid in any of the other
-            transformation (e.g. unsupported options).
+            transformation (this is done to ensure one of the validate_options
+            reports invalid options when those are provided).
         '''
         # The first kwargs starts with all the items
         first_dict = dict(kwargs)
