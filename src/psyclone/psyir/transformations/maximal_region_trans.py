@@ -223,7 +223,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                                      same parent and aren't consecutive.
         '''
 
-        self_kwargs, _ = self.split_kwargs(kwargs)
+        self_kwargs, _ = self.split_kwargs(**kwargs)
         self.validate_options(**self_kwargs)
         node_list = self.get_node_list(nodes)
 
@@ -251,7 +251,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         # Call validate.
         self.validate(nodes, **kwargs)
-        _, tr_kwargs = self.split_kwargs(kwargs)
+        _, tr_kwargs = self.split_kwargs(**kwargs)
 
         par_trans = self._transformation()
 
