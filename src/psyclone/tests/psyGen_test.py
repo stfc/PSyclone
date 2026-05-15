@@ -205,6 +205,111 @@ def test_transformation_get_options():
             "Valid options are '['valid']." in str(excinfo.value))
 
 
+def test_transformation_split_kwargs():
+    ''' Test that the kwargs can be split when they can be propagated to
+    multiple sub-transformations. '''
+
+    class Called1Trans(Transformation):
+        ''' Transformation Example'''
+        def apply(
+            self,
+            node,
+            test_option: bool = True,
+            common_option: bool = True,
+            **kwargs
+        ):
+            self.validate(
+                node,
+                test_option=test_option,
+                common_option=common_option,
+                **kwargs
+            )
+            # Asserts to prove that the True value was propagated until here
+            assert test_option
+            assert common_option
+
+        def validate(self, node, **kwargs):
+            self.validate_options(**kwargs)
+
+    class Called2Trans(Transformation):
+        ''' Transformation Example'''
+        def apply(
+            self,
+            node,
+            test2_option: bool = False,
+            common_option: bool = False,
+            **kwargs
+        ):
+            self.validate(
+                node,
+                test2_option=test2_option,
+                common_option=common_option,
+                **kwargs
+            )
+            # Asserts to prove that the True value was propagated until here
+            assert test2_option
+            assert common_option
+
+        def validate(self, node, **kwargs):
+            self.validate_options(**kwargs)
+
+    class TestMetaTrans(Transformation):
+        ''' MetaTrans Example'''
+        _trans1 = Called1Trans
+        _trans2 = Called2Trans
+        _SUB_TRANSFORMATIONS = [Called1Trans, Called2Trans]
+
+        def validate(self, node, **kwargs):
+            self_kwargs, tr1_kwargs, tr2_kwargs = self.split_kwargs(**kwargs)
+            self._trans1().validate(node, **tr1_kwargs)
+            self._trans2().validate(node, **tr2_kwargs)
+            self.validate_options(**self_kwargs)
+
+            super().validate(node, **self_kwargs)
+
+        def apply(
+            self,
+            node,
+            meta_option: bool = True,
+            common_option: bool = True,
+            **kwargs
+        ):
+            # If we want to consume it use it by name
+            self.validate(
+                node,
+                meta_option=meta_option,
+                common_option=common_option,
+                **kwargs)
+            _, tr1_kwargs, tr2_kwargs = self.split_kwargs(
+                meta_option=meta_option, common_option=common_option, **kwargs)
+
+            self._trans1().apply(node, **tr1_kwargs)
+            self._trans2().apply(node, **tr2_kwargs)
+
+            # Asserts to prove that the True value was propagated until here
+            assert meta_option
+            assert common_option
+
+    test = TestMetaTrans()
+    test.apply(Node(), meta_option=True, common_option=True,
+               test_option=True, test2_option=True)
+    test.validate(Node(), meta_option=True, common_option=True,
+                  test_option=True, test2_option=True)
+
+    with pytest.raises(ValueError) as err:
+        test.apply(Node(), invalid=True)
+    assert ("'TestMetaTrans' received invalid options ['invalid']. Valid "
+            "options are ['meta_option', 'common_option'] or any other "
+            "options supported in ['Called1Trans', 'Called2Trans']."
+            == str(err.value))
+    with pytest.raises(ValueError) as err:
+        test.validate(Node(), invalid=True)
+    assert ("'TestMetaTrans' received invalid options ['invalid']. Valid "
+            "options are ['meta_option', 'common_option'] or any other "
+            "options supported in ['Called1Trans', 'Called2Trans']."
+            == str(err.value))
+
+
 def test_transformation_apply_deprecation_message(capsys):
     '''Test that passing the options dict to the Transformation.apply
     function gets the expected deprecation message.'''
@@ -313,7 +418,7 @@ def test_transformation_validate_options():
     with pytest.raises(ValueError) as excinfo:
         instance.validate_options(not_valid=True)
     assert ("'TestTrans' received invalid options ['not_valid']. "
-            "Valid options are '['valid', 'options']." in str(excinfo.value))
+            "Valid options are ['valid', 'options']." in str(excinfo.value))
 
 
 # TransInfo class unit tests

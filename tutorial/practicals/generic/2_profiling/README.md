@@ -197,7 +197,7 @@ transformation script to perform finer-grained profiling.
    a different PSyData wrapper library. For CPU, the next step up from
    the 'simple_timing' library we have used so far is 'dl_timer' which
    is available from
-   [bitbucket](https://bitbucket.org/apeg/dl_timer/src/master/). You
+   [bitbucket](https://github.com/stfc/dl_timer/src/master/). You
    will need to obtain the source for this library:
    ```
    git clone https://github.com/stfc/dl_timer.git

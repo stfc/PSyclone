@@ -31,13 +31,18 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors A. B. G. Chalk, STFC Daresbury Lab
+# Author: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''This module contains the MaximalRegionTrans.'''
 
 import abc
+<<<<<<< HEAD
 from collections.abc import Iterable
 from typing import Union
+=======
+from typing import Union, Any
+>>>>>>> 3432_split_and_propagate_kwargs
 
 from psyclone.psyir.nodes import (
     Node,
@@ -149,6 +154,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     def _compute_transformable_sections(
             self, node_list: list[Node],
             trans: Transformation,
+            trans_kwargs: dict[str, Any]
     ) -> list[list[Node]]:
         '''
         Computes the sections of the input node_list to apply the
@@ -156,6 +162,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         :param node_list: The node_list passed into this Transformation.
         :param trans: The transformation applied to the regions found.
+        :param trans_kwargs: The kwargs applied to the transformation.
         :returns: The list of node_lists to apply this class'
             _transformation class to.
         '''
@@ -169,7 +176,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                 # Check that validation still succeeds if we add this child
                 # to the current block.
                 try:
-                    trans.validate(current_block + [child])
+                    trans.validate(current_block + [child], **trans_kwargs)
                     current_block.append(child)
                 except TransformationError:
                     # If validation now fails, then don't add this to the
@@ -190,17 +197,17 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                 # Need to recurse on some node types
                 if isinstance(child, IfBlock):
                     if_blocks = self._compute_transformable_sections(
-                            child.if_body, trans
+                            child.if_body, trans, trans_kwargs
                     )
                     all_blocks.extend(if_blocks)
                     if child.else_body:
                         else_blocks = self._compute_transformable_sections(
-                            child.else_body, trans
+                            child.else_body, trans, trans_kwargs
                         )
                         all_blocks.extend(else_blocks)
                 if isinstance(child, (Loop, WhileLoop)):
                     loop_blocks = self._compute_transformable_sections(
-                        child.loop_body, trans
+                        child.loop_body, trans, trans_kwargs
                     )
                     all_blocks.extend(loop_blocks)
         # If any nodes are left in the current block at the end of the
@@ -221,7 +228,8 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                                      same parent and aren't consecutive.
         '''
 
-        self.validate_options(**kwargs)
+        self_kwargs, _ = self.split_kwargs(**kwargs)
+        self.validate_options(**self_kwargs)
         node_list = self.get_node_list(nodes)
 
         node_parent = node_list[0].parent
@@ -251,10 +259,13 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         # Call validate.
         self.validate(nodes, **kwargs)
+        _, tr_kwargs = self.split_kwargs(**kwargs)
 
         par_trans = self._transformation()
-        all_blocks = self._compute_transformable_sections(node_list, par_trans)
+
+        all_blocks = self._compute_transformable_sections(
+            node_list, par_trans, tr_kwargs)
 
         # Apply the transformation to all of the blocks found.
         for block in all_blocks:
-            par_trans.apply(block, force_private=force_private)
+            par_trans.apply(block, **tr_kwargs)
