@@ -47,7 +47,8 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.transformations import (
     MaximalRegionTrans,
     TransformationError,
-    OMPParallelTrans
+    OMPParallelTrans,
+    OMPLoopTrans,
 )
 
 
@@ -342,3 +343,36 @@ def test_validation_failure_during_compute_transformable_sections(
     assert isinstance(routine.children[0], OMPParallelDirective)
     assert isinstance(routine.children[1], Assignment)
     assert isinstance(routine.children[2], OMPParallelDirective)
+
+
+def test_apply_force_private(fortran_reader):
+    '''Test the apply function of MaxParallelRegionTrans with force privates.'''
+    code = """subroutine x
+    integer :: i, ii, k, l, block
+    integer :: array_l(8)
+    block = 2
+    do ii = 1, 4
+        do k = 4, 1, -1
+            l = 0
+            do i = ii, min(ii+block -1, 4)
+                l = l + 1
+                array_l(l) = 1 + 2
+            end do
+        end do
+    end do
+    end subroutine x
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    loop_trans = OMPLoopTrans()
+    # Apply loop_trans to all the loops possible.
+    for loop in psyir.walk(Loop):
+        if loop.variable.name == "ii":
+            loop_trans.apply(loop, ignore_dependencies_for=["array_l"], nowait=True)
+    trans = MaxParTrans()
+    nodes = psyir.walk(Routine)[0].children[:]
+    mtrans.apply(nodes, force_private = ["array_l"])
+    assert len(psyir.walk(OMPParallelDirective)) == 1
+    pdir = psyir.walk(OMPParallelDirective)[0]
+    # All of the blocks here should be in the same ParallelDirective
+    for node in nodes:
+        assert node.parent.parent is pdir
