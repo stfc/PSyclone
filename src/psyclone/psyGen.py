@@ -2358,10 +2358,7 @@ class Transformation(metaclass=abc.ABCMeta):
         '''
         return type(self).__name__
 
-    def split_kwargs(
-        self,
-        kwargs: dict[str, Any],
-    ) -> tuple[dict[str, Any]]:
+    def split_kwargs(self, **kwargs) -> tuple[dict[str, Any]]:
         '''
         :param kwargs: the list of kwargs to split.
 
@@ -2387,7 +2384,7 @@ class Transformation(metaclass=abc.ABCMeta):
                     if key not in type(self).get_valid_options():
                         del first_dict[key]
 
-        return tuple([first_dict] + other_dicts)
+        return first_dict, *other_dicts
 
     @abc.abstractmethod
     def apply(self, node, options=None, **kwargs):

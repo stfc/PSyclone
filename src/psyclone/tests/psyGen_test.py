@@ -260,7 +260,7 @@ def test_transformation_split_kwargs():
         _SUB_TRANSFORMATIONS = [Called1Trans, Called2Trans]
 
         def validate(self, node, **kwargs):
-            self_kwargs, tr1_kwargs, tr2_kwargs = self.split_kwargs(kwargs)
+            self_kwargs, tr1_kwargs, tr2_kwargs = self.split_kwargs(**kwargs)
             self._trans1().validate(node, **tr1_kwargs)
             self._trans2().validate(node, **tr2_kwargs)
             self.validate_options(**self_kwargs)
@@ -274,15 +274,14 @@ def test_transformation_split_kwargs():
             common_option: bool = True,
             **kwargs
         ):
-            # If we want a keyword argument to not be exclusively consumed by
-            # this transformation and propagate it, put it back into kwargs
-            kwargs['common_option'] = common_option
             # If we want to consume it use it by name
             self.validate(
                 node,
                 meta_option=meta_option,
+                common_option=common_option,
                 **kwargs)
-            _, tr1_kwargs, tr2_kwargs = self.split_kwargs(kwargs)
+            _, tr1_kwargs, tr2_kwargs = self.split_kwargs(
+                meta_option=meta_option, common_option=common_option, **kwargs)
 
             self._trans1().apply(node, **tr1_kwargs)
             self._trans2().apply(node, **tr2_kwargs)
