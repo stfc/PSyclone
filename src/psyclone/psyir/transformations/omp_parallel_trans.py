@@ -137,11 +137,9 @@ class OMPParallelTrans(ParallelRegionTrans):
         :param nodes: list of Nodes to put within parallel region.
         '''
         # TODO #2668: Remove options.
-        super().apply(nodes, options, **kwargs)
+        super().apply(nodes, options=options, **kwargs)
 
-    def apply(self, node_list, options=None):
-        super().apply(node_list, options=options)
-        node_list = self.get_node_list(node_list)
+        node_list = self.get_node_list(nodes)
         node_list[0].ancestor(OMPParallelDirective,
                               include_self=True).generate_data_clauses()
 
