@@ -134,7 +134,7 @@ class OMPParallelTrans(ParallelRegionTrans):
 
     def apply(
             self, nodes: list[Node],
-            options=None,# force_private: Iterable[str] = (),
+            options=None, force_private: Iterable[str] = (),
             **kwargs):
         '''
         Surrounds the provided node list with an OpenMP Parallel region.
