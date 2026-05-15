@@ -343,7 +343,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         position = node.position
         super().apply(node, local_options, reduction_ops=red_ops, **kwargs)
         if self.omp_directive not in ["do", "loop"]:
-            node.ancestor((OMPParallelDoDirective, OMPDoDirective),
+            node.ancestor((OMPParallelDoDirective),
                           include_self=True).generate_data_clauses()
         # Add reduction clauses to the newly introduced directive
         directive = parent.children[position]
