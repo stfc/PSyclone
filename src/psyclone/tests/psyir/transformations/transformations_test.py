@@ -576,7 +576,7 @@ def test_omploop_trans_new_options(sample_psyir):
     with pytest.raises(ValueError) as excinfo:
         omplooptrans.apply(tree.walk(Loop)[0], fakeoption1=1, fakeoption2=2)
     assert ("'OMPLoopTrans' received invalid options ['fakeoption1', "
-            "'fakeoption2']. Valid options are '['node_type_check', "
+            "'fakeoption2']. Valid options are ['node_type_check', "
             "'verbose', 'collapse', 'force', 'ignore_dependencies_for', "
             "'privatise_arrays', 'sequential', 'nowait', 'reduction_ops', "
             "'force_private', 'options', 'reprod', 'enable_reductions']."
