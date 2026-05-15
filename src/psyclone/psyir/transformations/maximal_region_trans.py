@@ -249,7 +249,6 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
     def apply(
             self, nodes: Union[Node, Schedule, list[Node]],
-            #force_private: Iterable[str] = (),
             **kwargs):
         '''Applies the transformation to the nodes provided.
 
