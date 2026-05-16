@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     def get_files(
         directory: str, install_path: str, valid_suffixes: list[str]
-    ) -> list[tuple[str,list[str]]]:
+    ) -> list[tuple[str, list[str]]]:
         '''Utility routine that creates a list of 2-tuples, each consisting of
         the target installation directory and a list of files
         (specified relative to the project root directory).
