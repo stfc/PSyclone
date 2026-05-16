@@ -37,69 +37,16 @@
 #          I. Kavcic and P. Elson, Met Office
 #          J. Henrichs, Bureau of Meteorology
 
-"""Setup script. Used by easy_install and pip."""
+"""
+Setup script for PSyclone.
+Metadata and most configuration are now in pyproject.toml.
+This script is retained for the dynamic calculation of data_files.
+"""
 
 import os
-from setuptools import setup, find_packages
-
+from setuptools import setup
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-SRC_PATH = os.path.join(BASE_PATH, "src")
-PACKAGES = find_packages(where=SRC_PATH,
-                         exclude=["psyclone.tests",
-                                  "psyclone.tests.test_files",
-                                  "psyclone.tests.*"])
-
-NAME = 'PSyclone'
-AUTHOR = ('Rupert Ford, '
-          'Andrew Porter <andrew.porter@stfc.ac.uk>, '
-          'Sergi Siso <sergi.siso@stfc.ac.uk>, '
-          'Aidan Chalk <aidan.chalk@stfc.ac.uk>, '
-          'Joerg Henrichs <joerg.henrichs@bom.gov.au>')
-AUTHOR_EMAIL = 'andrew.porter@stfc.ac.uk'
-URL = 'https://github.com/stfc/psyclone'
-DOWNLOAD_URL = 'https://github.com/stfc/psyclone'
-DESCRIPTION = ('PSyclone - a source-to-source and DSL Fortran compiler for '
-               'HPC applications')
-LONG_DESCRIPTION = '''\
-PSyclone is a source-to-source Fortran compiler designed to programmatically
-optimise, parallelise and instrument HPC applications via user-provided
-transformation scripts. It also supports domain-specific language extensions
-to the Fortran language, which simplify the implementation of Finite Element/
-Volume/Difference codes.
-
-PSyclone is used by the UK Met Office in their new weather model, LFRic
-(https://www.metoffice.gov.uk/research/approach/modelling-systems/lfric), and
-by the NEMO ocean-modelling framework
-(https://sites.nemo-ocean.io/user-guide/psyclone.html).
-
-See https://github.com/stfc/psyclone for more information.
-'''
-LICENSE = 'OSI Approved :: BSD 3-Clause License'
-
-CLASSIFIERS = [
-    'Development Status :: 5 - Production/Stable',
-    'Environment :: Console',
-    'Intended Audience :: Developers',
-    'Intended Audience :: Science/Research',
-    'Natural Language :: English',
-    'Programming Language :: Fortran',
-    'Programming Language :: Python',
-    'Topic :: Scientific/Engineering',
-    'Topic :: Software Development',
-    'Topic :: Utilities',
-    'Operating System :: POSIX',
-    'Operating System :: Unix',
-    'Operating System :: MacOS']
-
-# We read the version number ('__VERSION__') from version.py in the
-# src/psyclone directory. Rather than importing it (which would require
-# that PSyclone already be installed), we read it and then exec() it:
-BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py"),
-          encoding="utf-8") as vfile:
-    exec(vfile.read())  # pylint:disable=exec-used
-VERSION = __VERSION__  # pylint:disable=undefined-variable # noqa: F821
 
 if __name__ == '__main__':
 
@@ -157,40 +104,9 @@ if __name__ == '__main__':
     VALID_SUFFIXES = ["90", "sh", "py", "md", "Makefile", ".mk",
                       ".jinja", "doxyfile"]
     LIBS = get_files(LIBS_DIR, INSTALL_PATH, VALID_SUFFIXES)
-    TS_EXTRAS = ["tree-sitter", "tree-sitter-fortran"]
 
     setup(
-        name=NAME,
-        version=VERSION,
-        author=AUTHOR,
-        author_email=(AUTHOR_EMAIL),
-        license=LICENSE,
-        url=URL,
-        description=DESCRIPTION,
-        long_description=LONG_DESCRIPTION,
-        classifiers=CLASSIFIERS,
-        packages=PACKAGES,
-        package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser==0.2.2', 'configparser',
-                          'sympy', "Jinja2", 'termcolor', 'graphviz'],
-        # Have to pin Sphinx to a pre-9.0 version because of
-        # https://github.com/sphinx-doc/sphinx/issues/14223
-        extras_require={
-            'doc': ["sphinx<=8.3", "sphinxcontrib.bibtex", "sphinx_design",
-                    "pydata-sphinx-theme", "sphinx-autodoc-typehints",
-                    "autoapi"],
-            'test': [
-                    "flake8", "pylint", "pytest-cov", "pytest-xdist"
-                ] + TS_EXTRAS,
-            'treesitter': TS_EXTRAS,
-        },
-        include_package_data=True,
-        scripts=[
-            'bin/psyclone',
-            'bin/psyclone-kern',
-            'bin/psyad',
-            'bin/psyclonefc',
-        ],
         data_files=[
             ('share/psyclone',
-             ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL+LIBS,)
+             ['config/psyclone.cfg'])] + EXAMPLES + TUTORIAL + LIBS,
+    )

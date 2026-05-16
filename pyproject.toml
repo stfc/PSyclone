@@ -1,0 +1,111 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PSyclone"
+dynamic = ["version"]
+description = "PSyclone - a source-to-source and DSL Fortran compiler for HPC applications"
+readme = "README.md"
+authors = [
+    { name = "Rupert Ford" },
+    { name = "Andrew Porter", email = "andrew.porter@stfc.ac.uk" },
+    { name = "Sergi Siso", email = "sergi.siso@stfc.ac.uk" },
+    { name = "Aidan Chalk", email = "aidan.chalk@stfc.ac.uk" },
+    { name = "Joerg Henrichs", email = "joerg.henrichs@bom.gov.au" }
+]
+license = { text = "BSD 3-Clause License" }
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Programming Language :: Fortran",
+    "Programming Language :: Python",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development",
+    "Topic :: Utilities",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS"
+]
+dependencies = [
+    "pyparsing",
+    "fparser==0.2.2",
+    "configparser",
+    "sympy",
+    "Jinja2",
+    "termcolor",
+    "graphviz"
+]
+
+[project.optional-dependencies]
+doc = [
+    "sphinx<=8.3",
+    "sphinxcontrib.bibtex",
+    "sphinx_design",
+    "pydata-sphinx-theme",
+    "sphinx-autodoc-typehints",
+    "autoapi"
+]
+test = [
+    "flake8",
+    "flake8-pyproject",
+    "pylint",
+    "pytest-cov",
+    "pytest-xdist",
+    "tree-sitter",
+    "tree-sitter-fortran"
+]
+treesitter = [
+    "tree-sitter",
+    "tree-sitter-fortran"
+]
+
+[project.urls]
+Homepage = "https://github.com/stfc/psyclone"
+Download = "https://github.com/stfc/psyclone"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+script-files = [
+    "bin/psyclone",
+    "bin/psyclone-kern",
+    "bin/psyad",
+    "bin/psyclonefc"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["psyclone.tests", "psyclone.tests.*"]
+
+[tool.setuptools.dynamic]
+version = { attr = "psyclone.version.__VERSION__" }
+
+[tool.pytest.ini_options]
+xfail_strict = true
+addopts = "--ignore=external -p no:pep8"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.flake8]
+# Ignore E266 too many leading '#' for block comment since we use those for
+# Doxygen markup.
+extend-ignore = "E266"
+# List of files and directories to exclude. Note we also ignore specific
+# errors on specific lines with # noqa: <error> in a few other files.
+exclude = [
+    ".git",
+    "__pycache__",
+    "conf.py",
+    "__init__.py",
+    "tutorial/practicals/LFRic/single_node/1_openmp/omp_script.py",
+    "tutorial/practicals/LFRic/single_node/2_openacc/acc_parallel.py",
+    "tutorial/practicals/generic/2_profiling/profile_trans.py",
+    "tutorial/practicals/generic/3_openmp/omp_trans.py",
+    "tutorial/practicals/generic/4_openacc/kernels_trans.py",
+    "examples/nemo/eg4/dawn_script.py",
+    "external",
+    "build"
+]
