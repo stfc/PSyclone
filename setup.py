@@ -38,7 +38,6 @@
 #          J. Henrichs, Bureau of Meteorology
 
 """
-Setup script for PSyclone.
 Metadata and most configuration are now in pyproject.toml.
 This script is retained for the dynamic calculation of data_files.
 """
@@ -50,20 +49,20 @@ BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 if __name__ == '__main__':
 
-    def get_files(directory, install_path, valid_suffixes):
+    def get_files(
+        directory: str, install_path: str, valid_suffixes: list[str]
+    ) -> list[tuple[str,list[str]]]:
         '''Utility routine that creates a list of 2-tuples, each consisting of
         the target installation directory and a list of files
         (specified relative to the project root directory).
 
-        :param str directory: the directory containing the required files.
-        :param str install_path: the location where the files will be placed.
+        :param directory: the directory containing the required files.
+        :param install_path: the location where the files will be placed.
         :param valid_suffixes: the suffixes of the required files.
-        :type valid_suffixes: [str]
 
-        :returns: a list of 2-tuples, each consisting of the target \
-            installation directory and a list of files (specified relative \
+        :returns: a list of 2-tuples, each consisting of the target
+            installation directory and a list of files (specified relative
             to the project root directory).
-        :rtype: [(str, [str])]
 
         '''
         examples = []
@@ -82,9 +81,6 @@ if __name__ == '__main__':
                                      files))
         return examples
 
-    # We have all of the example, tutorial and wrapper libraries files
-    # listed in MANIFEST.in but unless we specify them in the data_files
-    # argument of setup() they don't seem to get installed.
     # Since the data_files argument doesn't accept wildcards we have to
     # explicitly list every file we want.
     # INSTALL_PATH controls where the files will be installed.
