@@ -2344,6 +2344,11 @@ class Transformation(metaclass=abc.ABCMeta):
         "User guide for more details."
     )
 
+    #: List of transformations called inside this one that need to be
+    #: considered by the split_kwargs infrastructure when propagating
+    #: transformation options
+    _SUB_TRANSFORMATIONS = []
+
     @property
     def name(self):
         '''
@@ -2352,6 +2357,34 @@ class Transformation(metaclass=abc.ABCMeta):
 
         '''
         return type(self).__name__
+
+    def split_kwargs(self, **kwargs) -> tuple[dict[str, Any]]:
+        '''
+        :param kwargs: the list of kwargs to split.
+
+        :returns: a tuple of the kwargs dictionaries that are valid for this
+            transformation and every other transformation listed in the
+            _SUB_TRANSFORMATIONS list. The first kwargs (the ones for itself)
+            will also include any key that is not valid in any of the other
+            transformation (this is done to ensure one of the validate_options
+            reports invalid options when those are provided).
+        '''
+        # The first kwargs starts with all the items
+        first_dict = dict(kwargs)
+        # The following kwargs start empty
+        other_dicts = [{} for _ in self._SUB_TRANSFORMATIONS]
+
+        # Now copy each valid item into the transformation-specific kwargs
+        # and delete them from the first one if they are valid somewhere
+        # else but not in the self options
+        for key in kwargs:
+            for idx, trans in enumerate(self._SUB_TRANSFORMATIONS):
+                if key in trans.get_valid_options():
+                    other_dicts[idx][key] = kwargs[key]
+                    if key not in type(self).get_valid_options():
+                        del first_dict[key]
+
+        return first_dict, *other_dicts
 
     @abc.abstractmethod
     def apply(self, node, options=None, **kwargs):
@@ -2509,10 +2542,18 @@ class Transformation(metaclass=abc.ABCMeta):
             for invalid in invalid_options:
                 invalid_options_detail.append(f"'{invalid}'")
             invalid_options_list = ", ".join(invalid_options_detail)
+            extra_options = ""
+            if self._SUB_TRANSFORMATIONS:
+                sub_trans_names = [
+                    tr.__name__ for tr in self._SUB_TRANSFORMATIONS
+                ]
+                extra_options = (
+                    f" or any other options supported in {sub_trans_names}"
+                )
             raise ValueError(f"'{type(self).__name__}' received invalid "
                              f"options [{invalid_options_list}]. "
                              f"Valid options are "
-                             f"'{list(valid_options.keys())}.")
+                             f"{list(valid_options.keys())}{extra_options}.")
         if len(wrong_types.keys()) > 0:
             wrong_types_detail = []
             for name in wrong_types.keys():
