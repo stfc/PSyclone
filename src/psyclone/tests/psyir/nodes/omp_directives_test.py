@@ -63,9 +63,8 @@ from psyclone.psyir.nodes import (
     StructureReference, IfBlock, OMPTeamsLoopDirective, OMPBarrierDirective,
     AtomicDirectiveType, OMPCriticalDirective)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
-    REAL_TYPE, DataTypeSymbol)
+    DataSymbol, ScalarType, SymbolTable, ArrayType, RoutineSymbol, Symbol,
+    StructureType, DataTypeSymbol)
 from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.transformations.omp_taskloop_trans import OMPTaskloopTrans
@@ -119,7 +118,7 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
     # upwards signal when changed, or not store them at all.
     new_loop = pdir.children[0].children[0].children[0].children[0].copy()
     # Change the loop variable to j
-    jvar = DataSymbol("j", INTEGER_SINGLE_TYPE)
+    jvar = DataSymbol("j", ScalarType.integer_single_type())
     new_loop.variable = jvar
     # Add loop
     pdir.children[0].addchild(new_loop)
@@ -204,9 +203,9 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch, caplog):
     # If the code inside the region changes after lowering, the next lowering
     # will update the clauses appropriately
     routine = pdir.ancestor(Routine)
-    routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
+    routine.symbol_table.add(DataSymbol("k", ScalarType.integer_single_type()))
     # Change the loop variable to j
-    jvar = DataSymbol("k", INTEGER_SINGLE_TYPE)
+    jvar = DataSymbol("k", ScalarType.integer_single_type())
     pdir.children[0].children[0].variable = jvar
 
     # Change the schedule
@@ -433,10 +432,10 @@ def test_omp_do_directive_validate_global_constraints(fortran_reader,
 
 def test_omp_parallel_do_create():
     ''' Test the OMPParallelDoDirective create method. '''
-    loop = Loop.create(DataSymbol("i", INTEGER_SINGLE_TYPE),
-                       Literal("1", INTEGER_SINGLE_TYPE),
-                       Literal("10", INTEGER_SINGLE_TYPE),
-                       Literal("1", INTEGER_SINGLE_TYPE),
+    loop = Loop.create(DataSymbol("i", ScalarType.integer_single_type()),
+                       Literal("1", ScalarType.integer_single_type()),
+                       Literal("10", ScalarType.integer_single_type()),
+                       Literal("1", ScalarType.integer_single_type()),
                        [])
     children = [loop]
     directive = OMPParallelDoDirective.create(children=children, collapse=2)
@@ -481,15 +480,15 @@ def test_ompdo_equality():
     # for their equality to be True
     symboltable = SymbolTable()
     # Set up the symbols
-    tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
-    i_sym = DataSymbol("i", REAL_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.real_single_type())
+    i_sym = DataSymbol("i", ScalarType.real_single_type())
 
     # Create two equal loops
-    loop_sym = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    loop_sym = DataSymbol("i", ScalarType.integer_single_type())
     sched1 = Schedule(symbol_table=symboltable)
-    start = Literal("0", INTEGER_SINGLE_TYPE)
-    stop = Literal("1", INTEGER_SINGLE_TYPE)
-    step = Literal("1", INTEGER_SINGLE_TYPE)
+    start = Literal("0", ScalarType.integer_single_type())
+    stop = Literal("1", ScalarType.integer_single_type())
+    step = Literal("1", ScalarType.integer_single_type())
     child_node = Assignment.create(
         Reference(tmp),
         Reference(i_sym))
@@ -1205,7 +1204,7 @@ def test_omp_single_validate_child():
     ''' Test the validate_child method of the OMPSingle class '''
     sched = Schedule()
     nowait = OMPNowaitClause()
-    lit = Literal("32", INTEGER_TYPE)
+    lit = Literal("32", ScalarType.integer_type())
     assert OMPSingleDirective._validate_child(0, sched) is True
     assert OMPSingleDirective._validate_child(1, nowait) is True
     assert OMPSingleDirective._validate_child(0, lit) is False
@@ -1385,10 +1384,12 @@ def test_omp_taskloop_validate_child():
     ''' Test the validate_child method of the OMPTaskloopDirective
     Class. '''
     sched = Schedule()
-    gsclause = OMPGrainsizeClause(children=[Literal("1", INTEGER_TYPE)])
-    ntclause = OMPNumTasksClause(children=[Literal("1", INTEGER_TYPE)])
+    gsclause = OMPGrainsizeClause(
+        children=[Literal("1", ScalarType.integer_type())])
+    ntclause = OMPNumTasksClause(
+        children=[Literal("1", ScalarType.integer_type())])
     ngclause = OMPNogroupClause()
-    lit = Literal("1", INTEGER_TYPE)
+    lit = Literal("1", ScalarType.integer_type())
     assert OMPTaskloopDirective._validate_child(0, sched) is True
     assert OMPTaskloopDirective._validate_child(1, gsclause) is True
     assert OMPTaskloopDirective._validate_child(1, ntclause) is True
@@ -1583,9 +1584,11 @@ def test_omp_loop_directive_validate_global_constraints():
             " schedule but found []." in str(err.value))
 
     # Check an OMPLoop attached to a non-loop statement
-    variable = schedule.symbol_table.new_symbol("i", symbol_type=DataSymbol,
-                                                datatype=INTEGER_TYPE)
-    stmt = Assignment.create(Reference(variable), Literal('4', INTEGER_TYPE))
+    variable = schedule.symbol_table.new_symbol(
+        "i", symbol_type=DataSymbol,
+        datatype=ScalarType.integer_type())
+    stmt = Assignment.create(
+        Reference(variable), Literal('4', ScalarType.integer_type()))
     omploop.dir_body.addchild(stmt)
     with pytest.raises(GenerationError) as err:
         omploop.validate_global_constraints()
@@ -1596,9 +1599,9 @@ def test_omp_loop_directive_validate_global_constraints():
     # region ancestor
     stmt.detach()
     loop = Loop.create(variable,
-                       Literal('1', INTEGER_TYPE),
-                       Literal('10', INTEGER_TYPE),
-                       Literal('1', INTEGER_TYPE),
+                       Literal('1', ScalarType.integer_type()),
+                       Literal('10', ScalarType.integer_type()),
+                       Literal('1', ScalarType.integer_type()),
                        [stmt])
     omploop.dir_body.addchild(loop)
     with pytest.raises(GenerationError) as err:
@@ -1634,15 +1637,15 @@ def test_omploop_equality():
     # for their equality to be True
     symboltable = SymbolTable()
     # Set up the symbols
-    tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
-    i_sym = DataSymbol("i", REAL_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.real_single_type())
+    i_sym = DataSymbol("i", ScalarType.real_single_type())
 
     # Create two equal loops
-    loop_sym = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    loop_sym = DataSymbol("i", ScalarType.integer_single_type())
     sched1 = Schedule(symbol_table=symboltable)
-    start = Literal("0", INTEGER_SINGLE_TYPE)
-    stop = Literal("1", INTEGER_SINGLE_TYPE)
-    step = Literal("1", INTEGER_SINGLE_TYPE)
+    start = Literal("0", ScalarType.integer_single_type())
+    stop = Literal("1", ScalarType.integer_single_type())
+    step = Literal("1", ScalarType.integer_single_type())
     child_node = Assignment.create(
         Reference(tmp),
         Reference(i_sym))
@@ -1842,10 +1845,10 @@ def test_omp_serial_valid_dependence_literals():
     Tests the _valid_dependence_literals function in OMPSerialDirective
     '''
     sing = OMPSingleDirective()
-    lit1 = Literal("0", INTEGER_SINGLE_TYPE)
-    lit2 = Literal("1", INTEGER_SINGLE_TYPE)
+    lit1 = Literal("0", ScalarType.integer_single_type())
+    lit2 = Literal("1", ScalarType.integer_single_type())
     assert sing._valid_dependence_literals(lit1, lit2) is True
-    tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.real_single_type())
     ref = Reference(tmp)
     assert sing._valid_dependence_literals(lit1, ref) is False
 
@@ -1855,10 +1858,10 @@ def test_omp_serial_valid_dependence_ranges():
     Tests the _valid_dependence_ranges function in OMPSerialDirective
     '''
     sing = OMPSingleDirective()
-    one = Literal("1", INTEGER_SINGLE_TYPE)
+    one = Literal("1", ScalarType.integer_single_type())
 
     # Create an ArrayType
-    array_type = ArrayType(INTEGER_SINGLE_TYPE, [100])
+    array_type = ArrayType(ScalarType.integer_single_type(), [100])
     tmp = DataSymbol("tmp", array_type)
     reference = Reference(tmp)
 
@@ -1912,11 +1915,11 @@ def test_omp_serial_compute_accesses_bad_binop():
     # Fail conditions 1-12 we can just test with only Ref as the input,
     # the others are a bit more complex.
     sing = OMPSingleDirective()
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
 
     binop_fail1 = BinaryOperation.create(
         BinaryOperation.Operator.MUL,
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
         Reference(tmp),
     )
 
@@ -1933,7 +1936,7 @@ def test_omp_serial_compute_accesses_bad_binop():
     binop_fail2 = BinaryOperation.create(
         BinaryOperation.Operator.MUL,
         Reference(tmp),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
     )
     with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(binop_fail2, [], None)
@@ -1946,8 +1949,8 @@ def test_omp_serial_compute_accesses_bad_binop():
 
     sub_binop1 = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
     )
     binop_fail3 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, sub_binop1.copy(), Reference(tmp)
@@ -1963,7 +1966,7 @@ def test_omp_serial_compute_accesses_bad_binop():
 
     sub_binop2 = BinaryOperation.create(
         BinaryOperation.Operator.MUL,
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
         Reference(tmp),
     )
     binop_fail4 = BinaryOperation.create(
@@ -1979,8 +1982,8 @@ def test_omp_serial_compute_accesses_bad_binop():
 
     sub_binop3 = BinaryOperation.create(
         BinaryOperation.Operator.MUL,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
     )
     binop_fail5 = BinaryOperation.create(
         BinaryOperation.Operator.SUB, sub_binop3, Reference(tmp)
@@ -2093,7 +2096,7 @@ def test_omp_serial_compute_accesses_other_fails():
     OMPSerialDirective
     '''
     sing = OMPSingleDirective()
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
     ref = Reference(tmp)
     # 13. If preceding_nodes contains a Call.
     # 14. If we have an access to a previous Loop variable that is not an
@@ -2105,7 +2108,7 @@ def test_omp_serial_compute_accesses_other_fails():
     correct_binop = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
         Reference(tmp),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
     )
 
     call_fail = Call.create(RoutineSymbol("mycall"))
@@ -2120,9 +2123,9 @@ def test_omp_serial_compute_accesses_other_fails():
     task = OMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("2", INTEGER_SINGLE_TYPE),
-        Literal("3", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("2", ScalarType.integer_single_type()),
+        Literal("3", ScalarType.integer_single_type()),
         [],
     )
     with pytest.raises(UnresolvedDependencyError) as excinfo:
@@ -2136,8 +2139,8 @@ def test_omp_serial_compute_accesses_other_fails():
     task2 = task.copy()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("2", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("2", ScalarType.integer_single_type()),
         ref.copy(),
         [task2],
     )
@@ -2150,7 +2153,8 @@ def test_omp_serial_compute_accesses_other_fails():
         in str(excinfo.value)
     )
 
-    assign = Assignment.create(ref.copy(), Literal("1", INTEGER_SINGLE_TYPE))
+    assign = Assignment.create(
+        ref.copy(), Literal("1", ScalarType.integer_single_type()))
     with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(correct_binop, [assign], task2)
     assert (
@@ -2174,22 +2178,22 @@ def test_omp_serial_compute_accesses_results():
     '''
     # First result output, BinaryOperation with all Literal Loop
     sing = OMPSingleDirective()
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
     ref = Reference(tmp)
     task = OMPTaskDirective()
     loop = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("64", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("64", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
 
     binop = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
         ref.copy(),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
     )
 
     res = sing._compute_accesses(binop, [loop], task)
@@ -2200,13 +2204,13 @@ def test_omp_serial_compute_accesses_results():
     assert res[1].value == "34"
 
     # Second result output, BinaryOperation with reference start Loop
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
     task = task.copy()
     loop = Loop.create(
         tmp,
         Reference(tmp2),
-        Literal("256", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("256", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
 
@@ -2248,9 +2252,9 @@ def test_omp_serial_compute_accesses_results():
     task = task.copy()
     loop = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
     res = sing._compute_accesses(Reference(tmp), [loop], task)
@@ -2268,15 +2272,15 @@ def test_omp_serial_compute_accesses_results():
     task = OMPTaskDirective()
     loop = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("64", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("64", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
 
     binop = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
         ref.copy(),
     )
     res = sing._compute_accesses(binop, [loop], task)
@@ -2289,16 +2293,16 @@ def test_omp_serial_compute_accesses_results():
     task = OMPTaskDirective()
     loop = Loop.create(
         tmp,
-        Literal("3", INTEGER_SINGLE_TYPE),
-        Literal("64", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("3", ScalarType.integer_single_type()),
+        Literal("64", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
 
     binop = BinaryOperation.create(
         BinaryOperation.Operator.SUB,
         ref.copy(),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
     )
 
     res = sing._compute_accesses(binop, [loop], task)
@@ -2312,14 +2316,14 @@ def test_omp_serial_compute_accesses_results():
     loop = Loop.create(
         tmp,
         Reference(tmp2),
-        Literal("1028", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1028", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
     binop = BinaryOperation.create(
         BinaryOperation.Operator.MUL,
-        Literal("3", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("3", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
     )
     binop2 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, binop, ref.copy()
@@ -2339,14 +2343,14 @@ def test_omp_serial_compute_accesses_results():
     loop = Loop.create(
         tmp,
         Reference(tmp2),
-        Literal("1028", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1028", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
     binop = BinaryOperation.create(
         BinaryOperation.Operator.MUL,
-        Literal("3", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("3", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
     )
     binop2 = BinaryOperation.create(
         BinaryOperation.Operator.SUB, ref.copy(), binop
@@ -2366,14 +2370,14 @@ def test_omp_serial_compute_accesses_results():
     loop = Loop.create(
         tmp,
         Reference(tmp2),
-        Literal("1028", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1028", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
     binop = BinaryOperation.create(
         BinaryOperation.Operator.MUL,
-        Literal("3", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("3", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
     )
     binop2 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, ref.copy(), binop
@@ -2393,21 +2397,21 @@ def test_omp_serial_compute_accesses_results():
     loop = Loop.create(
         tmp3,
         Reference(tmp2),
-        Literal("1028", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1028", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
     loop2 = Loop.create(
         tmp,
         Reference(tmp2),
-        Literal("1028", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1028", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [loop],
     )
     binop = BinaryOperation.create(
         BinaryOperation.Operator.MUL,
-        Literal("3", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("3", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
     )
     binop2 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, ref.copy(), binop
@@ -2430,9 +2434,9 @@ def test_omp_serial_valid_dependence_ref_binop_dict_cases():
     accesses is a dict.
     '''
     sing = OMPSingleDirective()
-    start = DataSymbol("start", INTEGER_SINGLE_TYPE)
-    stop = DataSymbol("stop", INTEGER_SINGLE_TYPE)
-    outer_var = DataSymbol("outvar", INTEGER_SINGLE_TYPE)
+    start = DataSymbol("start", ScalarType.integer_single_type())
+    stop = DataSymbol("stop", ScalarType.integer_single_type())
+    outer_var = DataSymbol("outvar", ScalarType.integer_single_type())
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
 
@@ -2442,14 +2446,14 @@ def test_omp_serial_valid_dependence_ref_binop_dict_cases():
         outer_var,
         Reference(start),
         Reference(stop),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
         [task]
     )
     Loop.create(
         outer_var,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2]
     )
     ref1 = Reference(outer_var)
@@ -2463,7 +2467,7 @@ def test_omp_serial_valid_dependence_ref_binop_dict_cases():
         outer_var,
         Reference(start),
         Reference(stop),
-        Literal("33", INTEGER_SINGLE_TYPE),
+        Literal("33", ScalarType.integer_single_type()),
         [task2]
     )
     assert (sing._valid_dependence_ref_binop(ref1, ref2, task, task2)
@@ -2477,10 +2481,10 @@ def test_omp_serial_valid_dependence_ref_binop_dict_cases():
         BinaryOperation.create(
             BinaryOperation.Operator.ADD,
             Reference(start),
-            Literal("16", INTEGER_SINGLE_TYPE)
+            Literal("16", ScalarType.integer_single_type())
         ),
         Reference(stop),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
         [task2]
     )
     assert (sing._valid_dependence_ref_binop(ref1, ref2, task, task2)
@@ -2494,12 +2498,12 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
 
     # Case when ref_accesses raises an error
     sing = OMPSingleDirective()
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
 
     binop_fail1 = BinaryOperation.create(
         BinaryOperation.Operator.MUL,
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
         Reference(tmp),
     )
     task = OMPTaskDirective()
@@ -2507,8 +2511,8 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
     Loop.create(
         tmp,
         Reference(tmp2),
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assert (sing._valid_dependence_ref_binop(binop_fail1, None, task2, task)
@@ -2518,28 +2522,28 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
     # and the other doesn't.
 
     sing = OMPSingleDirective()
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
     ref = Reference(tmp)
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
     binop = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
         ref.copy(),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
     )
     Loop.create(
         tmp,
         Reference(tmp2),
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     loop = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
 
@@ -2549,21 +2553,21 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
 
     ref2 = Reference(tmp2)
     task3 = OMPTaskDirective()
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
-    tmp4 = DataSymbol("tmp4", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
+    tmp4 = DataSymbol("tmp4", ScalarType.integer_single_type())
     Loop.create(
         tmp2,
         Reference(tmp3),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task3],
     )
     loop.children[3].pop_all_children()
     Loop.create(
         tmp,
         Reference(tmp4),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
     assert sing._valid_dependence_ref_binop(ref, ref2, task, task3) is False
@@ -2572,21 +2576,21 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
     task = OMPTaskDirective()
     Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
     binop = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
         ref.copy(),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
     )
     Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
 
@@ -2597,15 +2601,15 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
     Loop.create(
         tmp,
         Reference(tmp2),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
     Loop.create(
         tmp,
         Reference(tmp2),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
 
@@ -2617,29 +2621,29 @@ def test_omp_serial_valid_dependence_ref_binops():
     Test the _valid_dependence_ref_binops function of OMPSerialDirective.
     '''
     sing = OMPSingleDirective()
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
     ref = Reference(tmp)
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
 
     Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
     binop = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
         ref.copy(),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
     )
     Loop.create(
         tmp,
-        Literal("0", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("0", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
 
@@ -2649,21 +2653,21 @@ def test_omp_serial_valid_dependence_ref_binops():
     task2 = OMPTaskDirective()
     Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("16", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("16", ScalarType.integer_single_type()),
         [task],
     )
     binop = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
         ref.copy(),
-        Literal("16", INTEGER_SINGLE_TYPE),
+        Literal("16", ScalarType.integer_single_type()),
     )
     Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
 
@@ -2673,21 +2677,21 @@ def test_omp_serial_valid_dependence_ref_binops():
     task2 = OMPTaskDirective()
     Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
     binop = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
         ref.copy(),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
     )
     Loop.create(
         tmp,
-        Literal("129", INTEGER_SINGLE_TYPE),
-        Literal("256", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("129", ScalarType.integer_single_type()),
+        Literal("256", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
 
@@ -2698,15 +2702,15 @@ def test_omp_serial_valid_dependence_ref_binops():
     Loop.create(
         tmp,
         Reference(tmp2),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task],
     )
     Loop.create(
         tmp,
         Reference(tmp2),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     sing._valid_dependence_ref_binop(ref, ref.copy(), task, task2)
@@ -2745,9 +2749,9 @@ def test_omp_serial_validate_task_dependencies_outout():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    array_type = ArrayType(ScalarType.integer_single_type(), [128, 128])
     rval = DataSymbol("rval", array_type)
 
     subroutine.symbol_table.add(tmp)
@@ -2757,40 +2761,40 @@ def test_omp_serial_validate_task_dependencies_outout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
         ArrayReference.create(rval, [Reference(tmp), Reference(tmp)]),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
     )
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("64", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("64", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
         ArrayReference.create(rval, [Reference(tmp), Reference(tmp)]),
-        Literal("24", INTEGER_SINGLE_TYPE),
+        Literal("24", ScalarType.integer_single_type()),
     )
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
     sing.children[0].addchild(loop1)
@@ -2809,9 +2813,9 @@ def test_omp_serial_validate_task_dependencies_outout():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    rval = DataSymbol("rval", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    rval = DataSymbol("rval", ScalarType.integer_single_type())
 
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -2821,9 +2825,9 @@ def test_omp_serial_validate_task_dependencies_outout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -2835,17 +2839,17 @@ def test_omp_serial_validate_task_dependencies_outout():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -2857,8 +2861,8 @@ def test_omp_serial_validate_task_dependencies_outout():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
     sing.children[0].addchild(loop1)
@@ -2874,16 +2878,16 @@ def test_omp_serial_validate_task_dependencies_outout():
     # StructureType for Structure tests
     grid_type = StructureType.create(
         [
-            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
             (
                 "sub_grids",
-                ArrayType(INTEGER_TYPE, [3]),
+                ArrayType(ScalarType.integer_type(), [3]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
             (
                 "data",
-                ArrayType(REAL_TYPE, [128, 128]),
+                ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
@@ -2894,8 +2898,8 @@ def test_omp_serial_validate_task_dependencies_outout():
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -2907,9 +2911,9 @@ def test_omp_serial_validate_task_dependencies_outout():
     )
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
     do_dir.children[0].addchild(loop1)
@@ -2917,9 +2921,9 @@ def test_omp_serial_validate_task_dependencies_outout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -2928,17 +2932,17 @@ def test_omp_serial_validate_task_dependencies_outout():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -2947,8 +2951,8 @@ def test_omp_serial_validate_task_dependencies_outout():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -2970,8 +2974,8 @@ def test_omp_serial_validate_task_dependencies_outout():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -2980,9 +2984,9 @@ def test_omp_serial_validate_task_dependencies_outout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -2994,17 +2998,17 @@ def test_omp_serial_validate_task_dependencies_outout():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -3016,8 +3020,8 @@ def test_omp_serial_validate_task_dependencies_outout():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -3033,16 +3037,16 @@ def test_omp_serial_validate_task_dependencies_outout():
 
     # Check outout accesses to different structure member lengths
     sub_grid_type = StructureType.create(
-        [("array", ArrayType(REAL_TYPE, [128, 128]), Symbol.Visibility.PUBLIC,
-          None)]
+        [("array", ArrayType(ScalarType.real_type(), [128, 128]),
+          Symbol.Visibility.PUBLIC, None)]
     )
     grid_type = StructureType.create(
         [
-            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
             ("sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None),
             (
                 "data",
-                ArrayType(REAL_TYPE, [128, 128]),
+                ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
@@ -3053,9 +3057,9 @@ def test_omp_serial_validate_task_dependencies_outout():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -3065,9 +3069,9 @@ def test_omp_serial_validate_task_dependencies_outout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -3079,17 +3083,17 @@ def test_omp_serial_validate_task_dependencies_outout():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -3101,8 +3105,8 @@ def test_omp_serial_validate_task_dependencies_outout():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -3119,16 +3123,16 @@ def test_omp_serial_validate_task_dependencies_outout():
     # Check outout accesses to different structure members
     grid_type = StructureType.create(
         [
-            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
             (
                 "data2",
-                ArrayType(REAL_TYPE, [128, 128]),
+                ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
             (
                 "data",
-                ArrayType(REAL_TYPE, [128, 128]),
+                ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
@@ -3139,9 +3143,9 @@ def test_omp_serial_validate_task_dependencies_outout():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -3151,9 +3155,9 @@ def test_omp_serial_validate_task_dependencies_outout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -3165,17 +3169,17 @@ def test_omp_serial_validate_task_dependencies_outout():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -3187,8 +3191,8 @@ def test_omp_serial_validate_task_dependencies_outout():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -3207,9 +3211,9 @@ def test_omp_serial_validate_task_dependencies_outout():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -3219,46 +3223,48 @@ def test_omp_serial_validate_task_dependencies_outout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
         StructureReference.create(
             rval,
-            [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])],
+            [("data", [Literal("1", ScalarType.integer_single_type()),
+                       Reference(tmp2)])],
         ),
         Reference(tmp2),
     )
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp3),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
         StructureReference.create(
             rval,
-            [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])],
+            [("data", [Literal("1", ScalarType.integer_single_type()),
+                       Reference(tmp2)])],
         ),
         Reference(tmp2),
     )
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp3),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -3284,10 +3290,10 @@ def test_omp_serial_validate_task_dependencies_inout():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
-    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
+    array_type = ArrayType(ScalarType.integer_single_type(), [128, 128])
     rval = DataSymbol("rval", array_type)
 
     subroutine.symbol_table.add(tmp)
@@ -3298,9 +3304,9 @@ def test_omp_serial_validate_task_dependencies_inout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -3310,28 +3316,28 @@ def test_omp_serial_validate_task_dependencies_inout():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("64", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("64", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
         ArrayReference.create(rval, [Reference(tmp), Reference(tmp)]),
-        Literal("24", INTEGER_SINGLE_TYPE),
+        Literal("24", ScalarType.integer_single_type()),
     )
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
     sing.children[0].addchild(loop1)
@@ -3350,10 +3356,10 @@ def test_omp_serial_validate_task_dependencies_inout():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
-    rval = DataSymbol("rval", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
+    rval = DataSymbol("rval", ScalarType.integer_single_type())
 
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -3364,9 +3370,9 @@ def test_omp_serial_validate_task_dependencies_inout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -3378,17 +3384,17 @@ def test_omp_serial_validate_task_dependencies_inout():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -3400,8 +3406,8 @@ def test_omp_serial_validate_task_dependencies_inout():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
     sing.children[0].addchild(loop1)
@@ -3417,16 +3423,16 @@ def test_omp_serial_validate_task_dependencies_inout():
     # StructureType for Structure tests
     grid_type = StructureType.create(
         [
-            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
             (
                 "sub_grids",
-                ArrayType(INTEGER_TYPE, [3]),
+                ArrayType(ScalarType.integer_type(), [3]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
             (
                 "data",
-                ArrayType(REAL_TYPE, [128, 128]),
+                ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
@@ -3437,9 +3443,9 @@ def test_omp_serial_validate_task_dependencies_inout():
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -3452,9 +3458,9 @@ def test_omp_serial_validate_task_dependencies_inout():
     )
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
     do_dir.children[0].addchild(loop1)
@@ -3462,9 +3468,9 @@ def test_omp_serial_validate_task_dependencies_inout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -3473,17 +3479,17 @@ def test_omp_serial_validate_task_dependencies_inout():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -3492,8 +3498,8 @@ def test_omp_serial_validate_task_dependencies_inout():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -3515,9 +3521,9 @@ def test_omp_serial_validate_task_dependencies_inout():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -3527,9 +3533,9 @@ def test_omp_serial_validate_task_dependencies_inout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -3541,17 +3547,17 @@ def test_omp_serial_validate_task_dependencies_inout():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -3563,8 +3569,8 @@ def test_omp_serial_validate_task_dependencies_inout():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -3580,16 +3586,17 @@ def test_omp_serial_validate_task_dependencies_inout():
 
     # Check inout accesses to different structure member lengths
     sub_grid_type = StructureType.create(
-        [("array", ArrayType(REAL_TYPE, [128, 128]), Symbol.Visibility.PUBLIC,
+        [("array", ArrayType(ScalarType.real_type(), [128, 128]),
+          Symbol.Visibility.PUBLIC,
           None)]
     )
     grid_type = StructureType.create(
         [
-            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
             ("sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None),
             (
                 "data",
-                ArrayType(REAL_TYPE, [128, 128]),
+                ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
@@ -3600,9 +3607,9 @@ def test_omp_serial_validate_task_dependencies_inout():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -3612,9 +3619,9 @@ def test_omp_serial_validate_task_dependencies_inout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -3626,17 +3633,17 @@ def test_omp_serial_validate_task_dependencies_inout():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -3648,8 +3655,8 @@ def test_omp_serial_validate_task_dependencies_inout():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -3666,16 +3673,16 @@ def test_omp_serial_validate_task_dependencies_inout():
     # Check inout accesses to different structure members
     grid_type = StructureType.create(
         [
-            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
             (
                 "data2",
-                ArrayType(REAL_TYPE, [128, 128]),
+                ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
             (
                 "data",
-                ArrayType(REAL_TYPE, [128, 128]),
+                ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
@@ -3686,9 +3693,9 @@ def test_omp_serial_validate_task_dependencies_inout():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -3698,9 +3705,9 @@ def test_omp_serial_validate_task_dependencies_inout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -3712,17 +3719,17 @@ def test_omp_serial_validate_task_dependencies_inout():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -3734,8 +3741,8 @@ def test_omp_serial_validate_task_dependencies_inout():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -3755,10 +3762,10 @@ def test_omp_serial_validate_task_dependencies_inout():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
-    tmp4 = DataSymbol("tmp4", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
+    tmp4 = DataSymbol("tmp4", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -3769,46 +3776,48 @@ def test_omp_serial_validate_task_dependencies_inout():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
         Reference(tmp4),
         StructureReference.create(
             rval,
-            [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])],
+            [("data", [Literal("1", ScalarType.integer_single_type()),
+                       Reference(tmp2)])],
         ),
     )
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp3),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
         StructureReference.create(
             rval,
-            [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])],
+            [("data", [Literal("1", ScalarType.integer_single_type()),
+                       Reference(tmp2)])],
         ),
         Reference(tmp2),
     )
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp3),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -3834,10 +3843,10 @@ def test_omp_serial_validate_task_dependencies_outin():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
-    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
+    array_type = ArrayType(ScalarType.integer_single_type(), [128, 128])
     rval = DataSymbol("rval", array_type)
 
     subroutine.symbol_table.add(tmp)
@@ -3848,29 +3857,29 @@ def test_omp_serial_validate_task_dependencies_outin():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
         ArrayReference.create(rval, [Reference(tmp), Reference(tmp)]),
-        Literal("24", INTEGER_SINGLE_TYPE),
+        Literal("24", ScalarType.integer_single_type()),
     )
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("64", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("64", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -3880,8 +3889,8 @@ def test_omp_serial_validate_task_dependencies_outin():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
     sing.children[0].addchild(loop1)
@@ -3900,10 +3909,10 @@ def test_omp_serial_validate_task_dependencies_outin():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
-    rval = DataSymbol("rval", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
+    rval = DataSymbol("rval", ScalarType.integer_single_type())
 
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -3914,9 +3923,9 @@ def test_omp_serial_validate_task_dependencies_outin():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -3928,17 +3937,17 @@ def test_omp_serial_validate_task_dependencies_outin():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -3950,8 +3959,8 @@ def test_omp_serial_validate_task_dependencies_outin():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
     sing.children[0].addchild(loop1)
@@ -3967,16 +3976,16 @@ def test_omp_serial_validate_task_dependencies_outin():
     # StructureType for Structure tests
     grid_type = StructureType.create(
         [
-            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
             (
                 "sub_grids",
-                ArrayType(INTEGER_TYPE, [3]),
+                ArrayType(ScalarType.integer_type(), [3]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
             (
                 "data",
-                ArrayType(REAL_TYPE, [128, 128]),
+                ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
@@ -3987,9 +3996,9 @@ def test_omp_serial_validate_task_dependencies_outin():
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -4002,9 +4011,9 @@ def test_omp_serial_validate_task_dependencies_outin():
     )
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
     do_dir.children[0].addchild(loop1)
@@ -4012,9 +4021,9 @@ def test_omp_serial_validate_task_dependencies_outin():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -4023,17 +4032,17 @@ def test_omp_serial_validate_task_dependencies_outin():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -4042,8 +4051,8 @@ def test_omp_serial_validate_task_dependencies_outin():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -4065,9 +4074,9 @@ def test_omp_serial_validate_task_dependencies_outin():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -4077,9 +4086,9 @@ def test_omp_serial_validate_task_dependencies_outin():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -4091,17 +4100,17 @@ def test_omp_serial_validate_task_dependencies_outin():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -4113,8 +4122,8 @@ def test_omp_serial_validate_task_dependencies_outin():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -4130,16 +4139,17 @@ def test_omp_serial_validate_task_dependencies_outin():
 
     # Check outin accesses to different structure member lengths
     sub_grid_type = StructureType.create(
-        [("array", ArrayType(REAL_TYPE, [128, 128]), Symbol.Visibility.PUBLIC,
+        [("array", ArrayType(ScalarType.real_type(), [128, 128]),
+          Symbol.Visibility.PUBLIC,
           None)]
     )
     grid_type = StructureType.create(
         [
-            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
             ("sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None),
             (
                 "data",
-                ArrayType(REAL_TYPE, [128, 128]),
+                ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
@@ -4150,9 +4160,9 @@ def test_omp_serial_validate_task_dependencies_outin():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -4162,9 +4172,9 @@ def test_omp_serial_validate_task_dependencies_outin():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -4176,17 +4186,17 @@ def test_omp_serial_validate_task_dependencies_outin():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -4198,8 +4208,8 @@ def test_omp_serial_validate_task_dependencies_outin():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -4216,16 +4226,16 @@ def test_omp_serial_validate_task_dependencies_outin():
     # Check outin accesses to different structure members
     grid_type = StructureType.create(
         [
-            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
             (
                 "data2",
-                ArrayType(REAL_TYPE, [128, 128]),
+                ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
             (
                 "data",
-                ArrayType(REAL_TYPE, [128, 128]),
+                ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
@@ -4236,9 +4246,9 @@ def test_omp_serial_validate_task_dependencies_outin():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -4248,9 +4258,9 @@ def test_omp_serial_validate_task_dependencies_outin():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
@@ -4262,17 +4272,17 @@ def test_omp_serial_validate_task_dependencies_outin():
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
@@ -4284,8 +4294,8 @@ def test_omp_serial_validate_task_dependencies_outin():
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -4305,10 +4315,10 @@ def test_omp_serial_validate_task_dependencies_outin():
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
     parallel.children[0].addchild(sing)
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
-    tmp4 = DataSymbol("tmp4", INTEGER_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.integer_single_type())
+    tmp3 = DataSymbol("tmp3", ScalarType.integer_single_type())
+    tmp4 = DataSymbol("tmp4", ScalarType.integer_single_type())
     rval = DataSymbol("rval", grid_type)
     subroutine.symbol_table.add(tmp)
     subroutine.symbol_table.add(tmp2)
@@ -4319,46 +4329,48 @@ def test_omp_serial_validate_task_dependencies_outin():
     task1 = DynamicOMPTaskDirective()
     loop1 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task1],
     )
     assign1 = Assignment.create(
         StructureReference.create(
             rval,
-            [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])],
+            [("data", [Literal("1", ScalarType.integer_single_type()),
+                       Reference(tmp2)])],
         ),
         Reference(tmp2),
     )
     subloop1 = Loop.create(
         tmp2,
         Reference(tmp3),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign1],
     )
 
     task2 = DynamicOMPTaskDirective()
     loop2 = Loop.create(
         tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("128", ScalarType.integer_single_type()),
+        Literal("32", ScalarType.integer_single_type()),
         [task2],
     )
     assign2 = Assignment.create(
         Reference(tmp4),
         StructureReference.create(
             rval,
-            [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])],
+            [("data", [Literal("1", ScalarType.integer_single_type()),
+                       Reference(tmp2)])],
         ),
     )
     subloop2 = Loop.create(
         tmp2,
         Reference(tmp3),
-        Literal("32", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", ScalarType.integer_single_type()),
+        Literal("1", ScalarType.integer_single_type()),
         [assign2],
     )
 
@@ -4645,10 +4657,10 @@ def test_omp_serial_check_dependency_valid_pairing_edgecase():
     Tests the edge case where two Reference to the same symbol
     have different types returns False as expected.
     '''
-    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    array_type = ArrayType(ScalarType.integer_single_type(), [128, 128])
     rval = DataSymbol("rval", array_type)
     ref1 = Reference(rval)
-    one = Literal("1", INTEGER_SINGLE_TYPE)
+    one = Literal("1", ScalarType.integer_single_type())
     ref2 = ArrayReference.create(rval, [one.copy(), one.copy()])
 
     test_dir = OMPSingleDirective()
@@ -4663,20 +4675,21 @@ def test_omp_serial_check_dependency_valid_multiple_arraymixin():
     children.
     '''
     region_type = StructureType.create([
-        ("startx", ArrayType(REAL_TYPE, [10]), Symbol.Visibility.PUBLIC, None)
+        ("startx", ArrayType(ScalarType.real_type(), [10]),
+         Symbol.Visibility.PUBLIC, None)
     ])
     region_type_symbol = DataTypeSymbol("region_type", region_type)
     grid_type = StructureType.create([
-        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
         ("region", region_type_symbol, Symbol.Visibility.PRIVATE, None),
         ("sub_grids", ArrayType(region_type_symbol, [3]),
          Symbol.Visibility.PUBLIC, None),
-        ("data", ArrayType(REAL_TYPE, [10, 10]),
+        ("data", ArrayType(ScalarType.real_type(), [10, 10]),
          Symbol.Visibility.PUBLIC, None)])
     grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
     ssym = DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
-    two = Literal("2", INTEGER_SINGLE_TYPE)
+    two = Literal("2", ScalarType.integer_single_type())
     sref = StructureReference.create(
         ssym, [("sub_grids", [two.copy(), two.copy()]),
                ("startx", [two.copy()])]
@@ -4699,10 +4712,10 @@ def test_omp_serial_check_dependency_valid_pairing():
     '''
     # Check we use the valid_dependence_literals function to get
     # the correct answer for literal indices.
-    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    array_type = ArrayType(ScalarType.integer_single_type(), [128, 128])
     rval = DataSymbol("rval", array_type)
-    one = Literal("1", INTEGER_SINGLE_TYPE)
-    two = Literal("2", INTEGER_SINGLE_TYPE)
+    one = Literal("1", ScalarType.integer_single_type())
+    two = Literal("2", ScalarType.integer_single_type())
     ref1 = ArrayReference.create(rval, [one.copy(), one.copy()])
     ref2 = ArrayReference.create(rval, [two.copy(), two.copy()])
 
@@ -4711,7 +4724,7 @@ def test_omp_serial_check_dependency_valid_pairing():
 
     # Check we use the valid_dependence_ranges function to get the
     # correct answer for range indices.
-    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    array_type = ArrayType(ScalarType.integer_single_type(), [128, 128])
     rval = DataSymbol("rval", array_type)
     lbound = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.LBOUND,

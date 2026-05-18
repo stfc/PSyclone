@@ -49,8 +49,7 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.nodes import (
     Schedule, CodeBlock, Assignment, BinaryOperation, IfBlock, Routine, Return,
     Container)
-from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, Symbol)
+from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
 
 
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
@@ -143,9 +142,9 @@ def test_case_default():
     # present in the symbol table.
     symbols = []
     for idx in [1, 2, 3]:
-        symbols.append(DataSymbol(f"branch{idx}", INTEGER_TYPE))
+        symbols.append(DataSymbol(f"branch{idx}", ScalarType.integer_type()))
     for var_name in ["selector", "label1", "label2"]:
-        symbols.append(DataSymbol(var_name, INTEGER_TYPE))
+        symbols.append(DataSymbol(var_name, ScalarType.integer_type()))
 
     # Loop over the 3 possible locations for the 'default' clause
     for idx1, idx2, idx3 in [(0, 1, 2), (1, 0, 2), (1, 2, 0)]:
@@ -290,11 +289,11 @@ def test_handling_labelled_case_construct():
 
     fake_parent = Schedule()
     fake_parent.symbol_table.new_symbol("selector", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     fake_parent.symbol_table.new_symbol("pick_me", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     fake_parent.symbol_table.new_symbol("branch3", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2case_construct])
     assert len(fake_parent.children) == 1

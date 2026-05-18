@@ -52,7 +52,7 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, ScalarType, SymbolError)
+    DataSymbol, ScalarType, SymbolError)
 from psyclone.utils import transformation_documentation_wrapper
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -145,7 +145,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
             loop_variable_symbol = symbol_table.new_symbol(
                                         root_name="idx",
                                         symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
 
             # Replace one range for each top-level array expression in the
             # assignment

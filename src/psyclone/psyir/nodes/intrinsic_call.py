@@ -54,12 +54,6 @@ from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import IntrinsicSymbol, Symbol
 from psyclone.psyir.symbols.datatypes import (
-    CHARACTER_TYPE,
-    BOOLEAN_TYPE,
-    INTEGER_TYPE,
-    REAL_DOUBLE_TYPE,
-    REAL8_TYPE,
-    REAL_TYPE,
     DataType,
     ArrayType,
     ScalarType,
@@ -231,7 +225,7 @@ def _type_of_named_arg_with_optional_kind_and_dim(
                 Literal(
                     str(len(
                         arg.datatype.shape)),
-                    INTEGER_TYPE,
+                    ScalarType.integer_type(),
                 ),
             ],
         )
@@ -387,7 +381,7 @@ def _findloc_return_type(node: IntrinsicCall) -> DataType:
                 str(len(node.argument_by_name(
                             "array"
                         ).datatype.shape)),
-                INTEGER_TYPE,
+                ScalarType.integer_type(),
             ),
         ],
     )
@@ -414,7 +408,7 @@ def _int_return_type(node: IntrinsicCall) -> DataType:
             node.argument_by_name("kind").copy(),
         )
     else:
-        dtype = INTEGER_TYPE
+        dtype = ScalarType.integer_type()
 
     if not isinstance(node.argument_by_name("a").datatype, ArrayType):
         return dtype
@@ -478,7 +472,7 @@ def _get_bound_function_return_type(node: IntrinsicCall) -> DataType:
             node.argument_by_name("kind").copy(),
         )
     else:
-        dtype = INTEGER_TYPE
+        dtype = ScalarType.integer_type()
     # If "dim" is in the arguments, then return a Scalar.
     if "dim" in node.argument_names:
         return dtype
@@ -488,7 +482,7 @@ def _get_bound_function_return_type(node: IntrinsicCall) -> DataType:
         [
             Literal(
                 str(len(node.argument_by_name("array").datatype.shape)),
-                INTEGER_TYPE
+                ScalarType.integer_type()
             ),
         ],
     )
@@ -531,25 +525,25 @@ def _matmul_return_type(node: IntrinsicCall) -> DataType:
         extent = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.SIZE,
             [node.argument_by_name("matrix_b").copy(),
-             ("dim", Literal("1", INTEGER_TYPE))])
+             ("dim", Literal("1", ScalarType.integer_type()))])
         shape = [extent]
     # Matrix-vector case.
     elif len(shape2) == 1:
         extent = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.SIZE,
             [node.argument_by_name("matrix_a").copy(),
-             ("dim", Literal("1", INTEGER_TYPE))])
+             ("dim", Literal("1", ScalarType.integer_type()))])
         shape = [extent]
     else:
         # matrix-matrix. Result is size(arg0, 1) x size(arg1, 2)
         extent1 = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.SIZE,
             [node.argument_by_name("matrix_a").copy(),
-             ("dim", Literal("1", INTEGER_TYPE))])
+             ("dim", Literal("1", ScalarType.integer_type()))])
         extent2 = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.SIZE,
             [node.argument_by_name("matrix_b").copy(),
-             ("dim", Literal("2", INTEGER_TYPE))])
+             ("dim", Literal("2", ScalarType.integer_type()))])
         shape = [extent1, extent2]
     return ArrayType(stype, shape)
 
@@ -745,7 +739,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i",),)),
             optional_args={"kind": DataNode},
-            return_type=CHARACTER_TYPE,
+            return_type=ScalarType.character_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node, constant_named_args=["kind"]
@@ -907,7 +901,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("",),)),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -1010,7 +1004,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("pointer",),)),
             optional_args={"target": DataNode},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -1472,7 +1466,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "j"),)),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -1490,7 +1484,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "j"),)),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -1508,7 +1502,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -1527,7 +1521,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "j"),)),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -1545,7 +1539,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "j"),)),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -1563,7 +1557,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i", "pos"),)),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -1603,7 +1597,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i",),)),
             optional_args={"kind": DataNode},
-            return_type=CHARACTER_TYPE,
+            return_type=ScalarType.character_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node, constant_named_args=["kind"]
@@ -1760,7 +1754,7 @@ class IntrinsicCall(Call):
                 types=None,
                 arg_names=()),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: VariablesAccessMap(),
         )
         CONJG = IAttr(
@@ -1947,7 +1941,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("a",),)),
             optional_args={},
-            return_type=REAL_DOUBLE_TYPE,
+            return_type=ScalarType.real_double_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -1965,7 +1959,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -2023,7 +2017,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x", "y"),)),
             optional_args={},
-            return_type=REAL8_TYPE,
+            return_type=ScalarType.real8_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -2253,7 +2247,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -2271,7 +2265,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("a", "mold"),)),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -2340,7 +2334,7 @@ class IntrinsicCall(Call):
                 # (e.g. nvfortran) can handle a keyword argument.
                 arg_names=(("",),)),
             optional_args={},
-            return_type=REAL_TYPE,
+            return_type=ScalarType.real_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -2753,7 +2747,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -2771,7 +2765,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("image",),)),
             optional_args={"team": DataNode},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -2876,7 +2870,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("array",),)),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -2895,7 +2889,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i",),)),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -2913,7 +2907,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i",),)),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -2967,7 +2961,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -3028,7 +3022,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -3091,7 +3085,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string_a", "string_b"),)
             ),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -3110,7 +3104,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string_a", "string_b"),)
             ),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -3129,7 +3123,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string_a", "string_b"),)
             ),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -3148,7 +3142,7 @@ class IntrinsicCall(Call):
                 arg_names=(("string_a", "string_b"),)
             ),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -3328,7 +3322,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -3457,7 +3451,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -3625,7 +3619,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("c"),)),
             optional_args={},
-            return_type=CHARACTER_TYPE,
+            return_type=ScalarType.character_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -3644,7 +3638,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("a",),)),
             optional_args={"kind": DataNode},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node, constant_named_args=["kind"]
@@ -3731,7 +3725,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -3749,7 +3743,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x", "mold",),)),
             optional_args={"round": DataNode},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -3814,7 +3808,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -3832,7 +3826,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -3850,7 +3844,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -3869,7 +3863,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("a",),)),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -3915,7 +3909,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -3992,7 +3986,7 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=(("x",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -4011,7 +4005,7 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=(("a",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -4081,7 +4075,7 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=(("string", "ncopies"),)),
             optional_args={},
-            return_type=CHARACTER_TYPE,
+            return_type=ScalarType.character_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -4137,7 +4131,7 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=(("a", "b"),)),
             optional_args={},
-            return_type=BOOLEAN_TYPE,
+            return_type=ScalarType.boolean_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node,
@@ -4196,7 +4190,7 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=(("name",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -4214,7 +4208,7 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=(("r",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -4232,7 +4226,7 @@ class IntrinsicCall(Call):
                 types=Reference,
                 arg_names=()),
             optional_args={"p": DataNode, "r": DataNode, "radix": DataNode},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -4276,7 +4270,7 @@ class IntrinsicCall(Call):
                      node.argument_by_name("kind").copy())),
                     [Literal(str(len(
                         node.argument_by_name("source").datatype.shape)),
-                            INTEGER_TYPE)])
+                            ScalarType.integer_type())])
             ),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
@@ -4632,7 +4626,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=()),
             optional_args={"team": DataNode},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -4697,7 +4691,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("i",),)),
             optional_args={},
-            return_type=INTEGER_TYPE,
+            return_type=ScalarType.integer_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -4767,7 +4761,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("string",),)),
             optional_args={},
-            return_type=CHARACTER_TYPE,
+            return_type=ScalarType.character_type(),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node

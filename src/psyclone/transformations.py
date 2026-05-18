@@ -73,7 +73,7 @@ from psyclone.psyir.nodes.omp_directives import OMPDirective
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
+    ArgumentInterface, DataSymbol, ScalarType, Symbol,
     SymbolError, UnresolvedType)
 from psyclone.psyir.transformations.callee_transformation_mixin import (
     CalleeTransformationMixin)
@@ -1492,7 +1492,7 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
             # and is unused within the kernel body.
             orig_name = symbol.name
             new_name = symbol_table.next_available_name(f"{orig_name}_dummy")
-            local_symbol = DataSymbol(new_name, INTEGER_TYPE,
+            local_symbol = DataSymbol(new_name, ScalarType.integer_type(),
                                       is_constant=True, initial_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
